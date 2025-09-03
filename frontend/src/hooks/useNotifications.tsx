@@ -11,7 +11,7 @@ import {
 } from 'react';
 import axios, { type AxiosRequestHeaders } from 'axios';
 import toast from 'react-hot-toast';
-import useWebSocket from './useWebSocket';
+import useRealtime from './useRealtime';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Notification, UnifiedNotification } from '@/types';
 import { toUnifiedFromNotification } from './notificationUtils';
@@ -101,47 +101,24 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [fetchNotifications, token]);
 
-  // Build the WebSocket URL including the API prefix so it matches
-  // the FastAPI router mounted at `/api/v1`.
-  const wsHost =
-    process.env.NEXT_PUBLIC_WS_URL ||
-    process.env.NEXT_PUBLIC_API_URL!.replace(/^http/, 'ws');
-  const wsUrl = token
-    ? `${wsHost}/api/v1/ws/notifications?token=${encodeURIComponent(token)}`
-    : null;
+  const { subscribe, publish } = useRealtime(token || undefined);
 
-  const { send, onMessage } = useWebSocket(wsUrl);
-
-  const handleMessage = useCallback(
-    (event: MessageEvent) => {
+  useEffect(() => {
+    if (!token) return;
+    const unsub = subscribe('notifications', (data) => {
       try {
-        const data = JSON.parse(event.data) as { type?: string } & Partial<Notification>;
-        if (data.type === 'ping') {
-          send(JSON.stringify({ type: 'pong' }));
-          return;
-        }
-        if (data.type === 'reconnect') {
-          return;
-        }
-        if (!data.id || !data.timestamp) {
-          return;
-        }
+        if (data.type === 'reconnect' || data.type === 'ping') return;
+        if (!data.id || !data.timestamp) return;
         const newNotif: Notification = { ...(data as Notification), is_read: false };
         setNotifications((prev) => [newNotif, ...prev]);
         setUnreadCount((c) => c + 1);
-        try {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('threads:updated'));
-          }
-        } catch {}
+        try { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('threads:updated')); } catch {}
       } catch (e) {
-        console.error('Failed to parse notification message', e);
+        console.error('Failed to handle notification message', e);
       }
-    },
-    [send],
-  );
-
-  useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
+    });
+    return () => { try { unsub(); } catch {} };
+  }, [subscribe, token]);
 
   const markAsRead = useCallback(async (id: number) => {
     // 1) optimistic update

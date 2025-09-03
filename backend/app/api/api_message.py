@@ -450,6 +450,13 @@ def delete_message(
             {"message_id": "delete_failed"},
             status.HTTP_400_BAD_REQUEST,
         )
+    # Broadcast a minimal deletion event to the thread so other participants
+    # can update their UI immediately.
+    try:
+        manager.broadcast(request_id, {"v": 1, "type": "message_deleted", "id": message_id})
+    except Exception:
+        # Best-effort only; deletion is already persisted.
+        pass
     # No content response
     return
 
@@ -516,7 +523,7 @@ def add_reaction(
     crud.crud_message_reaction.add_reaction(db, message_id, current_user.id, payload.emoji)
     # Broadcast minimal reaction update
     try:
-        data = {"type": "reaction_added", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
+        data = {"v": 1, "type": "reaction_added", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
         manager.broadcast(request_id, data)
     except Exception:
         pass
@@ -544,7 +551,7 @@ def remove_reaction(
         raise error_response("Message not found", {"message_id": "not_found"}, status.HTTP_404_NOT_FOUND)
     crud.crud_message_reaction.remove_reaction(db, message_id, current_user.id, payload.emoji)
     try:
-        data = {"type": "reaction_removed", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
+        data = {"v": 1, "type": "reaction_removed", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
         manager.broadcast(request_id, data)
     except Exception:
         pass

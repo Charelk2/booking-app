@@ -61,7 +61,7 @@ import {
 
 import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';
-import useWebSocket from '@/hooks/useWebSocket';
+import useRealtime from '@/hooks/useRealtime';
 import useBookingView from '@/hooks/useBookingView';
 
 import Button from '../ui/Button';
@@ -309,7 +309,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   }: MessageThreadProps,
   ref,
 ) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const router = useRouter();
 
   // ---- State
@@ -1023,54 +1023,68 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     useCallback(() => { setIsPaymentOpen(false); }, []),
   );
 
-  // ---- WS connection
-  const token = typeof window !== 'undefined'
-    ? (localStorage.getItem('token') || sessionStorage.getItem('token') || null)
-    : null;
-  // Do not attempt to open a WebSocket when no auth token is available
-  const wsUrl = token
-    ? `${WS_BASE}${API_V1}/ws/booking-requests/${bookingRequestId}?token=${encodeURIComponent(token)}`
-    : null;
-  const { onMessage: onSocketMessage, updatePresence } = useWebSocket(
-    wsUrl,
-    (event) => {
-      if (event?.code === 4401) {
-        setThreadError('Authentication error. Please sign in again.');
-      } else {
-        setWsFailed(true);
-      }
-    },
-  );
+  // ---- Realtime (multiplex) connection
+  const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || sessionStorage.getItem('token') || null) : null);
+  const { subscribe, publish, status: socketStatus, lastReconnectDelay, forceReconnect } = useRealtime(authToken || undefined);
+  const topic = `booking-requests:${bookingRequestId}`;
 
-  // ---- Presence updates
+  // ---- Presence updates via multiplex
   useEffect(() => {
     if (!user?.id) return;
-    updatePresence(user.id, 'online');
-    const handleVisibility = () => updatePresence(user.id, document.hidden ? 'away' : 'online');
+    publish(topic, { type: 'presence', updates: { [user.id]: 'online' } });
+    const handleVisibility = () => publish(topic, { type: 'presence', updates: { [user.id]: document.hidden ? 'away' : 'online' } });
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      updatePresence(user.id, 'offline');
+      publish(topic, { type: 'presence', updates: { [user.id]: 'offline' } });
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [updatePresence, user?.id]);
+  }, [publish, topic, user?.id]);
 
-  // ---- WS: merge (array or single), ignore until initial fetch completes
-  useEffect(
-    () =>
-      onSocketMessage((event) => {
-        if (activeThreadRef.current !== bookingRequestId) return;
-        let payload: any;
-        try { payload = JSON.parse(event.data); } catch { return; }
+  // ---- Typing emission (throttled)
+  const lastTypingSentRef = useRef(0);
+  const emitTyping = useCallback(() => {
+    if (!user?.id) return;
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const hasText = (ta.value || '').trim().length > 0;
+    if (!hasText) return;
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < 1000) return; // 1/sec
+    lastTypingSentRef.current = now;
+    try { publish(topic, { type: 'typing', user_id: user.id }); } catch {}
+  }, [publish, topic, user?.id]);
 
-        // Handle non-message events
-        if (payload?.type === 'typing' && Array.isArray(payload.users)) {
+  // ---- Realtime: subscribe per topic
+  useEffect(() => {
+    const unsubscribe = subscribe(topic, (payload: any) => {
+      if (activeThreadRef.current !== bookingRequestId) return;
+      const v = payload?.v ?? 1;
+      if (v !== 1) return;
+
+      // Handle non-message events
+      if (payload?.type === 'typing' && Array.isArray(payload.users)) {
           setTypingUsers(payload.users.filter((id: number) => id !== user?.id));
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setTypingUsers([]), 2000);
           return;
         }
-        if (payload?.type === 'presence' || payload?.type === 'reconnect' || payload?.type === 'reconnect_hint' || payload?.type === 'ping') {
+      if (payload?.type === 'presence' || payload?.type === 'reconnect' || payload?.type === 'reconnect_hint' || payload?.type === 'ping') {
           // Presence/heartbeat/reconnect hints are not chat messages
+          return;
+        }
+
+        if (payload?.type === 'read') {
+          const upTo: number | undefined = typeof payload.up_to_id === 'number' ? payload.up_to_id : undefined;
+          const readerId: number | undefined = typeof payload.user_id === 'number' ? payload.user_id : undefined;
+          if (upTo && readerId && readerId !== user?.id) {
+            setMessages((prev) => prev.map((m) => (m.sender_id === (user?.id || 0) && m.id <= upTo ? { ...m, is_read: true } : m)));
+          }
+          return;
+        }
+
+        if (payload?.type === 'message_deleted' && typeof payload.id === 'number') {
+          const mid = Number(payload.id);
+          setMessages((prev) => prev.filter((m) => m.id !== mid));
           return;
         }
 
@@ -1121,7 +1135,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           return;
         }
 
-        // Some backends send arrays or envelopes {messages:[...]}
         const maybeList: any[] = Array.isArray(payload)
           ? payload
           : Array.isArray(payload?.messages)
@@ -1138,6 +1151,28 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (candidateItems.length === 0) return;
         const normalized = candidateItems.map(normalizeMessage);
         setMessages((prev) => mergeMessages(prev, normalized));
+        // Debounced read receipt when anchored and new incoming
+        try {
+          const el = messagesContainerRef.current;
+          if (el) {
+            const distance = el.scrollHeight - (el.scrollTop + el.clientHeight);
+            const anchored = distance <= MIN_SCROLL_OFFSET;
+            const gotIncoming = normalized.some((m) => m.sender_id !== (user?.id || 0));
+            if (anchored && gotIncoming) {
+              if ((typingTimeoutRef.current as any)?._readTimer) clearTimeout((typingTimeoutRef.current as any)?._readTimer);
+              (typingTimeoutRef.current as any) = (typingTimeoutRef.current || null);
+              (typingTimeoutRef.current as any)._readTimer = setTimeout(async () => {
+              try { await markMessagesRead(bookingRequestId); } catch {}
+              try {
+                const last = normalized[normalized.length - 1];
+                if (last && typeof last.id === 'number') {
+                  publish(topic, { type: 'read', up_to_id: last.id });
+                }
+              } catch {}
+            }, 700);
+          }
+        }
+      } catch {}
 
         // Bump header unread badge when new inbound messages arrive
         try {
@@ -1156,9 +1191,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
           if (isQuote) void ensureQuoteLoaded(qid);
         }
-      }),
-    [onSocketMessage, ensureQuoteLoaded, user?.id]
-  );
+    });
+    return unsubscribe;
+  }, [subscribe, topic, ensureQuoteLoaded, user?.id, bookingRequestId]);
 
   // ---- Attachment preview URL
   useEffect(() => {
@@ -1209,6 +1244,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
     prevMessageCountRef.current = messages.length;
   }, [messages, typingIndicator]);
+
+  // Hook typing emission to composer input
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const onInput = () => emitTyping();
+    ta.addEventListener('input', onInput);
+    return () => { ta.removeEventListener('input', onInput); };
+  }, [emitTyping]);
 
   const handleScroll = useCallback(() => {
     if (stabilizingRef.current) return;
@@ -1716,7 +1760,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
           try {
             const res = await postMessageToBookingRequest(bookingRequestId, firstPayload);
-            setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...normalizeMessage(res.data), status: 'sent' } : m)));
+            const real = { ...normalizeMessage(res.data), status: 'sent' as const };
+            setMessages((prev) => {
+              const byId = new Map<number, ThreadMessage>();
+              for (const m of prev) if (m.id !== tempId) byId.set(m.id, m);
+              byId.set(real.id, real);
+              return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            });
           } catch (err) {
             console.error('Failed to send first image message:', err);
             setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' as const } : m)));
@@ -1739,7 +1789,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             setMessages((prev) => mergeMessages(prev, optimistic));
             try {
               const res = await postMessageToBookingRequest(bookingRequestId, payload);
-              setMessages((prev) => prev.map((m) => (m.id === temp ? { ...normalizeMessage(res.data), status: 'sent' } : m)));
+              const real = { ...normalizeMessage(res.data), status: 'sent' as const };
+              setMessages((prev) => {
+                const byId = new Map<number, ThreadMessage>();
+                for (const m of prev) if (m.id !== temp) byId.set(m.id, m);
+                byId.set(real.id, real);
+                return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+              });
             } catch (err) {
               console.error('Failed to send image message:', err);
               setMessages((prev) => prev.map((m) => (m.id === temp ? { ...m, status: 'queued' as const } : m)));
@@ -1841,10 +1897,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
         try {
           const res = await postMessageToBookingRequest(bookingRequestId, payload);
+          const real = { ...normalizeMessage(res.data), status: 'sent' as const };
           setMessages((prev) => {
-            const real = { ...normalizeMessage(res.data), status: 'sent' as const };
-            const swapped = prev.map((m) => (m.id === tempId ? real : m));
-            return mergeMessages(swapped, []);
+            const byId = new Map<number, ThreadMessage>();
+            for (const m of prev) if (m.id !== tempId) byId.set(m.id, m);
+            byId.set(real.id, real);
+            return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
           });
           onMessageSent?.();
         } catch (err) {
@@ -3237,6 +3295,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       {/* Errors */}
       {threadError && (
         <p className="text-xs text-red-600 p-4 mt-1.5" role="alert">{threadError}</p>
+      )}
+      {!threadError && socketStatus !== 'open' && (
+        <div className="px-4 py-2 text-xs text-gray-600">
+          {socketStatus === 'connecting' && 'Connecting…'}
+          {socketStatus === 'reconnecting' && (
+            <span>
+              Reconnecting{typeof lastReconnectDelay === 'number' ? ` in ~${Math.round(lastReconnectDelay/1000)}s` : ''}…
+              <button type="button" className="ml-2 underline" onClick={() => forceReconnect()}>Retry now</button>
+            </span>
+          )}
+          {socketStatus === 'closed' && 'Disconnected'}
+        </div>
       )}
       {wsFailed && (
         <p className="text-xs text-red-600 p-4 mt-1.5" role="alert">

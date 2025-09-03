@@ -1,11 +1,16 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type MessageHandler = (event: MessageEvent) => void;
+
+type SocketStatus = 'connecting' | 'open' | 'reconnecting' | 'closed';
 
 interface UseWebSocketReturn {
   send: (data: string | ArrayBufferLike | Blob | ArrayBufferView) => void;
   onMessage: (handler: MessageHandler) => () => void;
   updatePresence: (userId: number, status: string) => void;
+  status: SocketStatus;
+  forceReconnect: () => void;
+  lastReconnectDelay: number | null;
 }
 
 /**
@@ -26,6 +31,8 @@ export default function useWebSocket(
   const presenceBuffer = useRef<Map<number, string>>(new Map());
   const presenceTimer = useRef<NodeJS.Timeout | null>(null);
   const lastPresenceUser = useRef<number | null>(null);
+  const [status, setStatus] = useState<SocketStatus>('closed');
+  const lastReconnectDelayRef = useRef<number | null>(null);
 
   const send = useCallback<UseWebSocketReturn['send']>((data) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -48,7 +55,7 @@ export default function useWebSocket(
     presenceBuffer.current.clear();
     presenceTimer.current = null;
     try {
-      send(JSON.stringify({ type: 'presence', updates }));
+      send(JSON.stringify({ v: 1, type: 'presence', updates }));
     } catch {
       /* ignore */
     }
@@ -82,15 +89,18 @@ export default function useWebSocket(
         }
       }
 
+      setStatus(attemptsRef.current > 0 ? 'reconnecting' : 'connecting');
       const ws = new WebSocket(url);
       socketRef.current = ws;
 
       ws.onopen = () => {
         attemptsRef.current = 0;
+        lastReconnectDelayRef.current = null;
+        setStatus('open');
         const isMobile = /Mobi|Android/i.test(navigator.userAgent);
         const base = isMobile ? 60 : 30;
         try {
-          ws.send(JSON.stringify({ type: 'heartbeat', interval: base }));
+          ws.send(JSON.stringify({ v: 1, type: 'heartbeat', interval: base }));
         } catch {
           /* ignore */
         }
@@ -100,7 +110,7 @@ export default function useWebSocket(
         try {
           const data = JSON.parse(e.data as string);
           if (data?.type === 'ping') {
-            ws.send(JSON.stringify({ type: 'pong' }));
+            ws.send(JSON.stringify({ v: 1, type: 'pong' }));
             return;
           }
         } catch {
@@ -118,15 +128,21 @@ export default function useWebSocket(
             clearTimeout(timerRef.current);
             timerRef.current = null;
           }
+          setStatus('closed');
           return;
         }
         if (onError) onError(e);
         attemptsRef.current += 1;
-        const delay = Math.min(30000, 1000 * 2 ** (attemptsRef.current - 1));
+        // Exponential backoff with jitter
+        const raw = Math.min(30000, 1000 * 2 ** (attemptsRef.current - 1));
+        const jitter = Math.floor(Math.random() * 300);
+        const delay = raw + jitter;
+        lastReconnectDelayRef.current = delay;
         if (timerRef.current) {
           clearTimeout(timerRef.current);
         }
         timerRef.current = setTimeout(connect, delay);
+        setStatus('reconnecting');
       };
 
       ws.onerror = () => {
@@ -184,5 +200,11 @@ export default function useWebSocket(
     };
   }, [url, onError]);
 
-  return { send, onMessage, updatePresence };
+  const forceReconnect = useCallback(() => {
+    try {
+      if (socketRef.current) socketRef.current.close();
+    } catch {}
+  }, []);
+
+  return { send, onMessage, updatePresence, status, forceReconnect, lastReconnectDelay: lastReconnectDelayRef.current };
 }
