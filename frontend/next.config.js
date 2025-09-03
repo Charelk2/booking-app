@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Choose a sane default for production so rewrites don't point at localhost
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'production' ? 'https://api.booka.co.za' : 'http://localhost:8000');
 const { protocol, hostname, port } = new URL(API_URL);
 const apiBase = `${protocol}//${hostname}${port ? `:${port}` : ''}`;
 

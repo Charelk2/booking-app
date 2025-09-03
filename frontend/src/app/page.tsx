@@ -11,16 +11,10 @@ const CategoriesCarousel = dynamic(
 )
 
 async function fetchInitial(category: string, limit = 12) {
-  // Prefer server-side API_URL in dev; fall back to public URL in production
-  const API = (
-    process.env.API_URL ||
-    (process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_API_URL : 'http://localhost:8000') ||
-    'http://localhost:8000'
-  );
-  // Backend expects one of: top_rated | most_booked | newest
+  // Use same-origin proxy to avoid CORS/env drift in production
   const params = new URLSearchParams({ limit: String(limit), category, sort: 'newest' });
   try {
-    const res = await fetch(`${API.replace(/\/+$/,'')}/api/v1/service-provider-profiles/?${params.toString()}`, {
+    const res = await fetch(`/api/v1/service-provider-profiles/?${params.toString()}`, {
       // Cache on the server for ISR; backend also sets Cache-Control for CDN
       next: { revalidate: 60 },
     });
