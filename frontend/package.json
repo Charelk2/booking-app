@@ -15,6 +15,7 @@
     "lint:css": "stylelint --custom-syntax @stylelint/postcss-css-in-js 'src/**/*.{css,tsx,ts}'"
   },
   "dependencies": {
+    "react-virtuoso": "^4.14.0",
     "@vercel/analytics": "^1.3.1",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
