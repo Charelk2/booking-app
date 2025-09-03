@@ -51,7 +51,7 @@ class ConnectionManager:
     async def _redis_subscribe(self, request_id: int) -> None:
         assert redis
         pubsub = redis.pubsub()
-            await pubsub.subscribe(f"ws:{request_id}")
+        await pubsub.subscribe(f"ws:{request_id}")
         try:
             async for message in pubsub.listen():
                 if message.get("type") != "message":
@@ -354,8 +354,7 @@ async def booking_request_ws(
                     code=ws_status.WS_1011_INTERNAL_ERROR,
                     reason="heartbeat timeout",
                 )
-        manager.disconnect(request_id, websocket)
-        break
+                break
 
     ping_task = asyncio.create_task(ping_loop())
 
