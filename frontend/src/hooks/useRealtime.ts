@@ -16,8 +16,9 @@ interface UseRealtimeReturn {
 }
 
 const WS_BASE = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/^http/, 'ws') || '').replace(/\/+$/, '');
-// Use same-origin for SSE to avoid CORS; WS can remain cross-origin
-const API_BASE = '';
+// Use configured API URL for SSE fallback; if unset, we can still operate in
+// WebSocket mode.
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '');
 
 export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const [mode, setMode] = useState<Mode>('ws');
@@ -30,11 +31,13 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const attemptsRef = useRef(0);
   const subs = useRef<Map<string, Set<RealtimeHandler>>>(new Map());
   const pendingSubTopics = useRef<Set<string>>(new Set());
+  const [wsToken, setWsToken] = useState<string | null>(token ?? null);
+  useEffect(() => { setWsToken(token ?? null); }, [token]);
 
   const wsUrl = useMemo(() => {
     if (!WS_BASE) return null;
-    return token ? `${WS_BASE}/api/v1/ws?token=${encodeURIComponent(token)}` : `${WS_BASE}/api/v1/ws`;
-  }, [token]);
+    return wsToken ? `${WS_BASE}/api/v1/ws?token=${encodeURIComponent(wsToken)}` : `${WS_BASE}/api/v1/ws`;
+  }, [wsToken]);
 
   const sseUrlForTopics = useCallback((topics: string[]) => {
     if (!API_BASE) return null;
@@ -140,10 +143,41 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     };
   }, [sseUrlForTopics, deliver]);
 
+  // If no explicit token was provided and we're operating in WS mode, try to
+  // mint a fresh access token via the refresh endpoint using cookies. This
+  // avoids having to persist the token in storage while still allowing
+  // cross-origin WebSocket auth against the API host.
   useEffect(() => {
-    if (!WS_BASE || !API_BASE) return;
-    if (mode === 'ws') openWS();
-    else openSSE();
+    let cancelled = false;
+    (async () => {
+      if (wsToken || mode !== 'ws') return;
+      try {
+        const res = await fetch('/api/v1/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) return;
+        const body = await res.json().catch(() => null);
+        const at = body?.access_token as string | undefined;
+        if (at && !cancelled) setWsToken(at);
+      } catch {
+        // ignore; SSE fallback will still function via same-origin cookies
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [wsToken, mode]);
+
+  useEffect(() => {
+    // Allow WS operation even when API_BASE is not configured; SSE requires
+    // an HTTP base URL so only guard that path.
+    if (mode === 'ws') {
+      if (!WS_BASE) return;
+      openWS();
+    } else {
+      if (!API_BASE) return;
+      openSSE();
+    }
     return () => {
       try { wsRef.current?.close(); } catch {}
       try { esRef.current?.close(); } catch {}

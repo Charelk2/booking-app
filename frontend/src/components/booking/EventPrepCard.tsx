@@ -98,12 +98,37 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
   }, [bookingId]);
 
   // WS subscription for live updates
-  const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || sessionStorage.getItem('token') || '') : '';
+  const { token: authToken } = useAuth();
+  // Prefer auth context; fall back to storage if present. If no token, omit the
+  // query param entirely so the backend can authenticate via cookies.
+  const token = useMemo(() => {
+    const t = authToken || (typeof window !== 'undefined' ? (localStorage.getItem('token') || sessionStorage.getItem('token') || null) : null);
+    return (t && t.trim().length > 0) ? t : null;
+  }, [authToken]);
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const wsBase = apiBase.replace(/^http/, 'ws');
-  const { onMessage: onSocketMessage } = useWebSocket(
-    `${wsBase}/api/v1/ws/booking-requests/${bookingRequestId}?token=${token}`,
-  );
+  const [wsUrl, setWsUrl] = useState<string>(() => `${wsBase}/api/v1/ws/booking-requests/${bookingRequestId}`);
+  useEffect(() => {
+    const base = `${wsBase}/api/v1/ws/booking-requests/${bookingRequestId}`;
+    if (token) {
+      setWsUrl(`${base}?token=${encodeURIComponent(token)}`);
+      return;
+    }
+    // Try to mint a short-lived access token via refresh cookies
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+        if (!res.ok) { setWsUrl(base); return; }
+        const body = await res.json().catch(() => null);
+        const at = body?.access_token as string | undefined;
+        if (at && !cancelled) setWsUrl(`${base}?token=${encodeURIComponent(at)}`);
+        else if (!cancelled) setWsUrl(base);
+      } catch { if (!cancelled) setWsUrl(base); }
+    })();
+    return () => { cancelled = true; };
+  }, [wsBase, bookingRequestId, token]);
+  const { onMessage: onSocketMessage } = useWebSocket(wsUrl);
 
   useEffect(() => {
     return onSocketMessage((event) => {
