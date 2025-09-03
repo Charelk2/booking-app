@@ -152,7 +152,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     (async () => {
       if (wsToken || mode !== 'ws') return;
       try {
-        const res = await fetch('/api/v1/auth/refresh', {
+        const res = await fetch('/auth/refresh', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },

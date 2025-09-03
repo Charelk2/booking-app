@@ -118,7 +118,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+        const res = await fetch('/auth/refresh', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
         if (!res.ok) { setWsUrl(base); return; }
         const body = await res.json().catch(() => null);
         const at = body?.access_token as string | undefined;
