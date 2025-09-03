@@ -117,9 +117,9 @@ export async function fetchFlightCost(
 export async function getCoordinates(
   city: string,
 ): Promise<{ lat: number; lng: number } | null> {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) {
-    console.warn('NEXT_PUBLIC_GOOGLE_MAPS_KEY not set');
+    console.warn('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY not set');
     return null;
   }
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
