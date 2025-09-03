@@ -107,28 +107,33 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
   }, [authToken]);
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const wsBase = apiBase.replace(/^http/, 'ws');
-  const [wsUrl, setWsUrl] = useState<string>(() => `${wsBase}/api/v1/ws/booking-requests/${bookingRequestId}`);
+  // Do NOT open a bare cross-origin WS without a token; initialize as null and
+  // only set the URL once a token is available (or we explicitly choose to
+  // proceed without one for same-origin cookie auth, which we don't here).
+  const [wsUrl, setWsUrl] = useState<string | null>(null);
   useEffect(() => {
     const base = `${wsBase}/api/v1/ws/booking-requests/${bookingRequestId}`;
     if (token) {
       setWsUrl(`${base}?token=${encodeURIComponent(token)}`);
       return;
     }
-    // Try to mint a short-lived access token via refresh cookies
+    // Try to mint a short-lived access token via refresh cookies; if it fails,
+    // keep WS disabled rather than attempting a bare cross-origin handshake
+    // that will be rejected.
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch('/auth/refresh', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
-        if (!res.ok) { setWsUrl(base); return; }
+        if (!res.ok) { if (!cancelled) setWsUrl(null); return; }
         const body = await res.json().catch(() => null);
         const at = body?.access_token as string | undefined;
         if (at && !cancelled) setWsUrl(`${base}?token=${encodeURIComponent(at)}`);
-        else if (!cancelled) setWsUrl(base);
-      } catch { if (!cancelled) setWsUrl(base); }
+        else if (!cancelled) setWsUrl(null);
+      } catch { if (!cancelled) setWsUrl(null); }
     })();
     return () => { cancelled = true; };
   }, [wsBase, bookingRequestId, token]);
-  const { onMessage: onSocketMessage } = useWebSocket(wsUrl);
+  const { onMessage: onSocketMessage } = useWebSocket(wsUrl || undefined);
 
   useEffect(() => {
     return onSocketMessage((event) => {
