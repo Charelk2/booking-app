@@ -85,7 +85,7 @@ export default function ServiceProviderCardCompact({
           />
         )}
         {rating !== undefined && (
-          <span className="absolute top-1 left-1 text-[10px] bg-white/90 rounded-full px-1.5 py-px flex items-center gap-0.5">
+          <span className="absolute top- left-1 text-[10px] bg-white/90 rounded-full px-1.5 py-px flex items-center gap-0.5">
             <StarIcon className="h-3 w-3 text-yellow-400" />
             {rating}
             {ratingCount ? (
