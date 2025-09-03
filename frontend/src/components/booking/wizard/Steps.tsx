@@ -680,8 +680,7 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
       if (!sid || !eventLocation) return;
       setLoadingSuppliers(true);
       try {
-        const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const svc = await fetch(`${api}/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
+        const svc = await fetch(`/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
         const svcDetails = (svc && svc.details) || {};
 
         let modeDefault = svcDetails?.sound_provisioning?.mode_default as string | undefined;
@@ -699,7 +698,7 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
         let prefs = (svcDetails.sound_provisioning?.city_preferences || []) as any[];
         if (!Array.isArray(prefs) || prefs.length === 0) {
           try {
-            const pr = await fetch(`${api}/api/v1/services/${serviceId}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json());
+            const pr = await fetch(`/api/v1/services/${serviceId}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json());
             if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences as any;
           } catch {}
         }
@@ -726,7 +725,7 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
 
         const candidates: { service_id: number; distance_km: number; publicName: string }[] = [];
         for (const pid of preferredIds) {
-          const s = await fetch(`${api}/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.json());
+          const s = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.json());
           const publicName = s?.details?.publicName || s?.artist?.artist_profile?.business_name || s?.title || 'Sound Provider';
           const baseLocation = s?.details?.base_location as string | undefined;
           let distance_km = 0;
@@ -740,7 +739,7 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
         const guestCount = parseInt(details?.guests || '0', 10) || undefined;
         let cards: any[] = [];
         if (candidates.length > 0) {
-          const ranked: any[] = await fetch(`${api}/api/v1/pricebook/batch-estimate-rank`, {
+          const ranked: any[] = await fetch(`/api/v1/pricebook/batch-estimate-rank`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

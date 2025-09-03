@@ -4,7 +4,8 @@ import TextInput from '../ui/TextInput';
 import { createPayment } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Use relative base for HTTP calls so they go through Next.js rewrites
+const API_BASE = '';
 
 interface PaymentSuccess {
   status: string;
@@ -80,9 +81,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     setError(null);
     // If Paystack is enabled, do not use fake payments even if the flag is set
     if (FAKE_PAYMENTS && !USE_PAYSTACK) {
-      const apiBase = API_BASE.replace(/\/+$/,'');
+      const apiBase = (API_BASE || '').replace(/\/+$/,'');
       const fakeId = `fake_${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
-      const receiptUrl = `${apiBase}/api/v1/payments/${fakeId}/receipt`;
+      const receiptUrl = `/api/v1/payments/${fakeId}/receipt`;
       try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
       onSuccess({
         status: 'paid',
@@ -105,11 +106,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           // Render inline widget via iframe instead of a new tab
           setPaystackUrl(authUrl);
           // Poll verify endpoint for a short period; fallback to mocked success if not available
-          const apiBase = API_BASE.replace(/\/+$/,'');
-          const verifyUrl = `${apiBase}/api/v1/payments/paystack/verify?reference=${encodeURIComponent(reference)}`;
+          const apiBase = (API_BASE || '').replace(/\/+$/,'');
+          const verifyUrl = `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(reference)}`;
           let verified = false;
           let pid = reference;
-          let receiptUrl = `${apiBase}/api/v1/payments/${pid}/receipt`;
+          let receiptUrl = `/api/v1/payments/${pid}/receipt`;
           for (let i = 0; i < 10; i++) {
             try {
               // eslint-disable-next-line no-await-in-loop
@@ -142,9 +143,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         full: true,
       });
       const paymentId = (res.data as { payment_id?: string }).payment_id;
-      const receiptUrl = paymentId
-        ? `${API_BASE.replace(/\/+$/,'')}/api/v1/payments/${paymentId}/receipt`
-        : undefined;
+      const receiptUrl = paymentId ? `/api/v1/payments/${paymentId}/receipt` : undefined;
       try { if (receiptUrl) localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
       onSuccess({
         status: 'paid',

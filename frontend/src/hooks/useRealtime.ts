@@ -16,7 +16,8 @@ interface UseRealtimeReturn {
 }
 
 const WS_BASE = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/^http/, 'ws') || '').replace(/\/+$/, '');
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '');
+// Use same-origin for SSE to avoid CORS; WS can remain cross-origin
+const API_BASE = '';
 
 export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const [mode, setMode] = useState<Mode>('ws');
@@ -206,4 +207,3 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     forceReconnect,
   };
 }
-

@@ -253,10 +253,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       try {
         const [availabilityRes, artistRes] = await Promise.all([
           getServiceProviderAvailability(artistId),
-          fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/service-provider-profiles/${artistId}`,
-            { cache: 'force-cache' },
-          ).then((res) => res.json()),
+          fetch(`/api/v1/service-provider-profiles/${artistId}`, { cache: 'force-cache' }).then((res) => res.json()),
         ]);
         setUnavailable(availabilityRes.data.unavailable_dates);
         setArtistLocation(artistRes.location || null);
@@ -302,10 +299,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     }
     const run = async () => {
       try {
-        const svc = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/services/${sid}`,
-          { cache: 'force-cache' },
-        ).then((r) => r.json());
+        const svc = await fetch(`/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
         const publicName = svc?.details?.publicName || svc?.artist?.artist_profile?.business_name || svc?.title || undefined;
         setSelectedSupplierName(publicName);
       } catch (e) {
@@ -331,10 +325,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
     try {
       const [svcRes, artistPos, eventPos] = await Promise.all([
-        fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/services/${serviceId}`,
-          { cache: 'force-cache' },
-        ).then((res) => res.json()),
+        fetch(`/api/v1/services/${serviceId}`, { cache: 'force-cache' }).then((res) => res.json()),
         geocodeAddress(artistLocation),
         geocodeAddress(details.location),
       ]);

@@ -1,7 +1,7 @@
 import type { BookingStatus, Message, QuoteV2Create } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const API_V1 = `${API_URL}/api/v1`;
+// Use relative API base to leverage Next.js rewrites and avoid CORS
+const API_V1 = `/api/v1`;
 
 interface StatusMessage extends Message {
   booking_status: BookingStatus;

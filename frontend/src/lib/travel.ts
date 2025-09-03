@@ -90,9 +90,8 @@ export async function fetchFlightCost(
   arrCode: string,
   date: string | Date,
 ): Promise<number> {
-  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const d = typeof date === 'string' ? date : date.toISOString().slice(0, 10);
-  const url = `${base}/api/v1/flights/cheapest?departure=${depCode}&arrival=${arrCode}&date=${d}`;
+  const url = `/api/v1/flights/cheapest?departure=${depCode}&arrival=${arrCode}&date=${d}`;
   try {
     const res = await fetch(url);
     if (!res.ok) {
@@ -208,8 +207,7 @@ export async function getDrivingMetrics(
   from: string,
   to: string,
 ): Promise<DriveMetrics> {
-  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  const url = `${base}/api/v1/distance?from_location=${encodeURIComponent(
+  const url = `/api/v1/distance?from_location=${encodeURIComponent(
     from,
   )}&to_location=${encodeURIComponent(to)}&includeDuration=true`;
 
@@ -428,4 +426,3 @@ function computeFlyResult(
     },
   };
 }
-

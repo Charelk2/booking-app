@@ -15,8 +15,8 @@ const providers = [
 
 export default function SocialLoginButtons({ redirectPath = '/dashboard' }: SocialLoginButtonsProps) {
   const handleLogin = (provider: string) => {
-    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    window.location.href = `${base}/auth/${provider}/login?next=${encodeURIComponent(redirectPath)}`;
+    // Navigate via same-origin path so cookies are set for booka.co.za
+    window.location.href = `/auth/${provider}/login?next=${encodeURIComponent(redirectPath)}`;
   };
 
   return (

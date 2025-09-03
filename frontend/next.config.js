@@ -164,6 +164,8 @@ const nextConfig = {
     return [
       // Proxy all backend HTTP requests through Next (works on phone + laptop)
       { source: '/api/:path*',   destination: `${apiBase}/:path*` },
+      // Auth routes (cookie-based) should also proxy to the backend
+      { source: '/auth/:path*',  destination: `${apiBase}/auth/:path*` },
       { source: '/media/:path*', destination: `${apiBase}/media/:path*` },
       { source: '/static/:path*', destination: `${apiBase}/static/:path*` },
     ];

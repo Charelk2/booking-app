@@ -32,8 +32,11 @@ import {
 import { useAuth as useContextAuth } from '@/contexts/AuthContext'; // Renamed to avoid conflict with default export 'api'
 
 // Create a single axios instance for all requests
+// Use same-origin relative base so browser calls go through Next.js rewrites
+// and avoid CORS in production. Server-side or tests still work since the
+// requests are relative to the Next.js server origin.
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseURL: '',
   headers: {
     'Content-Type': 'application/json',
   },

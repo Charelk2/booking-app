@@ -999,8 +999,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (mocked) {
           try {
             // Persist a canonical system message so it survives refresh even in mock mode
-            const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/,'');
-            const receiptLink = url || (paymentId ? `${apiBase}/api/v1/payments/${paymentId}/receipt` : undefined);
+            const receiptLink = url || (paymentId ? `/api/v1/payments/${paymentId}/receipt` : undefined);
             await postMessageToBookingRequest(bookingRequestId, {
               content: `Payment received. Your booking is confirmed and the date is secured.${receiptLink ? ` Receipt: ${receiptLink}` : ''}`,
               message_type: 'SYSTEM',
@@ -1487,19 +1486,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
     // Receipt download (payment received / receipt available)
     if (key === 'payment_received' || key === 'receipt_available' || key === 'download_receipt' || /\breceipt\b/i.test(label)) {
-      const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/,'');
       let url = bookingDetails?.payment_id
-        ? `${apiBase}/api/v1/payments/${bookingDetails.payment_id}/receipt`
+        ? `/api/v1/payments/${bookingDetails.payment_id}/receipt`
         : paymentInfo?.receiptUrl || null;
       if (!url && typeof (msg as any).content === 'string') {
         const m = (msg as any).content.match(/(https?:\/\/[^\s]+\/api\/v1\/payments\/[^\s/]+\/receipt|\/?api\/v1\/payments\/[^\s/]+\/receipt)/i);
-        if (m) {
-          url = m[1].startsWith('http') ? m[1] : `${apiBase}${m[1].startsWith('/') ? '' : '/'}${m[1]}`;
-        }
+        if (m) url = m[1].startsWith('http') ? m[1] : `${m[1].startsWith('/') ? '' : '/'}${m[1]}`;
       }
-      if (url && !/^https?:\/\//i.test(url)) {
-        url = `${apiBase}${url.startsWith('/') ? '' : '/'}${url}`;
-      }
+      // Keep relative URL if same-origin; external absolute URLs pass through
       if (url) {
         actions.push(
           <a
@@ -1572,11 +1566,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         const d = match[2];
         // Extract calendar URL and include it inline in the label
         let calUrl: string | null = null;
-        const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/,'');
         const m = raw.match(/add\s+to\s+calendar:\s*(https?:\/\/\S+|\/\S*)/i);
-        if (m) {
-          calUrl = /^https?:\/\//i.test(m[1]) ? m[1] : `${apiBase}${m[1].startsWith('/') ? '' : '/'}${m[1]}`;
-        }
+        if (m) calUrl = /^https?:\/\//i.test(m[1]) ? m[1] : `${m[1].startsWith('/') ? '' : '/'}${m[1]}`;
         label = calUrl
           ? t('system.eventReminderShortWithCal', 'Event in {n} days: {date}. Add to calendar: {url}. If not done yet, please finalise event prep.', { n, date: d, url: calUrl })
           : t('system.eventReminderShort', 'Event in {n} days: {date}. If not done yet, please finalise event prep.', { n, date: d });
@@ -1586,11 +1577,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     // Detect "View listing: <url>" to surface a clean CTA button
     try {
       const raw = String((msg as any).content || '');
-      const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
       const mView = raw.match(/view\s+listing\s*:\s*(https?:\/\/\S+|\/\S*)/i);
       if (mView) {
         let vurl = mView[1];
-        if (!/^https?:\/\//i.test(vurl)) vurl = `${apiBase}${vurl.startsWith('/') ? '' : '/'}${vurl}`;
+        if (!/^https?:\/\//i.test(vurl)) vurl = `${vurl.startsWith('/') ? '' : '/'}${vurl}`;
         actions.push(
           <a
             key="view-listing"
