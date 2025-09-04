@@ -14,6 +14,10 @@ engine = create_engine(
     connect_args={"check_same_thread": False}
     if SQLALCHEMY_DATABASE_URL.startswith("sqlite")
     else {},
+    # Avoid stale idle connections causing first-hit failures after inactivity
+    pool_pre_ping=True,
+    # Recycle connections periodically to play well with proxies like pgbouncer/LB
+    pool_recycle=300,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
