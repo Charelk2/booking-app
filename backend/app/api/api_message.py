@@ -133,6 +133,16 @@ def read_messages(
         aggregates = {}
         my = {}
 
+    # Avoid sending large base64 avatars over the wire
+    def _scrub_avatar(val: Optional[str]) -> Optional[str]:
+        try:
+            if isinstance(val, str) and val.startswith("data:") and len(val) > 1000:
+                # Fallback to a lightweight default avatar served via static
+                return "/static/default-avatar.svg"
+        except Exception:
+            pass
+        return val
+
     result = []
     for m in db_messages:
         avatar_url = None
@@ -144,6 +154,7 @@ def read_messages(
                     avatar_url = profile.profile_picture_url
             elif sender.profile_picture_url:
                 avatar_url = sender.profile_picture_url
+        avatar_url = _scrub_avatar(avatar_url)
         data = schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
         # Server-computed preview label for uniform clients

@@ -458,6 +458,7 @@ def read_all_service_provider_profiles(
     limit: int = Query(20, ge=1, le=100),
     include_price_distribution: bool = Query(False, alias="include_price_distribution"),
     artist: Optional[str] = Query(None, description="Filter by artist name"),
+    fields: Optional[str] = Query(None, description="Comma-separated fields to include. Trims payload."),
 ):
     """Return a list of all service provider profiles with optional filters."""
 
@@ -649,6 +650,19 @@ def read_all_service_provider_profiles(
     offset = (page - 1) * limit
     artists = all_rows[offset : offset + limit]
 
+    # Helper to scrub heavy inline images from list payloads
+    def _scrub_image(val: Optional[str]) -> Optional[str]:
+        try:
+            if isinstance(val, str) and val.startswith("data:") and len(val) > 1000:
+                return None
+        except Exception:
+            pass
+        return val
+
+    requested: Optional[set[str]] = None
+    if isinstance(fields, str) and fields.strip():
+        requested = {f.strip() for f in fields.split(",") if f.strip()}
+
     profiles: List[ArtistProfileResponse] = []
     for row in artists:
         if join_services:
@@ -663,17 +677,21 @@ def read_all_service_provider_profiles(
         )
         # Access the related User to ensure it's loaded for downstream filters
         _ = artist.user
-        profile = ArtistProfileResponse.model_validate(
-            {
-                **artist.__dict__,
-                "rating": float(rating) if rating is not None else None,
-                "rating_count": int(rating_count or 0),
-                "service_price": (
-                    float(service_price) if service_price is not None else None
-                ),
-                "service_categories": categories,
-            }
-        )
+        # Build a lean dict and scrub oversized base64 images for list usage
+        base = {
+            **artist.__dict__,
+            "rating": float(rating) if rating is not None else None,
+            "rating_count": int(rating_count or 0),
+            "service_price": (float(service_price) if service_price is not None else None),
+            "service_categories": categories,
+        }
+        base["profile_picture_url"] = _scrub_image(base.get("profile_picture_url"))
+        # Exclude heavy fields by default; clients can request explicitly via `fields`
+        base["portfolio_image_urls"] = None
+        base["cover_photo_url"] = None
+        if requested is not None:
+            base = {k: v for k, v in base.items() if k in requested or k in {"user_id"}}
+        profile = ArtistProfileResponse.model_validate(base)
         # Avoid per-artist availability lookups for list pages without a specific date
         if when:
             availability = read_artist_availability(
@@ -859,6 +877,7 @@ def list_service_provider_profiles(
     min_price: Optional[float] = Query(None, ge=0),
     max_price: Optional[float] = Query(None, ge=0),
     include_price_distribution: bool = Query(False),
+    fields: Optional[str] = Query(None, description="Comma-separated fields to include. Trims payload."),
 ):
     cached = get_cached_artist_list(
         page,
@@ -909,37 +928,55 @@ def list_service_provider_profiles(
     total = q.count()
     rows = q.offset((page - 1) * limit).limit(limit).all()
 
+    # Helper: scrub overly large inline images (data URLs) to keep payload small
+    def _scrub_image(val: Optional[str]) -> Optional[str]:
+        try:
+            if isinstance(val, str) and val.startswith("data:"):
+                # If it's a large inline data URL, drop it for list views
+                if len(val) > 1000:
+                    return None
+        except Exception:
+            pass
+        return val
+
+    requested: Optional[set[str]] = None
+    if isinstance(fields, str) and fields.strip():
+        requested = {f.strip() for f in fields.split(",") if f.strip()}
+
     data = []
     for artist, minp in rows:
-        data.append(
-            {
-                "user_id": artist.user_id,
-                "business_name": artist.business_name,
-                "custom_subtitle": artist.custom_subtitle,
-                "description": artist.description,
-                "location": artist.location,
-                "hourly_rate": str(artist.hourly_rate) if artist.hourly_rate is not None else None,
-                "portfolio_urls": artist.portfolio_urls,
-                "portfolio_image_urls": artist.portfolio_image_urls,
-                "specialties": artist.specialties,
-                "profile_picture_url": artist.profile_picture_url,
-                "cover_photo_url": artist.cover_photo_url,
-                "price_visible": artist.price_visible,
-                "cancellation_policy": artist.cancellation_policy,
-                "contact_email": artist.contact_email,
-                "contact_phone": artist.contact_phone,
-                "contact_website": artist.contact_website,
-                "created_at": artist.created_at.isoformat(),
-                "updated_at": artist.updated_at.isoformat(),
-                "rating": None,
-                "rating_count": 0,
-                "is_available": None,
-                "service_price": float(minp) if minp is not None else None,
-                "service_categories": [],
-                "onboarding_completed": getattr(artist, "onboarding_completed", None),
-                "user": None,
-            }
-        )
+        record = {
+            "user_id": artist.user_id,
+            "business_name": artist.business_name,
+            "custom_subtitle": artist.custom_subtitle,
+            # Large fields intentionally omitted unless requested
+            "description": artist.description,
+            "location": artist.location,
+            "hourly_rate": str(artist.hourly_rate) if artist.hourly_rate is not None else None,
+            "portfolio_urls": artist.portfolio_urls,
+            # portfolio_image_urls and cover_photo_url may contain data URLs; exclude by default
+            "portfolio_image_urls": None,
+            "specialties": artist.specialties,
+            "profile_picture_url": _scrub_image(artist.profile_picture_url),
+            "cover_photo_url": None,
+            "price_visible": artist.price_visible,
+            "cancellation_policy": artist.cancellation_policy,
+            "contact_email": artist.contact_email,
+            "contact_phone": artist.contact_phone,
+            "contact_website": artist.contact_website,
+            "created_at": artist.created_at.isoformat(),
+            "updated_at": artist.updated_at.isoformat(),
+            "rating": None,
+            "rating_count": 0,
+            "is_available": None,
+            "service_price": float(minp) if minp is not None else None,
+            "service_categories": [],
+            "onboarding_completed": getattr(artist, "onboarding_completed", None),
+            "user": None,
+        }
+        if requested is not None:
+            record = {k: v for k, v in record.items() if k in requested or k in {"user_id"}}
+        data.append(record)
 
     price_distribution = []
     if include_price_distribution:
