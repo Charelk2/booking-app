@@ -11,12 +11,15 @@ type Props = Omit<ImageProps, 'src' | 'alt'> & {
 
 export default function AppImage({ src, alt = '', ...rest }: Props) {
   const url = toCanonicalImageUrl(src) || '/static/default-avatar.svg';
+  // Respect explicit unoptimized flag when provided; otherwise default to
+  // optimizing network images and skipping data/blob previews.
+  const explicit = (rest as any)?.unoptimized;
+  const shouldBypass = typeof explicit === 'boolean' ? explicit : isDataOrBlob(url);
   const imgProps: ImageProps = {
     ...(rest as ImageProps),
     src: url,
     alt,
-    // Use optimizer by default; skip only for data/blob previews
-    unoptimized: isDataOrBlob(url),
+    unoptimized: shouldBypass,
   } as ImageProps;
 
   return <Image {...imgProps} />;
