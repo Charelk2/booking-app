@@ -408,6 +408,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [imageModalIndex, setImageModalIndex] = useState<number | null>(null);
   const [filePreviewSrc, setFilePreviewSrc] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const isSendingRef = useRef(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const VIRTUALIZE = process.env.NEXT_PUBLIC_VIRTUALIZE_CHAT === '1';
 
@@ -1899,7 +1901,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const handleSendMessage = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+      // Do not proceed if there's nothing to send
       if (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0) return;
+      if (isSendingRef.current) return;
+      isSendingRef.current = true;
+      setIsSending(true);
 
       if ((attachmentFile || imageFiles.length > 0) && !navigator.onLine) {
         setThreadError('Cannot send attachments while offline.');
@@ -2141,6 +2147,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           `Failed to send message. ${(err as Error).message || 'Please try again later.'}`
         );
         setIsUploadingAttachment(false);
+      }
+      finally {
+        isSendingRef.current = false;
+        setIsSending(false);
       }
     },
     [
@@ -3466,9 +3476,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <Button
                 type="submit"
                 aria-label="Send message"
-                className="flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-8 h-8 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
-              >
+              className="flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-8 h-8 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
+      >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                 </svg>

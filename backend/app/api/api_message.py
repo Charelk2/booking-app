@@ -10,6 +10,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime, timezone
 
 from .. import crud, models, schemas
 from .dependencies import get_db, get_current_user
@@ -282,6 +283,50 @@ def create_message(
                 {"reply_to_message_id": "not_found"},
                 status.HTTP_404_NOT_FOUND,
             )
+
+    # Best-effort idempotency: suppress accidental rapid duplicates
+    try:
+        last = (
+            db.query(models.Message)
+            .filter(
+                models.Message.booking_request_id == request_id,
+                models.Message.sender_id == sender_id,
+            )
+            .order_by(models.Message.id.desc())
+            .first()
+        )
+        if last:
+            same_type = last.message_type == message_in.message_type
+            same_visibility = last.visible_to == message_in.visible_to
+            same_content = (last.content or '').strip() == (message_in.content or '').strip()
+            same_attachment = (last.attachment_url or None) == (message_in.attachment_url or None)
+            same_reply = (last.reply_to_message_id or None) == (message_in.reply_to_message_id or None)
+            if same_type and same_visibility and same_content and same_attachment and same_reply:
+                try:
+                    dt_last_utc = last.timestamp.astimezone(timezone.utc)
+                    dt_now_utc = datetime.now(timezone.utc)
+                    delta = (dt_now_utc - dt_last_utc).total_seconds()
+                    # Treat repeats within 15s as duplicates (e.g., double-tap / reconnect resend)
+                    if delta >= 0 and delta <= 15:
+                        data = schemas.MessageResponse.model_validate(last).model_dump()
+                        # Ensure avatar_url present for parity with normal path
+                        sender = last.sender
+                        avatar_url = None
+                        if sender:
+                            if sender.user_type == models.UserType.SERVICE_PROVIDER:
+                                profile = sender.artist_profile
+                                if profile and profile.profile_picture_url:
+                                    avatar_url = profile.profile_picture_url
+                            elif sender.profile_picture_url:
+                                avatar_url = sender.profile_picture_url
+                        data["avatar_url"] = avatar_url
+                        return data
+                except Exception:
+                    # Never hard-fail idempotency checks; fall through to create
+                    pass
+    except Exception:
+        # Defensive: do not block message creation if the pre-check fails
+        pass
 
     msg = crud.crud_message.create_message(
         db,
