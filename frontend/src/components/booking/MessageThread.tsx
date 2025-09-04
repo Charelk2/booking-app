@@ -3553,7 +3553,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <button type="button" className="ml-2 underline" onClick={() => forceReconnect()}>Retry now</button>
             </span>
           )}
-          {socketStatus === 'closed' && 'Disconnected'}
+          
         </div>
       )}
       {wsFailed && (
