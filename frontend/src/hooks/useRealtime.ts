@@ -45,9 +45,10 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
 
   const wsUrl = useMemo(() => {
     if (!wsBase) return null;
-    // Prefer cookie-auth WS if no token was provided; cookies work across
-    // subdomains when COOKIE_DOMAIN=.booka.co.za is set on the backend.
-    if (!wsToken) return `${wsBase}/api/v1/ws`;
+    // Require an explicit token to open WS. Cookie-based WS can be flaky across
+    // subdomains and causes noisy retries for anonymous users. Authenticated
+    // views pass a token from AuthContext.
+    if (!wsToken) return null;
     return `${wsBase}/api/v1/ws?token=${encodeURIComponent(wsToken)}`;
   }, [wsBase, wsToken]);
 
@@ -155,6 +156,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
 
   const openSSE = useCallback(() => {
     const topics = Array.from(subs.current.keys());
+    if (topics.length === 0) { setStatus('closed'); return; }
     const url = sseUrlForTopics(topics);
     if (!url) { setStatus('closed'); return; }
     try { esRef.current?.close(); } catch {}
@@ -191,9 +193,12 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   // If a token is supplied (e.g., from AuthContext), it will be used.
 
   useEffect(() => {
+    // Don’t open any realtime connection until there’s at least one topic
+    // or an explicit token for authenticated multiplex usage.
+    const hasTopics = subs.current.size > 0;
+    if (!hasTopics && !wsToken) { setStatus('closed'); return () => {}; }
     if (mode === 'ws') {
       if (!wsUrl) {
-        // No token yet or URL unresolved — open SSE best-effort (keep mode)
         openSSE();
       } else {
         openWS();
@@ -207,7 +212,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, wsUrl]);
+  }, [mode, wsUrl, wsToken]);
 
   // Re-open SSE when topics change
   const refreshSSE = useCallback(() => {
