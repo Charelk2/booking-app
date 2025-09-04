@@ -104,12 +104,10 @@ def list_reviews_for_service_provider(service_provider_id: int, db: Session = De
         .filter(ServiceProviderProfile.user_id == service_provider_id)
         .first()
     )
+    # Return an empty list instead of 404 so UI can gracefully render when
+    # a provider profile was deleted or hasn't been created yet.
     if not service_provider_profile:
-        raise error_response(
-            "Service provider profile not found.",
-            {"service_provider_id": "not_found"},
-            status.HTTP_404_NOT_FOUND,
-        )
+        return []
 
     reviews = (
         db.query(Review)
