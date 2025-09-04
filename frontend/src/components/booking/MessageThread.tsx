@@ -3278,7 +3278,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           <div className="flex items-center gap-2 overflow-x-auto">
             {imagePreviewUrls.map((u, i) => (
               <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200 bg-white">
-                <Image src={u} alt={`Preview ${i+1}`} width={64} height={64} className="w-16 h-16 object-cover" unoptimized />
+                <SafeImage src={u} alt={`Preview ${i+1}`} width={64} height={64} className="w-16 h-16 object-cover" />
                 <button type="button" aria-label="Remove image" className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white/90 border border-gray-200 text-gray-700 flex items-center justify-center hover:bg-white" onClick={() => removeImageAt(i)}>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

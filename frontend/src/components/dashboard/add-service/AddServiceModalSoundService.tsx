@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import SafeImage from "@/components/ui/SafeImage";
 import { useMemo, useState } from "react";
 import { TextInput, TextArea, CollapsibleSection, ToggleSwitch } from "@/components/ui";
 import type { Service } from "@/types";
