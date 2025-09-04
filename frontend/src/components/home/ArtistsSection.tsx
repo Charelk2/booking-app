@@ -127,6 +127,7 @@ export default function ArtistsSection({
                   imageUrl={
                     getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) || undefined
                   }
+                  unoptimizedImage
                   price={
                     a.hourly_rate && a.price_visible ? Number(a.hourly_rate) : undefined
                   }
