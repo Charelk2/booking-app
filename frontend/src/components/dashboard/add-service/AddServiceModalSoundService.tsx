@@ -279,14 +279,14 @@ export default function AddServiceModalSoundService({
           <div className="mt-2 flex flex-wrap gap-2">
             {existingMediaUrl && (
               <div className="relative h-20 w-20 overflow-hidden rounded border">
-                <Image src={existingMediaUrl} alt="existing-media" width={80} height={80} className="h-full w-full object-cover" unoptimized />
+                <SafeImage src={existingMediaUrl} alt="existing-media" width={80} height={80} className="h-full w-full object-cover" />
                 <span className="absolute left-1 top-1 rounded bg-black/60 px-1 text-[10px] text-white">Hero</span>
                 <button type="button" onClick={removeExistingMedia} className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white">×</button>
               </div>
             )}
             {thumbnails.map((src, i) => (
               <div key={i} className="relative h-20 w-20 overflow-hidden rounded border">
-                <Image src={src} alt={`media-${i}`} width={80} height={80} className="h-full w-full object-cover" unoptimized />
+                <SafeImage src={src} alt={`media-${i}`} width={80} height={80} className="h-full w-full object-cover" />
                 <span className="absolute left-1 top-1 rounded bg-black/60 px-1 text-[10px] text-white">{i === 0 && !existingMediaUrl ? "Hero" : "Gallery"}</span>
                 <button type="button" onClick={() => removeFile(i)} className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white">×</button>
               </div>
@@ -749,7 +749,7 @@ export default function AddServiceModalSoundService({
             {hero && (
               <div className="rounded-md border p-3">
                 <div className="mb-2 text-sm font-medium">Hero image</div>
-                <Image src={hero} alt="hero" width={128} height={96} className="h-24 w-32 rounded object-cover" />
+                <SafeImage src={hero} alt="hero" width={128} height={96} className="h-24 w-32 rounded object-cover" />
               </div>
             )}
           </div>

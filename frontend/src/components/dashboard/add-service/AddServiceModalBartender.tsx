@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import SafeImage from "@/components/ui/SafeImage";
 import { TextInput } from "@/components/ui";
 import type { Service } from "@/types";
 import BaseServiceWizard, { type WizardStep } from "./BaseServiceWizard";
@@ -93,13 +93,12 @@ export default function AddServiceModalBartender({
           <div className="mt-2 flex flex-wrap gap-2">
             {existingMediaUrl && (
               <div className="relative h-20 w-20 overflow-hidden rounded border">
-                <Image
+                <SafeImage
                   src={existingMediaUrl}
                   alt="existing-media"
                   width={80}
                   height={80}
                   className="h-full w-full object-cover"
-                  unoptimized
                 />
                 <button
                   type="button"
@@ -115,13 +114,12 @@ export default function AddServiceModalBartender({
                 key={i}
                 className="relative h-20 w-20 overflow-hidden rounded border"
               >
-                <Image
+                <SafeImage
                   src={src}
                   alt={`media-${i}`}
                   width={80}
                   height={80}
                   className="h-full w-full object-cover"
-                  unoptimized
                 />
                 <button
                   type="button"
@@ -147,14 +145,13 @@ export default function AddServiceModalBartender({
           {thumbnails.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {thumbnails.map((src, i) => (
-                <Image
+                <SafeImage
                   key={i}
                   src={src}
                   alt={`media-${i}`}
                   width={64}
                   height={64}
                   className="h-16 w-16 rounded object-cover"
-                  unoptimized
                 />
               ))}
             </div>
