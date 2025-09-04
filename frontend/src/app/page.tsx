@@ -11,12 +11,17 @@ const CategoriesCarousel = dynamic(
 )
 
 async function fetchInitial(category: string, limit = 12) {
-  // Use same-origin proxy to avoid CORS/env drift in production
+  // Use absolute API base on the server to avoid relying on Next.js rewrites
+  // during SSR/ISR. Relative fetches are not rewritten on the server.
+  const API_BASE =
+    process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? 'https://api.booka.co.za' : 'http://localhost:8000');
   const params = new URLSearchParams({ limit: String(limit), category, sort: 'newest' });
+  const url = `${API_BASE}/api/v1/service-provider-profiles/?${params.toString()}`;
   try {
-    const res = await fetch(`/api/v1/service-provider-profiles/?${params.toString()}`, {
+    const res = await fetch(url, {
       // Cache on the server for ISR; backend also sets Cache-Control for CDN
       next: { revalidate: 60 },
+      headers: { 'Content-Type': 'application/json' },
     });
     if (!res.ok) return [] as any[];
     const json = await res.json();
