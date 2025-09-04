@@ -531,8 +531,8 @@ const InlineQuoteForm: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Sticky actions */}
-      <div className="sticky bottom-0 -mx-4 sm:mx-0 mt-4 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-t border-gray-200">
+      {/* Actions (non-sticky so the form scrolls like a normal message) */}
+      <div className="mt-4 bg-white border-t border-gray-200 rounded-b-2xl">
         <div className="p-3 sm:p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm">
             <div className="text-gray-600">You will send</div>
@@ -562,6 +562,8 @@ const InlineQuoteForm: React.FC<Props> = ({
           </div>
         </div>
       </div>
+      {/* Spacer to prevent overlap with the chat composer at the very bottom */}
+      <div className="h-6" aria-hidden="true" />
     </div>
   );
 };
