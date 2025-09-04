@@ -27,6 +27,7 @@ const baseProvider = simpleRest(API_URL, httpClient);
 export const dataProvider = {
     ...baseProvider,
     API_URL,
+    httpClient, // expose for custom routes that call dp.httpClient
     // Helper to normalize provider_id on listing records coming from various backends
     _normalizeListing(record) {
         if (!record || typeof record !== 'object')
@@ -122,8 +123,33 @@ export const dataProvider = {
         });
         return json;
     },
-    // Override getList to normalize listings and hide purged/deactivated providers
+    // Clients management
+    activateClient: async (userId) => {
+        const { json } = await httpClient(`${API_URL}/clients/${userId}/activate`, { method: 'POST' });
+        return json;
+    },
+    deactivateClient: async (userId) => {
+        const { json } = await httpClient(`${API_URL}/clients/${userId}/deactivate`, { method: 'POST' });
+        return json;
+    },
+    impersonateClient: async (userId) => {
+        const { json } = await httpClient(`${API_URL}/clients/${userId}/impersonate`, { method: 'POST' });
+        return json;
+    },
+    // Override getList: custom logic for 'listings' and graceful 404 fallback for 'clients'
     getList: async (resource, params) => {
+        if (resource === 'clients') {
+            try {
+                return await baseProvider.getList(resource, params);
+            }
+            catch (e) {
+                if (e && (e.status === 404 || e.httpStatus === 404)) {
+                    console.warn('clients endpoint not found on API; returning empty list');
+                    return { data: [], total: 0 };
+                }
+                throw e;
+            }
+        }
         const res = await baseProvider.getList(resource, params);
         if (resource !== 'listings')
             return res;

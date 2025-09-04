@@ -18,9 +18,11 @@ class ThreadPreviewItem(BaseModel):
     state: str  # requested|quoted|confirmed|completed|cancelled
     meta: dict | None = None
     pinned: bool = False
+    # Server-provided preview metadata to remove client heuristics
+    preview_key: str | None = None
+    preview_args: dict | None = None
 
 
 class ThreadPreviewResponse(BaseModel):
     items: list[ThreadPreviewItem]
     next_cursor: str | None = None
-

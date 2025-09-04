@@ -22,6 +22,7 @@ import { ReviewList } from './resources/reviews';
 import { AuditList } from './resources/audit';
 import { AdminUserList, AdminUserEdit, AdminUserCreate } from './resources/adminUsers';
 import { ProviderList, ProviderShow } from './resources/providers';
+import { ClientList } from './resources/clients';
 import { ConversationList, ConversationShow } from './resources/conversations';
 
 // Custom pages
@@ -84,6 +85,7 @@ export default function App() {
         <Resource name="audit_events" list={AuditList} />
         <Resource name="admin_users" list={AdminUserList} edit={AdminUserEdit} create={AdminUserCreate} />
         <Resource name="providers" list={ProviderList} show={ProviderShow} />
+        <Resource name="clients" list={ClientList} />
         <Resource name="conversations" list={ConversationList} show={ConversationShow} />
 
         <CustomRoutes>

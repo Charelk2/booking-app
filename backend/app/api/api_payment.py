@@ -26,6 +26,7 @@ from ..models import (
 from .dependencies import get_db, get_current_active_client, get_current_service_provider
 from ..core.config import settings
 from ..utils import error_response
+from ..utils.notifications import notify_user_new_message
 import hmac
 import hashlib
 import json
@@ -40,6 +41,8 @@ router = APIRouter(tags=["payments"])
 
 class PaymentCreate(BaseModel):
     booking_request_id: int
+    # For full-upfront payments, amount/full are ignored by the server.
+    # They are retained in the schema for backward compatibility with clients.
     amount: Optional[float] = Field(default=None, gt=0)
     full: Optional[bool] = False
 
@@ -93,12 +96,18 @@ def create_payment(
             status.HTTP_400_BAD_REQUEST,
         )
 
-    amount = (
-        payment_in.amount
-        if payment_in.amount is not None
-        else float(booking.deposit_amount or 0)
-    )
-    logger.info("Resolved payment amount %s", amount)
+    # Enforce full upfront payment. Ignore client-provided amount/full and
+    # charge the accepted quote's total. This guarantees a single, final charge.
+    try:
+        quote_total = float(booking.quote.total or 0) if booking.quote else 0.0
+    except Exception:
+        quote_total = 0.0
+    if quote_total <= 0:
+        logger.warning("Quote total missing or zero for booking %s", booking.id)
+        raise error_response("Invalid quote total", {"amount": "invalid"}, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    amount = quote_total
+    logger.info("Resolved payment amount (full upfront) %s", amount)
     charge_amount = Decimal(str(amount))
 
     # If Paystack is configured, initialize a checkout session instead of immediate capture
@@ -169,14 +178,11 @@ def create_payment(
                 status.HTTP_502_BAD_GATEWAY,
             )
 
-    if not payment_in.full:
-        booking.deposit_amount = charge_amount
-
+    # Mark fully paid, regardless of request payload
     booking.deposit_paid = True
-    booking.payment_status = "paid" if payment_in.full else "deposit_paid"
+    booking.payment_status = "paid"
     booking.payment_id = charge.get("id")
-    if payment_in.full:
-        booking.charged_total_amount = charge_amount
+    booking.charged_total_amount = charge_amount
 
     # Ensure booking and related request are marked confirmed
     booking.confirmed = True
@@ -215,6 +221,15 @@ def create_payment(
                 system_key="payment_received",
             )
             db.commit()
+            # Notify both parties about the payment system message
+            try:
+                artist = db.query(User).filter(User.id == booking.artist_id).first()
+                client = db.query(User).filter(User.id == booking.client_id).first()
+                if artist and client:
+                    notify_user_new_message(db, client, artist, br.id, "Payment received", MessageType.SYSTEM)
+                    notify_user_new_message(db, artist, artist, br.id, "Payment received", MessageType.SYSTEM)
+            except Exception:
+                pass
         except Exception as exc:  # pragma: no cover — non-fatal
             logger.warning("Failed to write payment_received system message: %s", exc)
 

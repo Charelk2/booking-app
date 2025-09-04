@@ -14,7 +14,7 @@ Clients and artists communicate through the **Inbox** page.
    and **Accept**/**Decline** actions. Message history now queues outgoing
    messages while offline and defers image previews until tapped.
 3. **Show Details** toggles a side panel with booking information and quick
-   links for deposit payments and calendar events.
+   links for payments and calendar events.
 
 ![Inbox flow](inbox_flow.svg)
 

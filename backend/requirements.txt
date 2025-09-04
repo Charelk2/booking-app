@@ -1,5 +1,7 @@
 fastapi==0.115.12
-uvicorn==0.34.3
+# Include wsproto/websockets/httptools via the standard extras so WebSocket
+# upgrades are supported in production (avoids "Unsupported upgrade request").
+uvicorn[standard]==0.34.3
 orjson==3.11.1
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.10
@@ -12,7 +14,8 @@ alembic==1.16.1
 pytest==8.4.0
 httpx==0.28.1
 pydantic-settings==2.9.1
-redis==6.2.0
+## Use redis-py with asyncio support for SSE and pub/sub features.
+redis==5.0.7
 fakeredis==2.23.2
 email-validator==2.2.0
 twilio==9.6.2

@@ -54,6 +54,10 @@ class MessageResponse(BaseModel):
     reply_to_preview: str | None = None
     reactions: dict[str, int] | None = None
     my_reactions: list[str] | None = None
+    # Optional server-computed preview label for uniform thread previews
+    preview_label: str | None = None
+    preview_key: str | None = None
+    preview_args: dict | None = None
 
     @field_validator("message_type", mode="before")
     @classmethod

@@ -30,7 +30,8 @@ Important fields returned by `/api/v1/notifications`:
   `router.push(link)` so paths must be valid client routes.
 - **avatar_url** – optional profile picture for the relevant artist or client.
   When absent, the UI displays a default placeholder image so booking
-  confirmations and deposit reminders still show an avatar.
+  confirmations still show an avatar. Deposit reminders are no longer used
+  (full upfront payment).
 
 Clicking a card marks the notification read then navigates to `link`. The card
 shows a coloured icon based on the status, the sender name as the title and a

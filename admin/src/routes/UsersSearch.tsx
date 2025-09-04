@@ -13,8 +13,17 @@ export default function UsersSearch() {
   const onSearch = async () => {
     if (!email) return;
     try {
-      const res = await (dp as any).httpClient(`${(dp as any).API_URL || ''}/users/search?email=${encodeURIComponent(email)}`);
-      setResult(res.json);
+      const base = inferApiUrl();
+      const token = localStorage.getItem('booka_admin_token');
+      const r = await fetch(`${base}/users/search?email=${encodeURIComponent(email)}` , {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+      if (!r.ok) throw new Error(`Search failed (${r.status})`);
+      const j = await r.json();
+      setResult(j);
     } catch (e: any) {
       notify(e?.message || 'Search failed', { type: 'warning' });
     }
@@ -23,14 +32,25 @@ export default function UsersSearch() {
   const purge = async (confirmEmail?: string) => {
     if (!result?.user?.id) return;
     try {
-      await (dp as any).httpClient(`${(dp as any).API_URL || ''}/users/${result.user.id}/purge`, {
+      const base = inferApiUrl();
+      const token = localStorage.getItem('booka_admin_token');
+      const r = await fetch(`${base}/users/${result.user.id}/purge`, {
         method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
         body: JSON.stringify({ confirm: confirmEmail || '', force: true }),
       });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body?.detail || `Purge failed (${r.status})`);
+      }
       notify('app.user.purged', { type: 'info' });
       setResult(null);
     } catch (e: any) {
-      const detail = e?.body?.detail || e?.message || 'Purge failed';
+      const detail = e?.message || 'Purge failed';
       notify(detail, { type: 'warning' });
     }
   };
@@ -38,16 +58,35 @@ export default function UsersSearch() {
   const makeAdmin = async () => {
     if (!result?.user?.email) return;
     try {
-      await (dp as any).httpClient(`${(dp as any).API_URL || ''}/admin_users`, {
+      const base = inferApiUrl();
+      const token = localStorage.getItem('booka_admin_token');
+      const r = await fetch(`${base}/admin_users`, {
         method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
         body: JSON.stringify({ email: result.user.email, role }),
       });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body?.detail || `Grant failed (${r.status})`);
+      }
       notify('app.admin.granted', { type: 'info' });
     } catch (e: any) {
-      const detail = e?.body?.detail || e?.message || 'Grant failed';
+      const detail = e?.message || 'Grant failed';
       notify(detail, { type: 'warning' });
     }
   };
+
+  function inferApiUrl(): string {
+    const env = (import.meta as any).env?.VITE_API_URL as string | undefined;
+    if (env) return env;
+    const host = window.location.hostname;
+    if (host.endsWith('booka.co.za')) return 'https://api.booka.co.za/admin';
+    return `${window.location.protocol}//${window.location.hostname}:8000/admin`;
+  }
 
   return (
     <>

@@ -27,8 +27,19 @@ def _resolve_booking_request_id(db: Session, booking: models.Booking) -> Optiona
     return qv2.booking_request_id if qv2 else None
 
 
-def _post_system(db: Session, br_id: int, actor_id: int, content: str, visible_to: models.VisibleTo = models.VisibleTo.BOTH) -> None:
-    """Create a system message and ping the opposite party."""
+def _post_system(
+    db: Session,
+    br_id: int,
+    actor_id: int,
+    content: str,
+    visible_to: models.VisibleTo = models.VisibleTo.BOTH,
+    system_key: str | None = None,
+) -> None:
+    """Create a system message and ping the opposite party.
+
+    Optionally sets a system_key so downstream previews/renderers can reliably
+    detect reminder types without relying on string matching.
+    """
     msg = crud_message.create_message(
         db=db,
         booking_request_id=br_id,
@@ -37,6 +48,7 @@ def _post_system(db: Session, br_id: int, actor_id: int, content: str, visible_t
         content=content,
         message_type=models.MessageType.SYSTEM,
         visible_to=visible_to,
+        system_key=system_key,
     )
     # Notify both sides best-effort
     br = db.query(models.BookingRequest).filter(models.BookingRequest.id == br_id).first()
@@ -53,43 +65,11 @@ def _post_system(db: Session, br_id: int, actor_id: int, content: str, visible_t
 
 
 def handle_deposit_due_reminders(db: Session) -> int:
-    """Send deposit due reminders for unpaid BookingSimple rows.
+    """No-op: deposits removed; all clients pay full upfront.
 
-    - Initial reminder when booking is created (prefix handled in notifier)
-    - Follow-ups: 72h and 24h before `deposit_due_by`
-    Returns number of reminders sent.
+    Kept for backward compatibility with the maintenance loop.
     """
-    now = datetime.utcnow()
-    window_72 = now + timedelta(hours=72)
-    window_24 = now + timedelta(hours=24)
-
-    rows = (
-        db.query(models.BookingSimple)
-        .filter(
-            models.BookingSimple.deposit_paid == False,  # noqa: E712
-            models.BookingSimple.deposit_due_by != None,
-            models.BookingSimple.deposit_due_by > now - timedelta(days=1),  # skip very old
-        )
-        .all()
-    )
-
-    sent = 0
-    for bs in rows:
-        client = db.query(models.User).filter(models.User.id == bs.client_id).first()
-        if not client:
-            continue
-        due = bs.deposit_due_by
-        try:
-            if due <= window_24:
-                notify_deposit_due(db, client, bs.id, float(bs.deposit_amount or 0), due)
-                sent += 1
-            elif due <= window_72:
-                notify_deposit_due(db, client, bs.id, float(bs.deposit_amount or 0), due)
-                sent += 1
-        except Exception:
-            # best-effort; continue
-            continue
-    return sent
+    return 0
 
 
 def handle_sound_outreach_nudges_and_expiry(db: Session) -> dict:
@@ -293,14 +273,14 @@ def handle_pre_event_reminders(db: Session) -> int:
             f"{label}: {date_str}. Add to calendar: {ics_link}. "
             "Please share any access/parking details and confirm guest count."
         )
-        _post_system(db, br_id, actor_id=artist.id, content=content_client, visible_to=models.VisibleTo.CLIENT)
+        _post_system(db, br_id, actor_id=artist.id, content=content_client, visible_to=models.VisibleTo.CLIENT, system_key="event_reminder")
 
         # Artist-facing message
         content_artist = (
             f"{label}: {date_str}. Tech check and arrival time confirmed? "
             "If sound is required, ensure supplier status is up to date in this thread."
         )
-        _post_system(db, br_id, actor_id=artist.id, content=content_artist, visible_to=models.VisibleTo.ARTIST)
+        _post_system(db, br_id, actor_id=artist.id, content=content_artist, visible_to=models.VisibleTo.ARTIST, system_key="event_reminder")
 
         sent += 2
     return sent

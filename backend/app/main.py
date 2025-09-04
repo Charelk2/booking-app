@@ -57,6 +57,7 @@ from .api import (
     api_admin,
     api_webhooks_events,
     api_uploads,
+    api_artist_alias,
 )
 
 # The “service-provider-profiles” router lives under app/api/v1/
@@ -339,17 +340,38 @@ app.mount("/profile_pics", StaticFiles(directory=PROFILE_PICS_DIR), name="profil
 app.mount("/cover_photos", StaticFiles(directory=COVER_PHOTOS_DIR), name="cover_photos")
 
 
-# ─── CORS middleware (adjust allow_origins if your frontend is hosted elsewhere) ─────────
-# Allow configurable origins or "*" when CORS_ALLOW_ALL is enabled
-allow_origins = ["*"] if settings.CORS_ALLOW_ALL else (settings.CORS_ORIGINS or ["*"])
+# ─── CORS middleware (credentials-compatible, explicit allowlist) ─────────────
+# With cookies, Access-Control-Allow-Origin cannot be "*". Build a safe allowlist.
+ALLOWED_ORIGINS = [
+    "https://booka.co.za",
+    "https://www.booka.co.za",
+    "https://join.booka.co.za",
+    "https://staging.booka.co.za",
+    "https://booka-admin.fly.dev",
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
+# Include env-configured origins if present (e.g., FRONTEND_URL or CORS_ORIGINS)
+env_frontend = os.getenv("FRONTEND_URL")
+if env_frontend:
+    ALLOWED_ORIGINS.append(env_frontend)
+if getattr(settings, "CORS_ORIGINS", None):
+    try:
+        for o in settings.CORS_ORIGINS:
+            if o not in ALLOWED_ORIGINS:
+                ALLOWED_ORIGINS.append(o)
+    except Exception:
+        pass
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Link", "X-Total-Count", "Content-Range"],
 )
-logger.info("CORS origins set to: %s", allow_origins)
+logger.info("CORS origins set to: %s", ALLOWED_ORIGINS)
 
 # OAuthlib's Starlette integration stores the authorization state in a
 # session cookie. Add SessionMiddleware so Authlib can sign and read
@@ -385,11 +407,10 @@ async def catch_exceptions(request: Request, call_next):
 
     # Ensure the CORS headers are present even when an exception occurs
     origin = request.headers.get("origin")
-    if origin and ("*" in allow_origins or origin in allow_origins):
+    if origin and (origin in ALLOWED_ORIGINS):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
-    elif "*" in allow_origins:
-        response.headers["Access-Control-Allow-Origin"] = "*"
+    # Do not emit wildcard with credentials; browsers will reject it
 
     return response
 
@@ -557,6 +578,13 @@ app.include_router(
     api_calendar.router,
     prefix=f"{api_prefix}",
     tags=["google-calendar"],
+)
+
+# ─── COMPAT (legacy path aliases) ─────────────────────────────────────────────
+app.include_router(
+    api_artist_alias.router,
+    prefix=f"{api_prefix}",
+    tags=["compat"],
 )
 
 # ─── PAYMENT ROUTES (under /api/v1/payments) ─────────────────────────────

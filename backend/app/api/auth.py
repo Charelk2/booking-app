@@ -100,6 +100,9 @@ def _is_secure_cookie() -> bool:
 
 def _set_access_cookie(response: Response, token: str, minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> None:
     max_age = minutes * 60
+    # Optionally scope cookie to parent domain (e.g., .booka.co.za) to support
+    # both app and API subdomains sharing the same session.
+    cookie_domain = getattr(settings, "COOKIE_DOMAIN", "") or None
     response.set_cookie(
         key="access_token",
         value=token,
@@ -108,6 +111,7 @@ def _set_access_cookie(response: Response, token: str, minutes: int = ACCESS_TOK
         samesite="Lax",
         max_age=max_age,
         path="/",
+        domain=cookie_domain,
     )
 
 
@@ -117,6 +121,7 @@ def _set_refresh_cookie(response: Response, token: str, expires_at: datetime) ->
         delta = int((expires_at - datetime.utcnow()).total_seconds())
     except Exception:
         delta = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
+    cookie_domain = getattr(settings, "COOKIE_DOMAIN", "") or None
     response.set_cookie(
         key="refresh_token",
         value=token,
@@ -125,6 +130,7 @@ def _set_refresh_cookie(response: Response, token: str, expires_at: datetime) ->
         samesite="Lax",
         max_age=delta,
         path="/",
+        domain=cookie_domain,
     )
 
 
@@ -139,6 +145,7 @@ def _clear_auth_cookies(response: Response) -> None:
             httponly=True,
             secure=_is_secure_cookie(),
             samesite="Lax",
+            domain=(getattr(settings, "COOKIE_DOMAIN", "") or None),
         )
 
 

@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     # Base frontend URL used for OAuth redirects
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # Optional cookie domain to scope auth cookies across subdomains.
+    # Example: ".booka.co.za" so cookies work on both booka.co.za and api.booka.co.za
+    COOKIE_DOMAIN: str = ""
+
     # Default currency code used across the application
     DEFAULT_CURRENCY: str = "ZAR"
 

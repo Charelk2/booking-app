@@ -140,12 +140,12 @@ def create_quote_for_request(
             )
         # Avoid circular references when serialized by Pydantic models
         new_quote.booking_request = None
-        return new_quote
     except ValueError as e:
         logger.warning(
             "Invalid quote create payload by user %s: %s", current_artist.id, e
         )
         raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
+    return new_quote
 
 
 @router.get(
@@ -295,6 +295,43 @@ def read_my_artist_quotes(
     for q in quotes:
         q.booking_request = None
     return quotes
+
+
+@router.get("/quotes")
+def get_quotes_batch(
+    ids: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Batch fetch quotes by IDs (comma-separated list).
+
+    Returns only quotes the caller is authorized to view (owner participant).
+    """
+    try:
+        id_list = [int(x) for x in ids.split(",") if x.strip()]
+    except Exception:
+        raise error_response(
+            "Invalid ids parameter",
+            {"ids": "comma-separated integers required"},
+            status.HTTP_400_BAD_REQUEST,
+        )
+    if not id_list:
+        return []
+    results: List[models.Quote] = (
+        db.query(models.Quote)
+        .filter(models.Quote.id.in_(id_list))
+        .all()
+    )
+    # Filter by participation
+    permitted: List[models.Quote] = []
+    for q in results:
+        br = q.booking_request
+        if not br:
+            continue
+        if current_user.id in [br.client_id, br.artist_id]:
+            q.booking_request = None
+            permitted.append(q)
+    return permitted
 
 
 @router.put(

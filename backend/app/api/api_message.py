@@ -18,7 +18,7 @@ from ..utils.notifications import (
     notify_user_new_booking_request,
     VIDEO_FLOW_READY_MESSAGE,
 )
-from ..utils.messages import BOOKING_DETAILS_PREFIX
+from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..utils import error_response
 from .api_ws import manager
 import os
@@ -145,6 +145,28 @@ def read_messages(
                 avatar_url = sender.profile_picture_url
         data = schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
+        # Server-computed preview label for uniform clients
+        try:
+            data["preview_label"] = preview_label_for_message(m)
+            # Provide a coarse preview_key/args so clients can unify previews
+            key = None
+            if m.message_type == models.MessageType.QUOTE:
+                key = "quote"
+            elif m.system_key:
+                # normalize known keys
+                low = (m.system_key or "").strip().lower()
+                if low.startswith("booking_details"):
+                    key = "new_booking_request"
+                elif low.startswith("payment_received") or low == "payment_received":
+                    key = "payment_received"
+                elif low.startswith("event_reminder"):
+                    key = "event_reminder"
+                else:
+                    key = low
+            data["preview_key"] = key
+            data["preview_args"] = {}
+        except Exception:
+            data["preview_label"] = None
         # Reply preview
         if m.reply_to_message_id:
             parent = (
@@ -428,6 +450,13 @@ def delete_message(
             {"message_id": "delete_failed"},
             status.HTTP_400_BAD_REQUEST,
         )
+    # Broadcast a minimal deletion event to the thread so other participants
+    # can update their UI immediately.
+    try:
+        manager.broadcast(request_id, {"v": 1, "type": "message_deleted", "id": message_id})
+    except Exception:
+        # Best-effort only; deletion is already persisted.
+        pass
     # No content response
     return
 
@@ -494,7 +523,7 @@ def add_reaction(
     crud.crud_message_reaction.add_reaction(db, message_id, current_user.id, payload.emoji)
     # Broadcast minimal reaction update
     try:
-        data = {"type": "reaction_added", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
+        data = {"v": 1, "type": "reaction_added", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
         manager.broadcast(request_id, data)
     except Exception:
         pass
@@ -522,7 +551,7 @@ def remove_reaction(
         raise error_response("Message not found", {"message_id": "not_found"}, status.HTTP_404_NOT_FOUND)
     crud.crud_message_reaction.remove_reaction(db, message_id, current_user.id, payload.emoji)
     try:
-        data = {"type": "reaction_removed", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
+        data = {"v": 1, "type": "reaction_removed", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
         manager.broadcast(request_id, data)
     except Exception:
         pass

@@ -55,13 +55,9 @@ Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI b
  - Services may optionally include a `service_category_id` and JSON `details` object for category-specific attributes, enabling tailored service data. API responses also expose a `service_category_slug` derived from the category name so clients can avoid relying on database IDs.
  - Artist profile responses now include a `service_categories` array listing all categories the artist offers.
 - Artist search results clear their Redis cache whenever services change so new offerings appear immediately in category searches.
-- Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
-  `bookings_simple`. The deposit amount defaults to half of the accepted quote
-  total. Booking API responses now include these fields alongside
-  `deposit_due_by`.
-- A new `deposit_due_by` field records when the deposit is due, one week after a quote is accepted.
-- Payment receipts are stored with a `payment_id` so clients can view them from the dashboard.
-- Successful payments now automatically confirm the booking and send a system
+- Bookings track `payment_status` in `bookings_simple` and store a `payment_id`
+  so clients can view receipts from the dashboard. Payments are full upfront,
+  and successful payments automatically confirm the booking and send a system
   "View Booking Details" message to both client and artist chats.
 - All booking and quote status changes now emit INFO logs, and scheduler failures
   trigger error alerts so issues surface in monitoring tools. CTA clicks on the
@@ -69,7 +65,7 @@ Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI b
   - Chat threads now surface contextual action buttons—**View Booking Details**—with countdown timers
     when quotes expire, so users never miss a deadline.
 - Users can download all account data via `/api/v1/users/me/export` and permanently delete their account with `DELETE /api/v1/users/me`.
-- Booking cards now show deposit and payment status with a simple progress timeline.
+- Booking cards now show payment status with a simple progress timeline.
 - Booking request detail pages now display a step-by-step timeline from submission to quote acceptance.
 - Booking wizard includes a required **Guests** step.
 - Date picker shows skeleton loaders while data fetches.
@@ -78,12 +74,12 @@ Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI b
 - The chat's inline quote composer now auto-prefills service, travel, and sound fees using `/api/v1/quotes/calculate` when sound equipment is required.
 - Google Maps and large images load lazily once in view to reduce first paint time.
 - Client dashboards now include a bookings list with upcoming and past filters via `/api/v1/bookings/my-bookings?status=`.
-- Each booking item in this list now includes a `deposit_due_by` field when the booking was created from a quote. This due date is calculated one week from the moment the quote is accepted.
+- Each booking item in this list shows the payment status and a receipt link once paid.
 - Artists can mark bookings completed or cancelled and download confirmed bookings as calendar (.ics) files generated with the `ics` library.
 - Clients can leave a star rating and comment once a booking is marked completed. Service detail pages now display these reviews.
 - A **Leave Review** button now appears in chat when a completed booking has no review.
-- After accepting a quote, clients see quick links in the chat to view that booking, pay the deposit, and add it to a calendar.
-- In test environments, accepting a quote instantly triggers supplier outreach, marks the deposit as paid, and provides a mock receipt link for download.
+- After accepting a quote, clients see quick links in the chat to view that booking and add it to a calendar.
+- In test environments, accepting a quote can simulate payment and provides a mock receipt link for download.
 - Inbox conversations feature a **Show Details** button that opens a slide-out booking details panel. On mobile the panel overlays the chat, while on desktop it appears side-by-side with smooth Tailwind transitions.
 - The chat thread now expands or contracts horizontally as the side panel is toggled, keeping date divider lines perfectly aligned across both sections.
 - Chat WebSocket connections send periodic ping/pong heartbeats that lengthen on mobile and pause when tabs are hidden, batch typing indicators, coalesce presence updates, and close slow clients after a one-second send timeout. A `reconnect_hint` message guides exponential retries and Redis pub/sub is used when `WEBSOCKET_REDIS_URL` is set.
@@ -383,16 +379,14 @@ By default it calls `http://localhost:8000`. To point elsewhere, create `fronten
 NEXT_PUBLIC_API_URL=http://192.168.3.203:8000
 NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDm-BKmMtzMSMd-XUdfapjEUU6O5mYy2bk
-NEXT_PUBLIC_GOOGLE_MAPS_KEY=<your-distance-matrix-key>
 ```
 
 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` should be a browser key with the Places API
-enabled. It powers the `LocationInput` autocomplete fields used in the artist
-filters, search bar, and booking steps.
-
-`NEXT_PUBLIC_GOOGLE_MAPS_KEY` is still required for geocoding but the frontend
-no longer contacts Google directly for distance calculations. Instead it calls
-`/api/v1/distance`, and the backend forwards the request using your server key.
+and Geocoding API enabled. It powers the `LocationInput` autocomplete fields
+and the client-side geocoding used by the travel calculation helpers.
+The frontend no longer contacts Google directly for distance calculations.
+Instead it calls `/api/v1/distance`, and the backend forwards the request using
+your server key.
 
 Set `GOOGLE_MAPS_API_KEY` in your `.env` so this proxy works. The key is never
 exposed to the browser.
@@ -749,10 +743,10 @@ Playwright:
 npx playwright install --with-deps
 ```
 
-The suite now includes `client-deposit-flow.spec.ts`, which verifies the
-deposit payment process on an iPhone 14 Pro viewport. A new
+The suite now includes `client-payment-flow.spec.ts`, which verifies the
+full upfront payment process on an iPhone 14 Pro viewport. A new
 `full-booking.spec.ts` exercise walks through signup, requesting a quote and
-paying the deposit using mocked APIs across all default Playwright projects.
+paying using mocked APIs across all default Playwright projects.
 An additional `auth-flow.spec.ts` covers registration, social sign-in buttons
 and email confirmation states.
 The flight search integration also has unit tests that mock the external API so
@@ -1015,8 +1009,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Notification cards keep softly rounded corners and a gentle shadow. Unread items show a thin brand-colored strip on the left.
 * Each card displays a circular avatar, bold title, one-line subtitle, relative timestamp and a small status icon on the right. Icons are color-coded (green for confirmed, indigo for reminders, amber for due alerts).
 * The header now just shows the “Notifications” title, an **Unread** toggle and a close **X** button.
-* Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" only the first time a booking is confirmed. Subsequent reminders omit the greeting. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
-* Booking confirmed and deposit due notifications now show the artist's avatar so users can immediately recognize who the alert is from. When the artist hasn't uploaded a photo, the default avatar is used.
+* Booking confirmed notifications now show the artist's avatar so users can immediately recognize who the alert is from. When the artist hasn't uploaded a photo, the default avatar is used.
 * Quote acceptance and booking confirmation notifications now render dynamic titles such as **"Quote accepted by Jane Doe"** instead of a generic label.
 * Message notifications now include the sender name in both the stored text and the API response so the drawer can display "New message from Alice" without additional lookups.
 * Clicking a new message alert opens `/inbox?requestId={id}` with the conversation active.
@@ -1028,7 +1021,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * File uploads now render PDF or document icons for non-image attachments so previews are clearer.
 * Day divider lines show the full date, while relative times remain visible next to each message group.
 * Booking request notifications display the sender name as the title and the service type in the subtitle with contextual icons. Service names are converted from `PascalCase` or `snake_case` and truncated for readability. The `/api/v1/notifications` endpoint now includes `sender_name` and `booking_type` fields so the frontend no longer parses them from the message string. When this data is missing, the client falls back to extracting the name from phrases like `"New message from Bob:"`.
-* Deposit due, new booking and status update alerts also populate `sender_name` with the relevant artist or client so titles are consistent across notification types.
+* New booking and status update alerts also populate `sender_name` with the relevant artist or client so titles are consistent across notification types.
 * New `useNotifications` context fetches `/api/v1/notifications` with auth and listens on `/api/v1/ws/notifications?token=...` for real-time updates. Notifications are reloaded every 30&nbsp;seconds via a shared Axios instance. The drawer components live under `components/layout/`.
 * Wrap the root layout in `<NotificationsProvider>` so badges and drawers update automatically across the app.
 * A new `parseNotification` utility maps each notification type to a friendly title, subtitle and icon. `<NotificationCard>` consumes this data and opens the related link while marking the item read.
@@ -1318,34 +1311,25 @@ Returns an RFC 5545 compatible calendar entry using the `ics` library.
 ```
 POST /api/v1/payments
  Required: booking_request_id
- Optional: amount (defaults to the booking deposit), full (bool)
+ Optional: amount (ignored; server charges the full quote total)
 ```
 ```
 GET /api/v1/payments/{payment_id}/receipt
 ```
-Returns the PDF receipt for a completed payment.
-Omitting `amount` charges the booking's `deposit_amount`.
-Sending `full: true` charges the remaining balance and marks the booking paid. Omitting it records a deposit and sets the status to `deposit_paid`.
-The booking's `deposit_amount` field is preserved when paying the full amount so the original deposit total is retained.
+Returns the PDF (or HTML fallback) receipt for a completed payment.
+The server charges the full quote total and marks the booking paid on success.
 The endpoint now verifies the booking belongs to the authenticated client and returns **403 Forbidden** if another user attempts payment.
-Duplicate payments are rejected with **400 Bad Request** when the deposit is already paid.
+Duplicate payments are rejected with **400 Bad Request**.
 Payment processing now emits structured logs instead of printing to stdout so transactions can be traced in production.
 Set `PAYMENT_GATEWAY_FAKE=1` in the environment to bypass the real gateway during local testing. When enabled, `/api/v1/payments` returns a dummy `payment_id` and immediately marks the booking paid.
 For the frontend, set `NEXT_PUBLIC_FAKE_PAYMENTS=1` to simulate a successful payment without calling the `/api/v1/payments` endpoint. This lets you test the booking flow entirely offline.
 Set `PAYMENT_GATEWAY_URL` to your payment provider's base URL. The default `https://example.com` triggers a startup warning so you don't accidentally hit a placeholder endpoint.
 
-When a client accepts a quote in the chat thread, the frontend now prompts them to pay a deposit via this endpoint. Successful payments update the booking's `payment_status` and display a confirmation banner.
-The payment modal automatically fills in half the quote total as the suggested deposit, but clients can adjust the amount before submitting.
-The amount field now displays this value formatted via `formatCurrency` and shows helper text indicating whether the deposit or full amount will be charged. Deposit due dates use the `PPP` format for brevity.
-The payment modal heading now also displays the deposit due date beneath the title so clients can easily see the deadline.
+When a client accepts a quote in the chat thread, the frontend prompts them to pay via this endpoint. Successful payments update the booking's `payment_status` and display a confirmation banner.
+The payment modal displays the full amount due. If `NEXT_PUBLIC_USE_PAYSTACK=1` is set, the modal initializes a Paystack checkout and embeds the authorization URL in an inline iframe with a fallback link to open in a new tab.
 The modal layout now adapts to narrow screens, trapping focus and scrolling internally so mobile users can submit using the keyboard's **Done** button.
-Accepting a quote also creates a **DEPOSIT_DUE** notification formatted as `Booking confirmed – deposit R{amount} due by {date}`. The alert links to `/dashboard/client/bookings/{booking_id}?pay=1` so clients can pay immediately. The drawer parses the amount and date from this message and shows them as `R50.00 due by Jan 1, 2025` under the title.
-Clients can also pay outstanding deposits later from the bookings page. Each
-pending booking shows a **Pay deposit** button that fetches the latest deposit
-amount from the server before opening the payment modal.
 Adding `?pay=1` to a booking URL automatically opens this modal when the booking
-loads if the payment status is still `pending`. Deposit reminder notifications
-include this query string so clients can pay with one click.
+loads if the payment status is still `pending`.
 
 All prices and quotes now default to **South African Rand (ZAR)**. Update your environment or tests if you previously assumed USD values.
 
