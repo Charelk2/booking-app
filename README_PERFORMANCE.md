@@ -71,17 +71,10 @@ No response schemas were changed, no migrations were added, and availability/dat
   - `API_BASE=https://api.booka.co.za python scripts/prewarm_artists.py`
   - The script reports status codes and timings per category/sort.
 
-## Next.js Same‑Origin Proxy (CORS‑free)
+## Frontend Networking (Notes)
 
-- To avoid browser CORS and redirects, the frontend exposes a same‑origin proxy route:
-  - File: `frontend/src/app/api/v1/[...path]/route.ts`
-  - It proxies requests from your frontend domain (e.g., `https://booka.co.za/api/v1/*`) to the backend API host.
-- Configure the backend origin via `NEXT_PUBLIC_API_URL` in the frontend environment:
-  - Example: `NEXT_PUBLIC_API_URL=https://api.booka.co.za`
-- Important deployment note:
-  - Do not add an external redirect for `/api/v1/*` at the CDN/edge. Let Next.js handle this route so requests remain same‑origin.
-  - If you use CDN rewrites, ensure they don’t shadow this Next route handler.
-  - Cookies continue to work because the browser sees a same‑origin path; no CORS preflight required.
+- Ensure the frontend calls the API host directly using the correct base URL (e.g., `NEXT_PUBLIC_API_URL=https://api.booka.co.za`).
+- Avoid adding redirects that bounce API calls between origins; they can introduce CORS preflights or break credentials on error paths.
 
 ---
 
@@ -89,17 +82,17 @@ No response schemas were changed, no migrations were added, and availability/dat
 
 This section explains the problem in plain language and what changed.
 
-- Before: The first request after a lull hit a “cold path” — a big database query that loaded all matching rows, then paginated in Python, and sometimes an idle database connection had been closed by the database or proxy. That first request could time out at the gateway (502/503), and the browser also got tripped up by a redirect from `booka.co.za` to `api.booka.co.za`, which broke CORS preflight. After the first heavy query finally finished, Redis had a warm cache and everything felt fast.
-- After: The browser now calls a same‑origin path (`/api/v1/*`) served by Next.js, which proxies the request to the API server. No redirect, no CORS preflight. On the backend, queries paginate in SQL (no full materialization), price distributions use targeted aggregations, and the DB connection pool validates connections before use. Result: the “first hit” is much cheaper and doesn’t fail; subsequent hits are warmed by Redis and are instant.
+- Before: The first request after a lull hit a “cold path” — a big database query that loaded all matching rows, then paginated in Python, and sometimes an idle database connection had been closed by the database or proxy. That first request could time out at the gateway (502/503), and occasional cross‑origin redirects could complicate CORS. After the first heavy query finally finished, Redis had a warm cache and everything felt fast.
+- After: The frontend calls the API host directly (no extra redirect). On the backend, queries paginate in SQL (no full materialization), price distributions use targeted aggregations, and the DB connection pool validates connections before use. Result: the “first hit” is much cheaper and doesn’t fail; subsequent hits are warmed by Redis and are instant.
 
 How to think about the request flow now:
-- Browser → Next.js (same origin) → Backend API → Redis/Postgres → Next.js → Browser.
+- Browser → Backend API → Redis/Postgres → Browser.
 - If Redis has the entry, it’s returned immediately. If not, Postgres runs a query that’s constrained and paginated server‑side. Either way, the response carries cache headers so future requests reuse it. The DB engine pre‑pings connections to avoid stale links after inactivity.
 
 Key lessons captured in code:
 - Do pagination in the database, not in application memory.
 - Keep cache keys faithful to the payload shape (include `fields`).
-- Avoid cross‑origin redirects for API calls; keep API calls same‑origin or ensure CORS is correct on every response path (including errors).
+- Avoid cross‑origin redirects for API calls; ensure CORS is correct on every response path (including errors).
 - Validate and recycle DB connections to avoid first‑hit failures after idle periods.
 
 ## Is The Code Well Structured?
@@ -109,14 +102,14 @@ Short answer: yes, with a few areas to continue tightening as traffic grows.
 Strengths:
 - Clear separation of concerns: list endpoints live under `api_service_provider.py`; caching helpers live under `utils/redis_cache.py`; frontend requests are centralized in `frontend/src/lib/api.ts`.
 - Caching is applied where it matters (artist lists, availability, weather) with stable headers and Redis keys.
-- The Next.js same‑origin proxy encapsulates CORS concerns away from the browser.
+- CORS is handled consistently at the API, including error responses.
 
 Opportunities:
 - Unify “heavy” and “lean” list code paths behind shared helpers to reduce duplication and ensure sorting/filtering logic stays consistent.
 - Document and constrain `fields` more clearly (top‑level only on list endpoints) to avoid confusion and payload bloat.
 - Keep image payload hygiene centralized (e.g., one place that scrubs or rewrites large data‑URLs for list views).
 - Introduce single‑flight protection in the cache layer for identical in‑flight misses to avoid thundering herds.
-- Extend integration tests for cold‑start behavior (first request after idle) and for proxy/no‑CORS regressions.
+- Extend integration tests for cold‑start behavior (first request after idle) and for CORS regressions.
 
 ## Scaling Blueprint (100k DAU)
 
@@ -127,7 +120,7 @@ This platform blends booking workflows, real‑time chat, notifications, and med
 - DB first: Managed Postgres + pgBouncer, strict timeouts, read replicas for analytics.
 - Caching strategy: Redis with single‑flight (dogpile prevention) + TTL jitter.
 - Media pipeline: Direct‑to‑storage with managed transcoding (Mux/Cloudflare Stream).
-- Next.js delivery: ISR for lists, same‑origin proxy, staggered fetches.
+- Next.js delivery: ISR for lists, staggered fetches.
 - Realtime: Clear Option A (managed) vs Option B (DIY with Redis pub/sub).
 - Ops & reliability: Outbox pattern, blue/green or canary, DR snapshots, tracing/metrics/logging with correlation IDs.
 - Security: Cookie auth across subdomain, rate limits at edge and app.
@@ -186,8 +179,8 @@ This platform blends booking workflows, real‑time chat, notifications, and med
 - Workers: Celery/Dramatiq/RQ on durable broker; Outbox pattern for reliability.
 - Realtime: DIY WS + Redis adapter; define cutover to managed fan‑out if growth demands.
 - Media: Direct‑to‑storage uploads; managed transcoding and CDN delivery; webhooks update asset state.
-- Frontend: Next.js ISR + SWR; same‑origin proxy; SSR prefetch for featured lists; stagger client fetches. React Native with push + deep links.
-- Edge/CDN: Cloudflare caching (stale‑while‑revalidate), WAF for auth/payment routes, WS pass‑through. No redirects for `/api`—proxy via Next.
+- Frontend: Next.js ISR + SWR; SSR prefetch for featured lists; stagger client fetches. React Native with push + deep links.
+- Edge/CDN: Cloudflare caching (stale‑while‑revalidate), WAF for auth/payment routes, WS pass‑through. Avoid redirects for `/api` endpoints.
 - Observability: OTel traces across Next → API → workers; correlation IDs; dashboards for p95; Redis hit/miss; DB pool metrics.
 - Security: Cookie auth (`SameSite=None; Secure; Domain=.booka.co.za`), edge/app rate limits; CSRF on non‑idempotent forms; secrets rotation; least‑privilege IAM.
 
