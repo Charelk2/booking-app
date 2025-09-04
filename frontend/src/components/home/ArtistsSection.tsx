@@ -117,7 +117,7 @@ export default function ArtistsSection({
             className="flex gap-2 overflow-x-auto scroll-smooth pb-2 scrollbar-hide"
           >
             {artists.map((a) => {
-              const name = a.business_name || `${a.user.first_name} ${a.user.last_name}`;
+              const name = a.business_name || `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`.trim();
               return (
                 <ServiceProviderCardCompact
                   key={a.id}
