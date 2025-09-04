@@ -15,10 +15,10 @@ interface UseRealtimeReturn {
   forceReconnect: () => void;
 }
 
-// Compute WS and SSE bases with safe client fallbacks.
-// - WS: prefer env; else same-origin (http->ws)
-// - SSE: allow relative path when base is empty
-let WS_BASE_ENV = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '') as string;
+// Compute realtime endpoints with safe defaults.
+// - WS: prefer explicit NEXT_PUBLIC_WS_URL (e.g., wss://api.booka.co.za); else same-origin (http->ws)
+// - SSE: always use a same-origin relative path so it flows through Next.js rewrites
+let WS_BASE_ENV = (process.env.NEXT_PUBLIC_WS_URL || '') as string;
 WS_BASE_ENV = WS_BASE_ENV.replace(/\/+$/, '');
 
 export default function useRealtime(token?: string | null): UseRealtimeReturn {
@@ -50,12 +50,11 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   }, [wsBase, wsToken]);
 
   const sseUrlForTopics = useCallback((topics: string[]) => {
-    const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '');
     const qs = new URLSearchParams();
     if (topics.length) qs.set('topics', topics.join(','));
     if (token) qs.set('token', token);
-    // When API_BASE is empty, this yields a same-origin relative URL
-    return `${API_BASE}/api/v1/sse?${qs.toString()}`;
+    // Always use same-origin so SSE streams through Next.js rewrites (avoids CORS/proxy drift)
+    return `/api/v1/sse?${qs.toString()}`;
   }, [token]);
 
   const deliver = useCallback((msg: any) => {
