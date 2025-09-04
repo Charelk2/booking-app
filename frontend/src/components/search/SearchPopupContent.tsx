@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, RefObject, useCallback, useRef } from 'react';
-import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
 import ReactDatePicker from 'react-datepicker';
 import { Listbox } from '@headlessui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
@@ -207,7 +207,7 @@ export default function SearchPopupContent({
                   tabIndex={-1}
                 >
                   {s.image && (
-                    <Image
+                    <SafeImage
                       src={s.image}
                       alt={s.name}
                       width={40}
