@@ -3541,21 +3541,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       {/* Quote Drawer removed */}
 
       {/* Errors */}
-      {threadError && (
-        <p className="text-xs text-red-600 p-4 mt-1.5" role="alert">{threadError}</p>
-      )}
-      {!threadError && socketStatus !== 'open' && (
-        <div className="px-4 py-2 text-xs text-gray-600">
-          {socketStatus === 'connecting' && 'Connecting…'}
-          {socketStatus === 'reconnecting' && (
-            <span>
-              Reconnecting{typeof lastReconnectDelay === 'number' ? ` in ~${Math.round(lastReconnectDelay/1000)}s` : ''}…
-              <button type="button" className="ml-2 underline" onClick={() => forceReconnect()}>Retry now</button>
-            </span>
-          )}
-          
-        </div>
-      )}
+
+
       {wsFailed && (
         <p className="text-xs text-red-600 p-4 mt-1.5" role="alert">
           Connection lost. Please refresh the page or sign in again.
