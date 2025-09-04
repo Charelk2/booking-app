@@ -319,14 +319,19 @@ class StaticFilesWithDefault(StaticFiles):
         try:
             return await super().get_response(path, scope)
         except StarletteHTTPException as exc:
-            if exc.status_code == 404 and path.startswith("profile_pics/"):
-                default_path = os.path.join(APP_STATIC_DIR, "default-avatar.svg")
-                ext = os.path.splitext(path)[1].lower()
-                media_type = "image/svg+xml"
-                if ext in {".jpg", ".jpeg"}:
-                    media_type = "image/jpeg"
-                elif ext == ".png":
-                    media_type = "image/png"
+            if exc.status_code == 404 and (
+                path.startswith("profile_pics/")
+                or path.startswith("cover_photos/")
+                or path.startswith("portfolio_images/")
+            ):
+                # Fallbacks: avatar for profile pics; a neutral gray for others
+                if path.startswith("profile_pics/"):
+                    default_path = os.path.join(APP_STATIC_DIR, "default-avatar.svg")
+                    media_type = "image/svg+xml"
+                else:
+                    # Use the avatar as a generic placeholder to avoid broken layouts
+                    default_path = os.path.join(APP_STATIC_DIR, "default-avatar.svg")
+                    media_type = "image/svg+xml"
                 return FileResponse(default_path, media_type=media_type)
             raise
 
