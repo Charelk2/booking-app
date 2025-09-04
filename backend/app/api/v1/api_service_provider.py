@@ -685,7 +685,10 @@ def read_all_service_provider_profiles(
             "service_price": (float(service_price) if service_price is not None else None),
             "service_categories": categories,
         }
-        base["profile_picture_url"] = _scrub_image(base.get("profile_picture_url"))
+        # Preserve profile_picture_url even if it's a data URL so list views
+        # (e.g., homepage carousels) can show the cropped avatar without
+        # depending on static storage. Covers/portfolios are excluded below.
+        # base["profile_picture_url"] remains as stored.
         # Exclude heavy fields by default; clients can request explicitly via `fields`
         base["portfolio_image_urls"] = None
         base["cover_photo_url"] = None
@@ -958,7 +961,9 @@ def list_service_provider_profiles(
             # portfolio_image_urls and cover_photo_url may contain data URLs; exclude by default
             "portfolio_image_urls": None,
             "specialties": artist.specialties,
-            "profile_picture_url": _scrub_image(artist.profile_picture_url),
+            # Keep profile picture as-is, including data URLs, to ensure
+            # durability across deploys for avatars on lightweight lists
+            "profile_picture_url": artist.profile_picture_url,
             "cover_photo_url": None,
             "price_visible": artist.price_visible,
             "cancellation_policy": artist.cancellation_policy,
