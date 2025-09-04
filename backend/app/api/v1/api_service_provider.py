@@ -691,6 +691,18 @@ def read_all_service_provider_profiles(
         base["cover_photo_url"] = None
         if requested is not None:
             base = {k: v for k, v in base.items() if k in requested or k in {"user_id"}}
+        if requested is not None:
+            want_user = any(f.startswith("user.") or f == "user" for f in requested)
+            if want_user:
+                try:
+                    u = artist.user
+                    base["user"] = {
+                        "id": u.id if u else None,
+                        "first_name": getattr(u, "first_name", None) if u else None,
+                        "last_name": getattr(u, "last_name", None) if u else None,
+                    }
+                except Exception:
+                    base["user"] = None
         profile = ArtistProfileResponse.model_validate(base)
         # Avoid per-artist availability lookups for list pages without a specific date
         if when:
@@ -975,7 +987,19 @@ def list_service_provider_profiles(
             "user": None,
         }
         if requested is not None:
-            record = {k: v for k, v in record.items() if k in requested or k in {"user_id"}}
+            # Handle nested user fields if requested, e.g., "user.first_name"
+            want_user = any(f.startswith("user.") or f == "user" for f in requested)
+            if want_user:
+                try:
+                    u = artist.user  # lazy-load ok for 20 items
+                    record["user"] = {
+                        "id": u.id if u else None,
+                        "first_name": getattr(u, "first_name", None) if u else None,
+                        "last_name": getattr(u, "last_name", None) if u else None,
+                    }
+                except Exception:
+                    record["user"] = None
+            record = {k: v for k, v in record.items() if (k in requested) or (k in {"user_id"}) or (k == "user" and want_user)}
         data.append(record)
 
     price_distribution = []

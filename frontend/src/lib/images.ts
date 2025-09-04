@@ -47,7 +47,10 @@ export function toCanonicalImageUrl(input?: string | null): string | null {
     if (isApi) {
       const normalized = ensureStaticPath(u.pathname);
       const finalPath = preserveExtension(normalized);
-      return `${origin}${finalPath}${u.search}`;
+      // Prefer same-origin relative path so Next.js image optimizer can fetch
+      // via our rewrites (/static → backend). This avoids remote domain
+      // misconfig and 404s from _next/image.
+      return `${finalPath}${u.search}`;
     }
     // External absolute URL: if looks like an image, return as-is; else null
     if (EXT_RE.test(u.pathname)) return v;
@@ -56,7 +59,8 @@ export function toCanonicalImageUrl(input?: string | null): string | null {
     // Relative path: coerce to /static and absolute origin
     const normalized = ensureStaticPath(v.startsWith('/') ? v : `/${v}`);
     const finalPath = preserveExtension(normalized);
-    return `${origin}${finalPath}`;
+    // Same-origin relative path; Next rewrites /static/* to the API
+    return `${finalPath}`;
   }
 }
 
