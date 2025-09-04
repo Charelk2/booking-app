@@ -11,7 +11,7 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
-import Image from 'next/image';
+// Use SafeImage everywhere for consistent Next/Image optimization
 import SafeImage from '@/components/ui/SafeImage';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -2760,12 +2760,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                         className="block"
                                         aria-label="Open image"
                                       >
-                                        <Image
+                                        <SafeImage
                                           src={url}
                                           alt="Image attachment"
                                           width={600}
                                           height={600}
-                                          loading="lazy"
                                           className="block w-full h-auto rounded-xl"
                                         />
                                       </button>
