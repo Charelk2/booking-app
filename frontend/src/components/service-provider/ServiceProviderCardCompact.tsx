@@ -19,6 +19,7 @@ export interface ServiceProviderCardCompactProps
   name: string;
   subtitle?: string;
   imageUrl?: string;
+  unoptimizedImage?: boolean;
   price?: number;
   rating?: number;
   ratingCount?: number;
@@ -32,6 +33,7 @@ export default function ServiceProviderCardCompact({
   name,
   subtitle,
   imageUrl,
+  unoptimizedImage,
   price,
   rating,
   ratingCount,
@@ -68,6 +70,7 @@ export default function ServiceProviderCardCompact({
             fill
             sizes={`(max-width:${BREAKPOINT_MD}px) 50vw, 33vw`}
             className="object-cover w-full h-full transition-transform"
+            unoptimized={Boolean(unoptimizedImage)}
             onLoad={() => setLoaded(true)}
             placeholder="blur"
             blurDataURL={BLUR_PLACEHOLDER}
@@ -79,6 +82,7 @@ export default function ServiceProviderCardCompact({
             fill
             sizes={`(max-width:${BREAKPOINT_MD}px) 0vw, 33vw`}
             className="object-cover w-full h-full"
+            unoptimized={Boolean(unoptimizedImage)}
             onLoad={() => setLoaded(true)}
             placeholder="blur"
             blurDataURL={BLUR_PLACEHOLDER}
