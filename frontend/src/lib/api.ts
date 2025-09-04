@@ -79,6 +79,7 @@ api.interceptors.request.use(
 // Provide consistent error messages across the app
 let isRefreshing = false;
 let pendingQueue: Array<() => void> = [];
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 api.interceptors.response.use(
   (response) => response,
@@ -88,6 +89,17 @@ api.interceptors.response.use(
       const status = error.response?.status;
       const detail = error.response?.data?.detail;
       let message = extractErrorMessage(detail);
+
+      // Lightweight retry for idempotent requests on transient upstream errors
+      const method = (originalRequest?.method || 'get').toLowerCase();
+      const isIdempotent = method === 'get' || method === 'head' || method === 'options';
+      const transient = status === 502 || status === 503 || status === 504 || (error.code === 'ECONNABORTED');
+      const retryCount = (originalRequest as any)?._retryCount || 0;
+      if (isIdempotent && transient && retryCount < 2) {
+        const backoff = Math.min(1500, 200 * 2 ** retryCount) + Math.floor(Math.random() * 150);
+        (originalRequest as any)._retryCount = retryCount + 1;
+        return sleep(backoff).then(() => api(originalRequest!));
+      }
 
       // Attempt silent refresh once on 401, then retry original request
       if (status === 401 && originalRequest && !originalRequest._retry) {

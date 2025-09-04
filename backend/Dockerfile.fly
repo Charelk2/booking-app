@@ -25,5 +25,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD curl -fsS http://127.0.0.1:${PORT}/healthz || exit 1
 
 # Run the API
-CMD ["bash","-lc","uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*'"]
-
+# Allow tuning the number of workers via UVICORN_WORKERS (default 2).
+# Using multiple workers improves resilience under intermittent slow requests
+# and keeps realtime (WS/SSE) responsive.
+CMD ["bash","-lc","uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*' --workers ${UVICORN_WORKERS:-2} --loop uvloop --http httptools"]
