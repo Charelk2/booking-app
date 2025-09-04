@@ -45,7 +45,9 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
 
   const wsUrl = useMemo(() => {
     if (!wsBase) return null;
-    if (!wsToken) return null; // never attempt cross-origin WS without token
+    // Prefer cookie-auth WS if no token was provided; cookies work across
+    // subdomains when COOKIE_DOMAIN=.booka.co.za is set on the backend.
+    if (!wsToken) return `${wsBase}/api/v1/ws`;
     return `${wsBase}/api/v1/ws?token=${encodeURIComponent(wsToken)}`;
   }, [wsBase, wsToken]);
 
@@ -185,32 +187,8 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     };
   }, [sseUrlForTopics, deliver]);
 
-  // If no explicit token was provided and we're operating in WS mode, mint a
-  // fresh access token via the cookie-backed refresh endpoint. Only attempt
-  // once per mount to avoid loops.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (wsToken || mode !== 'ws' || refreshAttempted) return;
-      try {
-        const res = await fetch('/auth/refresh', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (res.ok) {
-          const body = await res.json().catch(() => null);
-          const at = body?.access_token as string | undefined;
-          if (at && !cancelled) setWsToken(at);
-        }
-      } catch {
-        // ignore; SSE fallback will still function via same-origin cookies
-      } finally {
-        if (!cancelled) setRefreshAttempted(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [wsToken, mode, refreshAttempted]);
+  // Avoid proactive refreshes; rely on cookie-auth WS when possible.
+  // If a token is supplied (e.g., from AuthContext), it will be used.
 
   useEffect(() => {
     if (mode === 'ws') {
