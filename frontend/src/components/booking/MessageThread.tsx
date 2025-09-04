@@ -2278,9 +2278,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
   }, [isDetailsPanelOpen]);
 
-  // Keep last message visible by padding the scroll area with the composer height
-  // Keep a minimal visual gap; do not pad by composer height
-  const effectiveBottomPadding = `calc(${BOTTOM_GAP_PX}px + env(safe-area-inset-bottom))`;
+  // When the inline quote form (service provider) is shown, its sticky action bar
+  // can be obscured by the sticky chat composer. Add extra bottom padding equal
+  // to the composer height so users can scroll it fully into view.
+  const showInlineQuote =
+    user?.user_type === 'service_provider' &&
+    !bookingConfirmed &&
+    !hasSentQuote &&
+    !isPersonalizedVideo &&
+    !!bookingRequest &&
+    !isModerationThread &&
+    !isInquiryThread;
+
+  const effectiveBottomPadding = showInlineQuote
+    ? `calc(${composerHeight}px + ${BOTTOM_GAP_PX}px + env(safe-area-inset-bottom))`
+    : `calc(${BOTTOM_GAP_PX}px + env(safe-area-inset-bottom))`;
 
   // When the composer height changes and the user is anchored at bottom, keep the view pinned
   // On composer height changes, if anchored, shift by the exact composer delta
