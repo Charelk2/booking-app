@@ -502,7 +502,8 @@ def read_all_service_provider_profiles(
 
     cache_category = category_slug
     cached = None
-    cacheable = (not include_price_distribution) and (when is None) and (not artist)
+    # Only cache when payload shape is stable (no fields trimming)
+    cacheable = (not include_price_distribution) and (when is None) and (not artist) and (not fields)
     if cacheable:
         cached = get_cached_artist_list(
             page=page,
@@ -512,6 +513,7 @@ def read_all_service_provider_profiles(
             sort=sort,
             min_price=min_price,
             max_price=max_price,
+            fields=None,
         )
     if cached is not None:
         try:
@@ -620,35 +622,47 @@ def read_all_service_provider_profiles(
     elif sort == "newest":
         query = query.order_by(desc(Artist.created_at))
 
-    all_rows = query.all()
-    total_count = len(all_rows)
+    # Count total BEFORE pagination
+    total_count = query.count()
 
     price_distribution_data: List[Dict[str, Any]] = []
     if include_price_distribution:
-        bucket_counts: Dict[Tuple[int, int], int] = defaultdict(int)
-        for row in all_rows:
-            # ``row`` can contain either 5 or 6 items depending on whether
-            # service prices were joined above.  We only care about the
-            # ``service_price`` column here, so grab the last element when the
-            # join is active instead of unpacking a fixed number of values.
-            service_price = row[-1] if join_services else None
-
-            if service_price is not None:
+        # Compute distribution from a focused aggregation to avoid materializing full rows
+        try:
+            bucket_counts: Dict[Tuple[int, int], int] = defaultdict(int)
+            if category_slug or min_price is not None or max_price is not None:
+                # Use the price_subq (min price per artist, with optional category filter)
+                prices = db.query(func.min(Service.price)).join(ServiceCategory, Service.service_category_id == ServiceCategory.id, isouter=True)
+                prices = prices.filter(getattr(Service, "status", "approved") == "approved")
+                if category_slug:
+                    prices = prices.filter(func.lower(ServiceCategory.name) == category_slug.replace("_", " "))
+                prices = prices.group_by(Service.artist_id)
+                all_min_prices = [float(p or 0) for p, in prices.all()]
+            else:
+                # All artists: same approach as the lean endpoint
+                all_min_prices = [
+                    float(p or 0)
+                    for p, in db.query(func.min(Service.price))
+                    .filter(getattr(Service, "status", "approved") == "approved")
+                    .group_by(Service.artist_id)
+                    .all()
+                ]
+            for price in all_min_prices:
                 for b_min, b_max in PRICE_BUCKETS:
-                    if b_min <= service_price <= b_max:
+                    if b_min <= price <= b_max:
                         bucket_counts[(b_min, b_max)] += 1
                         break
-        for b_min, b_max in PRICE_BUCKETS:
-            price_distribution_data.append(
-                {
+            for b_min, b_max in PRICE_BUCKETS:
+                price_distribution_data.append({
                     "min": b_min,
                     "max": b_max,
                     "count": bucket_counts.get((b_min, b_max), 0),
-                }
-            )
+                })
+        except Exception:
+            price_distribution_data = []
 
     offset = (page - 1) * limit
-    artists = all_rows[offset : offset + limit]
+    artists = query.offset(offset).limit(limit).all()
 
     # Helper to scrub heavy inline images from list payloads
     def _scrub_image(val: Optional[str]) -> Optional[str]:
@@ -755,6 +769,8 @@ def read_all_service_provider_profiles(
             sort=sort,
             min_price=min_price,
             max_price=max_price,
+            expire=60,
+            fields=None,
         )
 
     # Set caching headers on the response
@@ -891,6 +907,7 @@ def list_service_provider_profiles(
         sort=sort,
         min_price=min_price,
         max_price=max_price,
+        fields=fields,
     )
     if isinstance(cached, dict) and "data" in cached and "total" in cached:
         response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=120"
@@ -1019,6 +1036,7 @@ def list_service_provider_profiles(
             min_price=min_price,
             max_price=max_price,
             expire=60,
+            fields=fields,
         )
     except Exception:
         pass

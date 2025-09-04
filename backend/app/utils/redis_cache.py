@@ -37,14 +37,28 @@ def _make_key(
     sort: Optional[str],
     min_price: Optional[float],
     max_price: Optional[float],
+    fields: Optional[str] = None,
 ) -> str:
-    """Return a Redis key for the given parameter combination."""
-    cat = category or ""
-    loc = location or ""
-    srt = sort or ""
+    """Return a Redis key for the given parameter combination.
+
+    Includes ``fields`` so that trimmed payload variants don't collide with
+    full payload caches. The ``fields`` string is normalized to a sorted,
+    comma-separated list for key stability.
+    """
+    cat = (category or "").strip()
+    loc = (location or "").strip()
+    srt = (sort or "").strip()
     minp = "" if min_price is None else str(min_price)
     maxp = "" if max_price is None else str(max_price)
-    return f"{ARTIST_LIST_KEY_PREFIX}:{page}:{limit}:{cat}:{loc}:{srt}:{minp}:{maxp}"
+    fld = ""
+    if fields:
+        try:
+            parts = [p.strip() for p in fields.split(",") if p.strip()]
+            parts.sort()
+            fld = ",".join(parts)
+        except Exception:
+            fld = (fields or "").strip()
+    return f"{ARTIST_LIST_KEY_PREFIX}:{page}:{limit}:{cat}:{loc}:{srt}:{minp}:{maxp}:{fld}"
 
 
 def get_cached_artist_list(
@@ -56,10 +70,11 @@ def get_cached_artist_list(
     sort: Optional[str] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
+    fields: Optional[str] = None,
 ) -> Any | None:
     """Retrieve a cached artist page (data or payload) for the given parameters if available."""
     client = get_redis_client()
-    key = _make_key(page, limit, category, location, sort, min_price, max_price)
+    key = _make_key(page, limit, category, location, sort, min_price, max_price, fields)
     try:
         data = client.get(key)
     except redis.exceptions.ConnectionError as exc:
@@ -81,10 +96,11 @@ def cache_artist_list(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     expire: int = 60,
+    fields: Optional[str] = None,
 ) -> None:
     """Cache the artist page payload for the given parameter combination."""
     client = get_redis_client()
-    key = _make_key(page, limit, category, location, sort, min_price, max_price)
+    key = _make_key(page, limit, category, location, sort, min_price, max_price, fields)
     try:
         client.setex(key, expire, dumps(data))
     except redis.exceptions.ConnectionError as exc:
