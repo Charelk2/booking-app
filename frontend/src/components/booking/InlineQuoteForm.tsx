@@ -1,10 +1,25 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { format } from 'date-fns';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { format, addHours } from 'date-fns';
 import { ServiceItem, QuoteV2Create, QuoteCalculationResponse } from '@/types';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from './QuoteBubble';
 import { calculateQuoteBreakdown } from '@/lib/api';
+
+/**
+ * InlineQuoteForm (v2)
+ * ------------------------------------------------------------
+ * A compact, chat-friendly quote composer designed for use inside
+ * a message thread. Optimized for speed, clarity, and touch usage.
+ *
+ * Highlights
+ * - Smart defaults from calculateQuoteBreakdown (optional)
+ * - Currency-safe inputs with instant totals
+ * - Quick-add line items & sound presets (None / Basic PA / Full PA)
+ * - Expiry chips with human-readable preview
+ * - Sticky action bar with Estimated Total + Send/Decline
+ * - Accessible: keyboard & screen-reader friendly
+ */
 
 interface Props {
   onSubmit: (data: QuoteV2Create) => Promise<void> | void;
@@ -33,6 +48,111 @@ const expiryOptions = [
   { label: '7 days', value: 168 },
 ];
 
+// ——————————————————————————————————————————————————————————————
+// Small helpers
+// ——————————————————————————————————————————————————————————————
+
+const toNumber = (v: string | number) => {
+  if (typeof v === 'number') return v;
+  const cleaned = v.replace(/[^0-9.\-]/g, '');
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+};
+
+function CurrencyInput({
+  value,
+  onChange,
+  id,
+  placeholder,
+  'aria-label': ariaLabel,
+  className = '',
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  id?: string;
+  placeholder?: string;
+  'aria-label'?: string;
+  className?: string;
+}) {
+  const [text, setText] = useState<string>('');
+  const lastValueRef = useRef<number>(value);
+
+  useEffect(() => {
+    if (lastValueRef.current !== value) {
+      lastValueRef.current = value;
+      setText(value ? formatCurrency(value) : '');
+    }
+  }, [value]);
+
+  return (
+    <input
+      id={id}
+      inputMode="decimal"
+      aria-label={ariaLabel}
+      className={`w-32 text-right p-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/10 ${className}`}
+      placeholder={placeholder ?? '0.00'}
+      value={text}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setText(raw);
+        const numeric = toNumber(raw);
+        onChange(numeric);
+      }}
+      onBlur={() => setText(value ? formatCurrency(value) : '')}
+    />
+  );
+}
+
+const QuickChip: React.FC<{
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+}> = ({ label, active, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors select-none hover:bg-gray-50 ${
+      active ? 'bg-black text-white border-black' : 'bg-white text-gray-800 border-gray-300'
+    }`}
+  >
+    {label}
+  </button>
+);
+
+const LineItemRow: React.FC<{
+  item: ServiceItem & { key: string };
+  onUpdate: (patch: Partial<ServiceItem>) => void;
+  onRemove: () => void;
+}> = ({ item, onUpdate, onRemove }) => {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
+      <input
+        type="text"
+        className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+        placeholder="Custom item (e.g., Extra hour)"
+        value={item.description}
+        onChange={(e) => onUpdate({ description: e.target.value })}
+      />
+      <CurrencyInput
+        aria-label="Item price"
+        value={item.price}
+        onChange={(n) => onUpdate({ price: n })}
+      />
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove line item"
+        className="rounded-lg border border-red-200 text-red-600 text-xs font-semibold px-2 py-1 hover:bg-red-50"
+      >
+        Remove
+      </button>
+    </div>
+  );
+};
+
+// Drive vs fly heuristic (simple, local-only)
+const travelMode = (km?: number) => (km && km > 300 ? 'fly' : 'drive');
+
 const InlineQuoteForm: React.FC<Props> = ({
   onSubmit,
   artistId,
@@ -47,19 +167,24 @@ const InlineQuoteForm: React.FC<Props> = ({
   eventDetails,
   calculationParams,
 }) => {
-  const [services, setServices] = useState<ServiceItem[]>([]);
-  const [serviceFee, setServiceFee] = useState(initialBaseFee ?? 0);
-  const [soundFee, setSoundFee] = useState(
-    initialSoundCost ?? (initialSoundNeeded ? 1000 : 0),
+  // — State —
+  const [serviceFee, setServiceFee] = useState<number>(initialBaseFee ?? 0);
+  const [soundFee, setSoundFee] = useState<number>(
+    initialSoundCost ?? (initialSoundNeeded ? 1000 : 0)
   );
-  const [travelFee, setTravelFee] = useState(initialTravelCost ?? 0);
-  const [accommodation, setAccommodation] = useState('');
-  const [discount, setDiscount] = useState(0);
+  const [travelFee, setTravelFee] = useState<number>(initialTravelCost ?? 0);
+  const [accommodation, setAccommodation] = useState<string>('');
+  const [discount, setDiscount] = useState<number>(0);
   const [expiresHours, setExpiresHours] = useState<number | null>(null);
-  const [quoteNumber] = useState(generateQuoteNumber());
+  const [items, setItems] = useState<(ServiceItem & { key: string })[]>([]);
+  const [loadingCalc, setLoadingCalc] = useState<boolean>(false);
+  const [sending, setSending] = useState<boolean>(false);
+  const [agree, setAgree] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
+  const [quoteNumber] = useState<string>(generateQuoteNumber());
+  const todayLabel = format(new Date(), 'PPP');
   const firstFieldRef = useRef<HTMLInputElement>(null);
-  const currentDate = format(new Date(), 'PPP');
 
   useEffect(() => {
     firstFieldRef.current?.focus();
@@ -69,295 +194,375 @@ const InlineQuoteForm: React.FC<Props> = ({
     setSoundFee(initialSoundCost ?? (initialSoundNeeded ? 1000 : 0));
   }, [initialSoundCost, initialSoundNeeded]);
 
-  // Prefill using backend quote calculator when params provided
+  // Prefill from backend calculator if provided
   useEffect(() => {
     let cancelled = false;
     async function run() {
+      if (!calculationParams) return;
       try {
-        if (!calculationParams) return;
-        const { data } = await calculateQuoteBreakdown(calculationParams);
+        setLoadingCalc(true);
+        const { data } = (await calculateQuoteBreakdown(
+          calculationParams
+        )) as { data: QuoteCalculationResponse };
         if (cancelled) return;
-        setServiceFee(calculationParams.base_fee);
-        setTravelFee(Number(data.travel_cost || 0));
-        setSoundFee(Number(data.sound_cost || 0));
+        setServiceFee(calculationParams.base_fee ?? 0);
+        setTravelFee(Number(data?.travel_cost || 0));
+        setSoundFee(Number(data?.sound_cost || 0));
       } catch (e) {
-        // Non-fatal; leave defaults
+        // soft-fail: keep manual values
+      } finally {
+        if (!cancelled) setLoadingCalc(false);
       }
     }
-    void run();
+    run();
     return () => {
       cancelled = true;
     };
   }, [calculationParams]);
 
-  const { subtotal, taxesFees, estimatedTotal } = useMemo(() => {
-    const calcSubtotal =
-      serviceFee + services.reduce((acc, s) => acc + Number(s.price), 0) + soundFee + travelFee;
-    const subtotalAfterDiscount = calcSubtotal - (discount || 0);
-    const calcTaxesFees = subtotalAfterDiscount * 0.15;
-    const calcEstimatedTotal = subtotalAfterDiscount + calcTaxesFees;
-    return {
-      subtotal: calcSubtotal,
-      taxesFees: calcTaxesFees,
-      estimatedTotal: calcEstimatedTotal,
-    };
-  }, [services, serviceFee, soundFee, travelFee, discount]);
+  // Quick-add suggestions (local-only)
+  const suggestions = useMemo(
+    () => [
+      { label: 'Extra hour', price: 1000 },
+      { label: 'Parking', price: 150 },
+      { label: 'Backline rental', price: 2500 },
+    ],
+    []
+  );
 
-  const addService = () => setServices([...services, { description: '', price: 0 }]);
-  const removeService = (idx: number) => setServices(services.filter((_, i) => i !== idx));
-  const updateService = (idx: number, field: keyof ServiceItem, value: string) => {
-    const updated = services.map((s, i) =>
-      i === idx ? { ...s, [field]: field === 'price' ? Number(value) : value } : s,
-    );
-    setServices(updated);
-  };
+  const calcSubtotal = useMemo(() => {
+    const extrasTotal = items.reduce((sum, it) => sum + Number(it.price || 0), 0);
+    return serviceFee + soundFee + travelFee + extrasTotal;
+  }, [items, serviceFee, soundFee, travelFee]);
 
-  const handleSubmit = async () => {
-    trackEvent('cta_send_quote', {
-      bookingRequestId,
-      artistId,
-      clientId,
-    });
-    const expires_at = expiresHours
-      ? new Date(Date.now() + expiresHours * 3600000).toISOString()
-      : null;
-    await onSubmit({
-      booking_request_id: bookingRequestId,
-      artist_id: artistId,
-      client_id: clientId,
-      services: [
+  const subtotalAfterDiscount = Math.max(0, calcSubtotal - (discount || 0));
+  const vat = subtotalAfterDiscount * 0.15; // SA VAT 15%
+  const estimatedTotal = subtotalAfterDiscount + vat;
+
+  const expiresPreview = useMemo(() => {
+    if (!expiresHours) return 'No expiry';
+    const dt = addHours(new Date(), expiresHours);
+    return `${format(dt, 'PPP p')}`;
+  }, [expiresHours]);
+
+  const addItem = (desc = '', price = 0) =>
+    setItems((arr) => [
+      ...arr,
+      { key: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, description: desc, price },
+    ]);
+
+  const updateItem = (key: string, patch: Partial<ServiceItem>) =>
+    setItems((arr) => arr.map((it) => (it.key === key ? { ...it, ...patch } : it)));
+
+  const removeItem = (key: string) => setItems((arr) => arr.filter((it) => it.key !== key));
+
+  const mode = travelMode(calculationParams?.distance_km);
+
+  const canSend = agree && serviceFee > 0 && !sending;
+
+  async function handleSubmit() {
+    try {
+      setError(null);
+      setSending(true);
+      trackEvent('cta_send_quote', { bookingRequestId, artistId, clientId });
+
+      const services: ServiceItem[] = [
         { description: serviceName ?? 'Service fee', price: serviceFee },
-        ...services,
-      ],
-      sound_fee: soundFee,
-      travel_fee: travelFee,
-      accommodation: accommodation || null,
-      discount: discount || null,
-      expires_at,
-    });
-  };
+        ...items.map(({ key, ...rest }) => rest),
+      ];
+
+      const expires_at = expiresHours
+        ? new Date(Date.now() + expiresHours * 3600000).toISOString()
+        : null;
+
+      await onSubmit({
+        booking_request_id: bookingRequestId,
+        artist_id: artistId,
+        client_id: clientId,
+        services,
+        sound_fee: soundFee,
+        travel_fee: travelFee,
+        accommodation: accommodation || null,
+        discount: discount || null,
+        expires_at,
+      });
+    } catch (e: any) {
+      setError(e?.message ?? 'Could not send quote. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // ——————————————————————————————————————————————————————————————
+  // UI
+  // ——————————————————————————————————————————————————————————————
 
   return (
-    <div className="w-full bg-brand/10 dark:bg-brand-dark/30 rounded-xl p-4">
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div>
-          <h4 className="mb-2 text-sm font-semibold">New Booking Request</h4>
-          <p className="mb-2 text-xs">
-            From: {eventDetails?.from ?? 'N/A'} | Received: {eventDetails?.receivedAt ?? 'N/A'}
+    <div className="w-full rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 sm:p-5 shadow-sm">
+      {/* Booking Request Summary */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-gray-200 p-3 sm:p-4 bg-white">
+          <h4 className="mb-1 text-sm font-semibold flex items-center gap-2">
+            🧾 New Booking Request
+          </h4>
+          <p className="mb-3 text-xs text-gray-600">
+            From: <span className="font-medium">{eventDetails?.from ?? 'N/A'}</span> · Received:{' '}
+            <span className="font-medium">{eventDetails?.receivedAt ?? 'N/A'}</span>
           </p>
           <div className="text-xs">
             <p className="mb-1 font-semibold">Event Details</p>
-            <ul className="space-y-1">
-              {eventDetails?.event && <li>Event: {eventDetails.event}</li>}
-              {eventDetails?.date && <li>Date: {eventDetails.date}</li>}
+            <ul className="space-y-1 text-gray-700">
+              {eventDetails?.event && <li>📌 Event: {eventDetails.event}</li>}
+              {eventDetails?.date && <li>📅 Date: {eventDetails.date}</li>}
               {(eventDetails?.locationName || eventDetails?.locationAddress) && (
                 <li>
-                  Location: {eventDetails.locationName ? (
-                    eventDetails.locationAddress ? `${eventDetails.locationName} — ${eventDetails.locationAddress}` : eventDetails.locationName
+                  📍 Location:{' '}
+                  {eventDetails.locationName ? (
+                    eventDetails.locationAddress ? (
+                      <>{eventDetails.locationName} — {eventDetails.locationAddress}</>
+                    ) : (
+                      <>{eventDetails.locationName}</>
+                    )
                   ) : (
-                    eventDetails.locationAddress
+                    <>{eventDetails.locationAddress}</>
                   )}
                 </li>
               )}
-              {eventDetails?.guests && <li>Guests: {eventDetails.guests}</li>}
-              {eventDetails?.venue && <li>Venue: {eventDetails.venue}</li>}
-              {eventDetails?.notes && <li>Notes: &quot;{eventDetails.notes}&quot;</li>}
+              {eventDetails?.guests && <li>👥 Guests: {eventDetails.guests}</li>}
+              {eventDetails?.venue && <li>🏟️ Venue: {eventDetails.venue}</li>}
+              {eventDetails?.notes && (
+                <li>
+                  📝 Notes: <span className="italic">“{eventDetails.notes}”</span>
+                </li>
+              )}
             </ul>
           </div>
         </div>
 
-        <div className="flex flex-col text-xs">
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-            <h4 className="text-sm font-semibold">Review &amp; Adjust Quote</h4>
-          </div>
-          <div className="mb-4 text-xs font-medium opacity-90">
-            <span>Quote No: {quoteNumber}</span>
-            <span className="ml-4">Date: {currentDate}</span>
-          </div>
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">Estimated Cost</h3>
-            <div className="space-y-1 text-gray-700">
-              <div className="flex justify-between items-center py-1">
-                <span className="font-medium">Service Provider Base Fee</span>
-                <input
-                  ref={firstFieldRef}
-                  type="number"
-                  inputMode="numeric"
-                  className="w-28 text-right p-1 rounded border border-gray-300"
-                  placeholder="0.00"
-                  value={serviceFee}
-                  onChange={(e) => setServiceFee(Number(e.target.value))}
-                />
-              </div>
-
-              <div className="flex justify-between items-center py-1">
-                <span className="flex items-center group font-medium">
-                  Travel
-                  <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
-                    ⓘ
-                    <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                      Calculated based on artist&apos;s location and event venue distance.
-                    </div>
-                  </span>
-                </span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  className="w-28 text-right p-1 rounded border border-gray-300"
-                  placeholder="0.00"
-                  value={travelFee}
-                  onChange={(e) => setTravelFee(Number(e.target.value))}
-                />
-              </div>
-
-              <div className="flex justify-between items-center py-1">
-                <span className="flex items-center group font-medium">
-                  Sound Equipment
-                  <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
-                    ⓘ
-                    <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                      drive mode: R1000 (price when driving), flight mode: R7500 (price when flying)
-                    </div>
-                  </span>
-                </span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  className="w-28 text-right p-1 rounded border border-gray-300"
-                  placeholder="0.00"
-                  value={soundFee}
-                  onChange={(e) => setSoundFee(Number(e.target.value))}
-                />
-              </div>
-
-          {services.map((s, i) => (
-            <div key={i} className="flex justify-between items-center py-1 gap-2">
-              <input
-                type="text"
-                className="flex-1 p-1 rounded border border-gray-300 text-xs"
-                placeholder="Custom Item Description"
-                value={s.description}
-                onChange={(e) => updateService(i, 'description', e.target.value)}
-              />
-              <input
-                type="number"
-                className="w-28 p-1 text-right rounded border border-gray-300 text-xs"
-                inputMode="numeric"
-                placeholder="0.00"
-                value={s.price}
-                onChange={(e) => updateService(i, 'price', e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => removeService(i)}
-                aria-label="Remove item"
-                className="text-red-500 hover:text-red-700 transition-colors text-lg font-bold ml-1"
-              >
-                &times;
-              </button>
+        {/* Composer */}
+        <div className="rounded-xl border border-gray-200 p-3 sm:p-4 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <h4 className="text-sm font-semibold">Review & Adjust Quote</h4>
+            <div className="text-[11px] text-gray-600 font-medium">
+              Quote No: <span className="font-semibold">{quoteNumber}</span> · Date:{' '}
+              <span className="font-semibold">{todayLabel}</span>
             </div>
-          ))}
-
-          <button
-            type="button"
-            onClick={addService}
-            className="w-full bg-gray-100 text-gray-700 font-semibold py-1 px-2 rounded-lg hover:bg-gray-200 transition-colors mt-1 text-xs"
-          >
-            + Add Custom Item
-          </button>
-
-          <div className="flex justify-between items-center py-1">
-            <span className="font-medium">Discount (optional)</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              className="w-28 text-right p-1 rounded border border-gray-300"
-              placeholder="0.00"
-              value={discount}
-              onChange={(e) => setDiscount(Number(e.target.value))}
-            />
           </div>
 
-          <hr className="border-t border-gray-300 pt-2 mt-2 border-dashed" />
-          <div className="flex justify-between font-medium">
+          {/* Smart state from calculator */}
+          {loadingCalc && (
+            <div className="mb-3 text-xs text-gray-600 flex items-center gap-2">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+              Loading cost suggestions…
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {/* Base Fee */}
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <label htmlFor="base" className="text-sm font-medium text-gray-900">
+                🎤 Service Provider Base Fee
+              </label>
+              <CurrencyInput
+                id="base"
+                aria-label="Base fee"
+                value={serviceFee}
+                onChange={setServiceFee}
+              />
+            </div>
+
+            {/* Travel */}
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+              <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                🚗 Travel
+                {calculationParams?.distance_km != null && (
+                  <span className="text-[11px] text-gray-500 font-normal">
+                    ({Math.round(calculationParams.distance_km)} km · {mode})
+                  </span>
+                )}
+              </div>
+              <CurrencyInput aria-label="Travel fee" value={travelFee} onChange={setTravelFee} />
+            </div>
+
+            {/* Sound presets */}
+            <div className="grid grid-cols-1 gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-900">🔊 Sound Equipment</span>
+                <div className="flex items-center gap-1">
+                  <QuickChip
+                    label="None"
+                    active={soundFee === 0}
+                    onClick={() => setSoundFee(0)}
+                  />
+                  <QuickChip
+                    label="Basic PA"
+                    active={soundFee === 1000}
+                    onClick={() => setSoundFee(1000)}
+                  />
+                  <QuickChip
+                    label="Full PA"
+                    active={soundFee === 7500}
+                    onClick={() => setSoundFee(7500)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <div className="text-xs text-gray-600">
+                  {mode === 'fly'
+                    ? 'Flight mode guide: Full PA often required (R7 500).'
+                    : 'Drive mode guide: Basic PA typical (±R1 000).'}
+                </div>
+                <CurrencyInput aria-label="Sound fee" value={soundFee} onChange={setSoundFee} />
+              </div>
+            </div>
+
+            {/* Quick-add suggestions */}
+            <div>
+              <div className="mb-2 text-sm font-medium text-gray-900">➕ Extras</div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {suggestions.map((s) => (
+                  <QuickChip key={s.label} label={`${s.label} · ${formatCurrency(s.price)}`} onClick={() => addItem(s.label, s.price)} />
+                ))}
+                <QuickChip label="Custom item" onClick={() => addItem()} />
+              </div>
+              <div className="space-y-2">
+                {items.map((it) => (
+                  <LineItemRow
+                    key={it.key}
+                    item={it}
+                    onUpdate={(patch) => updateItem(it.key, patch)}
+                    onRemove={() => removeItem(it.key)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Discount */}
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <label htmlFor="discount" className="text-sm font-medium text-gray-900">
+                🏷️ Discount (optional)
+              </label>
+              <CurrencyInput
+                id="discount"
+                aria-label="Discount amount"
+                value={discount}
+                onChange={setDiscount}
+              />
+            </div>
+
+            {/* Expiry */}
+            <div className="grid grid-cols-1 gap-2">
+              <div className="text-sm font-medium text-gray-900">⏳ Expires</div>
+              <div className="flex flex-wrap gap-1.5">
+                <QuickChip label="No expiry" active={!expiresHours} onClick={() => setExpiresHours(null)} />
+                {expiryOptions.map((o) => (
+                  <QuickChip
+                    key={o.value}
+                    label={o.label}
+                    active={expiresHours === o.value}
+                    onClick={() => setExpiresHours(o.value)}
+                  />
+                ))}
+              </div>
+              <div className="text-xs text-gray-600">{expiresHours ? `Auto-expires: ${expiresPreview}` : 'No automatic expiry'}</div>
+            </div>
+
+            {/* Accommodation */}
+            <div>
+              <label htmlFor="accom" className="text-sm font-medium text-gray-900 block mb-1">
+                🛏️ Accommodation (optional)
+              </label>
+              <textarea
+                id="accom"
+                rows={2}
+                className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                placeholder="E.g. 1 night hotel stay"
+                value={accommodation}
+                onChange={(e) => setAccommodation(e.target.value)}
+              />
+            </div>
+
+            {/* Agreement */}
+            <label className="flex items-start gap-2 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black/30"
+                checked={agree}
+                onChange={(e) => setAgree(e.target.checked)}
+              />
+              <span>
+                I have reviewed the quote and agree to the{' '}
+                <a className="underline" href="#" onClick={(e) => e.preventDefault()}>
+                  terms of service
+                </a>
+                .
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Totals */}
+      <div className="mt-4 rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+        <div className="grid gap-1 text-sm text-gray-800" aria-live="polite">
+          <div className="flex items-center justify-between">
             <span>Subtotal</span>
-            <span>{formatCurrency(subtotal)}</span>
+            <span className="font-medium">{formatCurrency(calcSubtotal)}</span>
           </div>
-          <div className="flex justify-between">
-            <span>Taxes & Fees (Est.)</span>
-            <span>{formatCurrency(taxesFees)}</span>
+          <div className="flex items-center justify-between">
+            <span>Less discount</span>
+            <span className="font-medium">{discount ? `− ${formatCurrency(discount)}` : formatCurrency(0)}</span>
           </div>
-          <div className="flex justify-between text-sm font-bold text-gray-900 border-t pt-3 mt-3">
+          <div className="flex items-center justify-between">
+            <span>VAT (15%)</span>
+            <span className="font-medium">{formatCurrency(vat)}</span>
+          </div>
+          <div className="mt-2 border-t pt-2 flex items-center justify-between text-base font-semibold">
             <span>Estimated Total</span>
             <span>{formatCurrency(estimatedTotal)}</span>
           </div>
-
-          <div className="flex justify-between items-center py-1">
-            <span className="font-medium">Expires in:</span>
-            <select
-              id="expires-hours"
-              className="w-32 p-1 rounded border border-gray-300 text-xs"
-              value={expiresHours ?? ''}
-              onChange={(e) => setExpiresHours(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">No expiry</option>
-              {expiryOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col py-1">
-            <span className="font-medium mb-1">Accommodation (optional)</span>
-            <textarea
-              className="w-full p-1 border border-gray-300 rounded-lg text-xs"
-              placeholder="E.g., '1 night hotel stay: $150'"
-              value={accommodation}
-              onChange={(e) => setAccommodation(e.target.value)}
-              rows={2}
-            />
-          </div>
         </div>
-        <div className="flex items-start space-x-3">
-          <input
-            type="checkbox"
-            id="terms"
-            className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
-          <label htmlFor="terms" className="text-xs text-gray-600">
-            I have reviewed the quote and agree to the{' '}
-            <a href="#" className="text-blue-600 hover:underline">
-              terms of service
-            </a>
-            .
-          </label>
-        </div>
+      </div>
 
-        <div className="flex justify-end space-x-3 pt-6 border-t border-gray-100">
-          {onDecline && (
+      {/* Error */}
+      {error && (
+        <div className="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
+          {error}
+        </div>
+      )}
+
+      {/* Sticky actions */}
+      <div className="sticky bottom-0 -mx-4 sm:mx-0 mt-4 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-t border-gray-200">
+        <div className="p-3 sm:p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm">
+            <div className="text-gray-600">You will send</div>
+            <div className="text-lg font-bold">{formatCurrency(estimatedTotal)}</div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {onDecline && (
+              <button
+                type="button"
+                onClick={onDecline}
+                className="px-3 py-2 rounded-lg border border-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-50"
+              >
+                Decline Request
+              </button>
+            )}
             <button
               type="button"
-              onClick={onDecline}
-              className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors"
+              onClick={handleSubmit}
+              disabled={!canSend}
+              title={canSend ? 'Send this quote to the client' : 'Complete required fields'}
+              className={`px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors ${
+                canSend ? 'bg-black hover:bg-gray-900' : 'bg-gray-400 cursor-not-allowed'
+              }`}
             >
-              Decline Request
+              {sending ? 'Sending…' : 'Send Quote'}
             </button>
-          )}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            title="This quote will be sent to the client"
-            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Send Quote
-          </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
   );
 };
 
