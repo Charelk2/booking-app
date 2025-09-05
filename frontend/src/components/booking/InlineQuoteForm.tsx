@@ -260,7 +260,7 @@ const InlineQuoteForm: React.FC<Props> = ({
   }
 
   return (
-    <section className="w-full rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 sm:p-5 shadow-sm">
+    <section className="w-full rounded-2xl  bg-white/80 backdrop-blur p-4 sm:p-5 shadow-sm">
       {/* Grid: form 3/4, details 1/4 */}
       <div className="grid gap-4 md:grid-cols-[3fr_1fr]">
         {/* Composer */}
