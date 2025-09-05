@@ -74,7 +74,7 @@ function CurrencyInput({
   'aria-label'?: string;
   className?: string;
 }) {
-  const [text, setText] = useState<string>('');
+  const [text, setText] = useState<string>(() => (value ? formatCurrency(value) : ''));
   const lastValueRef = useRef<number>(value);
 
   useEffect(() => {
