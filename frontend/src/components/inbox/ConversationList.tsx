@@ -14,7 +14,7 @@ interface ConversationListProps {
   onSelectRequest: (id: number) => void;
   currentUser?: User | null;
   query?: string;
-  height?: number;
+  height?: number; // Optional override; defaults to auto height (all rows)
 }
 
 export default function ConversationList({
@@ -94,7 +94,9 @@ export default function ConversationList({
     } catch {}
   }, [selectedRequestId, bookingRequests]);
 
-  const listHeight = height ?? Math.min(ROW_HEIGHT * bookingRequests.length, ROW_HEIGHT * 10);
+  // Auto-height by default: expand to fit all rows so the list doesn't force its own scrollbar.
+  // If a specific height is provided via prop, honor it.
+  const listHeight = height ?? ROW_HEIGHT * bookingRequests.length;
 
   // Outer wrapper that suppresses anchor navigation inside the list.
   // IMPORTANT: Pass a stable component reference to react-window to avoid remounting the scroller.

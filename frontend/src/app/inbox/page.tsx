@@ -44,8 +44,6 @@ export default function InboxPage() {
   );
   const [showList, setShowList] = useState(true);
   const [query, setQuery] = useState('');
-  const listContainerRef = useRef<HTMLDivElement | null>(null);
-  const [listHeight, setListHeight] = useState<number>(420);
   // Ensure we only attempt to create a Booka thread once per mount
   const ensureTriedRef = useRef(false);
   // Debounce focus/visibility-triggered refreshes
@@ -473,20 +471,7 @@ export default function InboxPage() {
     }
   }, [allBookingRequests, searchParams, selectedBookingRequestId]);
 
-  // Compute list height dynamically to avoid scroll within scroll
-  useEffect(() => {
-    const el = document.getElementById('conversation-list-body');
-    if (!el) return;
-    const compute = () => setListHeight(el.clientHeight || 420);
-    compute();
-    const ro = new ResizeObserver(compute);
-    ro.observe(el);
-    window.addEventListener('resize', compute);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', compute);
-    };
-  }, []);
+  // List now uses auto height by default; no need to compute a fixed height here.
 
   const filteredRequests = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -603,7 +588,6 @@ export default function InboxPage() {
                   onSelectRequest={handleSelect}
                   currentUser={user}
                   query={query}
-                  height={listHeight}
                 />
               ) : (
                 <p className="p-6 text-center text-gray-500">No conversations found.</p>
