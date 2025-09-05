@@ -36,7 +36,7 @@ export default function ArtistsSection({
   initialData,
 }: ArtistsSectionProps) {
   const [artists, setArtists] = useState<ServiceProviderProfile[]>(initialData || []);
-  const [loading, setLoading] = useState(!initialData);
+  const [loading, setLoading] = useState(!initialData || (initialData?.length ?? 0) === 0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -50,16 +50,40 @@ export default function ArtistsSection({
 
   useEffect(() => {
     let isMounted = true;
+    // If we already have server-provided data, avoid refetching on hydrate.
+    // This prevents duplicate load on first visit and reduces 503s from bursts.
+    if ((initialData?.length ?? 0) > 0) {
+      setLoading(false);
+      return () => { isMounted = false; };
+    }
     async function fetchArtists() {
       setLoading(true);
       try {
         const params = JSON.parse(serializedQuery) as Record<string, unknown>;
-        const res = await getServiceProviders({ ...(params as object), limit });
+        const res = await getServiceProviders({
+          ...(params as object),
+          limit,
+          // Trim payload for homepage carousels to reduce backend work
+          fields: [
+            'id',
+            'business_name',
+            'profile_picture_url',
+            'custom_subtitle',
+            'hourly_rate',
+            'price_visible',
+            'rating',
+            'rating_count',
+            'location',
+            'service_categories',
+            'user.first_name',
+            'user.last_name',
+          ],
+        });
         if (isMounted) {
           setArtists(res.data.filter((a) => a.business_name || a.user));
         }
       } catch (err) {
-        console.error(err);
+        // Swallow noisy network errors to avoid console spam on first load
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -70,7 +94,7 @@ export default function ArtistsSection({
     return () => {
       isMounted = false;
     };
-  }, [serializedQuery, limit]);
+  }, [serializedQuery, limit, initialData]);
 
   useEffect(() => {
     updateScrollButton();

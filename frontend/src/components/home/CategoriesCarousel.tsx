@@ -63,13 +63,21 @@ export default function CategoriesCarousel() {
         // Defer two frames to ensure first paint, then a tiny timeout
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
+            // Give the page a moment to settle, then gently stagger requests
             setTimeout(() => {
-              items.slice(0, 4).forEach((cat) => {
+              items.slice(0, 4).forEach((cat, index) => {
                 const path = `/category/${encodeURIComponent(cat.value)}`;
                 router.prefetch?.(path);
-                prefetchServiceProviders({ category: cat.label, page: 1, limit: 20, fields: ['id','business_name','profile_picture_url','user.first_name','user.last_name'] });
+                setTimeout(() => {
+                  prefetchServiceProviders({
+                    category: cat.label,
+                    page: 1,
+                    limit: 20,
+                    fields: ['id','business_name','profile_picture_url','user.first_name','user.last_name'],
+                  });
+                }, index * 400);
               });
-            }, 300);
+            }, 1000);
           });
         });
       } catch {}
