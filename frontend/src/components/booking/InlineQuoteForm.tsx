@@ -407,13 +407,13 @@ const InlineQuoteForm: React.FC<Props> = ({
             </div>
 
             <div className="mt-3 space-y-1 text-xs text-gray-700">
-              {eventDetails?.event && <div>📌 {eventDetails.event}</div>}
-              {eventDetails?.date && <div>📅 {eventDetails.date}</div>}
+              {eventDetails?.event && <div>{eventDetails.event}</div>}
+              {eventDetails?.date && <div>{eventDetails.date}</div>}
               {(eventDetails?.locationName || eventDetails?.locationAddress) && (
-                <div>📍 {eventDetails.locationName ? (eventDetails.locationAddress ? `${eventDetails.locationName} — ${eventDetails.locationAddress}` : eventDetails.locationName) : eventDetails.locationAddress}</div>
+                <div>{eventDetails.locationName ? (eventDetails.locationAddress ? `${eventDetails.locationName} — ${eventDetails.locationAddress}` : eventDetails.locationName) : eventDetails.locationAddress}</div>
               )}
-              {eventDetails?.guests && <div>👥 {eventDetails.guests} guests</div>}
-              <div>🔊 Sound: {(initialSoundNeeded ?? (soundFee > 0)) ? 'Yes' : 'No'}</div>
+              {eventDetails?.guests && <div>{eventDetails.guests} guests</div>}
+              <div>Sound: {(initialSoundNeeded ?? (soundFee > 0)) ? 'Yes' : 'No'}</div>
             </div>
           </div>
         </aside>
