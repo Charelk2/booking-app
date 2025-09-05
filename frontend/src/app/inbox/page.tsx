@@ -56,11 +56,12 @@ export default function InboxPage() {
     const uid = user?.id ? String(user.id) : 'anon';
     return `inbox:threadsCache:v2:${role}:${uid}`;
   }, [user?.user_type, user?.id]);
+  const LATEST_CACHE_KEY = 'inbox:threadsCache:latest';
 
   // Bootstrap from cache immediately for snappy paint
   useEffect(() => {
     try {
-      const cached = typeof window !== 'undefined' ? sessionStorage.getItem(CACHE_KEY) : null;
+      const cached = typeof window !== 'undefined' ? (sessionStorage.getItem(CACHE_KEY) || sessionStorage.getItem(LATEST_CACHE_KEY)) : null;
       if (cached) {
         const parsed = JSON.parse(cached) as BookingRequest[];
         if (Array.isArray(parsed) && parsed.length) {
@@ -132,7 +133,11 @@ export default function InboxPage() {
       mapped.sort((a, b) => new Date(String((b as any).last_message_timestamp || b.updated_at || b.created_at)).getTime() -
                               new Date(String((a as any).last_message_timestamp || a.updated_at || a.created_at)).getTime());
       setAllBookingRequests(mapped);
-      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(mapped)); } catch {}
+      try {
+        const json = JSON.stringify(mapped);
+        sessionStorage.setItem(CACHE_KEY, json);
+        sessionStorage.setItem(LATEST_CACHE_KEY, json);
+      } catch {}
       setError(null);
       setLoadingRequests(false);
       return;
@@ -344,7 +349,11 @@ export default function InboxPage() {
                         new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime(),
             );
             setAllBookingRequests(updated);
-            try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(updated)); } catch {}
+            try {
+              const json = JSON.stringify(updated);
+              sessionStorage.setItem(CACHE_KEY, json);
+              sessionStorage.setItem(LATEST_CACHE_KEY, json);
+            } catch {}
           } catch {}
         });
       } catch {}
@@ -355,7 +364,11 @@ export default function InboxPage() {
           new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime(),
       );
       setAllBookingRequests(combined);
-      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(combined)); } catch {}
+      try {
+        const json = JSON.stringify(combined);
+        sessionStorage.setItem(CACHE_KEY, json);
+        sessionStorage.setItem(LATEST_CACHE_KEY, json);
+      } catch {}
 
       // If artist has zero threads, attempt to ensure a Booka thread exists once
       try {
@@ -378,7 +391,11 @@ export default function InboxPage() {
                 new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime(),
             );
             setAllBookingRequests(combined2);
-            try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(combined2)); } catch {}
+            try {
+              const json = JSON.stringify(combined2);
+              sessionStorage.setItem(CACHE_KEY, json);
+              sessionStorage.setItem(LATEST_CACHE_KEY, json);
+            } catch {}
           }
         }
       } catch {
@@ -419,7 +436,11 @@ export default function InboxPage() {
               is_unread_by_current_user: detail.unread === true ? (true as any) : r.is_unread_by_current_user,
             } as BookingRequest;
           });
-          try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(next)); } catch {}
+          try {
+            const json = JSON.stringify(next);
+            sessionStorage.setItem(CACHE_KEY, json);
+            sessionStorage.setItem(LATEST_CACHE_KEY, json);
+          } catch {}
           return next;
         });
       } catch {}

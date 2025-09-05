@@ -25,9 +25,6 @@ export default function ConversationList({
   query = '',
   height,
 }: ConversationListProps) {
-  if (!currentUser) {
-    return null;
-  }
   const ROW_HEIGHT = 74;
   const STORAGE_KEY = 'inbox:convListOffset';
   const STORAGE_TOP_ID = 'inbox:convListTopId';
@@ -158,8 +155,9 @@ export default function ConversationList({
           if (v === true || v === 1 || v === '1' || v === 'true') return true;
           return false;
         })();
+        const isArtist = currentUser?.user_type === 'service_provider';
         const rawOtherName = (() => {
-          if (currentUser.user_type === 'service_provider') {
+          if (isArtist) {
             return req.client?.first_name || 'Client';
           }
           const artistProfile = req.artist_profile;
@@ -175,10 +173,9 @@ export default function ConversationList({
         })();
         const otherName = String(rawOtherName || '');
 
-        const avatarUrl =
-          currentUser.user_type === 'service_provider'
-            ? req.client?.profile_picture_url
-            : req.artist_profile?.profile_picture_url || req.artist?.profile_picture_url;
+        const avatarUrl = isArtist
+          ? req.client?.profile_picture_url
+          : req.artist_profile?.profile_picture_url || req.artist?.profile_picture_url;
 
         const date =
           req.last_message_timestamp || req.updated_at || req.created_at;
@@ -188,7 +185,7 @@ export default function ConversationList({
             req.last_message_content === 'Artist sent a quote' ||
             req.last_message_content === 'Service Provider sent a quote'
           ) {
-            return currentUser.user_type === 'service_provider'
+            return isArtist
               ? 'You sent a quote'
               : `${otherName} sent a quote`;
           }
