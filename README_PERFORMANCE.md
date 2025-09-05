@@ -2,6 +2,25 @@
 
 This document explains the slow-first/fast-later behavior you saw on the service provider list endpoints, the exact code paths involved, and the optimizations implemented to make them consistently fast without breaking response shapes.
 
+## 2025‑09‑05 Updates: Summary & Ops
+
+What we implemented end‑to‑end to stabilize first paint, reduce load, and improve image quality:
+
+- Fast path list (backend): For `fields ⊆ {user_id,id,business_name,profile_picture_url,created_at,updated_at}` the route selects only those columns, paginates in SQL, sorts with `COALESCE(book_count,0) DESC` (SQLite‑safe), groups by artist to avoid duplicates, emits ETag/Cache‑Control, and caches in Redis (keys include normalized `fields`).
+- Full path list (backend): Keeps richer joins, adds ETag/304, caches in Redis with `fields` in the key.
+- Avatars (backend): New `/api/v1/img/avatar/{id}` proxy crops with LANCZOS and serves WebP/JPEG with `w`, `dpr`, `q`, `fmt` parameters and Redis/edge caching. Lists now default to `?w=256&dpr=2&q=90` for crisp retina cards.
+- Frontend (homepage):
+  - SSR prefetches only the first section; other rows defer until visible (no thundering herd).
+  - Removed bursty list prefetch from the categories carousel; route prefetch remains lightweight.
+  - Safety rewrite added: `/static/api/:path* → /api/:path*` so stale bundles still resolve image proxy URLs.
+  - Home SSR uses absolute API origin to avoid rewrite drift during ISR.
+- Redis (Upstash on Fly):
+  - Use TCP on 6379 with TLS disabled: `REDIS_URL=redis://default:<PASSWORD>@fly-booka.upstash.io:6379/0`.
+  - Verify from a machine with Python/redis: `r = redis.from_url(os.environ['REDIS_URL']); r.ping()`.
+- Fly deploy hygiene: Use rolling deploys and at least two machines (`min_machines_running = 2`) with request‑based concurrency (`type="requests"`). Avoid extra 307s by always calling `/api/v1/service-provider-profiles/` (trailing slash).
+
+Result: homepage lists load reliably; repeated requests HIT cache; avatars are sharp; and bursts no longer tip the API over.
+
 ## Symptoms
 
 - Initial requests to list endpoints occasionally return 502/503, then subsequent requests become fast.

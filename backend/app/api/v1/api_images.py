@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from io import BytesIO
 import base64
 import hashlib
-from PIL import Image
+from PIL import Image, ImageOps
 from pathlib import Path
 import os
 
@@ -31,7 +31,10 @@ def _decode_data_url(data_url: str) -> bytes:
 def avatar_thumb(
     request: Request,
     artist_id: int,
-    w: int = Query(128, ge=16, le=512),
+    w: int = Query(128, ge=16, le=1024),
+    dpr: float = Query(1.0, ge=1.0, le=3.0),
+    q: int = Query(80, ge=40, le=95),
+    fmt: str = Query("webp", pattern="^(webp|jpeg)$"),
     db: Session = Depends(get_db),
 ):
     artist = db.query(Artist).filter(Artist.user_id == artist_id).first()
@@ -66,7 +69,7 @@ def avatar_thumb(
 
     # Key includes artist, requested width, and content hash (so updates bust cache)
     content_hash = hashlib.sha256(raw).hexdigest()[:16]
-    key = f"avatar:{artist_id}:{w}:{content_hash}"
+    key = f"avatar:{artist_id}:{int(w)}:{int(dpr*100)}:{q}:{fmt}:{content_hash}"
 
     etag = f"W/\"{key}\""
     if request.headers.get("if-none-match") == etag:
@@ -79,16 +82,21 @@ def avatar_thumb(
     cached = get_cached_bytes(key)
     if cached:
         headers = {
-            "Content-Type": "image/webp",
+            "Content-Type": "image/webp" if fmt == "webp" else "image/jpeg",
             "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
             "ETag": etag,
         }
         return Response(content=cached, headers=headers)
 
     img = Image.open(BytesIO(raw)).convert("RGB")
-    img.thumbnail((w, w))
+    # Fit and center-crop to an exact square for crispness
+    target = int(max(16, min(1024, int(round(w * dpr)))))
+    img = ImageOps.fit(img, (target, target), method=Image.LANCZOS, centering=(0.5, 0.5))
     out = BytesIO()
-    img.save(out, format="WEBP", quality=70, method=6)
+    if fmt == "webp":
+        img.save(out, format="WEBP", quality=q, method=6)
+    else:
+        img.save(out, format="JPEG", quality=q, optimize=True, progressive=True)
     blob = out.getvalue()
 
     try:
@@ -99,7 +107,7 @@ def avatar_thumb(
         cache_bytes(key, blob, 7 * 24 * 3600)
 
     headers = {
-        "Content-Type": "image/webp",
+        "Content-Type": "image/webp" if fmt == "webp" else "image/jpeg",
         "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
         "ETag": etag,
     }

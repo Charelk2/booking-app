@@ -558,10 +558,11 @@ def read_all_service_provider_profiles(
         )
 
         cols = [
-            Artist.user_id.label("id"),
+            Artist.user_id.label("user_id"),
             Artist.business_name,
             Artist.profile_picture_url,
-            Artist.updated_at.label("v"),
+            Artist.created_at.label("created_at"),
+            Artist.updated_at.label("updated_at"),
             booking_subq.c.book_count,
         ]
         query = db.query(*cols).outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
@@ -572,6 +573,15 @@ def read_all_service_provider_profiles(
                 .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
                 .filter(getattr(Service, "status", "approved") == "approved")
                 .filter(func.lower(ServiceCategory.name) == category_slug.replace("_", " "))
+            )
+            # Avoid duplicates when an artist has multiple matching services
+            query = query.group_by(
+                Artist.user_id,
+                Artist.business_name,
+                Artist.profile_picture_url,
+                Artist.created_at,
+                Artist.updated_at,
+                booking_subq.c.book_count,
             )
         if location:
             query = query.filter(Artist.location.ilike(f"%{location}%"))
@@ -600,20 +610,40 @@ def read_all_service_provider_profiles(
             if not src:
                 return None
             ver = int(v.timestamp()) if v else 0
-            return f"/api/v1/img/avatar/{_id}?w=128&v={ver}"
+            # High-quality default for homepage cards: ~224px box → 2x density
+            return f"/api/v1/img/avatar/{_id}?w=256&dpr=2&q=90&v={ver}"
 
         data = []
-        for _id, name, avatar, v, _book_count in rows:
-            item: dict[str, Any] = {}
-            if not requested or "id" in requested:
-                item["id"] = _id
-            if not requested or "business_name" in requested:
+        for _user_id, name, avatar, created_at, updated_at, _book_count in rows:
+            item: dict[str, Any] = {
+                "user_id": int(_user_id),
+                "created_at": created_at,
+                "updated_at": updated_at,
+            }
+            # Optional, include if requested or for completeness
+            if (not requested) or ("business_name" in requested):
                 item["business_name"] = name
-            if not requested or "profile_picture_url" in requested:
-                item["profile_picture_url"] = tiny_avatar_url(_id, avatar, v)
+            if (not requested) or ("profile_picture_url" in requested):
+                item["profile_picture_url"] = tiny_avatar_url(int(_user_id), avatar, updated_at)
             data.append(item)
 
         payload = {"data": data, "total": total, "price_distribution": []}
+        # Cache the fast-path payload so repeated requests HIT Redis
+        try:
+            cache_artist_list(
+                payload,
+                page=page,
+                limit=limit,
+                category=cache_category,
+                location=location,
+                sort=sort,
+                min_price=min_price,
+                max_price=max_price,
+                expire=60,
+                fields=fields,
+            )
+        except Exception:
+            pass
         try:
             serialized = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
             etag = 'W/"' + hashlib.sha256(serialized).hexdigest() + '"'
@@ -876,7 +906,7 @@ def read_all_service_provider_profiles(
         for p in profiles:
             if p.profile_picture_url:
                 ver = int(p.updated_at.timestamp()) if p.updated_at else 0
-                p.profile_picture_url = f"/api/v1/img/avatar/{p.user_id}?w=128&v={ver}"
+                p.profile_picture_url = f"/api/v1/img/avatar/{p.user_id}?w=256&dpr=2&q=90&v={ver}"
     except Exception:
         pass
 
