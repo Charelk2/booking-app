@@ -2308,7 +2308,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         onTouchStart={VIRTUALIZE ? undefined : handleTouchStartOnList}
         onTouchMove={VIRTUALIZE ? undefined : handleTouchMoveOnList}
         onWheel={VIRTUALIZE ? undefined : handleWheelOnList}
-        className={`relative flex-1 min-h-0 ${VIRTUALIZE ? '' : 'overflow-y-auto overflow-x-hidden'} flex flex-col gap-3 bg-white px-3 pt-3`}
+        className={`relative flex-1 min-h-0 ${VIRTUALIZE ? '' : 'overflow-y-auto overflow-x-hidden'} flex flex-col justify-end gap-3 bg-white px-3 pt-3`}
         style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', paddingBottom: effectiveBottomPadding }}
       >
         {!loading && (
