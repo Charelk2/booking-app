@@ -57,19 +57,43 @@ export default function InboxPage() {
     return `inbox:threadsCache:v2:${role}:${uid}`;
   }, [user?.user_type, user?.id]);
   const LATEST_CACHE_KEY = 'inbox:threadsCache:latest';
+  // Persist across full reloads/tab closes; keep for 24h by default
+  const PERSIST_TTL_MS = 24 * 60 * 60 * 1000;
+  const persistKey = useMemo(() => `${CACHE_KEY}:persist`, [CACHE_KEY]);
 
   // Bootstrap from cache immediately for snappy paint
   useEffect(() => {
     try {
-      const cached = typeof window !== 'undefined' ? (sessionStorage.getItem(CACHE_KEY) || sessionStorage.getItem(LATEST_CACHE_KEY)) : null;
-      if (cached) {
-        const parsed = JSON.parse(cached) as BookingRequest[];
-        if (Array.isArray(parsed) && parsed.length) {
-          setAllBookingRequests(parsed);
+      if (typeof window === 'undefined') return;
+      // 1) Prefer session cache (fastest, always safe)
+      const sessionCached = sessionStorage.getItem(CACHE_KEY) || sessionStorage.getItem(LATEST_CACHE_KEY);
+      if (sessionCached) {
+        const parsed = JSON.parse(sessionCached) as BookingRequest[];
+        if (Array.isArray(parsed) && parsed.length) setAllBookingRequests(parsed);
+        return;
+      }
+      // 2) Fall back to persistent cache (survives hard reloads). Validate TTL.
+      const raw = localStorage.getItem(persistKey);
+      if (raw) {
+        const obj = JSON.parse(raw) as { ts: number; items: BookingRequest[] };
+        if (obj && Array.isArray(obj.items) && obj.items.length > 0) {
+          const age = Date.now() - Number(obj.ts || 0);
+          if (age >= 0 && age < PERSIST_TTL_MS) {
+            setAllBookingRequests(obj.items);
+            // hydrate session for the rest of this tab's life
+            try {
+              const json = JSON.stringify(obj.items);
+              sessionStorage.setItem(CACHE_KEY, json);
+              sessionStorage.setItem(LATEST_CACHE_KEY, json);
+            } catch {}
+          } else {
+            // stale — clear it
+            try { localStorage.removeItem(persistKey); } catch {}
+          }
         }
       }
     } catch {}
-  }, [CACHE_KEY]);
+  }, [CACHE_KEY, LATEST_CACHE_KEY, PERSIST_TTL_MS, persistKey]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < BREAKPOINT_MD);
@@ -137,6 +161,7 @@ export default function InboxPage() {
         const json = JSON.stringify(mapped);
         sessionStorage.setItem(CACHE_KEY, json);
         sessionStorage.setItem(LATEST_CACHE_KEY, json);
+        localStorage.setItem(persistKey, JSON.stringify({ ts: Date.now(), items: mapped }));
       } catch {}
       setError(null);
       setLoadingRequests(false);
@@ -353,6 +378,7 @@ export default function InboxPage() {
               const json = JSON.stringify(updated);
               sessionStorage.setItem(CACHE_KEY, json);
               sessionStorage.setItem(LATEST_CACHE_KEY, json);
+              localStorage.setItem(persistKey, JSON.stringify({ ts: Date.now(), items: updated }));
             } catch {}
           } catch {}
         });
@@ -368,6 +394,7 @@ export default function InboxPage() {
         const json = JSON.stringify(combined);
         sessionStorage.setItem(CACHE_KEY, json);
         sessionStorage.setItem(LATEST_CACHE_KEY, json);
+        localStorage.setItem(persistKey, JSON.stringify({ ts: Date.now(), items: combined }));
       } catch {}
 
       // If artist has zero threads, attempt to ensure a Booka thread exists once
@@ -395,6 +422,7 @@ export default function InboxPage() {
               const json = JSON.stringify(combined2);
               sessionStorage.setItem(CACHE_KEY, json);
               sessionStorage.setItem(LATEST_CACHE_KEY, json);
+              localStorage.setItem(persistKey, JSON.stringify({ ts: Date.now(), items: combined2 }));
             } catch {}
           }
         }
@@ -407,7 +435,7 @@ export default function InboxPage() {
     } finally {
       setLoadingRequests(false);
     }
-  }, [user?.user_type, allBookingRequests.length]);
+  }, [user?.user_type, allBookingRequests.length, CACHE_KEY, LATEST_CACHE_KEY, persistKey]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -440,6 +468,7 @@ export default function InboxPage() {
             const json = JSON.stringify(next);
             sessionStorage.setItem(CACHE_KEY, json);
             sessionStorage.setItem(LATEST_CACHE_KEY, json);
+            localStorage.setItem(persistKey, JSON.stringify({ ts: Date.now(), items: next }));
           } catch {}
           return next;
         });
@@ -447,7 +476,7 @@ export default function InboxPage() {
     };
     try { window.addEventListener('thread:preview', onPreview as any); } catch {}
     return () => { try { window.removeEventListener('thread:preview', onPreview as any); } catch {} };
-  }, [CACHE_KEY]);
+  }, [CACHE_KEY, LATEST_CACHE_KEY, persistKey]);
 
   // Refresh list on window focus / tab visibility change so previews update (throttled)
   useEffect(() => {
