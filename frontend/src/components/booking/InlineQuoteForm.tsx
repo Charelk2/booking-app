@@ -88,7 +88,7 @@ function MoneyInput({
       id={id}
       inputMode="decimal"
       aria-label={ariaLabel}
-      className={`w-40 sm:w-44 md:w-48 text-right px-2 py-2 h-10 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/10 ${className}`}
+      className={`w-40 sm:w-44 md:w-48 text-right px-2 py-2 h-7 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/10 ${className}`}
       placeholder={placeholder ?? '0.00'}
       value={text}
       onFocus={(e) => e.currentTarget.select()}
@@ -359,7 +359,7 @@ const InlineQuoteForm: React.FC<Props> = ({
               <div className="flex items-center gap-3">
                 <select
                   id="expires"
-                  className="h-10 rounded-lg border border-gray-300 px-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
+                  className="h-7 rounded-lg border border-gray-300 px-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
                   value={String(expiresHours)}
                   onChange={(e) => {
                     const v = e.target.value;
