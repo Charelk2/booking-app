@@ -7,11 +7,12 @@ import type { EventDetails } from './QuoteBubble';
 import { calculateQuoteBreakdown } from '@/lib/api';
 
 /**
- * InlineQuoteForm (v3)
+ * InlineQuoteForm (v3 — fixed)
  * ------------------------------------------------------------
- * Professional, compact, and globally-consistent quote composer
- * built for chat threads. Clean layout, fewer distractions,
- * and a narrow summary panel (≈ 1/3 on desktop).
+ * Professional, compact quote composer for chat threads.
+ * - Right-side details panel (≈ 1/4 width)
+ * - Totals + actions BELOW the grid
+ * - Clean, accessible, touch-friendly
  */
 
 interface Props {
@@ -35,7 +36,7 @@ interface Props {
   };
 }
 
-const VAT_RATE = 0.15; // South Africa default VAT; adjust upstream if needed
+const VAT_RATE = 0.15; // SA VAT (15%)
 
 const expiryOptions = [
   { label: 'No expiry', value: '' },
@@ -260,10 +261,10 @@ const InlineQuoteForm: React.FC<Props> = ({
 
   return (
     <section className="w-full rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 sm:p-5 shadow-sm">
-      {/* Layout: form left (2/3), summary right (1/3) */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Grid: form 3/4, details 1/4 */}
+      <div className="grid gap-4 md:grid-cols-[3fr_1fr]">
         {/* Composer */}
-        <div className="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <h4 className="text-base font-semibold">Create Quote</h4>
             <div className="text-[12px] text-gray-600 font-medium">
@@ -399,92 +400,70 @@ const InlineQuoteForm: React.FC<Props> = ({
               <span>I confirm these amounts are correct.</span>
             </label>
           </div>
-
-          {/* Mobile actions */}
-          <div className="mt-4 md:hidden">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs text-gray-600">You will send</div>
-                <div className="text-lg font-bold" aria-live="polite">{formatCurrency(total)}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                {onDecline && (
-                  <button type="button" onClick={onDecline} className="px-3 py-2 rounded-lg border border-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-50">Decline</button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!canSend}
-                  className={`px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors ${canSend ? 'bg-black hover:bg-gray-900' : 'bg-gray-400 cursor-not-allowed'}`}
-                >
-                  {sending ? 'Sending…' : 'Send'}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Summary (narrow) */}
+        {/* Details (right 1/4) */}
         <aside className="md:col-span-1">
           <div className="rounded-xl border border-gray-200 bg-white p-4 md:sticky md:top-2">
-            <h4 className="mb-3 text-sm font-semibold">Summary</h4>
+            <h4 className="mb-2 text-sm font-semibold">Request Details</h4>
 
-            <div className="mb-3 grid gap-1 text-sm text-gray-800" aria-live="polite">
-              <div className="flex items-center justify-between"><span>Subtotal</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
-              <div className="flex items-center justify-between"><span>Discount</span><span className="font-medium">{discount ? `− ${formatCurrency(discount)}` : formatCurrency(0)}</span></div>
-              <div className="flex items-center justify-between"><span>VAT ({Math.round(VAT_RATE*100)}%)</span><span className="font-medium">{formatCurrency(vat)}</span></div>
-              <div className="mt-2 border-t pt-2 flex items-center justify-between text-base font-semibold"><span>Total</span><span>{formatCurrency(total)}</span></div>
+            <div className="text-[12px] text-gray-600 grid gap-1">
+              <div className="flex items-center justify-between"><span className="font-medium">Quote</span><span>{quoteNumber}</span></div>
+              <div className="flex items-center justify-between"><span className="font-medium">Date</span><span>{todayLabel}</span></div>
+              {expiresHours ? (
+                <div className="flex items-center justify-between"><span className="font-medium">Expires</span><span>{expiresPreview}</span></div>
+              ) : null}
             </div>
 
+            <div className="mt-3 space-y-1 text-xs text-gray-700">
+              {eventDetails?.event && <div>📌 {eventDetails.event}</div>}
+              {eventDetails?.date && <div>📅 {eventDetails.date}</div>}
+              {(eventDetails?.locationName || eventDetails?.locationAddress) && (
+                <div>📍 {eventDetails.locationName ? (eventDetails.locationAddress ? `${eventDetails.locationName} — ${eventDetails.locationAddress}` : eventDetails.locationName) : eventDetails.locationAddress}</div>
+              )}
+              {eventDetails?.guests && <div>👥 {eventDetails.guests} guests</div>}
+              <div>🔊 Sound: {(initialSoundNeeded ?? (soundFee > 0)) ? 'Yes' : 'No'}</div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {/* Totals (below) */}
+      <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+        <div className="grid gap-1 text-sm text-gray-800" aria-live="polite">
+          <div className="flex items-center justify-between"><span>Subtotal</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
+          <div className="flex items-center justify-between"><span>Discount</span><span className="font-medium">{discount ? `− ${formatCurrency(discount)}` : formatCurrency(0)}</span></div>
+          <div className="flex items-center justify-between"><span>VAT ({Math.round(VAT_RATE*100)}%)</span><span className="font-medium">{formatCurrency(vat)}</span></div>
+          <div className="mt-2 border-t pt-2 flex items-center justify-between text-base font-semibold"><span>Total</span><span>{formatCurrency(total)}</span></div>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">{error}</div>
+      )}
+
+      {/* Actions (below) */}
+      <div className="mt-4 bg-white">
+        <div className="p-3 sm:p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm">
+            <div className="text-gray-600">You will send</div>
+            <div className="text-lg font-bold" aria-live="polite">{formatCurrency(total)}</div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {onDecline && (
+              <button type="button" onClick={onDecline} className="px-3 py-2 rounded-lg border border-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-50">Decline Request</button>
+            )}
             <button
               type="button"
               onClick={handleSubmit}
               disabled={!canSend}
-              className={`w-full h-10 rounded-lg text-white text-sm font-semibold transition-colors ${canSend ? 'bg-black hover:bg-gray-900' : 'bg-gray-400 cursor-not-allowed'}`}
+              className={`px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors ${canSend ? 'bg-black hover:bg-gray-900' : 'bg-gray-400 cursor-not-allowed'}`}
             >
               {sending ? 'Sending…' : 'Send Quote'}
             </button>
-
-            {onDecline && (
-              <button
-                type="button"
-                onClick={onDecline}
-                className="mt-2 w-full h-10 rounded-lg border border-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-50"
-              >
-                Decline Request
-              </button>
-            )}
-
-            {/* Event snapshot */}
-            <div className="mt-4 text-xs">
-              <div className="flex items-center justify-between text-gray-600">
-                <span className="font-medium">Quote</span>
-                <span>{quoteNumber}</span>
-              </div>
-              <div className="flex items-center justify-between text-gray-600">
-                <span className="font-medium">Date</span>
-                <span>{todayLabel}</span>
-              </div>
-              <div className="mt-3 space-y-1 text-gray-700">
-                {eventDetails?.event && <div>📌 {eventDetails.event}</div>}
-                {eventDetails?.date && <div>📅 {eventDetails.date}</div>}
-                {(eventDetails?.locationName || eventDetails?.locationAddress) && (
-                  <div>📍 {eventDetails.locationName ? (eventDetails.locationAddress ? `${eventDetails.locationName} — ${eventDetails.locationAddress}` : eventDetails.locationName) : eventDetails.locationAddress}</div>
-                )}
-                {eventDetails?.guests && <div>👥 {eventDetails.guests} guests</div>}
-                <div>🔊 Sound: {(initialSoundNeeded ?? (soundFee > 0)) ? 'Yes' : 'No'}</div>
-              </div>
-            </div>
-
-            {/* Expiry hint */}
-            <div className="mt-3 text-[11px] text-gray-500">{expiresHours ? `Auto-expires ${expiresPreview}` : 'No automatic expiry'}</div>
-
-            {/* Error */}
-            {error && (
-              <div className="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">{error}</div>
-            )}
           </div>
-        </aside>
+        </div>
       </div>
 
       {/* Spacer to avoid overlap with chat composer */}
