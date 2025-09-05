@@ -654,7 +654,7 @@ export default function InboxPage() {
                   onSelectRequest={handleSelect}
                   currentUser={user}
                   query={query}
-                  height={Math.max(0, listHeight)}
+                  height={listHeight > 0 ? listHeight : undefined}
                 />
               ) : (
                 <p className="p-6 text-center text-gray-500">No conversations found.</p>
