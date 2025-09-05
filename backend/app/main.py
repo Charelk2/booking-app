@@ -62,6 +62,7 @@ from .api import (
 
 # The “service-provider-profiles” router lives under app/api/v1/
 from .api.v1 import api_service_provider as api_service_provider_profiles
+from .api.v1.api_images import img_router
 from .core.config import settings
 from .core.observability import setup_logging, setup_tracer
 from .crud import crud_quote_v2
@@ -132,7 +133,8 @@ from .services.ops_scheduler import run_maintenance
 from .services.admin_bootstrap import ensure_default_admin
 from .utils.redis_cache import close_redis_client
 from .utils.status_logger import register_status_listeners
-from .api.v1.api_service_provider import list_service_provider_profiles
+from .api.v1.api_service_provider import read_all_service_provider_profiles
+import httpx
 from .utils.redis_cache import get_cached_artist_list
 
 # Configure logging before creating any loggers
@@ -475,6 +477,9 @@ app.include_router(
     tags=["service-provider-profiles"],
 )
 
+# Lightweight image proxy routes (e.g., avatar thumbs)
+app.include_router(img_router, prefix=f"{api_prefix}")
+
 
 # ─── SERVICE ROUTES (under /api/v1/services) ────────────────────────────────────────
 app.include_router(
@@ -744,31 +749,15 @@ def shutdown_redis_client() -> None:
 
 @app.on_event("startup")
 async def warm_cache_on_startup() -> None:
-    """Warm the homepage artist list cache for faster first paint.
+    """Warm the homepage list via an internal HTTP GET so ETag/Redis are engaged.
 
-    Best effort; logs a warning if it cannot prewarm.
+    Best effort; if it fails, we simply skip warming.
     """
     try:
-        # Skip if already cached
         if get_cached_artist_list(1, limit=12) is not None:
             return
-        from .database import SessionLocal
-        db = SessionLocal()
-        try:
-            # Use the same logic as the API route to ensure consistent payload and caching
-            list_service_provider_profiles(  # type: ignore[arg-type]
-                response=ORJSONResponse({}),
-                db=db,
-                page=1,
-                limit=12,
-                category=None,
-                location=None,
-                sort=None,
-                min_price=None,
-                max_price=None,
-                include_price_distribution=False,
-            )
-        finally:
-            db.close()
+        url = f"http://127.0.0.1:{os.getenv('PORT','8000')}{settings.API_V1_STR}/service-provider-profiles/?limit=12&sort=newest&fields=id,business_name,profile_picture_url"
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.get(url)
     except Exception as exc:
         logger.warning("Warm-cache skipped: %s", exc)

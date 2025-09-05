@@ -19,21 +19,8 @@ async function fetchInitial(category: string, limit = 12) {
     limit: String(limit),
     category,
     sort: 'most_booked',
-    // Trim fields for homepage rows (keeps SSR lightweight and fast)
-    fields: [
-      'id',
-      'business_name',
-      'profile_picture_url',
-      'custom_subtitle',
-      'hourly_rate',
-      'price_visible',
-      'rating',
-      'rating_count',
-      'location',
-      'service_categories',
-      'user.first_name',
-      'user.last_name',
-    ].join(','),
+    // Super-lean fast path: only essentials to render cards quickly
+    fields: ['id','business_name','profile_picture_url'].join(','),
   });
   const url = `${API_BASE}/api/v1/service-provider-profiles/?${params.toString()}`;
   try {

@@ -20,6 +20,7 @@ fakeredis==2.23.2
 email-validator==2.2.0
 twilio==9.6.2
 pyotp==2.9.0
+Pillow==10.4.0
 google-auth-oauthlib==1.2.0
 google-api-python-client==2.127.0
 ics==0.7.2

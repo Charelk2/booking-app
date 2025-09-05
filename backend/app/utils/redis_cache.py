@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import base64
 from datetime import date
 from typing import List, Optional, Any
 
@@ -17,6 +18,11 @@ def get_redis_client() -> redis.Redis:
     if _redis_client is None:
         _redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
     return _redis_client
+
+
+# Convenience aliases used by various modules
+def get_redis() -> redis.Redis:
+    return get_redis_client()
 
 
 ARTIST_LIST_KEY_PREFIX = "service_provider_profiles:list"
@@ -117,6 +123,37 @@ def invalidate_artist_list_cache() -> None:
     except redis.exceptions.ConnectionError as exc:
         logging.warning("Could not clear artist list cache: %s", exc)
     return None
+
+
+# ─── BYTE CACHE HELPERS (store as base64 on text client) ───────────────────────────
+def cache_bytes(key: str, data: bytes, expire: int) -> None:
+    """Cache arbitrary bytes under the given key using base64 encoding.
+
+    The global Redis client is configured with decode_responses=True, so we
+    encode binary blobs as base64 strings for storage.
+    """
+    client = get_redis_client()
+    try:
+        b64 = base64.b64encode(data).decode("ascii")
+        client.setex(key, expire, b64)
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Could not cache bytes: %s", exc)
+
+
+def get_cached_bytes(key: str) -> Optional[bytes]:
+    """Return cached bytes for the key if present, else None."""
+    client = get_redis_client()
+    try:
+        data = client.get(key)
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Redis unavailable: %s", exc)
+        return None
+    if not data:
+        return None
+    try:
+        return base64.b64decode(data)
+    except Exception:
+        return None
 
 
 

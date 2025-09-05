@@ -19,6 +19,8 @@ function apiBaseOrigin(): string {
 function ensureStaticPath(pathname: string): string {
   // Normalize to /static/{mount}/rest for known mounts
   const strip = pathname.replace(/^\/+/, '');
+  // Allow API-served image proxies to pass through untouched
+  if (strip.startsWith('api/')) return `/${strip}`;
   const mStatic = strip.match(/^static\/(.+)$/i);
   if (mStatic) return `/static/${mStatic[1]}`;
   const mDirect = strip.match(/^(profile_pics|cover_photos|portfolio_images|attachments|media)\/(.+)$/i);
@@ -42,9 +44,13 @@ export function toCanonicalImageUrl(input?: string | null): string | null {
 
   try {
     const u = new URL(v);
-    // Same API host: normalize to /static path
+    // Same API host: allow API image proxy paths and normalize storage mounts
     const isApi = u.origin === origin || /(^|\.)booka\.co\.za$/i.test(u.hostname);
     if (isApi) {
+      // If path begins with /api/, keep as-is so it hits the backend route
+      if (u.pathname.startsWith('/api/')) {
+        return `${u.pathname}${u.search}`;
+      }
       const normalized = ensureStaticPath(u.pathname);
       const finalPath = preserveExtension(normalized);
       // Prefer same-origin relative path so Next.js image optimizer can fetch
@@ -56,8 +62,10 @@ export function toCanonicalImageUrl(input?: string | null): string | null {
     if (EXT_RE.test(u.pathname)) return v;
     return null;
   } catch {
-    // Relative path: coerce to /static and absolute origin
-    const normalized = ensureStaticPath(v.startsWith('/') ? v : `/${v}`);
+    // Relative path: allow /api/* passthrough, else coerce to /static
+    const raw = v.startsWith('/') ? v : `/${v}`;
+    if (/^\/api\//i.test(raw)) return raw;
+    const normalized = ensureStaticPath(raw);
     const finalPath = preserveExtension(normalized);
     // Same-origin relative path; Next rewrites /static/* to the API
     return `${finalPath}`;

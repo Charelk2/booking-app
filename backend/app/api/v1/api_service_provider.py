@@ -1,6 +1,6 @@
 # app/api/v1/api_service_provider.py
 
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Response, Request
 from fastapi.params import Query as QueryParam
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, or_
@@ -444,6 +444,7 @@ def update_portfolio_images_order_me(
 )
 def read_all_service_provider_profiles(
     response: Response,
+    request: Request,
     db: Session = Depends(get_db),
     # Accept category as a string so unknown values (e.g. "Musician")
     # don't trigger a validation error. We'll attempt to coerce it to
@@ -460,7 +461,13 @@ def read_all_service_provider_profiles(
     artist: Optional[str] = Query(None, description="Filter by artist name"),
     fields: Optional[str] = Query(None, description="Comma-separated fields to include. Trims payload."),
 ):
-    """Return a list of all service provider profiles with optional filters."""
+    """Return a list of all service provider profiles with optional filters.
+
+    Optimizations:
+    - Fast path for lean field sets (id, business_name, profile_picture_url)
+      with tiny avatar proxy URLs and ETag-based 304 revalidation.
+    - Redis-backed caching for common parameter combinations (including fields).
+    """
 
     # FastAPI's Query objects appear when this function is called directly in tests.
     # Normalize them to plain values for compatibility.
@@ -502,8 +509,17 @@ def read_all_service_provider_profiles(
 
     cache_category = category_slug
     cached = None
-    # Only cache when payload shape is stable (no fields trimming)
-    cacheable = (not include_price_distribution) and (when is None) and (not artist) and (not fields)
+    # Determine if fast path applies
+    requested: Optional[set[str]] = None
+    if isinstance(fields, str) and fields.strip():
+        requested = {f.strip() for f in fields.split(",") if f.strip()}
+    fast_fields = {"id", "business_name", "profile_picture_url"}
+    fast_sort_ok = sort in (None, "most_booked", "newest")
+    fast_filters_ok = (when is None) and (artist is None) and (not include_price_distribution)
+    use_fast_path = requested and requested.issubset(fast_fields) and fast_sort_ok and fast_filters_ok
+
+    # Try Redis cache first (now keyed by fields too)
+    cacheable = (not include_price_distribution) and (when is None) and (not artist)
     if cacheable:
         cached = get_cached_artist_list(
             page=page,
@@ -513,24 +529,106 @@ def read_all_service_provider_profiles(
             sort=sort,
             min_price=min_price,
             max_price=max_price,
-            fields=None,
+            fields=fields,
         )
-    if cached is not None:
+        if cached is not None:
+            try:
+                etag = 'W/"' + hashlib.sha256(json.dumps(cached, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest() + '"'
+            except Exception:
+                etag = None
+            response.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=300"
+            if etag:
+                if request.headers.get("if-none-match") == etag:
+                    response.headers["ETag"] = etag
+                    response.headers["X-Cache"] = "REVALIDATED"
+                    return Response(status_code=304)
+                response.headers["ETag"] = etag
+            response.headers["X-Cache"] = "HIT"
+            return cached
+
+    # FAST PATH: only id, business_name, profile_picture_url
+    if use_fast_path:
+        booking_subq = (
+            db.query(
+                Booking.artist_id.label("artist_id"),
+                func.count(Booking.id).label("book_count"),
+            )
+            .group_by(Booking.artist_id)
+            .subquery()
+        )
+
+        cols = [
+            Artist.user_id.label("id"),
+            Artist.business_name,
+            Artist.profile_picture_url,
+            Artist.updated_at.label("v"),
+            booking_subq.c.book_count,
+        ]
+        query = db.query(*cols).outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
+        query = query.filter(Artist.services.any(Service.status == "approved"))
+        if category_slug:
+            query = (
+                query.join(Service, Service.artist_id == Artist.user_id)
+                .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
+                .filter(getattr(Service, "status", "approved") == "approved")
+                .filter(func.lower(ServiceCategory.name) == category_slug.replace("_", " "))
+            )
+        if location:
+            query = query.filter(Artist.location.ilike(f"%{location}%"))
+        if sort == "most_booked":
+            query = query.order_by(desc(booking_subq.c.book_count.nulls_last()))
+        else:
+            query = query.order_by(Artist.updated_at.desc())
+
+        total_q = db.query(func.count(Artist.user_id))
+        total_q = total_q.filter(Artist.services.any(Service.status == "approved"))
+        if category_slug:
+            total_q = (
+                total_q.join(Service, Service.artist_id == Artist.user_id)
+                .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
+                .filter(getattr(Service, "status", "approved") == "approved")
+                .filter(func.lower(ServiceCategory.name) == category_slug.replace("_", " "))
+            )
+        if location:
+            total_q = total_q.filter(Artist.location.ilike(f"%{location}%"))
+        total = int(total_q.scalar() or 0)
+
+        rows = query.offset((page - 1) * limit).limit(limit).all()
+
+        def tiny_avatar_url(_id: int, src: Optional[str], v) -> Optional[str]:
+            if not src:
+                return None
+            ver = int(v.timestamp()) if v else 0
+            return f"/api/v1/img/avatar/{_id}?w=128&v={ver}"
+
+        data = []
+        for _id, name, avatar, v, _book_count in rows:
+            item: dict[str, Any] = {}
+            if not requested or "id" in requested:
+                item["id"] = _id
+            if not requested or "business_name" in requested:
+                item["business_name"] = name
+            if not requested or "profile_picture_url" in requested:
+                item["profile_picture_url"] = tiny_avatar_url(_id, avatar, v)
+            data.append(item)
+
+        payload = {"data": data, "total": total, "price_distribution": []}
         try:
-            etag = 'W/"' + hashlib.sha256(json.dumps(cached, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest() + '"'
+            serialized = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+            etag = 'W/"' + hashlib.sha256(serialized).hexdigest() + '"'
         except Exception:
             etag = None
-        # Shared-cache friendly headers for hot list paths
-        response.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=300"
+        response.headers["Cache-Control"] = "public, s-maxage=300, stale-while-revalidate=1800"
         if etag:
+            if request.headers.get("if-none-match") == etag:
+                response.headers["ETag"] = etag
+                response.headers["X-Cache"] = "REVALIDATED"
+                return Response(status_code=304)
             response.headers["ETag"] = etag
-        response.headers["X-Cache"] = "HIT"
-        return {
-            "data": [ArtistProfileResponse.model_validate(item) for item in cached],
-            "total": len(cached),
-            "price_distribution": [],
-        }
+        response.headers["X-Cache"] = "MISS"
+        return payload
 
+    # SLOWER PATH (original logic, slightly trimmed)
     rating_subq = (
         db.query(
             Review.artist_id.label("artist_id"),
@@ -567,7 +665,8 @@ def read_all_service_provider_profiles(
             booking_subq.c.book_count,
             category_subq.c.service_categories,
         )
-        .options(joinedload(Artist.user))
+        # Only load user if needed by downstream serialization
+        # .options(joinedload(Artist.user))
         .outerjoin(rating_subq, rating_subq.c.artist_id == Artist.user_id)
         .outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
         .outerjoin(category_subq, category_subq.c.artist_id == Artist.user_id)
@@ -673,9 +772,7 @@ def read_all_service_provider_profiles(
             pass
         return val
 
-    requested: Optional[set[str]] = None
-    if isinstance(fields, str) and fields.strip():
-        requested = {f.strip() for f in fields.split(",") if f.strip()}
+    requested = requested  # reuse from above
 
     profiles: List[ArtistProfileResponse] = []
     for row in artists:
@@ -770,8 +867,17 @@ def read_all_service_provider_profiles(
             min_price=min_price,
             max_price=max_price,
             expire=60,
-            fields=None,
+            fields=fields,
         )
+
+    # Replace potentially large inline avatars with tiny proxy URLs
+    try:
+        for p in profiles:
+            if p.profile_picture_url:
+                ver = int(p.updated_at.timestamp()) if p.updated_at else 0
+                p.profile_picture_url = f"/api/v1/img/avatar/{p.user_id}?w=128&v={ver}"
+    except Exception:
+        pass
 
     # Set caching headers on the response
     if cacheable:
@@ -783,6 +889,10 @@ def read_all_service_provider_profiles(
             etag = None
         response.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=300"
         if etag:
+            if request.headers.get("if-none-match") == etag:
+                response.headers["ETag"] = etag
+                response.headers["X-Cache"] = "REVALIDATED"
+                return Response(status_code=304)
             response.headers["ETag"] = etag
         response.headers["X-Cache"] = "MISS"
     else:
@@ -880,166 +990,4 @@ def read_artist_availability(
     return result
 
 
-@router.get(
-    "/",
-    response_model=ArtistListResponse,
-    response_model_exclude_none=True,
-    summary="List service provider profiles (paginated)",
-)
-def list_service_provider_profiles(
-    response: Response,
-    db: Session = Depends(get_db),
-    page: int = Query(1, ge=1),
-    limit: int = Query(12, ge=1, le=50),
-    category: Optional[str] = Query(None),
-    location: Optional[str] = Query(None),
-    sort: Optional[str] = Query(None, description="Sort by 'price_asc' | 'price_desc' | 'rating_desc' | 'recent'"),
-    min_price: Optional[float] = Query(None, ge=0),
-    max_price: Optional[float] = Query(None, ge=0),
-    include_price_distribution: bool = Query(False),
-    fields: Optional[str] = Query(None, description="Comma-separated fields to include. Trims payload."),
-):
-    cached = get_cached_artist_list(
-        page,
-        limit=limit,
-        category=category,
-        location=location,
-        sort=sort,
-        min_price=min_price,
-        max_price=max_price,
-        fields=fields,
-    )
-    if isinstance(cached, dict) and "data" in cached and "total" in cached:
-        response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=120"
-        return cached
-
-    min_price_subq = (
-        db.query(Service.artist_id.label("artist_id"), func.min(Service.price).label("min_price"))
-        .filter(getattr(Service, "status", "approved") == "approved")
-        .group_by(Service.artist_id)
-        .subquery()
-    )
-
-    q = (
-        db.query(Artist, min_price_subq.c.min_price)
-        .outerjoin(min_price_subq, Artist.user_id == min_price_subq.c.artist_id)
-    )
-    # Hide providers with zero approved services
-    q = q.filter(Artist.services.any(Service.status == "approved"))
-
-    if category:
-        q = q.join(Service, Service.artist_id == Artist.user_id)
-        q = q.join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
-        q = q.filter(getattr(Service, "status", "approved") == "approved")
-        q = q.filter(func.lower(ServiceCategory.name) == category.lower())
-    if location:
-        q = q.filter(Artist.location.ilike(f"%{location}%"))
-    if min_price is not None:
-        q = q.filter((min_price_subq.c.min_price == None) | (min_price_subq.c.min_price >= min_price))
-    if max_price is not None:
-        q = q.filter((min_price_subq.c.min_price == None) | (min_price_subq.c.min_price <= max_price))
-
-    if sort == "price_asc":
-        q = q.order_by(min_price_subq.c.min_price.asc().nulls_last())
-    elif sort == "price_desc":
-        q = q.order_by(min_price_subq.c.min_price.desc().nulls_last())
-    else:
-        q = q.order_by(Artist.updated_at.desc())
-
-    total = q.count()
-    rows = q.offset((page - 1) * limit).limit(limit).all()
-
-    # Helper: scrub overly large inline images (data URLs) to keep payload small
-    def _scrub_image(val: Optional[str]) -> Optional[str]:
-        try:
-            if isinstance(val, str) and val.startswith("data:"):
-                # If it's a large inline data URL, drop it for list views
-                if len(val) > 1000:
-                    return None
-        except Exception:
-            pass
-        return val
-
-    requested: Optional[set[str]] = None
-    if isinstance(fields, str) and fields.strip():
-        requested = {f.strip() for f in fields.split(",") if f.strip()}
-
-    data = []
-    for artist, minp in rows:
-        record = {
-            "user_id": artist.user_id,
-            "business_name": artist.business_name,
-            "custom_subtitle": artist.custom_subtitle,
-            # Large fields intentionally omitted unless requested
-            "description": artist.description,
-            "location": artist.location,
-            "hourly_rate": str(artist.hourly_rate) if artist.hourly_rate is not None else None,
-            "portfolio_urls": artist.portfolio_urls,
-            # portfolio_image_urls and cover_photo_url may contain data URLs; exclude by default
-            "portfolio_image_urls": None,
-            "specialties": artist.specialties,
-            # Keep profile picture as-is, including data URLs, to ensure
-            # durability across deploys for avatars on lightweight lists
-            "profile_picture_url": artist.profile_picture_url,
-            "cover_photo_url": None,
-            "price_visible": artist.price_visible,
-            "cancellation_policy": artist.cancellation_policy,
-            "contact_email": artist.contact_email,
-            "contact_phone": artist.contact_phone,
-            "contact_website": artist.contact_website,
-            "created_at": artist.created_at.isoformat(),
-            "updated_at": artist.updated_at.isoformat(),
-            "rating": None,
-            "rating_count": 0,
-            "is_available": None,
-            "service_price": float(minp) if minp is not None else None,
-            "service_categories": [],
-            "onboarding_completed": getattr(artist, "onboarding_completed", None),
-            "user": None,
-        }
-        if requested is not None:
-            # Do NOT include a nested user object in this lean list response to
-            # avoid mismatches with the strict UserResponse schema. The full
-            # list endpoint above returns proper nested users when needed.
-            always_keep = {"user_id", "created_at", "updated_at"}
-            record = {k: v for k, v in record.items() if (k in requested) or (k in always_keep)}
-        data.append(record)
-
-    price_distribution = []
-    if include_price_distribution:
-        buckets = PRICE_BUCKETS
-        counts = [0 for _ in buckets]
-        all_min_prices = [
-            float(p or 0)
-            for p, in db.query(func.min(Service.price))
-            .filter(getattr(Service, "status", "approved") == "approved")
-            .group_by(Service.artist_id)
-            .all()
-        ]
-        for price in all_min_prices:
-            for idx, (lo, hi) in enumerate(buckets):
-                if lo <= price <= hi:
-                    counts[idx] += 1
-                    break
-        price_distribution = [{"min": lo, "max": hi, "count": cnt} for (lo, hi), cnt in zip(buckets, counts)]
-
-    payload = {"data": data, "total": int(total), "price_distribution": price_distribution}
-
-    try:
-        cache_artist_list(
-            payload,
-            page,
-            limit=limit,
-            category=category,
-            location=location,
-            sort=sort,
-            min_price=min_price,
-            max_price=max_price,
-            expire=60,
-            fields=fields,
-        )
-    except Exception:
-        pass
-
-    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=120"
-    return payload
+# (Removed duplicate "/" list route to avoid undefined behavior and cache fragmentation)
