@@ -332,7 +332,7 @@ const InlineQuoteForm: React.FC<Props> = ({
             {/* Base Fee */}
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <label htmlFor="base" className="text-sm font-medium text-gray-900">
-                🎤 Service Provider Base Fee
+                Service Provider Base Fee
               </label>
               <CurrencyInput
                 id="base"
@@ -345,7 +345,7 @@ const InlineQuoteForm: React.FC<Props> = ({
             {/* Travel */}
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
               <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                🚗 Travel
+                Travel
                 {calculationParams?.distance_km != null && (
                   <span className="text-[11px] text-gray-500 font-normal">
                     ({Math.round(calculationParams.distance_km)} km · {mode})
@@ -355,36 +355,12 @@ const InlineQuoteForm: React.FC<Props> = ({
               <CurrencyInput aria-label="Travel fee" value={travelFee} onChange={setTravelFee} />
             </div>
 
-            {/* Sound presets */}
-            <div className="grid grid-cols-1 gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-900">🔊 Sound Equipment</span>
-                <div className="flex items-center gap-1">
-                  <QuickChip
-                    label="None"
-                    active={soundFee === 0}
-                    onClick={() => setSoundFee(0)}
-                  />
-                  <QuickChip
-                    label="Basic PA"
-                    active={soundFee === 1000}
-                    onClick={() => setSoundFee(1000)}
-                  />
-                  <QuickChip
-                    label="Full PA"
-                    active={soundFee === 7500}
-                    onClick={() => setSoundFee(7500)}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                <div className="text-xs text-gray-600">
-                  {mode === 'fly'
-                    ? 'Flight mode guide: Full PA often required (R7 500).'
-                    : 'Drive mode guide: Basic PA typical (±R1 000).'}
-                </div>
-                <CurrencyInput aria-label="Sound fee" value={soundFee} onChange={setSoundFee} />
-              </div>
+            {/* Sound equipment (no presets/guides) */}
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <label htmlFor="sound" className="text-sm font-medium text-gray-900">
+                Sound Equipment
+              </label>
+              <CurrencyInput id="sound" aria-label="Sound fee" value={soundFee} onChange={setSoundFee} />
             </div>
 
             {/* Quick-add suggestions */}
@@ -423,7 +399,7 @@ const InlineQuoteForm: React.FC<Props> = ({
 
             {/* Expiry */}
             <div className="grid grid-cols-1 gap-2">
-              <div className="text-sm font-medium text-gray-900">⏳ Expires</div>
+              <div className="text-sm font-medium text-gray-900">Expires</div>
               <div className="flex flex-wrap gap-1.5">
                 <QuickChip label="No expiry" active={!expiresHours} onClick={() => setExpiresHours(null)} />
                 {expiryOptions.map((o) => (
