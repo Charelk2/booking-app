@@ -62,11 +62,9 @@ async function fetchInitial(category: string, limit = 12) {
 }
 
 export default async function HomePage() {
-  // Prefetch a few sections server-side so the page renders instantly
-  const [musicians, photographers, videographers] = await Promise.all([
+  // Keep SSR light: prefetch only top section to avoid thundering herd
+  const [musicians] = await Promise.all([
     fetchInitial('musician'),
-    fetchInitial('photographer'),
-    fetchInitial('videographer'),
   ]);
   return (
     <MainLayout>
@@ -82,48 +80,55 @@ export default async function HomePage() {
       <ArtistsSection
         title="Photography"
         query={{ category: 'photographer', sort: 'most_booked' }}
-        initialData={photographers}
+        deferUntilVisible
         hideIfEmpty
       />
       <ArtistsSection
         title="Videographers"
         query={{ category: 'videographer', sort: 'most_booked' }}
-        initialData={videographers}
+        deferUntilVisible
         hideIfEmpty
       />
       <ArtistsSection
         title="Catering"
         query={{ category: 'caterer', sort: 'most_booked' }}
+        deferUntilVisible
         hideIfEmpty
       />
       <ArtistsSection
         title="DJs"
         query={{ category: 'dj', sort: 'most_booked' }}
+        deferUntilVisible
         hideIfEmpty
       />
       <ArtistsSection
         title="Speakers"
         query={{ category: 'speaker', sort: 'most_booked' }}
+        deferUntilVisible
         hideIfEmpty
       />
       <ArtistsSection
         title="Sound Services"
         query={{ category: 'sound_service', sort: 'most_booked' }}
+        deferUntilVisible
         hideIfEmpty
       />
       <ArtistsSection
         title="Wedding Venues"
         query={{ category: 'wedding_venue', sort: 'most_booked' }}
+        deferUntilVisible
         hideIfEmpty
       />
       <ArtistsSection
         title="Bartending"
         query={{ category: 'bartender', sort: 'most_booked' }}
+        deferUntilVisible
         hideIfEmpty
       />
       <ArtistsSection
         title="MC & Hosts"
         query={{ category: 'mc_host', sort: 'most_booked' }}
+        deferUntilVisible
         hideIfEmpty
       />
     </MainLayout>

@@ -14,6 +14,7 @@ interface ArtistsSectionProps {
   limit?: number;
   hideIfEmpty?: boolean;
   initialData?: ServiceProviderProfile[];
+  deferUntilVisible?: boolean; // Reduce first-load API bursts by waiting until in-view
 }
 
 function CardSkeleton() {
@@ -34,11 +35,14 @@ export default function ArtistsSection({
   limit = 12,
   hideIfEmpty = false,
   initialData,
+  deferUntilVisible = true,
 }: ArtistsSectionProps) {
   const [artists, setArtists] = useState<ServiceProviderProfile[]>(initialData || []);
   const [loading, setLoading] = useState(!initialData || (initialData?.length ?? 0) === 0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const [shouldFetch, setShouldFetch] = useState(() => !initialData || initialData.length === 0);
 
   const serializedQuery = useMemo(() => JSON.stringify(query), [query]);
 
@@ -48,12 +52,39 @@ export default function ArtistsSection({
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth);
   };
 
+  // Observe visibility to avoid fetching offscreen sections on first load
+  useEffect(() => {
+    if (!deferUntilVisible) { setShouldFetch(true); return; }
+    if (!shouldFetch) return; // either we have data or already fetched
+    let observer: IntersectionObserver | null = null;
+    const el = sectionRef.current;
+    if (!el) { setShouldFetch(true); return; }
+    try {
+      observer = new IntersectionObserver((entries) => {
+        const entry = entries[0];
+        if (entry && entry.isIntersecting) {
+          setShouldFetch(true);
+          observer?.disconnect();
+        }
+      }, { root: null, rootMargin: '200px', threshold: 0.01 });
+      observer.observe(el);
+    } catch {
+      // Older browsers: fetch after a small delay to avoid burst
+      const t = setTimeout(() => setShouldFetch(true), 800);
+      return () => clearTimeout(t);
+    }
+    return () => observer?.disconnect();
+  }, [deferUntilVisible, shouldFetch]);
+
   useEffect(() => {
     let isMounted = true;
     // If we already have server-provided data, avoid refetching on hydrate.
     // This prevents duplicate load on first visit and reduces 503s from bursts.
     if ((initialData?.length ?? 0) > 0) {
       setLoading(false);
+      return () => { isMounted = false; };
+    }
+    if (!shouldFetch) {
       return () => { isMounted = false; };
     }
     async function fetchArtists() {
@@ -94,7 +125,7 @@ export default function ArtistsSection({
     return () => {
       isMounted = false;
     };
-  }, [serializedQuery, limit, initialData]);
+  }, [serializedQuery, limit, initialData, shouldFetch]);
 
   useEffect(() => {
     updateScrollButton();
@@ -116,7 +147,7 @@ export default function ArtistsSection({
   const showSeeAll = artists.length === limit;
 
   return (
-    <section className="full-width mx-auto px-4 sm:px-6 lg:px-8 py-5">
+    <section ref={sectionRef as any} className="full-width mx-auto px-4 sm:px-6 lg:px-8 py-5">
       <div className="flex items-end justify-between mb-4">
         <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
         {showSeeAll && (
