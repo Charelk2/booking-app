@@ -211,7 +211,7 @@ const InlineQuoteForm: React.FC<Props> = ({
   const total = discounted + vat;
 
   const expiresPreview = useMemo(() => {
-    if (!expiresHours) return 'No expiry';
+    if (!expiresHours) return '';
     const dt = addHours(new Date(), Number(expiresHours));
     return `${format(dt, 'PPP p')}`;
   }, [expiresHours]);
@@ -268,7 +268,7 @@ const InlineQuoteForm: React.FC<Props> = ({
           <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <h4 className="text-base font-semibold">Create Quote</h4>
             <div className="text-[12px] text-gray-600 font-medium">
-              Quote <span className="font-semibold">{quoteNumber}</span> · <span className="font-semibold">{todayLabel}</span>
+              <span className="font-semibold">{quoteNumber}</span> · <span className="font-semibold">{todayLabel}</span>
             </div>
           </div>
 
@@ -321,22 +321,21 @@ const InlineQuoteForm: React.FC<Props> = ({
                 </div>
               </div>
 
-              <div className="rounded-lg border border-gray-200 overflow-hidden">
-                <div className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50">
-                  <div>Description</div>
-                  <div className="text-right">Amount</div>
+              {items.length > 0 && (
+                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50">
+                    <div>Description</div>
+                    <div className="text-right">Amount</div>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {items.map((it) => (
+                      <div key={it.key} className="px-3 py-2">
+                        <LineItemRow item={it} onUpdate={(patch) => updateItem(it.key, patch)} onRemove={() => removeItem(it.key)} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="divide-y divide-gray-100">
-                  {items.length === 0 && (
-                    <div className="px-3 py-2 text-xs text-gray-500">No extras added.</div>
-                  )}
-                  {items.map((it) => (
-                    <div key={it.key} className="px-3 py-2">
-                      <LineItemRow item={it} onUpdate={(patch) => updateItem(it.key, patch)} onRemove={() => removeItem(it.key)} />
-                    </div>
-                  ))}
-                </div>
-              </div>
+              )}
               <div className="mt-2">
                 <button
                   type="button"
@@ -371,7 +370,9 @@ const InlineQuoteForm: React.FC<Props> = ({
                     <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                   ))}
                 </select>
-                <div className="text-xs text-gray-600 min-w-[8rem]">{expiresHours ? `Auto-expires: ${expiresPreview}` : 'No expiry'}</div>
+                {expiresHours ? (
+                  <div className="text-xs text-gray-600 min-w-[8rem]">{`Auto-expires: ${expiresPreview}`}</div>
+                ) : null}
               </div>
             </div>
 
@@ -388,17 +389,7 @@ const InlineQuoteForm: React.FC<Props> = ({
               />
             </div>
 
-            {/* Agreement */}
-            <label className="flex items-start gap-2 text-xs text-gray-600 py-3">
-              <input
-                ref={firstFieldRef}
-                type="checkbox"
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black/30"
-                checked={agree}
-                onChange={(e) => setAgree(e.target.checked)}
-              />
-              <span>I confirm these amounts are correct.</span>
-            </label>
+            {/* Agreement moved below totals */}
           </div>
         </div>
 
@@ -436,6 +427,16 @@ const InlineQuoteForm: React.FC<Props> = ({
           <div className="flex items-center justify-between"><span>VAT ({Math.round(VAT_RATE*100)}%)</span><span className="font-medium">{formatCurrency(vat)}</span></div>
           <div className="mt-2 border-t pt-2 flex items-center justify-between text-base font-semibold"><span>Total</span><span>{formatCurrency(total)}</span></div>
         </div>
+        <label className="mt-3 flex items-start gap-2 text-xs text-gray-600">
+          <input
+            ref={firstFieldRef}
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black/30"
+            checked={agree}
+            onChange={(e) => setAgree(e.target.checked)}
+          />
+          <span>I confirm these amounts are correct.</span>
+        </label>
       </div>
 
       {/* Error */}
