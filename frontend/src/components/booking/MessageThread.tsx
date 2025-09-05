@@ -3274,7 +3274,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </label>
-          <div className="flex items-center gap-2 overflow-x-auto">
+          <div className="flex flex-wrap items-center gap-2 overflow-hidden">
             {imagePreviewUrls.map((u, i) => (
               <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200 bg-white">
                 <SafeImage src={u} alt={`Preview ${i+1}`} width={64} height={64} className="w-16 h-16 object-cover" />
