@@ -308,48 +308,9 @@ const InlineQuoteForm: React.FC<Props> = ({
 
   return (
     <div className="w-full rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 sm:p-5 shadow-sm">
-      {/* Booking Request Summary */}
+      {/* Booking Request Summary + Composer (swapped: composer left, details right) */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 p-3 sm:p-4 bg-white">
-          <h4 className="mb-1 text-sm font-semibold flex items-center gap-2">
-            🧾 New Booking Request
-          </h4>
-          <p className="mb-3 text-xs text-gray-600">
-            From: <span className="font-medium">{eventDetails?.from ?? 'N/A'}</span> · Received:{' '}
-            <span className="font-medium">{eventDetails?.receivedAt ?? 'N/A'}</span>
-          </p>
-          <div className="text-xs">
-            <p className="mb-1 font-semibold">Event Details</p>
-            <ul className="space-y-1 text-gray-700">
-              {eventDetails?.event && <li>📌 Event: {eventDetails.event}</li>}
-              {eventDetails?.date && <li>📅 Date: {eventDetails.date}</li>}
-              {(eventDetails?.locationName || eventDetails?.locationAddress) && (
-                <li>
-                  📍 Location:{' '}
-                  {eventDetails.locationName ? (
-                    eventDetails.locationAddress ? (
-                      <>{eventDetails.locationName} — {eventDetails.locationAddress}</>
-                    ) : (
-                      <>{eventDetails.locationName}</>
-                    )
-                  ) : (
-                    <>{eventDetails.locationAddress}</>
-                  )}
-                </li>
-              )}
-              {eventDetails?.guests && <li>👥 Guests: {eventDetails.guests}</li>}
-              {eventDetails?.venue && <li>🏟️ Venue: {eventDetails.venue}</li>}
-              <li>🔊 Sound: {(initialSoundNeeded ?? (soundFee > 0)) ? 'Yes' : 'No'}</li>
-              {eventDetails?.notes && (
-                <li>
-                  📝 Notes: <span className="italic">“{eventDetails.notes}”</span>
-                </li>
-              )}
-            </ul>
-          </div>
-        </div>
-
-        {/* Composer */}
+        {/* Composer (left) */}
         <div className="rounded-xl border border-gray-200 p-3 sm:p-4 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <h4 className="text-sm font-semibold">Review & Adjust Quote</h4>
@@ -508,6 +469,46 @@ const InlineQuoteForm: React.FC<Props> = ({
                 .
               </span>
             </label>
+          </div>
+        </div>
+
+        {/* Details (right) */}
+        <div className="rounded-xl border border-gray-200 p-3 sm:p-4 bg-white">
+          <h4 className="mb-1 text-sm font-semibold flex items-center gap-2">
+            🧾 New Booking Request
+          </h4>
+          <p className="mb-3 text-xs text-gray-600">
+            From: <span className="font-medium">{eventDetails?.from ?? 'N/A'}</span> · Received:{' '}
+            <span className="font-medium">{eventDetails?.receivedAt ?? 'N/A'}</span>
+          </p>
+          <div className="text-xs">
+            <p className="mb-1 font-semibold">Event Details</p>
+            <ul className="space-y-1 text-gray-700">
+              {eventDetails?.event && <li>📌 Event: {eventDetails.event}</li>}
+              {eventDetails?.date && <li>📅 Date: {eventDetails.date}</li>}
+              {(eventDetails?.locationName || eventDetails?.locationAddress) && (
+                <li>
+                  📍 Location:{' '}
+                  {eventDetails.locationName ? (
+                    eventDetails.locationAddress ? (
+                      <>{eventDetails.locationName} — {eventDetails.locationAddress}</>
+                    ) : (
+                      <>{eventDetails.locationName}</>
+                    )
+                  ) : (
+                    <>{eventDetails.locationAddress}</>
+                  )}
+                </li>
+              )}
+              {eventDetails?.guests && <li>👥 Guests: {eventDetails.guests}</li>}
+              {eventDetails?.venue && <li>🏟️ Venue: {eventDetails.venue}</li>}
+              <li>🔊 Sound: {(initialSoundNeeded ?? (soundFee > 0)) ? 'Yes' : 'No'}</li>
+              {eventDetails?.notes && (
+                <li>
+                  📝 Notes: <span className="italic">“{eventDetails.notes}”</span>
+                </li>
+              )}
+            </ul>
           </div>
         </div>
       </div>
