@@ -2342,7 +2342,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         )}
 
         {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !isPersonalizedVideo && !!bookingRequest && !isModerationThread && !isInquiryThread && (
-          <div className="mb-24" data-testid="artist-inline-quote">
+          <div
+            className="mb-24 max-h-[70vh] overflow-auto overscroll-contain pr-1"
+            data-testid="artist-inline-quote"
+            aria-label={t('chat.inlineQuote', 'Inline Quote')}
+          >
             <MemoInlineQuoteForm
               artistId={currentArtistId}
               clientId={currentClientId}

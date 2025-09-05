@@ -40,19 +40,18 @@ Result: homepage lists load reliably; repeated requests HIT cache; avatars are s
 ## Exact Files Changed (Performance)
 
 - backend/app/api/v1/api_service_provider.py
-  - `read_all_service_provider_profiles(...)`:
-    - Switched from `query.all()` + Python slicing to SQL-side pagination with `query.count()` and `query.offset(...).limit(...).all()`.
-    - Rewrote price distribution to compute from a focused aggregation (min service price per artist) instead of iterating all joined rows.
-    - Cache guard tightened: skip Redis caching when `fields` is present to keep the cached payload shape stable.
-  - `list_service_provider_profiles(...)` (lean path):
-    - Redis cache lookups/inserts now include the `fields` parameter in the key so trimmed variants reuse the correct cache.
+  - Unified `read_all_service_provider_profiles(...)` route with two code paths:
+    - Fast path: when `fields` is a lean subset, select only `{user_id, business_name, profile_picture_url, created_at, updated_at}`, paginate in SQL, group by artist to avoid duplicates, sort with `COALESCE(book_count,0) DESC` (SQLite‑safe), emit ETag/Cache‑Control, and cache in Redis (keys include normalized `fields`).
+    - Full path: keep richer joins and optional price histogram, add ETag/304, and cache with `fields` in the key.
+  - Rewrote any remaining `query.all()` usages to `count() + offset(limit)` pagination.
+  - Rewrote avatar fields in list payloads to a proxy URL (`/api/v1/img/avatar/{id}`) so lists never ship embedded base64 images.
 
 - backend/app/utils/redis_cache.py
-  - Cache key function now includes a normalized `fields` segment to prevent collisions between trimmed and full payloads.
-  - `get_cached_artist_list(...)` and `cache_artist_list(...)` signatures updated to accept `fields` and incorporate it into the key.
+  - Cache keys include normalized `fields` to prevent collisions; both fast‑path and full payloads are cached.
+  - Added byte helpers used by the avatar proxy.
 
-- scripts/prewarm_artists.py (new)
-  - A small helper to prewarm hot combinations (categories and sorts for page 1) so the first user traffic avoids cold cache latency.
+- backend/app/api/v1/api_images.py (new)
+  - High‑quality avatar proxy with center‑crop, LANCZOS resampling, and tunable `w`, `dpr`, `q`, `fmt`; ETag + long Cache‑Control; Redis variant caching.
 
 No response schemas were changed, no migrations were added, and availability/date logic remains intact.
 
@@ -73,9 +72,38 @@ No response schemas were changed, no migrations were added, and availability/dat
 ## How to Verify
 
 - Observe response headers for list calls:
-  - `X-Cache: MISS` on the very first request, quickly followed by `X-Cache: HIT` on subsequent identical requests.
+  - `X-Cache: MISS` on the very first request, quickly followed by `X-Cache: HIT` (or a `304 Not Modified` if the client sends `If-None-Match`).
   - `Cache-Control` and `ETag` remain present on cacheable responses.
 - Exercise your examples directly and compare time-to-first-byte before/after.
+
+### Verification Checklist (copy/paste)
+
+- Lean fast path (first MISS, then HIT/304):
+  - `curl -sS -D - -o /dev/null 'https://api.booka.co.za/api/v1/service-provider-profiles/?category=musician&sort=most_booked&limit=12&fields=id,business_name,profile_picture_url'`
+  - Run again within 60s; expect `X-Cache: HIT` (or 304 if your client sends `If-None-Match`).
+
+- Same endpoint with explicit ETag 304 test:
+  - First: `curl -sS -D - 'https://api.booka.co.za/api/v1/service-provider-profiles/?category=musician&sort=newest&limit=12&fields=id,business_name,profile_picture_url' -o /dev/null`
+  - Copy the `ETag` value from the headers, then:
+  - `curl -sS -D - -H 'If-None-Match: W/"<PASTE-ETAG-HERE>"' 'https://api.booka.co.za/api/v1/service-provider-profiles/?category=musician&sort=newest&limit=12&fields=id,business_name,profile_picture_url' -o /dev/null`
+  - Expect: `HTTP/2 304` with no body.
+
+- Heavy fields (cached too; expect MISS then HIT/304):
+  - `curl -sS -D - -o /dev/null 'https://api.booka.co.za/api/v1/service-provider-profiles/?category=photographer&sort=most_booked&limit=12&fields=id,business_name,profile_picture_url,custom_subtitle,hourly_rate,price_visible,rating,rating_count,location,service_categories,user.first_name,user.last_name'`
+  - Run again within 60s; expect cache engagement.
+
+- Avatar proxy (HTTP 200 with ETag; 304 on revalidate):
+  - `curl -I 'https://api.booka.co.za/api/v1/img/avatar/123?w=256&dpr=2&q=90'` (replace 123 with a real artist id)
+  - Expect: `Content-Type: image/webp` (or jpeg), `Cache-Control: public, s-maxage=...`, `ETag: ...`
+
+- Redis connectivity (inside a Fly machine):
+  - `flyctl ssh console -a <app>` then:
+  - `python - <<'PY'
+import os, redis
+url=os.environ.get('REDIS_URL'); print('REDIS_URL=', url)
+r=redis.from_url(url); print('PING =>', r.ping())
+PY`
+  - Expect: `PING => True`.
 
 ## Operating Notes (Postgres-focused)
 
