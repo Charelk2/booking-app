@@ -207,7 +207,8 @@ const InlineQuoteForm: React.FC<Props> = ({
         if (cancelled) return;
         // Only fill from calculator when BookingWizard did not supply values
         if (initialBaseFee == null) {
-          setServiceFee(calculationParams.base_fee ?? Number(data?.service_fee || 0) || 0);
+          const computedBase = calculationParams.base_fee ?? data?.base_fee ?? 0;
+          setServiceFee(computedBase);
         }
         if (initialTravelCost == null) {
           setTravelFee(Number(data?.travel_cost || 0));
@@ -284,6 +285,7 @@ const InlineQuoteForm: React.FC<Props> = ({
 
       await onSubmit({
         booking_request_id: bookingRequestId,
+        service_provider_id: artistId,
         artist_id: artistId,
         client_id: clientId,
         services,
