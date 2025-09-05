@@ -44,6 +44,7 @@ export default function InboxPage() {
   );
   const [showList, setShowList] = useState(true);
   const [query, setQuery] = useState('');
+  const [listHeight, setListHeight] = useState<number>(0);
   // Ensure we only attempt to create a Booka thread once per mount
   const ensureTriedRef = useRef(false);
   // Debounce focus/visibility-triggered refreshes
@@ -74,6 +75,21 @@ export default function InboxPage() {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Measure available height for the conversation list so it scrolls within the pane
+  useEffect(() => {
+    const el = document.getElementById('conversation-list-body');
+    if (!el) return;
+    const compute = () => setListHeight(el.clientHeight || 0);
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    window.addEventListener('resize', compute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', compute);
+    };
   }, []);
 
   const fetchAllRequests = useCallback(async () => {
@@ -588,6 +604,7 @@ export default function InboxPage() {
                   onSelectRequest={handleSelect}
                   currentUser={user}
                   query={query}
+                  height={Math.max(0, listHeight)}
                 />
               ) : (
                 <p className="p-6 text-center text-gray-500">No conversations found.</p>
