@@ -169,6 +169,9 @@ const nextConfig = {
       // Preserve the `/api` prefix when forwarding so paths like
       // `/api/v1/service-provider-profiles` hit `/api/v1/...` on the backend.
       { source: '/api/:path*',   destination: `${apiBase}/api/:path*` },
+      // Safety: handle stale bundles that accidentally request /static/api/... by
+      // forwarding them to /api/... so avatars and other API-served images keep working
+      { source: '/static/api/:path*', destination: '/api/:path*' },
       // Auth routes (cookie-based) should also proxy to the backend
       { source: '/auth/:path*',  destination: `${apiBase}/auth/:path*` },
       { source: '/media/:path*', destination: `${apiBase}/media/:path*` },
