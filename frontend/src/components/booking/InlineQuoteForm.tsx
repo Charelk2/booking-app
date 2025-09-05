@@ -205,9 +205,16 @@ const InlineQuoteForm: React.FC<Props> = ({
           calculationParams
         )) as { data: QuoteCalculationResponse };
         if (cancelled) return;
-        setServiceFee(calculationParams.base_fee ?? 0);
-        setTravelFee(Number(data?.travel_cost || 0));
-        setSoundFee(Number(data?.sound_cost || 0));
+        // Only fill from calculator when BookingWizard did not supply values
+        if (initialBaseFee == null) {
+          setServiceFee(calculationParams.base_fee ?? Number(data?.service_fee || 0) || 0);
+        }
+        if (initialTravelCost == null) {
+          setTravelFee(Number(data?.travel_cost || 0));
+        }
+        if (initialSoundCost == null && initialSoundNeeded == null) {
+          setSoundFee(Number(data?.sound_cost || 0));
+        }
       } catch (e) {
         // soft-fail: keep manual values
       } finally {
@@ -218,7 +225,7 @@ const InlineQuoteForm: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [calculationParams]);
+  }, [calculationParams, initialBaseFee, initialTravelCost, initialSoundCost, initialSoundNeeded]);
 
   // Quick-add suggestions (local-only)
   const suggestions = useMemo(
@@ -330,6 +337,7 @@ const InlineQuoteForm: React.FC<Props> = ({
               )}
               {eventDetails?.guests && <li>👥 Guests: {eventDetails.guests}</li>}
               {eventDetails?.venue && <li>🏟️ Venue: {eventDetails.venue}</li>}
+              <li>🔊 Sound: {(initialSoundNeeded ?? (soundFee > 0)) ? 'Yes' : 'No'}</li>
               {eventDetails?.notes && (
                 <li>
                   📝 Notes: <span className="italic">“{eventDetails.notes}”</span>
