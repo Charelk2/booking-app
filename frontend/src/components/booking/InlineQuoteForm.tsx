@@ -89,7 +89,7 @@ function CurrencyInput({
       id={id}
       inputMode="decimal"
       aria-label={ariaLabel}
-      className={`w-32 text-right p-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/10 ${className}`}
+      className={`w-32 text-right p-1 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/10 ${className}`}
       placeholder={placeholder ?? '0.00'}
       value={text}
       onChange={(e) => {
@@ -128,7 +128,7 @@ const LineItemRow: React.FC<{
     <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
       <input
         type="text"
-        className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+        className="w-full p-1 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
         placeholder="Custom item (e.g., Extra hour)"
         value={item.description}
         onChange={(e) => onUpdate({ description: e.target.value })}
@@ -483,7 +483,7 @@ const InlineQuoteForm: React.FC<Props> = ({
               <textarea
                 id="accom"
                 rows={2}
-                className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                className="w-full p-1 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
                 placeholder="E.g. 1 night hotel stay"
                 value={accommodation}
                 onChange={(e) => setAccommodation(e.target.value)}
