@@ -7,18 +7,11 @@ import type { EventDetails } from './QuoteBubble';
 import { calculateQuoteBreakdown } from '@/lib/api';
 
 /**
- * InlineQuoteForm (v2)
+ * InlineQuoteForm (v3)
  * ------------------------------------------------------------
- * A compact, chat-friendly quote composer designed for use inside
- * a message thread. Optimized for speed, clarity, and touch usage.
- *
- * Highlights
- * - Smart defaults from calculateQuoteBreakdown (optional)
- * - Currency-safe inputs with instant totals
- * - Quick-add extras as line items (clean, table-like)
- * - Expiry chips with human-readable preview
- * - Sticky action bar with Estimated Total + Send/Decline
- * - Accessible: keyboard & screen-reader friendly
+ * Professional, compact, and globally-consistent quote composer
+ * built for chat threads. Clean layout, fewer distractions,
+ * and a narrow summary panel (≈ 1/3 on desktop).
  */
 
 interface Props {
@@ -42,24 +35,27 @@ interface Props {
   };
 }
 
+const VAT_RATE = 0.15; // South Africa default VAT; adjust upstream if needed
+
 const expiryOptions = [
+  { label: 'No expiry', value: '' },
   { label: '1 day', value: 24 },
   { label: '3 days', value: 72 },
   { label: '7 days', value: 168 },
 ];
 
 // ——————————————————————————————————————————————————————————————
-// Small helpers
+// Helpers
 // ——————————————————————————————————————————————————————————————
 
 const toNumber = (v: string | number) => {
-  if (typeof v === 'number') return v;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
   const cleaned = v.replace(/[^0-9.\-]/g, '');
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : 0;
 };
 
-function CurrencyInput({
+function MoneyInput({
   value,
   onChange,
   id,
@@ -76,6 +72,7 @@ function CurrencyInput({
 }) {
   const [text, setText] = useState<string>(() => (value ? formatCurrency(value) : ''));
   const lastValueRef = useRef<number>(value);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (lastValueRef.current !== value) {
@@ -86,12 +83,14 @@ function CurrencyInput({
 
   return (
     <input
+      ref={inputRef}
       id={id}
       inputMode="decimal"
       aria-label={ariaLabel}
-      className={`w-40 sm:w-44 md:w-48 text-right px-2 py-1 h-9 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/10 ${className}`}
+      className={`w-40 sm:w-44 md:w-48 text-right px-2 py-2 h-10 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/10 ${className}`}
       placeholder={placeholder ?? '0.00'}
       value={text}
+      onFocus={(e) => e.currentTarget.select()}
       onChange={(e) => {
         const raw = e.target.value;
         setText(raw);
@@ -103,22 +102,6 @@ function CurrencyInput({
   );
 }
 
-const QuickChip: React.FC<{
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-}> = ({ label, active, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors select-none hover:bg-gray-50 ${
-      active ? 'bg-black text-white border-black' : 'bg-white text-gray-800 border-gray-300'
-    }`}
-  >
-    {label}
-  </button>
-);
-
 const LineItemRow: React.FC<{
   item: ServiceItem & { key: string };
   onUpdate: (patch: Partial<ServiceItem>) => void;
@@ -128,21 +111,17 @@ const LineItemRow: React.FC<{
     <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
       <input
         type="text"
-        className="w-full p-1 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
-        placeholder="Custom item (e.g., Extra hour)"
+        className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+        placeholder="Extra description (e.g. Extra hour)"
         value={item.description}
         onChange={(e) => onUpdate({ description: e.target.value })}
       />
-      <CurrencyInput
-        aria-label="Item price"
-        value={item.price}
-        onChange={(n) => onUpdate({ price: n })}
-      />
+      <MoneyInput aria-label="Item price" value={item.price} onChange={(n) => onUpdate({ price: n })} />
       <button
         type="button"
         onClick={onRemove}
         aria-label="Remove line item"
-        className="rounded-lg border border-red-200 text-red-600 text-xs font-semibold px-2 py-1 hover:bg-red-50"
+        className="rounded-lg border border-red-200 text-red-600 text-xs font-semibold px-2.5 py-1.5 hover:bg-red-50"
       >
         Remove
       </button>
@@ -150,7 +129,6 @@ const LineItemRow: React.FC<{
   );
 };
 
-// Drive vs fly heuristic (simple, local-only)
 const travelMode = (km?: number) => (km && km > 300 ? 'fly' : 'drive');
 
 const InlineQuoteForm: React.FC<Props> = ({
@@ -169,18 +147,16 @@ const InlineQuoteForm: React.FC<Props> = ({
 }) => {
   // — State —
   const [serviceFee, setServiceFee] = useState<number>(initialBaseFee ?? 0);
-  const [soundFee, setSoundFee] = useState<number>(
-    initialSoundCost ?? (initialSoundNeeded ? 1000 : 0)
-  );
+  const [soundFee, setSoundFee] = useState<number>(initialSoundCost ?? (initialSoundNeeded ? 1000 : 0));
   const [travelFee, setTravelFee] = useState<number>(initialTravelCost ?? 0);
   const [accommodation, setAccommodation] = useState<string>('');
   const [discount, setDiscount] = useState<number>(0);
-  const [expiresHours, setExpiresHours] = useState<number | null>(null);
+  const [expiresHours, setExpiresHours] = useState<number | ''>('');
   const [items, setItems] = useState<(ServiceItem & { key: string })[]>([]);
   const [loadingCalc, setLoadingCalc] = useState<boolean>(false);
   const [sending, setSending] = useState<boolean>(false);
-  const [agree, setAgree] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [agree, setAgree] = useState<boolean>(true);
 
   const [quoteNumber] = useState<string>(generateQuoteNumber());
   const todayLabel = format(new Date(), 'PPP');
@@ -201,23 +177,13 @@ const InlineQuoteForm: React.FC<Props> = ({
       if (!calculationParams) return;
       try {
         setLoadingCalc(true);
-        const { data } = (await calculateQuoteBreakdown(
-          calculationParams
-        )) as { data: QuoteCalculationResponse };
+        const { data } = (await calculateQuoteBreakdown(calculationParams)) as { data: QuoteCalculationResponse };
         if (cancelled) return;
-        // Only fill from calculator when BookingWizard did not supply values
-        if (initialBaseFee == null) {
-          const computedBase = calculationParams.base_fee ?? data?.base_fee ?? 0;
-          setServiceFee(computedBase);
-        }
-        if (initialTravelCost == null) {
-          setTravelFee(Number(data?.travel_cost || 0));
-        }
-        if (initialSoundCost == null && initialSoundNeeded == null) {
-          setSoundFee(Number(data?.sound_cost || 0));
-        }
-      } catch (e) {
-        // soft-fail: keep manual values
+        if (initialBaseFee == null) setServiceFee(calculationParams.base_fee ?? data?.base_fee ?? 0);
+        if (initialTravelCost == null) setTravelFee(Number(data?.travel_cost || 0));
+        if (initialSoundCost == null && initialSoundNeeded == null) setSoundFee(Number(data?.sound_cost || 0));
+      } catch {
+        // soft-fail
       } finally {
         if (!cancelled) setLoadingCalc(false);
       }
@@ -228,7 +194,6 @@ const InlineQuoteForm: React.FC<Props> = ({
     };
   }, [calculationParams, initialBaseFee, initialTravelCost, initialSoundCost, initialSoundNeeded]);
 
-  // Quick-add suggestions (local-only)
   const suggestions = useMemo(
     () => [
       { label: 'Extra hour', price: 1000 },
@@ -238,18 +203,15 @@ const InlineQuoteForm: React.FC<Props> = ({
     []
   );
 
-  const calcSubtotal = useMemo(() => {
-    const extrasTotal = items.reduce((sum, it) => sum + Number(it.price || 0), 0);
-    return serviceFee + soundFee + travelFee + extrasTotal;
-  }, [items, serviceFee, soundFee, travelFee]);
-
-  const subtotalAfterDiscount = Math.max(0, calcSubtotal - (discount || 0));
-  const vat = subtotalAfterDiscount * 0.15; // SA VAT 15%
-  const estimatedTotal = subtotalAfterDiscount + vat;
+  const extrasTotal = useMemo(() => items.reduce((sum, it) => sum + Number(it.price || 0), 0), [items]);
+  const subtotal = useMemo(() => serviceFee + soundFee + travelFee + extrasTotal, [serviceFee, soundFee, travelFee, extrasTotal]);
+  const discounted = Math.max(0, subtotal - (discount || 0));
+  const vat = discounted * VAT_RATE;
+  const total = discounted + vat;
 
   const expiresPreview = useMemo(() => {
     if (!expiresHours) return 'No expiry';
-    const dt = addHours(new Date(), expiresHours);
+    const dt = addHours(new Date(), Number(expiresHours));
     return `${format(dt, 'PPP p')}`;
   }, [expiresHours]);
 
@@ -258,30 +220,24 @@ const InlineQuoteForm: React.FC<Props> = ({
       ...arr,
       { key: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, description: desc, price },
     ]);
-
-  const updateItem = (key: string, patch: Partial<ServiceItem>) =>
-    setItems((arr) => arr.map((it) => (it.key === key ? { ...it, ...patch } : it)));
-
+  const updateItem = (key: string, patch: Partial<ServiceItem>) => setItems((arr) => arr.map((it) => (it.key === key ? { ...it, ...patch } : it)));
   const removeItem = (key: string) => setItems((arr) => arr.filter((it) => it.key !== key));
 
   const mode = travelMode(calculationParams?.distance_km);
-
   const canSend = agree && serviceFee > 0 && !sending;
 
   async function handleSubmit() {
     try {
       setError(null);
       setSending(true);
-      trackEvent('cta_send_quote', { bookingRequestId, artistId, clientId });
+      trackEvent?.('cta_send_quote', { bookingRequestId, artistId, clientId });
 
       const services: ServiceItem[] = [
         { description: serviceName ?? 'Service fee', price: serviceFee },
         ...items.map(({ key, ...rest }) => rest),
       ];
 
-      const expires_at = expiresHours
-        ? new Date(Date.now() + expiresHours * 3600000).toISOString()
-        : null;
+      const expires_at = expiresHours ? new Date(Date.now() + Number(expiresHours) * 3600000).toISOString() : null;
 
       await onSubmit({
         booking_request_id: bookingRequestId,
@@ -302,27 +258,19 @@ const InlineQuoteForm: React.FC<Props> = ({
     }
   }
 
-  // ——————————————————————————————————————————————————————————————
-  // UI
-  // ——————————————————————————————————————————————————————————————
-
   return (
-    <div className="w-full rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 sm:p-5 shadow-sm">
-      {/* Booking Request Summary + Composer (composer left, details right) */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* Composer (left) */}
-        <div className="rounded-xl border border-gray-200 p-3 sm:p-4 bg-white">
-          <div className="mb-3">
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-1">
-              <h4 className="text-base font-semibold">Review & Adjust Quote</h4>
-              <div className="text-[12px] text-gray-600 font-medium">
-                Quote No: <span className="font-semibold">{quoteNumber}</span> · Date{' '}
-                <span className="font-semibold">{todayLabel}</span>
-              </div>
+    <section className="w-full rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 sm:p-5 shadow-sm">
+      {/* Layout: form left (2/3), summary right (1/3) */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Composer */}
+        <div className="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
+          <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <h4 className="text-base font-semibold">Create Quote</h4>
+            <div className="text-[12px] text-gray-600 font-medium">
+              Quote <span className="font-semibold">{quoteNumber}</span> · <span className="font-semibold">{todayLabel}</span>
             </div>
           </div>
 
-          {/* Smart state from calculator */}
           {loadingCalc && (
             <div className="mb-3 text-xs text-gray-600 flex items-center gap-2">
               <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
@@ -333,10 +281,8 @@ const InlineQuoteForm: React.FC<Props> = ({
           <div className="divide-y divide-gray-100">
             {/* Base Fee */}
             <div className="flex items-center justify-between py-3">
-              <label htmlFor="base" className="text-sm font-medium text-gray-900 w-56">
-                Service Provider Base Fee
-              </label>
-              <CurrencyInput id="base" aria-label="Base fee" value={serviceFee} onChange={setServiceFee} />
+              <label htmlFor="base" className="text-sm font-medium text-gray-900 w-56">Base Fee</label>
+              <MoneyInput id="base" aria-label="Base fee" value={serviceFee} onChange={setServiceFee} />
             </div>
 
             {/* Travel */}
@@ -344,25 +290,36 @@ const InlineQuoteForm: React.FC<Props> = ({
               <div className="text-sm font-medium text-gray-900 w-56">
                 <div>Travel</div>
                 {calculationParams?.distance_km != null && (
-                  <div className="text-[11px] text-gray-500 font-normal">
-                    {Math.round(calculationParams.distance_km)} km · {mode}
-                  </div>
+                  <div className="text-[11px] text-gray-500 font-normal">{Math.round(calculationParams.distance_km)} km · {mode}</div>
                 )}
               </div>
-              <CurrencyInput aria-label="Travel fee" value={travelFee} onChange={setTravelFee} />
+              <MoneyInput aria-label="Travel fee" value={travelFee} onChange={setTravelFee} />
             </div>
 
-            {/* Sound equipment */}
+            {/* Sound */}
             <div className="flex items-center justify-between py-3">
-              <label htmlFor="sound" className="text-sm font-medium text-gray-900 w-56">
-                Sound Equipment
-              </label>
-              <CurrencyInput id="sound" aria-label="Sound fee" value={soundFee} onChange={setSoundFee} />
+              <label htmlFor="sound" className="text-sm font-medium text-gray-900 w-56">Sound Equipment</label>
+              <MoneyInput id="sound" aria-label="Sound fee" value={soundFee} onChange={setSoundFee} />
             </div>
 
-            {/* Quick-add suggestions */}
+            {/* Extras */}
             <div className="py-3">
-              <div className="mb-2 text-sm font-medium text-gray-900">Extras</div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-900">Extras</span>
+                <div className="flex gap-1.5">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => addItem(s.label, s.price)}
+                      className="px-2 py-1 rounded-full text-[11px] font-medium border border-gray-300 text-gray-800 hover:bg-gray-50"
+                    >
+                      + {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="rounded-lg border border-gray-200 overflow-hidden">
                 <div className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50">
                   <div>Description</div>
@@ -374,11 +331,7 @@ const InlineQuoteForm: React.FC<Props> = ({
                   )}
                   {items.map((it) => (
                     <div key={it.key} className="px-3 py-2">
-                      <LineItemRow
-                        item={it}
-                        onUpdate={(patch) => updateItem(it.key, patch)}
-                        onRemove={() => removeItem(it.key)}
-                      />
+                      <LineItemRow item={it} onUpdate={(patch) => updateItem(it.key, patch)} onRemove={() => removeItem(it.key)} />
                     </div>
                   ))}
                 </div>
@@ -396,48 +349,39 @@ const InlineQuoteForm: React.FC<Props> = ({
 
             {/* Discount */}
             <div className="flex items-center justify-between py-3">
-              <label htmlFor="discount" className="text-sm font-medium text-gray-900 w-56">
-                Discount (optional)
-              </label>
-              <CurrencyInput id="discount" aria-label="Discount amount" value={discount} onChange={setDiscount} />
+              <label htmlFor="discount" className="text-sm font-medium text-gray-900 w-56">Discount</label>
+              <MoneyInput id="discount" aria-label="Discount amount" value={discount} onChange={setDiscount} />
             </div>
 
             {/* Expiry */}
             <div className="flex items-center justify-between py-3">
-              <label htmlFor="expires" className="text-sm font-medium text-gray-900 w-56">
-                Expires
-              </label>
+              <label htmlFor="expires" className="text-sm font-medium text-gray-900 w-56">Expires</label>
               <div className="flex items-center gap-3">
                 <select
                   id="expires"
-                  className="h-9 rounded-md border border-gray-300 px-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
-                  value={expiresHours ?? ''}
+                  className="h-10 rounded-lg border border-gray-300 px-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
+                  value={String(expiresHours)}
                   onChange={(e) => {
                     const v = e.target.value;
-                    setExpiresHours(v ? Number(v) : null);
+                    setExpiresHours(v ? Number(v) : '');
                   }}
                 >
-                  <option value="">No expiry</option>
                   {expiryOptions.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                    <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                   ))}
                 </select>
-                <div className="text-xs text-gray-600 min-w-[8rem]">
-                  {expiresHours ? `Auto-expires: ${expiresPreview}` : 'No automatic expiry'}
-                </div>
+                <div className="text-xs text-gray-600 min-w-[8rem]">{expiresHours ? `Auto-expires: ${expiresPreview}` : 'No expiry'}</div>
               </div>
             </div>
 
             {/* Accommodation */}
             <div className="flex items-start justify-between py-3">
-              <label htmlFor="accom" className="text-sm font-medium text-gray-900 w-56 pt-2">
-                Accommodation (optional)
-              </label>
+              <label htmlFor="accom" className="text-sm font-medium text-gray-900 w-56 pt-2">Accommodation</label>
               <textarea
                 id="accom"
                 rows={3}
-                className="w-80 sm:w-96 p-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
-                placeholder="E.g. 1 night hotel stay"
+                className="w-80 sm:w-96 p-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                placeholder="Optional (e.g. 1 night hotel stay)"
                 value={accommodation}
                 onChange={(e) => setAccommodation(e.target.value)}
               />
@@ -446,126 +390,106 @@ const InlineQuoteForm: React.FC<Props> = ({
             {/* Agreement */}
             <label className="flex items-start gap-2 text-xs text-gray-600 py-3">
               <input
+                ref={firstFieldRef}
                 type="checkbox"
                 className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black/30"
                 checked={agree}
                 onChange={(e) => setAgree(e.target.checked)}
               />
-              <span>
-                I have reviewed the quote and agree to the{' '}
-                <a className="underline" href="#" onClick={(e) => e.preventDefault()}>
-                  terms of service
-                </a>
-                .
-              </span>
+              <span>I confirm these amounts are correct.</span>
             </label>
           </div>
+
+          {/* Mobile actions */}
+          <div className="mt-4 md:hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-gray-600">You will send</div>
+                <div className="text-lg font-bold" aria-live="polite">{formatCurrency(total)}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                {onDecline && (
+                  <button type="button" onClick={onDecline} className="px-3 py-2 rounded-lg border border-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-50">Decline</button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!canSend}
+                  className={`px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors ${canSend ? 'bg-black hover:bg-gray-900' : 'bg-gray-400 cursor-not-allowed'}`}
+                >
+                  {sending ? 'Sending…' : 'Send'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Details (right) */}
-        <div className="rounded-xl border border-gray-200 p-3 sm:p-4 bg-white">
-          <h4 className="mb-1 text-sm font-semibold flex items-center gap-2">
-            🧾 New Booking Request
-          </h4>
-          <p className="mb-3 text-xs text-gray-600">
-            From: <span className="font-medium">{eventDetails?.from ?? 'N/A'}</span> · Received:{' '}
-            <span className="font-medium">{eventDetails?.receivedAt ?? 'N/A'}</span>
-          </p>
-          <div className="text-xs">
-            <p className="mb-1 font-semibold">Event Details</p>
-            <ul className="space-y-1 text-gray-700">
-              {eventDetails?.event && <li>📌 Event: {eventDetails.event}</li>}
-              {eventDetails?.date && <li>📅 Date: {eventDetails.date}</li>}
-              {(eventDetails?.locationName || eventDetails?.locationAddress) && (
-                <li>
-                  📍 Location:{' '}
-                  {eventDetails.locationName ? (
-                    eventDetails.locationAddress ? (
-                      <>{eventDetails.locationName} — {eventDetails.locationAddress}</>
-                    ) : (
-                      <>{eventDetails.locationName}</>
-                    )
-                  ) : (
-                    <>{eventDetails.locationAddress}</>
-                  )}
-                </li>
-              )}
-              {eventDetails?.guests && <li>👥 Guests: {eventDetails.guests}</li>}
-              {eventDetails?.venue && <li>🏟️ Venue: {eventDetails.venue}</li>}
-              <li>🔊 Sound: {(initialSoundNeeded ?? (soundFee > 0)) ? 'Yes' : 'No'}</li>
-              {eventDetails?.notes && (
-                <li>
-                  📝 Notes: <span className="italic">“{eventDetails.notes}”</span>
-                </li>
-              )}
-            </ul>
-          </div>
-        </div>
-      </div>
+        {/* Summary (narrow) */}
+        <aside className="md:col-span-1">
+          <div className="rounded-xl border border-gray-200 bg-white p-4 md:sticky md:top-2">
+            <h4 className="mb-3 text-sm font-semibold">Summary</h4>
 
-      {/* Totals */}
-      <div className="mt-4 rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
-        <div className="grid gap-1 text-sm text-gray-800" aria-live="polite">
-          <div className="flex items-center justify-between">
-            <span>Subtotal</span>
-            <span className="font-medium">{formatCurrency(calcSubtotal)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Less discount</span>
-            <span className="font-medium">{discount ? `− ${formatCurrency(discount)}` : formatCurrency(0)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>VAT (15%)</span>
-            <span className="font-medium">{formatCurrency(vat)}</span>
-          </div>
-          <div className="mt-2 border-t pt-2 flex items-center justify-between text-base font-semibold">
-            <span>Estimated Total</span>
-            <span>{formatCurrency(estimatedTotal)}</span>
-          </div>
-        </div>
-      </div>
+            <div className="mb-3 grid gap-1 text-sm text-gray-800" aria-live="polite">
+              <div className="flex items-center justify-between"><span>Subtotal</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
+              <div className="flex items-center justify-between"><span>Discount</span><span className="font-medium">{discount ? `− ${formatCurrency(discount)}` : formatCurrency(0)}</span></div>
+              <div className="flex items-center justify-between"><span>VAT ({Math.round(VAT_RATE*100)}%)</span><span className="font-medium">{formatCurrency(vat)}</span></div>
+              <div className="mt-2 border-t pt-2 flex items-center justify-between text-base font-semibold"><span>Total</span><span>{formatCurrency(total)}</span></div>
+            </div>
 
-      {/* Error */}
-      {error && (
-        <div className="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
-          {error}
-        </div>
-      )}
-
-      {/* Actions (non-sticky so the form scrolls like a normal message) */}
-      <div className="mt-4 bg-white border-t border-gray-200 rounded-b-2xl">
-        <div className="p-3 sm:p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm">
-            <div className="text-gray-600">You will send</div>
-            <div className="text-lg font-bold">{formatCurrency(estimatedTotal)}</div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            {onDecline && (
-              <button
-                type="button"
-                onClick={onDecline}
-                className="px-3 py-2 rounded-lg border border-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-50"
-              >
-                Decline Request
-              </button>
-            )}
             <button
               type="button"
               onClick={handleSubmit}
               disabled={!canSend}
-              title={canSend ? 'Send this quote to the client' : 'Complete required fields'}
-              className={`px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors ${
-                canSend ? 'bg-black hover:bg-gray-900' : 'bg-gray-400 cursor-not-allowed'
-              }`}
+              className={`w-full h-10 rounded-lg text-white text-sm font-semibold transition-colors ${canSend ? 'bg-black hover:bg-gray-900' : 'bg-gray-400 cursor-not-allowed'}`}
             >
               {sending ? 'Sending…' : 'Send Quote'}
             </button>
+
+            {onDecline && (
+              <button
+                type="button"
+                onClick={onDecline}
+                className="mt-2 w-full h-10 rounded-lg border border-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-50"
+              >
+                Decline Request
+              </button>
+            )}
+
+            {/* Event snapshot */}
+            <div className="mt-4 text-xs">
+              <div className="flex items-center justify-between text-gray-600">
+                <span className="font-medium">Quote</span>
+                <span>{quoteNumber}</span>
+              </div>
+              <div className="flex items-center justify-between text-gray-600">
+                <span className="font-medium">Date</span>
+                <span>{todayLabel}</span>
+              </div>
+              <div className="mt-3 space-y-1 text-gray-700">
+                {eventDetails?.event && <div>📌 {eventDetails.event}</div>}
+                {eventDetails?.date && <div>📅 {eventDetails.date}</div>}
+                {(eventDetails?.locationName || eventDetails?.locationAddress) && (
+                  <div>📍 {eventDetails.locationName ? (eventDetails.locationAddress ? `${eventDetails.locationName} — ${eventDetails.locationAddress}` : eventDetails.locationName) : eventDetails.locationAddress}</div>
+                )}
+                {eventDetails?.guests && <div>👥 {eventDetails.guests} guests</div>}
+                <div>🔊 Sound: {(initialSoundNeeded ?? (soundFee > 0)) ? 'Yes' : 'No'}</div>
+              </div>
+            </div>
+
+            {/* Expiry hint */}
+            <div className="mt-3 text-[11px] text-gray-500">{expiresHours ? `Auto-expires ${expiresPreview}` : 'No automatic expiry'}</div>
+
+            {/* Error */}
+            {error && (
+              <div className="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">{error}</div>
+            )}
           </div>
-        </div>
+        </aside>
       </div>
-      {/* Spacer to prevent overlap with the chat composer at the very bottom */}
+
+      {/* Spacer to avoid overlap with chat composer */}
       <div className="h-6" aria-hidden="true" />
-    </div>
+    </section>
   );
 };
 
