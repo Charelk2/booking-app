@@ -60,6 +60,8 @@ export default function InboxPage() {
   // Persist across full reloads/tab closes; keep for 24h by default
   const PERSIST_TTL_MS = 24 * 60 * 60 * 1000;
   const persistKey = useMemo(() => `${CACHE_KEY}:persist`, [CACHE_KEY]);
+  // Persist selected conversation across reloads
+  const SEL_KEY = useMemo(() => `${CACHE_KEY}:selected`, [CACHE_KEY]);
 
   // Bootstrap from cache immediately for snappy paint
   useEffect(() => {
@@ -512,11 +514,11 @@ export default function InboxPage() {
     };
   }, [fetchAllRequests]);
 
-  // Select conversation based on URL param after requests load (desktop), but do not refetch
+  // Select conversation based on URL param after requests load; if none, restore persisted selection
   useEffect(() => {
     if (!allBookingRequests.length) return;
     const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < BREAKPOINT_MD;
-    if (isMobileScreen) return;
+    // On mobile, we still restore the selected thread so the thread pane can open when needed
     const urlId = Number(searchParams.get('requestId'));
     const isBooka = Boolean(searchParams.get('booka') || searchParams.get('bookasystem'));
     if (isBooka) {
@@ -533,9 +535,28 @@ export default function InboxPage() {
     if (urlId && allBookingRequests.find((r) => r.id === urlId)) {
       setSelectedBookingRequestId(urlId);
     } else if (selectedBookingRequestId == null) {
+      // Try restore persisted selection first
+      try {
+        const rawSession = sessionStorage.getItem(SEL_KEY);
+        const rawPersist = localStorage.getItem(SEL_KEY);
+        let selId: number | null = null;
+        if (rawSession) selId = Number(rawSession);
+        else if (rawPersist) {
+          try {
+            const obj = JSON.parse(rawPersist) as { id?: number; ts?: number };
+            const age = Date.now() - Number(obj.ts || 0);
+            if (obj.id && age >= 0 && age < PERSIST_TTL_MS) selId = Number(obj.id);
+          } catch {}
+        }
+        if (selId && allBookingRequests.find((r) => r.id === selId)) {
+          setSelectedBookingRequestId(selId);
+          return;
+        }
+      } catch {}
+      // Fallback to most recent
       setSelectedBookingRequestId(allBookingRequests[0].id);
     }
-  }, [allBookingRequests, searchParams, selectedBookingRequestId]);
+  }, [allBookingRequests, searchParams, selectedBookingRequestId, SEL_KEY, PERSIST_TTL_MS]);
 
   // List now uses auto height by default; no need to compute a fixed height here.
 
@@ -581,9 +602,14 @@ export default function InboxPage() {
         params.set('requestId', String(id));
       }
       router.replace(`?${params.toString()}`, { scroll: false });
+      // Persist the selection
+      try {
+        sessionStorage.setItem(SEL_KEY, String(id));
+        localStorage.setItem(SEL_KEY, JSON.stringify({ id, ts: Date.now() }));
+      } catch {}
       if (isMobile) setShowList(false);
     },
-    [allBookingRequests, searchParams, isMobile, router, fetchAllRequests]
+    [allBookingRequests, searchParams, isMobile, router, fetchAllRequests, SEL_KEY]
   );
 
   const handleBackToList = useCallback(() => {
