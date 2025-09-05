@@ -576,7 +576,8 @@ def read_all_service_provider_profiles(
         if location:
             query = query.filter(Artist.location.ilike(f"%{location}%"))
         if sort == "most_booked":
-            query = query.order_by(desc(booking_subq.c.book_count.nulls_last()))
+            # SQLite doesn't support NULLS LAST; use COALESCE so NULLs sort as 0
+            query = query.order_by(desc(func.coalesce(booking_subq.c.book_count, 0)))
         else:
             query = query.order_by(Artist.updated_at.desc())
 
