@@ -15,7 +15,7 @@ import { calculateQuoteBreakdown } from '@/lib/api';
  * Highlights
  * - Smart defaults from calculateQuoteBreakdown (optional)
  * - Currency-safe inputs with instant totals
- * - Quick-add line items & sound presets (None / Basic PA / Full PA)
+ * - Quick-add extras as line items (clean, table-like)
  * - Expiry chips with human-readable preview
  * - Sticky action bar with Estimated Total + Send/Decline
  * - Accessible: keyboard & screen-reader friendly
@@ -89,7 +89,7 @@ function CurrencyInput({
       id={id}
       inputMode="decimal"
       aria-label={ariaLabel}
-      className={`w-32 text-right p-1 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/10 ${className}`}
+      className={`w-40 sm:w-44 md:w-48 text-right px-2 py-1 h-9 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/10 ${className}`}
       placeholder={placeholder ?? '0.00'}
       value={text}
       onChange={(e) => {
@@ -308,15 +308,17 @@ const InlineQuoteForm: React.FC<Props> = ({
 
   return (
     <div className="w-full rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-4 sm:p-5 shadow-sm">
-      {/* Booking Request Summary + Composer (swapped: composer left, details right) */}
+      {/* Booking Request Summary + Composer (composer left, details right) */}
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Composer (left) */}
         <div className="rounded-xl border border-gray-200 p-3 sm:p-4 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-            <h4 className="text-sm font-semibold">Review & Adjust Quote</h4>
-            <div className="text-[11px] text-gray-600 font-medium">
-              Quote No: <span className="font-semibold">{quoteNumber}</span> · Date:{' '}
-              <span className="font-semibold">{todayLabel}</span>
+          <div className="mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-1">
+              <h4 className="text-base font-semibold">Review & Adjust Quote</h4>
+              <div className="text-[12px] text-gray-600 font-medium">
+                Quote No: <span className="font-semibold">{quoteNumber}</span> · Date{' '}
+                <span className="font-semibold">{todayLabel}</span>
+              </div>
             </div>
           </div>
 
@@ -328,101 +330,113 @@ const InlineQuoteForm: React.FC<Props> = ({
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="divide-y divide-gray-100">
             {/* Base Fee */}
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <label htmlFor="base" className="text-sm font-medium text-gray-900">
+            <div className="flex items-center justify-between py-3">
+              <label htmlFor="base" className="text-sm font-medium text-gray-900 w-56">
                 Service Provider Base Fee
               </label>
-              <CurrencyInput
-                id="base"
-                aria-label="Base fee"
-                value={serviceFee}
-                onChange={setServiceFee}
-              />
+              <CurrencyInput id="base" aria-label="Base fee" value={serviceFee} onChange={setServiceFee} />
             </div>
 
             {/* Travel */}
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-              <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                Travel
+            <div className="flex items-center justify-between py-3">
+              <div className="text-sm font-medium text-gray-900 w-56">
+                <div>Travel</div>
                 {calculationParams?.distance_km != null && (
-                  <span className="text-[11px] text-gray-500 font-normal">
-                    ({Math.round(calculationParams.distance_km)} km · {mode})
-                  </span>
+                  <div className="text-[11px] text-gray-500 font-normal">
+                    {Math.round(calculationParams.distance_km)} km · {mode}
+                  </div>
                 )}
               </div>
               <CurrencyInput aria-label="Travel fee" value={travelFee} onChange={setTravelFee} />
             </div>
 
-            {/* Sound equipment (no presets/guides) */}
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <label htmlFor="sound" className="text-sm font-medium text-gray-900">
+            {/* Sound equipment */}
+            <div className="flex items-center justify-between py-3">
+              <label htmlFor="sound" className="text-sm font-medium text-gray-900 w-56">
                 Sound Equipment
               </label>
               <CurrencyInput id="sound" aria-label="Sound fee" value={soundFee} onChange={setSoundFee} />
             </div>
 
             {/* Quick-add suggestions */}
-            <div>
-              <div className="mb-2 text-sm font-medium text-gray-900">➕ Extras</div>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {suggestions.map((s) => (
-                  <QuickChip key={s.label} label={`${s.label} · ${formatCurrency(s.price)}`} onClick={() => addItem(s.label, s.price)} />
-                ))}
-                <QuickChip label="Custom item" onClick={() => addItem()} />
+            <div className="py-3">
+              <div className="mb-2 text-sm font-medium text-gray-900">Extras</div>
+              <div className="rounded-lg border border-gray-200 overflow-hidden">
+                <div className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50">
+                  <div>Description</div>
+                  <div className="text-right">Amount</div>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {items.length === 0 && (
+                    <div className="px-3 py-2 text-xs text-gray-500">No extras added.</div>
+                  )}
+                  {items.map((it) => (
+                    <div key={it.key} className="px-3 py-2">
+                      <LineItemRow
+                        item={it}
+                        onUpdate={(patch) => updateItem(it.key, patch)}
+                        onRemove={() => removeItem(it.key)}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-2">
-                {items.map((it) => (
-                  <LineItemRow
-                    key={it.key}
-                    item={it}
-                    onUpdate={(patch) => updateItem(it.key, patch)}
-                    onRemove={() => removeItem(it.key)}
-                  />
-                ))}
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => addItem()}
+                  className="text-sm font-semibold text-gray-800 rounded-md border border-gray-300 px-3 py-1.5 hover:bg-gray-50"
+                >
+                  Add line item
+                </button>
               </div>
             </div>
 
             {/* Discount */}
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <label htmlFor="discount" className="text-sm font-medium text-gray-900">
-                🏷️ Discount (optional)
+            <div className="flex items-center justify-between py-3">
+              <label htmlFor="discount" className="text-sm font-medium text-gray-900 w-56">
+                Discount (optional)
               </label>
-              <CurrencyInput
-                id="discount"
-                aria-label="Discount amount"
-                value={discount}
-                onChange={setDiscount}
-              />
+              <CurrencyInput id="discount" aria-label="Discount amount" value={discount} onChange={setDiscount} />
             </div>
 
             {/* Expiry */}
-            <div className="grid grid-cols-1 gap-2">
-              <div className="text-sm font-medium text-gray-900">Expires</div>
-              <div className="flex flex-wrap gap-1.5">
-                <QuickChip label="No expiry" active={!expiresHours} onClick={() => setExpiresHours(null)} />
-                {expiryOptions.map((o) => (
-                  <QuickChip
-                    key={o.value}
-                    label={o.label}
-                    active={expiresHours === o.value}
-                    onClick={() => setExpiresHours(o.value)}
-                  />
-                ))}
+            <div className="flex items-center justify-between py-3">
+              <label htmlFor="expires" className="text-sm font-medium text-gray-900 w-56">
+                Expires
+              </label>
+              <div className="flex items-center gap-3">
+                <select
+                  id="expires"
+                  className="h-9 rounded-md border border-gray-300 px-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
+                  value={expiresHours ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setExpiresHours(v ? Number(v) : null);
+                  }}
+                >
+                  <option value="">No expiry</option>
+                  {expiryOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <div className="text-xs text-gray-600 min-w-[8rem]">
+                  {expiresHours ? `Auto-expires: ${expiresPreview}` : 'No automatic expiry'}
+                </div>
               </div>
-              <div className="text-xs text-gray-600">{expiresHours ? `Auto-expires: ${expiresPreview}` : 'No automatic expiry'}</div>
             </div>
 
             {/* Accommodation */}
-            <div>
-              <label htmlFor="accom" className="text-sm font-medium text-gray-900 block mb-1">
-                🛏️ Accommodation (optional)
+            <div className="flex items-start justify-between py-3">
+              <label htmlFor="accom" className="text-sm font-medium text-gray-900 w-56 pt-2">
+                Accommodation (optional)
               </label>
               <textarea
                 id="accom"
-                rows={2}
-                className="w-full p-1 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                rows={3}
+                className="w-80 sm:w-96 p-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
                 placeholder="E.g. 1 night hotel stay"
                 value={accommodation}
                 onChange={(e) => setAccommodation(e.target.value)}
@@ -430,7 +444,7 @@ const InlineQuoteForm: React.FC<Props> = ({
             </div>
 
             {/* Agreement */}
-            <label className="flex items-start gap-2 text-xs text-gray-600">
+            <label className="flex items-start gap-2 text-xs text-gray-600 py-3">
               <input
                 type="checkbox"
                 className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black/30"
