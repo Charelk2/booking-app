@@ -125,7 +125,7 @@ export default function ConversationList({
   return (
     <List
       ref={listRef}
-     
+      height={listHeight}
       itemCount={bookingRequests.length}
       itemSize={ROW_HEIGHT}
       width="100%"
