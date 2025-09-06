@@ -88,7 +88,7 @@ function MoneyInput({
       id={id}
       inputMode="decimal"
       aria-label={ariaLabel}
-      className={`w-40 sm:w-44 md:w-48 text-right px-2 py-2 h-7 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/10 ${className}`}
+      className={`w-full sm:w-32 text-right px-3 py-1.5 h-9 rounded-md border border-gray-200 focus:outline-none focus:ring-1 focus:ring-black/20 focus:border-black/20 bg-gray-50/50 transition-all ${className}`}
       placeholder={placeholder ?? '0.00'}
       value={text}
       onFocus={(e) => e.currentTarget.select()}
@@ -109,10 +109,10 @@ const LineItemRow: React.FC<{
   onRemove: () => void;
 }> = ({ item, onUpdate, onRemove }) => {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
+    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
       <input
         type="text"
-        className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+        className="w-full px-3 py-1.5 h-9 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-black/20 focus:border-black/20 bg-gray-50/50 transition-all"
         placeholder="Extra description (e.g. Extra hour)"
         value={item.description}
         onChange={(e) => onUpdate({ description: e.target.value })}
@@ -122,7 +122,7 @@ const LineItemRow: React.FC<{
         type="button"
         onClick={onRemove}
         aria-label="Remove line item"
-        className="rounded-lg border border-red-200 text-red-600 text-xs font-semibold px-2.5 py-1.5 hover:bg-red-50"
+        className="rounded-md border border-red-100 text-red-500 text-xs font-medium px-2 py-1.5 hover:bg-red-50 transition-colors"
       >
         Remove
       </button>
@@ -260,60 +260,60 @@ const InlineQuoteForm: React.FC<Props> = ({
   }
 
   return (
-    <section className="w-full rounded-2xl  bg-white/80 backdrop-blur p-4 sm:p-5 shadow-sm">
+    <section className="w-full rounded-xl bg-white/90 backdrop-blur-md p-3 sm:p-4 shadow-md border border-gray-100">
       {/* Grid: form 3/4, details 1/4 */}
-      <div className="grid gap-4 md:grid-cols-[3fr_1fr]">
+      <div className="grid gap-3 md:grid-cols-[3fr_1fr]">
         {/* Composer */}
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <h4 className="text-base font-semibold">Create Quote</h4>
-            <div className="text-[12px] text-gray-600 font-medium">
+        <div className="rounded-lg border border-gray-100 bg-white p-3 sm:p-4">
+          <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <h4 className="text-base font-semibold text-gray-900">Create Quote</h4>
+            <div className="text-xs text-gray-500 font-medium">
               <span className="font-semibold">{quoteNumber}</span> · <span className="font-semibold">{todayLabel}</span>
             </div>
           </div>
 
           {loadingCalc && (
-            <div className="mb-3 text-xs text-gray-600 flex items-center gap-2">
-              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+            <div className="mb-2 text-xs text-gray-500 flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-500" />
               Loading cost suggestions…
             </div>
           )}
 
-          <div className="divide-y divide-gray-100">
+          <div className="space-y-2">
             {/* Base Fee */}
-            <div className="flex items-center justify-between py-3">
-              <label htmlFor="base" className="text-sm font-medium text-gray-900 w-56">Base Fee</label>
-              <MoneyInput id="base" aria-label="Base fee" value={serviceFee} onChange={setServiceFee} />
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="base" className="text-sm font-medium text-gray-800 flex-1 min-w-0">Base Fee</label>
+              <MoneyInput id="base" aria-label="Base fee" value={serviceFee} onChange={setServiceFee} className="flex-none" />
             </div>
 
             {/* Travel */}
-            <div className="flex items-center justify-between py-3">
-              <div className="text-sm font-medium text-gray-900 w-56">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-medium text-gray-800 flex-1 min-w-0">
                 <div>Travel</div>
                 {calculationParams?.distance_km != null && (
-                  <div className="text-[11px] text-gray-500 font-normal">{Math.round(calculationParams.distance_km)} km · {mode}</div>
+                  <div className="text-xs text-gray-400 font-normal">{Math.round(calculationParams.distance_km)} km · {mode}</div>
                 )}
               </div>
-              <MoneyInput aria-label="Travel fee" value={travelFee} onChange={setTravelFee} />
+              <MoneyInput aria-label="Travel fee" value={travelFee} onChange={setTravelFee} className="flex-none" />
             </div>
 
             {/* Sound */}
-            <div className="flex items-center justify-between py-3">
-              <label htmlFor="sound" className="text-sm font-medium text-gray-900 w-56">Sound Equipment</label>
-              <MoneyInput id="sound" aria-label="Sound fee" value={soundFee} onChange={setSoundFee} />
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="sound" className="text-sm font-medium text-gray-800 flex-1 min-w-0">Sound Equipment</label>
+              <MoneyInput id="sound" aria-label="Sound fee" value={soundFee} onChange={setSoundFee} className="flex-none" />
             </div>
 
             {/* Extras */}
-            <div className="py-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-900">Extras</span>
-                <div className="flex gap-1.5">
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-800">Extras</span>
+                <div className="flex gap-1">
                   {suggestions.map((s) => (
                     <button
                       key={s.label}
                       type="button"
                       onClick={() => addItem(s.label, s.price)}
-                      className="px-2 py-1 rounded-full text-[11px] font-medium border border-gray-300 text-gray-800 hover:bg-gray-50"
+                      className="px-1.5 py-0.5 rounded-full text-xs font-medium border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       + {s.label}
                     </button>
@@ -322,25 +322,25 @@ const InlineQuoteForm: React.FC<Props> = ({
               </div>
 
               {items.length > 0 && (
-                <div className="rounded-lg border border-gray-200 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50">
+                <div className="rounded-md border border-gray-100 overflow-hidden">
+                  <div className="grid grid-cols-[1fr_auto] gap-2 px-2 py-1.5 text-xs font-medium text-gray-500 bg-gray-50">
                     <div>Description</div>
                     <div className="text-right">Amount</div>
                   </div>
                   <div className="divide-y divide-gray-100">
                     {items.map((it) => (
-                      <div key={it.key} className="px-3 py-2">
+                      <div key={it.key} className="px-2 py-1.5">
                         <LineItemRow item={it} onUpdate={(patch) => updateItem(it.key, patch)} onRemove={() => removeItem(it.key)} />
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-              <div className="mt-2">
+              <div className="mt-1.5">
                 <button
                   type="button"
                   onClick={() => addItem()}
-                  className="text-sm font-semibold text-gray-800 rounded-md border border-gray-300 px-3 py-1.5 hover:bg-gray-50"
+                  className="text-xs font-medium text-gray-700 rounded-md border border-gray-200 px-2.5 py-1 hover:bg-gray-100 transition-colors"
                 >
                   Add line item
                 </button>
@@ -348,18 +348,18 @@ const InlineQuoteForm: React.FC<Props> = ({
             </div>
 
             {/* Discount */}
-            <div className="flex items-center justify-between py-3">
-              <label htmlFor="discount" className="text-sm font-medium text-gray-900 w-56">Discount</label>
-              <MoneyInput id="discount" aria-label="Discount amount" value={discount} onChange={setDiscount} />
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="discount" className="text-sm font-medium text-gray-800 flex-1 min-w-0">Discount</label>
+              <MoneyInput id="discount" aria-label="Discount amount" value={discount} onChange={setDiscount} className="flex-none" />
             </div>
 
             {/* Expiry */}
-            <div className="flex items-center justify-between py-3">
-              <label htmlFor="expires" className="text-sm font-medium text-gray-900 w-56">Expires</label>
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="expires" className="text-sm font-medium text-gray-800 flex-1 min-w-0">Expires</label>
+              <div className="flex items-center gap-2 flex-none">
                 <select
                   id="expires"
-                  className="h-7 rounded-lg border border-gray-300 px-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
+                  className="h-9 w-28 rounded-md border border-gray-200 px-2 text-sm text-gray-800 bg-gray-50/50 focus:outline-none focus:ring-1 focus:ring-black/20 focus:border-black/20 transition-all"
                   value={String(expiresHours)}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -371,34 +371,32 @@ const InlineQuoteForm: React.FC<Props> = ({
                   ))}
                 </select>
                 {expiresHours ? (
-                  <div className="text-xs text-gray-600 min-w-[8rem]">{`Auto-expires: ${expiresPreview}`}</div>
+                  <div className="text-xs text-gray-500 min-w-[7rem]">{`Auto-expires: ${expiresPreview}`}</div>
                 ) : null}
               </div>
             </div>
 
             {/* Accommodation */}
-            <div className="flex items-start justify-between py-3">
-              <label htmlFor="accom" className="text-sm font-medium text-gray-900 w-56 pt-2">Accommodation</label>
+            <div className="flex items-start justify-between gap-3">
+              <label htmlFor="accom" className="text-sm font-medium text-gray-800 flex-1 min-w-0 pt-1.5">Accommodation</label>
               <textarea
                 id="accom"
-                rows={3}
-                className="w-80 sm:w-96 p-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                rows={2}
+                className="w-full max-w-md p-2 h-20 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-black/20 focus:border-black/20 bg-gray-50/50 transition-all resize-none"
                 placeholder="Optional (e.g. 1 night hotel stay)"
                 value={accommodation}
                 onChange={(e) => setAccommodation(e.target.value)}
               />
             </div>
-
-            {/* Agreement moved below totals */}
           </div>
         </div>
 
         {/* Details (right 1/4) */}
         <aside className="md:col-span-1">
-          <div className="rounded-xl border border-gray-200 bg-white p-4 md:sticky md:top-2">
-            <h4 className="mb-2 text-sm font-semibold">Request Details</h4>
+          <div className="rounded-lg border border-gray-100 bg-white p-3 sm:p-4 md:sticky md:top-4">
+            <h4 className="mb-1.5 text-sm font-semibold text-gray-900">Request Details</h4>
 
-            <div className="text-[12px] text-gray-600 grid gap-1">
+            <div className="text-xs text-gray-500 grid gap-0.5">
               <div className="flex items-center justify-between"><span className="font-medium">Quote</span><span>{quoteNumber}</span></div>
               <div className="flex items-center justify-between"><span className="font-medium">Date</span><span>{todayLabel}</span></div>
               {expiresHours ? (
@@ -406,7 +404,7 @@ const InlineQuoteForm: React.FC<Props> = ({
               ) : null}
             </div>
 
-            <div className="mt-3 space-y-1 text-xs text-gray-700">
+            <div className="mt-2 space-y-0.5 text-xs text-gray-600">
               {eventDetails?.event && <div>{eventDetails.event}</div>}
               {eventDetails?.date && <div>{eventDetails.date}</div>}
               {(eventDetails?.locationName || eventDetails?.locationAddress) && (
@@ -420,18 +418,18 @@ const InlineQuoteForm: React.FC<Props> = ({
       </div>
 
       {/* Totals (below) */}
-      <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+      <div className="mt-3 rounded-lg border border-gray-100 bg-white p-3 sm:p-4">
         <div className="grid gap-1 text-sm text-gray-800" aria-live="polite">
           <div className="flex items-center justify-between"><span>Subtotal</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
           <div className="flex items-center justify-between"><span>Discount</span><span className="font-medium">{discount ? `− ${formatCurrency(discount)}` : formatCurrency(0)}</span></div>
           <div className="flex items-center justify-between"><span>VAT ({Math.round(VAT_RATE*100)}%)</span><span className="font-medium">{formatCurrency(vat)}</span></div>
-          <div className="mt-2 border-t pt-2 flex items-center justify-between text-base font-semibold"><span>Total</span><span>{formatCurrency(total)}</span></div>
+          <div className="mt-1 border-t pt-1 flex items-center justify-between text-base font-semibold"><span>Total</span><span>{formatCurrency(total)}</span></div>
         </div>
-        <label className="mt-3 flex items-start gap-2 text-xs text-gray-600">
+        <label className="mt-2 flex items-start gap-1.5 text-xs text-gray-600">
           <input
             ref={firstFieldRef}
             type="checkbox"
-            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black/30"
+            className="mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-black focus:ring-black/20"
             checked={agree}
             onChange={(e) => setAgree(e.target.checked)}
           />
@@ -441,34 +439,32 @@ const InlineQuoteForm: React.FC<Props> = ({
 
       {/* Error */}
       {error && (
-        <div className="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">{error}</div>
+        <div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-md p-2">{error}</div>
       )}
 
       {/* Actions (below) */}
-      <div className="mt-4 bg-white">
-        <div className="p-3 sm:p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm">
-            <div className="text-gray-600">You will send</div>
-            <div className="text-lg font-bold" aria-live="polite">{formatCurrency(total)}</div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            {onDecline && (
-              <button type="button" onClick={onDecline} className="px-3 py-2 rounded-lg border border-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-50">Decline Request</button>
-            )}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!canSend}
-              className={`px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors ${canSend ? 'bg-black hover:bg-gray-900' : 'bg-gray-400 cursor-not-allowed'}`}
-            >
-              {sending ? 'Sending…' : 'Send Quote'}
-            </button>
-          </div>
+      <div className="mt-3 bg-white rounded-lg border border-gray-100 p-3 sm:p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm">
+          <div className="text-gray-600">You will send</div>
+          <div className="text-lg font-bold" aria-live="polite">{formatCurrency(total)}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          {onDecline && (
+            <button type="button" onClick={onDecline} className="px-3 py-1.5 rounded-md border border-gray-200 text-gray-800 text-sm font-medium hover:bg-gray-100 transition-colors">Decline Request</button>
+          )}
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!canSend}
+            className={`px-4 py-1.5 rounded-md text-white text-sm font-medium transition-colors ${canSend ? 'bg-black hover:bg-gray-800' : 'bg-gray-300 cursor-not-allowed'}`}
+          >
+            {sending ? 'Sending…' : 'Send Quote'}
+          </button>
         </div>
       </div>
 
       {/* Spacer to avoid overlap with chat composer */}
-      <div className="h-6" aria-hidden="true" />
+      <div className="h-4" aria-hidden="true" />
     </section>
   );
 };
