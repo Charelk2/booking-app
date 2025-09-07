@@ -674,31 +674,62 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
   const [stageNeeded, setStageNeeded] = useState<boolean>(false);
   const [stageSize, setStageSize] = useState<string>('S');
 
+  // Ensure a stable default sound mode only once when missing
   useEffect(() => {
-    const run = async () => {
-      const sid = serviceId ?? ctxServiceId;
-      if (!sid || !eventLocation) return;
-      setLoadingSuppliers(true);
+    let cancelled = false;
+    const sid = serviceId ?? ctxServiceId;
+    if (!sid) return;
+    if (details.sound !== 'yes') return;
+    if (details.soundMode) return; // already set
+    (async () => {
+      try {
+        const svc = await fetch(`/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
+        const svcDetails = (svc && svc.details) || {};
+        let modeDefault = svcDetails?.sound_provisioning?.mode_default as string | undefined;
+        if (modeDefault === 'external' || modeDefault === 'preferred_suppliers') modeDefault = 'supplier';
+        // Fall back to supplier if city preferences exist
+        if (!modeDefault) {
+          const tmpPrefs = svcDetails.sound_provisioning?.city_preferences;
+          if (Array.isArray(tmpPrefs) && tmpPrefs.length > 0) modeDefault = 'supplier';
+        }
+        if (!cancelled && modeDefault && details.soundMode !== modeDefault) {
+          setDetails({ ...details, soundMode: modeDefault as any });
+        }
+      } catch (e) {
+        // Non-fatal; leave mode as-is
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Only re-run when these primitives change
+  }, [details.sound, details.soundMode, serviceId, ctxServiceId, setDetails]);
+
+  // Fetch and rank suppliers when needed (supplier mode only)
+  useEffect(() => {
+    const sid = serviceId ?? ctxServiceId;
+    if (!sid || !eventLocation) {
+      setSuppliers([]);
+      setLoadingSuppliers(false);
+      return;
+    }
+    if (details.sound !== 'yes' || details.soundMode !== 'supplier') {
+      setSuppliers([]);
+      setLoadingSuppliers(false);
+      return;
+    }
+
+    let active = true;
+    setLoadingSuppliers(true);
+    (async () => {
       try {
         const svc = await fetch(`/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
         const svcDetails = (svc && svc.details) || {};
 
-        let modeDefault = svcDetails?.sound_provisioning?.mode_default as string | undefined;
-        if (modeDefault === 'external' || modeDefault === 'preferred_suppliers') modeDefault = 'supplier';
-        if (!details?.soundMode && modeDefault && details.sound === 'yes') {
-          setDetails({ ...details, soundMode: modeDefault as any });
-        }
-        if (!details?.soundMode && details.sound === 'yes') {
-          const tmpPrefs = svcDetails.sound_provisioning?.city_preferences;
-          if (Array.isArray(tmpPrefs) && tmpPrefs.length > 0) {
-            setDetails({ ...details, soundMode: 'supplier' });
-          }
-        }
-
         let prefs = (svcDetails.sound_provisioning?.city_preferences || []) as any[];
         if (!Array.isArray(prefs) || prefs.length === 0) {
           try {
-            const pr = await fetch(`/api/v1/services/${serviceId}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json());
+            const pr = await fetch(`/api/v1/services/${sid}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json());
             if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences as any;
           } catch {}
         }
@@ -772,23 +803,46 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
             cards = candidates.map((c) => ({ serviceId: c.service_id, publicName: c.publicName, distanceKm: c.distance_km }));
           }
         }
-        setSuppliers(cards);
 
+        if (active) setSuppliers(cards);
+
+        // Estimate for provided_by_artist, set only if changed
         try {
           const tiers = svcDetails?.sound_provisioning?.provided_price_tiers as Array<{ min?: number; max?: number; price: number }> | undefined;
           if (tiers && details.soundMode === 'provided_by_artist' && guestCount) {
-            const sel = tiers.find((t) => (t.min == null || guestCount >= Number(t.min)) && (t.max == null || guestCount <= Number(t.max))) || tiers[tiers.length - 1];
-            if (sel?.price != null) setDetails({ ...details, providedSoundEstimate: Number(sel.price) });
+            const sel =
+              tiers.find((t) => (t.min == null || guestCount >= Number(t.min)) && (t.max == null || guestCount <= Number(t.max))) ||
+              tiers[tiers.length - 1];
+            const price = sel?.price != null ? Number(sel.price) : undefined;
+            if (price != null && details.providedSoundEstimate !== price) {
+              setDetails({ ...details, providedSoundEstimate: price });
+            }
           }
         } catch {}
       } catch (e) {
         console.error('Failed to load preferred suppliers', e);
       } finally {
-        setLoadingSuppliers(false);
+        if (active) setLoadingSuppliers(false);
       }
+    })();
+    return () => {
+      active = false;
     };
-    void run();
-  }, [serviceId, eventLocation, details.soundMode, backlineRequired, lightingEvening, stageNeeded, stageSize, ctxServiceId, details, setDetails]);
+    // Re-run only when relevant primitives change
+  }, [
+    details.sound,
+    details.soundMode,
+    details.guests,
+    details.venueType,
+    eventLocation,
+    serviceId,
+    ctxServiceId,
+    backlineRequired,
+    lightingEvening,
+    stageNeeded,
+    stageSize,
+    setDetails,
+  ]);
 
   return (
     <section className="wizard-step-container">
