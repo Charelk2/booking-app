@@ -143,20 +143,76 @@ export default function AddServiceModalSoundService({
   const [paOpen, setPaOpen] = useState(true);
   const [monitoringOpen, setMonitoringOpen] = useState(false);
   const [backlineOpen, setBacklineOpen] = useState(false);
-  const defaults: SoundServiceForm = useMemo(
-    () =>
-      service
-        ? {
-            ...DEFAULTS,
-            title: service.title,
-            price: service.price,
-            short_summary: (service as any)?.short_summary || (service.details as any)?.short_summary || "",
-            // fall back to any persisted details
-            ...(service.details as any),
-          }
-        : DEFAULTS,
-    [service],
-  );
+  const defaults: SoundServiceForm = useMemo(() => {
+    if (!service) return DEFAULTS;
+    const det: any = (service.details as any) || {};
+    const logistics = det.logistics || {};
+    const capabilities = det.capabilities || {};
+    const consoles = capabilities.consoles || {};
+    const pa = capabilities.pa || {};
+    const monitoring = capabilities.monitoring || {};
+    const backline = capabilities.backline || {};
+    const travel = det.travel || det.coverage?.travel || {};
+    const coverageAreas = det.coverage_areas || det.coverage?.areas || [];
+    const sla = det.sla || {};
+    const packages = Array.isArray(det.packages) ? det.packages : [];
+
+    return {
+      ...DEFAULTS,
+      title: service.title,
+      price: service.price as any,
+      short_summary:
+        (service as any)?.short_summary || det.short_summary || det.shortSummary || "",
+      // Coverage & travel
+      coverage_areas: coverageAreas || [],
+      travel_fee_policy: (travel.policy as TravelPolicy) || DEFAULTS.travel_fee_policy,
+      travel_flat_amount:
+        travel.flat_amount ?? (travel.flatAmount as any) ?? DEFAULTS.travel_flat_amount,
+      travel_per_km_rate:
+        travel.per_km_rate ?? (travel.perKmRate as any) ?? DEFAULTS.travel_per_km_rate,
+      included_radius_km:
+        travel.included_radius_km ?? (travel.includedRadiusKm as any) ?? DEFAULTS.included_radius_km,
+      // Logistics
+      setup_minutes: logistics.setup_minutes ?? DEFAULTS.setup_minutes,
+      teardown_minutes: logistics.teardown_minutes ?? DEFAULTS.teardown_minutes,
+      crew_min: logistics.crew_min ?? DEFAULTS.crew_min,
+      crew_typical: logistics.crew_typical ?? DEFAULTS.crew_typical,
+      power_amps: logistics.power_amps ?? DEFAULTS.power_amps,
+      power_phase: (logistics.power_phase as PowerPhase) ?? DEFAULTS.power_phase,
+      vehicle_access_notes: logistics.vehicle_access_notes || "",
+      // Capabilities
+      console_brands: consoles.brands || [],
+      console_models: consoles.models || "",
+      pa_types: (pa.types as any) || [],
+      audience_tier: (pa.audience_tier as AudienceTier) || "",
+      microphones: capabilities.microphones || "",
+      di_boxes: capabilities.di_boxes ?? DEFAULTS.di_boxes,
+      monitoring_wedges: monitoring.wedges ?? DEFAULTS.monitoring_wedges,
+      monitoring_iem_support: !!monitoring.iem_support,
+      monitoring_iem_brands: monitoring.brands || [],
+      backline_options: backline.options || [],
+      backline_notes: backline.notes || "",
+      tags: det.tags || [],
+      // Packages
+      packages: packages.map((p: any) => ({
+        name: p.name || "",
+        inclusions: Array.isArray(p.inclusions) ? p.inclusions : [],
+        base_price_zar: p.base_price_zar ?? "",
+        overtime_rate_zar_per_hour: p.overtime_rate_zar_per_hour ?? "",
+        addons: Array.isArray(p.addons)
+          ? p.addons.map((a: any) => ({ name: a.name || "", price: a.price ?? "" }))
+          : [],
+        notes: p.notes || "",
+      })),
+      // SLA
+      response_sla_hours: sla.response_sla_hours ?? DEFAULTS.response_sla_hours,
+      min_notice_days: sla.min_notice_days ?? DEFAULTS.min_notice_days,
+      availability_sync_url: sla.availability_sync_url || "",
+      default_response_timeout_hours:
+        sla.default_response_timeout_hours ?? DEFAULTS.default_response_timeout_hours,
+      auto_accept_threshold: !!sla.auto_accept_threshold,
+    };
+  }, [service]);
 
   const steps: WizardStep<SoundServiceForm>[] = [
     {
