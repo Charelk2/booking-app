@@ -37,8 +37,7 @@ const serviceTypeIcons: Record<Service["service_type"], ElementType> = {
   Other: SquaresPlusIcon,
 };
 
-// ────────────────────────────────────────────────────────────────────────────────
-// Hook for optimized image preview thumbnails
+// Thumbnails
 function useImageThumbnails(files: File[]) {
   const [thumbnails, setThumbnails] = useState<string[]>([]);
   useEffect(() => {
@@ -49,13 +48,42 @@ function useImageThumbnails(files: File[]) {
   return thumbnails;
 }
 
-// Framer Motion variants for step transitions
+// Framer variants
 const stepVariants = {
   initial: { opacity: 0, x: 50 },
   animate: { opacity: 1, x: 0 },
   exit: { opacity: 0, x: -50 },
   transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] as const },
 };
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Shared Backline Catalog (align with Sound Service add-ons keys)
+type BacklineKey =
+  | "drums_full"
+  | "drum_shells"
+  | "guitar_amp"
+  | "bass_amp"
+  | "keyboard_amp"
+  | "keyboard_stand"
+  | "piano_digital_88"
+  | "piano_acoustic_upright"
+  | "piano_acoustic_grand"
+  | "dj_booth";
+
+const BACKLINE_CATALOG: { key: BacklineKey; label: string; unit: string; defaultQty: number }[] = [
+  { key: "drums_full", label: "Full Drum Kit (5-pc + cymbals)", unit: "set", defaultQty: 1 },
+  { key: "drum_shells", label: "Drum Shells (no cymbals)", unit: "set", defaultQty: 1 },
+  { key: "guitar_amp", label: "Guitar Amp", unit: "amp", defaultQty: 1 },
+  { key: "bass_amp", label: "Bass Amp", unit: "amp", defaultQty: 1 },
+  { key: "keyboard_amp", label: "Keyboard Amp", unit: "amp", defaultQty: 1 },
+  { key: "keyboard_stand", label: "Keyboard Stand (X / Z)", unit: "stand", defaultQty: 1 },
+  { key: "piano_digital_88", label: "Digital Piano (88-key)", unit: "piano", defaultQty: 1 },
+  { key: "piano_acoustic_upright", label: "Acoustic Piano (Upright)", unit: "piano", defaultQty: 1 },
+  { key: "piano_acoustic_grand", label: "Acoustic Piano (Grand)", unit: "piano", defaultQty: 1 },
+  { key: "dj_booth", label: "DJ Booth / Table", unit: "booth", defaultQty: 1 },
+];
+
+const BACKLINE_LABEL = Object.fromEntries(BACKLINE_CATALOG.map(i => [i.key, i.label]));
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Tech Rider model
@@ -78,6 +106,7 @@ interface TechMonitoring {
 }
 
 interface TechStage {
+  compulsory: boolean; // NEW: ask only if compulsory
   min_width_m?: number | "";
   min_depth_m?: number | "";
   cover_required: boolean;
@@ -98,9 +127,22 @@ interface TechFOH {
   playback_sources?: string;
 }
 
+interface BacklineRequirement {
+  key: BacklineKey;
+  quantity: number;
+  preferred_brand?: string;
+  notes?: string;
+}
+
+interface CustomBacklineItem {
+  name: string;
+  quantity: number;
+  notes?: string;
+}
+
 interface TechBackline {
-  required_items: string[];
-  optional_items?: string[];
+  required_keys: BacklineRequirement[];  // aligns with Sound Service add-on keys
+  custom_items: CustomBacklineItem[];    // anything outside the catalog
   notes?: string;
 }
 
@@ -134,6 +176,7 @@ interface ServiceFormData {
   description: string;
   duration_label?: string;
   duration_minutes: number | "";
+  is_remote: boolean;
   price: number | "";
   travel_rate?: number | "";
   travel_members?: number | "";
@@ -148,7 +191,6 @@ interface ServiceFormData {
 
 const CITY_CODES = ["CPT", "JNB", "DBN", "PLZ", "GRJ", "ELS", "MQP", "BFN", "KIM"];
 
-// ────────────────────────────────────────────────────────────────────────────────
 // Defaults
 const emptyTechRider: TechRider = {
   lineup_label: "Solo / Duo / Band",
@@ -157,10 +199,14 @@ const emptyTechRider: TechRider = {
     { ch: 2, source: "Acoustic Guitar DI", mic: "", di: true, phantom: false },
   ],
   monitoring: { mixes: 2, wedges_ok: true, iem_ok: true, talkback_required: false },
-  stage: { min_width_m: "", min_depth_m: "", cover_required: false, stage_plot_url: "" },
+  stage: { compulsory: false, min_width_m: "", min_depth_m: "", cover_required: false, stage_plot_url: "" },
   power: { phase: "single", amps: 16, circuits_needed: "", distro_notes: "" },
   foh: { min_channels: 8, console_preference: "Any pro digital (M32/X32/CL/SQ)", fx_requirements: "1x reverb, 1x delay", playback_sources: "Laptop TRS / 3.5mm / USB" },
-  backline: { required_items: [], optional_items: [], notes: "" },
+  backline: {
+    required_keys: [],
+    custom_items: [],
+    notes: "",
+  },
   patch_advance_notes: "",
   pdf_url: "",
 };
@@ -171,6 +217,7 @@ const emptyDefaults: ServiceFormData = {
   description: "",
   duration_label: "",
   duration_minutes: 60,
+  is_remote: false,
   price: 0,
   travel_rate: 2.5,
   travel_members: 1,
@@ -194,7 +241,7 @@ export default function AddServiceModalMusician({
   const [step, setStep] = useState(0);
   const [maxStep, setMaxStep] = useState(0);
 
-  // Collapsibles state
+  // Collapsibles
   const [inputsOpen, setInputsOpen] = useState(true);
   const [monitoringOpen, setMonitoringOpen] = useState(false);
   const [stagePowerOpen, setStagePowerOpen] = useState(false);
@@ -207,6 +254,16 @@ export default function AddServiceModalMusician({
     const det: any = service?.details || {};
     const sp: any = det.sound_provisioning || {};
     const existingTech: TechRider = det.tech_rider || emptyTechRider;
+    // Normalize old backline arrays -> new shape if needed
+    const normalizedBackline: TechBackline = {
+      required_keys: Array.isArray((existingTech as any)?.backline?.required_keys)
+        ? (existingTech as any).backline.required_keys
+        : [],
+      custom_items: Array.isArray((existingTech as any)?.backline?.custom_items)
+        ? (existingTech as any).backline.custom_items
+        : [],
+      notes: (existingTech as any)?.backline?.notes || "",
+    };
     return {
       service_type: service?.service_type,
       title: service?.title ?? "",
@@ -216,6 +273,7 @@ export default function AddServiceModalMusician({
         det.duration_label ||
         (service?.duration_minutes != null ? `${service.duration_minutes} min` : ""),
       duration_minutes: service?.duration_minutes ?? 60,
+      is_remote: service?.is_remote ?? false,
       price: service?.price ?? 0,
       travel_rate: service?.travel_rate ?? "",
       travel_members: service?.travel_members ?? "",
@@ -228,6 +286,7 @@ export default function AddServiceModalMusician({
       tech: {
         ...emptyTechRider,
         ...existingTech,
+        backline: { ...emptyTechRider.backline, ...normalizedBackline },
         channels:
           Array.isArray(existingTech.channels) && existingTech.channels.length > 0
             ? existingTech.channels
@@ -253,24 +312,37 @@ export default function AddServiceModalMusician({
     defaultValues: service ? editingDefaults : emptyDefaults,
   });
 
-  // Channels field array
+  // Channels
   const {
     fields: channelFields,
     append: appendChannel,
     remove: removeChannel,
     replace: replaceChannels,
-  } = useFieldArray({
-    control,
-    name: "tech.channels",
-  });
+  } = useFieldArray({ control, name: "tech.channels" });
 
-  // Ensure fields are registered
+  // Backline required keys
+  const {
+    fields: blFields,
+    append: appendBL,
+    remove: removeBL,
+    replace: replaceBL,
+  } = useFieldArray({ control, name: "tech.backline.required_keys" });
+
+  // Backline custom items
+  const {
+    fields: customBLFields,
+    append: appendCustomBL,
+    remove: removeCustomBL,
+    replace: replaceCustomBL,
+  } = useFieldArray({ control, name: "tech.backline.custom_items" });
+
+  // Ensure fields registered
   useEffect(() => {
     register("service_type", { required: true });
     register("sound_mode");
   }, [register]);
 
-  // Media state
+  // Media
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -278,25 +350,26 @@ export default function AddServiceModalMusician({
   const [publishing, setPublishing] = useState(false);
   const [, setServerError] = useState<string | null>(null);
 
-  // Reset on open + ensure channels exist
+  // Reset on open + ensure arrays exist
   useEffect(() => {
     if (!isOpen) return;
     const dv = service ? editingDefaults : emptyDefaults;
     reset(dv);
     replaceChannels(dv.tech.channels || []);
+    replaceBL(dv.tech.backline.required_keys || []);
+    replaceCustomBL(dv.tech.backline.custom_items || []);
     setMediaFiles([]);
     setExistingMediaUrl(service?.media_url ?? null);
     setMediaError(null);
     setStep(0);
     setMaxStep(0);
-    // reasonable default collapsible states each time modal opens
     setInputsOpen(true);
     setMonitoringOpen(false);
     setStagePowerOpen(false);
     setFohOpen(false);
     setBacklineOpen(false);
     setProvidersOpen(true);
-  }, [isOpen, service, reset, editingDefaults, replaceChannels]);
+  }, [isOpen, service, reset, editingDefaults, replaceChannels, replaceBL, replaceCustomBL]);
 
   // Watches
   const watchTitle = watch("title");
@@ -405,6 +478,18 @@ export default function AddServiceModalMusician({
     setValue("sound_city_prefs", cur, { shouldDirty: true });
   };
 
+  // Backline helpers
+  const [catalogSelect, setCatalogSelect] = useState<BacklineKey | "">("");
+
+  const addCatalogBackline = () => {
+    if (!catalogSelect) return;
+    const already = (watch("tech.backline.required_keys") || []).some((it) => it.key === catalogSelect);
+    if (already) return; // prevent duplicates
+    const meta = BACKLINE_CATALOG.find((i) => i.key === catalogSelect)!;
+    appendBL({ key: meta.key, quantity: meta.defaultQty, preferred_brand: "", notes: "" });
+    setCatalogSelect("");
+  };
+
   // Submit
   const onSubmit: SubmitHandler<ServiceFormData> = async (data) => {
     setServerError(null);
@@ -424,11 +509,17 @@ export default function AddServiceModalMusician({
         return rawLabel || `${Number(data.duration_minutes || 60)} min`;
       })();
 
+      // If stage not compulsory, clear dims to avoid forcing requirements
+      const stage = data.tech.stage?.compulsory
+        ? data.tech.stage
+        : { ...data.tech.stage, min_width_m: "", min_depth_m: "", cover_required: false };
+
       const details: any = {
         ...(service?.details as any),
         duration_label: normalizedLabel,
         tech_rider: {
           ...data.tech,
+          stage,
           pdf_url: data.tech?.pdf_url || null,
         },
         sound_provisioning:
@@ -466,7 +557,7 @@ export default function AddServiceModalMusician({
         details,
       };
 
-      // Media (first file → base64)
+      // Media
       let media_url = existingMediaUrl || "";
       if (mediaFiles[0]) {
         media_url = await new Promise<string>((resolve, reject) => {
@@ -481,32 +572,35 @@ export default function AddServiceModalMusician({
         ? await apiUpdateService(service.id, { ...serviceData, media_url })
         : await apiCreateService({ ...serviceData, media_url });
 
-      // Upsert tech rider PDF (optional)
       try {
-        if (data.tech?.pdf_url) {
-          await upsertRider(res.data.id, { pdf_url: data.tech.pdf_url });
-        }
+        if (data.tech?.pdf_url) await upsertRider(res.data.id, { pdf_url: data.tech.pdf_url });
       } catch {}
 
       onServiceSaved(res.data);
-      reset(service ? editingDefaults : emptyDefaults);
-      replaceChannels((service ? editingDefaults : emptyDefaults).tech.channels || []);
+      // Reset
+      const dv = service ? editingDefaults : emptyDefaults;
+      reset(dv);
+      replaceChannels(dv.tech.channels || []);
+      replaceBL(dv.tech.backline.required_keys || []);
+      replaceCustomBL(dv.tech.backline.custom_items || []);
       setMediaFiles([]);
       setExistingMediaUrl(res.data.media_url ?? null);
       setStep(0);
       onClose();
     } catch (err: unknown) {
       console.error("Service save error:", err);
-      const msg = err instanceof Error ? err.message : "An unexpected error occurred. Failed to save service.";
-      setServerError(msg);
+      setServerError(err instanceof Error ? err.message : "An unexpected error occurred. Failed to save service.");
     } finally {
       setPublishing(false);
     }
   };
 
   const handleCancel = () => {
-    reset(service ? editingDefaults : emptyDefaults);
-    replaceChannels((service ? editingDefaults : emptyDefaults).tech.channels || []);
+    const dv = service ? editingDefaults : emptyDefaults;
+    reset(dv);
+    replaceChannels(dv.tech.channels || []);
+    replaceBL(dv.tech.backline.required_keys || []);
+    replaceCustomBL(dv.tech.backline.custom_items || []);
     setMediaFiles([]);
     setExistingMediaUrl(service?.media_url ?? null);
     setMediaError(null);
@@ -535,29 +629,16 @@ export default function AddServiceModalMusician({
           <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
             <Dialog.Panel as="div" className="pointer-events-auto relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none bg-white shadow-none md:flex-row">
               {/* Close */}
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="absolute right-4 top-4 z-10 rounded-md p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
-              >
+              <button type="button" onClick={handleCancel} className="absolute right-4 top-4 z-10 rounded-md p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand">
                 <XMarkIcon className="pointer-events-none h-5 w-5" />
               </button>
 
               {/* Left Pane (Steps) */}
               <div className="flex w-full flex-none flex-col justify-between overflow-y-auto bg-gray-50 p-6 md:w-1/5">
-                <Stepper
-                  steps={steps}
-                  currentStep={step}
-                  maxStepCompleted={maxStep}
-                  onStepClick={setStep}
-                  ariaLabel="Add service progress"
-                  className="space-y-4"
-                  orientation="vertical"
-                  noCircles={true}
-                />
+                <Stepper steps={steps} currentStep={step} maxStepCompleted={maxStep} onStepClick={setStep} ariaLabel="Add service progress" className="space-y-4" orientation="vertical" noCircles />
               </div>
 
-              {/* Right Pane (Form Content) */}
+              {/* Right Pane */}
               <div className="flex w-full flex-1 flex-col overflow-hidden md:w-4/5">
                 <form id="add-service-form" onSubmit={handleSubmit(onSubmit)} className="flex-1 space-y-4 overflow-y-scroll p-6">
                   <AnimatePresence mode="wait">
@@ -688,20 +769,8 @@ export default function AddServiceModalMusician({
                               {watchSoundMode === "artist_provides_variable" && (
                                 <>
                                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                    <TextInput
-                                      label={`Typical sound price when driving (${DEFAULT_CURRENCY})`}
-                                      type="number"
-                                      step="0.01"
-                                      placeholder="e.g., 1500"
-                                      {...register("price_driving_sound", { valueAsNumber: true })}
-                                    />
-                                    <TextInput
-                                      label={`Typical sound price when flying (incl. hire) (${DEFAULT_CURRENCY})`}
-                                      type="number"
-                                      step="0.01"
-                                      placeholder="e.g., 3000"
-                                      {...register("price_flying_sound", { valueAsNumber: true })}
-                                    />
+                                    <TextInput label={`Typical sound price when driving (${DEFAULT_CURRENCY})`} type="number" step="0.01" placeholder="e.g., 1500" {...register("price_driving_sound", { valueAsNumber: true })} />
+                                    <TextInput label={`Typical sound price when flying (incl. hire) (${DEFAULT_CURRENCY})`} type="number" step="0.01" placeholder="e.g., 3000" {...register("price_flying_sound", { valueAsNumber: true })} />
                                   </div>
                                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                                     <TextInput label="Travel rate (R/km)" type="number" step="0.1" {...register("travel_rate", { valueAsNumber: true })} />
@@ -788,12 +857,7 @@ export default function AddServiceModalMusician({
                             </div>
 
                             {/* Inputs / Channels */}
-                            <CollapsibleSection
-                              title="Inputs / Channels"
-                              open={inputsOpen}
-                              onToggle={() => setInputsOpen((o) => !o)}
-                              className="border"
-                            >
+                            <CollapsibleSection title="Inputs / Channels" open={inputsOpen} onToggle={() => setInputsOpen((o) => !o)} className="border">
                               <div className="mt-2">
                                 <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-600">
                                   <div className="col-span-1">Ch</div>
@@ -803,7 +867,6 @@ export default function AddServiceModalMusician({
                                   <div className="col-span-1 text-center">48V</div>
                                   <div className="col-span-3">Notes</div>
                                 </div>
-
                                 <div className="mt-1 space-y-1">
                                   {channelFields.map((row, idx) => (
                                     <div key={row.id} className="grid grid-cols-12 items-center gap-2">
@@ -812,12 +875,9 @@ export default function AddServiceModalMusician({
                                           aria-label={`ch-${idx}`}
                                           type="number"
                                           value={String(watch(`tech.channels.${idx}.ch`) ?? idx + 1)}
-                                          onChange={(e) =>
-                                            setValue(`tech.channels.${idx}.ch`, Number(e.target.value || idx + 1), { shouldDirty: true })
-                                          }
+                                          onChange={(e) => setValue(`tech.channels.${idx}.ch`, Number(e.target.value || idx + 1), { shouldDirty: true })}
                                         />
                                       </div>
-
                                       <div className="col-span-3">
                                         <TextInput
                                           aria-label={`src-${idx}`}
@@ -826,7 +886,6 @@ export default function AddServiceModalMusician({
                                           onChange={(e) => setValue(`tech.channels.${idx}.source`, e.target.value, { shouldDirty: true })}
                                         />
                                       </div>
-
                                       <div className="col-span-3">
                                         <TextInput
                                           aria-label={`mic-${idx}`}
@@ -835,23 +894,12 @@ export default function AddServiceModalMusician({
                                           onChange={(e) => setValue(`tech.channels.${idx}.mic`, e.target.value, { shouldDirty: true })}
                                         />
                                       </div>
-
                                       <div className="col-span-1 flex items-center justify-center">
-                                        <input
-                                          type="checkbox"
-                                          checked={!!watch(`tech.channels.${idx}.di`)}
-                                          onChange={(e) => setValue(`tech.channels.${idx}.di`, e.target.checked, { shouldDirty: true })}
-                                        />
+                                        <input type="checkbox" checked={!!watch(`tech.channels.${idx}.di`)} onChange={(e) => setValue(`tech.channels.${idx}.di`, e.target.checked, { shouldDirty: true })} />
                                       </div>
-
                                       <div className="col-span-1 flex items-center justify-center">
-                                        <input
-                                          type="checkbox"
-                                          checked={!!watch(`tech.channels.${idx}.phantom`)}
-                                          onChange={(e) => setValue(`tech.channels.${idx}.phantom`, e.target.checked, { shouldDirty: true })}
-                                        />
+                                        <input type="checkbox" checked={!!watch(`tech.channels.${idx}.phantom`)} onChange={(e) => setValue(`tech.channels.${idx}.phantom`, e.target.checked, { shouldDirty: true })} />
                                       </div>
-
                                       <div className="col-span-3">
                                         <TextInput
                                           aria-label={`notes-${idx}`}
@@ -860,33 +908,19 @@ export default function AddServiceModalMusician({
                                           onChange={(e) => setValue(`tech.channels.${idx}.notes`, e.target.value, { shouldDirty: true })}
                                         />
                                       </div>
-
                                       <div className="col-span-12 -mt-1 flex justify-end">
-                                        <button type="button" className="text-[11px] text-red-600" onClick={() => removeChannel(idx)}>
-                                          Remove
-                                        </button>
+                                        <button type="button" className="text-[11px] text-red-600" onClick={() => removeChannel(idx)}>Remove</button>
                                       </div>
                                     </div>
                                   ))}
                                 </div>
-
-                                {channelFields.length === 0 && (
-                                  <div className="mt-2 text-xs text-gray-500">No inputs yet.</div>
-                                )}
-
+                                {channelFields.length === 0 && <div className="mt-2 text-xs text-gray-500">No inputs yet.</div>}
                                 <div className="mt-2">
                                   <button
                                     type="button"
                                     className="text-sm text-brand"
                                     onClick={() =>
-                                      appendChannel({
-                                        ch: (watch("tech.channels")?.length || 0) + 1,
-                                        source: "",
-                                        mic: "",
-                                        di: false,
-                                        phantom: false,
-                                        notes: "",
-                                      })
+                                      appendChannel({ ch: (watch("tech.channels")?.length || 0) + 1, source: "", mic: "", di: false, phantom: false, notes: "" })
                                     }
                                   >
                                     + Add channel
@@ -896,12 +930,7 @@ export default function AddServiceModalMusician({
                             </CollapsibleSection>
 
                             {/* Monitoring */}
-                            <CollapsibleSection
-                              title="Monitoring"
-                              open={monitoringOpen}
-                              onToggle={() => setMonitoringOpen((o) => !o)}
-                              className="border"
-                            >
+                            <CollapsibleSection title="Monitoring" open={monitoringOpen} onToggle={() => setMonitoringOpen((o) => !o)} className="border">
                               <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                                 <TextInput label="Monitor mixes needed" type="number" {...register("tech.monitoring.mixes", { valueAsNumber: true })} />
                                 <div className="flex items-end gap-2">
@@ -917,15 +946,21 @@ export default function AddServiceModalMusician({
                             </CollapsibleSection>
 
                             {/* Stage & Power */}
-                            <CollapsibleSection
-                              title="Stage & Power"
-                              open={stagePowerOpen}
-                              onToggle={() => setStagePowerOpen((o) => !o)}
-                              className="border"
-                            >
+                            <CollapsibleSection title="Stage & Power" open={stagePowerOpen} onToggle={() => setStagePowerOpen((o) => !o)} className="border">
                               <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                                <TextInput label="Min stage width (m)" type="number" step="0.1" {...register("tech.stage.min_width_m", { valueAsNumber: true })} />
-                                <TextInput label="Min stage depth (m)" type="number" step="0.1" {...register("tech.stage.min_depth_m", { valueAsNumber: true })} />
+                                <div className="flex items-end gap-2 sm:col-span-2">
+                                  <ToggleSwitch
+                                    checked={!!watch("tech.stage.compulsory")}
+                                    onChange={(v) => setValue("tech.stage.compulsory", v, { shouldDirty: true })}
+                                    label="Stage is compulsory"
+                                  />
+                                </div>
+                                {watch("tech.stage.compulsory") && (
+                                  <>
+                                    <TextInput label="Min stage width (m)" type="number" step="0.1" {...register("tech.stage.min_width_m", { valueAsNumber: true })} />
+                                    <TextInput label="Min stage depth (m)" type="number" step="0.1" {...register("tech.stage.min_depth_m", { valueAsNumber: true })} />
+                                  </>
+                                )}
                                 <div className="flex items-end gap-2">
                                   <ToggleSwitch checked={!!watch("tech.stage.cover_required")} onChange={(v) => setValue("tech.stage.cover_required", v, { shouldDirty: true })} label="Cover required (outdoor)" />
                                 </div>
@@ -958,12 +993,7 @@ export default function AddServiceModalMusician({
                             </CollapsibleSection>
 
                             {/* FOH & Playback */}
-                            <CollapsibleSection
-                              title="FOH & Playback"
-                              open={fohOpen}
-                              onToggle={() => setFohOpen((o) => !o)}
-                              className="border"
-                            >
+                            <CollapsibleSection title="FOH & Playback" open={fohOpen} onToggle={() => setFohOpen((o) => !o)} className="border">
                               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <TextInput label="FX requirements" placeholder="e.g., 2x reverb, 1x delay" {...register("tech.foh.fx_requirements")} />
                                 <TextInput label="Playback sources" placeholder="Laptop TRS / 3.5mm / USB" {...register("tech.foh.playback_sources")} />
@@ -971,49 +1001,130 @@ export default function AddServiceModalMusician({
                               </div>
                             </CollapsibleSection>
 
-                            {/* Backline */}
-                            <CollapsibleSection
-                              title="Backline"
-                              open={backlineOpen}
-                              onToggle={() => setBacklineOpen((o) => !o)}
-                              className="border"
-                            >
-                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <TextArea
-                                  label="Required items (one per line)"
-                                  rows={3}
-                                  value={(watch("tech.backline.required_items") || []).join("\n")}
-                                  onChange={(e) =>
-                                    setValue(
-                                      "tech.backline.required_items",
-                                      e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
-                                      { shouldDirty: true },
-                                    )
-                                  }
-                                />
-                                <TextArea
-                                  label="Optional items (one per line)"
-                                  rows={3}
-                                  value={(watch("tech.backline.optional_items") || []).join("\n")}
-                                  onChange={(e) =>
-                                    setValue(
-                                      "tech.backline.optional_items",
-                                      e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
-                                      { shouldDirty: true },
-                                    )
-                                  }
-                                />
+                            {/* Backline (catalog + custom) */}
+                            <CollapsibleSection title="Backline" open={backlineOpen} onToggle={() => setBacklineOpen((o) => !o)} className="border">
+                              {/* Catalog chooser */}
+                              <div className="rounded-md border p-2">
+                                <div className="flex flex-wrap items-end gap-2">
+                                  <div className="flex-1 min-w-[220px]">
+                                    <label className="block text-sm font-medium text-gray-700">Add catalog item</label>
+                                    <select
+                                      className="mt-1 w-full rounded border px-2 py-1 text-sm"
+                                      value={catalogSelect}
+                                      onChange={(e) => setCatalogSelect(e.target.value as BacklineKey | "")}
+                                    >
+                                      <option value="">Select an item…</option>
+                                      {BACKLINE_CATALOG.filter(i => !(watch("tech.backline.required_keys") || []).some((r) => r.key === i.key)).map((i) => (
+                                        <option key={i.key} value={i.key}>{i.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <button type="button" className="text-sm text-brand" onClick={addCatalogBackline}>
+                                    + Add
+                                  </button>
+                                </div>
+
+                                {/* Selected catalog items */}
+                                <div className="mt-3">
+                                  {blFields.length === 0 ? (
+                                    <div className="text-xs text-gray-500">No catalog backline selected.</div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {blFields.map((row, idx) => {
+                                        const key = watch(`tech.backline.required_keys.${idx}.key`) as BacklineKey;
+                                        const label = BACKLINE_LABEL[key] || key;
+                                        return (
+                                          <div key={row.id} className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                                            <div className="sm:col-span-4">
+                                              <label className="block text-xs text-gray-600">Item</label>
+                                              <div className="rounded border bg-gray-50 px-2 py-1 text-sm">{label}</div>
+                                            </div>
+                                            <div className="sm:col-span-2">
+                                              <TextInput
+                                                label="Qty"
+                                                type="number"
+                                                value={String(watch(`tech.backline.required_keys.${idx}.quantity`) ?? 1)}
+                                                onChange={(e) => setValue(`tech.backline.required_keys.${idx}.quantity`, Number(e.target.value || 1), { shouldDirty: true })}
+                                              />
+                                            </div>
+                                            <div className="sm:col-span-3">
+                                              <TextInput
+                                                label="Preferred brand (optional)"
+                                                placeholder="e.g., Fender / Ampeg / Yamaha"
+                                                value={watch(`tech.backline.required_keys.${idx}.preferred_brand`) || ""}
+                                                onChange={(e) => setValue(`tech.backline.required_keys.${idx}.preferred_brand`, e.target.value, { shouldDirty: true })}
+                                              />
+                                            </div>
+                                            <div className="sm:col-span-3">
+                                              <TextInput
+                                                label="Notes"
+                                                placeholder="Any specifics"
+                                                value={watch(`tech.backline.required_keys.${idx}.notes`) || ""}
+                                                onChange={(e) => setValue(`tech.backline.required_keys.${idx}.notes`, e.target.value, { shouldDirty: true })}
+                                              />
+                                            </div>
+                                            <div className="sm:col-span-12 -mt-1 flex justify-end">
+                                              <button type="button" className="text-[11px] text-red-600" onClick={() => removeBL(idx)}>Remove</button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <TextArea label="Backline notes" rows={2} {...register("tech.backline.notes")} />
+
+                              {/* Custom items */}
+                              <div className="mt-3 rounded-md border p-2">
+                                <div className="mb-1 text-sm font-medium">Custom items (not in catalog)</div>
+                                <div className="space-y-2">
+                                  {customBLFields.map((row, idx) => (
+                                    <div key={row.id} className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                                      <div className="sm:col-span-5">
+                                        <TextInput
+                                          label="Item name"
+                                          placeholder="e.g., Japanese flute"
+                                          value={watch(`tech.backline.custom_items.${idx}.name`) || ""}
+                                          onChange={(e) => setValue(`tech.backline.custom_items.${idx}.name`, e.target.value, { shouldDirty: true })}
+                                        />
+                                      </div>
+                                      <div className="sm:col-span-2">
+                                        <TextInput
+                                          label="Qty"
+                                          type="number"
+                                          value={String(watch(`tech.backline.custom_items.${idx}.quantity`) ?? 1)}
+                                          onChange={(e) => setValue(`tech.backline.custom_items.${idx}.quantity`, Number(e.target.value || 1), { shouldDirty: true })}
+                                        />
+                                      </div>
+                                      <div className="sm:col-span-5">
+                                        <TextInput
+                                          label="Notes"
+                                          placeholder="Brand/model or context"
+                                          value={watch(`tech.backline.custom_items.${idx}.notes`) || ""}
+                                          onChange={(e) => setValue(`tech.backline.custom_items.${idx}.notes`, e.target.value, { shouldDirty: true })}
+                                        />
+                                      </div>
+                                      <div className="sm:col-span-12 -mt-1 flex justify-end">
+                                        <button type="button" className="text-[11px] text-red-600" onClick={() => removeCustomBL(idx)}>Remove</button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="mt-2">
+                                  <button type="button" className="text-sm text-brand" onClick={() => appendCustomBL({ name: "", quantity: 1, notes: "" })}>
+                                    + Add custom item
+                                  </button>
+                                </div>
+                              </div>
+
+                              <TextArea label="Backline notes (overall)" rows={2} {...register("tech.backline.notes")} />
                             </CollapsibleSection>
 
                             {/* Rider PDF (optional) */}
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <TextInput label="Tech rider PDF URL (optional)" placeholder="https://.../tech-rider.pdf" {...register("tech.pdf_url")} />
                               <div className="flex items-end">
-                                <p className="text-xs text-gray-600">
-                                  If provided, we’ll store it and show it to clients/venues in Event Prep.
-                                </p>
+                                <p className="text-xs text-gray-600">If provided, we’ll store it and show it to clients/venues in Event Prep.</p>
                               </div>
                             </div>
                           </div>
@@ -1025,45 +1136,22 @@ export default function AddServiceModalMusician({
                         <div className="space-y-4">
                           <h2 className="mb-2 text-xl font-semibold">Upload Media</h2>
                           <p className="mb-2 text-sm text-gray-600">Use high-resolution images or short clips to showcase your talent.</p>
-                          <label
-                            htmlFor="media-upload"
-                            className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center"
-                          >
+                          <label htmlFor="media-upload" className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center">
                             <p className="text-sm">Drag files here or click to upload</p>
-                            <input
-                              id="media-upload"
-                              ref={fileInputRef}
-                              type="file"
-                              multiple
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => onFileChange(e.target.files)}
-                            />
+                            <input id="media-upload" ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => onFileChange(e.target.files)} />
                           </label>
                           {mediaError && <p className="mt-2 text-sm text-red-600">{mediaError}</p>}
                           <div className="mt-2 flex flex-wrap gap-2">
                             {existingMediaUrl && (
                               <div className="relative h-20 w-20 overflow-hidden rounded border">
                                 <Image src={existingMediaUrl} alt="existing-media" width={80} height={80} className="h-full w-full object-cover" unoptimized />
-                                <button
-                                  type="button"
-                                  onClick={removeExistingMedia}
-                                  className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white"
-                                >
-                                  ×
-                                </button>
+                                <button type="button" onClick={removeExistingMedia} className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white">×</button>
                               </div>
                             )}
                             {thumbnails.map((src: string, i: number) => (
                               <div key={i} className="relative h-20 w-20 overflow-hidden rounded border">
                                 <Image src={src} alt={`media-${i}`} width={80} height={80} className="h-full w-full object-cover" unoptimized />
-                                <button
-                                  type="button"
-                                  onClick={() => removeFile(i)}
-                                  className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white"
-                                >
-                                  ×
-                                </button>
+                                <button type="button" onClick={() => removeFile(i)} className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white">×</button>
                               </div>
                             ))}
                           </div>
@@ -1095,6 +1183,7 @@ export default function AddServiceModalMusician({
                               <h3 className="font-medium">Price</h3>
                               <p>{watch("price") || 0}</p>
                             </div>
+
                             {watchServiceType === "Live Performance" && (
                               <>
                                 <div className="rounded-md border p-2">
@@ -1113,9 +1202,7 @@ export default function AddServiceModalMusician({
                                     </div>
                                     <div className="rounded-md border p-2">
                                       <h3 className="font-medium">Travel</h3>
-                                      <p>
-                                        Rate {watch("travel_rate") || 0} R/km · Members {watch("travel_members") || 1} · Car {watch("car_rental_price") || 0} · Flight {watch("flight_price") || 0}
-                                      </p>
+                                      <p>Rate {watch("travel_rate") || 0} R/km · Members {watch("travel_members") || 1} · Car {watch("car_rental_price") || 0} · Flight {watch("flight_price") || 0}</p>
                                     </div>
                                   </>
                                 ) : (
@@ -1152,14 +1239,11 @@ export default function AddServiceModalMusician({
                                 </div>
                                 <div className="mt-1 text-xs text-gray-600">Stage & Power</div>
                                 <div>
-                                  {Number(tech?.stage?.min_width_m || 0) > 0 || Number(tech?.stage?.min_depth_m || 0) > 0
-                                    ? `Stage ≥ ${tech?.stage?.min_width_m || "?"}m x ${tech?.stage?.min_depth_m || "?"}m`
-                                    : "—"}
-                                  {tech?.stage?.cover_required ? " · Cover required" : ""}
+                                  {tech?.stage?.compulsory
+                                    ? `Stage ≥ ${tech?.stage?.min_width_m || "?"}m x ${tech?.stage?.min_depth_m || "?"}m${tech?.stage?.cover_required ? " · Cover required" : ""}`
+                                    : "Stage not compulsory"}
                                 </div>
-                                <div>
-                                  Power: {tech?.power?.phase || "single"} · {tech?.power?.amps || "—"}A · Circuits {tech?.power?.circuits_needed || "—"}
-                                </div>
+                                <div>Power: {tech?.power?.phase || "single"} · {tech?.power?.amps || "—"}A · Circuits {tech?.power?.circuits_needed || "—"}</div>
                               </div>
                             </div>
 
@@ -1174,17 +1258,41 @@ export default function AddServiceModalMusician({
                               </div>
                             </div>
 
-                            {(tech?.backline?.required_items || []).length > 0 && (
-                              <div className="mt-2">
-                                <div className="text-xs text-gray-600">Backline required</div>
-                                <ul className="list-disc pl-4">
-                                  {(tech?.backline?.required_items || []).map((b, i) => <li key={i}>{b}</li>)}
-                                </ul>
-                              </div>
-                            )}
-                            {tech?.pdf_url && (
-                              <div className="mt-2 text-xs">PDF: {tech.pdf_url}</div>
-                            )}
+                            <div className="mt-2">
+                              <div className="text-xs text-gray-600">Backline</div>
+                              {(tech?.backline?.required_keys || []).length === 0 && (tech?.backline?.custom_items || []).length === 0 ? (
+                                <div className="text-xs">None</div>
+                              ) : (
+                                <>
+                                  {(tech?.backline?.required_keys || []).length > 0 && (
+                                    <ul className="list-disc pl-4">
+                                      {(tech?.backline?.required_keys || []).map((b, i) => (
+                                        <li key={i}>
+                                          {BACKLINE_LABEL[b.key] || b.key} × {b.quantity}
+                                          {b.preferred_brand ? ` · ${b.preferred_brand}` : ""}
+                                          {b.notes ? ` · ${b.notes}` : ""}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                  {(tech?.backline?.custom_items || []).length > 0 && (
+                                    <>
+                                      <div className="mt-1 text-xs text-gray-600">Custom</div>
+                                      <ul className="list-disc pl-4">
+                                        {(tech?.backline?.custom_items || []).map((b, i) => (
+                                          <li key={i}>
+                                            {b.name} × {b.quantity}{b.notes ? ` · ${b.notes}` : ""}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </>
+                                  )}
+                                  {tech?.backline?.notes && <div className="mt-1 text-xs">Notes: {tech.backline.notes}</div>}
+                                </>
+                              )}
+                            </div>
+
+                            {tech?.pdf_url && <div className="mt-2 text-xs">PDF: {tech.pdf_url}</div>}
                           </div>
 
                           {/* Images */}
@@ -1204,7 +1312,7 @@ export default function AddServiceModalMusician({
                   </AnimatePresence>
                 </form>
 
-                {/* Action buttons */}
+                {/* Actions */}
                 <div className="flex flex-shrink-0 flex-col-reverse gap-2 border-t border-gray-100 p-4 sm:flex-row sm:justify-between">
                   <Button variant="outline" onClick={step === 0 ? handleCancel : prev} data-testid="back" className="min-h-[40px] w-full sm:w-auto">
                     {step === 0 ? "Cancel" : "Back"}
@@ -1229,15 +1337,8 @@ export default function AddServiceModalMusician({
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────────
-// Small UI helpers
-function RadioPill({
-  name,
-  value,
-  current,
-  onChange,
-  label,
-}: { name: string; value: string; current: string; onChange: (v: string) => void; label: string }) {
+// Small helpers
+function RadioPill({ name, value, current, onChange, label }: { name: string; value: string; current: string; onChange: (v: string) => void; label: string }) {
   const active = current === value;
   return (
     <button
