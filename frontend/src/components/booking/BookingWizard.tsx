@@ -66,7 +66,7 @@ type EventDetails = {
   attachment_url?: string;
 };
 
-const schema = yup.object<EventDetails>().shape({
+const schema = yup.object({
   eventType: yup.string().required('Event type is required.'),
   eventDescription: yup.string().required('Event description is required.').min(5, 'Description must be at least 5 characters.'),
   date: yup.date().required('Date is required.').min(new Date(), 'Date cannot be in the past.'),
@@ -91,7 +91,7 @@ const schema = yup.object<EventDetails>().shape({
   providedSoundEstimate: yup.number().optional(),
   notes: yup.string().optional(),
   attachment_url: yup.string().optional(),
-});
+}) as yup.ObjectSchema<any>;
 
 // --- Wizard Steps & Instructions ---
 const steps = [
