@@ -91,6 +91,20 @@ export default function SummarySidebar() {
             </dd>
           </div>
         )}
+        {details.sound === 'yes' && details.soundMode && (
+          <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+            <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Sound Mode</dt>
+            <dd className="text-sm text-gray-900 text-right flex-grow">{details.soundMode.replace(/_/g, ' ')}</dd>
+          </div>
+        )}
+        {details.sound === 'yes' && (
+          <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+            <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Sound Context</dt>
+            <dd className="text-xs text-gray-900 text-right flex-grow">
+              {`Stage: ${details.stageRequired ? (details.stageSize || 'S') : 'no'} · Backline: ${details.backlineRequired ? 'yes' : 'no'} · Lighting: ${details.lightingEvening ? 'yes' : 'no'}`}
+            </dd>
+          </div>
+        )}
         {details.notes && (
           <div className="flex items-start justify-between py-1 border-b border-gray-100 last:border-b-0">
             <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Notes</dt>

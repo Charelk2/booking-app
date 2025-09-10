@@ -737,6 +737,13 @@ export const calculateQuote = async (params: {
   service_id: number;
   event_city: string;
   accommodation_cost?: number;
+  // New optional sound-context inputs for better sizing/pricing
+  guest_count?: number;
+  venue_type?: 'indoor' | 'outdoor' | 'hybrid';
+  stage_required?: boolean;
+  stage_size?: 'S' | 'M' | 'L';
+  lighting_evening?: boolean;
+  backline_required?: boolean;
 }): Promise<QuoteCalculationResponse> => {
   const cacheKey = JSON.stringify(params);
   const now = Date.now();

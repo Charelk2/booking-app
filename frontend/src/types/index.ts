@@ -194,6 +194,8 @@ export interface BookingRequestCreate {
   travel_mode?: 'fly' | 'drive';
   travel_cost?: number;
   travel_breakdown?: Record<string, unknown>;
+  /** New structured sound context (optional during transition) */
+  sound_context?: SoundContext;
 }
 
 export interface ParsedBookingDetails {
@@ -425,6 +427,19 @@ export interface QuoteCalculationResponse {
   sound_mode_overridden: boolean;
   sound_provider_id?: number | null;
   total: number;
+}
+
+// ─── SOUND CONTEXT (Payload) ───────────────────────────────────────────────
+export interface SoundContext {
+  sound_required: boolean;
+  mode: 'supplier' | 'provided_by_artist' | 'managed_by_artist' | 'client_provided' | 'none';
+  guest_count?: number;
+  venue_type?: 'indoor' | 'outdoor' | 'hybrid';
+  stage_required?: boolean;
+  stage_size?: 'S' | 'M' | 'L';
+  lighting_evening?: boolean;
+  backline_required?: boolean;
+  selected_sound_service_id?: number;
 }
 
 export interface Notification {

@@ -661,51 +661,62 @@ export function VenueStep({ control, open = true }: { control: Control<EventDeta
 }
 
 // Sound
-export function SoundStep({ control, open = true, serviceId, artistLocation, eventLocation }: { control: Control<EventDetails>; open?: boolean; serviceId?: number; artistLocation?: string | null; eventLocation?: string | undefined }) {
+export function SoundStep({
+  control,
+  open = true,
+  serviceId,
+  artistLocation,
+  eventLocation,
+}: {
+  control: Control<EventDetails>;
+  open?: boolean;
+  serviceId?: number;
+  artistLocation?: string | null;
+  eventLocation?: string | undefined;
+}) {
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const firstRadioRef = useRef<HTMLInputElement>(null);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
-  const { details, setDetails, serviceId: ctxServiceId } = useBooking();
-  const [backlineRequired, setBacklineRequired] = useState<boolean>(false);
-  const [lightingEvening, setLightingEvening] = useState<boolean>(false);
-  const [stageNeeded, setStageNeeded] = useState<boolean>(false);
-  const [stageSize, setStageSize] = useState<string>('S');
 
-  // Ensure a stable default sound mode only once when missing
+  const { details, setDetails, serviceId: ctxServiceId } = useBooking();
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+
+  // Helpers
+  const set = (patch: Partial<EventDetails>) => setDetails({ ...details, ...patch });
+
+  // Ensure a default soundMode based on service config (one-time)
   useEffect(() => {
     let cancelled = false;
     const sid = serviceId ?? ctxServiceId;
     if (!sid) return;
     if (details.sound !== 'yes') return;
-    if (details.soundMode) return; // already set
+    if (details.soundMode) return;
+
     (async () => {
       try {
         const svc = await fetch(`/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
-        const svcDetails = (svc && svc.details) || {};
-        let modeDefault = svcDetails?.sound_provisioning?.mode_default as string | undefined;
+        const sp = svc?.details?.sound_provisioning || {};
+        let modeDefault: string | undefined = sp.mode_default;
         if (modeDefault === 'external' || modeDefault === 'preferred_suppliers') modeDefault = 'supplier';
-        // Fall back to supplier if city preferences exist
         if (!modeDefault) {
-          const tmpPrefs = svcDetails.sound_provisioning?.city_preferences;
-          if (Array.isArray(tmpPrefs) && tmpPrefs.length > 0) modeDefault = 'supplier';
+          const prefs = sp.city_preferences;
+          if (Array.isArray(prefs) && prefs.length > 0) modeDefault = 'supplier';
         }
-        if (!cancelled && modeDefault && details.soundMode !== modeDefault) {
-          setDetails({ ...details, soundMode: modeDefault as any });
-        }
-      } catch (e) {
-        // Non-fatal; leave mode as-is
+        if (!cancelled && modeDefault) set({ soundMode: modeDefault as any });
+      } catch {
+        // ignore
       }
     })();
+
     return () => {
       cancelled = true;
     };
-    // Only re-run when these primitives change
-  }, [details.sound, details.soundMode, serviceId, ctxServiceId, setDetails]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [details.sound]);
 
-  // Fetch and rank suppliers when needed (supplier mode only)
+  // Fetch & rank suppliers (supplier mode only)
   useEffect(() => {
     const sid = serviceId ?? ctxServiceId;
     if (!sid || !eventLocation) {
@@ -721,43 +732,49 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
 
     let active = true;
     setLoadingSuppliers(true);
+
     (async () => {
       try {
         const svc = await fetch(`/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
-        const svcDetails = (svc && svc.details) || {};
+        const sp = svc?.details?.sound_provisioning || {};
+        let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
 
-        let prefs = (svcDetails.sound_provisioning?.city_preferences || []) as any[];
-        if (!Array.isArray(prefs) || prefs.length === 0) {
+        if (!prefs.length) {
           try {
             const pr = await fetch(`/api/v1/services/${sid}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json());
-            if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences as any;
+            if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences;
           } catch {}
         }
 
+        // Match by city substring
         const locLower = String(eventLocation || '').toLowerCase();
         const locCityLower = locLower.split(',')[0]?.trim() || locLower;
-        const findIds = (p: any): number[] => {
-          const ids = (p?.provider_ids || p?.providerIds || []) as number[];
-          return Array.isArray(ids) ? ids.map((x) => Number(x)).filter((x) => !Number.isNaN(x)) : [];
-        };
+        const findIds = (p: any): number[] =>
+          (Array.isArray(p?.provider_ids) ? p.provider_ids : p?.providerIds || [])
+            .map((x: any) => Number(x))
+            .filter((n: number) => Number.isFinite(n));
+
         let match =
           prefs.find((p) => (p.city || '').toLowerCase() === locLower) ||
           prefs.find((p) => (p.city || '').toLowerCase() === locCityLower) ||
           prefs.find((p) => locLower.includes((p.city || '').toLowerCase())) ||
           prefs.find((p) => locCityLower.includes((p.city || '').toLowerCase()));
 
-        let preferredIds: number[] = [];
-        if (match) preferredIds = findIds(match);
-        if (preferredIds.length === 0 && prefs.length > 0) {
-          const all = prefs.flatMap((p) => findIds(p));
-          preferredIds = Array.from(new Set(all));
+        let preferredIds: number[] = match ? findIds(match) : [];
+        if (!preferredIds.length && prefs.length) {
+          preferredIds = Array.from(new Set(prefs.flatMap(findIds)));
         }
         preferredIds = preferredIds.slice(0, 3);
 
+        // Load candidates & rough distance
         const candidates: { service_id: number; distance_km: number; publicName: string }[] = [];
         for (const pid of preferredIds) {
           const s = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.json());
-          const publicName = s?.details?.publicName || s?.artist?.artist_profile?.business_name || s?.title || 'Sound Provider';
+          const publicName =
+            s?.details?.publicName ||
+            s?.artist?.artist_profile?.business_name ||
+            s?.title ||
+            'Sound Provider';
           const baseLocation = s?.details?.base_location as string | undefined;
           let distance_km = 0;
           if (baseLocation && eventLocation) {
@@ -767,27 +784,34 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
           candidates.push({ service_id: pid, distance_km, publicName });
         }
 
+        // Build rider spec (from earlier steps + this step)
         const guestCount = parseInt(details?.guests || '0', 10) || undefined;
+        const rider_spec = {
+          guest_count: guestCount,
+          venue_type: details.venueType,
+          stage_required: !!details.stageRequired,
+          stage_size: details.stageRequired ? details.stageSize || 'S' : null,
+          lighting_evening: !!details.lightingEvening,
+          backline_required: !!details.backlineRequired,
+        };
+
         let cards: any[] = [];
-        if (candidates.length > 0) {
+        if (candidates.length) {
           const ranked: any[] = await fetch(`/api/v1/pricebook/batch-estimate-rank`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              rider_spec: {},
+              rider_spec,
               guest_count: guestCount,
               candidates: candidates.map((c) => ({ service_id: c.service_id, distance_km: c.distance_km })),
               preferred_ids: preferredIds,
               managed_by_artist: details.soundMode === 'managed_by_artist',
               artist_managed_markup_percent: 0,
-              backline_required: backlineRequired,
-              lighting_evening: lightingEvening,
               outdoor: details.venueType === 'outdoor',
-              stage_size: stageNeeded ? stageSize : null,
             }),
           }).then((r) => r.json());
 
-          if (Array.isArray(ranked) && ranked.length > 0) {
+          if (Array.isArray(ranked) && ranked.length) {
             cards = ranked.map((r: any) => {
               const c = candidates.find((x) => x.service_id === r.service_id);
               return {
@@ -800,48 +824,55 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
               };
             });
           } else {
-            cards = candidates.map((c) => ({ serviceId: c.service_id, publicName: c.publicName, distanceKm: c.distance_km }));
+            cards = candidates.map((c) => ({
+              serviceId: c.service_id,
+              publicName: c.publicName,
+              distanceKm: c.distance_km,
+            }));
           }
         }
 
         if (active) setSuppliers(cards);
 
-        // Estimate for provided_by_artist, set only if changed
+        // If "provided_by_artist", try resolve a tier estimate if available
         try {
-          const tiers = svcDetails?.sound_provisioning?.provided_price_tiers as Array<{ min?: number; max?: number; price: number }> | undefined;
+          const tiers = sp?.provided_price_tiers as Array<{ min?: number; max?: number; price: number }> | undefined;
           if (tiers && details.soundMode === 'provided_by_artist' && guestCount) {
             const sel =
-              tiers.find((t) => (t.min == null || guestCount >= Number(t.min)) && (t.max == null || guestCount <= Number(t.max))) ||
-              tiers[tiers.length - 1];
+              tiers.find(
+                (t) =>
+                  (t.min == null || guestCount >= Number(t.min)) &&
+                  (t.max == null || guestCount <= Number(t.max)),
+              ) || tiers[tiers.length - 1];
             const price = sel?.price != null ? Number(sel.price) : undefined;
             if (price != null && details.providedSoundEstimate !== price) {
-              setDetails({ ...details, providedSoundEstimate: price });
+              set({ providedSoundEstimate: price });
             }
           }
         } catch {}
       } catch (e) {
-        console.error('Failed to load preferred suppliers', e);
+        console.error('Failed to load suppliers', e);
       } finally {
         if (active) setLoadingSuppliers(false);
       }
     })();
+
     return () => {
       active = false;
     };
-    // Re-run only when relevant primitives change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     details.sound,
     details.soundMode,
     details.guests,
     details.venueType,
+    details.stageRequired,
+    details.stageSize,
+    details.lightingEvening,
+    details.backlineRequired,
     eventLocation,
     serviceId,
     ctxServiceId,
-    backlineRequired,
-    lightingEvening,
-    stageNeeded,
-    stageSize,
-    setDetails,
   ]);
 
   return (
@@ -850,13 +881,9 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
         <h3 className="step-title">Sound</h3>
         <p className="step-subtitle">Will sound equipment be needed?</p>
       </div>
-      <div className="mt-6">
-        <p className="text-sm text-neutral-600 mb-3">
-          Book in one step. The artist must accept to confirm your date. If you choose sound,
-          we’ll contact the artist’s preferred suppliers (top match first) to confirm a firm price.
-          Estimates below use drive-only logistics and your guest count; final pricing may vary.
-        </p>
 
+      {/* YES/NO */}
+      <div className="mt-4">
         <Controller
           name="sound"
           control={control}
@@ -864,91 +891,265 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
             <>
               {isMobile ? (
                 <>
-                  <Button type="button" variant="secondary" onClick={() => setSheetOpen(true)} className="w-full text-left min-h-[44px] rounded-xl border border-black/20 bg-white text-black hover:bg-black/[0.04]" ref={buttonRef}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setSheetOpen(true)}
+                    className="w-full text-left min-h-[44px] rounded-xl border border-black/20 bg-white text-black hover:bg-black/[0.04]"
+                    ref={buttonRef}
+                  >
                     {field.value ? `Sound: ${field.value === 'yes' ? 'Yes' : 'No'}` : 'Select sound preference'}
                   </Button>
-                  <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} initialFocus={firstRadioRef} title="Select sound preference">
+                  <BottomSheet
+                    open={sheetOpen}
+                    onClose={() => setSheetOpen(false)}
+                    initialFocus={firstRadioRef}
+                    title="Select sound preference"
+                  >
                     <fieldset className="p-4 space-y-2">
                       {['yes', 'no'].map((opt, idx) => (
                         <div key={opt}>
-                          <input id={`sound-${opt}-mobile`} ref={idx === 0 ? firstRadioRef : undefined} type="radio" className="selectable-card-input" name={field.name} value={opt} checked={field.value === opt} onChange={(e) => { field.onChange(e.target.value); setSheetOpen(false); }} />
-                          <label htmlFor={`sound-${opt}-mobile`} className="selectable-card">{opt === 'yes' ? 'Yes' : 'No'}</label>
+                          <input
+                            id={`sound-${opt}-mobile`}
+                            ref={idx === 0 ? firstRadioRef : undefined}
+                            type="radio"
+                            className="selectable-card-input"
+                            name={field.name}
+                            value={opt}
+                            checked={field.value === opt}
+                            onChange={(e) => {
+                              field.onChange(e.target.value);
+                              if (e.target.value === 'no') {
+                                set({
+                                  soundMode: 'none',
+                                  stageRequired: false,
+                                  stageSize: undefined,
+                                  lightingEvening: false,
+                                  backlineRequired: false,
+                                  providedSoundEstimate: undefined,
+                                  soundSupplierServiceId: undefined,
+                                });
+                              }
+                              setSheetOpen(false);
+                            }}
+                          />
+                          <label htmlFor={`sound-${opt}-mobile`} className="selectable-card">
+                            {opt === 'yes' ? 'Yes' : 'No'}
+                          </label>
                         </div>
                       ))}
                     </fieldset>
                   </BottomSheet>
                 </>
               ) : (
-                <fieldset className="space-y-2">
-                  <div>
-                    <input id="sound-yes" type="radio" className="selectable-card-input" name={field.name} value="yes" checked={field.value === 'yes'} onChange={(e) => field.onChange(e.target.value)} />
-                    <label htmlFor="sound-yes" className="selectable-card">Yes</label>
-                  </div>
-                  <div>
-                    <input id="sound-no" type="radio" className="selectable-card-input" name={field.name} value="no" checked={field.value === 'no'} onChange={(e) => field.onChange(e.target.value)} />
-                    <label htmlFor="sound-no" className="selectable-card">No</label>
-                  </div>
+                <fieldset className="bw-card-grid">
+                  {(['yes', 'no'] as const).map((opt) => (
+                    <div key={opt}>
+                      <input
+                        id={`sound-${opt}`}
+                        type="radio"
+                        className="selectable-card-input"
+                        name={field.name}
+                        value={opt}
+                        checked={field.value === opt}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          if (opt === 'no') {
+                            set({
+                              soundMode: 'none',
+                              stageRequired: false,
+                              stageSize: undefined,
+                              lightingEvening: false,
+                              backlineRequired: false,
+                              providedSoundEstimate: undefined,
+                              soundSupplierServiceId: undefined,
+                            });
+                          }
+                        }}
+                      />
+                      <label htmlFor={`sound-${opt}`} className="selectable-card">
+                        {opt === 'yes' ? 'Yes' : 'No'}
+                      </label>
+                    </div>
+                  ))}
                 </fieldset>
               )}
             </>
           )}
         />
-
-        <Controller name="soundSupplierServiceId" control={control} render={() => (
-          <>
-            {useBooking().details.sound === 'yes' && useBooking().details.soundMode === 'provided_by_artist' && (
-              <div className="mt-3 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
-                Sound provided by the artist.{' '}
-                {useBooking().details.providedSoundEstimate != null ? `Est. ${formatCurrency(useBooking().details.providedSoundEstimate)}.` : 'Final price will be confirmed on acceptance.'}
-              </div>
-            )}
-
-            {useBooking().details.sound === 'yes' && useBooking().details.soundMode === 'managed_by_artist' && (
-              <div className="mt-3 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
-                Sound managed by the artist. We’ll confirm a firm price with the top supplier and apply the artist’s markup policy.
-              </div>
-            )}
-
-            {useBooking().details.sound === 'yes' && useBooking().details.soundMode === 'supplier' && loadingSuppliers && (
-              <p className="text-sm text-neutral-600 mt-2">Loading preferred suppliers…</p>
-            )}
-
-            {useBooking().details.sound === 'yes' && useBooking().details.soundMode === 'supplier' && !loadingSuppliers && suppliers.length > 0 && (
-              <div className="mt-4">
-                <div className="selectable-card flex-col items-start">
-                  <span className="font-medium text-neutral-900">Recommended · {suppliers[0].publicName}</span>
-                  <span className="text-sm text-neutral-600">
-                    {suppliers[0].estimateMin != null && suppliers[0].estimateMax != null
-                      ? `Est. ${formatCurrency(suppliers[0].estimateMin)} – ${formatCurrency(suppliers[0].estimateMax)}`
-                      : 'Estimation pending'}
-                  </span>
-                  {suppliers[0].distanceKm != null && (
-                    <span className="text-xs text-neutral-500">{suppliers[0].distanceKm!.toFixed(0)} km • rel {suppliers[0].reliability?.toFixed?.(1) ?? '0'}</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {useBooking().details.sound === 'yes' && useBooking().details.soundMode === 'supplier' && !loadingSuppliers && suppliers.length === 0 && (
-              <p className="text-sm text-neutral-600 mt-2">We’ll match a suitable sound supplier after you book. You can also add sound later.</p>
-            )}
-
-            {useBooking().details.sound === 'yes' && useBooking().details.soundMode === 'supplier' && suppliers.length > 0 && (
-              <div className="mt-3 rounded-lg bg-black/[0.04] p-3 text-xs text-neutral-700 border border-black/10">
-                These suppliers are configured by the artist. We’ll reach out on your behalf after you secure the musician and confirm a firm price via the top match first.
-              </div>
-            )}
-          </>
-        )} />
-
-        <div className="mt-3 text-xs text-neutral-600">
-          Final price is confirmed after acceptance; if the top pick declines we’ll auto-try backups.
-          If all decline, you can choose another option and we’ll refund any sound portion immediately.
-        </div>
       </div>
+
+      {/* If no sound needed, exit early */}
+      {useBooking().details.sound !== 'yes' && (
+        <p className="help-text mt-3">You can still add sound after submitting your request.</p>
+      )}
+
+      {/* When sound = yes */}
+      {useBooking().details.sound === 'yes' && (
+        <div className="mt-6 space-y-6">
+          {/* HOW should sound be handled? */}
+          <div>
+            <label className="label block mb-2">How should sound be handled?</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { v: 'supplier', l: 'External supplier (recommended)' },
+                { v: 'provided_by_artist', l: 'Provided by artist' },
+                { v: 'managed_by_artist', l: 'Managed by artist' },
+                { v: 'client_provided', l: 'Client will provide' },
+              ].map((o) => (
+                <button
+                  key={o.v}
+                  type="button"
+                  onClick={() => set({ soundMode: o.v as any })}
+                  className={clsx(
+                    'rounded-full border px-3 py-1 text-sm',
+                    details.soundMode === o.v
+                      ? 'border-black bg-black/5'
+                      : 'border-black/20 hover:bg-black/[0.04]',
+                  )}
+                >
+                  {o.l}
+                </button>
+              ))}
+            </div>
+            <p className="help-text mt-1">
+              We’ll use your guest count ({details.guests || '—'}) and venue type ({details.venueType || '—'}) to size the PA.
+            </p>
+          </div>
+
+          {/* Context toggles: Stage / Lighting / Backline */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Stage */}
+            <div className="rounded-xl border border-black/10 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Stage required?</span>
+                <input
+                  type="checkbox"
+                  checked={!!details.stageRequired}
+                  onChange={(e) => set({ stageRequired: e.target.checked })}
+                />
+              </div>
+              {details.stageRequired && (
+                <div className="mt-2">
+                  <label className="block text-xs font-medium mb-1">Stage size</label>
+                  <div className="flex gap-2">
+                    {(['S', 'M', 'L'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => set({ stageSize: s })}
+                        className={clsx(
+                          'rounded-full border px-2 py-1 text-xs',
+                          details.stageSize === s ? 'border-black bg-black/5' : 'border-black/20 hover:bg-black/[0.04]',
+                        )}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="help-text mt-2">Only required if you need a raised platform.</p>
+            </div>
+
+            {/* Lighting */}
+            <div className="rounded-xl border border-black/10 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Evening lighting?</span>
+                <input
+                  type="checkbox"
+                  checked={!!details.lightingEvening}
+                  onChange={(e) => set({ lightingEvening: e.target.checked })}
+                />
+              </div>
+              <p className="help-text mt-2">
+                Basic or advanced lighting may be added depending on the selected package and time of day.
+              </p>
+            </div>
+
+            {/* Backline */}
+            <div className="rounded-xl border border-black/10 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Backline required?</span>
+                <input
+                  type="checkbox"
+                  checked={!!details.backlineRequired}
+                  onChange={(e) => set({ backlineRequired: e.target.checked })}
+                />
+              </div>
+              <p className="help-text mt-2">
+                Instruments/amps on site (e.g., drum kit, piano, guitar/bass amps). Final lineup confirmed after booking.
+              </p>
+            </div>
+          </div>
+
+          {/* Mode-specific helper text */}
+          {details.soundMode === 'provided_by_artist' && (
+            <div className="mt-2 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
+              Sound provided by the artist.{' '}
+              {details.providedSoundEstimate != null
+                ? `Est. ${formatCurrency(details.providedSoundEstimate)} (based on audience tier).`
+                : 'Price confirmed on acceptance.'}
+            </div>
+          )}
+          {details.soundMode === 'managed_by_artist' && (
+            <div className="mt-2 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
+              Sound managed by the artist. We’ll confirm a firm price with the top supplier and apply the artist’s markup policy.
+            </div>
+          )}
+          {details.soundMode === 'client_provided' && (
+            <div className="mt-2 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
+              You’ll provide sound (PA, mics, console, engineer). The artist will share a tech rider after acceptance.
+            </div>
+          )}
+
+          {/* Supplier card (supplier mode) */}
+          {details.soundMode === 'supplier' && (
+            <>
+              {loadingSuppliers && <p className="text-sm text-neutral-600">Loading preferred suppliers…</p>}
+
+              {!loadingSuppliers && suppliers.length > 0 && (
+                <div className="mt-3">
+                  <div className="selectable-card flex-col items-start">
+                    <span className="font-medium text-neutral-900">
+                      Recommended · {suppliers[0].publicName}
+                    </span>
+                    <span className="text-sm text-neutral-600">
+                      {suppliers[0].estimateMin != null && suppliers[0].estimateMax != null
+                        ? `Est. ${formatCurrency(suppliers[0].estimateMin)} – ${formatCurrency(
+                            suppliers[0].estimateMax,
+                          )}`
+                        : 'Estimation pending'}
+                    </span>
+                    {suppliers[0].distanceKm != null && (
+                      <span className="text-xs text-neutral-500">
+                        {suppliers[0].distanceKm!.toFixed(0)} km • rel{' '}
+                        {suppliers[0].reliability?.toFixed?.(1) ?? '0'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-neutral-700">
+                    These are the artist’s preferred suppliers. We’ll contact the top match after you book.
+                  </p>
+                </div>
+              )}
+
+              {!loadingSuppliers && suppliers.length === 0 && (
+                <p className="text-sm text-neutral-600">We’ll match a suitable sound supplier after you book. You can also add sound later.</p>
+              )}
+            </>
+          )}
+
+          <p className="text-xs text-neutral-600">
+            Estimates use your guest count and assume drive-only logistics. Final pricing is confirmed after acceptance; if the top pick
+            declines we’ll auto-try backups.
+          </p>
+        </div>
+      )}
     </section>
   );
 }
+
 
 // Notes
 export function NotesStep({ control, setValue, open = true }: { control: Control<EventDetails>; setValue: UseFormSetValue<EventDetails>; open?: boolean }) {
@@ -1038,12 +1239,12 @@ export function ReviewStep(props: {
     baseServicePrice,
     soundCost,
     soundMode,
-    selectedSupplierName,
     open = true,
     onToggle = () => {},
   } = props;
 
-  useBooking();
+  const { details } = useBooking();
+
   const baseFee = Number(baseServicePrice) || 0;
   const travelCost = Number(travelResult?.totalCost) || 0;
   const soundFee = Number(soundCost) || 0;
@@ -1051,6 +1252,12 @@ export function ReviewStep(props: {
   const estimatedTaxesFees = subtotalBeforeTaxes * 0.15;
   const estimatedTotal = subtotalBeforeTaxes + estimatedTaxesFees;
   const isProcessing = submitting || isLoadingReviewData;
+
+  // Tiny sound-context summary
+  const tinyStage = details?.stageRequired ? (details.stageSize || 'S') : 'no';
+  const tinyBackline = details?.backlineRequired ? 'yes' : 'no';
+  const tinyLighting = details?.lightingEvening ? 'yes' : 'no';
+  const tinySummary = `Stage: ${tinyStage} · Backline: ${tinyBackline} · Lighting: ${tinyLighting}`;
 
   const getTravelPopoverContent = () => {
     if (!travelResult) return <>Travel cost calculated from artist location and venue distance.</>;
@@ -1061,11 +1268,11 @@ export function ReviewStep(props: {
         <>
           Travel Mode: ✈️ Fly
           <br />
-          Flights ({fly.travellers}): {formatCurrency(fly.flightSubtotal)} (avg price)
+          Flights ({fly.travellers}): {formatCurrency(fly.flightSubtotal)} (avg)
           <br />
           Car Rental: {formatCurrency(fly.carRental)}
           <br />
-          Fuel: {formatCurrency(fly.transferCost)}
+          Fuel/Transfers: {formatCurrency(fly.transferCost)}
         </>
       );
     }
@@ -1084,55 +1291,107 @@ export function ReviewStep(props: {
 
   return (
     <CollapsibleSection title="Review" open={open} onToggle={onToggle} className="space-y-6">
-      <div className="p-6 md:p-8 rounded-2xl max-w-2xl mx-auto">
-        <p className="text-sm text-neutral-600 mb-6">
-          One checkout: we place an authorization for your booking. The artist must accept to confirm your date.
-          If sound is included, we’ll confirm a firm price with the top supplier (backups auto-tried). Any difference
-          from this estimate will be adjusted automatically.
+      {/* No extra wrapper container */}
+      <p className="text-sm text-neutral-600">
+        One checkout: we place an authorization for your booking. The artist must accept to confirm your date.
+        If sound is included, we’ll confirm a firm price with the top supplier (backups auto-tried). Any difference
+        from this estimate will be adjusted automatically.
+      </p>
+
+      {isLoadingReviewData && (
+        <div className="flex items-center justify-center p-3 bg-black/[0.04] text-black rounded-lg border border-black/10">
+          <span className="animate-spin mr-2">⚙️</span> Calculating estimates...
+        </div>
+      )}
+      {reviewDataError && (
+        <div className="p-3 bg-black/[0.04] text-black rounded-lg border border-black/10">
+          <p className="font-medium">Error calculating estimates:</p>
+          <p className="text-sm">{reviewDataError}</p>
+          <p className="text-xs mt-2 text-neutral-600">Please ensure all location details are accurate.</p>
+        </div>
+      )}
+
+      <div className="mb-2">
+        <SummarySidebar />
+      </div>
+
+      <h5 className="font-semibold text-base text-neutral-900">Estimated Cost</h5>
+      <div className="space-y-2 text-neutral-800">
+        <div className="flex justify-between items-center">
+          <span>Service Provider Base Fee</span>
+          <span>{formatCurrency(baseServicePrice)}</span>
+        </div>
+
+        <div className="flex justify-between items-center">
+          <span className="flex items-center">
+            Travel
+            <InfoPopover label="Travel cost details" className="ml-1.5">
+              {getTravelPopoverContent()}
+            </InfoPopover>
+          </span>
+          <span>{formatCurrency(travelResult?.totalCost || 0)}</span>
+        </div>
+
+        {soundFee > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="flex items-center">
+              Sound Equipment <span className="ml-1 text-[11px] text-neutral-500">({tinySummary})</span>
+              <InfoPopover label="Sound equipment details" className="ml-1.5">
+                {soundMode === 'managed_by_artist'
+                  ? 'Managed by the artist with a simple markup policy.'
+                  : soundMode === 'provided_by_artist'
+                  ? 'Provided by the artist directly; price is firm on acceptance.'
+                  : soundMode === 'client_provided'
+                  ? 'You will provide sound equipment; no supplier outreach required.'
+                  : 'External provider estimate (drive-only). A supplier will confirm a firm price.'}
+              </InfoPopover>
+            </span>
+            <span>{formatCurrency(soundFee)}</span>
+          </div>
+        )}
+
+        <div className="flex justify-between items-center border-t border-dashed pt-2 mt-2 border-black/20">
+          <span className="font-medium">Subtotal</span>
+          <span className="font-medium">{formatCurrency(subtotalBeforeTaxes)}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span>Taxes & Fees (Est.)</span>
+          <span>{formatCurrency(estimatedTaxesFees)}</span>
+        </div>
+        <div className="flex justify-between items-center text-xl font-bold text-neutral-900 border-t pt-3 mt-3 border-black/20">
+          <span>Estimated Total</span>
+          <span>{formatCurrency(estimatedTotal)}</span>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <div className="flex items-start space-x-3 mb-4">
+          <input type="checkbox" id="terms" className="mt-1 h-3 w-3 bg-black rounded border-black/30 text-black" />
+          <label htmlFor="terms" className="help-text">
+            I have reviewed my details and agree to the{' '}
+            <a href="#" className="text-black underline hover:underline underline-offset-4">
+              terms of service
+            </a>.
+          </label>
+        </div>
+        <Button
+          variant="primary"
+          fullWidth
+          isLoading={isProcessing}
+          disabled={reviewDataError !== null || travelResult === null}
+          onClick={(e) => {
+            trackEvent('booking_submit');
+            void props.onNext(e);
+          }}
+          className="rounded-xl bg-black text-white hover:bg-black/90"
+        >
+          {isProcessing ? (submitLabel === 'Submit Request' ? 'Submitting...' : 'Loading...') : submitLabel}
+        </Button>
+        <p className="text-xs text-neutral-600 mt-3">
+          Artist must accept this request. Once accepted, your artist booking is confirmed. Sound is usually confirmed within a few hours; if the top pick declines we auto-try backups. If all decline, you can choose another option or we’ll refund the sound portion immediately.
         </p>
-
-        {isLoadingReviewData && (
-          <div className="flex items-center justify-center p-3 bg-black/[0.04] text-black rounded-lg mb-4">
-            <span className="animate-spin mr-2">⚙️</span> Calculating estimates...
-          </div>
-        )}
-        {reviewDataError && (
-          <div className="p-3 bg-black/[0.04] text-black rounded-lg mb-4 border border-black/10">
-            <p className="font-medium">Error calculating estimates:</p>
-            <p className="text-sm">{reviewDataError}</p>
-            <p className="text-xs mt-2 text-neutral-600">Please ensure all location details are accurate.</p>
-          </div>
-        )}
-
-        <div className="mb-6"><SummarySidebar /></div>
-
-        <h5 className="font-semibold text-base mb-3 text-neutral-900">Estimated Cost</h5>
-        <div className="space-y-2 text-neutral-800">
-          <div className="flex justify-between items-center"><span>Service Provider Base Fee</span><span>{formatCurrency(baseServicePrice)}</span></div>
-          <div className="flex justify-between items-center">
-            <span className="flex items-center">Travel<InfoPopover label="Travel cost details" className="ml-1.5">{getTravelPopoverContent()}</InfoPopover></span>
-            <span>{formatCurrency(travelResult?.totalCost || 0)}</span>
-          </div>
-          {soundCost > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="flex items-center">Sound Equipment {selectedSupplierName ? `· ${selectedSupplierName}` : ''}<InfoPopover label="Sound equipment details" className="ml-1.5">{props.soundMode === 'managed_by_artist' ? 'Managed by the artist with a simple markup policy.' : props.soundMode === 'provided_by_artist' ? 'Provided by the artist directly; price is firm on acceptance.' : props.soundMode === 'client_provided' ? 'You will provide sound equipment; no supplier outreach required.' : 'External provider estimate (drive-only). A supplier will confirm a firm price.'}</InfoPopover></span>
-              <span>{formatCurrency(soundCost)}</span>
-            </div>
-          )}
-          <div className="flex justify-between items-center border-t border-dashed pt-2 mt-2 border-black/20"><span className="font-medium">Subtotal</span><span className="font-medium">{formatCurrency(subtotalBeforeTaxes)}</span></div>
-          <div className="flex justify-between items-center"><span>Taxes & Fees (Est.)</span><span>{formatCurrency(estimatedTaxesFees)}</span></div>
-          <div className="flex justify-between items-center text-xl font-bold text-neutral-900 border-t pt-3 mt-3 border-black/20"><span>Estimated Total</span><span>{formatCurrency(estimatedTotal)}</span></div>
-        </div>
-
-        <div className="mt-8">
-          <div className="flex items-start space-x-3 mb-6">
-            <input type="checkbox" id="terms" className="mt-1 h-3 w-3 bg-black rounded border-black/30 text-black" />
-            <label htmlFor="terms" className="help-text">I have reviewed my details and agree to the <a href="#" className="text-black underline hover:underline underline-offset-4">terms of service</a>.</label>
-          </div>
-          <Button variant="primary" fullWidth isLoading={isProcessing} disabled={reviewDataError !== null || travelResult === null} onClick={(e) => { trackEvent('booking_submit'); void props.onNext(e); }} className="rounded-xl bg-black text-white hover:bg-black/90">{isProcessing ? (props.submitLabel === 'Submit Request' ? 'Submitting...' : 'Loading...') : props.submitLabel}</Button>
-          <p className="text-xs text-neutral-600 mt-3">Artist must accept this request. Once accepted, your artist booking is confirmed. Sound is usually confirmed within a few hours; if the top pick declines we auto-try backups. If all decline, you can choose another option or we’ll refund the sound portion immediately.</p>
-        </div>
       </div>
     </CollapsibleSection>
   );
 }
+
