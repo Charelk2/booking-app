@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 
 import { useBooking } from '@/contexts/BookingContext';
+import type { EventDetails } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useIsMobile from '@/hooks/useIsMobile';
 import useBookingForm from '@/hooks/useBookingForm';
@@ -41,30 +42,7 @@ import {
   ReviewStep,
 } from './wizard/Steps';
 
-// --- EventDetails Type & Schema ---
-type EventDetails = {
-  eventType?: string;
-  eventDescription?: string;
-  date?: Date;
-  time?: string;
-  location?: string;
-  locationName?: string;
-  guests?: string;
-  venueType?: 'indoor' | 'outdoor' | 'hybrid';
-  sound?: 'yes' | 'no';
-  soundMode?: 'supplier' | 'provided_by_artist' | 'managed_by_artist' | 'client_provided' | 'none';
-  soundSupplierServiceId?: number;
-    // NEW: sound context used by SoundStep + Review summary
-  stageRequired?: boolean;
-  stageSize?: 'S' | 'M' | 'L';
-  lightingEvening?: boolean;
-  backlineRequired?: boolean;
-
-  // Optional helper for provided-by-artist estimate
-  providedSoundEstimate?: number;
-  notes?: string;
-  attachment_url?: string;
-};
+// --- EventDetails Schema (uses context type at runtime only) ---
 
 const schema = yup.object({
   eventType: yup.string().required('Event type is required.'),
@@ -735,6 +713,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         return (
           <SoundStep
             control={control}
+            setValue={setValue}
             serviceId={serviceId}
             artistLocation={artistLocation}
             eventLocation={details.location}

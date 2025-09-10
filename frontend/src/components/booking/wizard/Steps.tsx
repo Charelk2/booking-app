@@ -670,12 +670,14 @@ export function VenueStep({ control, open = true }: { control: Control<EventDeta
 // Sound
 export function SoundStep({
   control,
+  setValue,
   open = true,
   serviceId,
   artistLocation,
   eventLocation,
 }: {
   control: Control<EventDetails>;
+  setValue: UseFormSetValue<EventDetails>;
   open?: boolean;
   serviceId?: number;
   artistLocation?: string | null;
@@ -718,12 +720,23 @@ export function SoundStep({
         const svc = await fetch(`/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
         const sp = svc?.details?.sound_provisioning || {};
         let modeDefault: string | undefined = sp.mode_default;
+        // Fallback to legacy `mode` if `mode_default` is missing
+        if (!modeDefault && typeof sp.mode === 'string') {
+          if (sp.mode === 'external_providers' || sp.mode === 'external' || sp.mode === 'preferred_suppliers') {
+            modeDefault = 'supplier';
+          } else if (sp.mode === 'artist_provides_variable' || sp.mode === 'artist_provided') {
+            modeDefault = 'provided_by_artist';
+          }
+        }
         if (modeDefault === 'external' || modeDefault === 'preferred_suppliers') modeDefault = 'supplier';
         if (!modeDefault) {
           const prefs = sp.city_preferences;
           if (Array.isArray(prefs) && prefs.length > 0) modeDefault = 'supplier';
         }
-        if (!cancelled && modeDefault) set({ soundMode: modeDefault as any });
+        if (!cancelled && modeDefault) {
+          set({ soundMode: modeDefault as any });
+          try { (setValue as any)('soundMode', modeDefault as any, { shouldDirty: false }); } catch {}
+        }
       } catch {
         // ignore
       }
@@ -939,6 +952,12 @@ export function SoundStep({
                             onChange={(e) => {
                               field.onChange(e.target.value);
                               if (e.target.value === 'no') {
+                                // Clear related form fields and context
+                                setValue('soundMode' as any, 'none' as any, { shouldDirty: true });
+                                setValue('stageRequired' as any, false as any, { shouldDirty: true });
+                                setValue('stageSize' as any, undefined as any, { shouldDirty: true });
+                                setValue('lightingEvening' as any, false as any, { shouldDirty: true });
+                                setValue('backlineRequired' as any, false as any, { shouldDirty: true });
                                 set({
                                   soundMode: 'none',
                                   stageRequired: false,
@@ -974,6 +993,11 @@ export function SoundStep({
                         onChange={(e) => {
                           field.onChange(e.target.value);
                           if (opt === 'no') {
+                            setValue('soundMode' as any, 'none' as any, { shouldDirty: true });
+                            setValue('stageRequired' as any, false as any, { shouldDirty: true });
+                            setValue('stageSize' as any, undefined as any, { shouldDirty: true });
+                            setValue('lightingEvening' as any, false as any, { shouldDirty: true });
+                            setValue('backlineRequired' as any, false as any, { shouldDirty: true });
                             set({
                               soundMode: 'none',
                               stageRequired: false,
