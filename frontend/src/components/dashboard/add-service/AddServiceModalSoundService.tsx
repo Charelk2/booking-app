@@ -105,6 +105,7 @@ interface SoundServiceForm {
   title: string;
   short_summary: string;
   tags: string[];
+  base_location?: string;
 
   // Coverage & Logistics
   coverage_areas: string[];
@@ -219,6 +220,7 @@ const DEFAULTS: SoundServiceForm = {
   title: "",
   short_summary: "",
   tags: [],
+  base_location: "",
   coverage_areas: [],
   travel_fee_policy: "flat",
   travel_flat_amount: "",
@@ -357,6 +359,10 @@ export default function AddServiceModalSoundService({
       ...DEFAULTS,
       title: service.title,
       short_summary: (service as any)?.short_summary || det.short_summary || det.shortSummary || "",
+      // Base location (optional but highly recommended for distance)
+      // read from service.details.base_location if present
+      // We'll persist it under details.base_location
+      base_location: (det.base_location as string) || "",
       tags: det.tags || [],
       coverage_areas: coverageAreas || [],
       travel_fee_policy: (travel.policy as TravelPolicy) || DEFAULTS.travel_fee_policy,
@@ -398,7 +404,7 @@ export default function AddServiceModalSoundService({
   const steps: WizardStep<SoundServiceForm>[] = [
     {
       label: "Basics",
-      fields: ["title", "short_summary", "tags"],
+      fields: ["title", "short_summary", "tags", "base_location"],
       render: ({ form }) => {
         const title = form.watch("title") || "";
         const summary = form.watch("short_summary") || "";
@@ -458,7 +464,15 @@ export default function AddServiceModalSoundService({
                 ))}
               </div>
             </div>
-            <div className="rounded-md border p-3 text-xs text-gray-600">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <TextInput
+                label="Base location (city or suburb)"
+                placeholder="e.g., Cape Town, Western Cape"
+                value={(form.watch as any)("base_location") || ""}
+                onChange={(e) => (form.setValue as any)("base_location", e.target.value, { shouldDirty: true })}
+              />
+            </div>
+            <div className="rounded-md border p-3 text-xs text-gray-600 mt-2">
               <p>Configure per-audience base prices + what’s <b>included</b> (mics, engineer, lighting). Extras are priced via Unit Add-ons, Stage, Lighting and the <b>Backline Price Table</b> (shared keys with musician riders).</p>
             </div>
             <div className="mt-1 text-xs text-gray-500">{title.length}/80</div>
@@ -1069,6 +1083,7 @@ export default function AddServiceModalSoundService({
     const details: any = {
       short_summary: data.short_summary,
       tags: data.tags,
+      base_location: (data as any).base_location || null,
       coverage_areas: data.coverage_areas,
       travel: {
         policy: data.travel_fee_policy,

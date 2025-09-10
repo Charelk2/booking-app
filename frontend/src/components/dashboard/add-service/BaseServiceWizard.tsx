@@ -171,6 +171,12 @@ export default function BaseServiceWizard<T extends FieldValues>({
 
   const onSubmit = handleSubmit(async (data: T) => {
     try {
+      // Ensure at least one image (hero or uploaded) to avoid backend 422 on required media
+      const imageCount = mediaFiles.length + (existingMediaUrl ? 1 : 0);
+      if (imageCount === 0) {
+        setMediaError("At least one image is required.");
+        throw new Error('Please add at least one image (hero or gallery).');
+      }
       let mediaUrl: string | null = existingMediaUrl;
       if (mediaFiles[0]) {
         // Upload the first selected image and use the returned URL (avoid base64 in payloads)
