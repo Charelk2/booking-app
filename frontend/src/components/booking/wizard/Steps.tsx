@@ -13,7 +13,8 @@ import clsx from 'clsx';
 import useIsMobile from '@/hooks/useIsMobile';
 import { DateInput, BottomSheet, Button, CollapsibleSection, InfoPopover } from '@/components/ui';
 import LocationInput from '@/components/ui/LocationInput';
-import { EventDetails, useBooking } from '@/contexts/BookingContext';
+import { useBooking } from '@/contexts/BookingContext';
+import type { EventDetails as CtxEventDetails } from '@/contexts/BookingContext';
 import { loadPlaces } from '@/lib/loadPlaces';
 import { LatLng } from '@/lib/geo';
 import eventTypes from '@/data/eventTypes.json';
@@ -26,6 +27,8 @@ import { trackEvent } from '@/lib/analytics';
 
 // Inline DateTimeStep to avoid per-file CSS imports; styles live in wizard.css
 const ReactDatePicker: any = dynamic(() => import('react-datepicker'), { ssr: false });
+
+type EventDetails = CtxEventDetails;
 
 interface DateTimeProps {
   control: Control<EventDetails>;
@@ -406,7 +409,9 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                     control={control}
                     render={({ field }) => {
                       (locationNameSetterRef as any).current = field.onChange;
-                      return null;
+                      return (
+                        <input type="hidden" name={field.name} value={field.value || ''} onChange={field.onChange} />
+                      );
                     }}
                   />
                   <Controller
@@ -445,7 +450,9 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                 control={control}
                 render={({ field }) => {
                   (locationNameSetterRef as any).current = field.onChange;
-                  return null;
+                  return (
+                    <input type="hidden" name={field.name} value={field.value || ''} onChange={field.onChange} />
+                  );
                 }}
               />
               <Controller
@@ -680,11 +687,23 @@ export function SoundStep({
   const firstRadioRef = useRef<HTMLInputElement>(null);
 
   const { details, setDetails, serviceId: ctxServiceId } = useBooking();
+  const d = details as any;
   const [loadingSuppliers, setLoadingSuppliers] = useState(false);
   const [suppliers, setSuppliers] = useState<any[]>([]);
 
   // Helpers
-  const set = (patch: Partial<EventDetails>) => setDetails({ ...details, ...patch });
+  const set = (
+    patch: Partial<
+      EventDetails & {
+        stageRequired?: boolean;
+        stageSize?: 'S' | 'M' | 'L';
+        lightingEvening?: boolean;
+        backlineRequired?: boolean;
+        providedSoundEstimate?: number;
+        soundSupplierServiceId?: number;
+      }
+    >,
+  ) => setDetails({ ...(details as any), ...(patch as any) });
 
   // Ensure a default soundMode based on service config (one-time)
   useEffect(() => {
@@ -724,7 +743,7 @@ export function SoundStep({
       setLoadingSuppliers(false);
       return;
     }
-    if (details.sound !== 'yes' || details.soundMode !== 'supplier') {
+    if (details.sound !== 'yes' || d.soundMode !== 'supplier') {
       setSuppliers([]);
       setLoadingSuppliers(false);
       return;
@@ -785,14 +804,14 @@ export function SoundStep({
         }
 
         // Build rider spec (from earlier steps + this step)
-        const guestCount = parseInt(details?.guests || '0', 10) || undefined;
+        const guestCount = parseInt(d?.guests || '0', 10) || undefined;
         const rider_spec = {
           guest_count: guestCount,
-          venue_type: details.venueType,
-          stage_required: !!details.stageRequired,
-          stage_size: details.stageRequired ? details.stageSize || 'S' : null,
-          lighting_evening: !!details.lightingEvening,
-          backline_required: !!details.backlineRequired,
+          venue_type: d.venueType,
+          stage_required: !!d.stageRequired,
+          stage_size: d.stageRequired ? d.stageSize || 'S' : null,
+          lighting_evening: !!d.lightingEvening,
+          backline_required: !!d.backlineRequired,
         };
 
         let cards: any[] = [];
@@ -805,9 +824,9 @@ export function SoundStep({
               guest_count: guestCount,
               candidates: candidates.map((c) => ({ service_id: c.service_id, distance_km: c.distance_km })),
               preferred_ids: preferredIds,
-              managed_by_artist: details.soundMode === 'managed_by_artist',
+              managed_by_artist: d.soundMode === 'managed_by_artist',
               artist_managed_markup_percent: 0,
-              outdoor: details.venueType === 'outdoor',
+              outdoor: d.venueType === 'outdoor',
             }),
           }).then((r) => r.json());
 
@@ -837,7 +856,7 @@ export function SoundStep({
         // If "provided_by_artist", try resolve a tier estimate if available
         try {
           const tiers = sp?.provided_price_tiers as Array<{ min?: number; max?: number; price: number }> | undefined;
-          if (tiers && details.soundMode === 'provided_by_artist' && guestCount) {
+          if (tiers && d.soundMode === 'provided_by_artist' && guestCount) {
             const sel =
               tiers.find(
                 (t) =>
@@ -845,7 +864,7 @@ export function SoundStep({
                   (t.max == null || guestCount <= Number(t.max)),
               ) || tiers[tiers.length - 1];
             const price = sel?.price != null ? Number(sel.price) : undefined;
-            if (price != null && details.providedSoundEstimate !== price) {
+            if (price != null && d.providedSoundEstimate !== price) {
               set({ providedSoundEstimate: price });
             }
           }
@@ -863,13 +882,13 @@ export function SoundStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     details.sound,
-    details.soundMode,
-    details.guests,
-    details.venueType,
-    details.stageRequired,
-    details.stageSize,
-    details.lightingEvening,
-    details.backlineRequired,
+    (d as any).soundMode,
+    (d as any).guests,
+    (d as any).venueType,
+    (d as any).stageRequired,
+    (d as any).stageSize,
+    (d as any).lightingEvening,
+    (d as any).backlineRequired,
     eventLocation,
     serviceId,
     ctxServiceId,
@@ -1003,7 +1022,7 @@ export function SoundStep({
                   onClick={() => set({ soundMode: o.v as any })}
                   className={clsx(
                     'rounded-full border px-3 py-1 text-sm',
-                    details.soundMode === o.v
+                    (d as any).soundMode === o.v
                       ? 'border-black bg-black/5'
                       : 'border-black/20 hover:bg-black/[0.04]',
                   )}
@@ -1013,7 +1032,7 @@ export function SoundStep({
               ))}
             </div>
             <p className="help-text mt-1">
-              We’ll use your guest count ({details.guests || '—'}) and venue type ({details.venueType || '—'}) to size the PA.
+              We’ll use your guest count ({(d as any).guests || '—'}) and venue type ({(d as any).venueType || '—'}) to size the PA.
             </p>
           </div>
 
@@ -1025,11 +1044,11 @@ export function SoundStep({
                 <span className="text-sm font-medium">Stage required?</span>
                 <input
                   type="checkbox"
-                  checked={!!details.stageRequired}
+                  checked={!!(d as any).stageRequired}
                   onChange={(e) => set({ stageRequired: e.target.checked })}
                 />
               </div>
-              {details.stageRequired && (
+              {(d as any).stageRequired && (
                 <div className="mt-2">
                   <label className="block text-xs font-medium mb-1">Stage size</label>
                   <div className="flex gap-2">
@@ -1040,7 +1059,7 @@ export function SoundStep({
                         onClick={() => set({ stageSize: s })}
                         className={clsx(
                           'rounded-full border px-2 py-1 text-xs',
-                          details.stageSize === s ? 'border-black bg-black/5' : 'border-black/20 hover:bg-black/[0.04]',
+                          (d as any).stageSize === s ? 'border-black bg-black/5' : 'border-black/20 hover:bg-black/[0.04]',
                         )}
                       >
                         {s}
@@ -1058,7 +1077,7 @@ export function SoundStep({
                 <span className="text-sm font-medium">Evening lighting?</span>
                 <input
                   type="checkbox"
-                  checked={!!details.lightingEvening}
+                  checked={!!(d as any).lightingEvening}
                   onChange={(e) => set({ lightingEvening: e.target.checked })}
                 />
               </div>
@@ -1073,7 +1092,7 @@ export function SoundStep({
                 <span className="text-sm font-medium">Backline required?</span>
                 <input
                   type="checkbox"
-                  checked={!!details.backlineRequired}
+                  checked={!!(d as any).backlineRequired}
                   onChange={(e) => set({ backlineRequired: e.target.checked })}
                 />
               </div>
@@ -1084,27 +1103,27 @@ export function SoundStep({
           </div>
 
           {/* Mode-specific helper text */}
-          {details.soundMode === 'provided_by_artist' && (
+          {(d as any).soundMode === 'provided_by_artist' && (
             <div className="mt-2 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
               Sound provided by the artist.{' '}
-              {details.providedSoundEstimate != null
-                ? `Est. ${formatCurrency(details.providedSoundEstimate)} (based on audience tier).`
+              {(d as any).providedSoundEstimate != null
+                ? `Est. ${formatCurrency((d as any).providedSoundEstimate)} (based on audience tier).`
                 : 'Price confirmed on acceptance.'}
             </div>
           )}
-          {details.soundMode === 'managed_by_artist' && (
+          {(d as any).soundMode === 'managed_by_artist' && (
             <div className="mt-2 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
               Sound managed by the artist. We’ll confirm a firm price with the top supplier and apply the artist’s markup policy.
             </div>
           )}
-          {details.soundMode === 'client_provided' && (
+          {(d as any).soundMode === 'client_provided' && (
             <div className="mt-2 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
               You’ll provide sound (PA, mics, console, engineer). The artist will share a tech rider after acceptance.
             </div>
           )}
 
           {/* Supplier card (supplier mode) */}
-          {details.soundMode === 'supplier' && (
+          {(d as any).soundMode === 'supplier' && (
             <>
               {loadingSuppliers && <p className="text-sm text-neutral-600">Loading preferred suppliers…</p>}
 
@@ -1244,6 +1263,7 @@ export function ReviewStep(props: {
   } = props;
 
   const { details } = useBooking();
+  const d = details as any;
 
   const baseFee = Number(baseServicePrice) || 0;
   const travelCost = Number(travelResult?.totalCost) || 0;
@@ -1254,9 +1274,9 @@ export function ReviewStep(props: {
   const isProcessing = submitting || isLoadingReviewData;
 
   // Tiny sound-context summary
-  const tinyStage = details?.stageRequired ? (details.stageSize || 'S') : 'no';
-  const tinyBackline = details?.backlineRequired ? 'yes' : 'no';
-  const tinyLighting = details?.lightingEvening ? 'yes' : 'no';
+  const tinyStage = d?.stageRequired ? (d.stageSize || 'S') : 'no';
+  const tinyBackline = d?.backlineRequired ? 'yes' : 'no';
+  const tinyLighting = d?.lightingEvening ? 'yes' : 'no';
   const tinySummary = `Stage: ${tinyStage} · Backline: ${tinyBackline} · Lighting: ${tinyLighting}`;
 
   const getTravelPopoverContent = () => {
@@ -1394,4 +1414,3 @@ export function ReviewStep(props: {
     </CollapsibleSection>
   );
 }
-
