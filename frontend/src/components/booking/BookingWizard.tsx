@@ -54,6 +54,14 @@ type EventDetails = {
   sound?: 'yes' | 'no';
   soundMode?: 'supplier' | 'provided_by_artist' | 'managed_by_artist' | 'client_provided' | 'none';
   soundSupplierServiceId?: number;
+    // NEW: sound context used by SoundStep + Review summary
+  stageRequired?: boolean;
+  stageSize?: 'S' | 'M' | 'L';
+  lightingEvening?: boolean;
+  backlineRequired?: boolean;
+
+  // Optional helper for provided-by-artist estimate
+  providedSoundEstimate?: number;
   notes?: string;
   attachment_url?: string;
 };
@@ -384,6 +392,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           distance_km: directDistanceKm,
           service_id: serviceId,
           event_city: details.location,
+          // Pass sound context for correct sizing/pricing
+          guest_count: parseInt((details as any).guests || '0', 10) || undefined,
+          venue_type: (details as any).venueType,
+          stage_required: !!(details as any).stageRequired,
+          stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+          lighting_evening: !!(details as any).lightingEvening,
+          backline_required: !!(details as any).backlineRequired,
         });
         setCalculatedPrice(Number(quote.total));
         // Ensure sound cost is numeric to avoid NaN totals downstream
@@ -547,6 +562,18 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         provided_sound_estimate: (details as any).providedSoundEstimate,
         managed_by_artist_markup_percent: undefined,
       },
+      // Normalized sound context for backend
+      sound_context: {
+        sound_required: vals.sound === 'yes',
+        mode: (details as any).soundMode || 'none',
+        guest_count: parseInt((details as any).guests || '0', 10) || undefined,
+        venue_type: (details as any).venueType,
+        stage_required: !!(details as any).stageRequired,
+        stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+        lighting_evening: !!(details as any).lightingEvening,
+        backline_required: !!(details as any).backlineRequired,
+        selected_sound_service_id: (details as any).soundSupplierServiceId,
+      },
       service_provider_id: 0
     };
     if (!navigator.onLine) {
@@ -594,9 +621,24 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_cost: travelResult.totalCost,
       travel_breakdown: {
         ...travelResult.breakdown,
+        venue_name: vals.locationName,
         sound_required: vals.sound === 'yes',
+        sound_mode: (details as any).soundMode,
         selected_sound_service_id: (details as any).soundSupplierServiceId,
         event_city: details.location,
+        provided_sound_estimate: (details as any).providedSoundEstimate,
+      },
+      // Normalized sound context for backend
+      sound_context: {
+        sound_required: vals.sound === 'yes',
+        mode: (details as any).soundMode || 'none',
+        guest_count: parseInt((details as any).guests || '0', 10) || undefined,
+        venue_type: (details as any).venueType,
+        stage_required: !!(details as any).stageRequired,
+        stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+        lighting_evening: !!(details as any).lightingEvening,
+        backline_required: !!(details as any).backlineRequired,
+        selected_sound_service_id: (details as any).soundSupplierServiceId,
       },
       service_provider_id: 0
     };

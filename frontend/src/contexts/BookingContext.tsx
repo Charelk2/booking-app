@@ -18,6 +18,11 @@ export interface EventDetails {
   soundMode?: 'supplier' | 'provided_by_artist' | 'managed_by_artist' | 'client_provided' | 'none';
   /** Optional selection of a preferred sound supplier service ID */
   soundSupplierServiceId?: number;
+  /** Additional sound context toggles used in Sound step and review */
+  stageRequired?: boolean;
+  stageSize?: 'S' | 'M' | 'L';
+  lightingEvening?: boolean;
+  backlineRequired?: boolean;
   /** Estimated price when provided_by_artist path is selected */
   providedSoundEstimate?: number;
   notes?: string;
@@ -69,6 +74,10 @@ const initialDetails: EventDetails = {
   sound: 'yes',
   soundMode: 'supplier',
   soundSupplierServiceId: undefined,
+  stageRequired: false,
+  stageSize: undefined,
+  lightingEvening: false,
+  backlineRequired: false,
   attachment_url: '',
 };
 
