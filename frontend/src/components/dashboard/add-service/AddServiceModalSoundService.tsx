@@ -8,51 +8,71 @@ import BaseServiceWizard, { type WizardStep } from "./BaseServiceWizard";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 
 // ────────────────────────────────────────────────────────────────────────────────
+// Shared Backline Catalog (MIRRORS MUSICIAN TECH RIDER KEYS)
+// These keys MUST match the Musician module so pricing can be joined seamlessly.
+export type BacklineKey =
+  | "drums_full"
+  | "drum_shells"
+  | "guitar_amp"
+  | "bass_amp"
+  | "keyboard_amp"
+  | "keyboard_stand"
+  | "piano_digital_88"
+  | "piano_acoustic_upright"
+  | "piano_acoustic_grand"
+  | "dj_booth";
+
+const BACKLINE_CATALOG: { key: BacklineKey; label: string }[] = [
+  { key: "drums_full", label: "Full Drum Kit (5-pc + cymbals)" },
+  { key: "drum_shells", label: "Drum Shells (no cymbals)" },
+  { key: "guitar_amp", label: "Guitar Amp" },
+  { key: "bass_amp", label: "Bass Amp" },
+  { key: "keyboard_amp", label: "Keyboard Amp" },
+  { key: "keyboard_stand", label: "Keyboard Stand (X/Z)" },
+  { key: "piano_digital_88", label: "Digital Piano (88-key)" },
+  { key: "piano_acoustic_upright", label: "Acoustic Piano (Upright)" },
+  { key: "piano_acoustic_grand", label: "Acoustic Piano (Grand)" },
+  { key: "dj_booth", label: "DJ Booth / Table" },
+];
+
+const BACKLINE_LABEL = Object.fromEntries(BACKLINE_CATALOG.map(i => [i.key, i.label]));
+
+// ────────────────────────────────────────────────────────────────────────────────
 // New pricing model (Packages by Audience Tier + Add-ons) with Structured Inclusions
-// • No single list price
-// • Each audience band: Indoor & Outdoor base prices + INCLUDED FEATURES (counts/tiers)
-// • Add-ons: Stage S/M/L, Lighting (basic/advanced with upgrade logic), Backline presets, Custom add-ons
-// • Unit add-ons (per extra): vocal mic, speech mic, monitor mix, IEM pack, DI box, lighting tech
+// • Audience packages: indoor/outdoor base + INCLUDED counts/tiers
+// • Add-ons: Stage S/M/L, Lighting (basic/advanced (+tech)), Unit add-ons (per extra), Backline prices (by BacklineKey), Custom add-ons
 // ────────────────────────────────────────────────────────────────────────────────
 
-// Logistics & travel
 type TravelPolicy = "flat" | "per_km" | "included_radius";
 type PowerPhase = "single" | "three" | "";
 
-// Audience bands used to build packages
 export type AudienceBandId = "0_100" | "101_200" | "201_500" | "501_1000" | "1000_plus";
-
 type LightingTier = "none" | "basic" | "advanced";
 
 interface IncludedFeatures {
-  pa: boolean;                 // always true, PA sized for band label
-  vocal_mics: number;          // e.g., 2
-  speech_mics: number;         // e.g., 2
-  console_basic: boolean;      // small console + cabling
-  engineer_count: number;      // 1..n
-  lighting: LightingTier;      // none/basic/advanced
-  monitors: number;            // number of mixes/wedges included
-  di_boxes: number;            // included DI boxes
-  stands_and_cabling: boolean; // usually true
+  pa: true;                 // always true; sized automatically by band
+  vocal_mics: number;
+  speech_mics: number;
+  console_basic: boolean;
+  engineer_count: number;
+  lighting: LightingTier;
+  monitors: number;
+  di_boxes: number;
+  stands_and_cabling: boolean;
 }
 
 interface AudiencePackage {
   id: AudienceBandId;
-  label: string; // e.g., "0–100"
+  label: string;
   active: boolean;
   indoor_base_zar: number | "";
   outdoor_base_zar: number | "";
   included: IncludedFeatures;
 }
 
-// Structured add-ons
 type StageSize = "S" | "M" | "L";
 interface StagePrices { S: number | ""; M: number | ""; L: number | "" }
-
 interface LightingPrices { basic: number | ""; advanced: number | "" }
-
-interface BacklineItem { name: string; price_zar: number | ""; enabled: boolean }
-interface CustomAddon { name: string; price_zar: number | "" }
 
 interface UnitAddonPrices {
   extra_vocal_mic_zar: number | "";
@@ -64,7 +84,12 @@ interface UnitAddonPrices {
   advanced_includes_tech: boolean;
 }
 
-// Backwards-compat placeholders (not used in UI, preserved if editing an old record)
+// NEW: Backline price map keyed by BacklineKey, with enable toggle
+type BacklinePriceMap = Record<BacklineKey, { enabled: boolean; price_zar: number | "" }>;
+
+interface CustomAddon { name: string; price_zar: number | "" }
+
+// Backwards-compat placeholders (preserved if editing an old record)
 interface PackageAddonLegacy { name: string; price: number | "" }
 interface ServicePackageLegacy {
   name: string;
@@ -77,12 +102,12 @@ interface ServicePackageLegacy {
 
 interface SoundServiceForm {
   // Basics
-  title: string;         // Service Name (public)
-  short_summary: string; // <= 120 chars
+  title: string;
+  short_summary: string;
   tags: string[];
 
   // Coverage & Logistics
-  coverage_areas: string[]; // city codes
+  coverage_areas: string[];
   travel_fee_policy: TravelPolicy;
   travel_flat_amount?: number | "";
   travel_per_km_rate?: number | "";
@@ -95,11 +120,11 @@ interface SoundServiceForm {
   power_phase: PowerPhase;
   vehicle_access_notes: string;
 
-  // Capabilities & Inventory (for matching/marketing)
+  // Capabilities & Inventory
   console_brands: string[];
   console_models: string;
   pa_types: ("line_array" | "point_source")[];
-  microphones: string; // freeform types + counts (marketing)
+  microphones: string;
   di_boxes: number | "";
   monitoring_wedges: number | "";
   monitoring_iem_support: boolean;
@@ -107,12 +132,12 @@ interface SoundServiceForm {
   backline_notes: string;
 
   // Pricing model
-  audience_packages: AudiencePackage[]; // per band base + structured inclusions
-  stage_prices: StagePrices;            // S/M/L
-  lighting_prices: LightingPrices;      // basic/advanced
-  addon_unit_prices: UnitAddonPrices;   // per extra unit, tech day rate
-  backline_menu: BacklineItem[];        // preset menu with enable+price
-  custom_addons: CustomAddon[];         // arbitrary add-ons
+  audience_packages: AudiencePackage[];
+  stage_prices: StagePrices;
+  lighting_prices: LightingPrices;
+  addon_unit_prices: UnitAddonPrices;
+  backline_prices: BacklinePriceMap;   // <— replaces freeform backline_menu
+  custom_addons: CustomAddon[];
 
   // SLAs & Availability
   response_sla_hours: number | "";
@@ -121,7 +146,7 @@ interface SoundServiceForm {
   default_response_timeout_hours: number | "";
   auto_accept_threshold: boolean;
 
-  // Legacy data (not shown in UI but preserved on edit)
+  // Legacy (hidden/preserved)
   packages_legacy?: ServicePackageLegacy[];
 }
 
@@ -139,7 +164,7 @@ const AUDIENCE_BANDS: { id: AudienceBandId; label: string }[] = [
   { id: "1000_plus", label: "1000+" },
 ];
 
-const DEFAULT_STAGE_PRICES: StagePrices = { S: 100, M: 200, L: 300 }; // sample defaults
+const DEFAULT_STAGE_PRICES: StagePrices = { S: 100, M: 200, L: 300 };
 const DEFAULT_LIGHTING_PRICES: LightingPrices = { basic: 400, advanced: 800 };
 const DEFAULT_UNIT_ADDONS: UnitAddonPrices = {
   extra_vocal_mic_zar: 0,
@@ -150,11 +175,6 @@ const DEFAULT_UNIT_ADDONS: UnitAddonPrices = {
   lighting_tech_day_rate_zar: 0,
   advanced_includes_tech: true,
 };
-const DEFAULT_BACKLINE_MENU: BacklineItem[] = [
-  { name: "Full drum kit", price_zar: 1000, enabled: false },
-  { name: "Guitar amp", price_zar: 1000, enabled: false },
-  { name: "Piano/Keyboard", price_zar: 2000, enabled: false },
-];
 
 function defaultIncludedFeatures(): IncludedFeatures {
   return {
@@ -179,6 +199,19 @@ function mkDefaultAudiencePackages(): AudiencePackage[] {
     outdoor_base_zar: id === "0_100" ? 3500 : "",
     included: defaultIncludedFeatures(),
   }));
+}
+
+function mkDefaultBacklinePrices(): BacklinePriceMap {
+  const obj = {} as BacklinePriceMap;
+  BACKLINE_CATALOG.forEach((i) => {
+    obj[i.key] = { enabled: false, price_zar: "" };
+  });
+  // Example sensible seeds (providers can change):
+  obj.drums_full.price_zar = 1000;
+  obj.guitar_amp.price_zar = 1000;
+  obj.bass_amp.price_zar = 1000;
+  obj.piano_digital_88.price_zar = 2000;
+  return obj;
 }
 
 // ─── Defaults ──────────────────────────────────────────────────────────────────
@@ -207,20 +240,17 @@ const DEFAULTS: SoundServiceForm = {
   monitoring_iem_support: false,
   monitoring_iem_brands: [],
   backline_notes: "",
-  // Pricing model
   audience_packages: mkDefaultAudiencePackages(),
   stage_prices: DEFAULT_STAGE_PRICES,
   lighting_prices: DEFAULT_LIGHTING_PRICES,
   addon_unit_prices: DEFAULT_UNIT_ADDONS,
-  backline_menu: DEFAULT_BACKLINE_MENU,
+  backline_prices: mkDefaultBacklinePrices(), // <—
   custom_addons: [],
-  // SLAs
   response_sla_hours: 24,
   min_notice_days: 3,
   availability_sync_url: "",
   default_response_timeout_hours: 48,
   auto_accept_threshold: false,
-  // legacy hidden
   packages_legacy: [],
 };
 
@@ -245,7 +275,6 @@ export default function AddServiceModalSoundService({
   const defaults: SoundServiceForm = useMemo(() => {
     if (!service) return DEFAULTS;
 
-    // Attempt to hydrate from existing service shape
     const det: any = (service.details as any) || {};
     const logistics = det.logistics || {};
     const capabilities = det.capabilities || {};
@@ -256,7 +285,7 @@ export default function AddServiceModalSoundService({
     const coverageAreas = det.coverage_areas || det.coverage?.areas || [];
     const sla = det.sla || {};
 
-    // New fields (with fallbacks)
+    // Audience packages
     const audience_packages: AudiencePackage[] = Array.isArray(det.audience_packages)
       ? det.audience_packages.map((p: any) => ({
           id: p.id,
@@ -264,25 +293,51 @@ export default function AddServiceModalSoundService({
           active: p.active ?? true,
           indoor_base_zar: p.indoor_base_zar ?? "",
           outdoor_base_zar: p.outdoor_base_zar ?? "",
-          included: {
-            ...defaultIncludedFeatures(),
-            ...(p.included || {}),
-          } as IncludedFeatures,
+          included: { ...defaultIncludedFeatures(), ...(p.included || {}) } as IncludedFeatures,
         }))
       : mkDefaultAudiencePackages();
 
     const stage_prices: StagePrices = det.stage_prices || DEFAULT_STAGE_PRICES;
     const lighting_prices: LightingPrices = det.lighting_prices || DEFAULT_LIGHTING_PRICES;
-    const addon_unit_prices: UnitAddonPrices = {
-      ...DEFAULT_UNIT_ADDONS,
-      ...(det.addon_unit_prices || {}),
-    };
+    const addon_unit_prices: UnitAddonPrices = { ...DEFAULT_UNIT_ADDONS, ...(det.addon_unit_prices || {}) };
 
-    const backline_menu: BacklineItem[] = Array.isArray(det.backline_menu)
-      ? det.backline_menu
-      : DEFAULT_BACKLINE_MENU;
-
-    const custom_addons: CustomAddon[] = Array.isArray(det.custom_addons) ? det.custom_addons : [];
+    // Backline prices: prefer new shape; else try to map from legacy backline_menu by name best-effort
+    let backline_prices: BacklinePriceMap = mkDefaultBacklinePrices();
+    if (det.backline_prices && typeof det.backline_prices === "object") {
+      // shape: Record<BacklineKey, number|null>
+      for (const k in backline_prices) {
+        const key = k as BacklineKey;
+        const val = det.backline_prices[key];
+        if (val === null || val === undefined || val === "") {
+          backline_prices[key] = { enabled: false, price_zar: "" };
+        } else {
+          backline_prices[key] = { enabled: true, price_zar: Number(val) };
+        }
+      }
+    } else if (Array.isArray(det.backline_menu)) {
+      // legacy: try fuzzy map
+      const legacy: { name: string; price_zar: number; enabled?: boolean }[] = det.backline_menu;
+      const tryMatch = (name: string): BacklineKey | null => {
+        const n = name.toLowerCase();
+        if (n.includes("drum") && n.includes("full")) return "drums_full";
+        if (n.includes("drum")) return "drum_shells";
+        if (n.includes("guitar") && n.includes("amp")) return "guitar_amp";
+        if (n.includes("bass") && n.includes("amp")) return "bass_amp";
+        if (n.includes("keyboard") && n.includes("amp")) return "keyboard_amp";
+        if (n.includes("keyboard") && n.includes("stand")) return "keyboard_stand";
+        if (n.includes("digital") && n.includes("piano")) return "piano_digital_88";
+        if (n.includes("upright") && n.includes("piano")) return "piano_acoustic_upright";
+        if (n.includes("grand") && n.includes("piano")) return "piano_acoustic_grand";
+        if (n.includes("dj")) return "dj_booth";
+        return null;
+      };
+      const mapped = mkDefaultBacklinePrices();
+      legacy.forEach((item) => {
+        const key = tryMatch(item.name);
+        if (key) mapped[key] = { enabled: !!(item.enabled ?? true), price_zar: item.price_zar ?? "" };
+      });
+      backline_prices = mapped;
+    }
 
     // Backwards compatibility: keep legacy packages if present (not shown in UI)
     const packages_legacy: ServicePackageLegacy[] = Array.isArray(det.packages)
@@ -303,14 +358,11 @@ export default function AddServiceModalSoundService({
       title: service.title,
       short_summary: (service as any)?.short_summary || det.short_summary || det.shortSummary || "",
       tags: det.tags || [],
-      // Coverage & travel
       coverage_areas: coverageAreas || [],
       travel_fee_policy: (travel.policy as TravelPolicy) || DEFAULTS.travel_fee_policy,
       travel_flat_amount: travel.flat_amount ?? (travel.flatAmount as any) ?? DEFAULTS.travel_flat_amount,
       travel_per_km_rate: travel.per_km_rate ?? (travel.perKmRate as any) ?? DEFAULTS.travel_per_km_rate,
-      included_radius_km:
-        travel.included_radius_km ?? (travel.includedRadiusKm as any) ?? DEFAULTS.included_radius_km,
-      // Logistics
+      included_radius_km: travel.included_radius_km ?? (travel.includedRadiusKm as any) ?? DEFAULTS.included_radius_km,
       setup_minutes: logistics.setup_minutes ?? DEFAULTS.setup_minutes,
       teardown_minutes: logistics.teardown_minutes ?? DEFAULTS.teardown_minutes,
       crew_min: logistics.crew_min ?? DEFAULTS.crew_min,
@@ -318,7 +370,6 @@ export default function AddServiceModalSoundService({
       power_amps: logistics.power_amps ?? DEFAULTS.power_amps,
       power_phase: (logistics.power_phase as PowerPhase) ?? DEFAULTS.power_phase,
       vehicle_access_notes: logistics.vehicle_access_notes || "",
-      // Capabilities
       console_brands: consoles.brands || [],
       console_models: consoles.models || "",
       pa_types: (pa.types as any) || [],
@@ -328,20 +379,17 @@ export default function AddServiceModalSoundService({
       monitoring_iem_support: !!monitoring.iem_support,
       monitoring_iem_brands: monitoring.brands || [],
       backline_notes: (capabilities.backline?.notes as string) || "",
-      // Pricing model
       audience_packages,
       stage_prices,
       lighting_prices,
       addon_unit_prices,
-      backline_menu,
-      custom_addons,
-      // SLAs
+      backline_prices, // <—
+      custom_addons: Array.isArray(det.custom_addons) ? det.custom_addons : [],
       response_sla_hours: sla.response_sla_hours ?? DEFAULTS.response_sla_hours,
       min_notice_days: sla.min_notice_days ?? DEFAULTS.min_notice_days,
       availability_sync_url: sla.availability_sync_url || "",
       default_response_timeout_hours: sla.default_response_timeout_hours ?? DEFAULTS.default_response_timeout_hours,
       auto_accept_threshold: !!sla.auto_accept_threshold,
-      // legacy
       packages_legacy,
     } as SoundServiceForm;
   }, [service]);
@@ -358,9 +406,7 @@ export default function AddServiceModalSoundService({
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Basics</h2>
             <div className="rounded-md border p-3 text-sm text-gray-700">
-              <p>
-                Service Type: <span className="font-medium">Sound</span> (locked)
-              </p>
+              <p>Service Type: <span className="font-medium">Sound</span> (locked)</p>
             </div>
             <TextInput
               label="Service Name (public)"
@@ -404,8 +450,7 @@ export default function AddServiceModalSoundService({
                     checked={(form.watch("tags") || []).includes(t)}
                     onChange={() => {
                       const set = new Set<string>((form.watch("tags") || []) as string[]);
-                      if (set.has(t)) set.delete(t);
-                      else set.add(t);
+                      if (set.has(t)) set.delete(t); else set.add(t);
                       form.setValue("tags", Array.from(set), { shouldDirty: true });
                     }}
                     label={t}
@@ -414,10 +459,7 @@ export default function AddServiceModalSoundService({
               </div>
             </div>
             <div className="rounded-md border p-3 text-xs text-gray-600">
-              <p>
-                Configure pricing per audience band (indoor/outdoor). Set what’s <b>included</b> (mics, engineer, lighting tier),
-                then use <b>Unit Add-ons</b> and <b>Stage/Backline</b> for extras. Clients only choose indoor/outdoor and any add-ons.
-              </p>
+              <p>Configure per-audience base prices + what’s <b>included</b> (mics, engineer, lighting). Extras are priced via Unit Add-ons, Stage, Lighting and the <b>Backline Price Table</b> (shared keys with musician riders).</p>
             </div>
             <div className="mt-1 text-xs text-gray-500">{title.length}/80</div>
           </div>
@@ -430,28 +472,16 @@ export default function AddServiceModalSoundService({
         const count = mediaFiles.length + (existingMediaUrl ? 1 : 0);
         if (mediaError) return false;
         if (count === 0) return false;
-        if (count > 7) return false; // 1 hero + up to 6 gallery
+        if (count > 7) return false;
         return true;
       },
       render: ({ onFileChange, removeFile, mediaError, thumbnails, existingMediaUrl, removeExistingMedia }) => (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Hero + Gallery</h2>
           <p className="text-sm text-gray-600">First image is the hero. Up to 7 total (1 hero + 6 gallery).</p>
-          <label
-            htmlFor="media-upload"
-            className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center"
-          >
+          <label htmlFor="media-upload" className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center">
             <p className="text-sm">Media: Drag images here or click to upload</p>
-            <input
-              id="media-upload"
-              aria-label="Media"
-              data-testid="media-input"
-              type="file"
-              accept="image/*"
-              multiple
-              className="sr-only"
-              onChange={(e) => onFileChange(e.target.files)}
-            />
+            <input id="media-upload" aria-label="Media" data-testid="media-input" type="file" accept="image/*" multiple className="sr-only" onChange={(e) => onFileChange(e.target.files)} />
           </label>
           {mediaError && <p className="mt-2 text-sm text-red-600">{mediaError}</p>}
           <div className="mt-2 flex flex-wrap gap-2">
@@ -481,9 +511,7 @@ export default function AddServiceModalSoundService({
         const pkgs: AudiencePackage[] = form.watch("audience_packages") || [];
         const setPkgs = (next: AudiencePackage[]) => form.setValue("audience_packages", next, { shouldDirty: true });
         const update = (i: number, patch: Partial<AudiencePackage>) => {
-          const next = [...pkgs];
-          next[i] = { ...next[i], ...patch } as AudiencePackage;
-          setPkgs(next);
+          const next = [...pkgs]; next[i] = { ...next[i], ...patch } as AudiencePackage; setPkgs(next);
         };
         const updateIncluded = (i: number, patch: Partial<IncludedFeatures>) => {
           const next = [...pkgs];
@@ -507,53 +535,23 @@ export default function AddServiceModalSoundService({
                   </div>
 
                   <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <TextInput
-                      label={`Indoor base (${DEFAULT_CURRENCY})`}
-                      type="number"
-                      value={String(p.indoor_base_zar ?? "")}
-                      onChange={(e) => update(i, { indoor_base_zar: e.target.value === "" ? "" : Number(e.target.value) })}
-                    />
-                    <TextInput
-                      label={`Outdoor base (${DEFAULT_CURRENCY})`}
-                      type="number"
-                      value={String(p.outdoor_base_zar ?? "")}
-                      onChange={(e) => update(i, { outdoor_base_zar: e.target.value === "" ? "" : Number(e.target.value) })}
-                    />
+                    <TextInput label={`Indoor base (${DEFAULT_CURRENCY})`} type="number" value={String(p.indoor_base_zar ?? "")} onChange={(e) => update(i, { indoor_base_zar: e.target.value === "" ? "" : Number(e.target.value) })} />
+                    <TextInput label={`Outdoor base (${DEFAULT_CURRENCY})`} type="number" value={String(p.outdoor_base_zar ?? "")} onChange={(e) => update(i, { outdoor_base_zar: e.target.value === "" ? "" : Number(e.target.value) })} />
                     <div className="flex items-center gap-2">
                       <input type="checkbox" checked readOnly />
                       <span className="text-sm">PA sized for {p.label} guests</span>
                     </div>
                   </div>
 
-                  {/* Included Features */}
                   <div className="mt-3 rounded-md border p-3">
                     <div className="text-sm font-medium">Included Features</div>
                     <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      <TextInput
-                        label="Vocal mics included (qty)"
-                        type="number"
-                        value={String(p.included?.vocal_mics ?? 0)}
-                        onChange={(e) => updateIncluded(i, { vocal_mics: Number(e.target.value || 0) })}
-                      />
-                      <TextInput
-                        label="Speech mics included (qty)"
-                        type="number"
-                        value={String(p.included?.speech_mics ?? 0)}
-                        onChange={(e) => updateIncluded(i, { speech_mics: Number(e.target.value || 0) })}
-                      />
+                      <TextInput label="Vocal mics included (qty)" type="number" value={String(p.included?.vocal_mics ?? 0)} onChange={(e) => updateIncluded(i, { vocal_mics: Number(e.target.value || 0) })} />
+                      <TextInput label="Speech mics included (qty)" type="number" value={String(p.included?.speech_mics ?? 0)} onChange={(e) => updateIncluded(i, { speech_mics: Number(e.target.value || 0) })} />
                       <div className="flex items-end gap-2">
-                        <ToggleSwitch
-                          checked={!!p.included?.console_basic}
-                          onChange={(v) => updateIncluded(i, { console_basic: v })}
-                          label="Basic mixing console + cabling"
-                        />
+                        <ToggleSwitch checked={!!p.included?.console_basic} onChange={(v) => updateIncluded(i, { console_basic: v })} label="Basic mixing console + cabling" />
                       </div>
-                      <TextInput
-                        label="On-site engineer(s)"
-                        type="number"
-                        value={String(p.included?.engineer_count ?? 1)}
-                        onChange={(e) => updateIncluded(i, { engineer_count: Number(e.target.value || 0) })}
-                      />
+                      <TextInput label="On-site engineer(s)" type="number" value={String(p.included?.engineer_count ?? 1)} onChange={(e) => updateIncluded(i, { engineer_count: Number(e.target.value || 0) })} />
                       <div className="sm:col-span-2">
                         <label className="block text-sm font-medium text-gray-700">Lighting included</label>
                         <div className="mt-1 flex flex-wrap gap-2 text-sm">
@@ -569,29 +567,13 @@ export default function AddServiceModalSoundService({
                           ))}
                         </div>
                       </div>
-                      <TextInput
-                        label="Monitor mixes included (qty)"
-                        type="number"
-                        value={String(p.included?.monitors ?? 0)}
-                        onChange={(e) => updateIncluded(i, { monitors: Number(e.target.value || 0) })}
-                      />
-                      <TextInput
-                        label="DI boxes included (qty)"
-                        type="number"
-                        value={String(p.included?.di_boxes ?? 0)}
-                        onChange={(e) => updateIncluded(i, { di_boxes: Number(e.target.value || 0) })}
-                      />
+                      <TextInput label="Monitor mixes included (qty)" type="number" value={String(p.included?.monitors ?? 0)} onChange={(e) => updateIncluded(i, { monitors: Number(e.target.value || 0) })} />
+                      <TextInput label="DI boxes included (qty)" type="number" value={String(p.included?.di_boxes ?? 0)} onChange={(e) => updateIncluded(i, { di_boxes: Number(e.target.value || 0) })} />
                       <div className="flex items-end gap-2">
-                        <ToggleSwitch
-                          checked={p.included?.stands_and_cabling ?? true}
-                          onChange={(v) => updateIncluded(i, { stands_and_cabling: v })}
-                          label="Stands & cabling"
-                        />
+                        <ToggleSwitch checked={p.included?.stands_and_cabling ?? true} onChange={(v) => updateIncluded(i, { stands_and_cabling: v })} label="Stands & cabling" />
                       </div>
                     </div>
-                    <p className="mt-2 text-xs text-gray-500">
-                      Add-ons will only apply to quantities above what’s included here.
-                    </p>
+                    <p className="mt-2 text-xs text-gray-500">Unit add-ons only apply to quantities above what’s included here.</p>
                   </div>
                 </div>
               ))}
@@ -602,13 +584,13 @@ export default function AddServiceModalSoundService({
     },
     {
       label: "Add-ons",
-      fields: ["stage_prices", "lighting_prices", "addon_unit_prices", "backline_menu", "custom_addons"],
+      fields: ["stage_prices", "lighting_prices", "addon_unit_prices", "backline_prices", "custom_addons"],
       render: ({ form }) => {
         // Stage prices
         const stage = form.watch("stage_prices") as StagePrices;
         const setStage = (patch: Partial<StagePrices>) => form.setValue("stage_prices", { ...stage, ...patch }, { shouldDirty: true });
 
-        // Lighting prices (global)
+        // Lighting prices
         const lighting = form.watch("lighting_prices") as LightingPrices;
         const setLighting = (patch: Partial<LightingPrices>) => form.setValue("lighting_prices", { ...lighting, ...patch }, { shouldDirty: true });
 
@@ -616,24 +598,17 @@ export default function AddServiceModalSoundService({
         const unit = form.watch("addon_unit_prices") as UnitAddonPrices;
         const setUnit = (patch: Partial<UnitAddonPrices>) => form.setValue("addon_unit_prices", { ...unit, ...patch }, { shouldDirty: true });
 
-        // Backline menu
-        const backline: BacklineItem[] = form.watch("backline_menu") || [];
-        const setBackline = (next: BacklineItem[]) => form.setValue("backline_menu", next, { shouldDirty: true });
-        const updateBackline = (i: number, patch: Partial<BacklineItem>) => {
-          const next = [...backline];
-          next[i] = { ...next[i], ...patch } as BacklineItem;
-          setBackline(next);
+        // Backline price table
+        const bl: BacklinePriceMap = form.watch("backline_prices");
+        const setBL = (key: BacklineKey, patch: Partial<{ enabled: boolean; price_zar: number | "" }>) => {
+          form.setValue("backline_prices", { ...bl, [key]: { ...bl[key], ...patch } }, { shouldDirty: true });
         };
-        const addBackline = () => setBackline([...(backline || []), { name: "", price_zar: "", enabled: true }]);
-        const removeBackline = (i: number) => setBackline(backline.filter((_, idx) => idx !== i));
 
         // Custom add-ons
         const customs: CustomAddon[] = form.watch("custom_addons") || [];
         const setCustoms = (next: CustomAddon[]) => form.setValue("custom_addons", next, { shouldDirty: true });
         const updateCustom = (i: number, patch: Partial<CustomAddon>) => {
-          const next = [...customs];
-          next[i] = { ...next[i], ...patch } as CustomAddon;
-          setCustoms(next);
+          const next = [...customs]; next[i] = { ...next[i], ...patch } as CustomAddon; setCustoms(next);
         };
         const addCustom = () => setCustoms([...(customs || []), { name: "", price_zar: "" }]);
         const removeCustom = (i: number) => setCustoms(customs.filter((_, idx) => idx !== i));
@@ -646,24 +621,9 @@ export default function AddServiceModalSoundService({
             <div className="rounded-md border p-3">
               <div className="text-sm font-medium">Stage (S / M / L)</div>
               <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <TextInput
-                  label={`Small (${DEFAULT_CURRENCY})`}
-                  type="number"
-                  value={String(stage.S ?? "")}
-                  onChange={(e) => setStage({ S: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-                <TextInput
-                  label={`Medium (${DEFAULT_CURRENCY})`}
-                  type="number"
-                  value={String(stage.M ?? "")}
-                  onChange={(e) => setStage({ M: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-                <TextInput
-                  label={`Large (${DEFAULT_CURRENCY})`}
-                  type="number"
-                  value={String(stage.L ?? "")}
-                  onChange={(e) => setStage({ L: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
+                <TextInput label={`Small (${DEFAULT_CURRENCY})`} type="number" value={String(stage.S ?? "")} onChange={(e) => setStage({ S: e.target.value === "" ? "" : Number(e.target.value) })} />
+                <TextInput label={`Medium (${DEFAULT_CURRENCY})`} type="number" value={String(stage.M ?? "")} onChange={(e) => setStage({ M: e.target.value === "" ? "" : Number(e.target.value) })} />
+                <TextInput label={`Large (${DEFAULT_CURRENCY})`} type="number" value={String(stage.L ?? "")} onChange={(e) => setStage({ L: e.target.value === "" ? "" : Number(e.target.value) })} />
               </div>
             </div>
 
@@ -671,60 +631,12 @@ export default function AddServiceModalSoundService({
             <div className="rounded-md border p-3">
               <div className="text-sm font-medium">Lighting prices (global)</div>
               <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <TextInput
-                  label={`Basic (${DEFAULT_CURRENCY})`}
-                  type="number"
-                  value={String(lighting.basic ?? "")}
-                  onChange={(e) => setLighting({ basic: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-                <TextInput
-                  label={`Advanced (${DEFAULT_CURRENCY})`}
-                  type="number"
-                  value={String(lighting.advanced ?? "")}
-                  onChange={(e) => setLighting({ advanced: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
+                <TextInput label={`Basic (${DEFAULT_CURRENCY})`} type="number" value={String(lighting.basic ?? "")} onChange={(e) => setLighting({ basic: e.target.value === "" ? "" : Number(e.target.value) })} />
+                <TextInput label={`Advanced (${DEFAULT_CURRENCY})`} type="number" value={String(lighting.advanced ?? "")} onChange={(e) => setLighting({ advanced: e.target.value === "" ? "" : Number(e.target.value) })} />
               </div>
               <p className="mt-2 text-xs text-gray-500">
-                If a package includes <b>Advanced</b> lighting, lighting add-ons won’t be shown to clients.
-                If a package includes <b>Basic</b>, clients will see an “Upgrade to Advanced” priced as (Advanced − Basic).
+                If a package includes <b>Advanced</b>, lighting add-ons won’t be shown. If it includes <b>Basic</b>, client sees “Upgrade to Advanced” priced as (Advanced − Basic).
               </p>
-            </div>
-
-            {/* Unit Add-ons */}
-            <div className="rounded-md border p-3">
-              <div className="mb-2 text-sm font-medium">Unit Add-ons (per extra above included)</div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <TextInput
-                  label={`Extra vocal mic (${DEFAULT_CURRENCY})`}
-                  type="number"
-                  value={String(unit.extra_vocal_mic_zar ?? "")}
-                  onChange={(e) => setUnit({ extra_vocal_mic_zar: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-                <TextInput
-                  label={`Extra speech mic (${DEFAULT_CURRENCY})`}
-                  type="number"
-                  value={String(unit.extra_speech_mic_zar ?? "")}
-                  onChange={(e) => setUnit({ extra_speech_mic_zar: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-                <TextInput
-                  label={`Extra monitor mix (${DEFAULT_CURRENCY})`}
-                  type="number"
-                  value={String(unit.extra_monitor_mix_zar ?? "")}
-                  onChange={(e) => setUnit({ extra_monitor_mix_zar: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-                <TextInput
-                  label={`Extra IEM pack (${DEFAULT_CURRENCY})`}
-                  type="number"
-                  value={String(unit.extra_iem_pack_zar ?? "")}
-                  onChange={(e) => setUnit({ extra_iem_pack_zar: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-                <TextInput
-                  label={`Extra DI box (${DEFAULT_CURRENCY})`}
-                  type="number"
-                  value={String(unit.extra_di_box_zar ?? "")}
-                  onChange={(e) => setUnit({ extra_di_box_zar: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-              </div>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <TextInput
                   label={`Lighting tech day rate (${DEFAULT_CURRENCY})`}
@@ -733,51 +645,65 @@ export default function AddServiceModalSoundService({
                   onChange={(e) => setUnit({ lighting_tech_day_rate_zar: e.target.value === "" ? "" : Number(e.target.value) })}
                 />
                 <div className="flex items-end gap-2 sm:col-span-2">
-                  <ToggleSwitch
-                    checked={!!unit.advanced_includes_tech}
-                    onChange={(v) => setUnit({ advanced_includes_tech: v })}
-                    label="Advanced price includes lighting tech"
-                  />
+                  <ToggleSwitch checked={!!unit.advanced_includes_tech} onChange={(v) => setUnit({ advanced_includes_tech: v })} label="Advanced price includes lighting tech" />
                 </div>
               </div>
             </div>
 
-            {/* Backline menu */}
+            {/* Unit Add-ons */}
             <div className="rounded-md border p-3">
-              <div className="mb-2 text-sm font-medium">Backline menu</div>
-              <div className="space-y-2">
-                {(backline || []).map((b, i) => (
-                  <div key={i} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-8">
-                    <div className="sm:col-span-4">
-                      <TextInput label="Name" value={b.name} onChange={(e) => updateBackline(i, { name: e.target.value })} />
-                    </div>
-                    <div className="sm:col-span-3">
-                      <TextInput
-                        label={`Price (${DEFAULT_CURRENCY})`}
-                        type="number"
-                        value={String(b.price_zar ?? "")}
-                        onChange={(e) => updateBackline(i, { price_zar: e.target.value === "" ? "" : Number(e.target.value) })}
-                      />
-                    </div>
-                    <div className="sm:col-span-1">
-                      <div className="flex items-center gap-2">
-                        <ToggleSwitch checked={!!b.enabled} onChange={(v) => updateBackline(i, { enabled: v })} />
-                        <span className="text-xs text-gray-600">Enabled</span>
-                      </div>
-                    </div>
-                    <div className="sm:col-span-8 -mt-1 flex justify-end">
-                      <button type="button" className="text-xs text-red-600" onClick={() => removeBackline(i)}>
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="mb-2 text-sm font-medium">Unit Add-ons (per extra above included)</div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <TextInput label={`Extra vocal mic (${DEFAULT_CURRENCY})`} type="number" value={String(unit.extra_vocal_mic_zar ?? "")} onChange={(e) => setUnit({ extra_vocal_mic_zar: e.target.value === "" ? "" : Number(e.target.value) })} />
+                <TextInput label={`Extra speech mic (${DEFAULT_CURRENCY})`} type="number" value={String(unit.extra_speech_mic_zar ?? "")} onChange={(e) => setUnit({ extra_speech_mic_zar: e.target.value === "" ? "" : Number(e.target.value) })} />
+                <TextInput label={`Extra monitor mix (${DEFAULT_CURRENCY})`} type="number" value={String(unit.extra_monitor_mix_zar ?? "")} onChange={(e) => setUnit({ extra_monitor_mix_zar: e.target.value === "" ? "" : Number(e.target.value) })} />
+                <TextInput label={`Extra IEM pack (${DEFAULT_CURRENCY})`} type="number" value={String(unit.extra_iem_pack_zar ?? "")} onChange={(e) => setUnit({ extra_iem_pack_zar: e.target.value === "" ? "" : Number(e.target.value) })} />
+                <TextInput label={`Extra DI box (${DEFAULT_CURRENCY})`} type="number" value={String(unit.extra_di_box_zar ?? "")} onChange={(e) => setUnit({ extra_di_box_zar: e.target.value === "" ? "" : Number(e.target.value) })} />
               </div>
-              <div className="mt-2">
-                <button type="button" className="text-xs text-brand" onClick={addBackline}>
-                  + Add backline item
-                </button>
+            </div>
+
+            {/* Backline price table (KEYED) */}
+            <div className="rounded-md border p-3">
+              <div className="mb-2 text-sm font-medium">Backline price table (aligns with Tech Rider)</div>
+              <p className="text-xs text-gray-600 mb-2">
+                Enable an item to make it quotable. Price is per unit; we’ll multiply by the musician’s requested quantity.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-xs">
+                  <thead className="text-gray-500">
+                    <tr>
+                      <th className="py-1 pr-3">Item</th>
+                      <th className="py-1 pr-3">Enabled</th>
+                      <th className="py-1 pr-3">Price ({DEFAULT_CURRENCY})</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {BACKLINE_CATALOG.map(({ key, label }) => (
+                      <tr key={key} className="align-middle">
+                        <td className="py-1 pr-3">{label}</td>
+                        <td className="py-1 pr-3">
+                          <ToggleSwitch
+                            checked={!!bl[key]?.enabled}
+                            onChange={(v) => setBL(key, { enabled: v })}
+                          />
+                        </td>
+                        <td className="py-1 pr-3">
+                          <TextInput
+                            aria-label={`${key}-price`}
+                            type="number"
+                            value={String(bl[key]?.price_zar ?? "")}
+                            onChange={(e) => setBL(key, { price_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                            disabled={!bl[key]?.enabled}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+              <p className="mt-2 text-[11px] text-gray-500">
+                For unusual instruments (e.g., Japanese flute) the musician will add a <i>custom backline item</i> in their rider. You can quote those manually or add them here later as a new catalog key if it becomes common.
+              </p>
             </div>
 
             {/* Custom add-ons */}
@@ -790,25 +716,16 @@ export default function AddServiceModalSoundService({
                       <TextInput label="Name" value={a.name} onChange={(e) => updateCustom(ai, { name: e.target.value })} />
                     </div>
                     <div className="sm:col-span-2">
-                      <TextInput
-                        label={`Price (${DEFAULT_CURRENCY})`}
-                        type="number"
-                        value={String(a.price_zar ?? "")}
-                        onChange={(e) => updateCustom(ai, { price_zar: e.target.value === "" ? "" : Number(e.target.value) })}
-                      />
+                      <TextInput label={`Price (${DEFAULT_CURRENCY})`} type="number" value={String(a.price_zar ?? "")} onChange={(e) => updateCustom(ai, { price_zar: e.target.value === "" ? "" : Number(e.target.value) })} />
                     </div>
                     <div className="sm:col-span-5 -mt-1 flex justify-end">
-                      <button type="button" className="text-xs text-red-600" onClick={() => removeCustom(ai)}>
-                        Remove add-on
-                      </button>
+                      <button type="button" className="text-xs text-red-600" onClick={() => removeCustom(ai)}>Remove add-on</button>
                     </div>
                   </div>
                 ))}
               </div>
               <div className="mt-2">
-                <button type="button" className="text-xs text-brand" onClick={addCustom}>
-                  + Add custom add-on
-                </button>
+                <button type="button" className="text-xs text-brand" onClick={addCustom}>+ Add custom add-on</button>
               </div>
             </div>
           </div>
@@ -834,11 +751,7 @@ export default function AddServiceModalSoundService({
             <h2 className="text-xl font-semibold">Coverage & Logistics</h2>
             <div>
               <label className="block text-sm font-medium text-gray-700">Coverage Areas (city codes)</label>
-              <ChipsInput
-                values={form.watch("coverage_areas") || []}
-                onChange={(vals) => form.setValue("coverage_areas", vals, { shouldDirty: true })}
-                placeholder="e.g., CPT, JNB, DBN"
-              />
+              <ChipsInput values={form.watch("coverage_areas") || []} onChange={(vals) => form.setValue("coverage_areas", vals, { shouldDirty: true })} placeholder="e.g., CPT, JNB, DBN" />
               <div className="mt-2 flex flex-wrap gap-2">
                 {CITY_CODES.map((c) => (
                   <CheckboxPill
@@ -846,8 +759,7 @@ export default function AddServiceModalSoundService({
                     checked={(form.watch("coverage_areas") || []).includes(c)}
                     onChange={() => {
                       const set = new Set<string>((form.watch("coverage_areas") || []) as string[]);
-                      if (set.has(c)) set.delete(c);
-                      else set.add(c);
+                      if (set.has(c)) set.delete(c); else set.add(c);
                       form.setValue("coverage_areas", Array.from(set), { shouldDirty: true });
                     }}
                     label={c}
@@ -859,51 +771,18 @@ export default function AddServiceModalSoundService({
             <CollapsibleSection title="Travel fee policy" open={travelOpen} onToggle={() => setTravelOpen((o) => !o)}>
               <div className="space-y-2">
                 <div className="flex flex-wrap gap-3 text-sm">
-                  <RadioPill
-                    name="travel_fee_policy"
-                    value="flat"
-                    current={policy}
-                    onChange={(v) => form.setValue("travel_fee_policy", v as TravelPolicy, { shouldDirty: true })}
-                    label="Flat call-out"
-                  />
-                  <RadioPill
-                    name="travel_fee_policy"
-                    value="per_km"
-                    current={policy}
-                    onChange={(v) => form.setValue("travel_fee_policy", v as TravelPolicy, { shouldDirty: true })}
-                    label="Per-km"
-                  />
-                  <RadioPill
-                    name="travel_fee_policy"
-                    value="included_radius"
-                    current={policy}
-                    onChange={(v) => form.setValue("travel_fee_policy", v as TravelPolicy, { shouldDirty: true })}
-                    label="Included radius"
-                  />
+                  <RadioPill name="travel_fee_policy" value="flat" current={policy} onChange={(v) => form.setValue("travel_fee_policy", v as TravelPolicy, { shouldDirty: true })} label="Flat call-out" />
+                  <RadioPill name="travel_fee_policy" value="per_km" current={policy} onChange={(v) => form.setValue("travel_fee_policy", v as TravelPolicy, { shouldDirty: true })} label="Per-km" />
+                  <RadioPill name="travel_fee_policy" value="included_radius" current={policy} onChange={(v) => form.setValue("travel_fee_policy", v as TravelPolicy, { shouldDirty: true })} label="Included radius" />
                 </div>
                 {policy === "flat" && (
-                  <TextInput
-                    label={`Flat call-out (${DEFAULT_CURRENCY})`}
-                    type="number"
-                    step="0.01"
-                    {...form.register("travel_flat_amount", { valueAsNumber: true })}
-                  />
+                  <TextInput label={`Flat call-out (${DEFAULT_CURRENCY})`} type="number" step="0.01" {...form.register("travel_flat_amount", { valueAsNumber: true })} />
                 )}
                 {policy === "per_km" && (
-                  <TextInput
-                    label={`Rate per km (${DEFAULT_CURRENCY}/km)`}
-                    type="number"
-                    step="0.1"
-                    {...form.register("travel_per_km_rate", { valueAsNumber: true })}
-                  />
+                  <TextInput label={`Rate per km (${DEFAULT_CURRENCY}/km)`} type="number" step="0.1" {...form.register("travel_per_km_rate", { valueAsNumber: true })} />
                 )}
                 {policy === "included_radius" && (
-                  <TextInput
-                    label="Included radius (km)"
-                    type="number"
-                    step="1"
-                    {...form.register("included_radius_km", { valueAsNumber: true })}
-                  />
+                  <TextInput label="Included radius (km)" type="number" step="1" {...form.register("included_radius_km", { valueAsNumber: true })} />
                 )}
               </div>
             </CollapsibleSection>
@@ -924,14 +803,7 @@ export default function AddServiceModalSoundService({
                     { v: "single", l: "Single" },
                     { v: "three", l: "Three" },
                   ].map((o) => (
-                    <RadioPill
-                      key={o.v}
-                      name="power_phase"
-                      value={o.v}
-                      current={form.watch("power_phase")}
-                      onChange={(v) => form.setValue("power_phase", v as PowerPhase, { shouldDirty: true })}
-                      label={o.l}
-                    />
+                    <RadioPill key={o.v} name="power_phase" value={o.v} current={form.watch("power_phase")} onChange={(v) => form.setValue("power_phase", v as PowerPhase, { shouldDirty: true })} label={o.l} />
                   ))}
                 </div>
               </div>
@@ -947,18 +819,12 @@ export default function AddServiceModalSoundService({
       render: ({ form }) => {
         const toggleArray = (name: keyof SoundServiceForm, val: string) => {
           const arr = new Set<string>((form.getValues(name as any) as any[]) || []);
-          if (arr.has(val)) arr.delete(val);
-          else arr.add(val);
+          if (arr.has(val)) arr.delete(val); else arr.add(val);
           form.setValue(name as any, Array.from(arr), { shouldDirty: true });
         };
         const capabilitiesPreview = {
-          consoles: {
-            brands: form.watch("console_brands"),
-            models: form.watch("console_models"),
-          },
-          pa: {
-            types: form.watch("pa_types"),
-          },
+          consoles: { brands: form.watch("console_brands"), models: form.watch("console_models") },
+          pa: { types: form.watch("pa_types") },
           microphones: form.watch("microphones"),
           di_boxes: Number(form.watch("di_boxes") || 0),
           monitoring: {
@@ -966,9 +832,7 @@ export default function AddServiceModalSoundService({
             iem_support: !!form.watch("monitoring_iem_support"),
             brands: form.watch("monitoring_iem_brands"),
           },
-          backline: {
-            notes: form.watch("backline_notes"),
-          },
+          backline: { notes: form.watch("backline_notes") },
           tags: form.watch("tags"),
         };
         return (
@@ -995,12 +859,7 @@ export default function AddServiceModalSoundService({
                   { v: "line_array", l: "Line array" },
                   { v: "point_source", l: "Point source" },
                 ].map((o) => (
-                  <CheckboxPill
-                    key={o.v}
-                    checked={(form.watch("pa_types") || []).includes(o.v as any)}
-                    onChange={() => toggleArray("pa_types", o.v)}
-                    label={o.l}
-                  />
+                  <CheckboxPill key={o.v} checked={(form.watch("pa_types") || []).includes(o.v as any)} onChange={() => toggleArray("pa_types", o.v)} label={o.l} />
                 ))}
               </div>
             </CollapsibleSection>
@@ -1014,22 +873,13 @@ export default function AddServiceModalSoundService({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <TextInput label="Wedges (count)" type="number" {...form.register("monitoring_wedges", { valueAsNumber: true })} />
                 <div className="flex items-end gap-2">
-                  <ToggleSwitch
-                    checked={!!form.watch("monitoring_iem_support")}
-                    onChange={(v) => form.setValue("monitoring_iem_support", v, { shouldDirty: true })}
-                    label="IEM support"
-                  />
+                  <ToggleSwitch checked={!!form.watch("monitoring_iem_support")} onChange={(v) => form.setValue("monitoring_iem_support", v, { shouldDirty: true })} label="IEM support" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">IEM brands</label>
                   <div className="mt-1 flex flex-wrap gap-2">
                     {IEM_BRANDS.map((b) => (
-                      <CheckboxPill
-                        key={b}
-                        checked={(form.watch("monitoring_iem_brands") || []).includes(b)}
-                        onChange={() => toggleArray("monitoring_iem_brands", b)}
-                        label={b}
-                      />
+                      <CheckboxPill key={b} checked={(form.watch("monitoring_iem_brands") || []).includes(b)} onChange={() => toggleArray("monitoring_iem_brands", b)} label={b} />
                     ))}
                   </div>
                 </div>
@@ -1062,17 +912,9 @@ export default function AddServiceModalSoundService({
             <TextInput label="Response SLA (hours)" type="number" {...form.register("response_sla_hours", { valueAsNumber: true })} />
             <TextInput label="Minimum notice (days)" type="number" {...form.register("min_notice_days", { valueAsNumber: true })} />
             <TextInput label="Availability sync URL (ICS/webhook)" {...form.register("availability_sync_url")} />
-            <TextInput
-              label="Default response timeout (hours)"
-              type="number"
-              {...form.register("default_response_timeout_hours", { valueAsNumber: true })}
-            />
+            <TextInput label="Default response timeout (hours)" type="number" {...form.register("default_response_timeout_hours", { valueAsNumber: true })} />
             <div className="flex items-end">
-              <ToggleSwitch
-                checked={!!form.watch("auto_accept_threshold")}
-                onChange={(v) => form.setValue("auto_accept_threshold", v, { shouldDirty: true })}
-                label="Auto-accept if tech rider match and not double-booked"
-              />
+              <ToggleSwitch checked={!!form.watch("auto_accept_threshold")} onChange={(v) => form.setValue("auto_accept_threshold", v, { shouldDirty: true })} label="Auto-accept if tech rider match and not double-booked" />
             </div>
           </div>
         </div>
@@ -1086,11 +928,12 @@ export default function AddServiceModalSoundService({
         const stage = form.getValues("stage_prices") as StagePrices;
         const lighting = form.getValues("lighting_prices") as LightingPrices;
         const unit = form.getValues("addon_unit_prices") as UnitAddonPrices;
-        const backline = (form.getValues("backline_menu") || []) as BacklineItem[];
+        const bl = form.getValues("backline_prices") as BacklinePriceMap;
         const customs = (form.getValues("custom_addons") || []) as CustomAddon[];
         return (
           <div className="space-y-3">
             <h2 className="text-xl font-semibold">Review</h2>
+
             <div className="rounded-md border p-3 text-sm">
               <div className="font-medium">Basics</div>
               <div>Name: {form.getValues("title")}</div>
@@ -1152,7 +995,7 @@ export default function AddServiceModalSoundService({
                   <div className="mt-1 text-xs">Basic: {String(lighting.basic || "—")} {DEFAULT_CURRENCY}</div>
                   <div className="text-xs">Advanced: {String(lighting.advanced || "—")} {DEFAULT_CURRENCY}</div>
                   <div className="mt-1 text-[11px] text-gray-600">
-                    Upgrade = Advanced − Basic (shown only if package includes Basic).
+                    Upgrade = Advanced − Basic {unit.advanced_includes_tech ? "(includes tech)" : "(tech charged separately)"}.
                   </div>
                 </div>
                 <div className="rounded bg-gray-50 p-2">
@@ -1163,21 +1006,23 @@ export default function AddServiceModalSoundService({
                     <li>Extra monitor mix: {String(unit.extra_monitor_mix_zar || "—")} {DEFAULT_CURRENCY}</li>
                     <li>Extra IEM pack: {String(unit.extra_iem_pack_zar || "—")} {DEFAULT_CURRENCY}</li>
                     <li>Extra DI box: {String(unit.extra_di_box_zar || "—")} {DEFAULT_CURRENCY}</li>
-                    <li>Lighting tech/day: {String(unit.lighting_tech_day_rate_zar || "—")} {DEFAULT_CURRENCY} ({unit.advanced_includes_tech ? "included with Advanced" : "charged if Advanced selected"})</li>
+                    <li>Lighting tech/day: {String(unit.lighting_tech_day_rate_zar || "—")} {DEFAULT_CURRENCY} {unit.advanced_includes_tech ? "(included with Advanced)" : ""}</li>
                   </ul>
                 </div>
               </div>
 
-              {backline.filter((b) => b.enabled).length > 0 && (
-                <div className="mt-2 rounded bg-gray-50 p-2 text-xs">
-                  <div className="font-medium">Backline</div>
-                  <ul className="mt-1 list-disc pl-4">
-                    {backline.filter((b) => b.enabled).map((b, i) => (
-                      <li key={i}>{b.name}: {String(b.price_zar || "—")} {DEFAULT_CURRENCY}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              {/* Backline summary */}
+              <div className="mt-2 rounded bg-gray-50 p-2 text-xs">
+                <div className="font-medium">Backline prices</div>
+                <ul className="mt-1 list-disc pl-4">
+                  {BACKLINE_CATALOG.filter(({ key }) => bl[key]?.enabled).map(({ key, label }) => (
+                    <li key={key}>
+                      {label}: {String(bl[key]?.price_zar || "—")} {DEFAULT_CURRENCY}
+                    </li>
+                  ))}
+                  {BACKLINE_CATALOG.every(({ key }) => !bl[key]?.enabled) && <li>None enabled</li>}
+                </ul>
+              </div>
 
               {customs.length > 0 && (
                 <div className="mt-2 rounded bg-gray-50 p-2 text-xs">
@@ -1195,15 +1040,9 @@ export default function AddServiceModalSoundService({
               <div className="font-medium">Coverage & Logistics</div>
               <div>Areas: {(form.getValues("coverage_areas") || []).join(", ")}</div>
               <div>Travel policy: {form.getValues("travel_fee_policy")}</div>
-              <div>
-                Setup/Teardown: {String(form.getValues("setup_minutes"))} / {String(form.getValues("teardown_minutes"))} mins
-              </div>
-              <div>
-                Crew: min {String(form.getValues("crew_min"))}, typical {String(form.getValues("crew_typical"))}
-              </div>
-              <div>
-                Power: {String(form.getValues("power_amps"))}A / {String(form.getValues("power_phase"))} phase
-              </div>
+              <div>Setup/Teardown: {String(form.getValues("setup_minutes"))} / {String(form.getValues("teardown_minutes"))} mins</div>
+              <div>Crew: min {String(form.getValues("crew_min"))}, typical {String(form.getValues("crew_typical"))}</div>
+              <div>Power: {String(form.getValues("power_amps"))}A / {String(form.getValues("power_phase"))} phase</div>
             </div>
 
             {hero && (
@@ -1220,6 +1059,13 @@ export default function AddServiceModalSoundService({
 
   // Map to a backend-friendly payload. Extended fields go under `details`.
   const toPayload = (data: SoundServiceForm, mediaUrl: string | null): Partial<Service> => {
+    // Convert BacklinePriceMap to a compact record: Record<BacklineKey, number|null>
+    const backline_prices_record: Record<BacklineKey, number | null> = {} as any;
+    (Object.keys(data.backline_prices) as BacklineKey[]).forEach((k) => {
+      const row = data.backline_prices[k];
+      backline_prices_record[k] = row.enabled ? numOrNull(row.price_zar) : null;
+    });
+
     const details: any = {
       short_summary: data.short_summary,
       tags: data.tags,
@@ -1251,7 +1097,6 @@ export default function AddServiceModalSoundService({
         },
         backline: { notes: data.backline_notes },
       },
-      // NEW pricing model
       audience_packages: (data.audience_packages || []).map((p) => ({
         id: p.id,
         label: p.label,
@@ -1270,15 +1115,8 @@ export default function AddServiceModalSoundService({
           stands_and_cabling: p.included?.stands_and_cabling ?? true,
         } as IncludedFeatures,
       })),
-      stage_prices: {
-        S: numOrNull(data.stage_prices.S),
-        M: numOrNull(data.stage_prices.M),
-        L: numOrNull(data.stage_prices.L),
-      },
-      lighting_prices: {
-        basic: numOrNull(data.lighting_prices.basic),
-        advanced: numOrNull(data.lighting_prices.advanced),
-      },
+      stage_prices: { S: numOrNull(data.stage_prices.S), M: numOrNull(data.stage_prices.M), L: numOrNull(data.stage_prices.L) },
+      lighting_prices: { basic: numOrNull(data.lighting_prices.basic), advanced: numOrNull(data.lighting_prices.advanced) },
       addon_unit_prices: {
         extra_vocal_mic_zar: numOrNull(data.addon_unit_prices.extra_vocal_mic_zar),
         extra_speech_mic_zar: numOrNull(data.addon_unit_prices.extra_speech_mic_zar),
@@ -1288,16 +1126,8 @@ export default function AddServiceModalSoundService({
         lighting_tech_day_rate_zar: numOrNull(data.addon_unit_prices.lighting_tech_day_rate_zar),
         advanced_includes_tech: !!data.addon_unit_prices.advanced_includes_tech,
       },
-      backline_menu: (data.backline_menu || []).map((b) => ({
-        name: b.name,
-        price_zar: numOrNull(b.price_zar),
-        enabled: !!b.enabled,
-      })),
-      custom_addons: (data.custom_addons || []).map((a) => ({
-        name: a.name,
-        price_zar: numOrNull(a.price_zar),
-      })),
-      // SLA
+      backline_prices: backline_prices_record, // <— canonical storage keyed by BacklineKey
+      custom_addons: (data.custom_addons || []).map((a) => ({ name: a.name, price_zar: numOrNull(a.price_zar) })),
       sla: {
         response_sla_hours: numOrNull(data.response_sla_hours),
         min_notice_days: numOrNull(data.min_notice_days),
@@ -1305,14 +1135,13 @@ export default function AddServiceModalSoundService({
         default_response_timeout_hours: numOrNull(data.default_response_timeout_hours),
         auto_accept_threshold: !!data.auto_accept_threshold,
       },
-      // legacy preserved for older records
+      // legacy preserved
       packages_legacy: data.packages_legacy || [],
     };
 
     return {
-      service_type: "Other", // category is set via serviceCategorySlug
+      service_type: "Other", // category handled via serviceCategorySlug
       title: data.title,
-      // No list price at root level
       media_url: mediaUrl ?? "",
       duration_minutes: 60,
       details,
@@ -1355,12 +1184,7 @@ function ChipsInput({ values, onChange, placeholder }: { values: string[]; onCha
             <button type="button" onClick={() => remove(v)} className="text-gray-500">×</button>
           </span>
         ))}
-        <input
-          type="text"
-          className="min-w-[10ch] flex-1 border-0 text-sm outline-none"
-          placeholder={placeholder || "Type and press Enter"}
-          onKeyDown={add}
-        />
+        <input type="text" className="min-w-[10ch] flex-1 border-0 text-sm outline-none" placeholder={placeholder || "Type and press Enter"} onKeyDown={add} />
       </div>
     </div>
   );
@@ -1369,13 +1193,7 @@ function ChipsInput({ values, onChange, placeholder }: { values: string[]; onCha
 function RadioPill({ name, value, current, onChange, label }: { name: string; value: string; current: string; onChange: (v: string) => void; label: string }) {
   const active = current === value;
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={active}
-      onClick={() => onChange(value)}
-      className={`rounded-full border px-3 py-1 text-xs ${active ? "border-[var(--brand-color)]" : "border-gray-200 hover:border-gray-300"}`}
-    >
+    <button type="button" role="radio" aria-checked={active} onClick={() => onChange(value)} className={`rounded-full border px-3 py-1 text-xs ${active ? "border-[var(--brand-color)]" : "border-gray-200 hover:border-gray-300"}`}>
       {label}
     </button>
   );
@@ -1383,12 +1201,7 @@ function RadioPill({ name, value, current, onChange, label }: { name: string; va
 
 function CheckboxPill({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
   return (
-    <button
-      type="button"
-      aria-pressed={checked}
-      onClick={onChange}
-      className={`rounded-full border px-3 py-1 text-xs ${checked ? "border-[var(--brand-color)] bg-[var(--brand-color)]/10" : "border-gray-200 hover:border-gray-300"}`}
-    >
+    <button type="button" aria-pressed={checked} onClick={onChange} className={`rounded-full border px-3 py-1 text-xs ${checked ? "border-[var(--brand-color)] bg-[var(--brand-color)]/10" : "border-gray-200 hover:border-gray-300"}`}>
       {label}
     </button>
   );
