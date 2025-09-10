@@ -73,7 +73,7 @@ interface ServiceFormData {
   duration_label?: string;
   /** Numeric fallback used for legacy displays and sorting */
   duration_minutes: number | "";
-  is_remote: boolean;
+ 
   price: number | "";
   travel_rate?: number | "";
   travel_members?: number | "";
@@ -93,7 +93,7 @@ const emptyDefaults: ServiceFormData = {
   description: "",
   duration_label: "",
   duration_minutes: 60,
-  is_remote: false,
+  
   price: 0,
   travel_rate: 2.5,
   travel_members: 1,
@@ -127,7 +127,6 @@ export default function AddServiceModalMusician({
         (service as any)?.details?.duration_label ||
         (service?.duration_minutes != null ? `${service.duration_minutes} min` : ""),
       duration_minutes: service?.duration_minutes ?? 60,
-      is_remote: service?.is_remote ?? false,
       price: service?.price ?? 0,
       travel_rate: service?.travel_rate ?? "",
       travel_members: service?.travel_members ?? "",
