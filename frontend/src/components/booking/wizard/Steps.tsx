@@ -1049,7 +1049,7 @@ export function SoundStep({
             {/* Stage */}
             <div className="rounded-xl border border-black/10 p-3">
               <Controller
-                name="stageRequired"
+                name={'stageRequired' as any}
                 control={control}
                 render={({ field }) => (
                   <>
@@ -1065,7 +1065,7 @@ export function SoundStep({
                       <div className="mt-2">
                         <label className="block text-xs font-medium mb-1">Stage size</label>
                         <Controller
-                          name="stageSize"
+                          name={'stageSize' as any}
                           control={control}
                           render={({ field: sizeField }) => (
                             <div className="flex gap-2">
@@ -1096,7 +1096,7 @@ export function SoundStep({
             {/* Lighting */}
             <div className="rounded-xl border border-black/10 p-3">
               <Controller
-                name="lightingEvening"
+                name={'lightingEvening' as any}
                 control={control}
                 render={({ field }) => (
                   <>
@@ -1119,7 +1119,7 @@ export function SoundStep({
             {/* Backline */}
             <div className="rounded-xl border border-black/10 p-3">
               <Controller
-                name="backlineRequired"
+                name={'backlineRequired' as any}
                 control={control}
                 render={({ field }) => (
                   <>
