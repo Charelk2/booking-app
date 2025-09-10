@@ -1009,96 +1009,134 @@ export function SoundStep({
           {/* HOW should sound be handled? */}
           <div>
             <label className="label block mb-2">How should sound be handled?</label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { v: 'supplier', l: 'External supplier (recommended)' },
-                { v: 'provided_by_artist', l: 'Provided by artist' },
-                { v: 'managed_by_artist', l: 'Managed by artist' },
-                { v: 'client_provided', l: 'Client will provide' },
-              ].map((o) => (
-                <button
-                  key={o.v}
-                  type="button"
-                  onClick={() => set({ soundMode: o.v as any })}
-                  className={clsx(
-                    'rounded-full border px-3 py-1 text-sm',
-                    (d as any).soundMode === o.v
-                      ? 'border-black bg-black/5'
-                      : 'border-black/20 hover:bg-black/[0.04]',
-                  )}
-                >
-                  {o.l}
-                </button>
-              ))}
-            </div>
-            <p className="help-text mt-1">
-              We’ll use your guest count ({(d as any).guests || '—'}) and venue type ({(d as any).venueType || '—'}) to size the PA.
-            </p>
+            <Controller
+              name="soundMode"
+              control={control}
+              render={({ field }) => (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { v: 'supplier', l: 'External supplier (recommended)' },
+                      { v: 'provided_by_artist', l: 'Provided by artist' },
+                      { v: 'managed_by_artist', l: 'Managed by artist' },
+                      { v: 'client_provided', l: 'Client will provide' },
+                    ].map((o) => (
+                      <button
+                        key={o.v}
+                        type="button"
+                        onClick={() => field.onChange(o.v)}
+                        className={clsx(
+                          'rounded-full border px-3 py-1 text-sm',
+                          field.value === o.v
+                            ? 'border-black bg-black/5'
+                            : 'border-black/20 hover:bg-black/[0.04]',
+                        )}
+                      >
+                        {o.l}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="help-text mt-1">
+                    We’ll use your guest count ({(d as any).guests || '—'}) and venue type ({(d as any).venueType || '—'}) to size the PA.
+                  </p>
+                </>
+              )}
+            />
           </div>
 
           {/* Context toggles: Stage / Lighting / Backline */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Stage */}
             <div className="rounded-xl border border-black/10 p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Stage required?</span>
-                <input
-                  type="checkbox"
-                  checked={!!(d as any).stageRequired}
-                  onChange={(e) => set({ stageRequired: e.target.checked })}
-                />
-              </div>
-              {(d as any).stageRequired && (
-                <div className="mt-2">
-                  <label className="block text-xs font-medium mb-1">Stage size</label>
-                  <div className="flex gap-2">
-                    {(['S', 'M', 'L'] as const).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => set({ stageSize: s })}
-                        className={clsx(
-                          'rounded-full border px-2 py-1 text-xs',
-                          (d as any).stageSize === s ? 'border-black bg-black/5' : 'border-black/20 hover:bg-black/[0.04]',
-                        )}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <p className="help-text mt-2">Only required if you need a raised platform.</p>
+              <Controller
+                name="stageRequired"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Stage required?</span>
+                      <input
+                        type="checkbox"
+                        checked={!!field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                      />
+                    </div>
+                    {field.value && (
+                      <div className="mt-2">
+                        <label className="block text-xs font-medium mb-1">Stage size</label>
+                        <Controller
+                          name="stageSize"
+                          control={control}
+                          render={({ field: sizeField }) => (
+                            <div className="flex gap-2">
+                              {(['S', 'M', 'L'] as const).map((s) => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  onClick={() => sizeField.onChange(s)}
+                                  className={clsx(
+                                    'rounded-full border px-2 py-1 text-xs',
+                                    sizeField.value === s ? 'border-black bg-black/5' : 'border-black/20 hover:bg-black/[0.04]',
+                                  )}
+                                >
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        />
+                      </div>
+                    )}
+                    <p className="help-text mt-2">Only required if you need a raised platform.</p>
+                  </>
+                )}
+              />
             </div>
 
             {/* Lighting */}
             <div className="rounded-xl border border-black/10 p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Evening lighting?</span>
-                <input
-                  type="checkbox"
-                  checked={!!(d as any).lightingEvening}
-                  onChange={(e) => set({ lightingEvening: e.target.checked })}
-                />
-              </div>
-              <p className="help-text mt-2">
-                Basic or advanced lighting may be added depending on the selected package and time of day.
-              </p>
+              <Controller
+                name="lightingEvening"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Evening lighting?</span>
+                      <input
+                        type="checkbox"
+                        checked={!!field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                      />
+                    </div>
+                    <p className="help-text mt-2">
+                      Basic or advanced lighting may be added depending on the selected package and time of day.
+                    </p>
+                  </>
+                )}
+              />
             </div>
 
             {/* Backline */}
             <div className="rounded-xl border border-black/10 p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Backline required?</span>
-                <input
-                  type="checkbox"
-                  checked={!!(d as any).backlineRequired}
-                  onChange={(e) => set({ backlineRequired: e.target.checked })}
-                />
-              </div>
-              <p className="help-text mt-2">
-                Instruments/amps on site (e.g., drum kit, piano, guitar/bass amps). Final lineup confirmed after booking.
-              </p>
+              <Controller
+                name="backlineRequired"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Backline required?</span>
+                      <input
+                        type="checkbox"
+                        checked={!!field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                      />
+                    </div>
+                    <p className="help-text mt-2">
+                      Instruments/amps on site (e.g., drum kit, piano, guitar/bass amps). Final lineup confirmed after booking.
+                    </p>
+                  </>
+                )}
+              />
             </div>
           </div>
 
