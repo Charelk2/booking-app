@@ -79,6 +79,16 @@ const schema = yup.object<EventDetails>().shape({
     .oneOf(['indoor', 'outdoor', 'hybrid'], 'Venue type is required.')
     .required(),
   sound: yup.string().oneOf(['yes', 'no'], 'Sound equipment preference is required.').required(),
+  // Optional sound-context fields (not required for basic validation)
+  soundMode: yup
+    .mixed<'supplier' | 'provided_by_artist' | 'managed_by_artist' | 'client_provided' | 'none'>()
+    .optional(),
+  soundSupplierServiceId: yup.number().optional(),
+  stageRequired: yup.boolean().optional(),
+  stageSize: yup.mixed<'S' | 'M' | 'L'>().optional(),
+  lightingEvening: yup.boolean().optional(),
+  backlineRequired: yup.boolean().optional(),
+  providedSoundEstimate: yup.number().optional(),
   notes: yup.string().optional(),
   attachment_url: yup.string().optional(),
 });
@@ -399,7 +409,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
           lighting_evening: !!(details as any).lightingEvening,
           backline_required: !!(details as any).backlineRequired,
-        });
+        } as Parameters<typeof calculateQuote>[0]);
         setCalculatedPrice(Number(quote.total));
         // Ensure sound cost is numeric to avoid NaN totals downstream
         setSoundCost(Number(quote.sound_cost));
@@ -495,8 +505,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       [], // Review step has no fields to validate for "next"
     ];
     const fieldsToValidate = stepFields[step] as (keyof EventDetails)[];
-
-    const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
+    const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate as any) : true;
 
     if (valid) {
       // Auto-parse and apply event details on advancing from the first step
@@ -562,19 +571,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         provided_sound_estimate: (details as any).providedSoundEstimate,
         managed_by_artist_markup_percent: undefined,
       },
-      // Normalized sound context for backend
-      sound_context: {
-        sound_required: vals.sound === 'yes',
-        mode: (details as any).soundMode || 'none',
-        guest_count: parseInt((details as any).guests || '0', 10) || undefined,
-        venue_type: (details as any).venueType,
-        stage_required: !!(details as any).stageRequired,
-        stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-        lighting_evening: !!(details as any).lightingEvening,
-        backline_required: !!(details as any).backlineRequired,
-        selected_sound_service_id: (details as any).soundSupplierServiceId,
-      },
       service_provider_id: 0
+    } as BookingRequestCreate;
+    // Attach normalized sound context (cast to avoid excess property checks during transition)
+    (payload as any).sound_context = {
+      sound_required: vals.sound === 'yes',
+      mode: (details as any).soundMode || 'none',
+      guest_count: parseInt((details as any).guests || '0', 10) || undefined,
+      venue_type: (details as any).venueType,
+      stage_required: !!(details as any).stageRequired,
+      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+      lighting_evening: !!(details as any).lightingEvening,
+      backline_required: !!(details as any).backlineRequired,
+      selected_sound_service_id: (details as any).soundSupplierServiceId,
     };
     if (!navigator.onLine) {
       enqueueBooking({ action: 'draft', payload, requestId });
@@ -628,19 +637,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         event_city: details.location,
         provided_sound_estimate: (details as any).providedSoundEstimate,
       },
-      // Normalized sound context for backend
-      sound_context: {
-        sound_required: vals.sound === 'yes',
-        mode: (details as any).soundMode || 'none',
-        guest_count: parseInt((details as any).guests || '0', 10) || undefined,
-        venue_type: (details as any).venueType,
-        stage_required: !!(details as any).stageRequired,
-        stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-        lighting_evening: !!(details as any).lightingEvening,
-        backline_required: !!(details as any).backlineRequired,
-        selected_sound_service_id: (details as any).soundSupplierServiceId,
-      },
       service_provider_id: 0
+    } as BookingRequestCreate;
+    // Attach normalized sound context (cast to avoid excess property checks during transition)
+    (payload as any).sound_context = {
+      sound_required: vals.sound === 'yes',
+      mode: (details as any).soundMode || 'none',
+      guest_count: parseInt((details as any).guests || '0', 10) || undefined,
+      venue_type: (details as any).venueType,
+      stage_required: !!(details as any).stageRequired,
+      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+      lighting_evening: !!(details as any).lightingEvening,
+      backline_required: !!(details as any).backlineRequired,
+      selected_sound_service_id: (details as any).soundSupplierServiceId,
     };
     const message = `Booking details:\nEvent Type: ${
       vals.eventType || 'N/A'
