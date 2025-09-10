@@ -197,7 +197,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     setValue,
     watch,
     errors, // Directly destructure errors, assuming useBookingForm returns it at top level
-  } = useBookingForm(schema, details, setDetails);
+  } = useBookingForm(schema as any, details as any, setDetails as any);
 
   const watchedValues = watch();
   const debouncedValues = useDebounce(watchedValues, 300);
@@ -409,7 +409,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
           lighting_evening: !!(details as any).lightingEvening,
           backline_required: !!(details as any).backlineRequired,
-        } as Parameters<typeof calculateQuote>[0]);
+        } as any);
         setCalculatedPrice(Number(quote.total));
         // Ensure sound cost is numeric to avoid NaN totals downstream
         setSoundCost(Number(quote.sound_cost));
