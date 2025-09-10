@@ -1,1027 +1,1401 @@
 "use client";
 
-import { useForm, type SubmitHandler } from "react-hook-form";
-import { useState, useRef, useEffect, Fragment, useMemo } from "react";
-import {
-  MusicalNoteIcon,
-  VideoCameraIcon,
-  SparklesIcon,
-  SquaresPlusIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
-import type { ElementType } from "react";
-import clsx from "clsx";
-import { Dialog, Transition } from "@headlessui/react";
-import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
-
+import SafeImage from "@/components/ui/SafeImage";
+import { useMemo, useState } from "react";
+import { TextInput, TextArea, CollapsibleSection, ToggleSwitch } from "@/components/ui";
 import type { Service } from "@/types";
-import {
-  createService as apiCreateService,
-  updateService as apiUpdateService,
-  getAllServices,
-} from "@/lib/api";
-import { upsertRider } from "@/lib/api";
-import { ID_TO_UI_CATEGORY } from "@/lib/categoryMap";
+import BaseServiceWizard, { type WizardStep } from "./BaseServiceWizard";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
-import Button from "@/components/ui/Button";
-import { Stepper, TextInput, TextArea, CollapsibleSection } from "@/components/ui";
 
-const serviceTypeIcons: Record<Service["service_type"], ElementType> = {
-  "Live Performance": MusicalNoteIcon,
-  "Virtual Appearance": VideoCameraIcon,
-  "Personalized Video": VideoCameraIcon,
-  "Custom Song": SparklesIcon,
-  Other: SquaresPlusIcon,
+// ────────────────────────────────────────────────────────────────────────────────
+// New pricing model (Packages by Audience Tier + Add-ons) with Structured Inclusions
+// • No single list price
+// • Each audience band: Indoor & Outdoor base prices + INCLUDED FEATURES (counts/tiers)
+// • Add-ons: Stage S/M/L, Lighting (basic/advanced with upgrade logic), Backline presets, Custom add-ons
+// • Unit add-ons (per extra): vocal mic, speech mic, monitor mix, IEM pack, DI box, lighting tech
+// ────────────────────────────────────────────────────────────────────────────────
+
+// Logistics & travel
+type TravelPolicy = "flat" | "per_km" | "included_radius";
+type PowerPhase = "single" | "three" | "";
+
+// Audience bands used to build packages
+export type AudienceBandId = "0_100" | "101_200" | "201_500" | "501_1000" | "1000_plus";
+
+type LightingTier = "none" | "basic" | "advanced";
+
+interface IncludedFeatures {
+  pa: boolean;                 // always true, PA sized for band label
+  vocal_mics: number;          // e.g., 2
+  speech_mics: number;         // e.g., 2
+  console_basic: boolean;      // small console + cabling
+  engineer_count: number;      // 1..n
+  lighting: LightingTier;      // none/basic/advanced
+  monitors: number;            // number of mixes/wedges included
+  di_boxes: number;            // included DI boxes
+  stands_and_cabling: boolean; // usually true
+}
+
+interface AudiencePackage {
+  id: AudienceBandId;
+  label: string; // e.g., "0–100"
+  active: boolean;
+  indoor_base_zar: number | "";
+  outdoor_base_zar: number | "";
+  included: IncludedFeatures;
+}
+
+// Structured add-ons
+type StageSize = "S" | "M" | "L";
+interface StagePrices { S: number | ""; M: number | ""; L: number | "" }
+
+interface LightingPrices { basic: number | ""; advanced: number | "" }
+
+interface BacklineItem { name: string; price_zar: number | ""; enabled: boolean }
+interface CustomAddon { name: string; price_zar: number | "" }
+
+interface UnitAddonPrices {
+  extra_vocal_mic_zar: number | "";
+  extra_speech_mic_zar: number | "";
+  extra_monitor_mix_zar: number | "";
+  extra_iem_pack_zar: number | "";
+  extra_di_box_zar: number | "";
+  lighting_tech_day_rate_zar: number | "";
+  advanced_includes_tech: boolean;
+}
+
+// Backwards-compat placeholders (not used in UI, preserved if editing an old record)
+interface PackageAddonLegacy { name: string; price: number | "" }
+interface ServicePackageLegacy {
+  name: string;
+  inclusions: string[];
+  base_price_zar: number | "";
+  overtime_rate_zar_per_hour: number | "";
+  addons: PackageAddonLegacy[];
+  notes?: string;
+}
+
+interface SoundServiceForm {
+  // Basics
+  title: string;         // Service Name (public)
+  short_summary: string; // <= 120 chars
+  tags: string[];
+
+  // Coverage & Logistics
+  coverage_areas: string[]; // city codes
+  travel_fee_policy: TravelPolicy;
+  travel_flat_amount?: number | "";
+  travel_per_km_rate?: number | "";
+  included_radius_km?: number | "";
+  setup_minutes: number | "";
+  teardown_minutes: number | "";
+  crew_min: number | "";
+  crew_typical: number | "";
+  power_amps: number | "";
+  power_phase: PowerPhase;
+  vehicle_access_notes: string;
+
+  // Capabilities & Inventory (for matching/marketing)
+  console_brands: string[];
+  console_models: string;
+  pa_types: ("line_array" | "point_source")[];
+  microphones: string; // freeform types + counts (marketing)
+  di_boxes: number | "";
+  monitoring_wedges: number | "";
+  monitoring_iem_support: boolean;
+  monitoring_iem_brands: string[];
+  backline_notes: string;
+
+  // Pricing model
+  audience_packages: AudiencePackage[]; // per band base + structured inclusions
+  stage_prices: StagePrices;            // S/M/L
+  lighting_prices: LightingPrices;      // basic/advanced
+  addon_unit_prices: UnitAddonPrices;   // per extra unit, tech day rate
+  backline_menu: BacklineItem[];        // preset menu with enable+price
+  custom_addons: CustomAddon[];         // arbitrary add-ons
+
+  // SLAs & Availability
+  response_sla_hours: number | "";
+  min_notice_days: number | "";
+  availability_sync_url?: string;
+  default_response_timeout_hours: number | "";
+  auto_accept_threshold: boolean;
+
+  // Legacy data (not shown in UI but preserved on edit)
+  packages_legacy?: ServicePackageLegacy[];
+}
+
+// ─── Presets ───────────────────────────────────────────────────────────────────
+const KNOWN_CONSOLE_BRANDS = ["Yamaha", "Midas", "Behringer", "Avid", "Allen & Heath", "Soundcraft"];
+const IEM_BRANDS = ["Shure", "Sennheiser", "LD Systems", "Behringer"];
+const CITY_CODES = ["CPT", "JNB", "DBN", "PLZ", "GRJ", "ELS", "MQP", "BFN", "KIM"];
+const TAG_PRESETS = ["weddings", "corporate", "festivals", "birthday", "conference", "club", "church"];
+
+const AUDIENCE_BANDS: { id: AudienceBandId; label: string }[] = [
+  { id: "0_100", label: "0–100" },
+  { id: "101_200", label: "101–200" },
+  { id: "201_500", label: "201–500" },
+  { id: "501_1000", label: "501–1000" },
+  { id: "1000_plus", label: "1000+" },
+];
+
+const DEFAULT_STAGE_PRICES: StagePrices = { S: 100, M: 200, L: 300 }; // sample defaults
+const DEFAULT_LIGHTING_PRICES: LightingPrices = { basic: 400, advanced: 800 };
+const DEFAULT_UNIT_ADDONS: UnitAddonPrices = {
+  extra_vocal_mic_zar: 0,
+  extra_speech_mic_zar: 0,
+  extra_monitor_mix_zar: 0,
+  extra_iem_pack_zar: 0,
+  extra_di_box_zar: 0,
+  lighting_tech_day_rate_zar: 0,
+  advanced_includes_tech: true,
 };
+const DEFAULT_BACKLINE_MENU: BacklineItem[] = [
+  { name: "Full drum kit", price_zar: 1000, enabled: false },
+  { name: "Guitar amp", price_zar: 1000, enabled: false },
+  { name: "Piano/Keyboard", price_zar: 2000, enabled: false },
+];
 
-// Hook for optimized image preview thumbnails
-function useImageThumbnails(files: File[]) {
-  const [thumbnails, setThumbnails] = useState<string[]>([]);
-
-  useEffect(() => {
-    const urls = files.map((file) => URL.createObjectURL(file));
-    setThumbnails(urls);
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [files]);
-
-  return thumbnails;
+function defaultIncludedFeatures(): IncludedFeatures {
+  return {
+    pa: true,
+    vocal_mics: 2,
+    speech_mics: 2,
+    console_basic: true,
+    engineer_count: 1,
+    lighting: "none",
+    monitors: 0,
+    di_boxes: 2,
+    stands_and_cabling: true,
+  };
 }
 
-// Framer Motion variants for step transitions
-const stepVariants = {
-  initial: { opacity: 0, x: 50 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -50 },
-  transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] as const },
-};
-
-interface AddServiceModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onServiceSaved: (newService: Service) => void;
-  service?: Service;
+function mkDefaultAudiencePackages(): AudiencePackage[] {
+  return AUDIENCE_BANDS.map(({ id, label }) => ({
+    id,
+    label,
+    active: true,
+    indoor_base_zar: id === "0_100" ? 2500 : "",
+    outdoor_base_zar: id === "0_100" ? 3500 : "",
+    included: defaultIncludedFeatures(),
+  }));
 }
 
-interface ServiceFormData {
-  service_type: Service["service_type"] | undefined;
-  title: string;
-  description: string;
-  /** Free-text duration label, e.g. "60-90 min" */
-  duration_label?: string;
-  /** Numeric fallback used for legacy displays and sorting */
-  duration_minutes: number | "";
-  is_remote: boolean;
-  price: number | "";
-  travel_rate?: number | "";
-  travel_members?: number | "";
-  car_rental_price?: number | "";
-  flight_price?: number | "";
-  // Sound provisioning for Live Performance
-  sound_mode?: "artist_provides_variable" | "external_providers";
-  price_driving_sound?: number | "";
-  price_flying_sound?: number | "";
-  sound_city_prefs?: { city: string; provider_ids: number[] }[];
-  tech_rider_url?: string;
-}
-
-const emptyDefaults: ServiceFormData = {
-  service_type: undefined,
+// ─── Defaults ──────────────────────────────────────────────────────────────────
+const DEFAULTS: SoundServiceForm = {
   title: "",
-  description: "",
-  duration_label: "",
-  duration_minutes: 60,
-  is_remote: false,
-  price: 0,
-  travel_rate: 2.5,
-  travel_members: 1,
-  car_rental_price: 1000,
-  flight_price: 2780,
-  sound_mode: "artist_provides_variable",
-  price_driving_sound: "",
-  price_flying_sound: "",
-  sound_city_prefs: [],
+  short_summary: "",
+  tags: [],
+  coverage_areas: [],
+  travel_fee_policy: "flat",
+  travel_flat_amount: "",
+  travel_per_km_rate: "",
+  included_radius_km: "",
+  setup_minutes: 30,
+  teardown_minutes: 30,
+  crew_min: 1,
+  crew_typical: 2,
+  power_amps: 16,
+  power_phase: "single",
+  vehicle_access_notes: "",
+  console_brands: [],
+  console_models: "",
+  pa_types: [],
+  microphones: "",
+  di_boxes: "",
+  monitoring_wedges: "",
+  monitoring_iem_support: false,
+  monitoring_iem_brands: [],
+  backline_notes: "",
+  // Pricing model
+  audience_packages: mkDefaultAudiencePackages(),
+  stage_prices: DEFAULT_STAGE_PRICES,
+  lighting_prices: DEFAULT_LIGHTING_PRICES,
+  addon_unit_prices: DEFAULT_UNIT_ADDONS,
+  backline_menu: DEFAULT_BACKLINE_MENU,
+  custom_addons: [],
+  // SLAs
+  response_sla_hours: 24,
+  min_notice_days: 3,
+  availability_sync_url: "",
+  default_response_timeout_hours: 48,
+  auto_accept_threshold: false,
+  // legacy hidden
+  packages_legacy: [],
 };
 
-export default function AddServiceModalMusician({
+// ─── Component ─────────────────────────────────────────────────────────────────
+export default function AddServiceModalSoundService({
   isOpen,
   onClose,
   onServiceSaved,
   service,
-}: AddServiceModalProps) {
-  const steps = ["Type", "Details", "Media", "Review"];
-  const [step, setStep] = useState(0);
-  const [maxStep, setMaxStep] = useState(0);
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onServiceSaved: (svc: Service) => void;
+  service?: Service;
+}) {
+  // Collapsible section open state
+  const [travelOpen, setTravelOpen] = useState(true);
+  const [consolesOpen, setConsolesOpen] = useState(true);
+  const [paOpen, setPaOpen] = useState(true);
+  const [monitoringOpen, setMonitoringOpen] = useState(false);
 
-  const editingDefaults = useMemo<ServiceFormData>(
-    () => ({
-      service_type: service?.service_type,
-      title: service?.title ?? "",
-      description: service?.description ?? "",
-      duration_label:
-        (service as any)?.duration ||
-        (service as any)?.details?.duration_label ||
-        (service?.duration_minutes != null ? `${service.duration_minutes} min` : ""),
-      duration_minutes: service?.duration_minutes ?? 60,
-      is_remote: service?.is_remote ?? false,
-      price: service?.price ?? 0,
-      travel_rate: service?.travel_rate ?? "",
-      travel_members: service?.travel_members ?? "",
-      car_rental_price: service?.car_rental_price ?? "",
-      flight_price: service?.flight_price ?? "",
-    }),
-    [service],
-  );
+  const defaults: SoundServiceForm = useMemo(() => {
+    if (!service) return DEFAULTS;
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    trigger,
-    formState: { errors, isSubmitting, isValid, touchedFields },
-  } = useForm<ServiceFormData>({
-    mode: "onChange",
-    reValidateMode: "onChange",
-    criteriaMode: "all",
-    shouldUnregister: false,
-    defaultValues: service ? editingDefaults : emptyDefaults,
-  });
+    // Attempt to hydrate from existing service shape
+    const det: any = (service.details as any) || {};
+    const logistics = det.logistics || {};
+    const capabilities = det.capabilities || {};
+    const consoles = capabilities.consoles || {};
+    const pa = capabilities.pa || {};
+    const monitoring = capabilities.monitoring || {};
+    const travel = det.travel || det.coverage?.travel || {};
+    const coverageAreas = det.coverage_areas || det.coverage?.areas || [];
+    const sla = det.sla || {};
 
-  // Ensure service_type is registered so watch and validation work when selecting a category.
-  useEffect(() => {
-    register("service_type", { required: true });
-    register("sound_mode");
-  }, [register]);
+    // New fields (with fallbacks)
+    const audience_packages: AudiencePackage[] = Array.isArray(det.audience_packages)
+      ? det.audience_packages.map((p: any) => ({
+          id: p.id,
+          label: p.label,
+          active: p.active ?? true,
+          indoor_base_zar: p.indoor_base_zar ?? "",
+          outdoor_base_zar: p.outdoor_base_zar ?? "",
+          included: {
+            ...defaultIncludedFeatures(),
+            ...(p.included || {}),
+          } as IncludedFeatures,
+        }))
+      : mkDefaultAudiencePackages();
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
-  const [mediaError, setMediaError] = useState<string | null>(null);
-  const [existingMediaUrl, setExistingMediaUrl] = useState<string | null>(
-    service?.media_url ?? null,
-  );
-  const [publishing, setPublishing] = useState(false);
-  const [, setServerError] = useState<string | null>(null);
+    const stage_prices: StagePrices = det.stage_prices || DEFAULT_STAGE_PRICES;
+    const lighting_prices: LightingPrices = det.lighting_prices || DEFAULT_LIGHTING_PRICES;
+    const addon_unit_prices: UnitAddonPrices = {
+      ...DEFAULT_UNIT_ADDONS,
+      ...(det.addon_unit_prices || {}),
+    };
 
-  useEffect(() => {
-    if (isOpen) {
-      reset(service ? editingDefaults : emptyDefaults);
-      setMediaFiles([]);
-      setExistingMediaUrl(service?.media_url ?? null);
-      setMediaError(null);
-      setStep(0);
-      setMaxStep(0);
-      // Populate sound provisioning fields when editing
-      try {
-        const sp: any = (service as any)?.details?.sound_provisioning;
-        if (sp) {
-          const mode = sp.mode === "external_providers" ? "external_providers" : "artist_provides_variable";
-          setValue("sound_mode", mode as any, { shouldDirty: false });
-          setValue(
-            "price_driving_sound",
-            (sp.price_driving_sound_zar ?? sp.flat_price_zar ?? "") as any,
-            { shouldDirty: false },
-          );
-          setValue(
-            "price_flying_sound",
-            (sp.price_flying_sound_zar ?? "") as any,
-            { shouldDirty: false },
-          );
-          setValue("sound_city_prefs", (sp.city_preferences ?? []) as any, { shouldDirty: false });
-        }
-      } catch {
-        // ignore mapping issues
-      }
-    }
-  }, [isOpen, service, reset, editingDefaults]);
+    const backline_menu: BacklineItem[] = Array.isArray(det.backline_menu)
+      ? det.backline_menu
+      : DEFAULT_BACKLINE_MENU;
 
-  const watchTitle = watch("title");
-  const watchDescription = watch("description");
-  const watchServiceType = watch("service_type");
-  const watchSoundMode = watch("sound_mode");
+    const custom_addons: CustomAddon[] = Array.isArray(det.custom_addons) ? det.custom_addons : [];
 
-  const thumbnails = useImageThumbnails(mediaFiles);
+    // Backwards compatibility: keep legacy packages if present (not shown in UI)
+    const packages_legacy: ServicePackageLegacy[] = Array.isArray(det.packages)
+      ? (det.packages as any[]).map((p: any) => ({
+          name: p.name || "",
+          inclusions: Array.isArray(p.inclusions) ? p.inclusions : [],
+          base_price_zar: p.base_price_zar ?? "",
+          overtime_rate_zar_per_hour: p.overtime_rate_zar_per_hour ?? "",
+          addons: Array.isArray(p.addons)
+            ? p.addons.map((a: any) => ({ name: a.name || "", price: a.price ?? "" }))
+            : [],
+          notes: p.notes || "",
+        }))
+      : [];
 
-  useEffect(() => {
-    setMaxStep((prev) => Math.max(prev, step));
-  }, [step]);
+    return {
+      ...DEFAULTS,
+      title: service.title,
+      short_summary: (service as any)?.short_summary || det.short_summary || det.shortSummary || "",
+      tags: det.tags || [],
+      // Coverage & travel
+      coverage_areas: coverageAreas || [],
+      travel_fee_policy: (travel.policy as TravelPolicy) || DEFAULTS.travel_fee_policy,
+      travel_flat_amount: travel.flat_amount ?? (travel.flatAmount as any) ?? DEFAULTS.travel_flat_amount,
+      travel_per_km_rate: travel.per_km_rate ?? (travel.perKmRate as any) ?? DEFAULTS.travel_per_km_rate,
+      included_radius_km:
+        travel.included_radius_km ?? (travel.includedRadiusKm as any) ?? DEFAULTS.included_radius_km,
+      // Logistics
+      setup_minutes: logistics.setup_minutes ?? DEFAULTS.setup_minutes,
+      teardown_minutes: logistics.teardown_minutes ?? DEFAULTS.teardown_minutes,
+      crew_min: logistics.crew_min ?? DEFAULTS.crew_min,
+      crew_typical: logistics.crew_typical ?? DEFAULTS.crew_typical,
+      power_amps: logistics.power_amps ?? DEFAULTS.power_amps,
+      power_phase: (logistics.power_phase as PowerPhase) ?? DEFAULTS.power_phase,
+      vehicle_access_notes: logistics.vehicle_access_notes || "",
+      // Capabilities
+      console_brands: consoles.brands || [],
+      console_models: consoles.models || "",
+      pa_types: (pa.types as any) || [],
+      microphones: capabilities.microphones || "",
+      di_boxes: capabilities.di_boxes ?? DEFAULTS.di_boxes,
+      monitoring_wedges: monitoring.wedges ?? DEFAULTS.monitoring_wedges,
+      monitoring_iem_support: !!monitoring.iem_support,
+      monitoring_iem_brands: monitoring.brands || [],
+      backline_notes: (capabilities.backline?.notes as string) || "",
+      // Pricing model
+      audience_packages,
+      stage_prices,
+      lighting_prices,
+      addon_unit_prices,
+      backline_menu,
+      custom_addons,
+      // SLAs
+      response_sla_hours: sla.response_sla_hours ?? DEFAULTS.response_sla_hours,
+      min_notice_days: sla.min_notice_days ?? DEFAULTS.min_notice_days,
+      availability_sync_url: sla.availability_sync_url || "",
+      default_response_timeout_hours: sla.default_response_timeout_hours ?? DEFAULTS.default_response_timeout_hours,
+      auto_accept_threshold: !!sla.auto_accept_threshold,
+      // legacy
+      packages_legacy,
+    } as SoundServiceForm;
+  }, [service]);
 
-  const nextDisabled = () => {
-    if (step === 0) return !watch("service_type");
-    if (step === 1) return !isValid;
-    if (step === 2)
-      return (
-        (!mediaFiles.some((f) => f.type.startsWith("image/")) &&
-          !existingMediaUrl) ||
-        !!mediaError
-      );
-    return false;
-  };
+  // ─── Wizard Steps ────────────────────────────────────────────────────────────
+  const steps: WizardStep<SoundServiceForm>[] = [
+    {
+      label: "Basics",
+      fields: ["title", "short_summary", "tags"],
+      render: ({ form }) => {
+        const title = form.watch("title") || "";
+        const summary = form.watch("short_summary") || "";
+        return (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Basics</h2>
+            <div className="rounded-md border p-3 text-sm text-gray-700">
+              <p>
+                Service Type: <span className="font-medium">Sound</span> (locked)
+              </p>
+            </div>
+            <TextInput
+              label="Service Name (public)"
+              placeholder="e.g., PA + Engineer (Tiered Packages)"
+              {...form.register("title", {
+                required: "Name is required",
+                validate: (v) => {
+                  const n = (v || "").trim().length;
+                  if (n < 5) return `Need ${5 - n} more characters`;
+                  if (n > 80) return `Remove ${n - 80} characters`;
+                  return true;
+                },
+              })}
+              error={(form.formState.errors as any)?.title?.message as string}
+            />
+            <div className="space-y-1">
+              <TextArea
+                id="short_summary"
+                label="Short Summary (max 120 chars)"
+                rows={2}
+                placeholder="Packages by audience size + add-ons (stage, lights, backline)"
+                {...form.register("short_summary", {
+                  required: "Short summary is required",
+                  validate: (v) => ((v || "").trim().length <= 120 ? true : "Keep under 120 characters"),
+                })}
+                error={(form.formState.errors as any)?.short_summary?.message as string}
+              />
+              <p className="text-right text-xs text-gray-500">{summary.length}/120</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Tags</label>
+              <ChipsInput
+                values={form.watch("tags") || []}
+                onChange={(vals) => form.setValue("tags", vals, { shouldDirty: true })}
+                placeholder="Add tags like weddings, corporate, festivals"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {TAG_PRESETS.map((t) => (
+                  <CheckboxPill
+                    key={t}
+                    checked={(form.watch("tags") || []).includes(t)}
+                    onChange={() => {
+                      const set = new Set<string>((form.watch("tags") || []) as string[]);
+                      if (set.has(t)) set.delete(t);
+                      else set.add(t);
+                      form.setValue("tags", Array.from(set), { shouldDirty: true });
+                    }}
+                    label={t}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="rounded-md border p-3 text-xs text-gray-600">
+              <p>
+                Configure pricing per audience band (indoor/outdoor). Set what’s <b>included</b> (mics, engineer, lighting tier),
+                then use <b>Unit Add-ons</b> and <b>Stage/Backline</b> for extras. Clients only choose indoor/outdoor and any add-ons.
+              </p>
+            </div>
+            <div className="mt-1 text-xs text-gray-500">{title.length}/80</div>
+          </div>
+        );
+      },
+    },
+    {
+      label: "Media",
+      validate: ({ mediaFiles, existingMediaUrl, mediaError }) => {
+        const count = mediaFiles.length + (existingMediaUrl ? 1 : 0);
+        if (mediaError) return false;
+        if (count === 0) return false;
+        if (count > 7) return false; // 1 hero + up to 6 gallery
+        return true;
+      },
+      render: ({ onFileChange, removeFile, mediaError, thumbnails, existingMediaUrl, removeExistingMedia }) => (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Hero + Gallery</h2>
+          <p className="text-sm text-gray-600">First image is the hero. Up to 7 total (1 hero + 6 gallery).</p>
+          <label
+            htmlFor="media-upload"
+            className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center"
+          >
+            <p className="text-sm">Media: Drag images here or click to upload</p>
+            <input
+              id="media-upload"
+              aria-label="Media"
+              data-testid="media-input"
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={(e) => onFileChange(e.target.files)}
+            />
+          </label>
+          {mediaError && <p className="mt-2 text-sm text-red-600">{mediaError}</p>}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {existingMediaUrl && (
+              <div className="relative h-20 w-20 overflow-hidden rounded border">
+                <SafeImage src={existingMediaUrl} alt="existing-media" width={80} height={80} className="h-full w-full object-cover" />
+                <span className="absolute left-1 top-1 rounded bg-black/60 px-1 text-[10px] text-white">Hero</span>
+                <button type="button" onClick={removeExistingMedia} className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white">×</button>
+              </div>
+            )}
+            {thumbnails.map((src, i) => (
+              <div key={i} className="relative h-20 w-20 overflow-hidden rounded border">
+                <SafeImage src={src} alt={`media-${i}`} width={80} height={80} className="h-full w-full object-cover" />
+                <span className="absolute left-1 top-1 rounded bg-black/60 px-1 text-[10px] text-white">{i === 0 && !existingMediaUrl ? "Hero" : "Gallery"}</span>
+                <button type="button" onClick={() => removeFile(i)} className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white">×</button>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500">Maximum 7 images total.</p>
+        </div>
+      ),
+    },
+    {
+      label: "Audience Packages",
+      fields: ["audience_packages"],
+      render: ({ form }) => {
+        const pkgs: AudiencePackage[] = form.watch("audience_packages") || [];
+        const setPkgs = (next: AudiencePackage[]) => form.setValue("audience_packages", next, { shouldDirty: true });
+        const update = (i: number, patch: Partial<AudiencePackage>) => {
+          const next = [...pkgs];
+          next[i] = { ...next[i], ...patch } as AudiencePackage;
+          setPkgs(next);
+        };
+        const updateIncluded = (i: number, patch: Partial<IncludedFeatures>) => {
+          const next = [...pkgs];
+          next[i] = { ...next[i], included: { ...next[i].included, ...patch } };
+          setPkgs(next);
+        };
 
-  const next = async () => {
-    if (step === 1) {
-      const valid = await trigger([
-        "title",
-        "description",
-        "duration_label",
-        "price",
-      ]);
-      if (!valid) return;
-    }
-    if (step === 2) {
-      if (
-        !mediaFiles.some((f) => f.type.startsWith("image/")) &&
-        !existingMediaUrl
-      ) {
-        setMediaError("At least one image is required.");
-        return;
-      }
-    }
-    setStep((s) => Math.min(s + 1, steps.length - 1));
-    setMaxStep((m) => Math.max(m, step + 1));
-  };
+        return (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Audience Packages (Indoor/Outdoor)</h2>
+            <p className="text-sm text-gray-600">Set base prices per audience band and exactly what’s included.</p>
+            <div className="space-y-3">
+              {pkgs.map((p, i) => (
+                <div key={p.id} className="rounded-md border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-medium">{p.label} guests</div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-gray-600">Active</span>
+                      <ToggleSwitch checked={!!p.active} onChange={(v) => update(i, { active: v })} />
+                    </div>
+                  </div>
 
-  const prev = () => setStep((s) => Math.max(s - 1, 0));
+                  <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <TextInput
+                      label={`Indoor base (${DEFAULT_CURRENCY})`}
+                      type="number"
+                      value={String(p.indoor_base_zar ?? "")}
+                      onChange={(e) => update(i, { indoor_base_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                    />
+                    <TextInput
+                      label={`Outdoor base (${DEFAULT_CURRENCY})`}
+                      type="number"
+                      value={String(p.outdoor_base_zar ?? "")}
+                      onChange={(e) => update(i, { outdoor_base_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                    />
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" checked readOnly />
+                      <span className="text-sm">PA sized for {p.label} guests</span>
+                    </div>
+                  </div>
 
-  const onFileChange = (files: FileList | null) => {
-    if (!files) return;
-    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    if (images.length !== files.length) {
-      setMediaError("Only image files are allowed.");
-    } else {
-      setMediaError(null);
-    }
-    setMediaFiles((prev) => [...prev, ...images]);
-    if (
-      images.length === 0 &&
-      !mediaFiles.some((f) => f.type.startsWith("image/")) &&
-      !existingMediaUrl
-    ) {
-      setMediaError("At least one image is required.");
-    }
-  };
+                  {/* Included Features */}
+                  <div className="mt-3 rounded-md border p-3">
+                    <div className="text-sm font-medium">Included Features</div>
+                    <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <TextInput
+                        label="Vocal mics included (qty)"
+                        type="number"
+                        value={String(p.included?.vocal_mics ?? 0)}
+                        onChange={(e) => updateIncluded(i, { vocal_mics: Number(e.target.value || 0) })}
+                      />
+                      <TextInput
+                        label="Speech mics included (qty)"
+                        type="number"
+                        value={String(p.included?.speech_mics ?? 0)}
+                        onChange={(e) => updateIncluded(i, { speech_mics: Number(e.target.value || 0) })}
+                      />
+                      <div className="flex items-end gap-2">
+                        <ToggleSwitch
+                          checked={!!p.included?.console_basic}
+                          onChange={(v) => updateIncluded(i, { console_basic: v })}
+                          label="Basic mixing console + cabling"
+                        />
+                      </div>
+                      <TextInput
+                        label="On-site engineer(s)"
+                        type="number"
+                        value={String(p.included?.engineer_count ?? 1)}
+                        onChange={(e) => updateIncluded(i, { engineer_count: Number(e.target.value || 0) })}
+                      />
+                      <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700">Lighting included</label>
+                        <div className="mt-1 flex flex-wrap gap-2 text-sm">
+                          {(["none", "basic", "advanced"] as LightingTier[]).map((tier) => (
+                            <RadioPill
+                              key={tier}
+                              name={`lighting_${p.id}`}
+                              value={tier}
+                              current={p.included?.lighting || "none"}
+                              onChange={(v) => updateIncluded(i, { lighting: v as LightingTier })}
+                              label={tier.charAt(0).toUpperCase() + tier.slice(1)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <TextInput
+                        label="Monitor mixes included (qty)"
+                        type="number"
+                        value={String(p.included?.monitors ?? 0)}
+                        onChange={(e) => updateIncluded(i, { monitors: Number(e.target.value || 0) })}
+                      />
+                      <TextInput
+                        label="DI boxes included (qty)"
+                        type="number"
+                        value={String(p.included?.di_boxes ?? 0)}
+                        onChange={(e) => updateIncluded(i, { di_boxes: Number(e.target.value || 0) })}
+                      />
+                      <div className="flex items-end gap-2">
+                        <ToggleSwitch
+                          checked={p.included?.stands_and_cabling ?? true}
+                          onChange={(v) => updateIncluded(i, { stands_and_cabling: v })}
+                          label="Stands & cabling"
+                        />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Add-ons will only apply to quantities above what’s included here.
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      label: "Add-ons",
+      fields: ["stage_prices", "lighting_prices", "addon_unit_prices", "backline_menu", "custom_addons"],
+      render: ({ form }) => {
+        // Stage prices
+        const stage = form.watch("stage_prices") as StagePrices;
+        const setStage = (patch: Partial<StagePrices>) => form.setValue("stage_prices", { ...stage, ...patch }, { shouldDirty: true });
 
-  const removeFile = (i: number) => {
-    setMediaFiles((prev) => {
-      const updated = prev.filter((_, idx) => idx !== i);
-      if (
-        !updated.some((f) => f.type.startsWith("image/")) &&
-        !existingMediaUrl
-      ) {
-        setMediaError("At least one image is required.");
-      }
-      return updated;
-    });
-  };
+        // Lighting prices (global)
+        const lighting = form.watch("lighting_prices") as LightingPrices;
+        const setLighting = (patch: Partial<LightingPrices>) => form.setValue("lighting_prices", { ...lighting, ...patch }, { shouldDirty: true });
 
-  const removeExistingMedia = () => {
-    setExistingMediaUrl(null);
-    if (!mediaFiles.some((f) => f.type.startsWith("image/"))) {
-      setMediaError("At least one image is required.");
-    }
-  };
+        // Unit add-ons
+        const unit = form.watch("addon_unit_prices") as UnitAddonPrices;
+        const setUnit = (patch: Partial<UnitAddonPrices>) => form.setValue("addon_unit_prices", { ...unit, ...patch }, { shouldDirty: true });
 
-  const onSubmit: SubmitHandler<ServiceFormData> = async (data) => {
-    setServerError(null);
-    setPublishing(true);
-    try {
-      // Normalize duration label -> string + numeric fallback
-      const rawLabel = (data.duration_label || "").toString().trim();
-      const numberMatches = rawLabel.match(/\d+/g) || [];
-      const firstNumber = numberMatches.length > 0 ? parseInt(numberMatches[0]!, 10) : Number(data.duration_minutes || 0) || 0;
-      const normalizedLabel = (() => {
-        if (numberMatches.length >= 2) {
-          const a = parseInt(numberMatches[0]!, 10);
-          const b = parseInt(numberMatches[1]!, 10);
-          if (Number.isFinite(a) && Number.isFinite(b)) return `${a}\u2013${b} min`;
-        }
-        if (numberMatches.length === 1 && Number.isFinite(firstNumber)) return `${firstNumber} min`;
-        // Fallback: keep whatever user typed
-        return rawLabel || `${Number(data.duration_minutes || 60)} min`;
-      })();
+        // Backline menu
+        const backline: BacklineItem[] = form.watch("backline_menu") || [];
+        const setBackline = (next: BacklineItem[]) => form.setValue("backline_menu", next, { shouldDirty: true });
+        const updateBackline = (i: number, patch: Partial<BacklineItem>) => {
+          const next = [...backline];
+          next[i] = { ...next[i], ...patch } as BacklineItem;
+          setBackline(next);
+        };
+        const addBackline = () => setBackline([...(backline || []), { name: "", price_zar: "", enabled: true }]);
+        const removeBackline = (i: number) => setBackline(backline.filter((_, idx) => idx !== i));
 
-      const serviceData: any = {
-        ...data,
-        price: Number(data.price || 0),
-        duration_minutes: Number.isFinite(firstNumber) && firstNumber > 0 ? firstNumber : Number(data.duration_minutes || 0),
-        service_category_slug: "musician",
-        travel_rate: data.travel_rate ? Number(data.travel_rate) : undefined,
-        travel_members: data.travel_members
-          ? Number(data.travel_members)
-          : undefined,
-        car_rental_price: data.car_rental_price
-          ? Number(data.car_rental_price)
-          : undefined,
-        flight_price: data.flight_price ? Number(data.flight_price) : undefined,
-      };
-      // Attach sound provisioning details when Live Performance
-      if (data.service_type === "Live Performance") {
-        serviceData.details = {
-          ...(service?.details as any),
-          sound_provisioning: {
-            mode: data.sound_mode,
-            price_driving_sound_zar:
-              data.sound_mode === "artist_provides_variable"
-                ? Number(data.price_driving_sound || 0)
-                : undefined,
-            price_flying_sound_zar:
-              data.sound_mode === "artist_provides_variable"
-                ? Number(data.price_flying_sound || 0)
-                : undefined,
-            city_preferences:
-              data.sound_mode === "external_providers"
-                ? (data.sound_city_prefs || [])
-                : undefined,
+        // Custom add-ons
+        const customs: CustomAddon[] = form.watch("custom_addons") || [];
+        const setCustoms = (next: CustomAddon[]) => form.setValue("custom_addons", next, { shouldDirty: true });
+        const updateCustom = (i: number, patch: Partial<CustomAddon>) => {
+          const next = [...customs];
+          next[i] = { ...next[i], ...patch } as CustomAddon;
+          setCustoms(next);
+        };
+        const addCustom = () => setCustoms([...(customs || []), { name: "", price_zar: "" }]);
+        const removeCustom = (i: number) => setCustoms(customs.filter((_, idx) => idx !== i));
+
+        return (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Add-ons</h2>
+
+            {/* Stage */}
+            <div className="rounded-md border p-3">
+              <div className="text-sm font-medium">Stage (S / M / L)</div>
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <TextInput
+                  label={`Small (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(stage.S ?? "")}
+                  onChange={(e) => setStage({ S: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+                <TextInput
+                  label={`Medium (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(stage.M ?? "")}
+                  onChange={(e) => setStage({ M: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+                <TextInput
+                  label={`Large (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(stage.L ?? "")}
+                  onChange={(e) => setStage({ L: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+              </div>
+            </div>
+
+            {/* Lighting prices */}
+            <div className="rounded-md border p-3">
+              <div className="text-sm font-medium">Lighting prices (global)</div>
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <TextInput
+                  label={`Basic (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(lighting.basic ?? "")}
+                  onChange={(e) => setLighting({ basic: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+                <TextInput
+                  label={`Advanced (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(lighting.advanced ?? "")}
+                  onChange={(e) => setLighting({ advanced: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                If a package includes <b>Advanced</b> lighting, lighting add-ons won’t be shown to clients.
+                If a package includes <b>Basic</b>, clients will see an “Upgrade to Advanced” priced as (Advanced − Basic).
+              </p>
+            </div>
+
+            {/* Unit Add-ons */}
+            <div className="rounded-md border p-3">
+              <div className="mb-2 text-sm font-medium">Unit Add-ons (per extra above included)</div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <TextInput
+                  label={`Extra vocal mic (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(unit.extra_vocal_mic_zar ?? "")}
+                  onChange={(e) => setUnit({ extra_vocal_mic_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+                <TextInput
+                  label={`Extra speech mic (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(unit.extra_speech_mic_zar ?? "")}
+                  onChange={(e) => setUnit({ extra_speech_mic_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+                <TextInput
+                  label={`Extra monitor mix (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(unit.extra_monitor_mix_zar ?? "")}
+                  onChange={(e) => setUnit({ extra_monitor_mix_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+                <TextInput
+                  label={`Extra IEM pack (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(unit.extra_iem_pack_zar ?? "")}
+                  onChange={(e) => setUnit({ extra_iem_pack_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+                <TextInput
+                  label={`Extra DI box (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(unit.extra_di_box_zar ?? "")}
+                  onChange={(e) => setUnit({ extra_di_box_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <TextInput
+                  label={`Lighting tech day rate (${DEFAULT_CURRENCY})`}
+                  type="number"
+                  value={String(unit.lighting_tech_day_rate_zar ?? "")}
+                  onChange={(e) => setUnit({ lighting_tech_day_rate_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+                <div className="flex items-end gap-2 sm:col-span-2">
+                  <ToggleSwitch
+                    checked={!!unit.advanced_includes_tech}
+                    onChange={(v) => setUnit({ advanced_includes_tech: v })}
+                    label="Advanced price includes lighting tech"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Backline menu */}
+            <div className="rounded-md border p-3">
+              <div className="mb-2 text-sm font-medium">Backline menu</div>
+              <div className="space-y-2">
+                {(backline || []).map((b, i) => (
+                  <div key={i} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-8">
+                    <div className="sm:col-span-4">
+                      <TextInput label="Name" value={b.name} onChange={(e) => updateBackline(i, { name: e.target.value })} />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <TextInput
+                        label={`Price (${DEFAULT_CURRENCY})`}
+                        type="number"
+                        value={String(b.price_zar ?? "")}
+                        onChange={(e) => updateBackline(i, { price_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="sm:col-span-1">
+                      <div className="flex items-center gap-2">
+                        <ToggleSwitch checked={!!b.enabled} onChange={(v) => updateBackline(i, { enabled: v })} />
+                        <span className="text-xs text-gray-600">Enabled</span>
+                      </div>
+                    </div>
+                    <div className="sm:col-span-8 -mt-1 flex justify-end">
+                      <button type="button" className="text-xs text-red-600" onClick={() => removeBackline(i)}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2">
+                <button type="button" className="text-xs text-brand" onClick={addBackline}>
+                  + Add backline item
+                </button>
+              </div>
+            </div>
+
+            {/* Custom add-ons */}
+            <div className="rounded-md border p-3">
+              <div className="mb-2 text-sm font-medium">Custom add-ons</div>
+              <div className="space-y-2">
+                {(customs || []).map((a, ai) => (
+                  <div key={ai} className="grid grid-cols-1 gap-2 sm:grid-cols-5">
+                    <div className="sm:col-span-3">
+                      <TextInput label="Name" value={a.name} onChange={(e) => updateCustom(ai, { name: e.target.value })} />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <TextInput
+                        label={`Price (${DEFAULT_CURRENCY})`}
+                        type="number"
+                        value={String(a.price_zar ?? "")}
+                        onChange={(e) => updateCustom(ai, { price_zar: e.target.value === "" ? "" : Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="sm:col-span-5 -mt-1 flex justify-end">
+                      <button type="button" className="text-xs text-red-600" onClick={() => removeCustom(ai)}>
+                        Remove add-on
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2">
+                <button type="button" className="text-xs text-brand" onClick={addCustom}>
+                  + Add custom add-on
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      label: "Coverage & Logistics",
+      fields: [
+        "coverage_areas",
+        "travel_fee_policy",
+        "setup_minutes",
+        "teardown_minutes",
+        "crew_min",
+        "crew_typical",
+        "power_amps",
+        "power_phase",
+      ],
+      render: ({ form }) => {
+        const policy = form.watch("travel_fee_policy");
+        return (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Coverage & Logistics</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Coverage Areas (city codes)</label>
+              <ChipsInput
+                values={form.watch("coverage_areas") || []}
+                onChange={(vals) => form.setValue("coverage_areas", vals, { shouldDirty: true })}
+                placeholder="e.g., CPT, JNB, DBN"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {CITY_CODES.map((c) => (
+                  <CheckboxPill
+                    key={c}
+                    checked={(form.watch("coverage_areas") || []).includes(c)}
+                    onChange={() => {
+                      const set = new Set<string>((form.watch("coverage_areas") || []) as string[]);
+                      if (set.has(c)) set.delete(c);
+                      else set.add(c);
+                      form.setValue("coverage_areas", Array.from(set), { shouldDirty: true });
+                    }}
+                    label={c}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <CollapsibleSection title="Travel fee policy" open={travelOpen} onToggle={() => setTravelOpen((o) => !o)}>
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-3 text-sm">
+                  <RadioPill
+                    name="travel_fee_policy"
+                    value="flat"
+                    current={policy}
+                    onChange={(v) => form.setValue("travel_fee_policy", v as TravelPolicy, { shouldDirty: true })}
+                    label="Flat call-out"
+                  />
+                  <RadioPill
+                    name="travel_fee_policy"
+                    value="per_km"
+                    current={policy}
+                    onChange={(v) => form.setValue("travel_fee_policy", v as TravelPolicy, { shouldDirty: true })}
+                    label="Per-km"
+                  />
+                  <RadioPill
+                    name="travel_fee_policy"
+                    value="included_radius"
+                    current={policy}
+                    onChange={(v) => form.setValue("travel_fee_policy", v as TravelPolicy, { shouldDirty: true })}
+                    label="Included radius"
+                  />
+                </div>
+                {policy === "flat" && (
+                  <TextInput
+                    label={`Flat call-out (${DEFAULT_CURRENCY})`}
+                    type="number"
+                    step="0.01"
+                    {...form.register("travel_flat_amount", { valueAsNumber: true })}
+                  />
+                )}
+                {policy === "per_km" && (
+                  <TextInput
+                    label={`Rate per km (${DEFAULT_CURRENCY}/km)`}
+                    type="number"
+                    step="0.1"
+                    {...form.register("travel_per_km_rate", { valueAsNumber: true })}
+                  />
+                )}
+                {policy === "included_radius" && (
+                  <TextInput
+                    label="Included radius (km)"
+                    type="number"
+                    step="1"
+                    {...form.register("included_radius_km", { valueAsNumber: true })}
+                  />
+                )}
+              </div>
+            </CollapsibleSection>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <TextInput label="Setup duration (mins)" type="number" {...form.register("setup_minutes", { valueAsNumber: true })} />
+              <TextInput label="Teardown duration (mins)" type="number" {...form.register("teardown_minutes", { valueAsNumber: true })} />
+              <TextInput label="On-site crew (min)" type="number" {...form.register("crew_min", { valueAsNumber: true })} />
+              <TextInput label="On-site crew (typical)" type="number" {...form.register("crew_typical", { valueAsNumber: true })} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <TextInput label="Power requirements (amps)" type="number" {...form.register("power_amps", { valueAsNumber: true })} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Power phase</label>
+                <div className="mt-1 flex gap-2 text-sm">
+                  {[
+                    { v: "single", l: "Single" },
+                    { v: "three", l: "Three" },
+                  ].map((o) => (
+                    <RadioPill
+                      key={o.v}
+                      name="power_phase"
+                      value={o.v}
+                      current={form.watch("power_phase")}
+                      onChange={(v) => form.setValue("power_phase", v as PowerPhase, { shouldDirty: true })}
+                      label={o.l}
+                    />
+                  ))}
+                </div>
+              </div>
+              <TextInput label="Vehicle access notes" placeholder="e.g., Loading bay restrictions" {...form.register("vehicle_access_notes")} />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      label: "Capabilities & Inventory",
+      fields: ["console_brands", "pa_types"],
+      render: ({ form }) => {
+        const toggleArray = (name: keyof SoundServiceForm, val: string) => {
+          const arr = new Set<string>((form.getValues(name as any) as any[]) || []);
+          if (arr.has(val)) arr.delete(val);
+          else arr.add(val);
+          form.setValue(name as any, Array.from(arr), { shouldDirty: true });
+        };
+        const capabilitiesPreview = {
+          consoles: {
+            brands: form.watch("console_brands"),
+            models: form.watch("console_models"),
           },
-          duration_label: normalizedLabel,
+          pa: {
+            types: form.watch("pa_types"),
+          },
+          microphones: form.watch("microphones"),
+          di_boxes: Number(form.watch("di_boxes") || 0),
+          monitoring: {
+            wedges: Number(form.watch("monitoring_wedges") || 0),
+            iem_support: !!form.watch("monitoring_iem_support"),
+            brands: form.watch("monitoring_iem_brands"),
+          },
+          backline: {
+            notes: form.watch("backline_notes"),
+          },
+          tags: form.watch("tags"),
         };
-      } else {
-        serviceData.details = {
-          ...(service?.details as any),
-          duration_label: normalizedLabel,
-        };
-      }
-      let media_url = existingMediaUrl || "";
-      if (mediaFiles[0]) {
-        media_url = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error("Failed to read file"));
-          reader.readAsDataURL(mediaFiles[0]);
-        });
-      }
-      const res = service
-        ? await apiUpdateService(service.id, { ...serviceData, media_url })
-        : await apiCreateService({ ...serviceData, media_url });
-      // Upsert tech rider if provided
-      try {
-        if (data.tech_rider_url) {
-          await upsertRider(res.data.id, { pdf_url: data.tech_rider_url });
-        }
-      } catch {}
-      onServiceSaved(res.data);
-      reset(service ? editingDefaults : emptyDefaults);
-      setMediaFiles([]);
-      setExistingMediaUrl(res.data.media_url ?? null);
-      setStep(0);
-      onClose();
-    } catch (err: unknown) {
-      console.error("Service save error:", err);
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "An unexpected error occurred. Failed to save service.";
-      setServerError(msg);
-    } finally {
-      setPublishing(false);
-    }
-  };
+        return (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Capabilities & Inventory</h2>
 
-  const handleCancel = () => {
-    reset(service ? editingDefaults : emptyDefaults);
-    setMediaFiles([]);
-    setExistingMediaUrl(service?.media_url ?? null);
-    setMediaError(null);
-    setStep(0);
-    setMaxStep(0);
-    onClose();
-  };
+            <CollapsibleSection title="Console brands/models" open={consolesOpen} onToggle={() => setConsolesOpen((o) => !o)}>
+              <div className="flex flex-wrap gap-2">
+                {KNOWN_CONSOLE_BRANDS.map((b) => (
+                  <CheckboxPill
+                    key={b}
+                    checked={(form.watch("console_brands") || []).includes(b)}
+                    onChange={() => toggleArray("console_brands", b)}
+                    label={b}
+                  />
+                ))}
+              </div>
+              <TextInput label="Models (freeform)" placeholder="e.g., M32, CL5, SQ5" {...form.register("console_models")} />
+            </CollapsibleSection>
 
-  const types: { value: Service["service_type"]; label: string }[] = [
-    { value: "Live Performance", label: "Live Performance" },
-    { value: "Personalized Video", label: "Personalized Video" },
-    { value: "Custom Song", label: "Custom Song" },
-    { value: "Other", label: "Other" },
+            <CollapsibleSection title="PA types" open={paOpen} onToggle={() => setPaOpen((o) => !o)}>
+              <div className="flex gap-2">
+                {[
+                  { v: "line_array", l: "Line array" },
+                  { v: "point_source", l: "Point source" },
+                ].map((o) => (
+                  <CheckboxPill
+                    key={o.v}
+                    checked={(form.watch("pa_types") || []).includes(o.v as any)}
+                    onChange={() => toggleArray("pa_types", o.v)}
+                    label={o.l}
+                  />
+                ))}
+              </div>
+            </CollapsibleSection>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <TextInput label="Microphones (types + counts)" placeholder="e.g., 4x SM58, 2x e935, 1x KM184" {...form.register("microphones")} />
+              <TextInput label="DI boxes (count)" type="number" {...form.register("di_boxes", { valueAsNumber: true })} />
+            </div>
+
+            <CollapsibleSection title="Monitoring" open={monitoringOpen} onToggle={() => setMonitoringOpen((o) => !o)}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <TextInput label="Wedges (count)" type="number" {...form.register("monitoring_wedges", { valueAsNumber: true })} />
+                <div className="flex items-end gap-2">
+                  <ToggleSwitch
+                    checked={!!form.watch("monitoring_iem_support")}
+                    onChange={(v) => form.setValue("monitoring_iem_support", v, { shouldDirty: true })}
+                    label="IEM support"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">IEM brands</label>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {IEM_BRANDS.map((b) => (
+                      <CheckboxPill
+                        key={b}
+                        checked={(form.watch("monitoring_iem_brands") || []).includes(b)}
+                        onChange={() => toggleArray("monitoring_iem_brands", b)}
+                        label={b}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            <TextArea id="backline_notes" label="Backline notes" rows={2} placeholder="Any specifics or brand models" {...form.register("backline_notes")} />
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">JSON “capabilities” preview</label>
+              <pre className="max-h-60 overflow-auto rounded bg-gray-50 p-3 text-xs text-gray-800">{JSON.stringify(capabilitiesPreview, null, 2)}</pre>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      label: "SLAs & Availability",
+      fields: [
+        "response_sla_hours",
+        "min_notice_days",
+        "availability_sync_url",
+        "default_response_timeout_hours",
+        "auto_accept_threshold",
+      ],
+      render: ({ form }) => (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">SLAs & Availability</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <TextInput label="Response SLA (hours)" type="number" {...form.register("response_sla_hours", { valueAsNumber: true })} />
+            <TextInput label="Minimum notice (days)" type="number" {...form.register("min_notice_days", { valueAsNumber: true })} />
+            <TextInput label="Availability sync URL (ICS/webhook)" {...form.register("availability_sync_url")} />
+            <TextInput
+              label="Default response timeout (hours)"
+              type="number"
+              {...form.register("default_response_timeout_hours", { valueAsNumber: true })}
+            />
+            <div className="flex items-end">
+              <ToggleSwitch
+                checked={!!form.watch("auto_accept_threshold")}
+                onChange={(v) => form.setValue("auto_accept_threshold", v, { shouldDirty: true })}
+                label="Auto-accept if tech rider match and not double-booked"
+              />
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      label: "Review",
+      render: ({ form, thumbnails }) => {
+        const hero = thumbnails[0] || null;
+        const pkgs = (form.getValues("audience_packages") || []) as AudiencePackage[];
+        const stage = form.getValues("stage_prices") as StagePrices;
+        const lighting = form.getValues("lighting_prices") as LightingPrices;
+        const unit = form.getValues("addon_unit_prices") as UnitAddonPrices;
+        const backline = (form.getValues("backline_menu") || []) as BacklineItem[];
+        const customs = (form.getValues("custom_addons") || []) as CustomAddon[];
+        return (
+          <div className="space-y-3">
+            <h2 className="text-xl font-semibold">Review</h2>
+            <div className="rounded-md border p-3 text-sm">
+              <div className="font-medium">Basics</div>
+              <div>Name: {form.getValues("title")}</div>
+              <div>Summary: {form.getValues("short_summary")}</div>
+              <div>Tags: {(form.getValues("tags") || []).join(", ")}</div>
+            </div>
+
+            <div className="rounded-md border p-3 text-sm">
+              <div className="font-medium">Audience packages & inclusions</div>
+              <div className="mt-1 overflow-x-auto">
+                <table className="min-w-full text-left text-xs">
+                  <thead>
+                    <tr className="text-gray-500">
+                      <th className="py-1 pr-3">Band</th>
+                      <th className="py-1 pr-3">Active</th>
+                      <th className="py-1 pr-3">Indoor ({DEFAULT_CURRENCY})</th>
+                      <th className="py-1 pr-3">Outdoor ({DEFAULT_CURRENCY})</th>
+                      <th className="py-1 pr-3">Included</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pkgs.map((p) => (
+                      <tr key={p.id}>
+                        <td className="py-1 pr-3">{p.label}</td>
+                        <td className="py-1 pr-3">{p.active ? "Yes" : "No"}</td>
+                        <td className="py-1 pr-3">{String(p.indoor_base_zar || "—")}</td>
+                        <td className="py-1 pr-3">{String(p.outdoor_base_zar || "—")}</td>
+                        <td className="py-1 pr-3">
+                          {[
+                            "PA",
+                            `${p.included.vocal_mics} vocal mic(s)`,
+                            `${p.included.speech_mics} speech mic(s)`,
+                            p.included.console_basic ? "Basic console" : null,
+                            `${p.included.engineer_count} engineer(s)`,
+                            `Lighting: ${p.included.lighting}`,
+                            `${p.included.monitors} monitor mix(es)`,
+                            `${p.included.di_boxes} DI box(es)`,
+                            p.included.stands_and_cabling ? "Stands & cabling" : null,
+                          ].filter(Boolean).join(", ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="rounded-md border p-3 text-sm">
+              <div className="font-medium">Add-ons</div>
+              <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded bg-gray-50 p-2">
+                  <div className="text-xs font-medium">Stage</div>
+                  <div className="mt-1 text-xs">S: {String(stage.S || "—")} {DEFAULT_CURRENCY}</div>
+                  <div className="text-xs">M: {String(stage.M || "—")} {DEFAULT_CURRENCY}</div>
+                  <div className="text-xs">L: {String(stage.L || "—")} {DEFAULT_CURRENCY}</div>
+                </div>
+                <div className="rounded bg-gray-50 p-2">
+                  <div className="text-xs font-medium">Lighting</div>
+                  <div className="mt-1 text-xs">Basic: {String(lighting.basic || "—")} {DEFAULT_CURRENCY}</div>
+                  <div className="text-xs">Advanced: {String(lighting.advanced || "—")} {DEFAULT_CURRENCY}</div>
+                  <div className="mt-1 text-[11px] text-gray-600">
+                    Upgrade = Advanced − Basic (shown only if package includes Basic).
+                  </div>
+                </div>
+                <div className="rounded bg-gray-50 p-2">
+                  <div className="text-xs font-medium">Unit add-ons</div>
+                  <ul className="mt-1 list-disc pl-4 text-xs">
+                    <li>Extra vocal mic: {String(unit.extra_vocal_mic_zar || "—")} {DEFAULT_CURRENCY}</li>
+                    <li>Extra speech mic: {String(unit.extra_speech_mic_zar || "—")} {DEFAULT_CURRENCY}</li>
+                    <li>Extra monitor mix: {String(unit.extra_monitor_mix_zar || "—")} {DEFAULT_CURRENCY}</li>
+                    <li>Extra IEM pack: {String(unit.extra_iem_pack_zar || "—")} {DEFAULT_CURRENCY}</li>
+                    <li>Extra DI box: {String(unit.extra_di_box_zar || "—")} {DEFAULT_CURRENCY}</li>
+                    <li>Lighting tech/day: {String(unit.lighting_tech_day_rate_zar || "—")} {DEFAULT_CURRENCY} ({unit.advanced_includes_tech ? "included with Advanced" : "charged if Advanced selected"})</li>
+                  </ul>
+                </div>
+              </div>
+
+              {backline.filter((b) => b.enabled).length > 0 && (
+                <div className="mt-2 rounded bg-gray-50 p-2 text-xs">
+                  <div className="font-medium">Backline</div>
+                  <ul className="mt-1 list-disc pl-4">
+                    {backline.filter((b) => b.enabled).map((b, i) => (
+                      <li key={i}>{b.name}: {String(b.price_zar || "—")} {DEFAULT_CURRENCY}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {customs.length > 0 && (
+                <div className="mt-2 rounded bg-gray-50 p-2 text-xs">
+                  <div className="font-medium">Custom add-ons</div>
+                  <ul className="mt-1 list-disc pl-4">
+                    {customs.map((c, i) => (
+                      <li key={i}>{c.name}: {String(c.price_zar || "—")} {DEFAULT_CURRENCY}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border p-3 text-sm">
+              <div className="font-medium">Coverage & Logistics</div>
+              <div>Areas: {(form.getValues("coverage_areas") || []).join(", ")}</div>
+              <div>Travel policy: {form.getValues("travel_fee_policy")}</div>
+              <div>
+                Setup/Teardown: {String(form.getValues("setup_minutes"))} / {String(form.getValues("teardown_minutes"))} mins
+              </div>
+              <div>
+                Crew: min {String(form.getValues("crew_min"))}, typical {String(form.getValues("crew_typical"))}
+              </div>
+              <div>
+                Power: {String(form.getValues("power_amps"))}A / {String(form.getValues("power_phase"))} phase
+              </div>
+            </div>
+
+            {hero && (
+              <div className="rounded-md border p-3">
+                <div className="mb-2 text-sm font-medium">Hero image</div>
+                <SafeImage src={hero} alt="hero" width={128} height={96} className="h-24 w-32 rounded object-cover" />
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
   ];
 
-  // Load available Sound Service providers for external selection
-  const [soundServices, setSoundServices] = useState<Service[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await getAllServices();
-        // Some backends omit `service_category_slug`; fall back to mapping
-        // the numeric `service_category_id` to a known slug.
-        const services = (res.data || []).filter(
-          (s) =>
-            s.service_category_slug === "sound_service" ||
-            ID_TO_UI_CATEGORY[(s as any).service_category_id || 0] ===
-              "sound_service",
-        );
-        if (!cancelled) setSoundServices(services);
-      } catch (e) {
-        // non-fatal; keep empty list
-      }
-    }
-    if (isOpen) load();
-    return () => {
-      cancelled = true;
+  // Map to a backend-friendly payload. Extended fields go under `details`.
+  const toPayload = (data: SoundServiceForm, mediaUrl: string | null): Partial<Service> => {
+    const details: any = {
+      short_summary: data.short_summary,
+      tags: data.tags,
+      coverage_areas: data.coverage_areas,
+      travel: {
+        policy: data.travel_fee_policy,
+        flat_amount: numOrNull(data.travel_flat_amount),
+        per_km_rate: numOrNull(data.travel_per_km_rate),
+        included_radius_km: numOrNull(data.included_radius_km),
+      },
+      logistics: {
+        setup_minutes: numOrNull(data.setup_minutes),
+        teardown_minutes: numOrNull(data.teardown_minutes),
+        crew_min: numOrNull(data.crew_min),
+        crew_typical: numOrNull(data.crew_typical),
+        power_amps: numOrNull(data.power_amps),
+        power_phase: data.power_phase,
+        vehicle_access_notes: data.vehicle_access_notes,
+      },
+      capabilities: {
+        consoles: { brands: data.console_brands, models: data.console_models },
+        pa: { types: data.pa_types },
+        microphones: data.microphones,
+        di_boxes: numOrNull(data.di_boxes),
+        monitoring: {
+          wedges: numOrNull(data.monitoring_wedges),
+          iem_support: !!data.monitoring_iem_support,
+          brands: data.monitoring_iem_brands,
+        },
+        backline: { notes: data.backline_notes },
+      },
+      // NEW pricing model
+      audience_packages: (data.audience_packages || []).map((p) => ({
+        id: p.id,
+        label: p.label,
+        active: !!p.active,
+        indoor_base_zar: numOrNull(p.indoor_base_zar),
+        outdoor_base_zar: numOrNull(p.outdoor_base_zar),
+        included: {
+          pa: true,
+          vocal_mics: p.included?.vocal_mics ?? 0,
+          speech_mics: p.included?.speech_mics ?? 0,
+          console_basic: !!p.included?.console_basic,
+          engineer_count: p.included?.engineer_count ?? 0,
+          lighting: (p.included?.lighting || "none") as LightingTier,
+          monitors: p.included?.monitors ?? 0,
+          di_boxes: p.included?.di_boxes ?? 0,
+          stands_and_cabling: p.included?.stands_and_cabling ?? true,
+        } as IncludedFeatures,
+      })),
+      stage_prices: {
+        S: numOrNull(data.stage_prices.S),
+        M: numOrNull(data.stage_prices.M),
+        L: numOrNull(data.stage_prices.L),
+      },
+      lighting_prices: {
+        basic: numOrNull(data.lighting_prices.basic),
+        advanced: numOrNull(data.lighting_prices.advanced),
+      },
+      addon_unit_prices: {
+        extra_vocal_mic_zar: numOrNull(data.addon_unit_prices.extra_vocal_mic_zar),
+        extra_speech_mic_zar: numOrNull(data.addon_unit_prices.extra_speech_mic_zar),
+        extra_monitor_mix_zar: numOrNull(data.addon_unit_prices.extra_monitor_mix_zar),
+        extra_iem_pack_zar: numOrNull(data.addon_unit_prices.extra_iem_pack_zar),
+        extra_di_box_zar: numOrNull(data.addon_unit_prices.extra_di_box_zar),
+        lighting_tech_day_rate_zar: numOrNull(data.addon_unit_prices.lighting_tech_day_rate_zar),
+        advanced_includes_tech: !!data.addon_unit_prices.advanced_includes_tech,
+      },
+      backline_menu: (data.backline_menu || []).map((b) => ({
+        name: b.name,
+        price_zar: numOrNull(b.price_zar),
+        enabled: !!b.enabled,
+      })),
+      custom_addons: (data.custom_addons || []).map((a) => ({
+        name: a.name,
+        price_zar: numOrNull(a.price_zar),
+      })),
+      // SLA
+      sla: {
+        response_sla_hours: numOrNull(data.response_sla_hours),
+        min_notice_days: numOrNull(data.min_notice_days),
+        availability_sync_url: data.availability_sync_url || null,
+        default_response_timeout_hours: numOrNull(data.default_response_timeout_hours),
+        auto_accept_threshold: !!data.auto_accept_threshold,
+      },
+      // legacy preserved for older records
+      packages_legacy: data.packages_legacy || [],
     };
-  }, [isOpen]);
 
-  // Helpers for provider selection per city
-  const CITY_CODES = ["CPT", "JNB", "DBN", "PLZ", "GRJ", "ELS", "MQP", "BFN", "KIM"];
-  const addCityPref = () => {
-    const cur = watch("sound_city_prefs") || [];
-    setValue("sound_city_prefs", [...cur, { city: "", provider_ids: [] }], {
-      shouldDirty: true,
-    });
-  };
-  const removeCityPref = (idx: number) => {
-    const cur = (watch("sound_city_prefs") || []).slice();
-    cur.splice(idx, 1);
-    setValue("sound_city_prefs", cur, { shouldDirty: true });
-  };
-  const updateCityAt = (idx: number, city: string) => {
-    const cur = (watch("sound_city_prefs") || []).slice();
-    cur[idx] = { ...(cur[idx] || { provider_ids: [] }), city };
-    setValue("sound_city_prefs", cur, { shouldDirty: true });
-  };
-  const toggleProviderAt = (idx: number, providerId: number) => {
-    const cur = (watch("sound_city_prefs") || []).slice();
-    const entry = cur[idx] || { city: "", provider_ids: [] };
-    const set = new Set<number>(entry.provider_ids || []);
-    if (set.has(providerId)) set.delete(providerId);
-    else if (set.size < 3) set.add(providerId); // limit to 3
-    entry.provider_ids = Array.from(set);
-    cur[idx] = entry;
-    setValue("sound_city_prefs", cur, { shouldDirty: true });
+    return {
+      service_type: "Other", // category is set via serviceCategorySlug
+      title: data.title,
+      // No list price at root level
+      media_url: mediaUrl ?? "",
+      duration_minutes: 60,
+      details,
+    } as Partial<Service>;
   };
 
   return (
-    <Transition show={isOpen} as={Fragment}>
-      <Dialog
-        as="div"
-        className="fixed inset-0 z-50"
-        open={isOpen}
-        onClose={handleCancel}
-      >
-        {/* Overlay: this needs to be behind the modal content */}
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div
-            className="fixed inset-0 z-40 bg-gray-500/75"
-            aria-hidden="true"
-          />
-        </Transition.Child>
-
-        {/* Modal content container: occupy full screen without padding */}
-        <div className="fixed inset-0 z-50 flex p-0">
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0 scale-95"
-            enterTo="opacity-100 scale-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100 scale-100"
-            leaveTo="opacity-0 scale-95"
-          >
-            <Dialog.Panel
-              as="div"
-              className="pointer-events-auto relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none bg-white shadow-none md:flex-row"
-            >
-              {/* Close button for web and mobile */}
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="absolute right-4 top-4 z-10 rounded-md p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
-              >
-                <XMarkIcon className="pointer-events-none h-5 w-5" />
-              </button>
-
-              {/* Left Pane (Steps) */}
-              <div className="flex w-full flex-none flex-col justify-between overflow-y-auto bg-gray-50 p-6 md:w-1/5">
-                <Stepper
-                  steps={steps.slice(0, 3)}
-                  currentStep={step}
-                  maxStepCompleted={maxStep}
-                  onStepClick={setStep}
-                  ariaLabel="Add service progress"
-                  className="space-y-4"
-                  orientation="vertical"
-                  noCircles={true}
-                />
-              </div>
-
-              {/* Right Pane (Form Content) */}
-              <div className="flex w-full flex-1 flex-col overflow-hidden md:w-3/5">
-                <form
-                  id="add-service-form"
-                  onSubmit={handleSubmit(onSubmit)}
-                  className="flex-1 space-y-4 overflow-y-scroll p-6"
-                >
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={step}
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                      variants={stepVariants}
-                      transition={stepVariants.transition}
-                    >
-                      {step === 0 && (
-                        <div className="space-y-4">
-                          <h2 className="text-xl font-semibold">
-                            Choose Your Service Category
-                          </h2>
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            {types.map(({ value, label }) => {
-                              const Icon = serviceTypeIcons[value];
-                              return (
-                                <button
-                                  type="button"
-                                  key={value}
-                                  data-value={value}
-                                  onClick={() =>
-                                    setValue("service_type", value, {
-                                      shouldDirty: true,
-                                      shouldValidate: true,
-                                    })
-                                  }
-                                  className={clsx(
-                                    "flex flex-col items-center justify-center rounded-xl border p-4 text-sm transition",
-                                    watch("service_type") === value
-                                      ? "border-2 border-[var(--brand-color)]"
-                                      : "border-gray-200 hover:border-gray-300",
-                                  )}
-                                >
-                                  {Icon && <Icon className="mb-1 h-6 w-6" />}
-                                  <span className="text-sm font-medium text-gray-800">
-                                    {label}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Step 1: Service Details */}
-                      {step === 1 && (
-                        <div className="space-y-4">
-                          <h2 className="text-xl font-semibold">
-                            Service Details
-                          </h2>
-                          <div className="space-y-2">
-                            <TextInput
-                              label="Service Title"
-                              {...register("title", {
-                                required: "Service title is required",
-                                validate: (value) => {
-                                  const len = value.trim().length;
-                                  if (len < 5)
-                                    return `Need ${5 - len} more characters`;
-                                  if (len > 60)
-                                    return `Remove ${len - 60} characters`;
-                                  return true;
-                                },
-                              })}
-                              error={errors.title?.message}
-                            />
-                            <p className="mt-1 text-right text-xs text-gray-500">
-                              {(watchTitle || "").length}/60
-                            </p>
-                          </div>
-
-                          <div className="space-y-2">
-                            <TextArea
-                              label="Description"
-                              rows={4}
-                              {...register("description", {
-                                required: "Description is required",
-                                validate: (value) => {
-                                  const len = value.trim().length;
-                                  if (len < 20)
-                                    return `Need ${20 - len} more characters`;
-                                  if (len > 500)
-                                    return `Remove ${len - 500} characters`;
-                                  return true;
-                                },
-                              })}
-                              error={errors.description?.message}
-                            />
-                            <p className="mt-1 text-right text-xs text-gray-500">
-                              {(watchDescription || "").length}/500
-                            </p>
-                          </div>
-
-                          <TextInput
-                            label="Duration (minutes or range)"
-                            placeholder="e.g., 60-90 min or 45–60 min or 1-5 min"
-                            type="text"
-                            {...register("duration_label", {
-                              required: "Duration is required",
-                              validate: (v) => {
-                                const s = (v || '').toString().trim();
-                                // Must contain at least one number
-                                if (!/\d+/.test(s)) return 'Enter a number or range (e.g., 60-90)';
-                                return true;
-                              },
-                            })}
-                            // Do not show error styling until the field is touched or validation is triggered
-                            error={touchedFields?.duration_label ? (errors.duration_label?.message as string | undefined) : undefined}
-                          />
-                          <TextInput
-                            label={`Price (${DEFAULT_CURRENCY})`}
-                            type="number"
-                            step="0.01"
-                            {...register("price", {
-                              required: "Price is required",
-                              valueAsNumber: true,
-                              min: {
-                                value: 0.01,
-                                message: "Price must be positive",
-                              },
-                            })}
-                            error={errors.price?.message}
-                          />
-                      {watchServiceType === "Live Performance" && (
-                        <div className="space-y-2">
-                          <h3 className="text-base font-semibold">Sound Provisioning</h3>
-                          <p className="text-xs text-gray-600">Choose how sound is handled for live shows.</p>
-                          <div className="flex flex-wrap gap-2 text-sm">
-                            {[
-                              { v: "artist_provides_variable", l: "I provide sound (pricing varies by travel)" },
-                              { v: "external_providers", l: "Use external providers" },
-                            ].map((o) => (
-                              <button
-                                key={o.v}
-                                type="button"
-                                className={clsx(
-                                  "rounded-full border px-3 py-1",
-                                  watchSoundMode === o.v
-                                    ? "border-[var(--brand-color)] bg-[var(--brand-color)]/10"
-                                    : "border-gray-200 hover:border-gray-300",
-                                )}
-                                onClick={() => setValue("sound_mode", o.v as any, { shouldDirty: true })}
-                              >
-                                {o.l}
-                              </button>
-                            ))}
-                          </div>
-
-                          {watchSoundMode === "artist_provides_variable" && (
-                            <>
-                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <TextInput
-                                  label={`Price when I can drive and provide sound myself (${DEFAULT_CURRENCY})`}
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="e.g., 1500"
-                                  {...register("price_driving_sound", { valueAsNumber: true })}
-                                />
-                                <TextInput
-                                  label={`Price when flying (includes sound hire) (${DEFAULT_CURRENCY})`}
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="e.g., 3000"
-                                  {...register("price_flying_sound", { valueAsNumber: true })}
-                                />
-                              </div>
-                              <p className="text-xs text-gray-600">
-                                Typical cost; final quote may vary based on venue and requirements.
-                              </p>
-                            </>
-                          )}
-
-                          {watchSoundMode === "external_providers" && (
-                            <CollapsibleSection
-                              title="Preferred external providers per city"
-                              open
-                              onToggle={() => {}}
-                              className="border"
-                            >
-                              <div className="space-y-3">
-                                {(watch("sound_city_prefs") || []).map((row, idx) => {
-                                  const providersForCity = soundServices.filter((s: any) =>
-                                    Array.isArray((s as any).details?.coverage_areas)
-                                      ? (s as any).details.coverage_areas.includes(row.city)
-                                      : true,
-                                  );
-                                  return (
-                                    <div key={idx} className="rounded-md border p-2">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex gap-2">
-                                          <label className="text-sm text-gray-700">City</label>
-                                          <select
-                                            aria-label={`City ${idx + 1}`}
-                                            value={row.city || ""}
-                                            onChange={(e) => updateCityAt(idx, e.target.value)}
-                                            className="rounded border px-2 py-1 text-sm"
-                                          >
-                                            <option value="">Select city</option>
-                                            {CITY_CODES.map((c) => (
-                                              <option key={c} value={c}>
-                                                {c}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          className="text-xs text-red-600"
-                                          onClick={() => removeCityPref(idx)}
-                                        >
-                                          Remove
-                                        </button>
-                                      </div>
-                                      <div className="mt-2 text-xs text-gray-600">
-                                        Pick up to 3 providers. We’ll use 2 and 3 as backups.
-                                      </div>
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        {providersForCity.map((s) => (
-                                          <label key={s.id} className="flex items-center gap-1 text-sm">
-                                            <input
-                                              type="checkbox"
-                                              checked={(row.provider_ids || []).includes(s.id)}
-                                              onChange={() => toggleProviderAt(idx, s.id)}
-                                              disabled={
-                                                !(row.provider_ids || []).includes(s.id) &&
-                                                (row.provider_ids || []).length >= 3
-                                              }
-                                            />
-                                            <span>{s.title}</span>
-                                          </label>
-                                        ))}
-                                        {providersForCity.length === 0 && (
-                                          <span className="text-xs text-gray-500">No providers match this city yet.</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                                <button type="button" className="text-sm text-brand" onClick={addCityPref}>
-                                  + Add city
-                                </button>
-                              </div>
-                            </CollapsibleSection>
-                          )}
-
-                          {/* Tech Rider URL */}
-                          <div className="mt-4">
-                            <TextInput
-                              label="Tech rider PDF URL (optional)"
-                              placeholder="https://.../tech-rider.pdf"
-                              {...register("tech_rider_url")}
-                            />
-                            <p className="text-xs text-gray-600 mt-1">If provided, clients can download it from Event Prep when the venue manages sound.</p>
-                          </div>
-                              <TextInput
-                                label="Travelling (Rand per km)"
-                                type="number"
-                                step="0.1"
-                                placeholder="2.5"
-                                {...register("travel_rate", {
-                                  valueAsNumber: true,
-                                })}
-                              />
-                              <TextInput
-                                label="Members travelling"
-                                type="number"
-                                step="1"
-                                {...register("travel_members", {
-                                  valueAsNumber: true,
-                                })}
-                              />
-                              <TextInput
-                                label="Car rental price"
-                                type="number"
-                                step="0.01"
-                                {...register("car_rental_price", {
-                                  valueAsNumber: true,
-                                })}
-                              />
-                              <TextInput
-                                label="Return flight price (per person)"
-                                type="number"
-                                step="0.01"
-                                {...register("flight_price", {
-                                  valueAsNumber: true,
-                                })}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Step 2: Upload Media */}
-                      {step === 2 && (
-                        <div className="space-y-4">
-                          <h2 className="mb-2 text-xl font-semibold">
-                            Upload Media
-                          </h2>
-                          <p className="mb-2 text-sm text-gray-600">
-                            Use high-resolution images or short video clips to
-                            showcase your talent.
-                          </p>
-                          <label
-                            htmlFor="media-upload"
-                            className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center"
-                          >
-                            <p className="text-sm">
-                              Drag files here or click to upload
-                            </p>
-                            <input
-                              id="media-upload"
-                              ref={fileInputRef}
-                              type="file"
-                              multiple
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => onFileChange(e.target.files)}
-                            />
-                          </label>
-                          {mediaError && (
-                            <p className="mt-2 text-sm text-red-600">
-                              {mediaError}
-                            </p>
-                          )}
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {existingMediaUrl && (
-                              <div className="relative h-20 w-20 overflow-hidden rounded border">
-                                <Image
-                                  src={existingMediaUrl}
-                                  alt="existing-media"
-                                  width={80}
-                                  height={80}
-                                  className="h-full w-full object-cover"
-                                  unoptimized
-                                />
-                                <button
-                                  type="button"
-                                  onClick={removeExistingMedia}
-                                  className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            )}
-                            {thumbnails.map((src: string, i: number) => (
-                              <div
-                                key={i}
-                                className="relative h-20 w-20 overflow-hidden rounded border"
-                              >
-                                <Image
-                                  src={src}
-                                  alt={`media-${i}`}
-                                  width={80}
-                                  height={80}
-                                  className="h-full w-full object-cover"
-                                  unoptimized
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => removeFile(i)}
-                                  className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Step 3: Review Your Service */}
-                      {step === 3 && (
-                        <div className="space-y-4">
-                          <h2 className="text-xl font-semibold">
-                            Review Your Service
-                          </h2>
-                          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                            <div className="rounded-md border p-2">
-                              <h3 className="font-medium">Type</h3>
-                              <p>{watch("service_type")}</p>
-                            </div>
-                            <div className="rounded-md border p-2">
-                              <h3 className="font-medium">Title</h3>
-                              <p>{watch("title")}</p>
-                            </div>
-                            <div className="rounded-md border p-2">
-                              <h3 className="font-medium">Description</h3>
-                              <p>{watch("description")}</p>
-                            </div>
-                            <div className="rounded-md border p-2">
-                              <h3 className="font-medium">Duration</h3>
-                              <p>{(watch("duration_label") as string) || `${watch("duration_minutes") || 0} min`}</p>
-                            </div>
-                          <div className="rounded-md border p-2">
-                            <h3 className="font-medium">Price</h3>
-                            <p>{watch("price") || 0}</p>
-                          </div>
-                          {watchServiceType === "Live Performance" && watchSoundMode === "artist_provides_variable" && (
-                            <>
-                              <div className="rounded-md border p-2">
-                                <h3 className="font-medium">Sound price when driving</h3>
-                                <p>{watch("price_driving_sound") || 0}</p>
-                              </div>
-                              <div className="rounded-md border p-2">
-                                <h3 className="font-medium">Sound price when flying (incl. hire)</h3>
-                                <p>{watch("price_flying_sound") || 0}</p>
-                              </div>
-                            </>
-                          )}
-                          {watchServiceType === "Live Performance" && (
-                            <>
-                              <div className="rounded-md border p-2">
-                                <h3 className="font-medium">
-                                  Travelling (Rand per km)
-                                </h3>
-                                  <p>{watch("travel_rate") || 0}</p>
-                                </div>
-                                <div className="rounded-md border p-2">
-                                  <h3 className="font-medium">
-                                    Members travelling
-                                  </h3>
-                                  <p>{watch("travel_members") || 1}</p>
-                                </div>
-                                <div className="rounded-md border p-2">
-                                  <h3 className="font-medium">
-                                    Car rental price
-                                  </h3>
-                                  <p>{watch("car_rental_price") || 0}</p>
-                                </div>
-                                <div className="rounded-md border p-2">
-                                  <h3 className="font-medium">
-                                    Return flight price (per person)
-                                  </h3>
-                                  <p>{watch("flight_price") || 0}</p>
-                                </div>
-                              </>
-                            )}
-                            {mediaFiles.length > 0 && (
-                              <div className="col-span-full rounded-md border p-2">
-                                <h3 className="font-medium">Images</h3>
-                                <div className="mt-1 flex flex-wrap gap-1">
-                                  {thumbnails.map((src: string, i: number) => (
-                                    <Image
-                                      key={i}
-                                      src={src}
-                                      alt={`media-${i}`}
-                                      width={64}
-                                      height={64}
-                                      className="h-16 w-16 rounded object-cover"
-                                      unoptimized
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  </AnimatePresence>
-                </form>
-
-                {/* Action buttons */}
-                <div className="flex flex-shrink-0 flex-col-reverse gap-2 border-t border-gray-100 p-4 sm:flex-row sm:justify-between">
-                  <Button
-                    variant="outline"
-                    onClick={step === 0 ? handleCancel : prev}
-                    data-testid="back"
-                    className="min-h-[40px] w-full sm:w-auto"
-                  >
-                    {step === 0 ? "Cancel" : "Back"}
-                  </Button>
-                  {step < steps.length - 1 && (
-                    <Button
-                      onClick={next}
-                      disabled={nextDisabled()}
-                      data-testid="next"
-                      className="min-h-[40px] w-full sm:w-auto"
-                    >
-                      Next
-                    </Button>
-                  )}
-                  {step === steps.length - 1 && (
-                    <Button
-                      type="submit"
-                      form="add-service-form"
-                      disabled={publishing || isSubmitting || nextDisabled()}
-                      isLoading={publishing || isSubmitting}
-                      className="min-h-[40px] w-full sm:w-auto"
-                    >
-                      {service ? "Save Changes" : "Publish"}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Dialog.Panel>
-          </Transition.Child>
-        </div>
-      </Dialog>
-    </Transition>
+    <BaseServiceWizard
+      isOpen={isOpen}
+      onClose={onClose}
+      onServiceSaved={onServiceSaved}
+      service={service}
+      steps={steps}
+      defaultValues={defaults}
+      toPayload={toPayload}
+      serviceCategorySlug="sound_service"
+    />
   );
+}
+
+// ─── Small Inline UI Helpers (chips / pills) ───────────────────────────────────
+function ChipsInput({ values, onChange, placeholder }: { values: string[]; onChange: (vals: string[]) => void; placeholder?: string }) {
+  const add = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement;
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const v = target.value.trim();
+      if (!v) return;
+      if (!values.includes(v)) onChange([...values, v]);
+      target.value = "";
+    }
+  };
+  const remove = (v: string) => onChange(values.filter((x) => x !== v));
+  return (
+    <div className="rounded-md border p-2">
+      <div className="flex flex-wrap gap-2">
+        {values.map((v) => (
+          <span key={v} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs">
+            {v}
+            <button type="button" onClick={() => remove(v)} className="text-gray-500">×</button>
+          </span>
+        ))}
+        <input
+          type="text"
+          className="min-w-[10ch] flex-1 border-0 text-sm outline-none"
+          placeholder={placeholder || "Type and press Enter"}
+          onKeyDown={add}
+        />
+      </div>
+    </div>
+  );
+}
+
+function RadioPill({ name, value, current, onChange, label }: { name: string; value: string; current: string; onChange: (v: string) => void; label: string }) {
+  const active = current === value;
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      onClick={() => onChange(value)}
+      className={`rounded-full border px-3 py-1 text-xs ${active ? "border-[var(--brand-color)]" : "border-gray-200 hover:border-gray-300"}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function CheckboxPill({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={checked}
+      onClick={onChange}
+      className={`rounded-full border px-3 py-1 text-xs ${checked ? "border-[var(--brand-color)] bg-[var(--brand-color)]/10" : "border-gray-200 hover:border-gray-300"}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function numOrNull(v: number | string | undefined | ""): number | null {
+  if (v === "" || v === undefined || v === null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
