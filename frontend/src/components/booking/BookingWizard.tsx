@@ -563,6 +563,34 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   if (est && typeof est.total === 'number' && est.total > 0) { scFromAudience = est.total; break; }
                 } catch {}
               }
+
+              // Fallback: if no preferred suppliers matched, try scanning sound services catalog
+              if ((!scFromAudience || scFromAudience <= 0) && details.location) {
+                try {
+                  const all = await fetch(`/api/v1/services/`, { cache: 'no-store' }).then((r) => r.json());
+                  const soundSvcs = (Array.isArray(all) ? all : []).filter((s: any) => {
+                    const slug = (s?.service_category_slug || s?.service_category?.slug || s?.service_category?.name || '').toString().toLowerCase();
+                    return slug.includes('sound');
+                  });
+                  for (const s of soundSvcs) {
+                    const est = await fetch(`/api/v1/services/${s.id}/sound-estimate`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        guest_count: guestCount,
+                        venue_type: venueType,
+                        stage_required: !!(details as any).stageRequired,
+                        stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
+                        lighting_evening: !!(details as any).lightingEvening,
+                        upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
+                        rider_units: normalizedRider.units,
+                        backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
+                      }),
+                    }).then(r => r.json());
+                    if (est && typeof est.total === 'number' && est.total > 0) { scFromAudience = est.total; break; }
+                  }
+                } catch {}
+              }
             }
           }
         } catch {}

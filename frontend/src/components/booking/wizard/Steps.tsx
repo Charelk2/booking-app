@@ -881,6 +881,16 @@ export function SoundStep({
 
         if (active) setSuppliers(cards);
 
+        // Auto-select top recommended supplier if none selected yet
+        try {
+          const cur = (useBooking() as any).details?.soundSupplierServiceId;
+          const mode = (useBooking() as any).details?.soundMode;
+          const needs = (useBooking() as any).details?.sound === 'yes';
+          if (!artistOnlySound && needs && mode === 'supplier' && (!cur || typeof cur !== 'number') && cards && cards[0]?.serviceId) {
+            set({ soundSupplierServiceId: Number(cards[0].serviceId) as any });
+          }
+        } catch {}
+
         // If "provided_by_artist", try resolve a tier estimate if available
         try {
           const tiers = sp?.provided_price_tiers as Array<{ min?: number; max?: number; price: number }> | undefined;
