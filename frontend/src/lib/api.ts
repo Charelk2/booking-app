@@ -774,6 +774,24 @@ export const calculateQuote = async (params: {
   return res.data;
 };
 
+// ─── SOUND SERVICE ESTIMATE (audience packages + add-ons) ─────────────────────
+export const calculateSoundServiceEstimate = (serviceId: number, payload: {
+  guest_count: number;
+  venue_type: 'indoor' | 'outdoor' | 'hybrid';
+  stage_required?: boolean;
+  stage_size?: 'S' | 'M' | 'L' | null;
+  lighting_evening?: boolean;
+  upgrade_lighting_advanced?: boolean;
+  rider_units?: {
+    vocal_mics?: number;
+    speech_mics?: number;
+    monitor_mixes?: number;
+    iem_packs?: number;
+    di_boxes?: number;
+  };
+  backline_requested?: Record<string, number>;
+}) => api.post(`${API_V1}/services/${serviceId}/sound-estimate`, payload);
+
 // ─── PAYMENTS ───────────────────────────────────────────────────────────────
 export const createPayment = (data: {
   booking_request_id: number;

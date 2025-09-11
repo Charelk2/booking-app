@@ -417,6 +417,7 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                   <Controller
                     name="location"
                     control={control}
+                    rules={{ validate: (v) => !!String(v || '') }}
                     render={({ field }) => (
                       <LocationInput
                         value={field.value ?? ''}
@@ -458,6 +459,7 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
               <Controller
                 name="location"
                 control={control}
+                rules={{ validate: (v) => !!String(v || '') }}
                 render={({ field }) => (
                   <LocationInput
                     value={field.value ?? ''}
@@ -1151,6 +1153,22 @@ export function SoundStep({
                     <p className="help-text mt-2">
                       Basic or advanced lighting may be added depending on the selected package and time of day.
                     </p>
+                    {Boolean(field.value) && (
+                      <Controller
+                        name={'lightingUpgradeAdvanced' as any}
+                        control={control}
+                        render={({ field: f2 }) => (
+                          <div className="mt-3 flex items-center justify-between">
+                            <span className="text-sm">Upgrade to Advanced lighting</span>
+                            <input
+                              type="checkbox"
+                              checked={!!f2.value}
+                              onChange={(e) => f2.onChange(e.target.checked)}
+                            />
+                          </div>
+                        )}
+                      />
+                    )}
                   </>
                 )}
               />
@@ -1455,13 +1473,17 @@ export function ReviewStep(props: {
             <span className="flex items-center">
               Sound Equipment <span className="ml-1 text-[11px] text-neutral-500">({tinySummary})</span>
               <InfoPopover label="Sound equipment details" className="ml-1.5">
-                {soundMode === 'managed_by_artist'
-                  ? 'Managed by the artist with a simple markup policy.'
-                  : soundMode === 'provided_by_artist'
-                  ? 'Provided by the artist directly; price is firm on acceptance.'
-                  : soundMode === 'client_provided'
-                  ? 'You will provide sound equipment; no supplier outreach required.'
-                  : 'External provider estimate (drive-only). A supplier will confirm a firm price.'}
+                <>
+                  {tinySummary}
+                  <br />
+                  {soundMode === 'managed_by_artist'
+                    ? 'Managed by the artist with a simple markup policy.'
+                    : soundMode === 'provided_by_artist'
+                    ? 'Provided by the artist directly; price is firm on acceptance.'
+                    : soundMode === 'client_provided'
+                    ? 'You will provide sound equipment; no supplier outreach required.'
+                    : 'External provider estimate (drive-only). A supplier will confirm a firm price.'}
+                </>
               </InfoPopover>
             </span>
             <span>{formatCurrency(soundFee)}</span>

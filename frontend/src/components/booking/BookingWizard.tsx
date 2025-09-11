@@ -116,6 +116,55 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [aiText, setAiText] = useState('');
   const savedRef = useRef<any | null>(null);
 
+  // Normalize rider spec from server into counts for pricing
+  function normalizeRiderForPricing(spec: any): { units: Record<string, number>, backline: Record<string, number> } {
+    const units = {
+      vocal_mics: 0,
+      speech_mics: 0,
+      monitor_mixes: 0,
+      iem_packs: 0,
+      di_boxes: 0,
+    } as Record<string, number>;
+    const backline: Record<string, number> = {};
+    if (!spec || typeof spec !== 'object') return { units, backline };
+    try {
+      if (spec.monitors != null) units.monitor_mixes = Number(spec.monitors) || 0;
+      if (spec.di != null) units.di_boxes = Number(spec.di) || 0;
+      if (spec.wireless != null) units.speech_mics = Number(spec.wireless) || 0;
+      if (spec.mics && typeof spec.mics === 'object') {
+        const dyn = Number(spec.mics.dynamic || 0);
+        const cond = Number(spec.mics.condenser || 0);
+        units.vocal_mics = Math.max(units.vocal_mics, dyn + cond);
+      }
+      if (spec.iem_packs != null) units.iem_packs = Number(spec.iem_packs) || 0;
+      if (spec.monitoring && typeof spec.monitoring === 'object' && spec.monitoring.iem_packs != null) {
+        units.iem_packs = Math.max(units.iem_packs, Number(spec.monitoring.iem_packs) || 0);
+      }
+      const arr: any[] = Array.isArray(spec.backline) ? spec.backline : [];
+      const mapKey = (name: string): string | null => {
+        const n = String(name || '').toLowerCase();
+        if (n.includes('drum') && n.includes('full')) return 'drums_full';
+        if (n.includes('drum')) return 'drum_shells';
+        if (n.includes('guitar') && n.includes('amp')) return 'guitar_amp';
+        if (n.includes('bass') && n.includes('amp')) return 'bass_amp';
+        if (n.includes('keyboard') && n.includes('amp')) return 'keyboard_amp';
+        if (n.includes('keyboard') && n.includes('stand')) return 'keyboard_stand';
+        if (n.includes('digital') && n.includes('piano')) return 'piano_digital_88';
+        if (n.includes('upright') && n.includes('piano')) return 'piano_acoustic_upright';
+        if (n.includes('grand') && n.includes('piano')) return 'piano_acoustic_grand';
+        if (n.includes('dj') && (n.includes('booth') || n.includes('table'))) return 'dj_booth';
+        return null;
+      };
+      for (const item of arr) {
+        const src = typeof item === 'string' ? item : item?.name || '';
+        const k = mapKey(src);
+        if (!k) continue;
+        backline[k] = (backline[k] || 0) + 1;
+      }
+    } catch {}
+    return { units, backline };
+  }
+
   // --- Component States ---
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [artistLocation, setArtistLocation] = useState<string | null>(null);
@@ -382,6 +431,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           stageRequired,
           stageSize,
           lightingEvening,
+          upgradeLightingAdvanced: !!(details as any).lightingUpgradeAdvanced,
         });
         if ((res.total || 0) > 0) {
           basePrice = res.total;
@@ -436,17 +486,44 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           if (soundModePref === 'supplier' || confExternal) {
             // Determine selected supplier or pick a preferred candidate
             const selectedId = (details as any).soundSupplierServiceId as number | undefined;
+            let normalizedRider = { units: { vocal_mics: 0, speech_mics: 0, monitor_mixes: 0, iem_packs: 0, di_boxes: 0 }, backline: {} as Record<string, number> };
+            try {
+              const rider = await fetch(`/api/v1/services/${serviceId}/rider`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null);
+              normalizedRider = normalizeRiderForPricing(rider?.spec);
+            } catch {}
             if (selectedId) {
-              const psvc = await fetch(`/api/v1/services/${selectedId}`, { cache: 'force-cache' }).then((r) => r.json());
-              const comp = computeSoundServicePrice({
-                details: psvc?.details,
-                guestCount,
-                venueType,
-                stageRequired: !!(details as any).stageRequired,
-                stageSize: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-                lightingEvening: !!(details as any).lightingEvening,
-              });
-              scFromAudience = Number(comp.total) || 0;
+              // Attempt server-side estimate to keep parity
+              try {
+                const est = await fetch(`/api/v1/services/${selectedId}/sound-estimate`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    guest_count: guestCount,
+                    venue_type: venueType,
+                    stage_required: !!(details as any).stageRequired,
+                    stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
+                    lighting_evening: !!(details as any).lightingEvening,
+                    upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
+                    rider_units: normalizedRider.units,
+                    backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
+                  }),
+                }).then(r => r.json());
+                if (est && typeof est.total === 'number') scFromAudience = est.total;
+              } catch {
+                const psvc = await fetch(`/api/v1/services/${selectedId}`, { cache: 'force-cache' }).then((r) => r.json());
+                const comp = computeSoundServicePrice({
+                  details: psvc?.details,
+                  guestCount,
+                  venueType,
+                  stageRequired: !!(details as any).stageRequired,
+                  stageSize: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+                  lightingEvening: !!(details as any).lightingEvening,
+                  upgradeLightingAdvanced: !!(details as any).lightingUpgradeAdvanced,
+                  riderUnits: normalizedRider.units,
+                  backlineRequested: (details as any).backlineRequired ? normalizedRider.backline : {},
+                });
+                scFromAudience = Number(comp.total) || 0;
+              }
             } else if (details.location) {
               const sp = svcRes?.details?.sound_provisioning || {};
               let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
@@ -469,16 +546,21 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               const tryIds = preferredIds.slice(0, 3);
               for (const pid of tryIds) {
                 try {
-                  const psvc = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.json());
-                  const comp = computeSoundServicePrice({
-                    details: psvc?.details,
-                    guestCount,
-                    venueType,
-                    stageRequired: !!(details as any).stageRequired,
-                    stageSize: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-                    lightingEvening: !!(details as any).lightingEvening,
-                  });
-                  if ((Number(comp.total) || 0) > 0) { scFromAudience = Number(comp.total) || 0; break; }
+                  const est = await fetch(`/api/v1/services/${pid}/sound-estimate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      guest_count: guestCount,
+                      venue_type: venueType,
+                      stage_required: !!(details as any).stageRequired,
+                      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
+                      lighting_evening: !!(details as any).lightingEvening,
+                      upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
+                      rider_units: normalizedRider.units,
+                      backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
+                    }),
+                  }).then(r => r.json());
+                  if (est && typeof est.total === 'number' && est.total > 0) { scFromAudience = est.total; break; }
                 } catch {}
               }
             }
@@ -610,6 +692,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     (details as any).stageRequired,
     (details as any).stageSize,
     (details as any).lightingEvening,
+    (details as any).lightingUpgradeAdvanced,
     (details as any).backlineRequired,
     step,
     calculateReviewData,
@@ -791,6 +874,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         selected_sound_service_id: (details as any).soundSupplierServiceId,
         event_city: details.location,
         provided_sound_estimate: (details as any).providedSoundEstimate,
+        stage_required: !!(details as any).stageRequired,
+        stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+        lighting_evening: !!(details as any).lightingEvening,
+        upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
+        backline_required: !!(details as any).backlineRequired,
       },
       service_provider_id: 0
     } as BookingRequestCreate;
