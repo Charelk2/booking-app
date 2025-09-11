@@ -405,14 +405,14 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const drivingEstimateCost = directDistanceKm * travelRate * 2;
 
       let quote: Awaited<ReturnType<typeof calculateQuote>> | null = null;
-      // Only include external sound estimation for non-sound services
-      if ((svcCategorySlug || '').toLowerCase().includes('sound') === false && details.sound === 'yes') {
+      const isSoundServiceCategory = (svcCategorySlug || '').toLowerCase().includes('sound');
+      if (!isSoundServiceCategory && details.sound === 'yes') {
+        // Base calculation (travel + etc.)
         quote = await calculateQuote({
-          base_fee: basePrice, // Use the fetched base price
+          base_fee: basePrice,
           distance_km: directDistanceKm,
           service_id: serviceId,
           event_city: details.location,
-          // Pass sound context for correct sizing/pricing
           guest_count: parseInt((details as any).guests || '0', 10) || undefined,
           venue_type: (details as any).venueType,
           stage_required: !!(details as any).stageRequired,
@@ -421,19 +421,34 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           backline_required: !!(details as any).backlineRequired,
         } as any);
         setCalculatedPrice(Number(quote.total));
-        // Ensure sound cost is numeric; if missing, compute a fallback estimate from config
+
+        // Start from backend sound_cost, then override with audience-tier (supplier) where applicable
         let sc = Number(quote.sound_cost);
-        if (!Number.isFinite(sc) || sc <= 0) {
-          try {
-            const soundMode = (details as any).soundMode;
-            const guestCount = parseInt((details as any).guests || '0', 10) || undefined;
-            const venueType = (details as any).venueType;
-            if (soundMode === 'provided_by_artist' && (details as any).providedSoundEstimate != null) {
-              sc = Number((details as any).providedSoundEstimate);
-            } else if (soundMode === 'supplier' && details.location) {
-              // Fallback: rank preferred suppliers and take midpoint of top estimate
-              const svc = await fetch(`/api/v1/services/${serviceId}`, { cache: 'force-cache' }).then((r) => r.json());
-              const sp = svc?.details?.sound_provisioning || {};
+        const soundModePref = (details as any).soundMode;
+        const guestCount = parseInt((details as any).guests || '0', 10) || undefined;
+        const venueType = (details as any).venueType;
+
+        // Prefer supplier audience-tier pricing if supplier mode is selected or musician config is external providers
+        let scFromAudience = 0;
+        try {
+          const spConf = svcRes?.details?.sound_provisioning || {};
+          const confExternal = (spConf.mode === 'external_providers' || spConf.mode === 'external' || spConf.mode_default === 'external_providers');
+          if (soundModePref === 'supplier' || confExternal) {
+            // Determine selected supplier or pick a preferred candidate
+            const selectedId = (details as any).soundSupplierServiceId as number | undefined;
+            if (selectedId) {
+              const psvc = await fetch(`/api/v1/services/${selectedId}`, { cache: 'force-cache' }).then((r) => r.json());
+              const comp = computeSoundServicePrice({
+                details: psvc?.details,
+                guestCount,
+                venueType,
+                stageRequired: !!(details as any).stageRequired,
+                stageSize: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+                lightingEvening: !!(details as any).lightingEvening,
+              });
+              scFromAudience = Number(comp.total) || 0;
+            } else if (details.location) {
+              const sp = svcRes?.details?.sound_provisioning || {};
               let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
               if (!prefs.length) {
                 try {
@@ -445,10 +460,53 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               const locCityLower = locLower.split(',')[0]?.trim() || locLower;
               const findIds = (p: any): number[] => (Array.isArray(p?.provider_ids) ? p.provider_ids : p?.providerIds || [])
                 .map((x: any) => Number(x)).filter((n: number) => Number.isFinite(n));
-              const match = prefs.find((p) => (p.city || '').toLowerCase() === locLower)
-                || prefs.find((p) => (p.city || '').toLowerCase() === locCityLower)
-                || prefs.find((p) => locLower.includes((p.city || '').toLowerCase()))
-                || prefs.find((p) => locCityLower.includes((p.city || '').toLowerCase()));
+              const match = prefs.find((p: any) => (p.city || '').toLowerCase() === locLower)
+                || prefs.find((p: any) => (p.city || '').toLowerCase() === locCityLower)
+                || prefs.find((p: any) => locLower.includes((p.city || '').toLowerCase()))
+                || prefs.find((p: any) => locCityLower.includes((p.city || '').toLowerCase()));
+              let preferredIds: number[] = match ? findIds(match) : [];
+              if (!preferredIds.length && prefs.length) preferredIds = Array.from(new Set(prefs.flatMap(findIds)));
+              const tryIds = preferredIds.slice(0, 3);
+              for (const pid of tryIds) {
+                try {
+                  const psvc = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.json());
+                  const comp = computeSoundServicePrice({
+                    details: psvc?.details,
+                    guestCount,
+                    venueType,
+                    stageRequired: !!(details as any).stageRequired,
+                    stageSize: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+                    lightingEvening: !!(details as any).lightingEvening,
+                  });
+                  if ((Number(comp.total) || 0) > 0) { scFromAudience = Number(comp.total) || 0; break; }
+                } catch {}
+              }
+            }
+          }
+        } catch {}
+
+        if (Number.isFinite(scFromAudience) && scFromAudience > 0) {
+          sc = scFromAudience;
+        } else if (!Number.isFinite(sc) || sc <= 0) {
+          // Last resort fallback: estimate via pricebook ranking midpoint if available
+          try {
+            if (soundModePref === 'supplier' && details.location) {
+              const sp = svcRes?.details?.sound_provisioning || {};
+              let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
+              if (!prefs.length) {
+                try {
+                  const pr = await fetch(`/api/v1/services/${serviceId}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json());
+                  if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences;
+                } catch {}
+              }
+              const locLower = String(details.location || '').toLowerCase();
+              const locCityLower = locLower.split(',')[0]?.trim() || locLower;
+              const findIds = (p: any): number[] => (Array.isArray(p?.provider_ids) ? p.provider_ids : p?.providerIds || [])
+                .map((x: any) => Number(x)).filter((n: number) => Number.isFinite(n));
+              const match = prefs.find((p: any) => (p.city || '').toLowerCase() === locLower)
+                || prefs.find((p: any) => (p.city || '').toLowerCase() === locCityLower)
+                || prefs.find((p: any) => locLower.includes((p.city || '').toLowerCase()))
+                || prefs.find((p: any) => locCityLower.includes((p.city || '').toLowerCase()));
               let preferredIds: number[] = match ? findIds(match) : [];
               if (!preferredIds.length && prefs.length) preferredIds = Array.from(new Set(prefs.flatMap(findIds)));
               preferredIds = preferredIds.slice(0, 3);
@@ -545,6 +603,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     details.location,
     details.date,
     details.sound,
+    (details as any).soundMode,
+    (details as any).soundSupplierServiceId,
     (details as any).guests,
     (details as any).venueType,
     (details as any).stageRequired,
