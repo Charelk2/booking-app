@@ -38,6 +38,29 @@ def list_services(db: Session = Depends(get_db)):
     return services
 
 
+@router.get("/{service_id}", response_model=ServiceResponse)
+def read_service(service_id: int, db: Session = Depends(get_db)):
+    """Read a single approved service by ID (public).
+
+    Many client flows fetch supplier/musician services by id to read
+    structured `details` (e.g., audience packages). Ensure this route
+    exists so frontend calls to `/api/v1/services/{id}` do not 404.
+    """
+    svc = (
+        db.query(Service)
+        .options(joinedload(Service.artist))
+        .filter(Service.id == service_id)
+        .first()
+    )
+    if not svc or getattr(svc, "status", "approved") != "approved":
+        raise error_response(
+            "Service not found",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    return svc
+
+
 @router.post("/", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
 def create_service(
     *,
