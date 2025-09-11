@@ -22,6 +22,7 @@ import toast from '@/components/ui/Toast';
 import { parseBookingText, uploadBookingAttachment } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { getDrivingMetrics, TravelResult } from '@/lib/travel';
+import { getServiceProviderAvailability } from '@/lib/api';
 import SummarySidebar from '../SummarySidebar';
 import { trackEvent } from '@/lib/analytics';
 
@@ -813,22 +814,43 @@ export function SoundStep({
         }
         preferredIds = preferredIds.slice(0, 3);
 
-        // Load candidates & rough distance
-        const candidates: { service_id: number; distance_km: number; publicName: string }[] = [];
+        // Load candidates & rough distance + availability on selected date
+        const candidates: { service_id: number; distance_km: number; publicName: string; available: boolean }[] = [];
+        const eventDateStr = (() => {
+          const dd = (useBooking() as any).details?.date;
+          if (!dd) return null;
+          try {
+            const dt = typeof dd === 'string' ? parseISO(dd) : dd;
+            return format(dt, 'yyyy-MM-dd');
+          } catch { return null; }
+        })();
         for (const pid of preferredIds) {
-          const s = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.json());
-          const publicName =
-            s?.details?.publicName ||
-            s?.artist?.artist_profile?.business_name ||
-            s?.title ||
-            'Sound Provider';
-          const baseLocation = s?.details?.base_location as string | undefined;
-          let distance_km = 0;
-          if (baseLocation && eventLocation) {
-            const metrics = await getDrivingMetrics(baseLocation, eventLocation);
-            distance_km = metrics.distanceKm || 0;
-          }
-          candidates.push({ service_id: pid, distance_km, publicName });
+          try {
+            const s = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.ok ? r.json() : null);
+            if (!s || !s.id) continue;
+            const publicName =
+              s?.details?.publicName ||
+              s?.artist?.artist_profile?.business_name ||
+              s?.title ||
+              'Sound Provider';
+            const baseLocation = s?.details?.base_location as string | undefined;
+            let distance_km = 0;
+            if (baseLocation && eventLocation) {
+              const metrics = await getDrivingMetrics(baseLocation, eventLocation);
+              distance_km = metrics.distanceKm || 0;
+            }
+            // Resolve supplier availability: call provider profile availability by user id
+            let available = true;
+            try {
+              const providerId = Number(s?.artist?.id || s?.service_provider?.id || s?.service_provider_id);
+              if (providerId && eventDateStr) {
+                const av = await getServiceProviderAvailability(providerId);
+                const unavailable = (av?.data?.unavailable_dates || []) as string[];
+                available = !unavailable.includes(eventDateStr);
+              }
+            } catch {}
+            candidates.push({ service_id: pid, distance_km, publicName, available });
+          } catch {}
         }
 
         // Build rider spec (from earlier steps + this step)
@@ -868,6 +890,7 @@ export function SoundStep({
                 estimateMax: Number(r.estimate_max),
                 reliability: r.reliability,
                 distanceKm: r.distance_km,
+                available: c?.available !== false,
               };
             });
           } else {
@@ -875,19 +898,27 @@ export function SoundStep({
               serviceId: c.service_id,
               publicName: c.publicName,
               distanceKm: c.distance_km,
+              available: c.available !== false,
             }));
           }
         }
 
         if (active) setSuppliers(cards);
 
-        // Auto-select top recommended supplier if none selected yet
+        // Ensure a valid selected supplier:
+        // - If none selected, pick first available
+        // - If selected is missing from candidates or unavailable, pick first available
         try {
-          const cur = (useBooking() as any).details?.soundSupplierServiceId;
+          const cur = Number((useBooking() as any).details?.soundSupplierServiceId || 0);
           const mode = (useBooking() as any).details?.soundMode;
           const needs = (useBooking() as any).details?.sound === 'yes';
-          if (!artistOnlySound && needs && mode === 'supplier' && (!cur || typeof cur !== 'number') && cards && cards[0]?.serviceId) {
-            set({ soundSupplierServiceId: Number(cards[0].serviceId) as any });
+          if (!artistOnlySound && needs && mode === 'supplier' && cards && cards.length) {
+            const found = cards.find((c: any) => Number(c.serviceId) === cur);
+            const firstAvailable = cards.find((c: any) => c.available !== false);
+            if (!cur || !found || found.available === false) {
+              if (firstAvailable?.serviceId) set({ soundSupplierServiceId: Number(firstAvailable.serviceId) as any });
+              else set({ soundSupplierServiceId: undefined as any });
+            }
           }
         } catch {}
 
@@ -1235,29 +1266,38 @@ export function SoundStep({
               {loadingSuppliers && <p className="text-sm text-neutral-600">Loading preferred suppliers…</p>}
 
               {!loadingSuppliers && suppliers.length > 0 && (
-                <div className="mt-3">
-                  <div className="selectable-card flex-col items-start">
-                    <span className="font-medium text-neutral-900">
-                      Recommended · {suppliers[0].publicName}
-                    </span>
-                    <span className="text-sm text-neutral-600">
-                      {suppliers[0].estimateMin != null && suppliers[0].estimateMax != null
-                        ? `Est. ${formatCurrency(suppliers[0].estimateMin)} – ${formatCurrency(
-                            suppliers[0].estimateMax,
-                          )}`
-                        : 'Estimation pending'}
-                    </span>
-                    {suppliers[0].distanceKm != null && (
-                      <span className="text-xs text-neutral-500">
-                        {suppliers[0].distanceKm!.toFixed(0)} km • rel{' '}
-                        {suppliers[0].reliability?.toFixed?.(1) ?? '0'}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-2 text-xs text-neutral-700">
-                    These are the artist’s preferred suppliers. We’ll contact the top match after you book.
-                  </p>
-                </div>
+                (() => {
+                  const firstAvailable = suppliers.find((s: any) => s.available !== false) || suppliers[0];
+                  const anyAvailable = suppliers.some((s: any) => s.available !== false);
+                  return (
+                    <div className="mt-3">
+                      {anyAvailable ? (
+                        <div className="selectable-card flex-col items-start">
+                          <span className="font-medium text-neutral-900">
+                            Recommended · {firstAvailable.publicName}
+                          </span>
+                          <span className="text-sm text-neutral-600">
+                            {firstAvailable.estimateMin != null && firstAvailable.estimateMax != null
+                              ? `Est. ${formatCurrency(firstAvailable.estimateMin)} – ${formatCurrency(firstAvailable.estimateMax)}`
+                              : 'Estimation pending'}
+                          </span>
+                          {firstAvailable.distanceKm != null && (
+                            <span className="text-xs text-neutral-500">
+                              {firstAvailable.distanceKm!.toFixed(0)} km • rel {firstAvailable.reliability?.toFixed?.(1) ?? '0'}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-black/10 bg-yellow-50 p-3 text-sm text-yellow-900">
+                          None of the artist’s preferred suppliers shows as available on your date. You can still submit the booking — we’ll source an alternative.
+                        </div>
+                      )}
+                      <p className="mt-2 text-xs text-neutral-700">
+                        These are the artist’s preferred suppliers. We’ll contact the top match after you book.
+                      </p>
+                    </div>
+                  );
+                })()
               )}
 
               {!loadingSuppliers && suppliers.length === 0 && (
