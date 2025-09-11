@@ -692,6 +692,7 @@ export function SoundStep({
   const d = details as any;
   const [loadingSuppliers, setLoadingSuppliers] = useState(false);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [artistOnlySound, setArtistOnlySound] = useState(false);
 
   // Helpers
   const set = (
@@ -713,7 +714,6 @@ export function SoundStep({
     const sid = serviceId ?? ctxServiceId;
     if (!sid) return;
     if (details.sound !== 'yes') return;
-    if (details.soundMode) return;
 
     (async () => {
       try {
@@ -733,7 +733,12 @@ export function SoundStep({
           const prefs = sp.city_preferences;
           if (Array.isArray(prefs) && prefs.length > 0) modeDefault = 'supplier';
         }
-        if (!cancelled && modeDefault) {
+        const isLive = svc?.service_type === 'Live Performance';
+        const hasCityPrefs = Array.isArray(sp.city_preferences) && sp.city_preferences.length > 0;
+        const modeRaw: string | undefined = sp.mode || sp.mode_default;
+        const artistOnly = isLive && !hasCityPrefs && (modeRaw === 'artist_provides_variable' || modeDefault === 'provided_by_artist' || modeRaw === 'artist_provided');
+        if (!cancelled) setArtistOnlySound(!!artistOnly);
+        if (!cancelled && modeDefault && !details.soundMode) {
           set({ soundMode: modeDefault as any });
           try { (setValue as any)('soundMode', modeDefault as any, { shouldDirty: false }); } catch {}
         }
@@ -747,6 +752,14 @@ export function SoundStep({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [details.sound]);
+
+  // Align soundMode to minimal choices when artist-only
+  useEffect(() => {
+    if (!artistOnlySound) return;
+    if (details.sound === 'yes' && d.soundMode !== 'provided_by_artist') set({ soundMode: 'provided_by_artist' as any });
+    if (details.sound !== 'yes' && d.soundMode !== 'none') set({ soundMode: 'none' as any });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artistOnlySound, details.sound]);
 
   // Fetch & rank suppliers (supplier mode only)
   useEffect(() => {
@@ -1031,6 +1044,7 @@ export function SoundStep({
       {useBooking().details.sound === 'yes' && (
         <div className="mt-6 space-y-6">
           {/* HOW should sound be handled? */}
+          {!artistOnlySound && (
           <div>
             <label className="label block mb-2">How should sound be handled?</label>
             <Controller
@@ -1067,8 +1081,10 @@ export function SoundStep({
               )}
             />
           </div>
+          )}
 
           {/* Context toggles: Stage / Lighting / Backline */}
+          {!artistOnlySound && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Stage */}
             <div className="rounded-xl border border-black/10 p-3">
@@ -1163,9 +1179,10 @@ export function SoundStep({
               />
             </div>
           </div>
+          )}
 
           {/* Mode-specific helper text */}
-          {(d as any).soundMode === 'provided_by_artist' && (
+          {!artistOnlySound && (d as any).soundMode === 'provided_by_artist' && (
             <div className="mt-2 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
               Sound provided by the artist.{' '}
               {(d as any).providedSoundEstimate != null
@@ -1173,19 +1190,19 @@ export function SoundStep({
                 : 'Price confirmed on acceptance.'}
             </div>
           )}
-          {(d as any).soundMode === 'managed_by_artist' && (
+          {!artistOnlySound && (d as any).soundMode === 'managed_by_artist' && (
             <div className="mt-2 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
               Sound managed by the artist. We’ll confirm a firm price with the top supplier and apply the artist’s markup policy.
             </div>
           )}
-          {(d as any).soundMode === 'client_provided' && (
+          {!artistOnlySound && (d as any).soundMode === 'client_provided' && (
             <div className="mt-2 rounded-lg bg-black/[0.04] p-3 text-sm text-neutral-800 border border-black/10">
               You’ll provide sound (PA, mics, console, engineer). The artist will share a tech rider after acceptance.
             </div>
           )}
 
           {/* Supplier card (supplier mode) */}
-          {(d as any).soundMode === 'supplier' && (
+          {!artistOnlySound && (d as any).soundMode === 'supplier' && (
             <>
               {loadingSuppliers && <p className="text-sm text-neutral-600">Loading preferred suppliers…</p>}
 
@@ -1221,10 +1238,12 @@ export function SoundStep({
             </>
           )}
 
-          <p className="text-xs text-neutral-600">
-            Estimates use your guest count and assume drive-only logistics. Final pricing is confirmed after acceptance; if the top pick
-            declines we’ll auto-try backups.
-          </p>
+          {!artistOnlySound && (
+            <p className="text-xs text-neutral-600">
+              Estimates use your guest count and assume drive-only logistics. Final pricing is confirmed after acceptance; if the top pick
+              declines we’ll auto-try backups.
+            </p>
+          )}
         </div>
       )}
     </section>

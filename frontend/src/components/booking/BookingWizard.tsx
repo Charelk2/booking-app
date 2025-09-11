@@ -389,8 +389,81 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           backline_required: !!(details as any).backlineRequired,
         } as any);
         setCalculatedPrice(Number(quote.total));
-        // Ensure sound cost is numeric to avoid NaN totals downstream
-        setSoundCost(Number(quote.sound_cost));
+        // Ensure sound cost is numeric; if missing, compute a fallback estimate from config
+        let sc = Number(quote.sound_cost);
+        if (!Number.isFinite(sc) || sc <= 0) {
+          try {
+            const soundMode = (details as any).soundMode;
+            const guestCount = parseInt((details as any).guests || '0', 10) || undefined;
+            const venueType = (details as any).venueType;
+            if (soundMode === 'provided_by_artist' && (details as any).providedSoundEstimate != null) {
+              sc = Number((details as any).providedSoundEstimate);
+            } else if (soundMode === 'supplier' && details.location) {
+              // Fallback: rank preferred suppliers and take midpoint of top estimate
+              const svc = await fetch(`/api/v1/services/${serviceId}`, { cache: 'force-cache' }).then((r) => r.json());
+              const sp = svc?.details?.sound_provisioning || {};
+              let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
+              if (!prefs.length) {
+                try {
+                  const pr = await fetch(`/api/v1/services/${serviceId}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json());
+                  if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences;
+                } catch {}
+              }
+              const locLower = String(details.location || '').toLowerCase();
+              const locCityLower = locLower.split(',')[0]?.trim() || locLower;
+              const findIds = (p: any): number[] => (Array.isArray(p?.provider_ids) ? p.provider_ids : p?.providerIds || [])
+                .map((x: any) => Number(x)).filter((n: number) => Number.isFinite(n));
+              const match = prefs.find((p) => (p.city || '').toLowerCase() === locLower)
+                || prefs.find((p) => (p.city || '').toLowerCase() === locCityLower)
+                || prefs.find((p) => locLower.includes((p.city || '').toLowerCase()))
+                || prefs.find((p) => locCityLower.includes((p.city || '').toLowerCase()));
+              let preferredIds: number[] = match ? findIds(match) : [];
+              if (!preferredIds.length && prefs.length) preferredIds = Array.from(new Set(prefs.flatMap(findIds)));
+              preferredIds = preferredIds.slice(0, 3);
+              const candidates: { service_id: number; distance_km: number }[] = [];
+              for (const pid of preferredIds) {
+                let distance_km = 0;
+                try {
+                  const s = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.json());
+                  const baseLoc = s?.details?.base_location as string | undefined;
+                  if (baseLoc) {
+                    const m = await getDrivingMetrics(baseLoc, details.location);
+                    distance_km = m.distanceKm || 0;
+                  }
+                } catch {}
+                candidates.push({ service_id: pid, distance_km });
+              }
+              if (candidates.length) {
+                const ranked: any[] = await fetch(`/api/v1/pricebook/batch-estimate-rank`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    rider_spec: {
+                      guest_count: guestCount,
+                      venue_type: venueType,
+                      stage_required: !!(details as any).stageRequired,
+                      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
+                      lighting_evening: !!(details as any).lightingEvening,
+                      backline_required: !!(details as any).backlineRequired,
+                    },
+                    candidates,
+                    preferred_ids: candidates.map((c) => c.service_id),
+                    managed_by_artist: false,
+                    artist_managed_markup_percent: 0,
+                    outdoor: venueType === 'outdoor',
+                  }),
+                }).then((r) => r.json());
+                if (Array.isArray(ranked) && ranked[0]) {
+                  const min = Number(ranked[0].estimate_min);
+                  const max = Number(ranked[0].estimate_max);
+                  if (Number.isFinite(min) && Number.isFinite(max)) sc = (min + max) / 2;
+                  else if (Number.isFinite(min)) sc = min;
+                }
+              }
+            }
+          } catch {}
+        }
+        setSoundCost(Number(sc) || 0);
         setSoundMode(quote.sound_mode);
         setSoundModeOverridden(quote.sound_mode_overridden);
       } else {
