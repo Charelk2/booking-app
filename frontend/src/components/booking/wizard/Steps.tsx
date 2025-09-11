@@ -817,7 +817,7 @@ export function SoundStep({
         // Load candidates & rough distance + availability on selected date
         const candidates: { service_id: number; distance_km: number; publicName: string; available: boolean }[] = [];
         const eventDateStr = (() => {
-          const dd = (useBooking() as any).details?.date;
+          const dd = (details as any)?.date;
           if (!dd) return null;
           try {
             const dt = typeof dd === 'string' ? parseISO(dd) : dd;
@@ -909,9 +909,9 @@ export function SoundStep({
         // - If none selected, pick first available
         // - If selected is missing from candidates or unavailable, pick first available
         try {
-          const cur = Number((useBooking() as any).details?.soundSupplierServiceId || 0);
-          const mode = (useBooking() as any).details?.soundMode;
-          const needs = (useBooking() as any).details?.sound === 'yes';
+          const cur = Number((d as any)?.soundSupplierServiceId || 0);
+          const mode = (d as any)?.soundMode;
+          const needs = (details as any)?.sound === 'yes';
           if (!artistOnlySound && needs && mode === 'supplier' && cards && cards.length) {
             const found = cards.find((c: any) => Number(c.serviceId) === cur);
             const firstAvailable = cards.find((c: any) => c.available !== false);
@@ -1079,12 +1079,12 @@ export function SoundStep({
       </div>
 
       {/* If no sound needed, exit early */}
-      {useBooking().details.sound !== 'yes' && (
+      {details.sound !== 'yes' && (
         <p className="help-text mt-3">You can still add sound after submitting your request.</p>
       )}
 
       {/* When sound = yes */}
-      {useBooking().details.sound === 'yes' && (
+      {details.sound === 'yes' && (
         <div className="mt-6 space-y-6">
           {/* HOW should sound be handled? */}
           {!artistOnlySound && (
