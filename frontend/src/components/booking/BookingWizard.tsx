@@ -22,8 +22,9 @@ import {
 } from '@/lib/api';
 import { geocodeAddress } from '@/lib/geo';
 import { calculateTravelMode, getDrivingMetrics } from '@/lib/travel';
-import { trackEvent } from '@/lib/analytics';
-import { format } from 'date-fns';
+  import { trackEvent } from '@/lib/analytics';
+  import { format } from 'date-fns';
+  import { computeSoundServicePrice, type LineItem } from '@/lib/soundPricing';
 
 import { BookingRequestCreate } from '@/types';
 import './wizard/wizard.css';
@@ -126,6 +127,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
+  const [servicePriceItems, setServicePriceItems] = useState<LineItem[] | null>(null);
+  const [serviceCategorySlug, setServiceCategorySlug] = useState<string | undefined>(undefined);
   const [soundCost, setSoundCost] = useState(0);
   const [soundMode, setSoundMode] = useState<string | null>(null);
   const [soundModeOverridden, setSoundModeOverridden] = useState(false);
@@ -357,8 +360,36 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         return undefined;
       };
 
-      const basePrice = parseNumber(svcRes.price);
-      setBaseServicePrice(basePrice); // Set the base service price
+      // Determine service category (e.g., 'sound_service')
+      const svcCategorySlug: string | undefined = (svcRes?.service_category_slug || svcRes?.service_category?.slug || svcRes?.service_category?.name || '') as string;
+      setServiceCategorySlug(svcCategorySlug);
+
+      // If this is a Sound Service with audience packages, compute audience base + add-ons
+      let basePrice = parseNumber(svcRes.price);
+      let priceItems: LineItem[] | null = null;
+      const isSoundService = typeof svcCategorySlug === 'string' && svcCategorySlug.toLowerCase().includes('sound');
+      const hasAudiencePkgs = Array.isArray(svcRes?.details?.audience_packages) && svcRes.details.audience_packages.length > 0;
+      if (isSoundService && hasAudiencePkgs) {
+        const guestCount = parseInt((details as any).guests || '0', 10) || undefined;
+        const venueType = (details as any).venueType as any;
+        const stageRequired = !!(details as any).stageRequired;
+        const stageSize = stageRequired ? ((details as any).stageSize || 'S') : undefined;
+        const lightingEvening = !!(details as any).lightingEvening;
+        const res = computeSoundServicePrice({
+          details: svcRes.details,
+          guestCount,
+          venueType,
+          stageRequired,
+          stageSize,
+          lightingEvening,
+        });
+        if ((res.total || 0) > 0) {
+          basePrice = res.total;
+          priceItems = res.items;
+        }
+      }
+      setBaseServicePrice(basePrice);
+      setServicePriceItems(priceItems);
 
       const travelRate = parseNumber(svcRes.travel_rate, 2.5) || 2.5;
       const numTravelMembers = parseNumber(svcRes.travel_members, 1) || 1;
@@ -374,7 +405,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const drivingEstimateCost = directDistanceKm * travelRate * 2;
 
       let quote: Awaited<ReturnType<typeof calculateQuote>> | null = null;
-      if (details.sound === 'yes') {
+      // Only include external sound estimation for non-sound services
+      if ((svcCategorySlug || '').toLowerCase().includes('sound') === false && details.sound === 'yes') {
         quote = await calculateQuote({
           base_fee: basePrice, // Use the fetched base price
           distance_km: directDistanceKm,
@@ -509,7 +541,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     if (step === steps.length - 1) {
       void calculateReviewData();
     }
-  }, [details.location, details.date, details.sound, step, calculateReviewData]);
+  }, [
+    details.location,
+    details.date,
+    details.sound,
+    (details as any).guests,
+    (details as any).venueType,
+    (details as any).stageRequired,
+    (details as any).stageSize,
+    (details as any).lightingEvening,
+    (details as any).backlineRequired,
+    step,
+    calculateReviewData,
+  ]);
 
   // --- Navigation & Submission Handlers ---
 
@@ -813,6 +857,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           soundMode={soundMode}
           soundModeOverridden={soundModeOverridden}
           selectedSupplierName={selectedSupplierName}
+          servicePriceItems={servicePriceItems}
+          serviceCategorySlug={serviceCategorySlug}
         />
       );
       default: return null;

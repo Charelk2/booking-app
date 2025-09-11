@@ -1326,6 +1326,8 @@ export function ReviewStep(props: {
   soundMode?: string | null;
   soundModeOverridden?: boolean;
   selectedSupplierName?: string;
+  servicePriceItems?: { key: string; label: string; amount: number }[] | null;
+  serviceCategorySlug?: string;
   open?: boolean;
   onToggle?: () => void;
 }) {
@@ -1418,10 +1420,25 @@ export function ReviewStep(props: {
 
       <h5 className="font-semibold text-base text-neutral-900">Estimated Cost</h5>
       <div className="space-y-2 text-neutral-800">
-        <div className="flex justify-between items-center">
-          <span>Service Provider Base Fee</span>
-          <span>{formatCurrency(baseServicePrice)}</span>
-        </div>
+        {Array.isArray(props.servicePriceItems) && props.servicePriceItems.length > 0 ? (
+          <div className="space-y-1">
+            {props.servicePriceItems.map((li) => (
+              <div key={li.key} className="flex justify-between items-center">
+                <span>{li.label}</span>
+                <span>{formatCurrency(li.amount)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between items-center border-t border-dashed pt-2 mt-2 border-black/20">
+              <span className="font-medium">Service Subtotal</span>
+              <span className="font-medium">{formatCurrency(baseServicePrice)}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-between items-center">
+            <span>Service Provider Base Fee</span>
+            <span>{formatCurrency(baseServicePrice)}</span>
+          </div>
+        )}
 
         <div className="flex justify-between items-center">
           <span className="flex items-center">
