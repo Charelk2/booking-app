@@ -3,6 +3,8 @@
 import SafeImage from "@/components/ui/SafeImage";
 import { useMemo, useState } from "react";
 import { TextInput, TextArea, CollapsibleSection, ToggleSwitch } from "@/components/ui";
+import LocationInput from "@/components/ui/LocationInput";
+import { Controller } from "react-hook-form";
 import type { Service } from "@/types";
 import BaseServiceWizard, { type WizardStep } from "./BaseServiceWizard";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
@@ -465,12 +467,29 @@ export default function AddServiceModalSoundService({
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <TextInput
-                label="Base location (city or suburb)"
-                placeholder="e.g., Cape Town, Western Cape"
-                value={(form.watch as any)("base_location") || ""}
-                onChange={(e) => (form.setValue as any)("base_location", e.target.value, { shouldDirty: true })}
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Base location (required)</label>
+                <Controller
+                  name={"base_location" as any}
+                  control={(form as any).control}
+                  rules={{ required: true, validate: (v) => !!String(v || '').trim() || 'Required' }}
+                  render={({ field }) => (
+                    <LocationInput
+                      value={field.value || ''}
+                      onValueChange={(v) => field.onChange(v)}
+                      onPlaceSelect={(place) => {
+                        const addr = place.formatted_address || place.name || '';
+                        field.onChange(addr);
+                      }}
+                      placeholder="Search city/suburb"
+                      inputClassName="mt-1 w-full rounded border px-2 py-2 text-sm"
+                    />
+                  )}
+                />
+                {((form.formState.errors as any)?.base_location?.message) && (
+                  <p className="mt-1 text-xs text-red-600">{(form.formState.errors as any)?.base_location?.message as string}</p>
+                )}
+              </div>
             </div>
             <div className="rounded-md border p-3 text-xs text-gray-600 mt-2">
               <p>Configure per-audience base prices + what’s <b>included</b> (mics, engineer, lighting). Extras are priced via Unit Add-ons, Stage, Lighting and the <b>Backline Price Table</b> (shared keys with musician riders).</p>
@@ -1154,11 +1173,25 @@ export default function AddServiceModalSoundService({
       packages_legacy: data.packages_legacy || [],
     };
 
+    // Compute a display price to satisfy backend required `price` field.
+    // Use the cheapest active audience base among indoor/outdoor for 0–100 band (or any active if 0–100 absent).
+    const activePkgs = (data.audience_packages || []).filter((p) => !!p.active);
+    const prefIdx = activePkgs.findIndex((p) => p.id === '0_100');
+    const pick = prefIdx >= 0 ? activePkgs[prefIdx] : activePkgs[0];
+    const bases = [pick?.indoor_base_zar, pick?.outdoor_base_zar].map((v) => (v == null || v === '' ? Infinity : Number(v)));
+    const cheapest = Math.min(...bases);
+    const price = Number.isFinite(cheapest) ? Number(cheapest) : 0;
+
+    // Build a minimal description if missing (backend requires it)
+    const description = (data.short_summary || 'Tiered audience packages + add-ons (stage, lighting, backline)').slice(0, 500);
+
     return {
       service_type: "Other", // category handled via serviceCategorySlug
       title: data.title,
+      description,
       media_url: mediaUrl ?? "",
       duration_minutes: 60,
+      price,
       details,
     } as Partial<Service>;
   };
