@@ -508,7 +508,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
                   }),
                 }).then(r => r.json());
-                if (est && typeof est.total === 'number') scFromAudience = est.total;
+                {
+                  const t = Number(est?.total);
+                  if (Number.isFinite(t)) scFromAudience = t;
+                }
               } catch {
                 const psvc = await fetch(`/api/v1/services/${selectedId}`, { cache: 'force-cache' }).then((r) => r.json());
                 const comp = computeSoundServicePrice({
@@ -560,7 +563,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                       backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
                     }),
                   }).then(r => r.json());
-                  if (est && typeof est.total === 'number' && est.total > 0) { scFromAudience = est.total; break; }
+                  {
+                    const t = Number(est?.total);
+                    if (Number.isFinite(t) && t > 0) { scFromAudience = t; break; }
+                  }
                 } catch {}
               }
 
@@ -587,7 +593,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                         backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
                       }),
                     }).then(r => r.json());
-                    if (est && typeof est.total === 'number' && est.total > 0) { scFromAudience = est.total; break; }
+                    {
+                      const t = Number(est?.total);
+                      if (Number.isFinite(t) && t > 0) { scFromAudience = t; break; }
+                    }
                   }
                 } catch {}
               }

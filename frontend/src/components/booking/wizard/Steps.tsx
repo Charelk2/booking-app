@@ -1478,7 +1478,7 @@ export function ReviewStep(props: {
           <span>{formatCurrency(travelResult?.totalCost || 0)}</span>
         </div>
 
-        {soundFee > 0 && (
+        {(d?.sound === 'yes') && (
           <div className="flex items-center justify-between">
             <span className="flex items-center">
               Sound Equipment <span className="ml-1 text-[11px] text-neutral-500">({tinySummary})</span>
