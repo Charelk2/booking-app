@@ -22,6 +22,8 @@ export interface EventDetails {
   stageRequired?: boolean;
   stageSize?: 'S' | 'M' | 'L';
   lightingEvening?: boolean;
+  /** If evening lighting applies, allow client to upgrade to Advanced (adds Advanced−Basic) */
+  lightingUpgradeAdvanced?: boolean;
   backlineRequired?: boolean;
   /** Estimated price when provided_by_artist path is selected */
   providedSoundEstimate?: number;
@@ -77,6 +79,7 @@ const initialDetails: EventDetails = {
   stageRequired: false,
   stageSize: undefined,
   lightingEvening: false,
+  lightingUpgradeAdvanced: false,
   backlineRequired: false,
   attachment_url: '',
 };

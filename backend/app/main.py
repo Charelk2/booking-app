@@ -42,6 +42,7 @@ from .api import (
     api_rider,
     api_pricebook,
     api_sound_prefs,
+    api_sound_estimate,
     api_ops,
     api_review,
     api_service,
@@ -542,6 +543,11 @@ app.include_router(
     api_pricebook.router,
     prefix=f"{api_prefix}",
     tags=["pricebooks"],
+)
+app.include_router(
+    api_sound_estimate.router,
+    prefix=f"{api_prefix}",
+    tags=["sound-estimate"],
 )
 app.include_router(
     api_sound_prefs.router,
