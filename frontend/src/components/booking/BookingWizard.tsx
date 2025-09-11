@@ -109,6 +109,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     travelResult,
     setTravelResult,
     loadSavedProgress,
+    peekSavedProgress,
+    applySavedProgress,
   } = useBooking();
   const { user } = useAuth();
   const [showResumeModal, setShowResumeModal] = useState(false);
@@ -317,9 +319,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     if (!isOpen || hasLoaded.current) return;
     // Peek for saved progress; show modal if meaningful, else offer AI assist
     try {
-      // Access functions from context via the closure variables
-      const anyCtx: any = { peekSavedProgress: (useBooking() as any).peekSavedProgress, applySavedProgress: (useBooking() as any).applySavedProgress };
-      const peek = anyCtx.peekSavedProgress?.();
+      const peek = peekSavedProgress?.();
       if (peek) {
         savedRef.current = peek;
         setShowResumeModal(true);
@@ -331,7 +331,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       loadSavedProgress();
     }
     hasLoaded.current = true;
-  }, [isOpen, loadSavedProgress]);
+  }, [isOpen, loadSavedProgress, peekSavedProgress]);
 
   // Effect to set serviceId in the booking context if provided as a prop
   useEffect(() => {
@@ -1153,7 +1153,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               <button
                 type="button"
                 className="rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-gray-900"
-                onClick={() => { setShowResumeModal(false); try { (useBooking() as any).applySavedProgress?.(savedRef.current); } catch { loadSavedProgress(); } }}
+                onClick={() => {
+                  setShowResumeModal(false);
+                  try { applySavedProgress?.(savedRef.current); } catch { loadSavedProgress(); }
+                }}
               >
                 Resume
               </button>
