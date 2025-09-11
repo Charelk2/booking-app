@@ -472,9 +472,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         } as any);
         setCalculatedPrice(Number(quote.total));
 
-        // Start from backend sound_cost, then override with audience-tier (supplier) where applicable
-        let sc = Number(quote.sound_cost);
+        // Start from backend sound_cost, but if supplier mode, ignore backend's flat `price` fallback (which is the service card price)
         const soundModePref = (details as any).soundMode;
+        let sc = soundModePref === 'supplier' ? 0 : Number(quote.sound_cost);
         const guestCount = parseInt((details as any).guests || '0', 10) || undefined;
         const venueType = (details as any).venueType;
 
