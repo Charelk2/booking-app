@@ -38,27 +38,7 @@ def list_services(db: Session = Depends(get_db)):
     return services
 
 
-@router.get("/{service_id}", response_model=ServiceResponse)
-def read_service(service_id: int, db: Session = Depends(get_db)):
-    """Read a single approved service by ID (public).
-
-    Many client flows fetch supplier/musician services by id to read
-    structured `details` (e.g., audience packages). Ensure this route
-    exists so frontend calls to `/api/v1/services/{id}` do not 404.
-    """
-    svc = (
-        db.query(Service)
-        .options(joinedload(Service.artist))
-        .filter(Service.id == service_id)
-        .first()
-    )
-    if not svc or getattr(svc, "status", "approved") != "approved":
-        raise error_response(
-            "Service not found",
-            {"service_id": "not_found"},
-            status.HTTP_404_NOT_FOUND,
-        )
-    return svc
+ 
 
 
 @router.post("/", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
@@ -174,23 +154,65 @@ def list_my_services(db: Session = Depends(get_db), current_artist=Depends(get_c
     return services
 
 
-# Place read_service after static routes like /mine to avoid confusion with path matching.
+ 
+
+
+@router.get("/artist/{artist_user_id}", response_model=List[ServiceResponse])
+def read_services_by_artist(artist_user_id: int, db: Session = Depends(get_db)):
+    """
+    Get all services offered by a specific artist (by their user_id).
+    Full path → GET /api/v1/services/artist/{artist_user_id}
+    """
+    # Confirm that artist_user_id has a ServiceProviderProfile record
+    artist_profile = (
+        db.query(ServiceProviderProfile)
+        .filter(ServiceProviderProfile.user_id == artist_user_id)
+        .first()
+    )
+    if not artist_profile:
+        raise error_response(
+            "Artist profile not found for this user ID.",
+            {"artist_user_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    services = (
+        db.query(Service)
+        .options(joinedload(Service.artist))
+        .filter(Service.artist_id == artist_user_id)
+        .filter(getattr(Service, "status", "approved") == "approved")
+        .order_by(Service.display_order)
+        .all()
+    )
+    return services
+
+
 @router.get("/{service_id}", response_model=ServiceResponse)
 def read_service(service_id: int, db: Session = Depends(get_db)):
-    """Read a single approved service by ID (public)."""
-    svc = (
+    """
+    Get a specific service by its ID (publicly accessible).
+    Full path → GET /api/v1/services/{service_id}
+    """
+    service = (
         db.query(Service)
         .options(joinedload(Service.artist))
         .filter(Service.id == service_id)
         .first()
     )
-    if not svc or getattr(svc, "status", "approved") != "approved":
+    if not service:
         raise error_response(
             "Service not found",
             {"service_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
-    return svc
+    # Only expose approved services publicly
+    if getattr(service, "status", "approved") != "approved":
+        raise error_response(
+            "Service not found",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    return service
 
 
 @router.put("/{service_id}", response_model=ServiceResponse)
@@ -254,34 +276,6 @@ def update_service(
     db.commit()
     db.refresh(service)
     invalidate_artist_list_cache()
-    return service
-
-
-@router.get("/{service_id}", response_model=ServiceResponse)
-def read_service(service_id: int, db: Session = Depends(get_db)):
-    """
-    Get a specific service by its ID (publicly accessible).
-    Full path → GET /api/v1/services/{service_id}
-    """
-    service = (
-        db.query(Service)
-        .options(joinedload(Service.artist))
-        .filter(Service.id == service_id)
-        .first()
-    )
-    if not service:
-        raise error_response(
-            "Service not found",
-            {"service_id": "not_found"},
-            status.HTTP_404_NOT_FOUND,
-        )
-    # Only expose approved services publicly
-    if getattr(service, "status", "approved") != "approved":
-        raise error_response(
-            "Service not found",
-            {"service_id": "not_found"},
-            status.HTTP_404_NOT_FOUND,
-        )
     return service
 
 
