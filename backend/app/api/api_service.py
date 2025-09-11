@@ -174,6 +174,25 @@ def list_my_services(db: Session = Depends(get_db), current_artist=Depends(get_c
     return services
 
 
+# Place read_service after static routes like /mine to avoid confusion with path matching.
+@router.get("/{service_id}", response_model=ServiceResponse)
+def read_service(service_id: int, db: Session = Depends(get_db)):
+    """Read a single approved service by ID (public)."""
+    svc = (
+        db.query(Service)
+        .options(joinedload(Service.artist))
+        .filter(Service.id == service_id)
+        .first()
+    )
+    if not svc or getattr(svc, "status", "approved") != "approved":
+        raise error_response(
+            "Service not found",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    return svc
+
+
 @router.put("/{service_id}", response_model=ServiceResponse)
 def update_service(
     *,
