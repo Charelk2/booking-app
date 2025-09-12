@@ -492,40 +492,101 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               normalizedRider = normalizeRiderForPricing(rider?.spec);
             } catch {}
             if (selectedId) {
-              // Attempt server-side estimate to keep parity
+              // Preferred: pricebook estimate (includes supplier travel via km_rate and base_location)
+              let estimatedViaPB = false;
               try {
-                const est = await fetch(`/api/v1/services/${selectedId}/sound-estimate`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    guest_count: guestCount,
-                    venue_type: venueType,
-                    stage_required: !!(details as any).stageRequired,
-                    stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
-                    lighting_evening: !!(details as any).lightingEvening,
-                    upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
-                    rider_units: normalizedRider.units,
-                    backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
-                  }),
-                }).then(r => r.json());
-                {
-                  const t = Number(est?.total);
-                  if (Number.isFinite(t)) scFromAudience = t;
+                const [pb, svcSel] = await Promise.all([
+                  fetch(`/api/v1/services/${selectedId}/pricebook`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+                  fetch(`/api/v1/services/${selectedId}`, { cache: 'force-cache' }).then(r => r.ok ? r.json() : null),
+                ]);
+                const baseLoc = (pb?.base_location || svcSel?.details?.base_location) as string | undefined;
+                let distanceKm = 0;
+                if (baseLoc && details.location) {
+                  try {
+                    const m = await getDrivingMetrics(baseLoc, details.location);
+                    distanceKm = (m?.distanceKm || 0) * 2; // round-trip
+                  } catch {}
                 }
-              } catch {
-                const psvc = await fetch(`/api/v1/services/${selectedId}`, { cache: 'force-cache' }).then((r) => r.json());
-                const comp = computeSoundServicePrice({
-                  details: psvc?.details,
-                  guestCount,
-                  venueType,
-                  stageRequired: !!(details as any).stageRequired,
-                  stageSize: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-                  lightingEvening: !!(details as any).lightingEvening,
-                  upgradeLightingAdvanced: !!(details as any).lightingUpgradeAdvanced,
-                  riderUnits: normalizedRider.units,
-                  backlineRequested: (details as any).backlineRequired ? normalizedRider.backline : {},
-                });
-                scFromAudience = Number(comp.total) || 0;
+                if (pb) {
+                  const rider_spec = {
+                    monitors: Number(normalizedRider.units.monitor_mixes || 0),
+                    wireless: Number(normalizedRider.units.speech_mics || 0),
+                    di: Number(normalizedRider.units.di_boxes || 0),
+                  };
+                  const estPB = await fetch(`/api/v1/services/${selectedId}/pricebook/estimate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      rider_spec,
+                      distance_km: distanceKm,
+                      managed_by_artist: false,
+                      artist_managed_markup_percent: 0,
+                      guest_count: guestCount,
+                      backline_required: !!(details as any).backlineRequired,
+                      lighting_evening: !!(details as any).lightingEvening,
+                      outdoor: venueType === 'outdoor',
+                      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
+                    }),
+                  }).then(r => r.ok ? r.json() : null);
+                  if (estPB && estPB.estimate_min != null && estPB.estimate_max != null) {
+                    const min = Number(estPB.estimate_min);
+                    const max = Number(estPB.estimate_max);
+                    if (Number.isFinite(min) && Number.isFinite(max)) {
+                      scFromAudience = (min + max) / 2;
+                      estimatedViaPB = true;
+                    }
+                  }
+                  // If only travel can be derived, at least include it
+                  if (!estimatedViaPB && pb?.km_rate && distanceKm > 0) {
+                    const kmRate = Number(pb.km_rate);
+                    const minCallout = Number(pb.min_callout || 0);
+                    if (Number.isFinite(kmRate)) {
+                      const travelOnly = Math.max(kmRate * distanceKm, minCallout || 0);
+                      if (Number.isFinite(travelOnly) && travelOnly > 0) {
+                        scFromAudience = Math.max(scFromAudience, travelOnly);
+                      }
+                    }
+                  }
+                }
+              } catch {}
+
+              // Fallback: supplier audience_packages estimate (no travel component)
+              if (!Number.isFinite(scFromAudience) || scFromAudience <= 0) {
+                try {
+                  const est = await fetch(`/api/v1/services/${selectedId}/sound-estimate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      guest_count: guestCount,
+                      venue_type: venueType,
+                      stage_required: !!(details as any).stageRequired,
+                      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
+                      lighting_evening: !!(details as any).lightingEvening,
+                      upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
+                      rider_units: normalizedRider.units,
+                      backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
+                    }),
+                  }).then(r => r.ok ? r.json() : null);
+                  const t = Number(est?.total);
+                  if (Number.isFinite(t) && t > 0) scFromAudience = t;
+                } catch {
+                  // Final fallback: compute locally from supplier details
+                  try {
+                    const psvc = await fetch(`/api/v1/services/${selectedId}`, { cache: 'force-cache' }).then((r) => r.ok ? r.json() : null);
+                    const comp = computeSoundServicePrice({
+                      details: psvc?.details,
+                      guestCount,
+                      venueType,
+                      stageRequired: !!(details as any).stageRequired,
+                      stageSize: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+                      lightingEvening: !!(details as any).lightingEvening,
+                      upgradeLightingAdvanced: !!(details as any).lightingUpgradeAdvanced,
+                      riderUnits: normalizedRider.units,
+                      backlineRequested: (details as any).backlineRequired ? normalizedRider.backline : {},
+                    });
+                    scFromAudience = Number(comp.total) || 0;
+                  } catch {}
+                }
               }
             } else if (details.location) {
               const sp = svcRes?.details?.sound_provisioning || {};
