@@ -887,20 +887,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
 
       let parsedDetails: ParsedBookingDetails | undefined;
-      // Parse booking-details system messages and include a concise system line
-      // so the live thread shows an immediate preview like the conversation list.
+      // Parse booking-details system messages. In thread view, skip adding the
+      // lightweight placeholder line to avoid flicker before the full inquiry card.
       const normalized: ThreadMessage[] = [];
       for (const raw of res.data as any[]) {
         const msg = normalizeMessage(raw);
-        // Capture booking details for the side panel, but keep a short system line in the thread
+        // Capture booking details for the side panel; do not push a minimal system
+        // preview line here so we avoid "placeholder → full card" swaps in-thread.
         if (
           normalizeType(msg.message_type) === 'SYSTEM' &&
           typeof msg.content === 'string' &&
           msg.content.startsWith(BOOKING_DETAILS_PREFIX)
         ) {
           parsedDetails = parseBookingDetailsFromMessage(msg.content);
-          // Keep a minimal visible system entry so the thread reflects a new request immediately
-          normalized.push({ ...msg, content: systemLabel(msg) });
           continue;
         }
         // Hide the initial user-provided notes that we already show in the details panel
@@ -2341,7 +2340,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           )
         )}
 
-        {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !isPersonalizedVideo && !!bookingRequest && !isModerationThread && !isInquiryThread && (
+        {!loading && user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !isPersonalizedVideo && !!bookingRequest && !isModerationThread && !isInquiryThread && (
           <div
             className="max-h-[70vh] overflow-auto overscroll-contain pr-1"
             data-testid="artist-inline-quote"
