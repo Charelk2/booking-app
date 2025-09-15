@@ -1366,80 +1366,83 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       onClose={onClose}
       initialFocus={firstInputRef as any}
     >
-      <div className="fixed inset-0 bg-gray-500/75 z-40 wizard-overlay" />
+      {!showResumeModal && (
+        <>
+          <div className="fixed inset-0 bg-gray-500/75 z-40 wizard-overlay" aria-hidden="true" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <Dialog.Panel className="pointer-events-auto w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl bg-white flex flex-col overflow-hidden">
+              <header className="px-6 py-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-neutral-500">Step {step + 1} of {steps.length}</p>
+                    <h2 className="text-base font-semibold text-neutral-900">{steps[step]}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    onClick={onClose}
+                    className="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-full text-neutral-600 hover:bg-black/[0.06]"
+                    title="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="mt-3 h-1.5 w-full rounded bg-black/10">
+                  <div
+                    className="h-full rounded bg-black transition-[width] duration-300"
+                    style={{ width: `${progressValue}%` }}
+                  />
+                </div>
+              </header>
 
-      <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
-        <Dialog.Panel className="pointer-events-auto w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl bg-white flex flex-col overflow-hidden">
-          <header className="px-6 py-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[11px] uppercase tracking-wide text-neutral-500">Step {step + 1} of {steps.length}</p>
-                <h2 className="text-base font-semibold text-neutral-900">{steps[step]}</h2>
+              <form
+                ref={formRef}
+                autoComplete="on"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  // Prevent default form submission on Enter key press if not mobile
+                  // The submit logic for the final step is now handled by ReviewStep's internal button
+                }}
+                onKeyDown={handleKeyDown}
+                className="flex-1 overflow-y-auto px-6 pt-2 pb-5"
+              >
+                {renderStep()}
+                {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
+              </form>
+
+              {/* Navigation controls - Adjusted for ReviewStep */}
+              <div className="flex-shrink-0 p-4 sm:p-6 mb-4 flex flex-row flex-nowrap justify-between gap-2 sticky bottom-0 bg-white pb-safe">
+                {/* Back/Cancel Button */}
+                <button
+                  type="button" // Ensure it's a button, not a submit
+                  onClick={handleBack}
+                  className="bg-neutral-100 text-neutral-800 font-semibold py-2 px-4 rounded-xl hover:bg-neutral-200 transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
+                >
+                  {step === 0 ? 'Cancel' : 'Back'}
+                </button>
+
+                {/* Conditional rendering for Next button (only if not on Review Step) */}
+                {step < steps.length - 1 && (
+                  <button
+                    type="button" // Ensure it's a button, not a submit
+                    onClick={next}
+                    aria-disabled={step === 0 && !descMeetsMin}
+                    className={
+                      (step === 0 && !descMeetsMin)
+                        ? "bg-neutral-200 text-neutral-600 font-semibold py-2 px-4 rounded-xl transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
+                        : "bg-black text-white font-semibold py-2 px-4 rounded-xl hover:bg-black/90 transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
+                    }
+                    title={step === 0 && !descMeetsMin ? "Add at least 5 characters to continue" : undefined}
+                  >
+                    Next
+                  </button>
+                )}
+                {/* Submit button is handled by ReviewStep on the final step */}
               </div>
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={onClose}
-                className="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-full text-neutral-600 hover:bg-black/[0.06]"
-                title="Close"
-              >
-                ×
-              </button>
-            </div>
-            <div className="mt-3 h-1.5 w-full rounded bg-black/10">
-              <div
-                className="h-full rounded bg-black transition-[width] duration-300"
-                style={{ width: `${progressValue}%` }}
-              />
-            </div>
-          </header>
-
-          <form
-            ref={formRef}
-            autoComplete="on"
-            onSubmit={(e) => {
-              e.preventDefault();
-              // Prevent default form submission on Enter key press if not mobile
-              // The submit logic for the final step is now handled by ReviewStep's internal button
-            }}
-            onKeyDown={handleKeyDown}
-            className="flex-1 overflow-y-auto px-6 pt-2 pb-5"
-          >
-            {renderStep()}
-            {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
-          </form>
-
-          {/* Navigation controls - Adjusted for ReviewStep */}
-          <div className="flex-shrink-0 p-4 sm:p-6 mb-4 flex flex-row flex-nowrap justify-between gap-2 sticky bottom-0 bg-white pb-safe">
-            {/* Back/Cancel Button */}
-            <button
-              type="button" // Ensure it's a button, not a submit
-              onClick={handleBack}
-              className="bg-neutral-100 text-neutral-800 font-semibold py-2 px-4 rounded-xl hover:bg-neutral-200 transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
-            >
-              {step === 0 ? 'Cancel' : 'Back'}
-            </button>
-
-            {/* Conditional rendering for Next button (only if not on Review Step) */}
-            {step < steps.length - 1 && (
-              <button
-                type="button" // Ensure it's a button, not a submit
-                onClick={next}
-                aria-disabled={step === 0 && !descMeetsMin}
-                className={
-                  (step === 0 && !descMeetsMin)
-                    ? "bg-neutral-200 text-neutral-600 font-semibold py-2 px-4 rounded-xl transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
-                    : "bg-black text-white font-semibold py-2 px-4 rounded-xl hover:bg-black/90 transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
-                }
-                title={step === 0 && !descMeetsMin ? "Add at least 5 characters to continue" : undefined}
-              >
-                Next
-              </button>
-            )}
-            {/* Submit button is handled by ReviewStep on the final step */}
+            </Dialog.Panel>
           </div>
-        </Dialog.Panel>
-      </div>
+        </>
+      )}
       {/* Resume Draft Modal */}
       <Dialog open={showResumeModal} onClose={() => setShowResumeModal(false)} className="fixed inset-0 z-50">
         <div className="fixed inset-0 bg-black/30 wizard-overlay" aria-hidden="true" />
