@@ -138,7 +138,7 @@ class QuoteCalculationParams(BaseModel):
     """Schema for the /quotes/calculate request body."""
 
     base_fee: Decimal
-    distance_km: float
+    distance_km: Optional[float] = None
     service_id: int
     event_city: str
     accommodation_cost: Optional[Decimal] = None

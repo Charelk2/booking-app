@@ -446,13 +446,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const carRentalPrice = parseOptionalNumber(svcRes.car_rental_price);
       const flightPrice = parseOptionalNumber(svcRes.flight_price);
 
-      const metrics = await getDrivingMetrics(artistLocation, details.location);
-      if (!metrics.distanceKm) {
-        console.error('Unable to fetch driving metrics during review calculation');
-        throw new Error('Could not fetch driving metrics');
-      }
-      const directDistanceKm = metrics.distanceKm;
-      const drivingEstimateCost = directDistanceKm * travelRate * 2;
+      // Distance will be computed server-side; keep a rough client drive cost for UX while waiting
+      const drivingEstimateCost = 0;
 
       let quote: Awaited<ReturnType<typeof calculateQuote>> | null = null;
       const isSoundServiceCategory = (svcCategorySlug || '').toLowerCase().includes('sound');
@@ -489,7 +484,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
         quote = await calculateQuote({
           base_fee: basePrice,
-          distance_km: directDistanceKm,
+          // distance_km omitted: backend computes it from artist base → event city
           service_id: serviceId,
           event_city: details.location,
           guest_count: parseInt((details as any).guests || '0', 10) || undefined,
@@ -775,23 +770,69 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         setSoundMode(quote.sound_mode);
         setSoundModeOverridden(quote.sound_mode_overridden);
       } else {
-        setCalculatedPrice(basePrice);
-        setSoundCost(0);
-        setSoundMode(null);
-        setSoundModeOverridden(false);
+        // Still compute travel (and totals) on the server even if no external sound
+        try {
+          const quote2 = await calculateQuote({
+            base_fee: basePrice,
+            // Omit distance_km; backend resolves from artist base → event city
+            service_id: serviceId,
+            event_city: details.location,
+          } as any);
+          setCalculatedPrice(Number(quote2.total));
+          setSoundCost(0);
+          setSoundMode(null);
+          setSoundModeOverridden(false);
+          // Map server travel to UI shape
+          try {
+            const tm2 = (quote2?.travel_mode || '').toLowerCase();
+            const estimates2 = Array.isArray((quote2 as any)?.travel_estimates) ? (quote2 as any).travel_estimates : [];
+            const driveRow2 = estimates2.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
+            const travelRes2 = {
+              mode: tm2 === 'flight' ? 'fly' : 'drive',
+              totalCost: Number(quote2?.travel_cost || 0),
+              breakdown: {
+                drive: { estimate: Number(driveRow2?.cost || (tm2 === 'flight' ? 0 : (quote2?.travel_cost || 0))) },
+                fly: { perPerson: 0, travellers: numTravelMembers, flightSubtotal: 0, carRental: Number(carRentalPrice || 0), localTransferKm: 0, departureTransferKm: 0, transferCost: 0, total: tm2 === 'flight' ? Number(quote2?.travel_cost || 0) : 0 },
+              },
+            } as any;
+            setTravelResult(travelRes2);
+          } catch {
+            setTravelResult({ mode: 'drive', totalCost: Number(quote2?.travel_cost || 0), breakdown: { drive: { estimate: Number(quote2?.travel_cost || 0) }, fly: { perPerson: 0, travellers: numTravelMembers, flightSubtotal: 0, carRental: 0, localTransferKm: 0, departureTransferKm: 0, transferCost: 0, total: 0 } } } as any);
+          }
+        } catch {
+          setCalculatedPrice(basePrice);
+          setSoundCost(0);
+          setSoundMode(null);
+          setSoundModeOverridden(false);
+        }
       }
 
-      const travelModeResult = await calculateTravelMode({
-        artistLocation: artistLocation,
-        eventLocation: details.location,
-        numTravellers: numTravelMembers,
-        drivingEstimate: drivingEstimateCost,
-        travelRate,
-        travelDate: details.date,
-        carRentalPrice,
-        flightPricePerPerson: flightPrice,
-      });
-      setTravelResult(travelModeResult);
+      // Map server travel data into the UI shape
+      try {
+        const tm = (quote?.travel_mode || '').toLowerCase();
+        const estimates = Array.isArray((quote as any)?.travel_estimates) ? (quote as any).travel_estimates : [];
+        const driveRow = estimates.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
+        const travelResult = {
+          mode: tm === 'flight' ? 'fly' : 'drive',
+          totalCost: Number(quote?.travel_cost || 0),
+          breakdown: {
+            drive: { estimate: Number(driveRow?.cost || (tm === 'flight' ? 0 : (quote?.travel_cost || 0))) },
+            fly: {
+              perPerson: 0,
+              travellers: numTravelMembers,
+              flightSubtotal: 0,
+              carRental: Number(carRentalPrice || 0),
+              localTransferKm: 0,
+              departureTransferKm: 0,
+              transferCost: 0,
+              total: tm === 'flight' ? Number(quote?.travel_cost || 0) : 0,
+            },
+          },
+        } as any;
+        setTravelResult(travelResult);
+      } catch {
+        setTravelResult({ mode: 'drive', totalCost: Number(quote?.travel_cost || 0), breakdown: { drive: { estimate: Number(quote?.travel_cost || 0) }, fly: { perPerson: 0, travellers: numTravelMembers, flightSubtotal: 0, carRental: 0, localTransferKm: 0, departureTransferKm: 0, transferCost: 0, total: 0 } } } as any);
+      }
 
     } catch (err) {
       console.error('Failed to calculate booking estimates:', err);
