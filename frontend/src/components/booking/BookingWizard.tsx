@@ -469,6 +469,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
           lighting_evening: !!(details as any).lightingEvening,
           backline_required: !!(details as any).backlineRequired,
+          upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
+          selected_sound_service_id: (details as any).soundSupplierServiceId,
         } as any);
         setCalculatedPrice(Number(quote.total));
 
@@ -732,6 +734,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               }
             }
           } catch {}
+        }
+        // Prefer audience/pricebook-derived estimate when available
+        if (Number.isFinite(scFromAudience) && scFromAudience > 0) {
+          sc = scFromAudience;
         }
         setSoundCost(Number(sc) || 0);
         setSoundMode(quote.sound_mode);

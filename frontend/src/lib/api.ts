@@ -744,6 +744,8 @@ export const calculateQuote = async (params: {
   stage_size?: 'S' | 'M' | 'L';
   lighting_evening?: boolean;
   backline_required?: boolean;
+  upgrade_lighting_advanced?: boolean;
+  selected_sound_service_id?: number;
 }): Promise<QuoteCalculationResponse> => {
   const cacheKey = JSON.stringify(params);
   const now = Date.now();

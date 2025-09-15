@@ -142,4 +142,12 @@ class QuoteCalculationParams(BaseModel):
     service_id: int
     event_city: str
     accommodation_cost: Optional[Decimal] = None
-
+    # Optional sound-context inputs to allow contextual sound estimates server-side
+    guest_count: Optional[int] = None
+    venue_type: Optional[str] = None  # indoor | outdoor | hybrid
+    stage_required: Optional[bool] = None
+    stage_size: Optional[str] = None  # S | M | L
+    lighting_evening: Optional[bool] = None
+    upgrade_lighting_advanced: Optional[bool] = None
+    backline_required: Optional[bool] = None
+    selected_sound_service_id: Optional[int] = None

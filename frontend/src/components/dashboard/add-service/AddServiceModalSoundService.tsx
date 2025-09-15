@@ -540,6 +540,26 @@ export default function AddServiceModalSoundService({
     {
       label: "Audience Packages",
       fields: ["audience_packages"],
+      validate: ({ form }) => {
+        const pkgs = (form.getValues("audience_packages") || []) as AudiencePackage[];
+        const active = pkgs.filter((p) => !!p.active);
+        if (!active.length) {
+          alert('At least one audience package must be active.');
+          return false;
+        }
+        const bad = active.find((p) => {
+          const ind = Number(p.indoor_base_zar);
+          const out = Number(p.outdoor_base_zar);
+          const indOk = Number.isFinite(ind) && ind > 0;
+          const outOk = Number.isFinite(out) && out > 0;
+          return !indOk || !outOk;
+        });
+        if (bad) {
+          alert(`Please set both Indoor and Outdoor base amounts for "${bad.label}" (must be > 0).`);
+          return false;
+        }
+        return true;
+      },
       render: ({ form }) => {
         const pkgs: AudiencePackage[] = form.watch("audience_packages") || [];
         const setPkgs = (next: AudiencePackage[]) => form.setValue("audience_packages", next, { shouldDirty: true });
@@ -618,6 +638,59 @@ export default function AddServiceModalSoundService({
     {
       label: "Add-ons",
       fields: ["stage_prices", "lighting_prices", "addon_unit_prices", "backline_prices", "custom_addons"],
+      validate: ({ form }) => {
+        const stage = form.getValues("stage_prices") as StagePrices;
+        const lighting = form.getValues("lighting_prices") as LightingPrices;
+        const unit = form.getValues("addon_unit_prices") as UnitAddonPrices;
+        const bl = form.getValues("backline_prices") as BacklinePriceMap;
+
+        // Stage S/M/L must be numbers (>= 0)
+        const sOk = stage && stage.S !== "" && Number.isFinite(Number(stage.S)) && Number(stage.S as any) >= 0;
+        const mOk = stage && stage.M !== "" && Number.isFinite(Number(stage.M)) && Number(stage.M as any) >= 0;
+        const lOk = stage && stage.L !== "" && Number.isFinite(Number(stage.L)) && Number(stage.L as any) >= 0;
+        if (!sOk || !mOk || !lOk) {
+          alert('Please provide Stage prices for S, M and L (numbers, 0 allowed).');
+          return false;
+        }
+
+        // Lighting prices basic/advanced must be numbers (>= 0)
+        const basicOk = lighting && lighting.basic !== "" && Number.isFinite(Number(lighting.basic)) && Number(lighting.basic as any) >= 0;
+        const advOk = lighting && lighting.advanced !== "" && Number.isFinite(Number(lighting.advanced)) && Number(lighting.advanced as any) >= 0;
+        if (!basicOk || !advOk) {
+          alert('Please provide Lighting prices for Basic and Advanced (numbers, 0 allowed).');
+          return false;
+        }
+
+        // Unit add-on rates must be numbers (>= 0)
+        const unitKeys: (keyof UnitAddonPrices)[] = [
+          'extra_vocal_mic_zar',
+          'extra_speech_mic_zar',
+          'extra_monitor_mix_zar',
+          'extra_iem_pack_zar',
+          'extra_di_box_zar',
+          'lighting_tech_day_rate_zar',
+        ];
+        for (const k of unitKeys) {
+          const v: any = (unit as any)?.[k];
+          if (v === "" || v === undefined || v === null || !Number.isFinite(Number(v)) || Number(v) < 0) {
+            alert('Please provide valid Unit Add-on rates (numbers, 0 allowed).');
+            return false;
+          }
+        }
+
+        // Enabled backline rows must have a price > 0
+        for (const key of Object.keys(bl) as (keyof BacklinePriceMap)[]) {
+          const row = (bl as any)[key];
+          if (row?.enabled) {
+            const pv = Number(row?.price_zar);
+            if (!Number.isFinite(pv) || pv <= 0) {
+              alert(`Please set a price > 0 for enabled backline item: ${BACKLINE_LABEL[key as any] || String(key)}`);
+              return false;
+            }
+          }
+        }
+        return true;
+      },
       render: ({ form }) => {
         // Stage prices
         const stage = form.watch("stage_prices") as StagePrices;
