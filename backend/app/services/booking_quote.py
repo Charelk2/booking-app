@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from .travel_estimator import estimate_travel
 from ..crud import crud_service
-from ..models import Service
+from ..models import Service, Rider
 
 
 def calculate_quote(
@@ -38,6 +38,9 @@ def calculate_quote_breakdown(
     upgrade_lighting_advanced: Optional[bool] = None,
     backline_required: Optional[bool] = None,
     selected_sound_service_id: Optional[int] = None,
+    supplier_distance_km: Optional[float] = None,
+    rider_units: Optional[Dict[str, Any]] = None,
+    backline_requested: Optional[Dict[str, int]] = None,
 ) -> Dict[str, Any]:
     """Return a detailed cost breakdown including the grand total.
 
@@ -60,6 +63,22 @@ def calculate_quote_breakdown(
     sound_provider_id: Optional[int] = None
 
     if service and event_city and db:
+        # Auto-populate rider/backline context from the musician's rider if not provided
+        if (rider_units is None) or (backline_required and backline_requested is None):
+            try:
+                r: Optional[Rider] = (
+                    db.query(Rider)
+                    .filter(Rider.service_id == service.id)
+                    .first()
+                )
+                if r and r.spec:
+                    units_norm, backline_norm = _normalize_rider_for_pricing(r.spec)
+                    if rider_units is None:
+                        rider_units = units_norm
+                    if backline_required and backline_requested is None:
+                        backline_requested = backline_norm
+            except Exception:
+                pass
         # Prefer contextual estimate using supplier audience packages if possible
         ctxt_cost, ctxt_mode, ctxt_pid = _estimate_sound_cost_contextual(
             service=service,
@@ -74,6 +93,9 @@ def calculate_quote_breakdown(
             upgrade_lighting_advanced=upgrade_lighting_advanced,
             backline_required=backline_required,
             selected_sound_service_id=selected_sound_service_id,
+            supplier_distance_km=supplier_distance_km,
+            rider_units=rider_units,
+            backline_requested=backline_requested,
         )
         if ctxt_cost is not None and ctxt_cost > Decimal("0"):
             sound_cost = ctxt_cost
@@ -114,6 +136,8 @@ def _compute_sound_service_price(
     stage_size: Optional[str],
     lighting_evening: Optional[bool],
     upgrade_lighting_advanced: Optional[bool],
+    rider_units: Optional[Dict[str, Any]] = None,
+    backline_requested: Optional[Dict[str, int]] = None,
 ) -> Decimal:
     """Compute audience‑package based price for a Sound Service.
 
@@ -185,7 +209,63 @@ def _compute_sound_service_price(
                     if (not adv_includes_tech) and tech_day > 0:
                         addons += tech_day
 
-        return (base_amount + addons).quantize(Decimal("0.01"))
+        # Unit add‑ons above included
+        try:
+            inc = selected.get("included") or {}
+            u = rider_units or {}
+            unit_prices = (details.get("addon_unit_prices") or {})
+            def to_int(x):
+                try:
+                    return int(x)
+                except Exception:
+                    return 0
+            extra_vocal = max(0, to_int(u.get("vocal_mics")) - to_int(inc.get("vocal_mics")))
+            extra_speech = max(0, to_int(u.get("speech_mics")) - to_int(inc.get("speech_mics")))
+            extra_mon = max(0, to_int(u.get("monitor_mixes")) - to_int(inc.get("monitors")))
+            extra_iem = max(0, to_int(u.get("iem_packs")))  # no included IEMs in package spec
+            extra_di = max(0, to_int(u.get("di_boxes")) - to_int(inc.get("di_boxes")))
+            def to_dec(x):
+                try:
+                    return Decimal(str(x))
+                except Exception:
+                    return Decimal("0")
+            unit_addons = (
+                to_dec(unit_prices.get("extra_vocal_mic_zar")) * Decimal(str(extra_vocal))
+                + to_dec(unit_prices.get("extra_speech_mic_zar")) * Decimal(str(extra_speech))
+                + to_dec(unit_prices.get("extra_monitor_mix_zar")) * Decimal(str(extra_mon))
+                + to_dec(unit_prices.get("extra_iem_pack_zar")) * Decimal(str(extra_iem))
+                + to_dec(unit_prices.get("extra_di_box_zar")) * Decimal(str(extra_di))
+            )
+        except Exception:
+            unit_addons = Decimal("0")
+
+        # Backline totals
+        try:
+            back_req = backline_requested or {}
+            bl = details.get("backline_prices") or {}
+            back_total = Decimal("0")
+            for k, qty in back_req.items():
+                try:
+                    q = max(0, int(qty or 0))
+                except Exception:
+                    q = 0
+                if q == 0:
+                    continue
+                row = bl.get(k)
+                enabled = False
+                price = Decimal("0")
+                if isinstance(row, dict):
+                    enabled = bool(row.get("enabled"))
+                    price = Decimal(str(row.get("price_zar") or 0))
+                else:
+                    enabled = row is not None
+                    price = Decimal(str(row or 0))
+                if enabled and price > 0:
+                    back_total += price * Decimal(str(q))
+        except Exception:
+            back_total = Decimal("0")
+
+        return (base_amount + addons + unit_addons + back_total).quantize(Decimal("0.01"))
     except Exception:
         return Decimal("0")
 
@@ -204,6 +284,9 @@ def _estimate_sound_cost_contextual(
     upgrade_lighting_advanced: Optional[bool],
     backline_required: Optional[bool],  # currently unused in base calc
     selected_sound_service_id: Optional[int],
+    supplier_distance_km: Optional[float],
+    rider_units: Optional[Dict[str, Any]],
+    backline_requested: Optional[Dict[str, int]],
 ) -> Tuple[Optional[Decimal], str, Optional[int]]:
     """Attempt to compute a contextual sound cost using a supplier's audience packages.
 
@@ -253,7 +336,7 @@ def _estimate_sound_cost_contextual(
         if not provider:
             return None, "none", None
 
-        # Compute audience‑package price (no supplier travel here)
+        # Compute audience‑package price first
         cost = _compute_sound_service_price(
             provider.details or {},
             guest_count=guest_count,
@@ -262,8 +345,27 @@ def _estimate_sound_cost_contextual(
             stage_size=stage_size,
             lighting_evening=lighting_evening,
             upgrade_lighting_advanced=upgrade_lighting_advanced,
+            rider_units=rider_units,
+            backline_requested=backline_requested,
         )
         if cost and cost > Decimal("0"):
+            # Add supplier travel based on pricebook if distance is provided
+            try:
+                from .. import models  # local import to avoid cycles
+                pb = (
+                    db.query(models.SupplierPricebook)
+                    .filter(models.SupplierPricebook.service_id == int(provider_id))
+                    .first()
+                )
+                if pb and supplier_distance_km is not None:
+                    km_rate = Decimal(str(pb.km_rate or 0))
+                    travel = km_rate * Decimal(str(max(0.0, float(supplier_distance_km))))
+                    min_callout = Decimal(str(pb.min_callout or 0))
+                    if min_callout > 0 and travel < min_callout:
+                        travel = min_callout
+                    cost = (cost + travel).quantize(Decimal("0.01"))
+            except Exception:
+                pass
             return cost, "external_providers", int(provider_id)
         return None, "none", None
     except Exception:
@@ -342,3 +444,92 @@ def _estimate_sound_cost(
         return cost, mode, pid, False
 
     return Decimal("0"), mode, None, False
+def _normalize_rider_for_pricing(spec: Dict[str, Any]) -> Tuple[Dict[str, int], Dict[str, int]]:
+    """Normalize a saved rider spec into unit counts and backline map.
+
+    Expected keys (best-effort):
+    - monitors -> monitor_mixes
+    - di -> di_boxes
+    - wireless -> speech_mics
+    - mics.dynamic + mics.condenser -> vocal_mics
+    - iem_packs or monitoring.iem_packs -> iem_packs
+    - backline: array[str|{name}] mapped into canonical keys
+    """
+    units = {
+        "vocal_mics": 0,
+        "speech_mics": 0,
+        "monitor_mixes": 0,
+        "iem_packs": 0,
+        "di_boxes": 0,
+    }
+    back: Dict[str, int] = {}
+    try:
+        if isinstance(spec, dict):
+            if spec.get("monitors") is not None:
+                try:
+                    units["monitor_mixes"] = int(spec.get("monitors") or 0)
+                except Exception:
+                    pass
+            if spec.get("di") is not None:
+                try:
+                    units["di_boxes"] = int(spec.get("di") or 0)
+                except Exception:
+                    pass
+            if spec.get("wireless") is not None:
+                try:
+                    units["speech_mics"] = int(spec.get("wireless") or 0)
+                except Exception:
+                    pass
+            mics = spec.get("mics") or {}
+            try:
+                dyn = int(mics.get("dynamic") or 0)
+                cond = int(mics.get("condenser") or 0)
+                units["vocal_mics"] = max(units["vocal_mics"], dyn + cond)
+            except Exception:
+                pass
+            if spec.get("iem_packs") is not None:
+                try:
+                    units["iem_packs"] = int(spec.get("iem_packs") or 0)
+                except Exception:
+                    pass
+            monitoring = spec.get("monitoring") or {}
+            if monitoring.get("iem_packs") is not None:
+                try:
+                    units["iem_packs"] = max(units["iem_packs"], int(monitoring.get("iem_packs") or 0))
+                except Exception:
+                    pass
+            # Backline array
+            arr = spec.get("backline")
+            if isinstance(arr, list):
+                def map_key(name: str) -> str | None:
+                    n = (name or "").lower()
+                    if "drum" in n and "full" in n:
+                        return "drums_full"
+                    if "drum" in n:
+                        return "drum_shells"
+                    if "guitar" in n and "amp" in n:
+                        return "guitar_amp"
+                    if "bass" in n and "amp" in n:
+                        return "bass_amp"
+                    if "keyboard" in n and "amp" in n:
+                        return "keyboard_amp"
+                    if "keyboard" in n and "stand" in n:
+                        return "keyboard_stand"
+                    if "digital" in n and "piano" in n:
+                        return "piano_digital_88"
+                    if "upright" in n and "piano" in n:
+                        return "piano_acoustic_upright"
+                    if "grand" in n and "piano" in n:
+                        return "piano_acoustic_grand"
+                    if "dj" in n and ("booth" in n or "table" in n):
+                        return "dj_booth"
+                    return None
+                for item in arr:
+                    src = item if isinstance(item, str) else (item.get("name") if isinstance(item, dict) else "")
+                    k = map_key(str(src))
+                    if not k:
+                        continue
+                    back[k] = int(back.get(k, 0)) + 1
+    except Exception:
+        pass
+    return units, back

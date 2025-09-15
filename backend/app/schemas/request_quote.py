@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 from decimal import Decimal
 
@@ -151,3 +151,14 @@ class QuoteCalculationParams(BaseModel):
     upgrade_lighting_advanced: Optional[bool] = None
     backline_required: Optional[bool] = None
     selected_sound_service_id: Optional[int] = None
+    supplier_distance_km: Optional[float] = None
+    # Optional rider/backline context to include per-unit extras and backline rentals
+    class RiderUnits(BaseModel):
+        vocal_mics: Optional[int] = 0
+        speech_mics: Optional[int] = 0
+        monitor_mixes: Optional[int] = 0
+        iem_packs: Optional[int] = 0
+        di_boxes: Optional[int] = 0
+
+    rider_units: Optional[RiderUnits] = None
+    backline_requested: Optional[Dict[str, int]] = None

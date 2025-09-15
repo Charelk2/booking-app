@@ -279,6 +279,10 @@ def calculate_quote_endpoint(
         upgrade_lighting_advanced=getattr(body, "upgrade_lighting_advanced", None),
         backline_required=getattr(body, "backline_required", None),
         selected_sound_service_id=getattr(body, "selected_sound_service_id", None),
+        supplier_distance_km=getattr(body, "supplier_distance_km", None),
+        # Rider/backline
+        rider_units=(body.rider_units.dict() if getattr(body, "rider_units", None) else None),
+        backline_requested=getattr(body, "backline_requested", None),
     )
     return breakdown
 
