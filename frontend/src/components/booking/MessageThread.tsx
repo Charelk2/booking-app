@@ -1571,7 +1571,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       deduped.push(msg);
     }
 
-    // Ensure inquiry card (inquiry_sent_v1) renders after the first client USER message
+    // Ensure inquiry card (inquiry_sent_v1) renders BEFORE the first client USER message
     try {
       const isInquiry = (m: ThreadMessage) => {
         const key = ((m as any).system_key || '').toString().toLowerCase();
@@ -1583,9 +1583,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       const firstUserIdx = deduped.findIndex(
         (m) => normalizeType(m.message_type) !== 'SYSTEM' && m.sender_type === 'client'
       );
-      if (inquiryIdx !== -1 && firstUserIdx !== -1 && inquiryIdx < firstUserIdx) {
+      if (inquiryIdx !== -1 && firstUserIdx !== -1 && inquiryIdx > firstUserIdx) {
         const [inq] = deduped.splice(inquiryIdx, 1);
-        deduped.splice(firstUserIdx + 1, 0, inq);
+        // Insert inquiry card right before the first client message
+        deduped.splice(firstUserIdx, 0, inq);
       }
     } catch {}
 
