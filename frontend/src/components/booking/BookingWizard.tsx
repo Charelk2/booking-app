@@ -902,7 +902,27 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     } finally {
       setIsLoadingReviewData(false);
     }
-  }, [serviceId, artistLocation, details.location, details.date, details.sound, setTravelResult]);
+  }, [
+    // IDs and locations
+    serviceId,
+    artistLocation,
+    details.location,
+    details.date,
+    // Sound flags and selections
+    details.sound,
+    (details as any).soundMode,
+    (details as any).soundSupplierServiceId,
+    // Context that changes sound sizing and pricing
+    (details as any).guests,
+    (details as any).venueType,
+    (details as any).stageRequired,
+    (details as any).stageSize,
+    (details as any).lightingEvening,
+    (details as any).lightingUpgradeAdvanced,
+    (details as any).backlineRequired,
+    // Setter from context (stable but included for correctness)
+    setTravelResult,
+  ]);
 
   // Trigger the calculation when approaching the Review step to prefetch data
   const hasPrefetched = useRef(false);
@@ -912,6 +932,35 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       void calculateReviewData();
     }
   }, [step, calculateReviewData]);
+
+  // Keep pricing fresh as the user configures Sound and later steps, so the
+  // Review totals are ready immediately on arrival. Debounce via watchedValues.
+  useEffect(() => {
+    // Only start eager calculation once the user reached the Sound step or later
+    if (step < 6) return;
+    // Require minimum inputs to avoid noisy errors
+    if (!serviceId || !artistLocation || !(details as any)?.location) return;
+    // Recalculate in the background with debounced values
+    void calculateReviewData();
+  }, [
+    step,
+    serviceId,
+    artistLocation,
+    // Debounced form values ensure we don't thrash calls while typing
+    debouncedValues.location,
+    debouncedValues.date,
+    debouncedValues.sound,
+    (debouncedValues as any).soundMode,
+    (debouncedValues as any).soundSupplierServiceId,
+    (debouncedValues as any).guests,
+    (debouncedValues as any).venueType,
+    (debouncedValues as any).stageRequired,
+    (debouncedValues as any).stageSize,
+    (debouncedValues as any).lightingEvening,
+    (debouncedValues as any).lightingUpgradeAdvanced,
+    (debouncedValues as any).backlineRequired,
+    calculateReviewData,
+  ]);
 
   // Recalculate when the user edits location, date, or sound preference on the Review step
   useEffect(() => {
