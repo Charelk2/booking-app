@@ -324,7 +324,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         savedRef.current = peek;
         setShowResumeModal(true);
       } else {
-        setShowAiAssist(true);
+        // Do not auto-open AI overlay to avoid blocking typing on the first step.
+        // Users can still open AI assist manually from UI affordances elsewhere.
       }
     } catch {
       // fallback: previous behavior
@@ -453,13 +454,72 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const isSoundServiceCategory = (svcCategorySlug || '').toLowerCase().includes('sound');
       if (!isSoundServiceCategory && details.sound === 'yes') {
         // Base calculation (travel + etc.)
+        // Resolve a supplier candidate if none selected (consider availability)
+        let selectedIdForCalc: number | undefined = (details as any).soundSupplierServiceId as number | undefined;
+        try {
+          if (!selectedIdForCalc && details.location) {
+            const sp = svcRes?.details?.sound_provisioning || {};
+            let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
+            if (!prefs.length) {
+              try { const pr = await fetch(`/api/v1/services/${serviceId}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json()); if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences; } catch {}
+            }
+            const locLower = String(details.location || '').toLowerCase();
+            const locCityLower = locLower.split(',')[0]?.trim() || locLower;
+            const findIds = (p: any): number[] => (Array.isArray(p?.provider_ids) ? p.provider_ids : p?.providerIds || []).map((x: any) => Number(x)).filter((n: number) => Number.isFinite(n));
+            const match = prefs.find((p: any) => (p.city || '').toLowerCase() === locLower)
+              || prefs.find((p: any) => (p.city || '').toLowerCase() === locCityLower)
+              || prefs.find((p: any) => locLower.includes((p.city || '').toLowerCase()))
+              || prefs.find((p: any) => locCityLower.includes((p.city || '').toLowerCase()));
+            let preferredIds: number[] = match ? findIds(match) : [];
+            if (!preferredIds.length && prefs.length) preferredIds = Array.from(new Set(prefs.flatMap(findIds)));
+            preferredIds = preferredIds.slice(0, 3);
+            const candidates: { service_id: number; provider_id?: number; distance_km: number; available: boolean }[] = [];
+            const eventDateStr = (() => { const dd = (details as any)?.date; if (!dd) return null; try { const dt = typeof dd === 'string' ? new Date(dd) : dd; return dt.toISOString().slice(0,10); } catch { return null; } })();
+            for (const pid of preferredIds) {
+              try {
+                const s = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.ok ? r.json() : null);
+                if (!s) continue;
+                const baseLocation = s?.details?.base_location as string | undefined;
+                let distance_km = 0;
+                if (baseLocation && details.location) { try { const m = await getDrivingMetrics(baseLocation, details.location); distance_km = m.distanceKm || 0; } catch {} }
+                let available = true;
+                try { const providerId = Number(s?.artist?.id || s?.service_provider?.id || s?.service_provider_id); if (providerId && eventDateStr) { const av = await getServiceProviderAvailability(providerId); const unavailable = (av?.data?.unavailable_dates || []) as string[]; available = !unavailable.includes(eventDateStr); } } catch {}
+                candidates.push({ service_id: pid, provider_id: Number(s?.artist?.id || s?.service_provider?.id || s?.service_provider_id) || undefined, distance_km, available });
+              } catch {}
+            }
+            if (candidates.length) {
+              const ranked: any[] = await fetch(`/api/v1/pricebook/batch-estimate-rank`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  rider_spec: {
+                    guest_count: parseInt((details as any).guests || '0', 10) || undefined,
+                    venue_type: (details as any).venueType,
+                    stage_required: !!(details as any).stageRequired,
+                    stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
+                    lighting_evening: !!(details as any).lightingEvening,
+                    backline_required: !!(details as any).backlineRequired,
+                  },
+                  candidates: candidates.map(c => ({ service_id: c.service_id, distance_km: c.distance_km })),
+                  preferred_ids: candidates.map(c => c.service_id),
+                  managed_by_artist: false,
+                  artist_managed_markup_percent: 0,
+                  outdoor: (details as any).venueType === 'outdoor',
+                }),
+              }).then(r => r.ok ? r.json() : []);
+              const orderedIds: number[] = Array.isArray(ranked) && ranked.length ? ranked.map((r:any)=>Number(r.service_id)).filter((x:number)=>Number.isFinite(x)) : candidates.map(c=>c.service_id);
+              const firstAvailable = orderedIds.find(id => candidates.find(c => c.service_id===id && c.available !== false));
+              selectedIdForCalc = firstAvailable ?? orderedIds[0];
+            }
+          }
+        } catch {}
+
         // Pre-compute supplier distance if a supplier is selected (for backend pricebook travel)
         let supplierDistanceKm: number | undefined = undefined;
         // Normalize rider units/backline from the artist's rider to pass server-side
         let riderUnitsForServer: { vocal_mics?: number; speech_mics?: number; monitor_mixes?: number; iem_packs?: number; di_boxes?: number } | undefined;
         let backlineRequestedForServer: Record<string, number> | undefined;
         try {
-          const selId = (details as any).soundSupplierServiceId as number | undefined;
+          const selId = ((details as any).soundSupplierServiceId as number | undefined) || selectedIdForCalc;
           if (selId && details.location) {
             const [pb, svcSel] = await Promise.all([
               fetch(`/api/v1/services/${selId}/pricebook`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
@@ -494,7 +554,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           lighting_evening: !!(details as any).lightingEvening,
           backline_required: !!(details as any).backlineRequired,
           upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
-          selected_sound_service_id: (details as any).soundSupplierServiceId,
+          selected_sound_service_id: (details as any).soundSupplierServiceId || selectedIdForCalc,
           supplier_distance_km: supplierDistanceKm,
           rider_units: riderUnitsForServer,
           backline_requested: backlineRequestedForServer,
