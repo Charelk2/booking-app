@@ -271,6 +271,14 @@ def calculate_quote_endpoint(
         service=svc,
         event_city=body.event_city,
         db=db,
+        guest_count=getattr(body, "guest_count", None),
+        venue_type=getattr(body, "venue_type", None),
+        stage_required=getattr(body, "stage_required", None),
+        stage_size=getattr(body, "stage_size", None),
+        lighting_evening=getattr(body, "lighting_evening", None),
+        upgrade_lighting_advanced=getattr(body, "upgrade_lighting_advanced", None),
+        backline_required=getattr(body, "backline_required", None),
+        selected_sound_service_id=getattr(body, "selected_sound_service_id", None),
     )
     return breakdown
 
@@ -679,30 +687,4 @@ def confirm_quote_and_create_booking(
         )
 
 
-@router.post(
-    "/quotes/calculate",
-    response_model=schemas.QuoteCalculationResponse,
-    response_model_exclude_none=True,
-)
-def calculate_quote_endpoint(
-    params: schemas.QuoteCalculationParams,
-    db: Session = Depends(get_db),
-):
-    """Return a quick quote estimation used during booking flow."""
-    service = crud.service.get_service(db, params.service_id)
-    if not service:
-        raise error_response(
-            "Service not found",
-            {"service_id": "not_found"},
-            status.HTTP_404_NOT_FOUND,
-        )
-
-    breakdown = calculate_quote_breakdown(
-        params.base_fee,
-        params.distance_km,
-        params.accommodation_cost,
-        service=service,
-        event_city=params.event_city,
-        db=db,
-    )
-    return breakdown
+# Duplicate handler consolidated above. FastAPI will use the first definition.
