@@ -458,6 +458,35 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const isSoundServiceCategory = (svcCategorySlug || '').toLowerCase().includes('sound');
       if (!isSoundServiceCategory && details.sound === 'yes') {
         // Base calculation (travel + etc.)
+        // Pre-compute supplier distance if a supplier is selected (for backend pricebook travel)
+        let supplierDistanceKm: number | undefined = undefined;
+        // Normalize rider units/backline from the artist's rider to pass server-side
+        let riderUnitsForServer: { vocal_mics?: number; speech_mics?: number; monitor_mixes?: number; iem_packs?: number; di_boxes?: number } | undefined;
+        let backlineRequestedForServer: Record<string, number> | undefined;
+        try {
+          const selId = (details as any).soundSupplierServiceId as number | undefined;
+          if (selId && details.location) {
+            const [pb, svcSel] = await Promise.all([
+              fetch(`/api/v1/services/${selId}/pricebook`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+              fetch(`/api/v1/services/${selId}`, { cache: 'force-cache' }).then(r => r.ok ? r.json() : null),
+            ]);
+            const baseLoc = (pb?.base_location || svcSel?.details?.base_location) as string | undefined;
+            if (baseLoc) {
+              try {
+                const m = await getDrivingMetrics(baseLoc, details.location);
+                supplierDistanceKm = (m?.distanceKm || 0) * 2; // round-trip
+              } catch {}
+            }
+          }
+          // Fetch and normalize the musician's rider once to provide unit/backline context
+          try {
+            const rider = await fetch(`/api/v1/services/${serviceId}/rider`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null);
+            const norm = normalizeRiderForPricing(rider?.spec);
+            riderUnitsForServer = norm.units;
+            backlineRequestedForServer = (details as any).backlineRequired ? norm.backline : {};
+          } catch {}
+        } catch {}
+
         quote = await calculateQuote({
           base_fee: basePrice,
           distance_km: directDistanceKm,
@@ -471,16 +500,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           backline_required: !!(details as any).backlineRequired,
           upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
           selected_sound_service_id: (details as any).soundSupplierServiceId,
+          supplier_distance_km: supplierDistanceKm,
+          rider_units: riderUnitsForServer,
+          backline_requested: backlineRequestedForServer,
         } as any);
         setCalculatedPrice(Number(quote.total));
 
-        // Start from backend sound_cost, but if supplier mode, ignore backend's flat `price` fallback (which is the service card price)
+        // Prefer server-computed sound_cost; fallback to local audience/pricebook estimate if missing
         const soundModePref = (details as any).soundMode;
-        let sc = soundModePref === 'supplier' ? 0 : Number(quote.sound_cost);
+        let sc = Number(quote.sound_cost);
         const guestCount = parseInt((details as any).guests || '0', 10) || undefined;
         const venueType = (details as any).venueType;
 
-        // Prefer supplier audience-tier pricing if supplier mode is selected or musician config is external providers
+        // Local fallback: supplier audience-tier pricing if supplier mode is selected or musician config is external providers
         let scFromAudience = 0;
         try {
           const spConf = svcRes?.details?.sound_provisioning || {};
@@ -735,8 +767,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             }
           } catch {}
         }
-        // Prefer audience/pricebook-derived estimate when available
-        if (Number.isFinite(scFromAudience) && scFromAudience > 0) {
+        // Fallback to audience/pricebook-derived estimate when server did not provide a value
+        if ((!Number.isFinite(sc) || sc <= 0) && Number.isFinite(scFromAudience) && scFromAudience > 0) {
           sc = scFromAudience;
         }
         setSoundCost(Number(sc) || 0);

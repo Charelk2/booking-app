@@ -746,6 +746,15 @@ export const calculateQuote = async (params: {
   backline_required?: boolean;
   upgrade_lighting_advanced?: boolean;
   selected_sound_service_id?: number;
+  supplier_distance_km?: number;
+  rider_units?: {
+    vocal_mics?: number;
+    speech_mics?: number;
+    monitor_mixes?: number;
+    iem_packs?: number;
+    di_boxes?: number;
+  };
+  backline_requested?: Record<string, number>;
 }): Promise<QuoteCalculationResponse> => {
   const cacheKey = JSON.stringify(params);
   const now = Date.now();
