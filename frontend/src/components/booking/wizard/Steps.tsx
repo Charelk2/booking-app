@@ -181,9 +181,10 @@ interface EventDescriptionProps {
   open?: boolean;
   onToggle?: () => void;
   onEnterNext?: () => void;
+  firstInputRef?: React.RefObject<HTMLTextAreaElement | HTMLInputElement>;
 }
 
-export function EventDescriptionStep({ control, setValue, watch, open = true, onEnterNext }: EventDescriptionProps) {
+export function EventDescriptionStep({ control, setValue, watch, open = true, onEnterNext, firstInputRef }: EventDescriptionProps) {
   const isMobile = useIsMobile();
   type ParsedDetails = { eventType?: string; date?: string; location?: string; guests?: number };
   const [parsed, setParsed] = useState<ParsedDetails | null>(null);
@@ -239,7 +240,9 @@ export function EventDescriptionStep({ control, setValue, watch, open = true, on
         <Controller
           name="eventDescription"
           control={control}
-          render={({ field }) => (
+          render={({ field }) => {
+            const { ref, ...fieldRest } = field as any;
+            return (
             <div className="space-y-2">
             <label htmlFor="event-description" className="label block">
               Describe your event
@@ -250,9 +253,14 @@ export function EventDescriptionStep({ control, setValue, watch, open = true, on
                   rows={3}
                   className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2 pr-10"
                   maxLength={200}
-                  {...field}
+                  {...fieldRest}
                   value={field.value || ''}
                   autoFocus={!isMobile}
+                  ref={(el) => {
+                    if (typeof ref === 'function') ref(el);
+                    else if (ref) (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+                    if (firstInputRef) (firstInputRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+                  }}
                   enterKeyHint="next"
                   onKeyDown={(e) => {
                     // On mobile, treat Enter as Next (unless Shift+Enter for newline)
@@ -301,7 +309,8 @@ export function EventDescriptionStep({ control, setValue, watch, open = true, on
                 </button>
               </div>
             </div>
-          )}
+            );
+          }}
         />
       </div>
       {parsed && (

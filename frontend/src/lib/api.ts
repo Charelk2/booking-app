@@ -996,3 +996,41 @@ export const addEventPrepAttachment = (bookingId: number, url: string) =>
   api.post<EventPrepAttachment>(`${API_V1}/bookings/${bookingId}/event-prep/attachments`, { url });
 export const deleteEventPrepAttachment = (bookingId: number, attachmentId: number) =>
   api.delete<void>(`${API_V1}/bookings/${bookingId}/event-prep/attachments/${attachmentId}`);
+
+// ─── PRICEBOOK ESTIMATE (404-safe) ───────────────────────────────────────────
+/**
+ * Call the supplier pricebook estimator but treat missing pricebooks as a
+ * soft result instead of a console-logging 404.
+ *
+ * Returns a structured object with `pricebook_missing: true` when the
+ * pricebook does not exist for the given service. Callers can branch on the
+ * flag without throwing or spamming the console.
+ */
+export async function estimatePriceSafe(
+  serviceId: number,
+  body: any,
+): Promise<{
+  estimate_min: number | null;
+  estimate_max: number | null;
+  breakdown?: Record<string, any>;
+  pricebook_missing?: boolean;
+}> {
+  try {
+    const resp = await fetch(`${API_V1}/services/${serviceId}/pricebook/estimate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    });
+    if (resp.status === 404) {
+      return { estimate_min: null, estimate_max: null, breakdown: {}, pricebook_missing: true };
+    }
+    if (!resp.ok) {
+      throw new Error(`estimate ${serviceId} ${resp.status}`);
+    }
+    const json = await resp.json();
+    return json;
+  } catch (err) {
+    // Network or other errors — return a soft result to keep UI hydrated
+    return { estimate_min: null, estimate_max: null, breakdown: {}, pricebook_missing: true };
+  }
+}

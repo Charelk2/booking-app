@@ -192,3 +192,9 @@
 
 /* Forms: better keyboard behavior on mobile */
 .booking-wizard form { overscroll-behavior: contain; }
+
+/* Overlays: ensure hidden ones don't trap clicks */
+.wizard-overlay[aria-hidden="true"],
+.wizard-overlay.hidden {
+  pointer-events: none !important;
+}
