@@ -211,8 +211,11 @@ export async function getDrivingMetrics(
     from,
   )}&to_location=${encodeURIComponent(to)}&includeDuration=true`;
 
-  // eslint-disable-next-line no-console -- debug request URL for troubleshooting
-  console.log('Fetching metrics from:', url);
+  // Only log in development to avoid noisy consoles in production
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console -- debug request URL for troubleshooting
+    console.log('Fetching metrics from:', url);
+  }
   try {
     const res = await fetch(url);
     if (!res.ok) {
