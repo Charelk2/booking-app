@@ -913,6 +913,24 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         normalized.push(msg);
       }
 
+      // If we detect an inquiry card in this thread, flag it locally so the
+      // inbox list can show the INQUIRY chip immediately (works for both the
+      // explicit SYSTEM card and the JSON payload fallback).
+      try {
+        const hasInquiry = normalized.some((m) => {
+          try {
+            const key = ((m as any).system_key || '').toString().toLowerCase();
+            if (key === 'inquiry_sent_v1') return true;
+            const raw = String((m as any).content || '');
+            return raw.startsWith('{') && raw.includes('inquiry_sent_v1');
+          } catch { return false; }
+        });
+        if (hasInquiry && typeof window !== 'undefined') {
+          try { localStorage.setItem(`inquiry-thread-${bookingRequestId}`,'1'); } catch {}
+          try { window.dispatchEvent(new Event('threads:updated')); } catch {}
+        }
+      } catch {}
+
       setParsedBookingDetails(parsedDetails);
       if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
 
