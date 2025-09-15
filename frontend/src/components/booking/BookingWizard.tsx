@@ -19,6 +19,7 @@ import {
   updateBookingRequest,
   postMessageToBookingRequest,
   calculateQuote,
+  estimatePriceSafe,
 } from '@/lib/api';
 import { calculateTravelMode, getDrivingMetricsCached, geocodeCached } from '@/lib/travel';
   import { trackEvent } from '@/lib/analytics';
@@ -28,6 +29,27 @@ import { calculateTravelMode, getDrivingMetricsCached, geocodeCached } from '@/l
 import { BookingRequestCreate } from '@/types';
 import './wizard/wizard.css';
 import toast from '../ui/Toast';
+// 404-aware service cache (tombstones)
+const svcCache = new Map<number, any | null>();
+type ServiceJson = any | null; // null = tombstone (missing)
+async function fetchServiceCached(serviceId: number): Promise<ServiceJson> {
+  const cached = svcCache.get(serviceId);
+  if (cached !== undefined) return cached as ServiceJson;
+  try {
+    const resp = await fetch(`/api/v1/services/${serviceId}`, { cache: 'force-cache' });
+    if (resp.status === 404) {
+      svcCache.set(serviceId, null);
+      return null;
+    }
+    if (!resp.ok) throw new Error(`Service ${serviceId} ${resp.status}`);
+    const json = await resp.json();
+    svcCache.set(serviceId, json);
+    return json;
+  } catch {
+    svcCache.set(serviceId, null);
+    return null;
+  }
+}
 
 // --- Step Components ---
 import {
@@ -247,6 +269,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const progressValue = ((step + 1) / steps.length) * 100;
   const hasLoaded = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const firstInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
   // --- Form Hook (React Hook Form + Yup) ---
   const {
@@ -375,7 +398,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     }
     const run = async () => {
       try {
-        const svc = await fetch(`/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
+        const svc = await fetchServiceCached(sid);
+        if (!svc) { setSelectedSupplierName(undefined); return; }
         const publicName = svc?.details?.publicName || svc?.artist?.artist_profile?.business_name || svc?.title || undefined;
         setSelectedSupplierName(publicName);
       } catch (e) {
@@ -413,10 +437,20 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
     try {
       const [svcRes, artistPos, eventPos] = await Promise.all([
-        fetch(`/api/v1/services/${serviceId}`, { cache: 'force-cache' }).then((res) => res.json()),
+        serviceId ? fetchServiceCached(serviceId) : Promise.resolve(null),
         geocodeCached(artistLocation),
         geocodeCached(details.location),
       ]);
+
+      if (!svcRes) {
+        // Tombstone: remember and bail quietly without spamming the console
+        if (activeCalcRef.current === calcId) setIsLoadingReviewData(false);
+        setReviewDataError('Selected service is unavailable.');
+        setCalculatedPrice(null);
+        setServicePriceItems(null);
+        setTravelResult(null);
+        return;
+      }
 
       if (!artistPos) {
         throw new Error(`Could not find geographic coordinates for artist's base location: "${artistLocation}".`);
@@ -516,7 +550,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             const eventDateStr = (() => { const dd = (details as any)?.date; if (!dd) return null; try { const dt = typeof dd === 'string' ? new Date(dd) : dd; return dt.toISOString().slice(0,10); } catch { return null; } })();
             for (const pid of preferredIds) {
               try {
-                const s = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.ok ? r.json() : null);
+                const s = await fetchServiceCached(pid);
                 if (!s) continue;
                 const baseLocation = s?.details?.base_location as string | undefined;
                 let distance_km = 0;
@@ -560,7 +594,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         try {
           const selId = ((details as any).soundSupplierServiceId as number | undefined) || selectedIdForCalc;
           if (selId && details.location) {
-            const svcSel = await fetch(`/api/v1/services/${selId}`, { cache: 'force-cache' }).then(r => r.ok ? r.json() : null);
+            const svcSel = await fetchServiceCached(selId);
             const baseLoc = (svcSel?.details?.base_location) as string | undefined;
             if (baseLoc) {
               try {
@@ -620,7 +654,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               // Preferred: pricebook estimate first (includes travel); then fallback to sound-estimate or local compute
               let estimatedViaPB = false;
               try {
-                const svcSel = await fetch(`/api/v1/services/${selectedId}`, { cache: 'force-cache' }).then(r => r.ok ? r.json() : null);
+                const svcSel = await fetchServiceCached(selectedId);
                 const baseLoc = (svcSel?.details?.base_location) as string | undefined;
                 let distanceKm = 0;
                 if (baseLoc && details.location) {
@@ -634,32 +668,25 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   wireless: Number(normalizedRider.units.speech_mics || 0),
                   di: Number(normalizedRider.units.di_boxes || 0),
                 };
-                const respPB = await fetch(`/api/v1/services/${selectedId}/pricebook/estimate`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    rider_spec,
-                    distance_km: distanceKm,
-                    managed_by_artist: false,
-                    artist_managed_markup_percent: 0,
-                    guest_count: guestCount,
-                    backline_required: !!(details as any).backlineRequired,
-                    lighting_evening: !!(details as any).lightingEvening,
-                    outdoor: venueType === 'outdoor',
-                    stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
-                  }),
+                const estPB = await estimatePriceSafe(selectedId, {
+                  rider_spec,
+                  distance_km: distanceKm,
+                  managed_by_artist: false,
+                  artist_managed_markup_percent: 0,
+                  guest_count: guestCount,
+                  backline_required: !!(details as any).backlineRequired,
+                  lighting_evening: !!(details as any).lightingEvening,
+                  outdoor: venueType === 'outdoor',
+                  stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
                 });
-                if (respPB.ok) {
-                  const estPB = await respPB.json();
-                  if (estPB && estPB.estimate_min != null && estPB.estimate_max != null) {
-                    const min = Number(estPB.estimate_min);
-                    const max = Number(estPB.estimate_max);
-                    if (Number.isFinite(min) && Number.isFinite(max)) {
-                      scFromAudience = (min + max) / 2;
-                      estimatedViaPB = true;
-                    }
+                if (estPB && estPB.estimate_min != null && estPB.estimate_max != null) {
+                  const min = Number(estPB.estimate_min);
+                  const max = Number(estPB.estimate_max);
+                  if (Number.isFinite(min) && Number.isFinite(max)) {
+                    scFromAudience = (min + max) / 2;
+                    estimatedViaPB = true;
                   }
-                } else if (respPB.status === 404) {
+                } else if ((estPB as any)?.pricebook_missing) {
                   missingPricebookRef.current.add(selectedId);
                 }
               } catch {}
@@ -692,7 +719,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 } catch {
                   // Final fallback: compute locally from supplier details
                   try {
-                    const psvc = await fetch(`/api/v1/services/${selectedId}`, { cache: 'force-cache' }).then((r) => r.ok ? r.json() : null);
+                    const psvc = await fetchServiceCached(selectedId);
                     const comp = computeSoundServicePrice({
                       details: psvc?.details,
                       guestCount,
@@ -789,7 +816,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               for (const pid of preferredIds) {
                 let distance_km = 0;
                 try {
-                  const s = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.json());
+                  const s = await fetchServiceCached(pid);
                   const baseLoc = s?.details?.base_location as string | undefined;
                   if (baseLoc) {
                     const m = await getDrivingMetricsCached(baseLoc, details.location);
@@ -1265,6 +1292,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             setValue={setValue}
             watch={watch}
             onEnterNext={() => void next()}
+            firstInputRef={firstInputRef}
           />
         );
       case 1:
@@ -1332,8 +1360,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       className="fixed inset-0 z-50 booking-wizard"
       open={isOpen}
       onClose={onClose}
+      initialFocus={firstInputRef as any}
     >
-      <div className="fixed inset-0 bg-gray-500/75 z-40" />
+      <div className="fixed inset-0 bg-gray-500/75 z-40 wizard-overlay" />
 
       <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
         <Dialog.Panel className="pointer-events-auto w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl bg-white flex flex-col overflow-hidden">
@@ -1409,7 +1438,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       </div>
       {/* Resume Draft Modal */}
       <Dialog open={showResumeModal} onClose={() => setShowResumeModal(false)} className="fixed inset-0 z-50">
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 bg-black/30 wizard-overlay" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <Dialog.Title className="text-lg font-semibold text-gray-900">Resume previous request?</Dialog.Title>
@@ -1439,7 +1468,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
       {/* AI Assist Modal */}
       <Dialog open={showAiAssist} onClose={() => setShowAiAssist(false)} className="fixed inset-0 z-50">
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 bg-black/30 wizard-overlay" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="mx-auto max-w-lg w-full rounded-2xl bg-white p-6 shadow-xl">
             <Dialog.Title className="text-lg font-semibold text-gray-900">Fill with AI</Dialog.Title>
@@ -1487,7 +1516,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
       {/* Minimum description requirement modal */}
       <Dialog open={showMinDescModal} onClose={() => setShowMinDescModal(false)} className="fixed inset-0 z-[9999]">
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 bg-black/30 wizard-overlay" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="mx-auto max-w-sm w-full rounded-2xl bg-white p-6 shadow-xl">
             <Dialog.Title className="text-base font-semibold text-gray-900">Almost there</Dialog.Title>
@@ -1507,7 +1536,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
       {/* Unavailable date modal */}
       <Dialog open={showUnavailableModal} onClose={() => setShowUnavailableModal(false)} className="fixed inset-0 z-[9999]">
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 bg-black/30 wizard-overlay" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="mx-auto max-w-sm w-full rounded-2xl bg-white p-6 shadow-xl">
             <Dialog.Title className="text-base font-semibold text-gray-900">Date Unavailable</Dialog.Title>
