@@ -11,6 +11,7 @@ from ..database import get_db
 from ..models.service_provider_profile import ServiceProviderProfile
 
 from ..models.service import Service
+from ..models.supplier_pricebook import SupplierPricebook
 from ..models.calendar_account import CalendarAccount, CalendarProvider
 from ..models.service_category import ServiceCategory
 from ..schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse
@@ -212,6 +213,17 @@ def read_service(service_id: int, db: Session = Depends(get_db)):
             {"service_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    # Annotate with has_pricebook so clients can skip estimator calls
+    try:
+        has_pb = (
+            db.query(SupplierPricebook.id)
+            .filter(SupplierPricebook.service_id == service.id)
+            .first()
+            is not None
+        )
+        setattr(service, "has_pricebook", bool(has_pb))
+    except Exception:
+        setattr(service, "has_pricebook", False)
     return service
 
 

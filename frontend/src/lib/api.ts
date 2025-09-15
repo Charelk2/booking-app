@@ -1016,21 +1016,15 @@ export async function estimatePriceSafe(
   pricebook_missing?: boolean;
 }> {
   try {
-    const resp = await fetch(`${API_V1}/services/${serviceId}/pricebook/estimate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body ?? {}),
-    });
-    if (resp.status === 404) {
+    const resp = await api.post(
+      `${API_V1}/services/${serviceId}/pricebook/estimate`,
+      body ?? {},
+    );
+    return resp.data as any;
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
       return { estimate_min: null, estimate_max: null, breakdown: {}, pricebook_missing: true };
     }
-    if (!resp.ok) {
-      throw new Error(`estimate ${serviceId} ${resp.status}`);
-    }
-    const json = await resp.json();
-    return json;
-  } catch (err) {
-    // Network or other errors — return a soft result to keep UI hydrated
     return { estimate_min: null, estimate_max: null, breakdown: {}, pricebook_missing: true };
   }
 }
