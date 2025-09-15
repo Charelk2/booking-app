@@ -48,6 +48,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Track which artist profiles have had media migration applied in this process
+_MEDIA_MIGRATED: set[int] = set()
+
 # Price distribution buckets used for the histogram on the frontend.
 # Extend or modify these ranges as needed. Ensure the max aligns with
 # SLIDER_MAX from the frontend filter constants.
@@ -109,8 +112,10 @@ def read_current_artist_profile(
             detail="Artist profile not found.",
         )
     # Opportunistic migration: convert legacy file paths to data URLs so media
-    # survives redeploys, mirroring AddServiceModalMusician behavior.
+    # survives redeploys, mirroring AddServiceModalMusician behavior. Only run once per process per artist.
     try:
+        if artist_profile.id in _MEDIA_MIGRATED:
+            return artist_profile
         changed = False
         # Helper to convert a single relative path under /static to data URL
         def to_data_url_if_exists(rel_path: str | None) -> Optional[str]:
@@ -163,6 +168,7 @@ def read_current_artist_profile(
             db.add(artist_profile)
             db.commit()
             db.refresh(artist_profile)
+        _MEDIA_MIGRATED.add(artist_profile.id)
     except Exception:
         # Non-fatal: return profile even if migration failed
         pass

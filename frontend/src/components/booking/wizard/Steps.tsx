@@ -21,7 +21,7 @@ import eventTypes from '@/data/eventTypes.json';
 import toast from '@/components/ui/Toast';
 import { parseBookingText, uploadBookingAttachment } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import { getDrivingMetrics, TravelResult } from '@/lib/travel';
+import { getDrivingMetricsCached, TravelResult } from '@/lib/travel';
 import { getServiceProviderAvailability } from '@/lib/api';
 import SummarySidebar from '../SummarySidebar';
 import { trackEvent } from '@/lib/analytics';
@@ -836,7 +836,7 @@ export function SoundStep({
             const baseLocation = s?.details?.base_location as string | undefined;
             let distance_km = 0;
             if (baseLocation && eventLocation) {
-              const metrics = await getDrivingMetrics(baseLocation, eventLocation);
+              const metrics = await getDrivingMetricsCached(baseLocation, eventLocation);
               distance_km = metrics.distanceKm || 0;
             }
             // Resolve supplier availability: call provider profile availability by user id
