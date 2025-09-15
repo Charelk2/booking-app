@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session
 
 from .travel_estimator import estimate_travel
+from .distance_service import get_distance_metrics
 from ..crud import crud_service
 from ..models import Service, Rider
 
@@ -50,6 +51,21 @@ def calculate_quote_breakdown(
     display on the frontend.
     """
 
+    # If distance not provided, compute from artist base location to event city
+    if (distance_km is None or distance_km <= 0) and service and event_city and db:
+        try:
+            from ..models import ServiceProviderProfile
+            artist_loc = (
+                db.query(ServiceProviderProfile)
+                .filter(ServiceProviderProfile.user_id == service.artist_id)
+                .first()
+            )
+            if artist_loc and artist_loc.location:
+                dm = get_distance_metrics(artist_loc.location, event_city)
+                distance_km = float(dm.distance_km)
+        except Exception:
+            distance_km = distance_km or 0.0
+    distance_km = float(distance_km or 0.0)
     estimates = estimate_travel(distance_km)
     best = min(estimates, key=lambda e: e["cost"]) if estimates else {"mode": "unknown", "cost": Decimal("0")}
     travel_cost = best["cost"]
@@ -349,7 +365,7 @@ def _estimate_sound_cost_contextual(
             backline_requested=backline_requested,
         )
         if cost and cost > Decimal("0"):
-            # Add supplier travel based on pricebook if distance is provided
+            # Add supplier travel based on pricebook
             try:
                 from .. import models  # local import to avoid cycles
                 pb = (
@@ -357,6 +373,12 @@ def _estimate_sound_cost_contextual(
                     .filter(models.SupplierPricebook.service_id == int(provider_id))
                     .first()
                 )
+                # Compute distance if not provided
+                if pb and (supplier_distance_km is None or supplier_distance_km <= 0):
+                    base_loc = pb.base_location or (provider.details or {}).get("base_location")
+                    if base_loc and event_city:
+                        dm = get_distance_metrics(str(base_loc), event_city)
+                        supplier_distance_km = float((dm.distance_km or 0.0) * 2.0)  # round-trip
                 if pb and supplier_distance_km is not None:
                     km_rate = Decimal(str(pb.km_rate or 0))
                     travel = km_rate * Decimal(str(max(0.0, float(supplier_distance_km))))
