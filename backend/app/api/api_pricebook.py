@@ -1,4 +1,6 @@
 from decimal import Decimal
+from typing import Any, Dict, Optional
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
@@ -9,14 +11,23 @@ from pydantic import BaseModel
 
 router = APIRouter(tags=["pricebooks"])
 
+# Simple in-process cache for SupplierPricebook rows keyed by service_id.
+# No TTL for now; cache will live for the lifetime of the process and will be
+# updated on upserts.
+_pb_cache: Dict[int, models.SupplierPricebook] = {}
+
 
 @router.get("/services/{service_id}/pricebook", response_model=schemas.PricebookRead)
 def get_pricebook(service_id: int, db: Session = Depends(get_db)):
-    pb = (
-        db.query(models.SupplierPricebook)
-        .filter(models.SupplierPricebook.service_id == service_id)
-        .first()
-    )
+    pb = _pb_cache.get(service_id)
+    if not pb:
+        pb = (
+            db.query(models.SupplierPricebook)
+            .filter(models.SupplierPricebook.service_id == service_id)
+            .first()
+        )
+        if pb:
+            _pb_cache[service_id] = pb
     if not pb:
         raise error_response("Pricebook not found", {"service_id": "not_found"}, status.HTTP_404_NOT_FOUND)
     return pb
@@ -37,6 +48,7 @@ def upsert_pricebook(service_id: int, pb_in: schemas.PricebookCreate, db: Sessio
         db.add(pb)
         db.commit()
         db.refresh(pb)
+        _pb_cache[service_id] = pb
         return pb
     pb = models.SupplierPricebook(
         service_id=service_id,
@@ -49,6 +61,7 @@ def upsert_pricebook(service_id: int, pb_in: schemas.PricebookCreate, db: Sessio
     db.add(pb)
     db.commit()
     db.refresh(pb)
+    _pb_cache[service_id] = pb
     return pb
 
 
@@ -143,11 +156,15 @@ def estimate_price(
     body: schemas.EstimateIn,
     db: Session = Depends(get_db),
 ):
-    pb = (
-        db.query(models.SupplierPricebook)
-        .filter(models.SupplierPricebook.service_id == service_id)
-        .first()
-    )
+    pb = _pb_cache.get(service_id)
+    if not pb:
+        pb = (
+            db.query(models.SupplierPricebook)
+            .filter(models.SupplierPricebook.service_id == service_id)
+            .first()
+        )
+        if pb:
+            _pb_cache[service_id] = pb
     if not pb:
         raise error_response("Pricebook not found", {"service_id": "not_found"}, status.HTTP_404_NOT_FOUND)
 
@@ -205,11 +222,15 @@ def batch_estimate_rank(body: "BatchEstimateIn", db: Session = Depends(get_db)):
     results: list[RankedEstimate] = []
     preferred_set = set(body.preferred_ids or [])
     for cand in body.candidates:
-        pb = (
-            db.query(models.SupplierPricebook)
-            .filter(models.SupplierPricebook.service_id == cand.service_id)
-            .first()
-        )
+        pb = _pb_cache.get(cand.service_id)
+        if not pb:
+            pb = (
+                db.query(models.SupplierPricebook)
+                .filter(models.SupplierPricebook.service_id == cand.service_id)
+                .first()
+            )
+            if pb:
+                _pb_cache[int(cand.service_id)] = pb
         if not pb:
             continue
         managed_markup = body.artist_managed_markup_percent if body.managed_by_artist else 0

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, startTransition } from 'react';
 import { Dialog } from '@headlessui/react';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
@@ -20,8 +20,7 @@ import {
   postMessageToBookingRequest,
   calculateQuote,
 } from '@/lib/api';
-import { geocodeAddress } from '@/lib/geo';
-import { calculateTravelMode, getDrivingMetrics } from '@/lib/travel';
+import { calculateTravelMode, getDrivingMetricsCached, geocodeCached } from '@/lib/travel';
   import { trackEvent } from '@/lib/analytics';
   import { format } from 'date-fns';
   import { computeSoundServicePrice, type LineItem } from '@/lib/soundPricing';
@@ -415,8 +414,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     try {
       const [svcRes, artistPos, eventPos] = await Promise.all([
         fetch(`/api/v1/services/${serviceId}`, { cache: 'force-cache' }).then((res) => res.json()),
-        geocodeAddress(artistLocation),
-        geocodeAddress(details.location),
+        geocodeCached(artistLocation),
+        geocodeCached(details.location),
       ]);
 
       if (!artistPos) {
@@ -521,7 +520,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 if (!s) continue;
                 const baseLocation = s?.details?.base_location as string | undefined;
                 let distance_km = 0;
-                if (baseLocation && details.location) { try { const m = await getDrivingMetrics(baseLocation, details.location); distance_km = m.distanceKm || 0; } catch {} }
+                if (baseLocation && details.location) { try { const m = await getDrivingMetricsCached(baseLocation, details.location); distance_km = m.distanceKm || 0; } catch {} }
                 let available = true;
                 try { const providerId = Number(s?.artist?.id || s?.service_provider?.id || s?.service_provider_id); if (providerId && eventDateStr) { const av = await getServiceProviderAvailability(providerId); const unavailable = (av?.data?.unavailable_dates || []) as string[]; available = !unavailable.includes(eventDateStr); } } catch {}
                 candidates.push({ service_id: pid, provider_id: Number(s?.artist?.id || s?.service_provider?.id || s?.service_provider_id) || undefined, distance_km, available });
@@ -565,7 +564,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             const baseLoc = (svcSel?.details?.base_location) as string | undefined;
             if (baseLoc) {
               try {
-                const m = await getDrivingMetrics(baseLoc, details.location);
+                const m = await getDrivingMetricsCached(baseLoc, details.location);
                 supplierDistanceKm = (m?.distanceKm || 0) * 2; // round-trip
               } catch {}
             }
@@ -626,7 +625,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 let distanceKm = 0;
                 if (baseLoc && details.location) {
                   try {
-                    const m = await getDrivingMetrics(baseLoc, details.location);
+                    const m = await getDrivingMetricsCached(baseLoc, details.location);
                     distanceKm = (m?.distanceKm || 0) * 2; // round-trip
                   } catch {}
                 }
@@ -793,7 +792,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   const s = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.json());
                   const baseLoc = s?.details?.base_location as string | undefined;
                   if (baseLoc) {
-                    const m = await getDrivingMetrics(baseLoc, details.location);
+                    const m = await getDrivingMetricsCached(baseLoc, details.location);
                     distance_km = m.distanceKm || 0;
                   }
                 } catch {}
@@ -938,12 +937,24 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   // Trigger the calculation when approaching the Review step to prefetch data
   const hasPrefetched = useRef(false);
+  const soundPrefetchStarted = useRef(false);
   useEffect(() => {
     if (step >= steps.length - 2 && !hasPrefetched.current) {
       hasPrefetched.current = true;
       void calculateReviewData();
     }
   }, [step, calculateReviewData]);
+
+  // Prefetch review bundle as soon as Sound step is reached with required inputs
+  useEffect(() => {
+    const s = (details as any)?.sound;
+    const hasLoc = !!(details as any)?.location;
+    const soundIdx = steps.indexOf('Sound');
+    if (isOpen && step >= soundIdx && s && hasLoc && !soundPrefetchStarted.current) {
+      soundPrefetchStarted.current = true;
+      startTransition(() => { void calculateReviewData(); });
+    }
+  }, [isOpen, step, details, calculateReviewData]);
 
   // Keep pricing fresh as the user configures Sound and later steps, so the
   // Review totals are ready immediately on arrival. Debounce via watchedValues.

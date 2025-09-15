@@ -199,6 +199,47 @@ export interface DriveMetrics {
   durationHrs: number;
 }
 
+// Small in-memory caches to reduce repeated geocoding and routing calls
+export type DrivingMetrics = { distanceKm: number; durationMin: number };
+
+const MINUTE = 60_000;
+const routeCache = new Map<string, { at: number; v: DrivingMetrics }>();
+const geoCache = new Map<string, { at: number; v: { lat: number; lng: number } }>();
+
+function remember<K, V>(map: Map<K, { at: number; v: V }>, key: K, val: V, ttlMs = 30 * MINUTE) {
+  map.set(key, { at: Date.now(), v: val });
+  // Simple size-bound eviction
+  if (map.size > 500) {
+    const first = map.keys().next();
+    if (!first.done) map.delete(first.value as K);
+  }
+}
+
+export async function geocodeCached(address: string): Promise<{ lat: number; lng: number } | null> {
+  const k = (address || '').trim().toLowerCase();
+  if (!k) return null;
+  const e = geoCache.get(k);
+  if (e && Date.now() - e.at < 60 * MINUTE) return e.v;
+  try {
+    // Reuse existing getCoordinates which already wraps Google Geocoding
+    const res = await getCoordinates(address);
+    if (res) remember(geoCache, k, res, 60 * MINUTE);
+    return res;
+  } catch {
+    return null;
+  }
+}
+
+export async function getDrivingMetricsCached(from: string, to: string): Promise<DrivingMetrics> {
+  const key = `${from}__${to}`.toLowerCase();
+  const e = routeCache.get(key);
+  if (e && Date.now() - e.at < 30 * MINUTE) return e.v;
+  const raw = await getDrivingMetrics(from, to);
+  const v: DrivingMetrics = { distanceKm: raw?.distanceKm || 0, durationMin: Math.round((raw?.durationHrs || 0) * 60) };
+  remember(routeCache, key, v, 30 * MINUTE);
+  return v;
+}
+
 /**
  * Fetch both distance (km) and duration (secs) from the backend and
  * convert the duration into hours. Returns zeros when the request fails.
