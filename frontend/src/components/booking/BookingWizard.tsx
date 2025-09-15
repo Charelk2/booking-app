@@ -552,6 +552,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               try {
                 const s = await fetchServiceCached(pid);
                 if (!s) continue;
+                if (s?.has_pricebook === false) continue;
                 const baseLocation = s?.details?.base_location as string | undefined;
                 let distance_km = 0;
                 if (baseLocation && details.location) { try { const m = await getDrivingMetricsCached(baseLocation, details.location); distance_km = m.distanceKm || 0; } catch {} }
@@ -668,6 +669,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   wireless: Number(normalizedRider.units.speech_mics || 0),
                   di: Number(normalizedRider.units.di_boxes || 0),
                 };
+                if (svcSel?.has_pricebook) {
                 const estPB = await estimatePriceSafe(selectedId, {
                   rider_spec,
                   distance_km: distanceKm,
@@ -688,6 +690,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   }
                 } else if ((estPB as any)?.pricebook_missing) {
                   missingPricebookRef.current.add(selectedId);
+                }
                 }
               } catch {}
 
@@ -817,6 +820,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 let distance_km = 0;
                 try {
                   const s = await fetchServiceCached(pid);
+                  if (!s || s?.has_pricebook === false) { continue; }
                   const baseLoc = s?.details?.base_location as string | undefined;
                   if (baseLoc) {
                     const m = await getDrivingMetricsCached(baseLoc, details.location);

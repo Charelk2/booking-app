@@ -69,6 +69,8 @@ class ServiceResponse(ServiceBase):
     media_url: str
     # Moderation status: draft | pending_review | approved | rejected
     status: Optional[str] = None
+    # Hint for clients to avoid estimator calls when missing
+    has_pricebook: Optional[bool] = None
 
     @model_validator(mode="after")
     def derive_category_slug(cls, model: "ServiceResponse") -> "ServiceResponse":
