@@ -345,6 +345,12 @@ export default function ConversationList({
             tabIndex={0}
             onClick={() => { if (!isActive) onSelectRequest(req.id); }}
             onMouseEnter={() => prefetchThread(req.id)}
+            onPointerDown={(e) => {
+              // Treat pointer down as selection for snappier UX, unless clicking a link
+              const t = e.target as HTMLElement;
+              if (t && t.closest && t.closest('a')) return;
+              if (!isActive) onSelectRequest(req.id);
+            }}
             onMouseDownCapture={(e) => {
               const t = e.target as HTMLElement;
               // If a link is clicked inside the row (e.g., auto-linked URL in preview), prevent navigation.

@@ -585,37 +585,20 @@ export default function InboxPage() {
   }, [allBookingRequests, query, user]);
 
   const handleSelect = useCallback(
-    async (id: number) => {
-      try {
-        // If this is a Booka row, ensure a real thread exists and set URL alias
-        const selected = allBookingRequests.find((r) => r.id === id) as any;
-        const isBooka = Boolean(selected?.is_booka_synthetic);
-        if (isBooka) {
-          const res = await ensureBookaThread();
-          const realId = res.data?.booking_request_id || id;
-          id = realId;
-          await fetchAllRequests();
-        }
-      } catch {}
-
+    (id: number) => {
+      // Immediate UI feedback: select and update URL right away
       setSelectedBookingRequestId(id);
-      // Optimistically clear unread state for this thread and notify UI
       try {
         setAllBookingRequests((prev) => prev.map((r) => (r.id === id ? ({
           ...r,
           is_unread_by_current_user: false as any,
           unread_count: 0 as any,
         }) : r)));
-        if (typeof window !== 'undefined') {
-          // Let header badges and other listeners refresh immediately
-          window.dispatchEvent(new Event('threads:updated'));
-        }
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('threads:updated'));
       } catch {}
-      // Best-effort backend update; UI already updated
-      try { await markThreadRead(id); } catch {}
+      const selectedNow = allBookingRequests.find((r) => r.id === id) as any;
+      const isBooka = Boolean(selectedNow?.is_booka_synthetic);
       const params = new URLSearchParams(searchParams.toString());
-      const selected = allBookingRequests.find((r) => r.id === id) as any;
-      const isBooka = Boolean(selected?.is_booka_synthetic);
       if (isBooka) {
         params.delete('requestId');
         params.set('booka', '1');
@@ -624,12 +607,37 @@ export default function InboxPage() {
         params.set('requestId', String(id));
       }
       router.replace(`?${params.toString()}`, { scroll: false });
-      // Persist the selection
       try {
         sessionStorage.setItem(SEL_KEY, String(id));
         localStorage.setItem(SEL_KEY, JSON.stringify({ id, ts: Date.now() }));
       } catch {}
       if (isMobile) setShowList(false);
+
+      // Fire-and-forget: mark read
+      try { void markThreadRead(id); } catch {}
+
+      // If this is a Booka synthetic row, resolve the real thread in the background
+      if (isBooka) {
+        (async () => {
+          try {
+            const res = await ensureBookaThread();
+            const realId = res.data?.booking_request_id || id;
+            if (realId && realId !== id) {
+              setSelectedBookingRequestId(realId);
+              // Replace URL
+              const p = new URLSearchParams(searchParams.toString());
+              p.delete('booka');
+              p.set('requestId', String(realId));
+              router.replace(`?${p.toString()}`, { scroll: false });
+              try {
+                sessionStorage.setItem(SEL_KEY, String(realId));
+                localStorage.setItem(SEL_KEY, JSON.stringify({ id: realId, ts: Date.now() }));
+              } catch {}
+              await fetchAllRequests();
+            }
+          } catch {}
+        })();
+      }
     },
     [allBookingRequests, searchParams, isMobile, router, fetchAllRequests, SEL_KEY]
   );
