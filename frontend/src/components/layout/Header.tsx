@@ -43,7 +43,7 @@ import clsx from 'clsx';
 
 import { useAuth } from '@/contexts/AuthContext';
 // import NotificationBell from './NotificationBell';
-import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
+// import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import SearchBar from '../search/SearchBar';
 import MobileSearch, { type MobileSearchHandle } from '../search/MobileSearch';
@@ -171,7 +171,7 @@ function ArtistNav({ user, pathname }: { user: { id: number }; pathname: string 
 
 // Lightweight messages link with unread badge, defined once, used in header.
 function HeaderMessagesLink() {
-  const { count } = useUnreadThreadsCount(30000);
+  const count = 0; // temporarily disable unread badge to reduce module graph
   const router = useRouter();
   return (
     <Link
@@ -214,7 +214,7 @@ HeaderMessagesLink.Definition = function Definition() {
 };
 
 function HeaderMessagesLinkMobile() {
-  const { count } = useUnreadThreadsCount(30000);
+  const count = 0; // temporarily disable unread badge to reduce module graph
   const router = useRouter();
   return (
     <Link
