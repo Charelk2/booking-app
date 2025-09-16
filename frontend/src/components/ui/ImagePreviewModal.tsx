@@ -258,7 +258,7 @@ function ThumbnailTray({ images, activeIndex, onIndexChange }: { images: string[
 
   return (
     <div className="w-full">
-      <div ref={containerRef} className="flex gap-2 overflow-x-auto no-scrollbar py-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div ref={containerRef} className="flex gap-2 justify-center overflow-x-auto no-scrollbar py-2" style={{ WebkitOverflowScrolling: 'touch' }}>
         {images.map((src, i) => (
           <div
             key={src + i}
@@ -271,7 +271,7 @@ function ThumbnailTray({ images, activeIndex, onIndexChange }: { images: string[
               onClick={() => onIndexChange && onIndexChange(i)}
               aria-label={`Preview image ${i + 1}`}
             >
-              <img src={src} alt={`thumb-${i + 1}`} className="w-14 h-14 object-cover" />
+              <img src={src} alt={`thumb-${i + 1}`} className="w-14 h-14 object-cover object-center" />
             </button>
           </div>
         ))}
