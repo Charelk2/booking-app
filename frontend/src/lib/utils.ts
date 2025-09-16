@@ -1,8 +1,20 @@
-import api from './api';
 import { DEFAULT_CURRENCY } from './constants';
 import { Service, QuoteTemplate } from '@/types';
 import { addDays, format } from 'date-fns';
 import axios from 'axios';
+
+// Compute an API origin without importing the axios instance to avoid cycles.
+function apiBaseOrigin(): string {
+  const env = process.env.NEXT_PUBLIC_API_URL || '';
+  let base = env || '';
+  try {
+    if (!base && typeof window !== 'undefined') base = window.location.origin;
+    const u = new URL(base);
+    return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
+  } catch {
+    return '';
+  }
+}
 
 export const getFullImageUrl = (
   relativePath: string | undefined | null,
@@ -37,7 +49,7 @@ export const getFullImageUrl = (
       if (hasImageExt) return sanitized;
       // Any external URL without an image extension is treated as a profile/page link.
       // Fall back to our default avatar to avoid next/image host errors.
-      let base = api.defaults.baseURL || '';
+      let base = apiBaseOrigin() || '';
       base = base.replace(/\/+$/, '');
       base = base.replace(/\/api(?:\/v\d+)?$/, '');
       return `${base}/static/default-avatar.svg`;
@@ -69,7 +81,7 @@ export const getFullImageUrl = (
       ? `/static/${stripLeading}`
       : `/static/${stripLeading}`;
 
-  let base = api.defaults.baseURL || '';
+  let base = apiBaseOrigin() || '';
   base = base.replace(/\/+$/, '');
   base = base.replace(/\/api(?:\/v\d+)?$/, '');
 
