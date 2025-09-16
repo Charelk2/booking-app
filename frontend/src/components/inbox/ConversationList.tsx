@@ -9,6 +9,45 @@ import React from 'react';
 import { getMessagesForBookingRequest } from '@/lib/api';
 import { hasThreadCache, writeThreadCache } from '@/lib/threadCache';
 
+// Module-scope helpers so memoized Row can use them
+function formatThreadTime(iso: string | null | undefined): string {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const now = new Date();
+    const startOf = (dt: Date) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const todayStart = startOf(now);
+    const dayStart = startOf(d);
+    const diffMs = todayStart.getTime() - dayStart.getTime();
+    const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+    if (diffDays === 0) {
+      return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    if (diffDays === 1) return 'yesterday';
+    if (diffDays < 7) {
+      const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
+      return `last ${weekday}`;
+    }
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  } catch {
+    return '';
+  }
+}
+
+function highlightParts(original: string, lower: string, qLower: string) {
+  const q = (qLower || '').trim();
+  if (!q) return { before: original, match: '', after: '', has: false } as const;
+  const idx = lower.indexOf(q);
+  if (idx === -1) return { before: original, match: '', after: '', has: false } as const;
+  return {
+    before: original.slice(0, idx),
+    match: original.slice(idx, idx + q.length),
+    after: original.slice(idx + q.length),
+    has: true,
+  } as const;
+}
+
 interface ConversationListProps {
   bookingRequests: BookingRequest[];
   selectedRequestId: number | null;
@@ -44,41 +83,6 @@ export default function ConversationList({
   }, []);
 
   const q = query.trim().toLowerCase();
-  const formatThreadTime = (iso: string | null | undefined): string => {
-    if (!iso) return '';
-    try {
-      const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return '';
-      const now = new Date();
-      const startOf = (dt: Date) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
-      const todayStart = startOf(now);
-      const dayStart = startOf(d);
-      const diffMs = todayStart.getTime() - dayStart.getTime();
-      const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
-      if (diffDays === 0) {
-        return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-      }
-      if (diffDays === 1) return 'yesterday';
-      if (diffDays < 7) {
-        const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
-        return `last ${weekday}`;
-      }
-      return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-    } catch {
-      return '';
-    }
-  };
-  const highlightParts = (original: string, lower: string) => {
-    if (!q) return { before: original, match: '', after: '', has: false } as const;
-    const idx = lower.indexOf(q);
-    if (idx === -1) return { before: original, match: '', after: '', has: false } as const;
-    return {
-      before: original.slice(0, idx),
-      match: original.slice(idx, idx + q.length),
-      after: original.slice(idx + q.length),
-      has: true,
-    } as const;
-  };
   // Restore on mount if needed (for cases where List remounts due to props)
   React.useEffect(() => {
     if (restoredRef.current) return;
@@ -351,14 +355,14 @@ function buildPrecomputed(
 }
 
 const Row = React.memo(function Row({ index, style, data }: { index: number; style: CSSProperties; data: RowData }) {
-  const { items, selectedId, pre, q, onRowClick, onRowPointerDown, onRowMouseDownCapture, onRowMouseEnter } = data;
+  const { items, selectedId, pre, q, onRowClick, onRowKeyDown, onRowPointerDown, onRowMouseDownCapture, onRowMouseEnter } = data;
   const req = items[index];
   const isActive = selectedId === req.id;
   const p = pre[req.id];
   const rowName = p.isBookaModeration ? 'Booka' : p.name;
   const rowAvatar = p.isBookaModeration ? undefined : p.avatar;
-  const partsName = q ? highlightParts(p.name, p.nameLower) : { before: rowName, match: '', after: '', has: false } as const;
-  const partsPrev = q ? highlightParts(String(p.preview), p.previewLower) : { before: String(p.preview), match: '', after: '', has: false } as const;
+  const partsName = q ? highlightParts(p.name, p.nameLower, q) : { before: rowName, match: '', after: '', has: false } as const;
+  const partsPrev = q ? highlightParts(String(p.preview), p.previewLower, q) : { before: String(p.preview), match: '', after: '', has: false } as const;
 
   return (
     <button
