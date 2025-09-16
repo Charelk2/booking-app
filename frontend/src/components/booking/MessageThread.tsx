@@ -2569,6 +2569,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       if ((attachmentFile || imageFiles.length > 0) && !navigator.onLine) {
         setThreadError('Cannot send attachments while offline.');
+        isSendingRef.current = false;
+        setIsSending(false);
         return;
       }
 
@@ -2577,6 +2579,31 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       try {
         if (imageFiles.length > 0) {
+          // Show an optimistic bubble immediately so chat feels instant, even while uploading.
+          let baseContentForImages = newMessageContent;
+          if (!baseContentForImages.trim()) baseContentForImages = '[Attachment]';
+          const firstOptimisticEarly: ThreadMessage = {
+            id: tempId,
+            booking_request_id: bookingRequestId,
+            sender_id: user?.id || 0,
+            sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
+            content: baseContentForImages,
+            message_type: 'USER',
+            quote_id: null,
+            attachment_url: null,
+            visible_to: 'both',
+            action: null,
+            avatar_url: undefined,
+            expires_at: null,
+            unread: false,
+            is_read: true,
+            timestamp: gmt2ISOString(),
+            status: 'sending',
+            reply_to_message_id: replyTarget?.id ?? null,
+            reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
+          };
+          setMessages((prev) => mergeMessages(prev, firstOptimisticEarly));
+
           // Upload and send multiple images. First image carries the text if provided.
           setIsUploadingAttachment(true);
           const uploadedUrls: string[] = [];
@@ -2592,34 +2619,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             uploadedUrls.push(res.data.url);
           }
 
-          // Send first image with text (or placeholder hidden later)
+          // Send first image with text (or placeholder). Replace optimistic after post.
           const firstUrl = uploadedUrls[0];
-          let baseContent = newMessageContent;
-          if (!baseContent.trim()) baseContent = '[Attachment]';
-          const firstPayload: MessageCreate = { content: baseContent, attachment_url: firstUrl } as any;
-
-          // Optimistic for first
-          const firstOptimistic: ThreadMessage = {
-            id: tempId,
-            booking_request_id: bookingRequestId,
-            sender_id: user?.id || 0,
-            sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
-            content: baseContent,
-            message_type: 'USER',
-            quote_id: null,
-            attachment_url: firstUrl,
-            visible_to: 'both',
-            action: null,
-            avatar_url: undefined,
-            expires_at: null,
-            unread: false,
-            is_read: true,
-            timestamp: gmt2ISOString(),
-            status: 'sending',
-            reply_to_message_id: replyTarget?.id ?? null,
-            reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
-          };
-          setMessages((prev) => mergeMessages(prev, firstOptimistic));
+          const firstPayload: MessageCreate = { content: baseContentForImages, attachment_url: firstUrl } as any;
 
           try {
             const res = await postMessageToBookingRequest(bookingRequestId, firstPayload);
@@ -2650,7 +2652,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             const payload: MessageCreate = { content: '[Attachment]', attachment_url: url } as any;
             const temp = tempId - (i + 1);
             const optimistic: ThreadMessage = {
-              ...firstOptimistic,
+              ...firstOptimisticEarly,
               id: temp,
               content: '[Attachment]',
               attachment_url: url,
