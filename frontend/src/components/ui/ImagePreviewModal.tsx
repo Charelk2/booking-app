@@ -154,6 +154,21 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
                         className="max-h-[80vh] max-w-[96vw] object-contain rounded-md"
                         loading="eager"
                         decoding="async"
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement;
+                          if (!(img as any).dataset.triedAlt) {
+                            try {
+                              const u = new URL(img.src, window.location.origin);
+                              if (/^\/static\/attachments\//.test(u.pathname)) {
+                                img.src = u.pathname.replace(/^\/static\//, '/') + u.search;
+                                (img as any).dataset.triedAlt = '1';
+                              } else if (/^\/attachments\//.test(u.pathname)) {
+                                img.src = '/static' + u.pathname + u.search;
+                                (img as any).dataset.triedAlt = '1';
+                              }
+                            } catch {}
+                          }
+                        }}
                       />
                       {/* Prev/Next overlayed on the image area */}
                       {Array.isArray(images) && images.length > 1 && typeof onIndexChange === 'function' && (

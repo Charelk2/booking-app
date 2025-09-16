@@ -175,6 +175,8 @@ const nextConfig = {
       // Auth routes (cookie-based) should also proxy to the backend
       { source: '/auth/:path*',  destination: `${apiBase}/auth/:path*` },
       { source: '/media/:path*', destination: `${apiBase}/media/:path*` },
+      // Direct attachments mount (bypasses /static if desired)
+      { source: '/attachments/:path*', destination: `${apiBase}/attachments/:path*` },
       { source: '/static/:path*', destination: `${apiBase}/static/:path*` },
     ];
   },
