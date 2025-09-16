@@ -81,7 +81,17 @@ const MemoQuoteBubble = React.memo(QuoteBubble);
 const MemoInlineQuoteForm = React.memo(InlineQuoteForm);
 
 // ===== Constants ==============================================================
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = (() => {
+  try {
+    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+    if (typeof window !== 'undefined') {
+      const h = window.location.hostname;
+      if (/\.booka\.co\.za$/.test(h) || h === 'booka.co.za') return 'https://api.booka.co.za';
+      return window.location.origin;
+    }
+  } catch {}
+  return 'http://localhost:8000';
+})();
 const WS_BASE = API_BASE.replace(/^http/, 'ws');
 const API_V1 = '/api/v1';
 const TEN_MINUTES_MS = 10 * 60 * 1000;
@@ -136,6 +146,29 @@ const altAttachmentPath = (url: string): string => {
     }
   } catch {}
   return url;
+};
+
+// Force attachment URLs to always hit the API origin directly, bypassing any
+// frontend rewrites. This avoids broken images when rewrites are stale or misconfigured.
+const toApiAttachmentsUrl = (raw: string): string => {
+  try {
+    if (/^(blob:|data:)/i.test(raw)) return raw;
+    const u = new URL(raw, API_BASE);
+    let path = u.pathname;
+    if (/^\/static\/attachments\//.test(path)) {
+      path = path.replace(/^\/static\//, '/');
+    } else if (!/^\/attachments\//.test(path)) {
+      // Fallback: if it looks like an image filename, place under /attachments
+      const leaf = path.split('/').pop() || '';
+      if (/\.(jpe?g|png|gif|webp)$/i.test(leaf)) {
+        path = '/attachments/' + leaf;
+      }
+    }
+    const api = new URL(API_BASE);
+    return `${api.protocol}//${api.host}${path}${u.search}`;
+  } catch {
+    return raw;
+  }
 };
 const daySeparatorLabel = (date: Date) => {
   const now = new Date();
@@ -2022,10 +2055,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   <>
                     {(() => {
                       // Suppress placeholder labels; style non-image attachments like a reply header box
-                        const url = msg.attachment_url
-                          ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : (getFullImageUrl(msg.attachment_url) as string))
-                          : '';
-                        const display = msg.local_preview_url || url;
+                      const url = msg.attachment_url
+                        ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : toApiAttachmentsUrl(msg.attachment_url))
+                        : '';
+                      const display = msg.local_preview_url || url;
                       const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
                       const isImage = isImageAttachment(msg.attachment_url || undefined);
                       const contentLower = String(msg.content || '').trim().toLowerCase();
@@ -2085,7 +2118,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 aria-label="Open image"
                               >
                                 <img
-                                  src={toProxyPath(display)}
+                                  src={toApiAttachmentsUrl(display)}
                                   alt="Image attachment"
                                   className="block w-full h-auto rounded-xl"
                                   loading="lazy"
@@ -2093,7 +2126,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   onError={(e) => {
                                     const tried = (e.currentTarget as any).dataset.triedAlt;
                                     if (!tried) {
-                                      (e.currentTarget as HTMLImageElement).src = altAttachmentPath(toProxyPath(display));
+                                      (e.currentTarget as HTMLImageElement).src = altAttachmentPath(toApiAttachmentsUrl(display));
                                       (e.currentTarget as any).dataset.triedAlt = '1';
                                     }
                                   }}
@@ -2160,7 +2193,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               try {
                                 const parts: string[] = [];
                                 if (msg.content) parts.push(msg.content);
-                                if (msg.attachment_url) parts.push(getFullImageUrl(msg.attachment_url) as string);
+                                if (msg.attachment_url) parts.push(toApiAttachmentsUrl(msg.attachment_url));
                                 void navigator.clipboard.writeText(parts.join('\n'));
                               } catch (e) {
                                 console.error('Copy failed', e);
@@ -3470,7 +3503,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             {msg.attachment_url && (
                               (() => {
                                 const url = msg.attachment_url
-                                  ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : (getFullImageUrl(msg.attachment_url) as string))
+                                  ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : toApiAttachmentsUrl(msg.attachment_url))
                                   : '';
                                 const display = (msg as any).local_preview_url || url;
                                 const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
@@ -3484,7 +3517,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                         aria-label="Open image"
                                       >
                                         <img
-                                          src={toProxyPath(display)}
+                                          src={toApiAttachmentsUrl(display)}
                                           alt="Image attachment"
                                           className="block w-full h-auto rounded-xl"
                                           loading="lazy"
@@ -3492,7 +3525,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                           onError={(e) => {
                                             const tried = (e.currentTarget as any).dataset.triedAlt;
                                             if (!tried) {
-                                              (e.currentTarget as HTMLImageElement).src = altAttachmentPath(toProxyPath(display));
+                                              (e.currentTarget as HTMLImageElement).src = altAttachmentPath(toApiAttachmentsUrl(display));
                                               (e.currentTarget as any).dataset.triedAlt = '1';
                                             }
                                           }}
