@@ -37,7 +37,8 @@ import {
 const api = axios.create({
   baseURL: '',
   headers: {
-    'Content-Type': 'application/json',
+    // Do not force a global Content-Type. Let axios infer JSON for plain objects
+    // and let the browser set multipart boundaries for FormData uploads.
   },
 });
 
@@ -47,6 +48,15 @@ api.defaults.withCredentials = true;
 // Automatically attach the bearer token (if present) to every request
 api.interceptors.request.use(
   (config) => {
+    // Ensure uploads work: when sending FormData, remove any Content-Type so the
+    // browser can set the proper multipart boundary header.
+    try {
+      const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData;
+      if (isFormData && config.headers) {
+        // Remove any preset content type that could break multipart parsing
+        delete (config.headers as any)['Content-Type'];
+      }
+    } catch {}
     if (process.env.NODE_ENV === 'development') {
       // Keep logs useful but quiet in dev
       // eslint-disable-next-line no-console

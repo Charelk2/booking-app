@@ -251,8 +251,12 @@ def create_message(
             {},
             status.HTTP_403_FORBIDDEN,
         )
-    # Validate: disallow empty content to avoid blank bubbles in UI
-    if not message_in.content or not message_in.content.strip():
+    # Validate: disallow empty text unless an attachment is present
+    # Allows sending attachment-only messages (e.g., images, PDFs) without text.
+    if (
+        (not message_in.content or not message_in.content.strip())
+        and not (message_in.attachment_url and str(message_in.attachment_url).strip())
+    ):
         raise error_response(
             "Message content cannot be empty",
             {"content": "required"},
