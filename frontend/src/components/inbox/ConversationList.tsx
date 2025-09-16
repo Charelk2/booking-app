@@ -404,7 +404,8 @@ export default function ConversationList({
                   </span>
                 </span>
                 {(() => {
-                  const unreadCount = Number((req as any).unread_count || 0);
+                  const raw = Number((req as any).unread_count || 0);
+                  const unreadCount = raw > 0 ? raw : (isUnread ? 1 : 0);
                   return unreadCount > 0 ? (
                     <span
                       aria-label={`${unreadCount} unread messages`}
