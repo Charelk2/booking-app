@@ -116,9 +116,9 @@ export default function ConversationList({
     } catch {}
   }, [selectedRequestId, bookingRequests]);
 
-  // Auto-height by default: expand to fit all rows so the list doesn't force its own scrollbar.
-  // If a specific height is provided via prop, honor it.
-  const listHeight = height ?? ROW_HEIGHT * bookingRequests.length;
+  // Always provide a bounded height so virtualization stays enabled on first paint.
+  const DEFAULT_HEIGHT = typeof window !== 'undefined' ? Math.min(window.innerHeight * 0.7, 640) : 560;
+  const listHeight = Number.isFinite(height as any) && (height ?? 0) > 0 ? (height as number) : DEFAULT_HEIGHT;
 
   // --- Lightweight prefetch of top conversations for instant open ---------
   const prefetchingRef = React.useRef<Set<number>>(new Set());
@@ -132,7 +132,7 @@ export default function ConversationList({
     if (hasCached(id)) return;
     prefetchingRef.current.add(id);
     try {
-      const res = await getMessagesForBookingRequest(id);
+      const res = await getMessagesForBookingRequest(id, { limit: 50 });
       const arr = Array.isArray(res.data) ? res.data : [];
       try { sessionStorage.setItem(cacheKeyForThread(id), JSON.stringify(arr.slice(-200))); } catch {}
     } catch {

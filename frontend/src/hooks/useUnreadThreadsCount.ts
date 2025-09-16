@@ -1,23 +1,36 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getMessageThreadsPreview, getMessageThreads } from '@/lib/api';
+import { getMessageThreadsPreview, getMessageThreads, getInboxUnread } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function useUnreadThreadsCount(pollMs = 30000) {
   const [count, setCount] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { user, loading } = useAuth();
+  const etagRef = useRef<string | undefined>(undefined);
 
   const refresh = useCallback(async () => {
     if (loading || !user) return; // Skip when unauthenticated or not ready
     try {
+      // Prefer tiny unread endpoint with ETag; fall back to previews if missing
+      try {
+        const res = await getInboxUnread(etagRef.current);
+        if (res.status === 200 && typeof res.data?.total === 'number') {
+          const et = (res.headers as any)?.etag as string | undefined;
+          if (et) etagRef.current = et;
+          setCount(res.data.total);
+          return;
+        }
+        if (res.status === 304) {
+          return; // unchanged
+        }
+      } catch {}
+
       const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
-      const res = await getMessageThreadsPreview(role as any);
-      const items = res.data?.items || [];
+      const preview = await getMessageThreadsPreview(role as any);
+      const items = preview.data?.items || [];
       let total = items.reduce((acc, it) => acc + (Number(it.unread_count || 0) || 0), 0);
-      // Fallback: if preview has no items (e.g., artist with no requests yet),
-      // pull thread notifications and sum unread counts so Booka shows a badge.
       if (total === 0) {
         try {
           const t = await getMessageThreads();

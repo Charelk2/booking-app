@@ -593,9 +593,13 @@ export const confirmQuoteBooking = (id: number) =>
   api.post<Booking>(`${API_V1}/quotes/${id}/confirm-booking`, {});
 
 // ─── MESSAGES ───────────────────────────────────────────────────────────
-export const getMessagesForBookingRequest = (bookingRequestId: number) =>
+export const getMessagesForBookingRequest = (
+  bookingRequestId: number,
+  params?: { limit?: number; before?: string }
+) =>
   api.get<Message[]>(
-    `${API_V1}/booking-requests/${bookingRequestId}/messages`
+    `${API_V1}/booking-requests/${bookingRequestId}/messages`,
+    { params }
   );
 
 export const postMessageToBookingRequest = (
@@ -899,6 +903,16 @@ export const getThreadsIndex = (role?: 'artist' | 'client', limit = 50) =>
   api.get<ThreadsIndexResponse>(
     `${API_V1}/threads`,
     { params: { role, limit } }
+  );
+
+// ─── INBOX UNREAD TOTAL (tiny endpoint with optional ETag) ────────────────
+export const getInboxUnread = (etag?: string) =>
+  api.get<{ total: number }>(
+    `${API_V1}/inbox/unread`,
+    {
+      headers: etag ? { 'If-None-Match': etag } : undefined,
+      validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+    }
   );
 
 // ─── QUOTES BATCH ──────────────────────────────────────────────────────────
