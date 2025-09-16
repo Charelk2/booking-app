@@ -158,12 +158,14 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
                           const img = e.currentTarget as HTMLImageElement;
                           if (!(img as any).dataset.triedAlt) {
                             try {
-                              const u = new URL(img.src, window.location.origin);
+                              const u = new URL(img.src);
                               if (/^\/static\/attachments\//.test(u.pathname)) {
-                                img.src = u.pathname.replace(/^\/static\//, '/') + u.search;
+                                const p = u.pathname.replace(/^\/static\//, '/');
+                                img.src = `${u.protocol}//${u.host}${p}${u.search}`;
                                 (img as any).dataset.triedAlt = '1';
                               } else if (/^\/attachments\//.test(u.pathname)) {
-                                img.src = '/static' + u.pathname + u.search;
+                                const p = '/static' + u.pathname;
+                                img.src = `${u.protocol}//${u.host}${p}${u.search}`;
                                 (img as any).dataset.triedAlt = '1';
                               }
                             } catch {}

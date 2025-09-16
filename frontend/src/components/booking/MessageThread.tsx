@@ -123,13 +123,16 @@ const toProxyPath = (url: string): string => {
     const u = new URL(url, API_BASE);
     const sameOrigin = u.protocol === api.protocol && u.hostname === api.hostname && (u.port || '') === (api.port || '');
     if (sameOrigin) {
+      // For attachments, always return absolute API URL
       if (u.pathname.startsWith('/static/attachments/')) {
-        // Prefer direct mount for attachments to avoid optimizer/CDN quirks
         const p = u.pathname.replace(/^\/static\//, '/');
-        return p + u.search;
+        return `${api.protocol}//${api.host}${p}${u.search}`;
       }
-      if (u.pathname.startsWith('/static/')) return u.pathname + u.search;
-      if (u.pathname.startsWith('/media/')) return u.pathname + u.search;
+      if (u.pathname.startsWith('/attachments/')) {
+        return `${api.protocol}//${api.host}${u.pathname}${u.search}`;
+      }
+      if (u.pathname.startsWith('/static/')) return `${u.pathname}${u.search}`;
+      if (u.pathname.startsWith('/media/')) return `${u.pathname}${u.search}`;
     }
   } catch {}
   return url;
@@ -138,11 +141,14 @@ const toProxyPath = (url: string): string => {
 const altAttachmentPath = (url: string): string => {
   try {
     const u = new URL(url, API_BASE);
+    const api = new URL(API_BASE);
     if (/^\/static\/attachments\//.test(u.pathname)) {
-      return u.pathname.replace(/^\/static\//, '/') + u.search;
+      const p = u.pathname.replace(/^\/static\//, '/');
+      return `${api.protocol}//${api.host}${p}${u.search}`;
     }
     if (/^\/attachments\//.test(u.pathname)) {
-      return '/static' + u.pathname + u.search;
+      const p = '/static' + u.pathname;
+      return `${api.protocol}//${api.host}${p}${u.search}`;
     }
   } catch {}
   return url;
@@ -749,7 +755,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // List of image URLs in this thread (for modal navigation)
   const imageMessages = useMemo(() => messages.filter((m) => isImageAttachment(m.attachment_url || undefined)), [messages]);
-  const imageUrls = useMemo(() => imageMessages.map((m) => getFullImageUrl(m.attachment_url!) as string), [imageMessages]);
+  const imageUrls = useMemo(() => imageMessages.map((m) => toApiAttachmentsUrl(m.attachment_url!)), [imageMessages]);
   const openImageModalForUrl = useCallback((url: string) => {
     const idx = imageUrls.indexOf(url);
     setImageModalIndex(idx >= 0 ? idx : null);
@@ -2106,7 +2112,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     })()}
                     {msg.attachment_url && (
                       (() => {
-                        const url = getFullImageUrl(msg.attachment_url) as string;
+                        const url = toApiAttachmentsUrl(msg.attachment_url);
                         const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
                         if (isImageAttachment(msg.attachment_url)) {
                           return (
@@ -2237,7 +2243,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
                               onClick={async () => {
                                 try {
-                                  const url = getFullImageUrl(msg.attachment_url!) as string;
+                                  const url = toApiAttachmentsUrl(msg.attachment_url!);
                                   const res = await fetch(url, { credentials: 'include' as RequestCredentials });
                                   if (!res.ok) throw new Error(String(res.status));
                                   const blob = await res.blob();
@@ -2250,7 +2256,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   a.remove();
                                   URL.revokeObjectURL(objectUrl);
                                 } catch (err) {
-                                  try { window.open(getFullImageUrl(msg.attachment_url!) as string, '_blank', 'noopener,noreferrer'); } catch {}
+                                  try { window.open(toApiAttachmentsUrl(msg.attachment_url!), '_blank', 'noopener,noreferrer'); } catch {}
                                 } finally {
                                   setActionMenuFor(null);
                                 }
@@ -3454,7 +3460,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           <>
                             {(() => {
                               // Suppress placeholder labels; style non-image attachments like a reply header box
-                              const url = msg.attachment_url ? (getFullImageUrl(msg.attachment_url) as string) : '';
+                              const url = msg.attachment_url ? toApiAttachmentsUrl(msg.attachment_url) : '';
                               const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
                               const isImage = isImageAttachment(msg.attachment_url || undefined);
                               const contentLower = String(msg.content || '').trim().toLowerCase();
@@ -3633,7 +3639,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                       try {
                                         const parts: string[] = [];
                                         if (msg.content) parts.push(msg.content);
-                                        if (msg.attachment_url) parts.push(getFullImageUrl(msg.attachment_url) as string);
+                                        if (msg.attachment_url) parts.push(toApiAttachmentsUrl(msg.attachment_url));
                                         void navigator.clipboard.writeText(parts.join('\n'));
                                       } catch (e) {
                                         console.error('Copy failed', e);
@@ -3677,7 +3683,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                       className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
                                       onClick={async () => {
                                         try {
-                                          const url = getFullImageUrl(msg.attachment_url!) as string;
+                                          const url = toApiAttachmentsUrl(msg.attachment_url!);
                                           const res = await fetch(url, { credentials: 'include' as RequestCredentials });
                                           if (!res.ok) throw new Error(String(res.status));
                                           const blob = await res.blob();
@@ -3690,7 +3696,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                           a.remove();
                                           URL.revokeObjectURL(objectUrl);
                                         } catch (err) {
-                                          try { window.open(getFullImageUrl(msg.attachment_url!) as string, '_blank', 'noopener,noreferrer'); } catch {}
+                                          try { window.open(toApiAttachmentsUrl(msg.attachment_url!), '_blank', 'noopener,noreferrer'); } catch {}
                                         } finally {
                                           setActionMenuFor(null);
                                         }
@@ -3864,7 +3870,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           try {
                             const parts: string[] = [];
                             if (msg.content) parts.push(msg.content);
-                            if (msg.attachment_url) parts.push(getFullImageUrl(msg.attachment_url) as string);
+                            if (msg.attachment_url) parts.push(toApiAttachmentsUrl(msg.attachment_url));
                             void navigator.clipboard.writeText(parts.join('\n'));
                           } catch (e) {
                             console.error('Copy failed', e);
@@ -3903,7 +3909,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
                           onClick={async () => {
                             try {
-                              const url = getFullImageUrl(msg.attachment_url!) as string;
+                              const url = toApiAttachmentsUrl(msg.attachment_url!);
                               const res = await fetch(url, { credentials: 'include' as RequestCredentials });
                               if (!res.ok) throw new Error(String(res.status));
                               const blob = await res.blob();
@@ -3916,7 +3922,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               a.remove();
                               URL.revokeObjectURL(objectUrl);
                             } catch (err) {
-                              try { window.open(getFullImageUrl(msg.attachment_url!) as string, '_blank', 'noopener,noreferrer'); } catch {}
+                              try { window.open(toApiAttachmentsUrl(msg.attachment_url!), '_blank', 'noopener,noreferrer'); } catch {}
                             } finally {
                               setActionMenuFor(null);
                             }
