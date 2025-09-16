@@ -102,6 +102,8 @@ const VISIBLE_CHUNK = 30;
 const MAX_TEXTAREA_LINES = 10;
 const isImageAttachment = (url?: string | null) =>
   !!url && (/^blob:/i.test(url) || /^data:image\//i.test(url) || /\.(jpe?g|png|gif|webp)$/i.test(url));
+const isAudioAttachmentUrl = (url?: string | null) =>
+  !!url && (/^blob:/i.test(url) || /^data:audio\//i.test(url) || /\.(webm|mp3|m4a|ogg|wav)$/i.test(url));
 
 const gmt2ISOString = () =>
   new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().replace('Z', '+02:00');
@@ -2079,7 +2081,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : toApiAttachmentsUrl(msg.attachment_url))
                         : '';
                       const display = msg.local_preview_url || url;
-                      const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
+                                const isAudio = isAudioAttachmentUrl(msg.attachment_url || url);
                       const isImage = isImageAttachment(msg.attachment_url || undefined);
                       const contentLower = String(msg.content || '').trim().toLowerCase();
                       const isVoicePlaceholder = contentLower === '[voice note]';
@@ -2659,6 +2661,26 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       const tempId = -Date.now(); // negative to avoid collisions
 
       try {
+        // Common reset helper (used by all send paths)
+        const resetInput = () => {
+          setNewMessageContent('');
+          setAttachmentFile(null);
+          setAttachmentPreviewUrl(null);
+          setImageFiles([]);
+          try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
+          setImagePreviewUrls([]);
+          setUploadingProgress(0);
+          setIsUploadingAttachment(false);
+          if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.rows = 1;
+            textareaRef.current.focus();
+          }
+          setReplyTarget(null);
+        };
+
+        let payload: MessageCreate | null = null;
+        let baseContentGlobal = newMessageContent;
         if (imageFiles.length > 0) {
           // Snapshot current selections and clear the preview UI immediately
           const files = imageFiles.slice();
@@ -2777,82 +2799,109 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
 
         if (attachmentFile) {
+          // Voice notes and other files path
+          const fileToUpload = attachmentFile;
+          const isAudioFile = fileToUpload.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg|wav)$/i.test(fileToUpload.name || '');
+
+          // If audio, add an optimistic bubble immediately using the local blob URL
+          let optimisticAdded = false;
+          let baseContent = newMessageContent;
+          if (!baseContent.trim()) {
+            if (!fileToUpload.type.startsWith('image/')) {
+              baseContent = `${fileToUpload.name} (${formatBytes(fileToUpload.size)})`;
+            } else {
+              baseContent = '[Attachment]';
+            }
+          }
+
+          if (isAudioFile) {
+            const localUrl = attachmentPreviewUrl || URL.createObjectURL(fileToUpload);
+            const optimisticAudio: ThreadMessage = {
+              id: tempId,
+              booking_request_id: bookingRequestId,
+              sender_id: user?.id || 0,
+              sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
+              content: baseContent,
+              message_type: 'USER',
+              quote_id: null,
+              attachment_url: localUrl,
+              local_preview_url: localUrl,
+              visible_to: 'both',
+              action: null,
+              avatar_url: undefined,
+              expires_at: null,
+              unread: false,
+              is_read: true,
+              timestamp: gmt2ISOString(),
+              status: navigator.onLine ? 'sending' : 'queued',
+              reply_to_message_id: replyTarget?.id ?? null,
+              reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
+            } as ThreadMessage;
+            setMessages((prev) => mergeMessages(prev, optimisticAudio));
+            optimisticAdded = true;
+            // Close the preview immediately
+            setNewMessageContent('');
+            setAttachmentFile(null);
+            setAttachmentPreviewUrl(null);
+            setReplyTarget(null);
+          }
+
           setIsUploadingAttachment(true);
           const res = await uploadMessageAttachment(
             bookingRequestId,
-            attachmentFile,
+            fileToUpload,
             (evt) => {
               if (evt.total) setUploadingProgress(Math.round((evt.loaded * 100) / evt.total));
             },
           );
           attachment_url = res.data.url;
-        }
 
-        // If sending an attachment without text, label with filename and size for non-images
-        let baseContent = newMessageContent;
-        if (!baseContent.trim() && attachment_url) {
-          const isImg = !!attachmentFile && attachmentFile.type.startsWith('image/');
-          if (!isImg && attachmentFile) {
-            baseContent = `${attachmentFile.name} (${formatBytes(attachmentFile.size)})`;
-          } else {
-            // fallback (shouldn't hit because images go via imageFiles)
-            baseContent = '[Attachment]';
+          // Build payload now that we have the final URL
+          payload = {
+            content: baseContent,
+            attachment_url,
+          } as MessageCreate;
+          if (replyTarget?.id) (payload as any).reply_to_message_id = replyTarget.id;
+
+          if (!optimisticAdded) {
+            const optimistic: ThreadMessage = {
+              id: tempId,
+              booking_request_id: bookingRequestId,
+              sender_id: user?.id || 0,
+              sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
+              content: baseContent,
+              message_type: 'USER',
+              quote_id: null,
+              attachment_url: attachment_url ?? null,
+              visible_to: 'both',
+              action: null,
+              avatar_url: undefined,
+              expires_at: null,
+              unread: false,
+              is_read: true,
+              timestamp: gmt2ISOString(),
+              status: navigator.onLine ? 'sending' : 'queued',
+              reply_to_message_id: replyTarget?.id ?? null,
+              reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
+            };
+            setMessages((prev) => mergeMessages(prev, optimistic));
           }
+        } else {
+          // Text-only message
+          baseContentGlobal = baseContentGlobal.trim();
+          payload = { content: baseContentGlobal, attachment_url: undefined } as MessageCreate;
+          if (replyTarget?.id) (payload as any).reply_to_message_id = replyTarget.id;
         }
-        const payload: MessageCreate = {
-          content: baseContent,
-          attachment_url,
-        };
-        if (replyTarget?.id) payload.reply_to_message_id = replyTarget.id;
-
-        // Optimistic
-        const optimistic: ThreadMessage = {
-          id: tempId,
-          booking_request_id: bookingRequestId,
-          sender_id: user?.id || 0,
-          sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
-          content: baseContent,
-          message_type: 'USER',
-          quote_id: null,
-          attachment_url: attachment_url ?? null,
-          visible_to: 'both',
-          action: null,
-          avatar_url: undefined,
-          expires_at: null,
-          unread: false,
-          is_read: true,
-          timestamp: gmt2ISOString(),
-          status: navigator.onLine ? 'sending' : 'queued',
-          reply_to_message_id: replyTarget?.id ?? null,
-          reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
-        };
-        setMessages((prev) => mergeMessages(prev, optimistic));
-
-        const resetInput = () => {
-          setNewMessageContent('');
-          setAttachmentFile(null);
-          setAttachmentPreviewUrl(null);
-          setImageFiles([]);
-          try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
-          setImagePreviewUrls([]);
-          setUploadingProgress(0);
-          setIsUploadingAttachment(false);
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.rows = 1;
-            textareaRef.current.focus();
-          }
-          setReplyTarget(null);
-        };
 
         if (!navigator.onLine) {
-          enqueueMessage({ tempId, payload });
+          // payload is guaranteed at this point
+          enqueueMessage({ tempId, payload: payload as MessageCreate });
           resetInput();
           return;
         }
 
         try {
-          const res = await postMessageToBookingRequest(bookingRequestId, payload);
+          const res = await postMessageToBookingRequest(bookingRequestId, payload as MessageCreate);
           const real = { ...normalizeMessage(res.data), status: 'sent' as const };
           setMessages((prev) => {
             const byId = new Map<number, ThreadMessage>();
@@ -2873,10 +2922,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           console.error('Failed to send message:', err);
           // keep optimistic but mark queued + enqueue
           setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' as const } : m)));
-          enqueueMessage({ tempId, payload });
+          enqueueMessage({ tempId, payload: payload as MessageCreate });
           setThreadError(`Failed to send message. ${(err as Error).message || 'Please try again later.'}`);
         }
-
+        // Always reset after attempting to send
         resetInput();
       } catch (err) {
         console.error('Failed to send message:', err);
@@ -3514,7 +3563,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : toApiAttachmentsUrl(msg.attachment_url))
                                   : '';
                                 const display = (msg as any).local_preview_url || url;
-                                const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
+                                const isAudio = isAudioAttachmentUrl(msg.attachment_url || url);
                                 if (isImageAttachment(msg.attachment_url)) {
                                   return (
                                     <div className="relative mt-0 inline-block w-full">
@@ -4191,6 +4240,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         setAttachmentFile(file);
                         try { setShowEmojiPicker(false); } catch {}
                         try { textareaRef.current?.focus(); } catch {}
+                        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
                       };
                       mr.start();
                       setIsRecording(true);
