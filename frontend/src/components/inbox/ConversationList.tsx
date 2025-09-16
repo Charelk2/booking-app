@@ -3,7 +3,8 @@
 import clsx from 'clsx';
 import SafeImage from '@/components/ui/SafeImage';
 import { BookingRequest, User } from '@/types';
-import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
+import { FixedSizeList as List } from 'react-window';
+import type { CSSProperties } from 'react';
 import React from 'react';
 
 interface ConversationListProps {
@@ -29,7 +30,8 @@ export default function ConversationList({
   const STORAGE_TOP_INDEX = 'inbox:convListTopIndex';
 
   // Persist scroll position so selecting a convo doesn't jump to top.
-  const listRef = React.useRef<List>(null);
+  // Using any here avoids react-window's namespace/type interop issues for the ref
+  const listRef = React.useRef<any>(null);
   const restoredRef = React.useRef(false);
   const lastVisibleStartRef = React.useRef(0);
   const initialOffset = React.useMemo(() => {
@@ -153,11 +155,11 @@ export default function ConversationList({
       className="divide-y divide-gray-100"
       overscanCount={6}
       initialScrollOffset={initialOffset}
-      itemKey={(index) => bookingRequests[index]?.id ?? index}
+      itemKey={(index: number) => bookingRequests[index]?.id ?? index}
       onScroll={(ev: { scrollOffset: number }) => {
         try { sessionStorage.setItem(STORAGE_KEY, String(ev.scrollOffset)); } catch {}
       }}
-      onItemsRendered={({ visibleStartIndex }) => {
+      onItemsRendered={({ visibleStartIndex }: { visibleStartIndex: number }) => {
         lastVisibleStartRef.current = visibleStartIndex;
         try {
           const id = bookingRequests[visibleStartIndex]?.id;
@@ -169,7 +171,7 @@ export default function ConversationList({
       }}
       outerElementType={Outer}
     >
-      {({ index, style }: ListChildComponentProps) => {
+      {({ index, style }: { index: number; style: CSSProperties }) => {
         const req = bookingRequests[index];
         const isActive = selectedRequestId === req.id;
         const isUnread = (() => {
