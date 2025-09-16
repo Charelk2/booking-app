@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { BellIcon } from '@heroicons/react/24/outline';
 import NotificationDrawer from './layout/NotificationDrawer';
-import useNotifications, { NotificationsProvider } from '@/hooks/useNotifications';
+// Import from TSX implementation directly to avoid re-export TDZ issues
+import useNotifications, { NotificationsProvider } from '@/hooks/useNotifications.tsx';
 
 export default function NavBar() {
   const [open, setOpen] = useState(false);

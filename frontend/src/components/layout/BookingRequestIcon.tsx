@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { ClipboardIcon } from '@heroicons/react/24/outline';
-import useNotifications from '@/hooks/useNotifications';
+// Import from the TSX file to bypass re-export binding timing
+import useNotifications from '@/hooks/useNotifications.tsx';
 import type { UnifiedNotification } from '@/types';
 
 export default function BookingRequestIcon() {

@@ -9,7 +9,8 @@ import {
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
 import type { User } from '@/types';
-import useNotifications from '@/hooks/useNotifications';
+// Import directly from TSX implementation to avoid potential TDZ
+import useNotifications from '@/hooks/useNotifications.tsx';
 import type { UnifiedNotification } from '@/types';
 import useScrollDirection from '@/hooks/useScrollDirection';
 import clsx from 'clsx';
