@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import SafeImage from '@/components/ui/SafeImage';
+// Use native <img> for chat attachments to avoid Next/Image overhead
 
 interface ImagePreviewModalProps {
   open: boolean;
@@ -148,12 +148,12 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
                   }
                   return (
                     <div className="relative">
-                      <SafeImage
+                      <img
                         src={src}
                         alt={alt}
-                        width={1600}
-                        height={900}
                         className="max-h-[80vh] max-w-[96vw] object-contain rounded-md"
+                        loading="eager"
+                        decoding="async"
                       />
                       {/* Prev/Next overlayed on the image area */}
                       {Array.isArray(images) && images.length > 1 && typeof onIndexChange === 'function' && (
@@ -254,7 +254,7 @@ function ThumbnailTray({ images, activeIndex, onIndexChange }: { images: string[
               onClick={() => onIndexChange && onIndexChange(i)}
               aria-label={`Preview image ${i + 1}`}
             >
-              <SafeImage src={src} alt={`thumb-${i + 1}`} width={56} height={56} className="w-14 h-14 object-cover" />
+              <img src={src} alt={`thumb-${i + 1}`} className="w-14 h-14 object-cover" />
             </button>
           </div>
         ))}

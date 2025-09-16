@@ -91,7 +91,7 @@ const INITIAL_VISIBLE_COUNT = 30;
 const VISIBLE_CHUNK = 30;
 const MAX_TEXTAREA_LINES = 10;
 const isImageAttachment = (url?: string | null) =>
-  !!url && /\.(jpe?g|png|gif|webp)$/i.test(url);
+  !!url && (/^blob:/i.test(url) || /^data:image\//i.test(url) || /\.(jpe?g|png|gif|webp)$/i.test(url));
 
 const gmt2ISOString = () =>
   new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().replace('Z', '+02:00');
@@ -2002,7 +2002,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   <>
                     {(() => {
                       // Suppress placeholder labels; style non-image attachments like a reply header box
-                      const url = msg.attachment_url ? (getFullImageUrl(msg.attachment_url) as string) : '';
+                      const url = msg.attachment_url
+                        ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : (getFullImageUrl(msg.attachment_url) as string))
+                        : '';
                       const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
                       const isImage = isImageAttachment(msg.attachment_url || undefined);
                       const contentLower = String(msg.content || '').trim().toLowerCase();
@@ -2061,12 +2063,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 className="block"
                                 aria-label="Open image"
                               >
-                                <SafeImage
-                                  src={url}
+                                <img
+                                  src={toProxyPath(url)}
                                   alt="Image attachment"
-                                  width={600}
-                                  height={600}
                                   className="block w-full h-auto rounded-xl"
+                                  loading="lazy"
+                                  decoding="async"
                                 />
                               </button>
                             </div>
@@ -2577,7 +2579,38 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       try {
         if (imageFiles.length > 0) {
-          // Upload and send multiple images. First image carries the text if provided.
+          // Immediately render optimistic bubbles with local blob URLs, then upload.
+          let baseContent = newMessageContent;
+          if (!baseContent.trim()) baseContent = '[Attachment]';
+          const nowISO = gmt2ISOString();
+          for (let i = 0; i < imageFiles.length; i++) {
+            const f = imageFiles[i];
+            const blobUrl = URL.createObjectURL(f);
+            const id = i === 0 ? tempId : (tempId - (i + 1));
+            const optimistic: ThreadMessage = {
+              id,
+              booking_request_id: bookingRequestId,
+              sender_id: user?.id || 0,
+              sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
+              content: i === 0 ? baseContent : '[Attachment]',
+              message_type: 'USER',
+              quote_id: null,
+              attachment_url: blobUrl,
+              visible_to: 'both',
+              action: null,
+              avatar_url: undefined,
+              expires_at: null,
+              unread: false,
+              is_read: true,
+              timestamp: nowISO,
+              status: 'sending',
+              reply_to_message_id: i === 0 ? (replyTarget?.id ?? null) : null,
+              reply_to_preview: i === 0 && replyTarget ? replyTarget.content.slice(0, 120) : null,
+            };
+            setMessages((prev) => mergeMessages(prev, optimistic));
+          }
+
+          // Upload and send multiple images sequentially for compatibility.
           setIsUploadingAttachment(true);
           const uploadedUrls: string[] = [];
           for (let i = 0; i < imageFiles.length; i++) {
@@ -2594,32 +2627,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
           // Send first image with text (or placeholder hidden later)
           const firstUrl = uploadedUrls[0];
-          let baseContent = newMessageContent;
-          if (!baseContent.trim()) baseContent = '[Attachment]';
           const firstPayload: MessageCreate = { content: baseContent, attachment_url: firstUrl } as any;
-
-          // Optimistic for first
-          const firstOptimistic: ThreadMessage = {
-            id: tempId,
-            booking_request_id: bookingRequestId,
-            sender_id: user?.id || 0,
-            sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
-            content: baseContent,
-            message_type: 'USER',
-            quote_id: null,
-            attachment_url: firstUrl,
-            visible_to: 'both',
-            action: null,
-            avatar_url: undefined,
-            expires_at: null,
-            unread: false,
-            is_read: true,
-            timestamp: gmt2ISOString(),
-            status: 'sending',
-            reply_to_message_id: replyTarget?.id ?? null,
-            reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
-          };
-          setMessages((prev) => mergeMessages(prev, firstOptimistic));
 
           try {
             const res = await postMessageToBookingRequest(bookingRequestId, firstPayload);
@@ -2630,7 +2638,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               byId.set(real.id, real);
               return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
             });
-            // Update inbox preview for sender immediately
             try {
               if (typeof window !== 'undefined') {
                 const previewText = String(real.content || '').slice(0, 160);
@@ -2649,15 +2656,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             const url = uploadedUrls[i];
             const payload: MessageCreate = { content: '[Attachment]', attachment_url: url } as any;
             const temp = tempId - (i + 1);
-            const optimistic: ThreadMessage = {
-              ...firstOptimistic,
-              id: temp,
-              content: '[Attachment]',
-              attachment_url: url,
-              reply_to_message_id: null,
-              reply_to_preview: null,
-            };
-            setMessages((prev) => mergeMessages(prev, optimistic));
             try {
               const res = await postMessageToBookingRequest(bookingRequestId, payload);
               const real = { ...normalizeMessage(res.data), status: 'sent' as const };
@@ -3432,7 +3430,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             })()}
                             {msg.attachment_url && (
                               (() => {
-                                const url = getFullImageUrl(msg.attachment_url) as string;
+                                const url = msg.attachment_url
+                                  ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : (getFullImageUrl(msg.attachment_url) as string))
+                                  : '';
                                 const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
                                 if (isImageAttachment(msg.attachment_url)) {
                                   return (
@@ -3443,12 +3443,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                         className="block"
                                         aria-label="Open image"
                                       >
-                                        <SafeImage
-                                          src={url}
+                                        <img
+                                          src={toProxyPath(url)}
                                           alt="Image attachment"
-                                          width={600}
-                                          height={600}
                                           className="block w-full h-auto rounded-xl"
+                                          loading="lazy"
+                                          decoding="async"
                                         />
                                       </button>
                                     </div>
@@ -3962,7 +3962,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           <div className="flex flex-wrap items-center gap-2 overflow-hidden">
             {imagePreviewUrls.map((u, i) => (
               <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200 bg-white">
-                <SafeImage src={u} alt={`Preview ${i+1}`} width={64} height={64} className="w-16 h-16 object-cover" />
+            <img src={u} alt={`Preview ${i+1}`} className="w-16 h-16 object-cover" />
                 <button type="button" aria-label="Remove image" className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white/90 border border-gray-200 text-gray-700 flex items-center justify-center hover:bg-white" onClick={() => removeImageAt(i)}>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
