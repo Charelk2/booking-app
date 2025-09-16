@@ -23,7 +23,8 @@ function prefetchNotifications() {
   import('./FullScreenNotificationModal');
 }
 import useIsMobile from '@/hooks/useIsMobile';
-import useNotifications from '@/hooks/useNotifications';
+// Import from TSX to avoid re-export TDZ issues
+import useNotifications from '@/hooks/useNotifications.tsx';
 import type { UnifiedNotification } from '@/types';
 
 // Displays a dropdown of recent notifications. Unread counts update via the

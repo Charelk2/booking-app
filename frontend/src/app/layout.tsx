@@ -2,7 +2,8 @@ import { Inter } from 'next/font/google';
 import { Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { NotificationsProvider } from '@/hooks/useNotifications';
+// Import directly from the TSX implementation to avoid re-export TDZ issues in Next/Flight
+import { NotificationsProvider } from '@/hooks/useNotifications.tsx';
 import MobileTelemetry from '@/components/analytics/MobileTelemetry';
 import RouteProgress from '@/components/layout/RouteProgress';
 import './globals.css';

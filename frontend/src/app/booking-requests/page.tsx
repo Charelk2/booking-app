@@ -4,7 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import useNotifications from '@/hooks/useNotifications';
+// Avoid re-export indirection to prevent TDZ in Next/Flight
+import useNotifications from '@/hooks/useNotifications.tsx';
 import clsx from 'clsx';
 import { Spinner } from '@/components/ui';
 import { BookingRequestCard } from '@/components/dashboard';
