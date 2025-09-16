@@ -1,42 +1,78 @@
 'use client';
 
+import React, { CSSProperties } from 'react';
 import clsx from 'clsx';
+import { FixedSizeList as List, areEqual as areRowPropsEqual } from 'react-window';
 import SafeImage from '@/components/ui/SafeImage';
 import { BookingRequest, User } from '@/types';
-import { FixedSizeList as List } from 'react-window';
-import type { CSSProperties } from 'react';
-import React from 'react';
 import { getMessagesForBookingRequest } from '@/lib/api';
 import { hasThreadCache, writeThreadCache } from '@/lib/threadCache';
 
-// Module-scope helpers so memoized Row can use them
-function formatThreadTime(iso: string | null | undefined): string {
+// --------------------------------------------------------------------------------------
+// Lightweight, fast, no-jank conversation list
+// - Virtualized rows
+// - Stable itemData & handlers (no per-row re-creation)
+// - Scroll position restore
+// - Idle prefetch of top/unread threads
+// - Minimal work in render path, all heavy lifting precomputed with useMemo
+// --------------------------------------------------------------------------------------
+
+type Props = {
+  bookingRequests: BookingRequest[];
+  selectedRequestId: number | null;
+  onSelectRequest: (id: number) => void;
+  currentUser?: User | null;
+  query?: string;
+  height?: number;
+};
+
+type PreRow = {
+  id: number;
+  name: string;
+  avatar?: string | null;
+  dateISO?: string | null;
+  dateLabel: string;
+  preview: string;
+  previewLower: string;
+  nameLower: string;
+  unreadCount: number;
+  isUnread: boolean;
+  chip: 'EVENT' | 'VIDEO' | 'QUOTE' | 'INQUIRY' | null;
+  isBookaModeration: boolean;
+  version: number; // changes when unread/preview/date change
+};
+
+type RowData = {
+  rows: PreRow[];
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+  qLower: string;
+};
+
+const ROW_H = 74;
+const STORAGE_KEY_SCROLL = 'inbox:convList:scrollOffset';
+const STORAGE_TOP_ID = 'inbox:convList:topId';
+
+// Intl formatters (module-scope cache)
+const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+const mdFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const weekdayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+
+function formatThreadTime(iso?: string | null): string {
   if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '';
-    const now = new Date();
-    const startOf = (dt: Date) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
-    const todayStart = startOf(now);
-    const dayStart = startOf(d);
-    const diffMs = todayStart.getTime() - dayStart.getTime();
-    const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
-    if (diffDays === 0) {
-      return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-    }
-    if (diffDays === 1) return 'yesterday';
-    if (diffDays < 7) {
-      const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
-      return `last ${weekday}`;
-    }
-    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-  } catch {
-    return '';
-  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const now = new Date();
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const diffDays = Math.round((+startOf(now) - +startOf(d)) / 86_400_000);
+  if (diffDays === 0) return timeFmt.format(d);
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `last ${weekdayFmt.format(d)}`;
+  return mdFmt.format(d);
 }
 
 function highlightParts(original: string, lower: string, qLower: string) {
-  const q = (qLower || '').trim();
+  const q = qLower.trim();
   if (!q) return { before: original, match: '', after: '', has: false } as const;
   const idx = lower.indexOf(q);
   if (idx === -1) return { before: original, match: '', after: '', has: false } as const;
@@ -48,274 +84,54 @@ function highlightParts(original: string, lower: string, qLower: string) {
   } as const;
 }
 
-interface ConversationListProps {
-  bookingRequests: BookingRequest[];
-  selectedRequestId: number | null;
-  onSelectRequest: (id: number) => void;
-  currentUser?: User | null;
-  query?: string;
-  height?: number; // Optional override; defaults to auto height (all rows)
-}
-
-export default function ConversationList({
-  bookingRequests,
-  selectedRequestId,
-  onSelectRequest,
-  currentUser,
-  query = '',
-  height,
-}: ConversationListProps) {
-  const ROW_HEIGHT = 74;
-  const STORAGE_KEY = 'inbox:convListOffset';
-  const STORAGE_TOP_ID = 'inbox:convListTopId';
-  const STORAGE_TOP_INDEX = 'inbox:convListTopIndex';
-
-  // Persist scroll position so selecting a convo doesn't jump to top.
-  // Using any here avoids react-window's namespace/type interop issues for the ref
-  const listRef = React.useRef<any>(null);
-  const restoredRef = React.useRef(false);
-  const lastVisibleStartRef = React.useRef(0);
-  const initialOffset = React.useMemo(() => {
-    if (typeof window === 'undefined') return 0;
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    const n = raw ? Number(raw) : 0;
-    return Number.isFinite(n) ? n : 0;
-  }, []);
-
-  const q = query.trim().toLowerCase();
-  // Restore on mount if needed (for cases where List remounts due to props)
-  React.useEffect(() => {
-    if (restoredRef.current) return;
-    try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      const n = raw ? Number(raw) : 0;
-      if (listRef.current && Number.isFinite(n) && n > 0) {
-        listRef.current.scrollTo(n);
-      }
-      restoredRef.current = true;
-    } catch {}
-  }, [bookingRequests.length]);
-
-  // After selecting a conversation, restore the previous scroll offset to avoid jumping to top.
-  React.useLayoutEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      const n = raw ? Number(raw) : 0;
-      if (listRef.current) {
-        const topId = sessionStorage.getItem(STORAGE_TOP_ID);
-        if (topId) {
-          const index = bookingRequests.findIndex((r) => String(r.id) === topId);
-          if (index >= 0) {
-            try { (listRef.current as any).scrollToItem?.(index, 'start'); return; } catch {}
-          }
-        }
-        if (Number.isFinite(n) && n >= 0) {
-          const idx = Math.max(0, Math.round(n / ROW_HEIGHT));
-          try { (listRef.current as any).scrollToItem?.(idx, 'start'); } catch { listRef.current.scrollTo(n); }
-        }
-      }
-    } catch {}
-  }, [selectedRequestId, bookingRequests]);
-
-  // Always provide a bounded height so virtualization stays enabled on first paint.
-  const DEFAULT_HEIGHT = typeof window !== 'undefined' ? Math.min(window.innerHeight * 0.7, 640) : 560;
-  const listHeight = Number.isFinite(height as any) && (height ?? 0) > 0 ? (height as number) : DEFAULT_HEIGHT;
-
-  // --- Lightweight prefetch of top conversations for instant open ---------
-  const prefetchingRef = React.useRef<Set<number>>(new Set());
-  const prefetchThread = React.useCallback(async (id: number) => {
-    if (!id) return;
-    if (prefetchingRef.current.has(id)) return;
-    if (hasThreadCache(id)) return;
-    prefetchingRef.current.add(id);
-    try {
-      const res = await getMessagesForBookingRequest(id, { limit: 50 });
-      const arr = Array.isArray(res.data) ? res.data : [];
-      writeThreadCache(id, arr);
-    } catch {
-      // ignore network/cache errors – best effort
-    } finally {
-      prefetchingRef.current.delete(id);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (!bookingRequests.length) return;
-    const top = bookingRequests.slice(0, Math.min(5, bookingRequests.length));
-    // Prefer rows with unread first
-    const prioritized = [...top].sort((a, b) => (Number((b as any).unread_count || 0) - Number((a as any).unread_count || 0)));
-    const ids = prioritized.slice(0, Math.min(3, prioritized.length)).map((r) => r.id);
-    const schedule = (fn: () => void) => {
-      try {
-        const ric = (window as any)?.requestIdleCallback as ((cb: () => void, opts?: any) => void) | undefined;
-        if (typeof ric === 'function') ric(fn, { timeout: 800 });
-        else setTimeout(fn, 50);
-      } catch { setTimeout(fn, 50); }
-    };
-    schedule(() => { ids.forEach((id) => { void prefetchThread(id); }); });
-  }, [bookingRequests, prefetchThread]);
-
-  // Outer wrapper that suppresses anchor navigation inside the list.
-  // IMPORTANT: Pass a stable component reference to react-window to avoid remounting the scroller.
-  const Outer = React.useMemo(
-    () =>
-      React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(function OuterDiv(props, ref) {
-        const { onClick, ...rest } = props;
-        return (
-          <div
-            {...rest}
-            ref={ref}
-            role={rest.role ?? 'listbox'}
-            aria-label={rest['aria-label'] ?? 'Conversations'}
-            onClick={(e) => {
-              const t = e.target as HTMLElement;
-              if (t && (t as any).closest && (t as any).closest('a')) {
-                e.preventDefault();
-                e.stopPropagation();
-              }
-              onClick && onClick(e as any);
-            }}
-          />
-        );
-      }),
-    [],
-  );
-
-  return (
-    <List
-      ref={listRef}
-      height={listHeight}
-      itemCount={bookingRequests.length}
-      itemSize={ROW_HEIGHT}
-      width="100%"
-      className="divide-y divide-gray-100"
-      overscanCount={4}
-      initialScrollOffset={initialOffset}
-      itemKey={(index: number) => bookingRequests[index]?.id ?? index}
-      onScroll={(ev: { scrollOffset: number }) => {
-        try { sessionStorage.setItem(STORAGE_KEY, String(ev.scrollOffset)); } catch {}
-      }}
-      onItemsRendered={({ visibleStartIndex }: { visibleStartIndex: number }) => {
-        lastVisibleStartRef.current = visibleStartIndex;
-        try {
-          const id = bookingRequests[visibleStartIndex]?.id;
-          if (id) {
-            sessionStorage.setItem(STORAGE_TOP_ID, String(id));
-            sessionStorage.setItem(STORAGE_TOP_INDEX, String(visibleStartIndex));
-          }
-        } catch {}
-      }}
-      outerElementType={Outer}
-      itemData={useRowData(bookingRequests, selectedRequestId, onSelectRequest, React.useMemo(() => buildPrecomputed(bookingRequests, currentUser, q), [bookingRequests, currentUser, q]), q, prefetchThread)}
-      children={Row}
-    />
-  );
-}
-
-// ------------------------- Memo Row + itemData ------------------------------
-type RowData = {
-  items: BookingRequest[];
-  selectedId: number | null;
-  onSelect: (id: number) => void;
-  pre: Record<number, PreRow>;
-  q: string;
-  onRowClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  onRowKeyDown: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
-  onRowPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => void;
-  onRowMouseDownCapture: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  onRowMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => void;
-};
-
-type PreRow = {
-  id: number;
-  name: string;
-  nameLower: string;
-  avatar: string | null | undefined;
-  date: string;
-  preview: string;
-  previewLower: string;
-  isUnread: boolean;
-  unreadCount: number;
-  showEvent: boolean;
-  showVideo: boolean;
-  isQuote: boolean;
-  showInquiry: boolean;
-  isBookaModeration: boolean;
-  showApprovedChip: boolean;
-  showRejectedChip: boolean;
-};
-
-function buildPrecomputed(
+function buildPreRows(
   items: BookingRequest[],
   currentUser?: User | null,
-  qLower?: string,
-): Record<number, PreRow> {
+): PreRow[] {
   const isArtist = currentUser?.user_type === 'service_provider';
-  const out: Record<number, PreRow> = {};
-  const q = (qLower || '').trim();
-  for (const req of items) {
-    const rawOtherName = (() => {
+
+  return items.map((req) => {
+    const otherName = (() => {
       if (isArtist) return req.client?.first_name || 'Client';
-      const artistProfile = req.artist_profile;
-      const artist = req.artist;
-      if (!artistProfile && !artist) return 'Service Provider';
       return (
-        artistProfile?.business_name ||
-        artist?.business_name ||
-        artist?.user?.first_name ||
-        artist?.first_name ||
+        req.artist_profile?.business_name ||
+        req.artist?.business_name ||
+        req.artist?.user?.first_name ||
+        req.artist?.first_name ||
         'Service Provider'
       );
     })();
-    const name = String(rawOtherName || '');
-    const nameLower = name.toLowerCase();
     const avatar = isArtist
       ? req.client?.profile_picture_url
-      : req.artist_profile?.profile_picture_url || req.artist?.profile_picture_url;
-    const date = (req.last_message_timestamp || req.updated_at || req.created_at) as string;
-    const isUnread = (() => {
-      const v = (req as any).is_unread_by_current_user;
-      return v === true || v === 1 || v === '1' || v === 'true';
-    })();
+      : (req.artist_profile?.profile_picture_url || req.artist?.profile_picture_url) ?? null;
+
+    const dateISO = (req.last_message_timestamp || req.updated_at || req.created_at) as string | undefined;
+    const dateLabel = formatThreadTime(dateISO || null);
+
+    // Chip logic (kept lean)
+    const text = String(req.last_message_content || '').toLowerCase();
     const isPersonalizedVideo = String(req.service?.service_type || '').toLowerCase() === 'personalized video';
-    const paidOrConfirmed = (() => {
-      const text = (req.last_message_content || '').toString();
-      const status = (req.status || '').toString().toLowerCase();
-      const hasAcceptedQuote = (req.accepted_quote_id as unknown as number) ? true : false;
-      const paidMsg = /payment\s*received|booking\s*confirmed/i.test(text);
-      const confirmed = ['confirmed', 'completed', 'request_confirmed', 'request_completed'].includes(status);
-      let localFlag = false;
-      try { if (typeof window !== 'undefined') localFlag = !!localStorage.getItem(`booking-confirmed-${req.id}`); } catch {}
-      return paidMsg || confirmed || hasAcceptedQuote || localFlag;
-    })();
-    const showVideo = (() => {
-      if (isPersonalizedVideo) return true;
-      try { if (typeof window !== 'undefined' && localStorage.getItem(`vo-order-for-thread-${req.id}`)) return true; } catch {}
-      return false;
-    })();
-    const showEvent = !showVideo && paidOrConfirmed;
-    const isQuote = (() => {
-      const threadState = String(((req as any).thread_state ?? '') || '').toLowerCase();
-      if (threadState === 'quoted') return true;
-      const hasAcceptedQuote = (req.accepted_quote_id as unknown as number) ? true : false;
-      const hasQuotesArr = Array.isArray((req as any).quotes) && (req as any).quotes.length > 0;
-      if (hasAcceptedQuote || hasQuotesArr) return true;
-      const text = (req.last_message_content || '').toString();
-      return /(sent a quote|quote sent|provided a quote|new quote)/i.test(text);
-    })();
-    const showInquiry = (() => {
-      if (showEvent || showVideo || isQuote) return false;
-      const threadState = String(((req as any).thread_state ?? '') || '').toLowerCase();
-      const status = (req.status || '').toString().toLowerCase();
-      const hasBookingDetails = Boolean((req as any).proposed_datetime_1 || (req as any).proposed_datetime_2 || (req as any).travel_breakdown);
-      const hasQuotes = Boolean((req as any).accepted_quote_id) || (Array.isArray((req as any).quotes) && (req as any).quotes.length > 0) || threadState === 'quoted';
-      if ((req as any).has_inquiry_card === true) return true;
-      try { if (typeof window !== 'undefined' && localStorage.getItem(`inquiry-thread-${req.id}`)) return true; } catch {}
-      if (hasBookingDetails || hasQuotes || status.includes('pending_quote')) return false;
-      return false;
-    })();
+    const acceptedQuote = !!(req as any).accepted_quote_id;
+    const status = String(req.status || '').toLowerCase();
+    const paidOrConfirmed =
+      acceptedQuote ||
+      /payment\s*received|booking\s*confirmed/.test(text) ||
+      ['confirmed', 'completed', 'request_confirmed', 'request_completed'].includes(status);
+
+    const chip: PreRow['chip'] =
+      isPersonalizedVideo ? 'VIDEO'
+      : paidOrConfirmed ? 'EVENT'
+      : /(sent a quote|quote sent|provided a quote|new quote)/i.test(String(req.last_message_content || '')) ? 'QUOTE'
+      : null;
+
+    // INQUIRY chip only if nothing else is present and local hint set
+    let inquiry = false;
+    try {
+      if (!chip && typeof window !== 'undefined' && localStorage.getItem(`inquiry-thread-${req.id}`)) inquiry = true;
+    } catch {}
+
+    const isSyntheticBooka = Boolean((req as any).is_booka_synthetic);
     const preview = (() => {
-      const otherName = name;
       if (
         req.last_message_content === 'Artist sent a quote' ||
         req.last_message_content === 'Service Provider sent a quote'
@@ -324,203 +140,309 @@ function buildPrecomputed(
       }
       return (req.last_message_content ?? req.service?.title ?? (req as any).message ?? 'New Request') as string;
     })();
-    const previewLower = String(preview || '').toLowerCase();
-    const isSyntheticBooka = Boolean((req as any).is_booka_synthetic);
-    const showApprovedChip = /^\s*listing\s+approved:/i.test(previewLower);
-    const showRejectedChip = /^\s*listing\s+rejected:/i.test(previewLower);
-    const isBookaModeration = isSyntheticBooka || showApprovedChip || showRejectedChip;
-    const rawUnread = Number((req as any).unread_count || 0);
-    const unreadCount = rawUnread > 0 ? rawUnread : (isUnread ? 1 : 0);
 
-    out[req.id] = {
+    const isUnreadFlag =
+      (req as any).is_unread_by_current_user === true ||
+      (req as any).is_unread_by_current_user === 1 ||
+      (req as any).is_unread_by_current_user === '1' ||
+      (req as any).is_unread_by_current_user === 'true';
+
+    const unreadCountRaw = Number((req as any).unread_count || 0);
+    const unreadCount = unreadCountRaw > 0 ? unreadCountRaw : (isUnreadFlag ? 1 : 0);
+
+    const name = String(otherName || '');
+    const nameLower = name.toLowerCase();
+    const previewLower = String(preview || '').toLowerCase();
+
+    // "version" is how the row signals it must re-render.
+    // If last_message changes or unread counters change, version changes.
+    const version =
+      (dateISO ? new Date(dateISO).getTime() : 0) ^
+      (unreadCount << 4) ^
+      (isUnreadFlag ? 1 : 0) ^
+      (previewLower.length << 1);
+
+    return {
       id: req.id,
       name,
-      nameLower,
       avatar,
-      date,
+      dateISO: dateISO || null,
+      dateLabel,
       preview,
       previewLower,
-      isUnread,
+      nameLower,
       unreadCount,
-      showEvent,
-      showVideo,
-      isQuote,
-      showInquiry,
-      isBookaModeration,
-      showApprovedChip,
-      showRejectedChip,
+      isUnread: unreadCount > 0,
+      chip: inquiry ? 'INQUIRY' : chip,
+      isBookaModeration: isSyntheticBooka,
+      version,
     };
-  }
-  return out;
+  });
 }
 
-const Row = React.memo(function Row({ index, style, data }: { index: number; style: CSSProperties; data: RowData }) {
-  const { items, selectedId, pre, q, onRowClick, onRowKeyDown, onRowPointerDown, onRowMouseDownCapture, onRowMouseEnter } = data;
-  const req = items[index];
-  const isActive = selectedId === req.id;
-  const p = pre[req.id];
-  const rowName = p.isBookaModeration ? 'Booka' : p.name;
-  const rowAvatar = p.isBookaModeration ? undefined : p.avatar;
-  const partsName = q ? highlightParts(p.name, p.nameLower, q) : { before: rowName, match: '', after: '', has: false } as const;
-  const partsPrev = q ? highlightParts(String(p.preview), p.previewLower, q) : { before: String(p.preview), match: '', after: '', has: false } as const;
+function RowMemo({
+  index,
+  style,
+  data,
+}: {
+  index: number;
+  style: CSSProperties;
+  data: RowData;
+}) {
+  const pre = data.rows[index];
+  const isActive = data.selectedId === pre.id;
+
+  const partsName = data.qLower
+    ? highlightParts(pre.name, pre.nameLower, data.qLower)
+    : { before: pre.name, match: '', after: '', has: false };
+
+  const partsPrev = data.qLower
+    ? highlightParts(pre.preview, pre.previewLower, data.qLower)
+    : { before: pre.preview, match: '', after: '', has: false };
+
+  const initials = pre.name ? pre.name.charAt(0) : 'U';
 
   return (
     <button
       type="button"
+      data-id={pre.id}
+      onClick={() => data.onSelect(pre.id)}
       style={style}
-      key={req.id}
-      role="option"
-      aria-selected={isActive}
-      tabIndex={0}
-      data-id={req.id}
-      onClick={onRowClick}
-      onKeyDown={onRowKeyDown}
-      onMouseEnter={onRowMouseEnter}
-      onPointerDown={onRowPointerDown}
-      onMouseDownCapture={onRowMouseDownCapture}
       className={clsx(
-        'flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors duration-150 ease-in-out rounded-lg w-full text-left',
-        isActive ? 'bg-gray-100 ring-1 ring-gray-200' : 'hover:bg-gray-50'
+        'flex items-center gap-3 px-4 py-3 w-full text-left transition-colors rounded-lg',
+        isActive ? 'bg-gray-100 ring-1 ring-gray-200' : 'hover:bg-gray-50',
       )}
     >
-      {rowAvatar ? (
+      {pre.avatar ? (
         <SafeImage
-          src={rowAvatar}
-          alt={`${rowName} avatar`}
+          src={pre.avatar}
+          alt={`${pre.name} avatar`}
           width={40}
           height={40}
           sizes="40px"
           loading="lazy"
-          className={clsx('rounded-full object-cover flex-shrink-0 border border-gray-200')}
+          className="rounded-full object-cover flex-shrink-0 border border-gray-200"
         />
       ) : (
-        <div className={clsx('h-10 w-10 rounded-full bg-black text-white flex-shrink-0 flex items-center justify-center font-medium text-lg')}>
-          {rowName.charAt(0)}
+        <div className="h-10 w-10 rounded-full bg-black text-white flex-shrink-0 grid place-items-center text-lg font-medium">
+          {initials}
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden min-w-0">
-        <div className={clsx('flex items-center justify-between', p.isUnread ? 'font-semibold text-gray-900' : 'text-gray-700')}>
-          <span className="truncate flex items-center gap-2 min-w-0">
-            <span className="truncate">
-              {q && partsName.has ? (
-                <>
-                  {partsName.before}
-                  <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsName.match}</span>
-                  {partsName.after}
-                </>
-              ) : rowName}
-            </span>
+      <div className="flex-1 min-w-0">
+        <div className={clsx('flex items-center justify-between', pre.isUnread ? 'font-semibold text-gray-900' : 'text-gray-700')}>
+          <span className="truncate min-w-0">
+            {partsName.has ? (
+              <>
+                {partsName.before}
+                <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsName.match}</span>
+                {partsName.after}
+              </>
+            ) : (
+              pre.name
+            )}
           </span>
-          <time dateTime={p.date} className={clsx('text-xs flex-shrink-0 ml-2', p.isUnread ? 'font-semibold text-gray-900' : 'text-gray-500')}>
-            {formatThreadTime(p.date)}
+          <time className={clsx('text-xs ml-2 flex-shrink-0', pre.isUnread ? 'font-semibold text-gray-900' : 'text-gray-500')}>
+            {pre.dateLabel}
           </time>
         </div>
-        <div className={clsx('text-xs', p.isUnread ? 'font-semibold text-gray-800' : 'text-gray-600', 'flex items-start justify-between gap-3')}>
-          <span className="inline-flex items-center gap-2 min-w-0 flex-1 truncate">
-            {p.showEvent && (
-              <span className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">EVENT</span>
+
+        <div className={clsx('mt-0.5 text-xs flex items-start justify-between gap-3', pre.isUnread ? 'font-semibold text-gray-800' : 'text-gray-600')}>
+          <div className="inline-flex items-center gap-2 min-w-0 truncate">
+            {pre.chip === 'EVENT' && (
+              <span className="px-1.5 py-0.5 text-[10px] rounded border bg-emerald-50 text-emerald-700 border-emerald-200 flex-shrink-0">EVENT</span>
             )}
-            {p.showVideo && (
-              <span className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">VIDEO</span>
+            {pre.chip === 'VIDEO' && (
+              <span className="px-1.5 py-0.5 text-[10px] rounded border bg-emerald-50 text-emerald-700 border-emerald-200 flex-shrink-0">VIDEO</span>
             )}
-            {!p.showEvent && !p.showVideo && p.isQuote && (
-              <span className="inline-flex items-center gap-1 rounded bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">QUOTE</span>
+            {pre.chip === 'QUOTE' && (
+              <span className="px-1.5 py-0.5 text-[10px] rounded border bg-amber-50 text-amber-700 border-amber-200 flex-shrink-0">QUOTE</span>
             )}
-            {!p.showEvent && !p.showVideo && !p.isQuote && p.showInquiry && (
-              <span className="inline-flex items-center gap-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">INQUIRY</span>
+            {pre.chip === 'INQUIRY' && (
+              <span className="px-1.5 py-0.5 text-[10px] rounded border bg-indigo-50 text-indigo-700 border-indigo-200 flex-shrink-0">INQUIRY</span>
             )}
             <span className="truncate">
-              {p.isBookaModeration ? (
+              {partsPrev.has ? (
                 <>
-                  <span className="text-[10px] font-semibold text-indigo-700 mr-1">Booka •</span>
-                  {q && partsPrev.has ? (
-                    <>
-                      {partsPrev.before}
-                      <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsPrev.match}</span>
-                      {partsPrev.after}
-                    </>
-                  ) : (
-                    p.preview
-                  )}
+                  {partsPrev.before}
+                  <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsPrev.match}</span>
+                  {partsPrev.after}
                 </>
               ) : (
-                q && partsPrev.has ? (
-                  <>
-                    {partsPrev.before}
-                    <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsPrev.match}</span>
-                    {partsPrev.after}
-                  </>
-                ) : (
-                  p.preview
-                )
+                pre.preview
               )}
             </span>
-          </span>
-          {p.unreadCount > 0 ? (
-            <span aria-label={`${p.unreadCount} unread messages`} className={clsx('ml-2 flex-shrink-0 inline-flex items-center justify-center rounded-full bg-black text-white', 'min-w-[20px] h-5 px-1 text-[11px] font-semibold')}>
-              {p.unreadCount > 99 ? '99+' : p.unreadCount}
+          </div>
+
+          {pre.unreadCount > 0 && (
+            <span
+              aria-label={`${pre.unreadCount} unread messages`}
+              className="ml-2 flex-shrink-0 inline-flex items-center justify-center rounded-full bg-black text-white min-w-[20px] h-5 px-1 text-[11px] font-semibold"
+            >
+              {pre.unreadCount > 99 ? '99+' : pre.unreadCount}
             </span>
-          ) : null}
+          )}
         </div>
       </div>
     </button>
   );
-}, (prev, next) => {
-  // Stable index and style?
-  if (prev.index !== next.index) return false;
-  if (prev.style !== next.style) return false;
-  const prevData = prev.data as RowData;
-  const nextData = next.data as RowData;
-  const prevItem = prevData.items[prev.index];
-  const nextItem = nextData.items[next.index];
-  if (!prevItem || !nextItem) return false;
-  const id = nextItem.id;
-  const wasActive = prevData.selectedId === id;
-  const isActive = nextData.selectedId === id;
-  if (wasActive !== isActive) return false;
-  // If the precomputed blob for this row changed identity, re-render
-  if (prevData.pre[id] !== nextData.pre[id]) return false;
-  // Otherwise skip re-render
+}
+
+// Avoid re-renders unless: index/style change OR row.version/selection changed
+const Row = React.memo(RowMemo, (prev, next) => {
+  if (!areRowPropsEqual(prev as any, next as any)) return false; // compares index/style/data reference
+  const { rows, selectedId } = prev.data as RowData;
+  const prevRow = rows[prev.index];
+  const nextRow = (next.data as RowData).rows[next.index];
+  if (!prevRow || !nextRow) return false;
+  if (prevRow.id !== nextRow.id) return false;
+  if (prevRow.version !== nextRow.version) return false;
+  if (selectedId !== (next.data as RowData).selectedId) {
+    const isThis = prevRow.id === selectedId || prevRow.id === (next.data as RowData).selectedId;
+    if (isThis) return false;
+  }
   return true;
 });
 
-// Provide itemData with stable handlers to avoid per-row closures
-function useRowData(bookingRequests: BookingRequest[], selectedId: number | null, onSelect: (id: number) => void, pre: Record<number, PreRow>, q: string, prefetchThread: (id: number) => void): RowData {
-  const onRowClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    const id = Number((e.currentTarget as HTMLButtonElement).dataset.id);
-    if (!Number.isFinite(id)) return;
-    onSelect(id);
-  }, [onSelect]);
-  const onRowKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    const id = Number((e.currentTarget as HTMLButtonElement).dataset.id);
-    if (!Number.isFinite(id)) return;
-    onSelect(id);
-  }, [onSelect]);
-  const onRowPointerDown = React.useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
-    const t = e.target as HTMLElement;
-    if (t && t.closest && t.closest('a')) return;
-    const id = Number((e.currentTarget as HTMLButtonElement).dataset.id);
-    if (!Number.isFinite(id)) return;
-    onSelect(id);
-  }, [onSelect]);
-  const onRowMouseDownCapture = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    const t = e.target as HTMLElement;
-    if (t && t.closest && t.closest('a')) {
-      e.preventDefault();
-      e.stopPropagation();
-      const id = Number((e.currentTarget as HTMLButtonElement).dataset.id);
-      if (Number.isFinite(id)) onSelect(id);
-    }
-  }, [onSelect]);
-  const onRowMouseEnter = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    const id = Number((e.currentTarget as HTMLButtonElement).dataset.id);
-    if (Number.isFinite(id)) prefetchThread(id);
-  }, [prefetchThread]);
-  return React.useMemo<RowData>(() => (
-    { items: bookingRequests, selectedId, onSelect, pre, q, onRowClick, onRowKeyDown, onRowPointerDown, onRowMouseDownCapture, onRowMouseEnter }
-  ), [bookingRequests, selectedId, onSelect, pre, q, onRowClick, onRowKeyDown, onRowPointerDown, onRowMouseDownCapture, onRowMouseEnter]);
-}
+export default function ConversationList({
+  bookingRequests,
+  selectedRequestId,
+  onSelectRequest,
+  currentUser,
+  query = '',
+  height,
+}: Props) {
+  const qLower = query.trim().toLowerCase();
 
-// End
+  const rows = React.useMemo(
+    () => buildPreRows(bookingRequests, currentUser),
+    [bookingRequests, currentUser],
+  );
+
+  // Save/restore scroll
+  const listRef = React.useRef<any>(null);
+  const listHeight = React.useMemo(() => {
+    if (typeof height === 'number' && height > 0) return height;
+    if (typeof window !== 'undefined') return Math.min(Math.floor(window.innerHeight * 0.7), 640);
+    return 560;
+  }, [height]);
+
+  React.useEffect(() => {
+    try {
+      const off = Number(sessionStorage.getItem(STORAGE_KEY_SCROLL) || '0');
+      if (listRef.current && Number.isFinite(off) && off > 0) listRef.current.scrollTo(off);
+    } catch {}
+  }, []);
+
+  const handleScroll = React.useCallback((ev: { scrollOffset: number }) => {
+    try {
+      sessionStorage.setItem(STORAGE_KEY_SCROLL, String(ev.scrollOffset));
+      const idx = Math.max(0, Math.round(ev.scrollOffset / ROW_H));
+      const id = rows[idx]?.id;
+      if (id) sessionStorage.setItem(STORAGE_TOP_ID, String(id));
+    } catch {}
+  }, [rows]);
+
+  // Idle prefetch of top (favor unread) for instant open
+  const prefetching = React.useRef<Set<number>>(new Set());
+  const prefetchThread = React.useCallback(async (id: number) => {
+    if (!id || prefetching.current.has(id) || hasThreadCache(id)) return;
+    prefetching.current.add(id);
+    try {
+      const res = await getMessagesForBookingRequest(id, { limit: 50 });
+      const arr = Array.isArray(res.data) ? res.data : [];
+      writeThreadCache(id, arr);
+    } catch {
+      // best-effort
+    } finally {
+      prefetching.current.delete(id);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!rows.length) return;
+    const top = rows.slice(0, Math.min(6, rows.length));
+    const prioritized = [...top].sort((a, b) => b.unreadCount - a.unreadCount);
+    const ids = prioritized.slice(0, 3).map((r) => r.id);
+
+    const schedule = (fn: () => void) => {
+      const ric = (window as any)?.requestIdleCallback as undefined | ((cb: IdleRequestCallback, opts?: any) => void);
+      if (ric) ric(() => fn(), { timeout: 700 });
+      else setTimeout(fn, 60);
+    };
+    schedule(() => ids.forEach((id) => void prefetchThread(id)));
+  }, [rows, prefetchThread]);
+
+  const itemData = React.useMemo<RowData>(() => ({
+    rows,
+    selectedId: selectedRequestId,
+    onSelect: onSelectRequest,
+    qLower,
+  }), [rows, selectedRequestId, onSelectRequest, qLower]);
+
+  // Outer element prevents anchor default inside rows (defensive)
+  const Outer = React.useMemo(
+    () =>
+      React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(function OuterDiv(props, ref) {
+        const { onClick, ...rest } = props;
+        return (
+          <div
+            {...rest}
+            ref={ref}
+            role="listbox"
+            aria-label="Conversations"
+            onClick={(e) => {
+              const t = e.target as HTMLElement;
+              if (t?.closest?.('a')) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+              onClick?.(e as any);
+            }}
+          />
+        );
+      }),
+    [],
+  );
+
+  if (!rows.length) {
+    // Skeleton for empty/initial load
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-3">
+            <div className="h-10 w-10 rounded-full bg-gray-200 animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 w-3/5 bg-gray-200 rounded animate-pulse" />
+              <div className="h-3 w-4/5 bg-gray-100 rounded animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <List
+      ref={listRef}
+      height={listHeight}
+      itemCount={rows.length}
+      itemSize={ROW_H}
+      width="100%"
+      overscanCount={6}
+      outerElementType={Outer}
+      itemData={itemData}
+      itemKey={(index) => rows[index]?.id ?? index}
+      onScroll={handleScroll}
+      onItemsRendered={({ visibleStartIndex }) => {
+        try {
+          const id = rows[visibleStartIndex]?.id;
+          if (id) sessionStorage.setItem(STORAGE_TOP_ID, String(id));
+        } catch {}
+      }}
+      className="divide-y divide-gray-100"
+    >
+      {Row}
+    </List>
+  );
+}
