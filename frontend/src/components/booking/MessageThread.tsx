@@ -116,6 +116,20 @@ const formatBytes = (bytes: number) => {
   return `${i === 0 ? Math.round(val) : val.toFixed(1)} ${sizes[i]}`;
 };
 
+// Convert a File to a data URL (no compression). For images this guarantees
+// the receiver can render without relying on static hosting.
+const fileToDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = (e) => reject(e);
+      reader.readAsDataURL(file);
+    } catch (e) {
+      reject(e);
+    }
+  });
+
 // Proxy backend static/media URLs through Next so iframes/audio are same-origin
 const toProxyPath = (url: string): string => {
   try {
@@ -2646,13 +2660,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       try {
         if (imageFiles.length > 0) {
-          // Immediately render optimistic bubbles with local blob URLs, then upload.
+          // Convert images to data URLs and send directly in the message payload.
+          // This guarantees the receiver can render the image without relying on
+          // static hosting paths or CDNs.
           let baseContent = newMessageContent;
           if (!baseContent.trim()) baseContent = '[Attachment]';
           const nowISO = gmt2ISOString();
+
+          // Prepare optimistic bubbles with data URLs
+          const dataUrls: string[] = [];
           for (let i = 0; i < imageFiles.length; i++) {
             const f = imageFiles[i];
-            const blobUrl = URL.createObjectURL(f);
+            const dataUrl = await fileToDataUrl(f);
+            dataUrls.push(dataUrl);
             const id = i === 0 ? tempId : (tempId - (i + 1));
             const optimistic: ThreadMessage = {
               id,
@@ -2662,7 +2682,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               content: i === 0 ? baseContent : '[Attachment]',
               message_type: 'USER',
               quote_id: null,
-              attachment_url: blobUrl,
+              attachment_url: dataUrl,
               visible_to: 'both',
               action: null,
               avatar_url: undefined,
@@ -2673,35 +2693,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               status: 'sending',
               reply_to_message_id: i === 0 ? (replyTarget?.id ?? null) : null,
               reply_to_preview: i === 0 && replyTarget ? replyTarget.content.slice(0, 120) : null,
-              local_preview_url: blobUrl,
             };
             setMessages((prev) => mergeMessages(prev, optimistic));
           }
 
-          // Upload and send multiple images sequentially for compatibility.
-          setIsUploadingAttachment(true);
-          const uploadedUrls: string[] = [];
-          for (let i = 0; i < imageFiles.length; i++) {
-            const f = imageFiles[i];
-            const res = await uploadMessageAttachment(
-              bookingRequestId,
-              f,
-              (evt) => {
-                if (evt.total) setUploadingProgress(Math.round((evt.loaded * 100) / evt.total));
-              },
-            );
-            uploadedUrls.push(res.data.url);
-          }
-
           // Send first image with text (or placeholder hidden later)
-          const firstUrl = uploadedUrls[0];
+          const firstUrl = dataUrls[0];
           const firstPayload: MessageCreate = { content: baseContent, attachment_url: firstUrl } as any;
 
           try {
             const res = await postMessageToBookingRequest(bookingRequestId, firstPayload);
             const real = { ...normalizeMessage(res.data), status: 'sent' as const } as ThreadMessage;
-            // Preserve local preview so the sender doesn't see a flicker or 404 while CDN warms
-            real.local_preview_url = (imageFiles.length > 0) ? (URL.createObjectURL(imageFiles[0])) : undefined as any;
             setMessages((prev) => {
               const byId = new Map<number, ThreadMessage>();
               for (const m of prev) if (m.id !== tempId) byId.set(m.id, m);
@@ -2722,8 +2724,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           }
 
           // Send remaining images as individual messages with hidden placeholder
-          for (let i = 1; i < uploadedUrls.length; i++) {
-            const url = uploadedUrls[i];
+          for (let i = 1; i < dataUrls.length; i++) {
+            const url = dataUrls[i];
             const payload: MessageCreate = { content: '[Attachment]', attachment_url: url } as any;
             const temp = tempId - (i + 1);
             try {
@@ -2731,15 +2733,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               const real = { ...normalizeMessage(res.data), status: 'sent' as const } as ThreadMessage;
               setMessages((prev) => {
                 const byId = new Map<number, ThreadMessage>();
-                let prevLocalPreview: string | null | undefined = null;
-                for (const m of prev) {
-                  if (m.id === temp) {
-                    prevLocalPreview = m.local_preview_url || (m.attachment_url && (/^(blob:|data:)/i.test(m.attachment_url) ? m.attachment_url : null));
-                    continue;
-                  }
-                  byId.set(m.id, m);
-                }
-                if (prevLocalPreview) real.local_preview_url = prevLocalPreview;
+                for (const m of prev) if (m.id !== temp) byId.set(m.id, m);
                 byId.set(real.id, real);
                 return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
               });
