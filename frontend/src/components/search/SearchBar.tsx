@@ -12,13 +12,14 @@ import {
 } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
-import { SearchFields, type Category, type SearchFieldId } from './SearchFields';
+import { SearchFields } from './SearchFields';
+import type { Category, SearchFieldId, ActivePopup } from './types';
 import useClickOutside from '@/hooks/useClickOutside';
 import { Transition } from '@headlessui/react';
 import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
 
-export type ActivePopup = SearchFieldId | null;
+// ActivePopup lives in './types' to avoid import cycles
 
 export interface SearchBarProps {
   category: Category | null;
