@@ -97,7 +97,9 @@ export default function ConversationList({
   }, [bookingRequests.length]);
 
   // After selecting a conversation, restore the previous scroll offset to avoid jumping to top.
+  const restoreAppliedRef = React.useRef(false);
   React.useLayoutEffect(() => {
+    if (restoreAppliedRef.current) return;
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
       const n = raw ? Number(raw) : 0;
@@ -106,16 +108,17 @@ export default function ConversationList({
         if (topId) {
           const index = bookingRequests.findIndex((r) => String(r.id) === topId);
           if (index >= 0) {
-            try { (listRef.current as any).scrollToItem?.(index, 'start'); return; } catch {}
+            try { (listRef.current as any).scrollToItem?.(index, 'start'); restoreAppliedRef.current = true; return; } catch {}
           }
         }
         if (Number.isFinite(n) && n >= 0) {
           const idx = Math.max(0, Math.round(n / ROW_HEIGHT));
           try { (listRef.current as any).scrollToItem?.(idx, 'start'); } catch { listRef.current.scrollTo(n); }
         }
+        restoreAppliedRef.current = true;
       }
     } catch {}
-  }, [selectedRequestId, bookingRequests]);
+  }, [bookingRequests.length]);
 
   // Always provide a bounded height so virtualization stays enabled on first paint.
   const DEFAULT_HEIGHT = typeof window !== 'undefined' ? Math.min(window.innerHeight * 0.7, 640) : 560;

@@ -904,7 +904,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     fetchInFlightRef.current = true;
     if (!initialLoadedRef.current) setLoading(true);
     try {
-      const res = await getMessagesForBookingRequest(bookingRequestId);
+      // Fetch the latest batch first for a fast initial paint
+      const res = await getMessagesForBookingRequest(bookingRequestId, { limit: 100 });
       // If the user switched threads while this request was in flight, ignore the result
       if (activeThreadRef.current !== bookingRequestId) {
         return;

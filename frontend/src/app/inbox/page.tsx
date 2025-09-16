@@ -58,6 +58,18 @@ export default function InboxPage() {
   // Header unread badge (live)
   const { count: unreadTotal } = useUnreadThreadsCount(30000);
 
+  // Preload the chat thread chunk after mount to avoid first-open lag
+  useEffect(() => {
+    try {
+      const schedule = (fn: () => void) => {
+        const ric = (window as any)?.requestIdleCallback as ((cb: () => void, opts?: any) => void) | undefined;
+        if (typeof ric === 'function') ric(fn, { timeout: 800 });
+        else setTimeout(fn, 200);
+      };
+      schedule(() => { void import('@/components/inbox/MessageThreadWrapper'); });
+    } catch {}
+  }, []);
+
   // Fast session cache for instant render on return navigations
   const CACHE_KEY = useMemo(() => {
     const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
@@ -131,14 +143,69 @@ export default function InboxPage() {
   const fetchAllRequests = useCallback(async () => {
     // Only show the page-level spinner if we have nothing yet
     if (allBookingRequests.length === 0) setLoadingRequests(true);
-    // Try unified threads index first (fast, server-joined). Fall back if not available.
+    // Small helper: timeout wrapper to avoid long hangs on slow networks
+    const withTimeout = <T,>(p: Promise<T>, ms = 3000, fallback?: T): Promise<T> => {
+      return new Promise<T>((resolve) => {
+        const to = setTimeout(() => resolve(fallback as T), ms);
+        p.then((v) => { clearTimeout(to); resolve(v); }).catch(() => { clearTimeout(to); resolve(fallback as T); });
+      });
+    };
+    // Try unified threads index first (fast, server-joined). Fall back quickly if slow.
     try {
       const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
-      const res = await getThreadsIndex(role as any, 50);
-      const items = res.data.items || [];
+      const res = await withTimeout(getThreadsIndex(role as any, 50), 3500, { data: { items: [] } } as any);
+      const items = (res?.data?.items || []) as any[];
+      // If index is empty (timeout or no data), try preview for a quick first paint
+      if (!items.length && allBookingRequests.length === 0) {
+        try {
+          const prev = await withTimeout(getMessageThreadsPreview(role as any, 50), 2500, { data: { items: [] } } as any);
+          const pitems = (prev?.data?.items || []) as any[];
+          if (pitems.length) {
+            const isArtist = user?.user_type === 'service_provider';
+            const mapped: BookingRequest[] = pitems.map((it: any) => ({
+              id: Number(it.thread_id || it.booking_request_id || it.id),
+              client_id: 0 as any,
+              service_provider_id: 0 as any,
+              status: (it.state as any) || 'pending_quote',
+              created_at: it.last_ts || it.last_message_at,
+              updated_at: it.last_ts || it.last_message_at,
+              last_message_content: (it.last_message_preview || it.last_message_snippet || ''),
+              last_message_timestamp: it.last_ts || it.last_message_at,
+              is_unread_by_current_user: Number((it.unread_count || 0)) > 0 as any,
+              unread_count: Number(it.unread_count || 0) as any,
+              message: null,
+              travel_mode: null,
+              travel_cost: null,
+              travel_breakdown: null,
+              proposed_datetime_1: null,
+              proposed_datetime_2: null,
+              attachment_url: null,
+              service_id: undefined,
+              service: undefined,
+              artist: undefined as any,
+              artist_profile: (!isArtist ? ({ business_name: (it.counterparty_name || (it.counterparty?.name) || ''), profile_picture_url: (it.counterparty_avatar_url || (it.counterparty?.avatar_url) || undefined) } as any) : undefined),
+              client: (isArtist ? ({ first_name: (it.counterparty_name || (it.counterparty?.name) || ''), profile_picture_url: (it.counterparty_avatar_url || (it.counterparty?.avatar_url) || undefined) } as any) : undefined),
+              accepted_quote_id: null,
+              sound_required: undefined as any,
+              ...(((it.counterparty_name || (it.counterparty?.name)) === 'Booka') ? { is_booka_synthetic: true } : {}),
+            } as any));
+            mapped.sort((a, b) => new Date(String((b as any).last_message_timestamp || b.updated_at || b.created_at)).getTime() -
+                                    new Date(String((a as any).last_message_timestamp || a.updated_at || a.created_at)).getTime());
+            setAllBookingRequests(mapped);
+            try {
+              const json = JSON.stringify(mapped);
+              sessionStorage.setItem(CACHE_KEY, json);
+              sessionStorage.setItem(LATEST_CACHE_KEY, json);
+              localStorage.setItem(persistKey, JSON.stringify({ ts: Date.now(), items: mapped }));
+            } catch {}
+          }
+        } catch {}
+      }
+      // If index returned items, use them now for instant list
+      if (items.length) {
       const isArtist = user?.user_type === 'service_provider';
-      const mapped: BookingRequest[] = items.map((it) => ({
-        id: it.thread_id,
+      const mapped: BookingRequest[] = items.map((it: any) => ({
+        id: Number(it.thread_id || it.booking_request_id || it.id),
         client_id: 0 as any,
         service_provider_id: 0 as any,
         status: (it.state as any) || 'pending_quote',
@@ -158,8 +225,8 @@ export default function InboxPage() {
         service_id: undefined,
         service: undefined,
         artist: undefined as any,
-        artist_profile: (!isArtist ? ({ business_name: it.counterparty_name, profile_picture_url: it.counterparty_avatar_url || undefined } as any) : undefined),
-        client: (isArtist ? ({ first_name: it.counterparty_name, profile_picture_url: it.counterparty_avatar_url || undefined } as any) : undefined),
+        artist_profile: (!isArtist ? ({ business_name: (it.counterparty_name || (it.counterparty?.name) || ''), profile_picture_url: (it.counterparty_avatar_url || (it.counterparty?.avatar_url) || undefined) } as any) : undefined),
+        client: (isArtist ? ({ first_name: (it.counterparty_name || (it.counterparty?.name) || ''), profile_picture_url: (it.counterparty_avatar_url || (it.counterparty?.avatar_url) || undefined) } as any) : undefined),
         accepted_quote_id: null,
         sound_required: undefined as any,
         ...(it.counterparty_name === 'Booka' ? { is_booka_synthetic: true } : {}),
@@ -178,6 +245,7 @@ export default function InboxPage() {
       setError(null);
       setLoadingRequests(false);
       return;
+      }
     } catch (e) {
       // fall through to legacy merge path
     }
