@@ -62,7 +62,7 @@ export const getFullImageUrl = (
   const stripLeading = sanitized.replace(/^\/+/, '');
   // Allow API image proxy paths to pass through without /static
   if (stripLeading.startsWith('api/')) {
-    let base = api.defaults.baseURL || '';
+    let base = apiBaseOrigin() || '';
     base = base.replace(/\/+$/, '');
     base = base.replace(/\/api(?:\/v\d+)?$/, '');
     return `${base}/${stripLeading}`;

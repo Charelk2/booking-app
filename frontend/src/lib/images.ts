@@ -1,20 +1,26 @@
 // frontend/src/lib/images.ts
-import api from '@/lib/api';
+// Avoid importing the axios instance here to prevent circular imports during
+// module evaluation in production bundles. Compute the API origin from env or
+// window at runtime.
+
+function apiBaseOrigin(): string {
+  const env = process.env.NEXT_PUBLIC_API_URL || '';
+  let base = env || '';
+  try {
+    if (!base && typeof window !== 'undefined') base = window.location.origin;
+    const u = new URL(base);
+    return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
+  } catch {
+    return '';
+  }
+}
 
 const MOUNTS = ['profile_pics', 'cover_photos', 'portfolio_images', 'attachments', 'media'] as const;
 const EXT_RE = /\.(png|jpg|jpeg|webp|gif|svg|avif)(\?|#|$)/i;
 
-function apiBaseOrigin(): string {
-  // Derive origin from NEXT_PUBLIC_API_URL or axios baseURL
-  const env = process.env.NEXT_PUBLIC_API_URL || '';
-  const base = env || api.defaults.baseURL || '';
-  try {
-    const u = new URL(base);
-    return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
-  } catch {
-    return 'https://api.booka.co.za';
-  }
-}
+// Note: we stopped falling back to a hardcoded origin to avoid mixed-origin
+// surprises; when origin cannot be derived, return empty and let callers
+// produce relative URLs.
 
 function ensureStaticPath(pathname: string): string {
   // Normalize to /static/{mount}/rest for known mounts
