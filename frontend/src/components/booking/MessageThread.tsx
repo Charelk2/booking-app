@@ -1748,8 +1748,515 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               </span>
             </div>
           )}
-          {/* The heavy per-message rendering remains as-is below; it will render the group's messages. */}
-          {/* Intentionally minimal here; the existing block later in the file renders bubbles & menus. */}
+          {/* Bubbles */}
+          {group.messages.map((msg, msgIdx) => {
+            const isMsgFromSelf = msg.sender_id === user?.id;
+            const isLastInGroup = msgIdx === group.messages.length - 1;
+
+            const isSystemMsg = isSystemMsgHelper(msg);
+
+            let bubbleShape = 'rounded-xl';
+            if (isSystemMsg) {
+              bubbleShape = 'rounded-lg';
+            } else if (isMsgFromSelf) {
+              bubbleShape = isLastInGroup ? 'rounded-br-none rounded-xl' : 'rounded-xl';
+            } else {
+              bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-xl' : 'rounded-xl';
+            }
+
+            const quoteId = Number(msg.quote_id);
+            const isQuoteMessage =
+              quoteId > 0 &&
+              (normalizeType(msg.message_type) === 'QUOTE' ||
+                (normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'review_quote'));
+
+            // Detect inline inquiry card payload even if message_type is not SYSTEM
+            try {
+              const raw = String((msg as any).content || '');
+              if (raw.startsWith('{') && raw.includes('inquiry_sent_v1')) {
+                const parsed = JSON.parse(raw);
+                const card = parsed?.inquiry_sent_v1;
+                if (card) {
+                  const alignClass = isMsgFromSelf ? 'ml-auto' : 'mr-auto';
+                  const dateOnly = card.date ? String(card.date).slice(0, 10) : null;
+                  const prettyDate = (() => {
+                    if (!dateOnly) return null;
+                    const d = new Date(dateOnly);
+                    return isValid(d) ? format(d, 'd LLL yyyy') : dateOnly;
+                  })();
+                  return (
+                    <div key={msg.id} className={`my-2 ${alignClass} w-full md:w-1/3 md:max-w-[480px] group relative`} role="group" aria-label="Inquiry sent">
+                      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-3">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] text-gray-600 font-medium">{t('system.inquirySent', 'Inquiry sent')}</div>
+                            <div className="mt-1 text-sm font-semibold text-gray-900 truncate">{card.title || t('system.listing', 'Listing')}</div>
+                          </div>
+                          {card.cover && (
+                            <SafeImage src={card.cover} alt="" width={56} height={56} className="ml-auto h-14 w-14 rounded-lg object-cover" sizes="56px" />
+                          )}
+                        </div>
+                        {(prettyDate || card.guests) && (
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[prettyDate, card.guests ? `${card.guests} guest${Number(card.guests) === 1 ? '' : 's'}` : null]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </div>
+                        )}
+                        {card.view && (
+                          <div className="mt-3">
+                            <a
+                              href={card.view}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-800 hover:text-white hover:no-underline focus:text-white active:text-white"
+                            >
+                              {t('system.viewListing', 'View listing')}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+              }
+            } catch {}
+
+            // Plain system line (except for special actions handled below)
+            if (isSystemMsg && msg.action !== 'view_booking_details' && msg.action !== 'review_quote') {
+              return (
+                <div key={msg.id} ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}>
+                  {renderSystemLine(msg)}
+                </div>
+              );
+            }
+
+            const bubbleBase = isMsgFromSelf
+              ? 'bg-blue-50 text-gray-900 whitespace-pre-wrap break-words'
+              : 'bg-gray-50 text-gray-900 whitespace-pre-wrap break-words';
+            const bubbleClasses = `${bubbleBase} ${bubbleShape}`;
+            const messageTime = format(new Date(msg.timestamp), 'HH:mm');
+
+            if (isQuoteMessage) {
+              const quoteData = quotes[quoteId];
+              if (!quoteData) return null;
+              const isClient = isClientViewFlag;
+              const isPaid = isPaidFlag;
+              return (
+                <div
+                  key={msg.id}
+                  id={`quote-${quoteId}`}
+                  className="mb-0.5 w-full"
+                  ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
+                >
+                  {isClient && quoteData.status === 'pending' && !isPaid && (
+                    <div className="my-2">
+                      <div className="flex items-center gap-3 text-gray-500">
+                        <div className="h-px flex-1 bg-gray-200" />
+                        <span className="text-[11px]">
+                          {t('quote.newFrom', 'New quote from {name}', { name: artistName || 'the artist' })}
+                        </span>
+                        <div className="h-px flex-1 bg-gray-200" />
+                      </div>
+                    </div>
+                  )}
+
+                  <MemoQuoteBubble
+                    quoteId={quoteId}
+                    description={quoteData.services[0]?.description || ''}
+                    price={Number(quoteData.services[0]?.price || 0)}
+                    soundFee={Number(quoteData.sound_fee)}
+                    travelFee={Number(quoteData.travel_fee)}
+                    accommodation={quoteData.accommodation || undefined}
+                    discount={Number(quoteData.discount) || undefined}
+                    subtotal={Number(quoteData.subtotal)}
+                    total={Number(quoteData.total)}
+                    status={
+                      quoteData.status === 'pending'
+                        ? 'Pending'
+                        : quoteData.status === 'accepted'
+                          ? 'Accepted'
+                          : quoteData.status === 'rejected' || quoteData.status === 'expired'
+                            ? 'Rejected'
+                            : 'Pending'
+                    }
+                    isClientView={isClientViewFlag}
+                    isPaid={isPaidFlag}
+                    expiresAt={quoteData.expires_at || undefined}
+                    eventDetails={eventDetails}
+                    providerName={artistName || 'Service Provider'}
+                    providerAvatarUrl={artistAvatarUrl || undefined}
+                    providerId={currentArtistId}
+                    cancellationPolicy={artistCancellationPolicy || undefined}
+                    paymentTerms={'Pay the full amount now via Booka secure checkout'}
+                    providerRating={bookingDetails?.service?.service_provider?.rating as any}
+                    providerRatingCount={bookingDetails?.service?.service_provider?.rating_count as any}
+                    providerVerified={true}
+                    mapUrl={(() => {
+                      const tb: any = (bookingRequest as any)?.travel_breakdown || {};
+                      const name = (parsedBookingDetails as any)?.location_name || tb.venue_name || tb.place_name || tb.location_name || '';
+                      const addr = (parsedBookingDetails as any)?.location || tb.address || tb.event_city || tb.event_town || (bookingRequest as any)?.service?.service_provider?.location || '';
+                      const q = [name, addr].filter(Boolean).join(', ');
+                      return (q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : undefined) as any;
+                    })()}
+                    includes={(() => {
+                      const arr: string[] = [];
+                      if (Number(quoteData.sound_fee) > 0) arr.push('Sound equipment');
+                      if (Number(quoteData.travel_fee) > 0) arr.push('Travel to venue');
+                      arr.push('Performance as described');
+                      return arr;
+                    })()}
+                    excludes={(() => {
+                      const arr: string[] = [];
+                      if (!Number(quoteData.sound_fee)) arr.push('Sound equipment');
+                      arr.push('Venue/Power/Stage');
+                      return arr;
+                    })()}
+                    onViewDetails={undefined}
+                    onAskQuestion={() => textareaRef.current?.focus()}
+                    onAccept={undefined}
+                    onPayNow={
+                      user?.user_type === 'client' && (quoteData.status === 'pending' || quoteData.status === 'accepted') && !isPaid && !isPaymentOpen
+                        ? async () => {
+                            try {
+                              if (quoteData.status === 'pending') {
+                                await handleAcceptQuote(quoteData);
+                              }
+                            } catch (e) {
+                              // If acceptance fails, surface error and abort payment
+                              console.error('Failed to accept quote', e);
+                              setThreadError('Could not accept the quote. Please try again.');
+                              return;
+                            }
+                            try {
+                              const amt = Number(quoteData.total || 0);
+                              openPaymentModal({ bookingRequestId, amount: amt } as any);
+                            } catch (e) {
+                              console.error('Payment modal error', e);
+                            }
+                          }
+                        : undefined
+                    }
+                  />
+
+                  {/* Guidance notes for artists when client needs to act */}
+                  {user?.user_type === 'service_provider' && quoteData.status === 'pending' && (
+                    <div className="mt-3">
+                      <div className="flex items-start gap-2 rounded-lg bg-gray-50 text-gray-600 text-[12px] px-3 py-2 border border-gray-100">
+                        <InformationCircleIcon className="h-4 w-4 text-gray-400 mt-0.5" />
+                        <div>
+                          <p className="text-[11px] text-gray-600">
+                            Pending client action — we’ll notify you when they respond.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // Reveal images lazily – declared in top-level version; keep minimal here
+            const reactionMapForMsg = ((reactions[msg.id] || (msg.reactions as any) || {}) as Record<string, number>);
+            const hasReactionsForMsg = Object.entries(reactionMapForMsg).some(([, c]) => (Number(c) > 0));
+
+            return (
+              <div
+                key={msg.id}
+                id={`msg-${msg.id}`}
+                className={`group relative inline-block select-none w-auto max-w-[75%] ${isImageAttachment(msg.attachment_url || undefined) ? 'p-0 bg-transparent rounded-xl' : 'px-3 py-2'} text-[13px] leading-snug ${bubbleClasses} ${isImageAttachment(msg.attachment_url || undefined) ? 'bg-transparent' : ''} ${hasReactionsForMsg ? 'mb-5' : (msgIdx < group.messages.length - 1 ? 'mb-0.5' : '')} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'} ${highlightFor === msg.id ? 'ring-1 ring-indigo-200' : ''}`}
+                ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
+                onTouchStart={(e) => startLongPress(msg.id, e)}
+                onTouchMove={moveLongPress}
+                onTouchEnd={endLongPress}
+                onTouchCancel={(e) => endLongPress(e)}
+                style={{ WebkitTouchCallout: 'none' } as any}
+              >
+                {/* Desktop hover extender zones: make hover area span full row side */}
+                {isMsgFromSelf ? (
+                  <div className="hidden md:block absolute inset-y-0 left-0 -translate-x-full w-screen" aria-hidden="true" />
+                ) : (
+                  <div className="hidden md:block absolute inset-y-0 right-0 translate-x-full w-screen" aria-hidden="true" />
+                )}
+                <div className={isImageAttachment(msg.attachment_url || undefined) ? '' : 'pr-9'}>
+                  {msg.reply_to_preview && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        msg.reply_to_message_id &&
+                        scrollToMessage(msg.reply_to_message_id)
+                      }
+                      className="mb-1 w-full rounded bg-gray-200 text-left text-[12px] text-gray-700 px-2 py-1 border-l-2  border-gray-800 cursor-pointer "
+                      title="View replied message"
+                    >
+                      <span className="line-clamp-2 break-words">
+                        {msg.reply_to_preview}
+                      </span>
+                    </button>
+                  )}
+                  {!isMsgFromSelf && !msg.is_read && (
+                    <span className="" aria-label="Unread message" />
+                  )}
+
+                  <>
+                    {(() => {
+                      // Suppress placeholder labels; style non-image attachments like a reply header box
+                      const url = msg.attachment_url ? (getFullImageUrl(msg.attachment_url) as string) : '';
+                      const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
+                      const isImage = isImageAttachment(msg.attachment_url || undefined);
+                      const contentLower = String(msg.content || '').trim().toLowerCase();
+                      const isVoicePlaceholder = contentLower === '[voice note]';
+                      const isAttachmentPlaceholder = contentLower === '[attachment]';
+                      if (isAudio && isVoicePlaceholder) return null; // legacy voice-note placeholder hidden
+                      if (isImage && isAttachmentPlaceholder) return null; // hide generic attachment label for images
+                      // For non-image attachments, render a reply-style header with file label; no text body below
+                      if (!isImage && msg.attachment_url) {
+                        let label = String(msg.content || '').trim();
+                        if (!label || isAttachmentPlaceholder) {
+                          try {
+                            label = decodeURIComponent((url.split('?')[0].split('/').pop() || 'Attachment'));
+                          } catch {
+                            label = 'Attachment';
+                          }
+                        }
+                        // Pick an icon by extension
+                        let IconComp: React.ComponentType<React.SVGProps<SVGSVGElement>> | null = DocumentTextIcon;
+                        try {
+                          const clean = url.split('?')[0];
+                          const ext = (clean.split('.').pop() || '').toLowerCase();
+                          if (['mp3','m4a','ogg','webm','wav'].includes(ext)) IconComp = MusicalNoteIcon;
+                          else if (ext === 'pdf') IconComp = DocumentIcon;
+                          else if (['doc','docx','txt','rtf','ppt','pptx','xls','xlsx','csv','md'].includes(ext)) IconComp = DocumentTextIcon;
+                          else IconComp = PaperClipIcon;
+                        } catch { IconComp = DocumentTextIcon; }
+                        return (
+                          <div
+                            className={`mb-3 w-full rounded bg-gray-200 text-left text-[12px] text-gray-700 px-2 py-1 ${!isAudio ? 'cursor-pointer' : ''}`}
+                            title={label}
+                            role={!isAudio ? 'button' : undefined}
+                            tabIndex={!isAudio ? 0 : undefined}
+                            onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); } : undefined}
+                            onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toProxyPath(url)); } } : undefined}
+                          >
+                            <span className="inline-flex items-center gap-1.5">
+                              {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600" /> : null}
+                              <span className="line-clamp-2 break-words">{label}</span>
+                            </span>
+                          </div>
+                        );
+                      }
+                      return msg.content;
+                    })()}
+                    {msg.attachment_url && (
+                      (() => {
+                        const url = getFullImageUrl(msg.attachment_url) as string;
+                        const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
+                        if (isImageAttachment(msg.attachment_url)) {
+                          return (
+                            <div className="relative mt-0 inline-block w-full">
+                              <button
+                                type="button"
+                                onClick={() => openImageModalForUrl(url)}
+                                className="block"
+                                aria-label="Open image"
+                              >
+                                <SafeImage
+                                  src={url}
+                                  alt="Image attachment"
+                                  width={600}
+                                  height={600}
+                                  className="block w-full h-auto rounded-xl"
+                                />
+                              </button>
+                            </div>
+                          );
+                        }
+                        if (isAudio) {
+                          return (
+                            <div className="mt-1 inline-block">
+                              <audio
+                                className="w-56 cursor-pointer"
+                                controls
+                                src={url}
+                                preload="metadata"
+                                onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); }}
+                              />
+                            </div>
+                          );
+                        }
+                        return null; // header is the clickable element for non-image, non-audio files
+                      })()
+                    )}
+                  </>
+                </div>
+
+                {/* Time & status */}
+                <div className="absolute bottom-0 right-1 text-[10px] text-gray-500 select-none">
+                  <span className="tabular-nums">{messageTime}</span>
+                </div>
+
+                {/* Hover actions (desktop): small chevron button to open menu */}
+                {(() => {
+                  const looksLikeMessage = typeof msg.content === 'string' && msg.content.trim().length > 0;
+                  const content = String(msg.content || '');
+                  const hasReply = Boolean(msg.reply_to_preview);
+                  const isLikelyOneLine = looksLikeMessage && !hasReply && !content.includes('\n') && content.length <= 36;
+                  const chevronPos = isLikelyOneLine ? 'bottom-4 right-1' : 'top-1 right-1';
+                  return (
+                    <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity`}>
+                      <button
+                        type="button"
+                        title="More"
+                        className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReactionPickerFor(null);
+                          setActionMenuFor((v) => (v === msg.id ? null : msg.id));
+                        }}
+                      >
+                        <ChevronDownIcon className="w-3 h-3" />
+                      </button>
+                      {actionMenuFor === msg.id && !(isMobile && !isMsgFromSelf) && (
+                        <div
+                          ref={actionMenuRef}
+                          className={`absolute bottom-full ${isMsgFromSelf ? 'right-0' : 'left-0'} z-20 min-w-[160px] rounded-md border border-gray-200 bg-white shadow-lg`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                            onClick={() => {
+                              try {
+                                const parts: string[] = [];
+                                if (msg.content) parts.push(msg.content);
+                                if (msg.attachment_url) parts.push(getFullImageUrl(msg.attachment_url) as string);
+                                void navigator.clipboard.writeText(parts.join('\n'));
+                              } catch (e) {
+                                console.error('Copy failed', e);
+                              } finally {
+                                setActionMenuFor(null);
+                                setCopiedFor(msg.id);
+                                setHighlightFor(msg.id);
+                                setTimeout(() => {
+                                  setCopiedFor((v) => (v === msg.id ? null : v));
+                                  setHighlightFor((v) => (v === msg.id ? null : v));
+                                }, 1200);
+                              }
+                            }}
+                          >
+                            Copy
+                          </button>
+                          <button
+                            type="button"
+                            className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                            onClick={() => {
+                              setReplyTarget(msg);
+                              setReactionPickerFor(null);
+                              setActionMenuFor(null);
+                            }}
+                          >
+                            Reply
+                          </button>
+                          <button
+                            type="button"
+                            className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                            onClick={() => {
+                              setActionMenuFor(null);
+                              setReactionPickerFor(msg.id);
+                            }}
+                          >
+                            React
+                          </button>
+                          {msg.attachment_url && (
+                            <button
+                              type="button"
+                              className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                              onClick={async () => {
+                                try {
+                                  const url = getFullImageUrl(msg.attachment_url!) as string;
+                                  const res = await fetch(url, { credentials: 'include' as RequestCredentials });
+                                  if (!res.ok) throw new Error(String(res.status));
+                                  const blob = await res.blob();
+                                  const a = document.createElement('a');
+                                  const objectUrl = URL.createObjectURL(blob);
+                                  a.href = objectUrl;
+                                  a.download = url.split('/').pop() || 'file';
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  a.remove();
+                                  URL.revokeObjectURL(objectUrl);
+                                } catch (err) {
+                                  try { window.open(getFullImageUrl(msg.attachment_url!) as string, '_blank', 'noopener,noreferrer'); } catch {}
+                                } finally {
+                                  setActionMenuFor(null);
+                                }
+                              }}
+                            >
+                              Download
+                            </button>
+                          )}
+                          {isMsgFromSelf && (
+                            <button
+                              type="button"
+                              className="block w-full text-left px-3 py-2 text-[12px] text-red-600 hover:bg-red-50"
+                              onClick={async () => {
+                                setActionMenuFor(null);
+                                const ok = typeof window !== 'undefined' ? window.confirm('Delete this message?') : true;
+                                if (!ok) return;
+                                const snapshot = messages;
+                                setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                                try {
+                                  const bid = bookingDetails?.id || (parsedBookingDetails as any)?.id;
+                                  if (bid) await deleteMessageForBookingRequest(bookingRequestId, msg.id);
+                                } catch (e) {
+                                  setMessages(snapshot);
+                                  console.error('Delete failed', e);
+                                  alert('Could not delete this message.');
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Reaction picker */}
+                {reactionPickerFor === msg.id && (
+                  <>
+                    {/* Desktop/Tablet anchored picker */}
+                    <div
+                      ref={reactionPickerRefDesktop}
+                      className={`hidden sm:block absolute -top-10 z-30 pointer-events-auto ${
+                        isMsgFromSelf ? 'left-1/2 transform -translate-x-full' : 'left-1/2'
+                      }`}
+                    >
+                      <ReactionBar id={msg.id} />
+                    </div>
+                  </>
+                )}
+
+                {/* Reactions badge: bottom-left of bubble for both sender and receiver.
+                    Sits half inside, half outside the bubble for emphasis. */}
+                {(Object.entries(reactionMapForMsg).some(([, c]) => Number(c) > 0)) && (
+                  <div className="absolute left-2 -bottom-3 z-20">
+                    <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] text-gray-700 shadow-sm">
+                      {Object.entries(reactionMapForMsg)
+                        .filter(([, c]) => Number(c) > 0)
+                        .map(([k, c]) => (
+                          <span key={k} className="leading-none">
+                            {k} {c}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </React.Fragment>
     );
