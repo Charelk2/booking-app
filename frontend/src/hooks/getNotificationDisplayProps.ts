@@ -1,10 +1,19 @@
-import type { ComponentProps } from 'react';
-import NotificationCard from '@/components/ui/NotificationCard';
+// Avoid runtime imports of UI components to prevent circular dependencies in
+// production builds. Define the shape used by NotificationCard inline.
 import { parseItem } from '@/components/layout/NotificationListItem';
 import { toUnifiedFromNotification } from './notificationUtils';
 import type { Notification, UnifiedNotification } from '@/types';
 
-export type NotificationCardProps = ComponentProps<typeof NotificationCard>;
+export interface NotificationCardProps {
+  type: 'confirmed' | 'reminder' | 'due' | string;
+  from: string;
+  createdAt: string | number | Date;
+  unread: boolean;
+  onClick: () => void;
+  avatarUrl?: string | null;
+  subtitle?: string;
+  metadata?: string;
+}
 
 /**
  * Convert a Notification or UnifiedNotification into NotificationCard props.
