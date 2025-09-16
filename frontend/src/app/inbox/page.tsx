@@ -32,6 +32,7 @@ import {
 import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
 
 export default function InboxPage() {
   const { user, loading: authLoading } = useAuth();
@@ -52,6 +53,8 @@ export default function InboxPage() {
   const ensureTriedRef = useRef(false);
   // Debounce focus/visibility-triggered refreshes
   const lastRefreshAtRef = useRef<number>(0);
+  // Header unread badge (live)
+  const { count: unreadTotal } = useUnreadThreadsCount(30000);
 
   // Fast session cache for instant render on return navigations
   const CACHE_KEY = useMemo(() => {
@@ -602,6 +605,10 @@ export default function InboxPage() {
           is_unread_by_current_user: false as any,
           unread_count: 0 as any,
         }) : r)));
+        if (typeof window !== 'undefined') {
+          // Let header badges and other listeners refresh immediately
+          window.dispatchEvent(new Event('threads:updated'));
+        }
       } catch {}
       // Best-effort backend update; UI already updated
       try { await markThreadRead(id); } catch {}
@@ -663,7 +670,17 @@ export default function InboxPage() {
             className="w-full px-4 md:w-1/4 lg:w-1/4 border-gray-100 flex-shrink-0 h-full min-h-0 flex flex-col overflow-hidden border-gray-100"
           >
             <div className="p-3 sticky top-0 z-10 bg-white space-y-2 border-b border-gray-100">
-              <h1 className="text-xl font-semibold">Messages</h1>
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-semibold">Messages</h1>
+                {unreadTotal > 0 && (
+                  <span
+                    aria-label={`${unreadTotal} unread messages`}
+                    className="inline-flex items-center justify-center rounded-full bg-black text-white min-w-[22px] h-6 px-2 text-xs font-semibold"
+                  >
+                    {unreadTotal > 99 ? '99+' : unreadTotal}
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <input
                   type="text"
@@ -715,6 +732,7 @@ export default function InboxPage() {
             )}
             {selectedBookingRequestId ? (
               <MessageThreadWrapper
+                key={selectedBookingRequestId}
                 bookingRequestId={selectedBookingRequestId}
                 bookingRequest={selectedRequest}
                 setShowReviewModal={setShowReviewModal}

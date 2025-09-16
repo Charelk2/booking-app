@@ -12,7 +12,8 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
   const refresh = useCallback(async () => {
     if (loading || !user) return; // Skip when unauthenticated or not ready
     try {
-      const res = await getMessageThreadsPreview();
+      const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
+      const res = await getMessageThreadsPreview(role as any);
       const items = res.data?.items || [];
       let total = items.reduce((acc, it) => acc + (Number(it.unread_count || 0) || 0), 0);
       // Fallback: if preview has no items (e.g., artist with no requests yet),
