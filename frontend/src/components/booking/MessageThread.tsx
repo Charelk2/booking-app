@@ -55,9 +55,9 @@ import {
     markMessagesRead,
     markThreadRead,
     updateBookingRequestArtist,
-    useAuth,
     deleteMessageForBookingRequest,
   } from '@/lib/api';
+  import { useAuth } from '@/contexts/AuthContext';
 
 import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';

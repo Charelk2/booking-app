@@ -7,6 +7,7 @@ import SafeImage from '@/components/ui/SafeImage';
 
 import { Booking, BookingRequest, QuoteV2 } from '@/types';
 import * as api from '@/lib/api';
+import { useAuth as useContextAuth } from '@/contexts/AuthContext';
 import { getFullImageUrl } from '@/lib/utils';
 
 import MessageThread from '../booking/MessageThread';
@@ -47,7 +48,7 @@ export default function MessageThreadWrapper({
   const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(null);
 
   const [isUserArtist, setIsUserArtist] = useState(false);
-  const { user } = api.useAuth();
+  const { user } = useContextAuth();
   const router = useRouter();
 
   useEffect(() => {

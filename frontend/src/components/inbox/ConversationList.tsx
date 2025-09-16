@@ -312,12 +312,7 @@ export default function ConversationList({
                 onSelectRequest(req.id);
               }
             }}
-            onClickCapture={(e) => {
-              // Ensure row selection always handles navigation within SPA
-              e.preventDefault();
-              e.stopPropagation();
-              onSelectRequest(req.id);
-            }}
+            
             onKeyPress={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 onSelectRequest(req.id);
