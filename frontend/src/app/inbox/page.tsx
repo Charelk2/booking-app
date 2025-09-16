@@ -25,6 +25,7 @@ import {
   ensureBookaThread,
   getMyBookingRequests,
   getBookingRequestsForArtist,
+  markThreadRead,
 } from '@/lib/api';
 import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
@@ -601,7 +602,7 @@ export default function InboxPage() {
         }) : r)));
       } catch {}
       // Best-effort backend update; UI already updated
-      try { const m = await import('@/lib/api'); await m.markThreadRead(id); } catch {}
+      try { await markThreadRead(id); } catch {}
       const params = new URLSearchParams(searchParams.toString());
       const selected = allBookingRequests.find((r) => r.id === id) as any;
       const isBooka = Boolean(selected?.is_booka_synthetic);
