@@ -26,11 +26,12 @@ export const getFullImageUrl = (
   if (
     sanitized.startsWith('http://') ||
     sanitized.startsWith('https://') ||
-    sanitized.startsWith('data:')
+    sanitized.startsWith('data:') ||
+    sanitized.startsWith('blob:')
   ) {
     // Guard against non-image external URLs (e.g., social profile pages)
     try {
-      if (sanitized.startsWith('data:')) return sanitized;
+      if (sanitized.startsWith('data:') || sanitized.startsWith('blob:')) return sanitized;
       const u = new URL(sanitized);
       const host = u.hostname.toLowerCase();
       const origPath = u.pathname; // preserve case
