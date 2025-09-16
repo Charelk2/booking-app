@@ -2,7 +2,7 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { AxiosResponse } from 'axios';
 import MainLayout from '@/components/layout/MainLayout';
 // Corrected import path for AuthContext (assuming it's directly in contexts)
@@ -111,7 +111,8 @@ export default function InboxPage() {
   }, []);
 
   // Measure available height for the conversation list so it scrolls within the pane
-  useEffect(() => {
+  // Use layout effect to ensure the first paint already has a bounded height.
+  useLayoutEffect(() => {
     const el = document.getElementById('conversation-list-body');
     if (!el) return;
     const compute = () => setListHeight(el.clientHeight || 0);
