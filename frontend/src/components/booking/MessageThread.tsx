@@ -128,6 +128,32 @@ const daySeparatorLabel = (date: Date) => {
   return format(date, 'EEE, d LLL');
 };
 
+// --- Per-thread session cache for instant switches --------------------------
+const THREAD_CACHE_PREFIX = 'inbox:thread';
+function cacheKeyForThread(id: number) {
+  return `${THREAD_CACHE_PREFIX}:${id}:messages`;
+}
+function readCachedMessages(threadId: number): ThreadMessage[] | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = sessionStorage.getItem(cacheKeyForThread(threadId));
+    if (!raw) return null;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return null;
+    const msgs = arr.map((m: any) => normalizeMessage(m)).filter((m: any) => Number.isFinite(m.id));
+    return msgs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  } catch {
+    return null;
+  }
+}
+function writeCachedMessages(threadId: number, messages: ThreadMessage[]) {
+  try {
+    if (typeof window === 'undefined') return;
+    const slice = messages.slice(Math.max(0, messages.length - 200));
+    sessionStorage.setItem(cacheKeyForThread(threadId), JSON.stringify(slice));
+  } catch {}
+}
+
 // ===== Internal thread message shape =========================================
 // Keeps the UI happy even if backend or global types lag during the migration.
 type SenderTypeAny = 'client' | 'artist' | 'service_provider';
@@ -940,57 +966,57 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       setParsedBookingDetails(parsedDetails);
       if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
 
-      // Mark as read (best effort). Also update thread unread counts.
+      // Render immediately and cache
+      setMessages((prev) => mergeMessages(prev.length ? prev : [], normalized));
+      writeCachedMessages(bookingRequestId, normalized);
+      setThreadError(null);
+      setLoading(false);
+      initialLoadedRef.current = true; // open realtime gate now
+      try {
+        if (wsBufferRef.current.length) {
+          setMessages((prev) => mergeMessages(prev, wsBufferRef.current));
+          wsBufferRef.current = [];
+        }
+      } catch {}
+
+      // Fire-and-forget: mark as read and bump header badges
       try {
         const hasUnread = normalized.some((m) => m.sender_id !== user?.id && !m.is_read);
-        if (hasUnread) {
-          await markMessagesRead(bookingRequestId);
-        }
-        try { await markThreadRead(bookingRequestId); } catch {}
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('threads:updated'));
-        }
-      } catch (err) {
-        console.error('Failed to mark messages read:', err);
-      }
+        if (hasUnread) void markMessagesRead(bookingRequestId);
+        void markThreadRead(bookingRequestId);
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('threads:updated'));
+      } catch {}
 
-      // Ensure quotes referenced are hydrated (batch first, then per-id for any still missing)
-      try {
-        const qids = Array.from(new Set(
-          normalized
-            .map((m) => Number(m.quote_id))
-            .filter((qid) => qid > 0)
-        ));
-        const missing = qids.filter((id) => !quotes[id]);
-        if (missing.length) {
-          const batch = await getQuotesBatch(missing);
-          const got = Array.isArray(batch.data) ? batch.data : [];
-          if (got.length) {
-            setQuotes((prev) => ({
-              ...prev,
-              ...Object.fromEntries(got.map((q: any) => [q.id, q])),
-            }));
+      // Background: hydrate quotes (batch first, then per-id)
+      (async () => {
+        try {
+          const qids = Array.from(new Set(
+            normalized.map((m) => Number(m.quote_id)).filter((qid) => qid > 0)
+          ));
+          const missing = qids.filter((id) => !quotes[id]);
+          if (missing.length) {
+            const batch = await getQuotesBatch(missing);
+            const got = Array.isArray(batch.data) ? batch.data : [];
+            if (got.length) {
+              setQuotes((prev) => ({
+                ...prev,
+                ...Object.fromEntries(got.map((q: any) => [q.id, q])),
+              }));
+            }
+            const receivedIds = new Set<number>(got.map((q: any) => Number(q?.id)).filter((n) => !Number.isNaN(n)));
+            const stillMissing = missing.filter((id) => !receivedIds.has(id));
+            for (const id of stillMissing) {
+              try { await ensureQuoteLoaded(id); } catch {}
+            }
           }
-          // Some backends only batch-return legacy quotes; hydrate any V2 IDs individually
-          const receivedIds = new Set<number>(got.map((q: any) => Number(q?.id)).filter((n) => !Number.isNaN(n)));
-          const stillMissing = missing.filter((id) => !receivedIds.has(id));
-          for (const id of stillMissing) {
-            try { await ensureQuoteLoaded(id); } catch {}
+        } catch (e) {
+          for (const m of normalized) {
+            const qid = Number(m.quote_id);
+            const isQuote = qid > 0 && (normalizeType(m.message_type) === 'QUOTE' || (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
+            if (isQuote) void ensureQuoteLoaded(qid);
           }
         }
-      } catch (e) {
-        // Fall back to per-quote fetch
-        for (const m of normalized) {
-          const qid = Number(m.quote_id);
-          const isQuote =
-            qid > 0 &&
-            (normalizeType(m.message_type) === 'QUOTE' ||
-              (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
-          if (isQuote) void ensureQuoteLoaded(qid);
-        }
-      }
-
-      setMessages((prev) => mergeMessages(prev.length ? prev : [], normalized));
+      })();
       // hydrate reactions and my reactions from response if present
       try {
         const newReactions: Record<number, Record<string, number>> = {};
@@ -1002,20 +1028,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (Object.keys(newReactions).length) setReactions((prev) => ({ ...prev, ...newReactions }));
         if (Object.keys(newMine).length) setMyReactions((prev) => ({ ...prev, ...newMine }));
       } catch {}
-      setThreadError(null);
     } catch (err) {
       console.error('Failed to fetch messages:', err);
       setThreadError(`Failed to load messages. ${(err as Error).message || 'Please try again.'}`);
     } finally {
-      setLoading(false);
-      initialLoadedRef.current = true; // <— gate opens: WS can merge now
-      // Flush any buffered realtime messages that arrived during initial load
-      try {
-        if (wsBufferRef.current.length) {
-          setMessages((prev) => mergeMessages(prev, wsBufferRef.current));
-          wsBufferRef.current = [];
-        }
-      } catch {}
       // Defer initial scroll to a layout effect to avoid any visible jump
       stabilizingRef.current = true;
       if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current);
@@ -1075,6 +1091,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     setThreadError(null);
     setLoading(true);
     initialLoadedRef.current = false;
+  }, [bookingRequestId]);
+
+  // Hydrate from cache immediately on thread switch for instant paint
+  useEffect(() => {
+    const cached = readCachedMessages(bookingRequestId);
+    if (cached && cached.length) {
+      setMessages(cached);
+      setLoading(false);
+      // Keep gate closed; realtime merges will flush after fresh fetch
+    }
   }, [bookingRequestId]);
 
   // Ensure the thread starts anchored at bottom on first load, without a noticeable scroll

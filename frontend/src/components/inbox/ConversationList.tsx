@@ -6,6 +6,7 @@ import { BookingRequest, User } from '@/types';
 import { FixedSizeList as List } from 'react-window';
 import type { CSSProperties } from 'react';
 import React from 'react';
+import { getMessagesForBookingRequest } from '@/lib/api';
 
 interface ConversationListProps {
   bookingRequests: BookingRequest[];
@@ -118,6 +119,44 @@ export default function ConversationList({
   // Auto-height by default: expand to fit all rows so the list doesn't force its own scrollbar.
   // If a specific height is provided via prop, honor it.
   const listHeight = height ?? ROW_HEIGHT * bookingRequests.length;
+
+  // --- Lightweight prefetch of top conversations for instant open ---------
+  const prefetchingRef = React.useRef<Set<number>>(new Set());
+  const cacheKeyForThread = (id: number) => `inbox:thread:${id}:messages`;
+  const hasCached = (id: number) => {
+    try { return typeof window !== 'undefined' && !!sessionStorage.getItem(cacheKeyForThread(id)); } catch { return false; }
+  };
+  const prefetchThread = React.useCallback(async (id: number) => {
+    if (!id) return;
+    if (prefetchingRef.current.has(id)) return;
+    if (hasCached(id)) return;
+    prefetchingRef.current.add(id);
+    try {
+      const res = await getMessagesForBookingRequest(id);
+      const arr = Array.isArray(res.data) ? res.data : [];
+      try { sessionStorage.setItem(cacheKeyForThread(id), JSON.stringify(arr.slice(-200))); } catch {}
+    } catch {
+      // ignore network/cache errors – best effort
+    } finally {
+      prefetchingRef.current.delete(id);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!bookingRequests.length) return;
+    const top = bookingRequests.slice(0, Math.min(5, bookingRequests.length));
+    // Prefer rows with unread first
+    const prioritized = [...top].sort((a, b) => (Number((b as any).unread_count || 0) - Number((a as any).unread_count || 0)));
+    const ids = prioritized.slice(0, Math.min(3, prioritized.length)).map((r) => r.id);
+    const schedule = (fn: () => void) => {
+      try {
+        const ric = (window as any)?.requestIdleCallback as ((cb: () => void, opts?: any) => void) | undefined;
+        if (typeof ric === 'function') ric(fn, { timeout: 800 });
+        else setTimeout(fn, 50);
+      } catch { setTimeout(fn, 50); }
+    };
+    schedule(() => { ids.forEach((id) => { void prefetchThread(id); }); });
+  }, [bookingRequests, prefetchThread]);
 
   // Outer wrapper that suppresses anchor navigation inside the list.
   // IMPORTANT: Pass a stable component reference to react-window to avoid remounting the scroller.
@@ -304,6 +343,7 @@ export default function ConversationList({
             aria-selected={isActive}
             tabIndex={0}
             onClick={() => onSelectRequest(req.id)}
+            onMouseEnter={() => prefetchThread(req.id)}
             onMouseDownCapture={(e) => {
               const t = e.target as HTMLElement;
               // If a link is clicked inside the row (e.g., auto-linked URL in preview), prevent navigation.
