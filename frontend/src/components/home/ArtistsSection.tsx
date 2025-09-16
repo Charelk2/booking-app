@@ -42,7 +42,11 @@ export default function ArtistsSection({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const sectionRef = useRef<HTMLElement | null>(null);
-  const [shouldFetch, setShouldFetch] = useState(() => !initialData || initialData.length === 0);
+  // Defer fetching until the section becomes visible, unless we already have server-provided data
+  const [shouldFetch, setShouldFetch] = useState(() => {
+    if (initialData && initialData.length > 0) return false; // no need to fetch immediately
+    return deferUntilVisible ? false : true;
+  });
 
   const serializedQuery = useMemo(() => JSON.stringify(query), [query]);
 
@@ -55,10 +59,11 @@ export default function ArtistsSection({
   // Observe visibility to avoid fetching offscreen sections on first load
   useEffect(() => {
     if (!deferUntilVisible) { setShouldFetch(true); return; }
-    if (!shouldFetch) return; // either we have data or already fetched
-    let observer: IntersectionObserver | null = null;
+    // If we already decided to fetch (or have data), do nothing
+    if (shouldFetch) return;
     const el = sectionRef.current;
     if (!el) { setShouldFetch(true); return; }
+    let observer: IntersectionObserver | null = null;
     try {
       observer = new IntersectionObserver((entries) => {
         const entry = entries[0];
