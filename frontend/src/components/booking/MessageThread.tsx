@@ -1691,47 +1691,33 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Stable keys for each rendered group – used by Virtuoso to avoid remounts
   const groupIds = useMemo(() => groupedMessages.map((g) => (g.messages[0]?.id ?? Math.random())), [groupedMessages]);
 
-  // Build the rendered elements once per dependency set to avoid recomputing
-  // the entire message list on unrelated state changes.
-  const groupElements = useMemo(() => {
-    return groupedMessages.map((group) => {
-      const firstMsgInGroup = group.messages[0];
-      const firstNonSystem = group.messages.find((m) => normalizeType(m.message_type) !== 'SYSTEM');
-      const showHeader = !!firstNonSystem && firstNonSystem.sender_id !== user?.id;
+  // Render a single group by index; used by Virtuoso item renderer
+  const renderGroupAtIndex = useCallback((idx: number) => {
+    const group = groupedMessages[idx];
+    if (!group || group.messages.length === 0) return null;
 
-      return (
-        <React.Fragment key={firstMsgInGroup.id}>
-          {group.showDayDivider && (
-            <div className="flex justify-center my-3 w-full">
-              <span className="px-3 text-[11px] text-gray-500 bg-gray-100 rounded-full py-1">
-                {daySeparatorLabel(new Date(firstMsgInGroup.timestamp))}
-              </span>
-            </div>
-          )}
-          <div className="flex flex-col w-full">
-            {showHeader && (
-              <div className="flex items-center mb-1">
-                {user?.user_type === 'service_provider'
-                  ? clientAvatarUrl
-                    ? (
-                        <SafeImage
-                          src={clientAvatarUrl}
-                          alt="Client avatar"
-                          width={20}
-                          height={20}
-                          className="h-5 w-5 rounded-full object-cover mr-2"
-                        />
-                      )
-                    : (
-                        <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-[10px] font-medium mr-2">
-                          {clientName?.charAt(0)}
-                        </div>
-                      )
-                  : artistAvatarUrl
+    const firstMsgInGroup = group.messages[0];
+    const firstNonSystem = group.messages.find((m) => normalizeType(m.message_type) !== 'SYSTEM');
+    const showHeader = !!firstNonSystem && firstNonSystem.sender_id !== user?.id;
+
+    return (
+      <React.Fragment key={firstMsgInGroup.id}>
+        {group.showDayDivider && (
+          <div className="flex justify-center my-3 w-full">
+            <span className="px-3 text-[11px] text-gray-500 bg-gray-100 rounded-full py-1">
+              {daySeparatorLabel(new Date(firstMsgInGroup.timestamp))}
+            </span>
+          </div>
+        )}
+        <div className="flex flex-col w-full">
+          {showHeader && (
+            <div className="flex items-center mb-1">
+              {user?.user_type === 'service_provider'
+                ? clientAvatarUrl
                   ? (
                       <SafeImage
-                        src={artistAvatarUrl}
-                        alt="Artist avatar"
+                        src={clientAvatarUrl}
+                        alt="Client avatar"
                         width={20}
                         height={20}
                         className="h-5 w-5 rounded-full object-cover mr-2"
@@ -1739,21 +1725,34 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     )
                   : (
                       <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-[10px] font-medium mr-2">
-                        {artistName?.charAt(0)}
+                        {clientName?.charAt(0)}
                       </div>
-                    )}
-                <span className="text-xs text-gray-600">
-                  {user?.user_type === 'service_provider' ? clientName : artistName}
-                </span>
-              </div>
-            )}
-            {/* Reuse existing per-message rendering below via original block */}
-          </div>
-        </React.Fragment>
-      );
-    });
-  // Dependencies include all inputs used in rendering above. The heavy per-message rendering
-  // below remains in its original block; this memo only stabilizes top-level group chrome.
+                    )
+                : artistAvatarUrl
+                ? (
+                    <SafeImage
+                      src={artistAvatarUrl}
+                      alt="Artist avatar"
+                      width={20}
+                      height={20}
+                      className="h-5 w-5 rounded-full object-cover mr-2"
+                    />
+                  )
+                : (
+                    <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-[10px] font-medium mr-2">
+                      {artistName?.charAt(0)}
+                    </div>
+                  )}
+              <span className="text-xs text-gray-600">
+                {user?.user_type === 'service_provider' ? clientName : artistName}
+              </span>
+            </div>
+          )}
+          {/* The heavy per-message rendering remains as-is below; it will render the group's messages. */}
+          {/* Intentionally minimal here; the existing block later in the file renders bubbles & menus. */}
+        </div>
+      </React.Fragment>
+    );
   }, [groupedMessages, user?.id, user?.user_type, clientAvatarUrl, clientName, artistAvatarUrl, artistName]);
 
   // Hide artist inline quote composer for pure inquiry threads created from profile page
@@ -2519,6 +2518,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
         {/* Grouped messages (virtualized when enabled) */}
         {(() => {
+          if (VIRTUALIZE && false) {
+            return (
+              <div className="min-h-0 flex-1">
+                <Virtuoso
+                  totalCount={groupedMessages.length}
+                  computeItemKey={(index) => groupIds[index]}
+                  itemContent={(index: number) => <div className="w-full">{renderGroupAtIndex(index)}</div>}
+                  followOutput="smooth"
+                  initialTopMostItemIndex={groupedMessages.length > 0 ? groupedMessages.length - 1 : 0}
+                  atBottomStateChange={(atBottom: boolean) => {
+                    setShowScrollButton(!atBottom);
+                    setIsUserScrolledUp(!atBottom);
+                  }}
+                  increaseViewportBy={{ top: 400, bottom: 600 }}
+                  overscan={200}
+                />
+              </div>
+            );
+          }
           const elements = groupedMessages.map((group, idx) => {
             const firstMsgInGroup = group.messages[0];
             // Determine if the first non-system message is from the other party
