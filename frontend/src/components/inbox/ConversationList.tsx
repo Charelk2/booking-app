@@ -3,7 +3,6 @@
 import clsx from 'clsx';
 import SafeImage from '@/components/ui/SafeImage';
 import { BookingRequest, User } from '@/types';
-import { getFullImageUrl } from '@/lib/utils'; // Import getFullImageUrl
 import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
 import React from 'react';
 
