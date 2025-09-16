@@ -13,8 +13,7 @@ import { getServiceProviders } from '@/lib/api';
 import type { ServiceProviderProfile } from '@/types';
 import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
 
-import type { ActivePopup } from './SearchBar';
-import type { Category } from './SearchFields';
+import type { ActivePopup, Category } from './types';
 
 interface SearchPopupContentProps {
   activeField: ActivePopup;
