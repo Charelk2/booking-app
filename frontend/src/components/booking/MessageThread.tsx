@@ -85,6 +85,8 @@ const API_V1 = '/api/v1';
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 const MIN_SCROLL_OFFSET = 24;
 const BOTTOM_GAP_PX = 8;
+const INITIAL_VISIBLE_COUNT = 30;
+const VISIBLE_CHUNK = 30;
 const MAX_TEXTAREA_LINES = 10;
 const isImageAttachment = (url?: string | null) =>
   !!url && /\.(jpe?g|png|gif|webp)$/i.test(url);
@@ -425,6 +427,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- Refs
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const loadingOlderRef = useRef(false);
   const distanceFromBottomRef = useRef<number>(0);
   const prevScrollHeightRef = useRef<number>(0);
   const prevComposerHeightRef = useRef<number>(0);
@@ -1493,6 +1496,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     setShowScrollButton(!atBottom);
     setIsUserScrolledUp(!atBottom);
     prevScrollHeightRef.current = el.scrollHeight;
+    // Reveal older messages when reaching the top (non-virtualized)
+    if (!VIRTUALIZE) {
+      const nearTop = el.scrollTop <= MIN_SCROLL_OFFSET;
+      const total = messages.length;
+      if (nearTop && visibleCountRef.current < total) {
+        const prevHeight = el.scrollHeight;
+        loadingOlderRef.current = true;
+        setVisibleCount((c) => Math.min(total, c + VISIBLE_CHUNK));
+        prevScrollHeightRef.current = prevHeight;
+      }
+    }
   }, []);
   useEffect(() => {
     if (VIRTUALIZE) return;
@@ -1504,6 +1518,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
     return () => {};
   }, [handleScroll, VIRTUALIZE]);
+
+  // Maintain anchor when older slice is revealed
+  useLayoutEffect(() => {
+    if (!loadingOlderRef.current) return;
+    const el = messagesContainerRef.current;
+    if (!el) { loadingOlderRef.current = false; return; }
+    const prevH = prevScrollHeightRef.current || 0;
+    const newH = el.scrollHeight;
+    try {
+      el.scrollTop = Math.max(0, newH - prevH);
+    } catch {}
+    loadingOlderRef.current = false;
+  }, [visibleCount]);
 
   // ---- iOS scroll unlocks
   const handleTouchStartOnList = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
@@ -1542,6 +1569,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   );
 
   // ---- Visible messages (keep it simple; only hide booking-details meta)
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
+  const visibleCountRef = useRef(INITIAL_VISIBLE_COUNT);
+  useEffect(() => { visibleCountRef.current = visibleCount; }, [visibleCount]);
+  useEffect(() => { setVisibleCount(INITIAL_VISIBLE_COUNT); }, [bookingRequestId]);
   const visibleMessages = useMemo(() => {
     const filtered = messages.filter((msg) => {
       const visibleToCurrentUser =
@@ -1590,8 +1621,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
     } catch {}
 
-    return deduped;
-  }, [messages, user?.user_type]);
+    const full = deduped;
+    const count = Math.max(0, Math.min(full.length, visibleCount));
+    const start = Math.max(0, full.length - count);
+    return full.slice(start);
+  }, [messages, user?.user_type, visibleCount]);
+
+  // Keep visibleCount within bounds when messages update
+  useEffect(() => {
+    setVisibleCount((c) => {
+      const total = messages.length;
+      if (total === 0) return INITIAL_VISIBLE_COUNT;
+      if (c > total) return total;
+      return c;
+    });
+  }, [messages.length]);
 
   const groupedMessages = useMemo(() => {
     const groups: { sender_id: number | null; sender_type: string; messages: ThreadMessage[]; showDayDivider: boolean }[] = [];
@@ -3033,6 +3077,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   totalCount={elements.length}
                   itemContent={(index) => <div className="w-full">{elements[index]}</div>}
                   followOutput="smooth"
+                  initialTopMostItemIndex={elements.length > 0 ? elements.length - 1 : 0}
                   atBottomStateChange={(atBottom: boolean) => {
                     setShowScrollButton(!atBottom);
                     setIsUserScrolledUp(!atBottom);
