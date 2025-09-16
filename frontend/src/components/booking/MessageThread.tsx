@@ -2660,20 +2660,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       try {
         if (imageFiles.length > 0) {
-          // Convert images to data URLs and send directly in the message payload.
-          // This guarantees the receiver can render the image without relying on
-          // static hosting paths or CDNs.
+          // Snapshot current selections and clear the preview UI immediately
+          const files = imageFiles.slice();
+          const previewUrlsToRevoke = imagePreviewUrls.slice();
           let baseContent = newMessageContent;
           if (!baseContent.trim()) baseContent = '[Attachment]';
           const nowISO = gmt2ISOString();
 
-          // Prepare optimistic bubbles with data URLs
-          const dataUrls: string[] = [];
-          for (let i = 0; i < imageFiles.length; i++) {
-            const f = imageFiles[i];
-            const dataUrl = await fileToDataUrl(f);
-            dataUrls.push(dataUrl);
+          // Optimistic bubbles instantly using existing blob preview URLs
+          for (let i = 0; i < files.length; i++) {
             const id = i === 0 ? tempId : (tempId - (i + 1));
+            const previewUrl = previewUrlsToRevoke[i];
             const optimistic: ThreadMessage = {
               id,
               booking_request_id: bookingRequestId,
@@ -2682,7 +2679,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               content: i === 0 ? baseContent : '[Attachment]',
               message_type: 'USER',
               quote_id: null,
-              attachment_url: dataUrl,
+              attachment_url: previewUrl || null,
+              local_preview_url: previewUrl || null,
               visible_to: 'both',
               action: null,
               avatar_url: undefined,
@@ -2693,8 +2691,30 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               status: 'sending',
               reply_to_message_id: i === 0 ? (replyTarget?.id ?? null) : null,
               reply_to_preview: i === 0 && replyTarget ? replyTarget.content.slice(0, 120) : null,
-            };
+            } as ThreadMessage;
             setMessages((prev) => mergeMessages(prev, optimistic));
+          }
+
+          // Immediately clear the composer preview and input
+          setNewMessageContent('');
+          setImageFiles([]);
+          setImagePreviewUrls([]); // don't revoke yet; keep blob URLs alive for optimistic cards
+          setUploadingProgress(0);
+          setIsUploadingAttachment(false);
+          if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.rows = 1;
+            textareaRef.current.focus();
+          }
+          setReplyTarget(null);
+          onMessageSent?.();
+
+          // Convert images to data URLs and send sequentially
+          const dataUrls: string[] = [];
+          for (let i = 0; i < files.length; i++) {
+            const f = files[i];
+            const dataUrl = await fileToDataUrl(f);
+            dataUrls.push(dataUrl);
           }
 
           // Send first image with text (or placeholder hidden later)
@@ -2751,20 +2771,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             }
           }
 
-          // Reset inputs
-          setNewMessageContent('');
-          setImageFiles([]);
-          try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
-          setImagePreviewUrls([]);
-          setUploadingProgress(0);
-          setIsUploadingAttachment(false);
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.rows = 1;
-            textareaRef.current.focus();
-          }
-          setReplyTarget(null);
-          onMessageSent?.();
+          // Revoke the now-unused preview object URLs
+          try { previewUrlsToRevoke.forEach((u) => URL.revokeObjectURL(u)); } catch {}
           return;
         }
 
@@ -4039,10 +4047,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </label>
-          <div className="flex flex-wrap items-center gap-2 overflow-hidden">
+          <div className="flex-1 flex flex-wrap items-center justify-center gap-2 overflow-hidden">
             {imagePreviewUrls.map((u, i) => (
               <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200 bg-white">
-            <img src={u} alt={`Preview ${i+1}`} className="w-16 h-16 object-cover" />
+            <img src={u} alt={`Preview ${i+1}`} className="w-16 h-16 object-cover object-center" />
                 <button type="button" aria-label="Remove image" className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white/90 border border-gray-200 text-gray-700 flex items-center justify-center hover:bg-white" onClick={() => removeImageAt(i)}>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
