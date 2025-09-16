@@ -336,13 +336,14 @@ export default function ConversationList({
         }
 
         return (
-          <div
+          <button
+            type="button"
             style={style}
             key={req.id}
             role="option"
             aria-selected={isActive}
             tabIndex={0}
-            onClick={() => onSelectRequest(req.id)}
+            onClick={() => { if (!isActive) onSelectRequest(req.id); }}
             onMouseEnter={() => prefetchThread(req.id)}
             onMouseDownCapture={(e) => {
               const t = e.target as HTMLElement;
@@ -356,12 +357,12 @@ export default function ConversationList({
             
             onKeyPress={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
-                onSelectRequest(req.id);
+                if (!isActive) onSelectRequest(req.id);
               }
             }}
             // Apply hover and active states clearly
             className={clsx(
-              'flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors duration-150 ease-in-out rounded-lg',
+              'flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors duration-150 ease-in-out rounded-lg w-full text-left',
               isActive
                 ? 'bg-gray-100 ring-1 ring-gray-200'
                 : 'hover:bg-gray-50'
@@ -461,7 +462,7 @@ export default function ConversationList({
               </div>
             </div>
             {/* Unread dot removed in favor of count badge */}
-          </div>
+          </button>
         );
       }}
     </List>
