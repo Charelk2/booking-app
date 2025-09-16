@@ -129,16 +129,10 @@ const daySeparatorLabel = (date: Date) => {
 };
 
 // --- Per-thread session cache for instant switches --------------------------
-const THREAD_CACHE_PREFIX = 'inbox:thread';
-function cacheKeyForThread(id: number) {
-  return `${THREAD_CACHE_PREFIX}:${id}:messages`;
-}
+import { readThreadCache as _readThreadCache, writeThreadCache as _writeThreadCache, cacheKeyForThread } from '@/lib/threadCache';
 function readCachedMessages(threadId: number): ThreadMessage[] | null {
   try {
-    if (typeof window === 'undefined') return null;
-    const raw = sessionStorage.getItem(cacheKeyForThread(threadId));
-    if (!raw) return null;
-    const arr = JSON.parse(raw);
+    const arr = _readThreadCache(threadId);
     if (!Array.isArray(arr)) return null;
     const msgs = arr.map((m: any) => normalizeMessage(m)).filter((m: any) => Number.isFinite(m.id));
     return msgs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
@@ -148,9 +142,7 @@ function readCachedMessages(threadId: number): ThreadMessage[] | null {
 }
 function writeCachedMessages(threadId: number, messages: ThreadMessage[]) {
   try {
-    if (typeof window === 'undefined') return;
-    const slice = messages.slice(Math.max(0, messages.length - 200));
-    sessionStorage.setItem(cacheKeyForThread(threadId), JSON.stringify(slice));
+    _writeThreadCache(threadId, messages);
   } catch {}
 }
 
