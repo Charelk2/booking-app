@@ -71,7 +71,7 @@ import InlineQuoteForm from './InlineQuoteForm';
 import BookingSummaryCard from './BookingSummaryCard';
 import { t } from '@/lib/i18n';
 import EventPrepCard from './EventPrepCard';
-import { ImagePreviewModal } from '@/components/ui';
+import ImagePreviewModal from '@/components/ui/ImagePreviewModal';
 
 const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
 const Virtuoso = dynamic(() => import('react-virtuoso').then((m: any) => m.Virtuoso), { ssr: false });
