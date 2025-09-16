@@ -15,6 +15,7 @@ import React, {
 import SafeImage from '@/components/ui/SafeImage';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import type { VirtuosoProps } from 'react-virtuoso';
 import { createPortal } from 'react-dom';
 import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
 import data from '@emoji-mart/data';
@@ -74,7 +75,8 @@ import EventPrepCard from './EventPrepCard';
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal';
 
 const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
-const Virtuoso = dynamic(() => import('react-virtuoso').then((m: any) => m.Virtuoso), { ssr: false });
+// Type the dynamic Virtuoso component so TS recognizes its props (totalCount, itemContent, etc.)
+const Virtuoso = dynamic(() => import('react-virtuoso').then((m: any) => m.Virtuoso), { ssr: false }) as unknown as React.ComponentType<VirtuosoProps<any, any>>;
 const MemoQuoteBubble = React.memo(QuoteBubble);
 const MemoInlineQuoteForm = React.memo(InlineQuoteForm);
 
@@ -1520,6 +1522,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return () => {};
   }, [handleScroll, VIRTUALIZE]);
 
+  // ---- Visible messages (keep it simple; only hide booking-details meta)
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
+  // Keep a ref in sync for non-reactive handlers
+  useEffect(() => { visibleCountRef.current = visibleCount; }, [visibleCount]);
+  // Reset slice when the thread changes
+  useEffect(() => { setVisibleCount(INITIAL_VISIBLE_COUNT); }, [bookingRequestId]);
+
   // Maintain anchor when older slice is revealed
   useLayoutEffect(() => {
     if (!loadingOlderRef.current) return;
@@ -1569,10 +1578,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [],
   );
 
-  // ---- Visible messages (keep it simple; only hide booking-details meta)
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
-  useEffect(() => { visibleCountRef.current = visibleCount; }, [visibleCount]);
-  useEffect(() => { setVisibleCount(INITIAL_VISIBLE_COUNT); }, [bookingRequestId]);
   const visibleMessages = useMemo(() => {
     const filtered = messages.filter((msg) => {
       const visibleToCurrentUser =
@@ -3075,7 +3080,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <div className="min-h-0 flex-1">
                 <Virtuoso
                   totalCount={elements.length}
-                  itemContent={(index) => <div className="w-full">{elements[index]}</div>}
+                  itemContent={(index: number) => <div className="w-full">{elements[index]}</div>}
                   followOutput="smooth"
                   initialTopMostItemIndex={elements.length > 0 ? elements.length - 1 : 0}
                   atBottomStateChange={(atBottom: boolean) => {
