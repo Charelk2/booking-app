@@ -138,6 +138,7 @@ export default function InboxPage() {
         last_message_content: it.last_message_snippet,
         last_message_timestamp: it.last_message_at,
         is_unread_by_current_user: (it.unread_count || 0) > 0 as any,
+        unread_count: Number(it.unread_count || 0) as any,
         message: null,
         travel_mode: null,
         travel_cost: null,
@@ -591,6 +592,16 @@ export default function InboxPage() {
       } catch {}
 
       setSelectedBookingRequestId(id);
+      // Optimistically clear unread state for this thread and notify UI
+      try {
+        setAllBookingRequests((prev) => prev.map((r) => (r.id === id ? ({
+          ...r,
+          is_unread_by_current_user: false as any,
+          unread_count: 0 as any,
+        }) : r)));
+      } catch {}
+      // Best-effort backend update; UI already updated
+      try { const m = await import('@/lib/api'); await m.markThreadRead(id); } catch {}
       const params = new URLSearchParams(searchParams.toString());
       const selected = allBookingRequests.find((r) => r.id === id) as any;
       const isBooka = Boolean(selected?.is_booka_synthetic);

@@ -2,7 +2,7 @@
 
 import clsx from 'clsx';
 import SafeImage from '@/components/ui/SafeImage';
-import { formatRelative } from 'date-fns';
+import { differenceInCalendarDays, format, startOfDay } from 'date-fns';
 import { BookingRequest, User } from '@/types';
 import { getFullImageUrl } from '@/lib/utils'; // Import getFullImageUrl
 import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
@@ -42,6 +42,20 @@ export default function ConversationList({
   }, []);
 
   const q = query.trim().toLowerCase();
+  const formatThreadTime = (iso: string): string => {
+    try {
+      const d = new Date(iso);
+      const today = startOfDay(new Date());
+      const thatDay = startOfDay(d);
+      const diff = differenceInCalendarDays(today, thatDay);
+      if (diff === 0) return format(d, 'HH:mm');
+      if (diff === 1) return 'yesterday';
+      if (diff < 7) return `last ${format(d, 'EEEE')}`;
+      return format(d, 'd MMM');
+    } catch {
+      return iso;
+    }
+  };
   const highlight = (text: string) => {
     if (!q) return text;
     const idx = text.toLowerCase().indexOf(q);
@@ -335,20 +349,22 @@ export default function ConversationList({
                 </span>
                 <time
                   dateTime={date}
-                  className="text-xs text-gray-500 flex-shrink-0 ml-2" // Added ml-2 for spacing
+                  className={clsx(
+                    'text-xs flex-shrink-0 ml-2',
+                    isUnread ? 'font-semibold text-gray-900' : 'text-gray-500'
+                  )}
                 >
-                  {formatRelative(new Date(date), new Date())}
+                  {formatThreadTime(String(date))}
                 </time>
               </div>
               <div
                 className={clsx(
-                  'text-xs truncate',
-                  isUnread
-                    ? 'font-semibold text-gray-800'
-                    : 'text-gray-600' // Stronger font for unread message content
+                  'text-xs',
+                  isUnread ? 'font-semibold text-gray-800' : 'text-gray-600',
+                  'flex items-start justify-between gap-3'
                 )}
               >
-                <span className="inline-flex items-center gap-2 min-w-0">
+                <span className="inline-flex items-center gap-2 min-w-0 flex-1 truncate">
                   {showEventBadge && (
                     <span className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">
                       EVENT
@@ -382,12 +398,23 @@ export default function ConversationList({
                     })()}
                   </span>
                 </span>
+                {(() => {
+                  const unreadCount = Number((req as any).unread_count || 0);
+                  return unreadCount > 0 ? (
+                    <span
+                      aria-label={`${unreadCount} unread messages`}
+                      className={clsx(
+                        'ml-2 flex-shrink-0 inline-flex items-center justify-center rounded-full bg-black text-white',
+                        'min-w-[20px] h-5 px-1 text-[11px] font-semibold'
+                      )}
+                    >
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  ) : null;
+                })()}
               </div>
             </div>
-            {/* Unread dot (subtle) */}
-            {isUnread && (
-              <span className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 ml-2" aria-label="Unread message" />
-            )}
+            {/* Unread dot removed in favor of count badge */}
           </div>
         );
       }}
