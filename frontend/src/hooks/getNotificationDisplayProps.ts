@@ -99,7 +99,8 @@ export default function getNotificationDisplayProps(
   }
   const link = unified.link;
 
-  let from = parsed.title;
+  // Use the computed title as the primary "from" label, falling back to sender/name.
+  let from = title || unified.sender_name || unified.name || '';
   if ((unified.type === 'message' || unified.type === 'new_message') && !from) {
     const match = unified.content?.match(/New message from (.*?):/i);
     if (match && match[1]) {
