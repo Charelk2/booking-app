@@ -428,6 +428,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const loadingOlderRef = useRef(false);
+  const visibleCountRef = useRef<number>(INITIAL_VISIBLE_COUNT);
   const distanceFromBottomRef = useRef<number>(0);
   const prevScrollHeightRef = useRef<number>(0);
   const prevComposerHeightRef = useRef<number>(0);
@@ -1570,7 +1571,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Visible messages (keep it simple; only hide booking-details meta)
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
-  const visibleCountRef = useRef(INITIAL_VISIBLE_COUNT);
   useEffect(() => { visibleCountRef.current = visibleCount; }, [visibleCount]);
   useEffect(() => { setVisibleCount(INITIAL_VISIBLE_COUNT); }, [bookingRequestId]);
   const visibleMessages = useMemo(() => {
