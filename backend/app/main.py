@@ -346,6 +346,12 @@ app.mount("/static", StaticFilesWithDefault(directory=APP_STATIC_DIR), name="sta
 # (so that a request to /profile_pics/whatever.jpg serves from backend/app/static/profile_pics/whatever.jpg)
 app.mount("/profile_pics", StaticFiles(directory=PROFILE_PICS_DIR), name="profile_pics")
 app.mount("/cover_photos", StaticFiles(directory=COVER_PHOTOS_DIR), name="cover_photos")
+# Direct mount for attachments to avoid relying solely on /static path. This allows
+# clients to request /attachments/<file> and hit the same backing directory.
+try:
+    app.mount("/attachments", StaticFiles(directory=ATTACHMENTS_DIR), name="attachments")
+except Exception as _exc:
+    logger.warning("Failed to mount /attachments: %s", _exc)
 
 
 # ─── CORS middleware (credentials-compatible, explicit allowlist) ─────────────

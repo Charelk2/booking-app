@@ -113,8 +113,26 @@ const toProxyPath = (url: string): string => {
     const u = new URL(url, API_BASE);
     const sameOrigin = u.protocol === api.protocol && u.hostname === api.hostname && (u.port || '') === (api.port || '');
     if (sameOrigin) {
+      if (u.pathname.startsWith('/static/attachments/')) {
+        // Prefer direct mount for attachments to avoid optimizer/CDN quirks
+        const p = u.pathname.replace(/^\/static\//, '/');
+        return p + u.search;
+      }
       if (u.pathname.startsWith('/static/')) return u.pathname + u.search;
       if (u.pathname.startsWith('/media/')) return u.pathname + u.search;
+    }
+  } catch {}
+  return url;
+};
+
+const altAttachmentPath = (url: string): string => {
+  try {
+    const u = new URL(url, API_BASE);
+    if (/^\/static\/attachments\//.test(u.pathname)) {
+      return u.pathname.replace(/^\/static\//, '/') + u.search;
+    }
+    if (/^\/attachments\//.test(u.pathname)) {
+      return '/static' + u.pathname + u.search;
     }
   } catch {}
   return url;
@@ -178,6 +196,8 @@ type ThreadMessage = {
   // Reply metadata (if this message is a reply to another)
   reply_to_message_id?: number | null;
   reply_to_preview?: string | null;
+  // Local-only: optimistic blob/data URL to keep preview instant and robust
+  local_preview_url?: string | null;
 };
 
 // Normalize mixed legacy/new fields into ThreadMessage
@@ -2002,9 +2022,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   <>
                     {(() => {
                       // Suppress placeholder labels; style non-image attachments like a reply header box
-                      const url = msg.attachment_url
-                        ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : (getFullImageUrl(msg.attachment_url) as string))
-                        : '';
+                        const url = msg.attachment_url
+                          ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : (getFullImageUrl(msg.attachment_url) as string))
+                          : '';
+                        const display = msg.local_preview_url || url;
                       const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
                       const isImage = isImageAttachment(msg.attachment_url || undefined);
                       const contentLower = String(msg.content || '').trim().toLowerCase();
@@ -2059,16 +2080,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             <div className="relative mt-0 inline-block w-full">
                               <button
                                 type="button"
-                                onClick={() => openImageModalForUrl(url)}
+                                onClick={() => openImageModalForUrl(display)}
                                 className="block"
                                 aria-label="Open image"
                               >
                                 <img
-                                  src={toProxyPath(url)}
+                                  src={toProxyPath(display)}
                                   alt="Image attachment"
                                   className="block w-full h-auto rounded-xl"
                                   loading="lazy"
                                   decoding="async"
+                                  onError={(e) => {
+                                    const tried = (e.currentTarget as any).dataset.triedAlt;
+                                    if (!tried) {
+                                      (e.currentTarget as HTMLImageElement).src = altAttachmentPath(toProxyPath(display));
+                                      (e.currentTarget as any).dataset.triedAlt = '1';
+                                    }
+                                  }}
                                 />
                               </button>
                             </div>
@@ -2606,6 +2634,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               status: 'sending',
               reply_to_message_id: i === 0 ? (replyTarget?.id ?? null) : null,
               reply_to_preview: i === 0 && replyTarget ? replyTarget.content.slice(0, 120) : null,
+              local_preview_url: blobUrl,
             };
             setMessages((prev) => mergeMessages(prev, optimistic));
           }
@@ -2631,7 +2660,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
           try {
             const res = await postMessageToBookingRequest(bookingRequestId, firstPayload);
-            const real = { ...normalizeMessage(res.data), status: 'sent' as const };
+            const real = { ...normalizeMessage(res.data), status: 'sent' as const } as ThreadMessage;
+            // Preserve local preview so the sender doesn't see a flicker or 404 while CDN warms
+            real.local_preview_url = (imageFiles.length > 0) ? (URL.createObjectURL(imageFiles[0])) : undefined as any;
             setMessages((prev) => {
               const byId = new Map<number, ThreadMessage>();
               for (const m of prev) if (m.id !== tempId) byId.set(m.id, m);
@@ -2658,10 +2689,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             const temp = tempId - (i + 1);
             try {
               const res = await postMessageToBookingRequest(bookingRequestId, payload);
-              const real = { ...normalizeMessage(res.data), status: 'sent' as const };
+              const real = { ...normalizeMessage(res.data), status: 'sent' as const } as ThreadMessage;
               setMessages((prev) => {
                 const byId = new Map<number, ThreadMessage>();
-                for (const m of prev) if (m.id !== temp) byId.set(m.id, m);
+                let prevLocalPreview: string | null | undefined = null;
+                for (const m of prev) {
+                  if (m.id === temp) {
+                    prevLocalPreview = m.local_preview_url || (m.attachment_url && (/^(blob:|data:)/i.test(m.attachment_url) ? m.attachment_url : null));
+                    continue;
+                  }
+                  byId.set(m.id, m);
+                }
+                if (prevLocalPreview) real.local_preview_url = prevLocalPreview;
                 byId.set(real.id, real);
                 return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
               });
@@ -3433,22 +3472,30 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 const url = msg.attachment_url
                                   ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : (getFullImageUrl(msg.attachment_url) as string))
                                   : '';
+                                const display = (msg as any).local_preview_url || url;
                                 const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
                                 if (isImageAttachment(msg.attachment_url)) {
                                   return (
                                     <div className="relative mt-0 inline-block w-full">
                                       <button
                                         type="button"
-                                        onClick={() => openImageModalForUrl(url)}
+                                        onClick={() => openImageModalForUrl(display)}
                                         className="block"
                                         aria-label="Open image"
                                       >
                                         <img
-                                          src={toProxyPath(url)}
+                                          src={toProxyPath(display)}
                                           alt="Image attachment"
                                           className="block w-full h-auto rounded-xl"
                                           loading="lazy"
                                           decoding="async"
+                                          onError={(e) => {
+                                            const tried = (e.currentTarget as any).dataset.triedAlt;
+                                            if (!tried) {
+                                              (e.currentTarget as HTMLImageElement).src = altAttachmentPath(toProxyPath(display));
+                                              (e.currentTarget as any).dataset.triedAlt = '1';
+                                            }
+                                          }}
                                         />
                                       </button>
                                     </div>
