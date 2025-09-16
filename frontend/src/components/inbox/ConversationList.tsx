@@ -2,7 +2,6 @@
 
 import clsx from 'clsx';
 import SafeImage from '@/components/ui/SafeImage';
-import { differenceInCalendarDays, format, startOfDay } from 'date-fns';
 import { BookingRequest, User } from '@/types';
 import { getFullImageUrl } from '@/lib/utils'; // Import getFullImageUrl
 import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
@@ -42,18 +41,28 @@ export default function ConversationList({
   }, []);
 
   const q = query.trim().toLowerCase();
-  const formatThreadTime = (iso: string): string => {
+  const formatThreadTime = (iso: string | null | undefined): string => {
+    if (!iso) return '';
     try {
       const d = new Date(iso);
-      const today = startOfDay(new Date());
-      const thatDay = startOfDay(d);
-      const diff = differenceInCalendarDays(today, thatDay);
-      if (diff === 0) return format(d, 'HH:mm');
-      if (diff === 1) return 'yesterday';
-      if (diff < 7) return `last ${format(d, 'EEEE')}`;
-      return format(d, 'd MMM');
+      if (Number.isNaN(d.getTime())) return '';
+      const now = new Date();
+      const startOf = (dt: Date) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+      const todayStart = startOf(now);
+      const dayStart = startOf(d);
+      const diffMs = todayStart.getTime() - dayStart.getTime();
+      const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+      if (diffDays === 0) {
+        return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+      }
+      if (diffDays === 1) return 'yesterday';
+      if (diffDays < 7) {
+        const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
+        return `last ${weekday}`;
+      }
+      return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
     } catch {
-      return iso;
+      return '';
     }
   };
   const highlight = (text: string) => {
@@ -354,7 +363,7 @@ export default function ConversationList({
                     isUnread ? 'font-semibold text-gray-900' : 'text-gray-500'
                   )}
                 >
-                  {formatThreadTime(String(date))}
+                  {formatThreadTime(date)}
                 </time>
               </div>
               <div
