@@ -33,12 +33,14 @@ import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
+import { writeThreadCache, hasThreadCache } from '@/lib/threadCache';
 
 export default function InboxPage() {
   const { user, loading: authLoading } = useAuth();
   const [allBookingRequests, setAllBookingRequests] = useState<BookingRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [selectedBookingRequestId, setSelectedBookingRequestId] = useState<number | null>(null);
+  const [prevThreadId, setPrevThreadId] = useState<number | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -584,9 +586,20 @@ export default function InboxPage() {
     });
   }, [allBookingRequests, query, user]);
 
+  // Prefetch helper with LRU writes
+  const prefetchThreadMessages = useCallback(async (id: number, limit = 50) => {
+    if (!id || hasThreadCache(id)) return;
+    try {
+      const res = await getMessagesForBookingRequest(id, { limit });
+      const arr = Array.isArray(res.data) ? res.data : [];
+      writeThreadCache(id, arr);
+    } catch {}
+  }, []);
+
   const handleSelect = useCallback(
     (id: number) => {
       // Immediate UI feedback: select and update URL right away
+      setPrevThreadId((prev) => (selectedBookingRequestId && selectedBookingRequestId !== id ? selectedBookingRequestId : prev));
       setSelectedBookingRequestId(id);
       try {
         setAllBookingRequests((prev) => prev.map((r) => (r.id === id ? ({
@@ -616,6 +629,28 @@ export default function InboxPage() {
       // Fire-and-forget: mark read
       try { void markThreadRead(id); } catch {}
 
+      // Prefetch current, previous, and next thread (sorted list) on idle
+      try {
+        const schedule = (fn: () => void) => {
+          try {
+            const ric = (window as any)?.requestIdleCallback as ((cb: () => void, opts?: any) => void) | undefined;
+            if (typeof ric === 'function') ric(fn, { timeout: 800 });
+            else setTimeout(fn, 80);
+          } catch { setTimeout(fn, 80); }
+        };
+        schedule(() => {
+          void prefetchThreadMessages(id);
+          const list = filteredRequests.length ? filteredRequests : allBookingRequests;
+          const idx = list.findIndex((r) => r.id === id);
+          if (idx >= 0) {
+            const prev = list[idx - 1]?.id;
+            const next = list[idx + 1]?.id;
+            if (prev) void prefetchThreadMessages(prev);
+            if (next) void prefetchThreadMessages(next);
+          }
+        });
+      } catch {}
+
       // If this is a Booka synthetic row, resolve the real thread in the background
       if (isBooka) {
         (async () => {
@@ -639,7 +674,7 @@ export default function InboxPage() {
         })();
       }
     },
-    [allBookingRequests, searchParams, isMobile, router, fetchAllRequests, SEL_KEY]
+    [allBookingRequests, filteredRequests, searchParams, isMobile, router, fetchAllRequests, SEL_KEY, selectedBookingRequestId, prefetchThreadMessages]
   );
 
   const handleBackToList = useCallback(() => {
@@ -740,12 +775,24 @@ export default function InboxPage() {
               </button>
             )}
             {selectedBookingRequestId ? (
-              <MessageThreadWrapper
-                key={selectedBookingRequestId}
-                bookingRequestId={selectedBookingRequestId}
-                bookingRequest={selectedRequest}
-                setShowReviewModal={setShowReviewModal}
-              />
+              <>
+                <MessageThreadWrapper
+                  key={`current-${selectedBookingRequestId}`}
+                  bookingRequestId={selectedBookingRequestId}
+                  bookingRequest={selectedRequest}
+                  setShowReviewModal={setShowReviewModal}
+                />
+                {prevThreadId && prevThreadId !== selectedBookingRequestId && (
+                  <div style={{ display: 'none' }}>
+                    <MessageThreadWrapper
+                      key={`prev-${prevThreadId}`}
+                      bookingRequestId={prevThreadId}
+                      bookingRequest={allBookingRequests.find((r) => r.id === prevThreadId) || null}
+                      setShowReviewModal={setShowReviewModal}
+                    />
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
                 <p>Select a conversation to view messages.</p>
