@@ -13,12 +13,10 @@ import LocationInput, { PlaceResult } from '../ui/LocationInput';
 import { MusicalNoteIcon, CalendarIcon, MapPinIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 // Import types for consistency
-import type { ActivePopup } from './SearchBar'; // Assuming SearchBar defines ActivePopup
-import { Category as CategoryType } from '@/hooks/useServiceCategories';
+import type { ActivePopup, Category, SearchFieldId } from './types';
 
-// Re-exporting for external use, if needed
-export type Category = CategoryType;
-export type SearchFieldId = 'category' | 'when' | 'location';
+// Re-export types so external imports from './SearchFields' keep working
+export type { Category, SearchFieldId } from './types';
 
 
 export interface SearchFieldsProps {
