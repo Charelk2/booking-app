@@ -29,7 +29,6 @@ import {
   ParsedBookingDetails,
   ServiceCategory,
 } from '@/types';
-import { useAuth as useContextAuth } from '@/contexts/AuthContext'; // Renamed to avoid conflict with default export 'api'
 
 // Create a single axios instance for all requests
 // Use same-origin relative base so browser calls go through Next.js rewrites
@@ -967,10 +966,6 @@ export async function completeEventPrepTask(
 }
 
 export default api; // Export the axios instance as default
-
-// Re-export useAuth from its original context file if it's there
-// This fixes the 'Function not implemented' warning and potential import conflicts.
-export { useContextAuth as useAuth }; // Re-export as 'useAuth'
 
 // Explicit type re-export for convenience
 export type { EventPrep } from '@/types';
