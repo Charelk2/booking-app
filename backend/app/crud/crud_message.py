@@ -1,8 +1,8 @@
-from typing import List
+from typing import Dict, List
 from datetime import datetime
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from .. import models, schemas
 
@@ -96,6 +96,90 @@ def get_last_message_for_request(db: Session, booking_request_id: int) -> models
         .order_by(models.Message.timestamp.desc())
         .first()
     )
+
+
+def get_last_messages_for_requests(
+    db: Session,
+    booking_request_ids: List[int],
+) -> Dict[int, models.Message]:
+    """Return the latest message for each booking request in one query."""
+    if not booking_request_ids:
+        return {}
+
+    window = (
+        db.query(
+            models.Message.booking_request_id.label("br_id"),
+            models.Message.id.label("message_id"),
+            func.row_number()
+            .over(
+                partition_by=models.Message.booking_request_id,
+                order_by=models.Message.timestamp.desc(),
+            )
+            .label("rn"),
+        )
+        .filter(models.Message.booking_request_id.in_(booking_request_ids))
+        .subquery()
+    )
+
+    latest_ids = (
+        db.query(window.c.br_id, window.c.message_id)
+        .filter(window.c.rn == 1)
+        .all()
+    )
+
+    message_ids = [row.message_id for row in latest_ids if row.message_id is not None]
+    if not message_ids:
+        return {}
+
+    messages = (
+        db.query(models.Message)
+        .filter(models.Message.id.in_(message_ids))
+        .all()
+    )
+
+    return {m.booking_request_id: m for m in messages}
+
+
+def get_recent_messages_for_request(
+    db: Session,
+    booking_request_id: int,
+    limit: int = 5,
+) -> List[models.Message]:
+    """Return the latest ``limit`` messages for a request (newest first)."""
+    if limit <= 0:
+        return []
+    rows = (
+        db.query(models.Message)
+        .filter(models.Message.booking_request_id == booking_request_id)
+        .order_by(models.Message.timestamp.desc())
+        .limit(limit)
+        .all()
+    )
+    return rows
+
+
+def get_payment_received_booking_request_ids(
+    db: Session,
+    booking_request_ids: List[int],
+) -> set[int]:
+    """Return booking request ids that contain a payment-received system line."""
+    if not booking_request_ids:
+        return set()
+
+    rows = (
+        db.query(models.Message.booking_request_id)
+        .filter(models.Message.booking_request_id.in_(booking_request_ids))
+        .filter(
+            or_(
+                models.Message.system_key.ilike("payment_received%"),
+                func.lower(func.trim(models.Message.content)).like("payment received%"),
+            )
+        )
+        .distinct()
+        .all()
+    )
+
+    return {int(row[0]) for row in rows if row[0] is not None}
 
 
 def mark_messages_read(db: Session, booking_request_id: int, user_id: int) -> int:
