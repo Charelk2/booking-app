@@ -11,6 +11,7 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
+import { isAxiosError } from 'axios';
 // Use SafeImage everywhere for consistent Next/Image optimization
 import SafeImage from '@/components/ui/SafeImage';
 import { useRouter } from 'next/navigation';
@@ -818,6 +819,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const stabilizingRef = useRef(true);
   const stabilizeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fetchInFlightRef = useRef(false);
+  const missingThreadRef = useRef(false);
   const activeThreadRef = useRef<number | null>(null);
   // Buffer for WS messages that arrive before initial REST load completes
   const wsBufferRef = useRef<ThreadMessage[]>([]);
@@ -1331,6 +1333,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Fetch messages (initial + refresh)
   const fetchMessages = useCallback(async () => {
+    if (missingThreadRef.current) return;
     if (fetchInFlightRef.current) return;
     fetchInFlightRef.current = true;
     if (!initialLoadedRef.current) setLoading(true);
@@ -1480,6 +1483,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (Object.keys(newMine).length) setMyReactions((prev) => ({ ...prev, ...newMine }));
       } catch {}
     } catch (err) {
+      if (isAxiosError(err) && err.response?.status === 404) {
+        missingThreadRef.current = true;
+        setMessages([]);
+        setThreadError('This conversation is no longer available.');
+        setLoading(false);
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('thread:missing', { detail: { id: bookingRequestId } })
+            );
+          }
+        } catch {}
+        return;
+      }
       console.error('Failed to fetch messages:', err);
       setThreadError(`Failed to load messages. ${(err as Error).message || 'Please try again.'}`);
     } finally {
@@ -1543,6 +1560,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // Hard-reset thread state on conversation switch to avoid cross-thread merging
   useEffect(() => {
+    missingThreadRef.current = false;
     setMessages([]);
     setQuotes({});
     setBookingDetails(null);
