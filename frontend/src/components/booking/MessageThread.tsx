@@ -2153,10 +2153,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); } : undefined}
                             onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toProxyPath(url)); } } : undefined}
                           >
-                            <span className="inline-flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 w-full">
                               {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600" /> : null}
-                              <span className="line-clamp-2 break-words">{label}</span>
-                            </span>
+                              <span className="min-w-0 flex-1 line-clamp-2 break-words">{label}</span>
+                            </div>
                           </div>
                         );
                       }
@@ -3610,10 +3610,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                     onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); } : undefined}
                                     onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toProxyPath(url)); } } : undefined}
                                   >
-                                    <span className="inline-flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1.5 w-full">
                                       {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600" /> : null}
-                                      <span className="line-clamp-2 break-words">{label}</span>
-                                    </span>
+                                      <span className="min-w-0 flex-1 line-clamp-2 break-words">{label}</span>
+                                    </div>
                                   </div>
                                 );
                               }
