@@ -20,7 +20,7 @@ import { createPortal } from 'react-dom';
 import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
 import data from '@emoji-mart/data';
 import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon, MusicalNoteIcon, PaperClipIcon } from '@heroicons/react/24/outline';
-import { ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { MicrophoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 import {
@@ -2668,6 +2668,94 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           </div>
         );
       }
+    }
+
+    if (key.startsWith('listing_approved_v1') || key.startsWith('listing_rejected_v1')) {
+      const isApproved = key.includes('approved');
+      const raw = String(msg.content || '');
+      const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
+      const heading = lines.find((line) => /^listing\s+(approved|rejected)/i.test(line)) || lines[0] || '';
+      const title = heading.includes(':') ? heading.split(':').slice(1).join(':').trim() : heading;
+      const reasonLine = lines.find((line) => /^reason:/i.test(line));
+      const reason = reasonLine ? reasonLine.split(':').slice(1).join(':').trim() : null;
+      const viewLine = lines.find((line) => /^view listing:/i.test(line));
+      const viewUrlRaw = viewLine ? viewLine.split(':').slice(1).join(':').trim() : null;
+      const supportLine = lines.find((line) => /^need help/i.test(line));
+      const alignClass = msg.sender_id === user?.id ? 'ml-auto' : 'mr-auto';
+      const palette = isApproved
+        ? {
+            border: 'border-emerald-200',
+            bg: 'bg-emerald-50',
+            iconBg: 'bg-emerald-600',
+            iconFg: 'text-white',
+            titleColor: 'text-emerald-900',
+            accent: 'text-emerald-700',
+          }
+        : {
+            border: 'border-amber-200',
+            bg: 'bg-amber-50',
+            iconBg: 'bg-amber-500',
+            iconFg: 'text-white',
+            titleColor: 'text-amber-900',
+            accent: 'text-amber-700',
+          };
+
+      const icon = isApproved ? (
+        <CheckCircleIcon className={`h-5 w-5 ${palette.iconFg}`} aria-hidden="true" />
+      ) : (
+        <ExclamationTriangleIcon className={`h-5 w-5 ${palette.iconFg}`} aria-hidden="true" />
+      );
+
+      const resolvedViewUrl = (() => {
+        if (!viewUrlRaw) return null;
+        if (/^https?:/i.test(viewUrlRaw)) return viewUrlRaw;
+        if (viewUrlRaw.startsWith('/')) return viewUrlRaw;
+        return `/${viewUrlRaw}`;
+      })();
+
+      return (
+        <div className={`my-3 ${alignClass} w-full md:w-1/2 md:max-w-[520px]`} role="group" aria-label={isApproved ? t('system.listingApproved', 'Listing approved') : t('system.listingRejected', 'Listing rejected')}>
+          <div className={`rounded-2xl border ${palette.border} ${palette.bg} p-4 shadow-sm transition-shadow hover:shadow-md`}
+            data-testid="booka-moderation-card"
+          >
+            <div className="flex items-start gap-3">
+              <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${palette.iconBg}`}>
+                {icon}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className={`text-[11px] font-semibold uppercase tracking-wide ${palette.accent}`}>
+                  {isApproved ? t('system.listingApprovedTitle', 'Listing approved') : t('system.listingRejectedTitle', 'Listing rejected')}
+                </p>
+                <p className={`mt-1 text-sm font-semibold ${palette.titleColor} truncate`}>
+                  {title || t('system.listingTitleFallback', 'Listing update')}
+                </p>
+                {reason && !isApproved && (
+                  <p className="mt-2 text-xs text-gray-700" data-testid="booka-moderation-reason">
+                    {reason}
+                  </p>
+                )}
+                {supportLine && (
+                  <p className="mt-2 text-[11px] text-gray-600">
+                    {supportLine.replace(/^need help\??\s*/i, '') || supportLine}
+                  </p>
+                )}
+                {resolvedViewUrl && (
+                  <div className="mt-3">
+                    <a
+                      href={resolvedViewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1 text-[11px] font-semibold text-gray-700 shadow-sm hover:bg-gray-100"
+                    >
+                      {t('system.viewListing', 'View listing')}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
     }
 
     // Receipt download (payment received / receipt available)
