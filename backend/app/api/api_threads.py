@@ -69,11 +69,11 @@ def get_threads_preview(
         client_id=current_user.id if not is_artist else None,
         skip=0,
         limit=limit,
+        include_relationships=False,
     )
 
     # Map unread counts via notification aggregator
-    threads = crud_notification.get_message_thread_notifications(db, current_user.id)
-    unread_by_id: Dict[int, int] = {t["booking_request_id"]: int(t.get("unread_count", 0)) for t in threads}
+    unread_by_id = crud_notification.get_unread_counts_for_threads(db, current_user.id)
 
     items: List[ThreadPreviewItem] = []
     for br in brs:
@@ -172,10 +172,10 @@ def get_threads_index(
         client_id=current_user.id if not is_artist else None,
         skip=0,
         limit=limit,
+        include_relationships=False,
     )
     # Map unread counts via notification aggregator for now
-    threads = crud_notification.get_message_thread_notifications(db, current_user.id)
-    unread_by_id: Dict[int, int] = {t["booking_request_id"]: int(t.get("unread_count", 0)) for t in threads}
+    unread_by_id = crud_notification.get_unread_counts_for_threads(db, current_user.id)
 
     items: List[ThreadsIndexItem] = []
     for br in brs:
@@ -203,7 +203,11 @@ def get_threads_index(
                     avatar_url = other.profile_picture_url
 
         state = _state_from_status(br.status)
-        snippet = preview_label_for_message(last_m, thread_state=state, sender_display=name)
+        snippet = getattr(br, "last_message_content", "") or preview_label_for_message(
+            last_m,
+            thread_state=state,
+            sender_display=name,
+        )
 
         meta: Dict[str, Any] = {}
         if getattr(br, "travel_breakdown", None):

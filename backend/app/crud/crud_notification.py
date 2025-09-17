@@ -204,6 +204,34 @@ def get_message_thread_notifications(db: Session, user_id: int) -> List[dict]:
     return sorted(threads.values(), key=lambda t: t["timestamp"], reverse=True)
 
 
+def get_unread_counts_for_threads(db: Session, user_id: int) -> Dict[int, int]:
+    """Return a lightweight map of unread message counts per booking request."""
+    rows = (
+        db.query(models.Notification.link, models.Notification.is_read)
+        .filter(
+            models.Notification.user_id == user_id,
+            models.Notification.type == models.NotificationType.NEW_MESSAGE,
+        )
+        .order_by(models.Notification.timestamp.desc())
+        .all()
+    )
+
+    counts: Dict[int, int] = {}
+    for link, is_read in rows:
+        if not link:
+            continue
+        match = re.search(r"(?:/booking-requests/|/inbox\\?requestId=)(\\d+)", link)
+        if not match:
+            continue
+        request_id = int(match.group(1))
+        if not is_read:
+            counts[request_id] = counts.get(request_id, 0) + 1
+        else:
+            counts.setdefault(request_id, 0)
+
+    return counts
+
+
 def mark_thread_read(db: Session, user_id: int, booking_request_id: int) -> None:
     """Mark all message notifications for the given thread as read."""
     notifs: Iterable[models.Notification] = (

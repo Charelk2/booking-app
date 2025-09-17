@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, load_only
 import re
 from sqlalchemy import select, func
 from typing import Dict, List, Optional
@@ -123,6 +123,7 @@ def get_booking_requests_with_last_message(
     artist_id: int | None = None,
     skip: int = 0,
     limit: int = 100,
+    include_relationships: bool = True,
 ) -> List[models.BookingRequest]:
     """Return booking requests with their latest chat message.
 
@@ -156,9 +157,10 @@ def get_booking_requests_with_last_message(
         .subquery()
     )
 
-    query = (
-        db.query(models.BookingRequest)
-        .options(
+    query = db.query(models.BookingRequest)
+
+    if include_relationships:
+        query = query.options(
             joinedload(models.BookingRequest.client),
             joinedload(models.BookingRequest.artist).joinedload(models.User.artist_profile),
             joinedload(models.BookingRequest.service).joinedload(models.Service.artist),
@@ -166,8 +168,35 @@ def get_booking_requests_with_last_message(
             .joinedload(models.Quote.artist)
             .joinedload(models.User.artist_profile),
         )
-        .outerjoin(latest_msg, models.BookingRequest.id == latest_msg.c.br_id)
-        .add_columns(latest_msg.c.last_message_timestamp)
+    else:
+        query = query.options(
+            joinedload(models.BookingRequest.client).load_only(
+                models.User.id,
+                models.User.first_name,
+                models.User.last_name,
+                models.User.profile_picture_url,
+            ),
+            joinedload(models.BookingRequest.artist)
+            .load_only(
+                models.User.id,
+                models.User.first_name,
+                models.User.last_name,
+                models.User.profile_picture_url,
+            )
+            .joinedload(models.User.artist_profile)
+            .load_only(
+                models.ServiceProviderProfile.user_id,
+                models.ServiceProviderProfile.business_name,
+                models.ServiceProviderProfile.profile_picture_url,
+            ),
+            joinedload(models.BookingRequest.service).load_only(
+                models.Service.id,
+                models.Service.service_type,
+            ),
+        )
+
+    query = query.outerjoin(latest_msg, models.BookingRequest.id == latest_msg.c.br_id).add_columns(
+        latest_msg.c.last_message_timestamp
     )
 
     if client_id is not None:
@@ -209,6 +238,23 @@ def get_booking_requests_with_last_message(
         if pv_ids
         else set()
     )
+
+    accepted_quote_map: Dict[int, int] = {}
+    if not include_relationships and requests:
+        accepted_rows = (
+            db.query(models.Quote.booking_request_id, models.Quote.id)
+            .filter(models.Quote.booking_request_id.in_(request_ids))
+            .filter(
+                models.Quote.status.in_(
+                    [
+                        models.QuoteStatus.ACCEPTED_BY_CLIENT,
+                        models.QuoteStatus.CONFIRMED_BY_ARTIST,
+                    ]
+                )
+            )
+            .all()
+        )
+        accepted_quote_map = {int(r.booking_request_id): int(r.id) for r in accepted_rows}
 
     def _state_from_status(status: "models.BookingStatus") -> str:
         if status in [models.BookingStatus.DRAFT, models.BookingStatus.PENDING_QUOTE, models.BookingStatus.PENDING]:
@@ -314,23 +360,28 @@ def get_booking_requests_with_last_message(
 
         if br.artist and br.artist.artist_profile:
             setattr(br, "artist_profile", br.artist.artist_profile)
-        accepted = next(
-            (
-                q
-                for q in br.quotes
-                if q.status
-                in [
-                    models.QuoteStatus.ACCEPTED_BY_CLIENT,
-                    models.QuoteStatus.CONFIRMED_BY_ARTIST,
-                ]
-            ),
-            None,
-        )
-        if accepted:
-            setattr(br, "accepted_quote_id", accepted.id)
-        for q in br.quotes:
-            if q.artist and q.artist.artist_profile:
-                setattr(q, "artist_profile", q.artist.artist_profile)
+        if include_relationships:
+            accepted = next(
+                (
+                    q
+                    for q in br.quotes
+                    if q.status
+                    in [
+                        models.QuoteStatus.ACCEPTED_BY_CLIENT,
+                        models.QuoteStatus.CONFIRMED_BY_ARTIST,
+                    ]
+                ),
+                None,
+            )
+            if accepted:
+                setattr(br, "accepted_quote_id", accepted.id)
+            for q in br.quotes:
+                if q.artist and q.artist.artist_profile:
+                    setattr(q, "artist_profile", q.artist.artist_profile)
+        else:
+            setattr(br, "quotes", [])
+            if br.id in accepted_quote_map:
+                setattr(br, "accepted_quote_id", accepted_quote_map[br.id])
 
         filtered_results.append(br)
 
