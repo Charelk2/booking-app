@@ -573,6 +573,39 @@ export default function InboxPage() {
     return () => { try { window.removeEventListener('thread:preview', onPreview as any); } catch {} };
   }, [CACHE_KEY, LATEST_CACHE_KEY, persistKey]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleMissing = (event: Event) => {
+      const detail = (event as CustomEvent<{ id?: number }>).detail || {};
+      const id = Number(detail.id);
+      if (!id) return;
+      setAllBookingRequests((prev) => {
+        if (!prev.some((r) => r.id === id)) return prev;
+        const next = prev.filter((r) => r.id !== id);
+        try {
+          const json = JSON.stringify(next);
+          sessionStorage.setItem(CACHE_KEY, json);
+          sessionStorage.setItem(LATEST_CACHE_KEY, json);
+          localStorage.setItem(persistKey, JSON.stringify({ ts: Date.now(), items: next }));
+        } catch {}
+        return next;
+      });
+      setSelectedBookingRequestId((current) => (current === id ? null : current));
+      try {
+        if (sessionStorage.getItem(SEL_KEY) === String(id)) sessionStorage.removeItem(SEL_KEY);
+      } catch {}
+      try {
+        const raw = localStorage.getItem(SEL_KEY);
+        if (raw) {
+          const obj = JSON.parse(raw) as { id?: number };
+          if (obj?.id === id) localStorage.removeItem(SEL_KEY);
+        }
+      } catch {}
+    };
+    window.addEventListener('thread:missing', handleMissing as EventListener);
+    return () => window.removeEventListener('thread:missing', handleMissing as EventListener);
+  }, [CACHE_KEY, LATEST_CACHE_KEY, persistKey, SEL_KEY]);
+
   // Refresh list on window focus / tab visibility change so previews update (throttled)
   useEffect(() => {
     const onFocus = () => {
