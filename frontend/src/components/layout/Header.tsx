@@ -42,8 +42,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 
 import { useAuth } from '@/contexts/AuthContext';
-// import NotificationBell from './NotificationBell';
-// import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
+import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import SearchBar from '../search/SearchBar';
 import MobileSearch, { type MobileSearchHandle } from '../search/MobileSearch';
@@ -170,29 +169,28 @@ function ArtistNav({ user, pathname }: { user: { id: number }; pathname: string 
 }
 
 // Lightweight messages link with unread badge, defined once, used in header.
-function HeaderMessagesLink() {
-  const count = 0; // temporarily disable unread badge to reduce module graph
+function HeaderMessagesLink({ unread }: { unread: number }) {
   const router = useRouter();
   return (
     <Link
       href="/inbox"
       className="relative inline-flex items-center gap-2 px-3 py-2 rounded-lg text-white hover:bg-gray-900 hover:text-white hover:no-underline"
-      aria-label={count > 0 ? `Messages (${count} unread)` : 'Messages'}
+      aria-label={unread > 0 ? `Messages (${unread} unread)` : 'Messages'}
       onMouseEnter={() => router.prefetch?.('/inbox')}
       onFocus={() => router.prefetch?.('/inbox')}
     >
-      {count > 0 ? (
+      {unread > 0 ? (
         <ChatBubbleLeftRightIcon className="h-5 w-5" />
       ) : (
         <ChatOutline className="h-5 w-5" />
       )}
       <span className="text-sm">Messages</span>
-      {count > 0 && (
+      {unread > 0 && (
         <span
           className="ml-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 text-[10px] font-semibold leading-none px-1"
-          aria-label={`${count} unread messages`}
+          aria-label={`${unread} unread messages`}
         >
-          {count > 99 ? '99+' : count}
+          {unread > 99 ? '99+' : unread}
         </span>
       )}
     </Link>
@@ -213,28 +211,27 @@ HeaderMessagesLink.Definition = function Definition() {
   return null;
 };
 
-function HeaderMessagesLinkMobile() {
-  const count = 0; // temporarily disable unread badge to reduce module graph
+function HeaderMessagesLinkMobile({ unread }: { unread: number }) {
   const router = useRouter();
   return (
     <Link
       href="/inbox"
       className="md:hidden p-2 rounded-xl transition text-white relative hover:bg-gray-900 hover:text-white hover:no-underline"
-      aria-label={count > 0 ? `Messages (${count} unread)` : 'Messages'}
+      aria-label={unread > 0 ? `Messages (${unread} unread)` : 'Messages'}
       onMouseEnter={() => router.prefetch?.('/inbox')}
       onFocus={() => router.prefetch?.('/inbox')}
     >
-      {count > 0 ? (
+      {unread > 0 ? (
         <ChatBubbleLeftRightIcon className="h-6 w-6" />
       ) : (
         <ChatOutline className="h-6 w-6" />
       )}
-      {count > 0 && (
+      {unread > 0 && (
         <span
           className="absolute -top-1 -right-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 text-[10px] font-semibold leading-none px-1"
-          aria-label={`${count} unread messages`}
+          aria-label={`${unread} unread messages`}
         >
-          {count > 99 ? '99+' : count}
+          {unread > 99 ? '99+' : unread}
         </span>
       )}
     </Link>
@@ -254,6 +251,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   ref,
 ) {
   const { user, logout, artistViewActive, toggleArtistView } = useAuth();
+  const { count: unreadThreadsCount } = useUnreadThreadsCount(45000);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -448,7 +446,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             </button>
 
             {/* MOBILE: messages shortcut with non-flicker unread badge */}
-            <HeaderMessagesLinkMobile />
+            <HeaderMessagesLinkMobile unread={unreadThreadsCount} />
 
             <Link
               href="/"
@@ -583,7 +581,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   </button>
                 )}
                 {/* Messages link with unread badge (no flicker) */}
-                <HeaderMessagesLink />
+                <HeaderMessagesLink unread={unreadThreadsCount} />
 
                 <Menu as="div" className="relative">
                   <Menu.Button

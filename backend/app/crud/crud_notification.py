@@ -1,6 +1,7 @@
 from collections import defaultdict
 from sqlalchemy.orm import Session
-from typing import Dict, List, Iterable
+from sqlalchemy import func
+from typing import Dict, List, Iterable, Tuple
 import re
 
 from ..utils.messages import BOOKING_DETAILS_PREFIX, parse_booking_details
@@ -222,6 +223,26 @@ def mark_thread_read(db: Session, user_id: int, booking_request_id: int) -> None
     for n in notifs:
         n.is_read = True
     db.commit()
+
+
+def get_unread_message_totals(db: Session, user_id: int) -> Tuple[int, datetime | None]:
+    """Return count and latest timestamp for unread message notifications."""
+
+    count, latest_ts = (
+        db.query(
+            func.count(models.Notification.id),
+            func.max(models.Notification.timestamp),
+        )
+        .filter(
+            models.Notification.user_id == user_id,
+            models.Notification.type == models.NotificationType.NEW_MESSAGE,
+            models.Notification.is_read.is_(False),
+        )
+        .one()
+    )
+
+    total = int(count or 0)
+    return total, latest_ts
 
 
 def mark_all_read(db: Session, user_id: int) -> int:
