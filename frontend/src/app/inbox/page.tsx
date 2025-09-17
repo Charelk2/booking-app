@@ -690,7 +690,6 @@ export default function InboxPage() {
           is_unread_by_current_user: false as any,
           unread_count: 0 as any,
         }) : r)));
-        if (typeof window !== 'undefined') window.dispatchEvent(new Event('threads:updated'));
       } catch {}
       const selectedNow = allBookingRequests.find((r) => r.id === id) as any;
       const isBooka = Boolean(selectedNow?.is_booka_synthetic);
@@ -709,8 +708,14 @@ export default function InboxPage() {
       } catch {}
       if (isMobile) setShowList(false);
 
-      // Fire-and-forget: mark read
-      try { void markThreadRead(id); } catch {}
+      // Fire-and-forget: mark read, then nudge global counters when done
+      try {
+        void markThreadRead(id)
+          .then(() => {
+            try { if (typeof window !== 'undefined') window.dispatchEvent(new Event('threads:updated')); } catch {}
+          })
+          .catch(() => {});
+      } catch {}
 
       // Prefetch current, previous, and next thread (sorted list) on idle
       try {
