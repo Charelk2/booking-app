@@ -154,20 +154,38 @@ const toProxyPath = (url: string): string => {
   return url;
 };
 
-const altAttachmentPath = (url: string): string => {
+const altAttachmentPath = (raw: string): string => {
   try {
-    const u = new URL(url, API_BASE);
+    const u = new URL(raw, API_BASE);
     const api = new URL(API_BASE);
-    if (/^\/static\/attachments\//.test(u.pathname)) {
-      const p = u.pathname.replace(/^\/static\//, '/');
-      return `${api.protocol}//${api.host}${p}${u.search}`;
+
+    // Do not rewrite audio to /static — audio files are not mirrored there
+    if (/\.(webm|mp3|m4a|ogg|wav)$/i.test(u.pathname)) {
+      return u.toString();
     }
-    if (/^\/attachments\//.test(u.pathname)) {
-      const p = '/static' + u.pathname;
-      return `${api.protocol}//${api.host}${p}${u.search}`;
+
+    // For images served by the API, prefer the /static mirror
+    if (
+      u.host === api.host &&
+      u.pathname.startsWith('/attachments/') &&
+      /\.(jpe?g|png|gif|webp|avif)$/i.test(u.pathname)
+    ) {
+      u.pathname = `/static${u.pathname}`;
+      return u.toString();
     }
-  } catch {}
-  return url;
+
+    // If a third-party absolute URL still contains /attachments/, rewrite to API static for images only
+    if (
+      u.pathname.includes('/attachments/') &&
+      /\.(jpe?g|png|gif|webp|avif)$/i.test(u.pathname)
+    ) {
+      return `${api.origin}/static${u.pathname.split('/attachments').pop()}`;
+    }
+
+    return raw;
+  } catch {
+    return raw;
+  }
 };
 
 // Force attachment URLs to always hit the API origin directly, bypassing any
@@ -3603,9 +3621,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             })()}
                             {msg.attachment_url && (
                               (() => {
-                                const url = msg.attachment_url
-                                  ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : altAttachmentPath(toApiAttachmentsUrl(msg.attachment_url)))
+                                const normalized = msg.attachment_url
+                                  ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : toApiAttachmentsUrl(msg.attachment_url))
                                   : '';
+                                const url = isAudioAttachmentUrl(normalized) ? normalized : altAttachmentPath(normalized);
                                 const display = (msg as any).local_preview_url || url;
                                 const isAudio = isAudioAttachmentUrl(msg.attachment_url || url);
                                 if (isImageAttachment(msg.attachment_url)) {
