@@ -323,7 +323,7 @@ function buildPrecomputed(
     const isSyntheticBooka = Boolean((req as any).is_booka_synthetic);
     const showApprovedChip = /^\s*listing\s+approved:/i.test(previewLower);
     const showRejectedChip = /^\s*listing\s+rejected:/i.test(previewLower);
-    const isBookaModeration = isSyntheticBooka || showApprovedChip || showRejectedChip;
+    const isBookaModeration = isSyntheticBooka || showApprovedChip || showRejectedChip || previewLower.includes('booka update');
     const isSupplierInvite = /preferred sound supplier/i.test(previewLower);
     const supplierProgram = (() => {
       if (!isSupplierInvite) return null;
