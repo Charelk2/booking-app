@@ -58,8 +58,20 @@ export default function InboxPage() {
   // Header unread badge (live)
   const { count: unreadTotal } = useUnreadThreadsCount(30000);
 
+  // If not authenticated, send to login early and avoid firing API calls
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      try {
+        const next = encodeURIComponent('/inbox');
+        window.location.replace(`/login?next=${next}`);
+      } catch {}
+    }
+  }, [authLoading, user]);
+
   // Preload the chat thread chunk after mount to avoid first-open lag
   useEffect(() => {
+    if (authLoading || !user) return; // wait for auth before fetching anything
     try {
       const schedule = (fn: () => void) => {
         const ric = (window as any)?.requestIdleCallback as ((cb: () => void, opts?: any) => void) | undefined;
@@ -85,6 +97,7 @@ export default function InboxPage() {
 
   // Bootstrap from cache immediately for snappy paint
   useEffect(() => {
+    if (authLoading || !user) return; // guard unauthenticated
     try {
       if (typeof window === 'undefined') return;
       // 1) Prefer session cache (fastest, always safe)
@@ -151,6 +164,7 @@ export default function InboxPage() {
       });
     };
     // Try unified threads index first (fast, server-joined). Fall back quickly if slow.
+    if (authLoading || !user) return; // guard unauthenticated
     try {
       const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
       const res = await withTimeout(getThreadsIndex(role as any, 50), 3500, { data: { items: [] } } as any);
@@ -249,6 +263,7 @@ export default function InboxPage() {
     } catch (e) {
       // fall through to legacy merge path
     }
+    if (authLoading || !user) return; // guard unauthenticated
     try {
       const mineRes = await getMyBookingRequests();
       let artistRes: AxiosResponse<BookingRequest[]> = { data: [] } as unknown as AxiosResponse<BookingRequest[]>;
