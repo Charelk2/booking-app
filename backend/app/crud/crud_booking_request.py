@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 import re
 from sqlalchemy import select, func
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from .. import models
 from .. import schemas
@@ -137,7 +137,6 @@ def get_booking_requests_with_last_message(
     latest_msg_window = (
         select(
             models.Message.booking_request_id.label("br_id"),
-            models.Message.content.label("last_message_content"),
             models.Message.timestamp.label("last_message_timestamp"),
             func.row_number()
             .over(
@@ -151,7 +150,6 @@ def get_booking_requests_with_last_message(
     latest_msg = (
         select(
             latest_msg_window.c.br_id,
-            latest_msg_window.c.last_message_content,
             latest_msg_window.c.last_message_timestamp,
         )
         .where(latest_msg_window.c.rn == 1)
@@ -169,10 +167,7 @@ def get_booking_requests_with_last_message(
             .joinedload(models.User.artist_profile),
         )
         .outerjoin(latest_msg, models.BookingRequest.id == latest_msg.c.br_id)
-        .add_columns(
-            latest_msg.c.last_message_content,
-            latest_msg.c.last_message_timestamp,
-        )
+        .add_columns(latest_msg.c.last_message_timestamp)
     )
 
     if client_id is not None:
@@ -192,7 +187,29 @@ def get_booking_requests_with_last_message(
         .all()
     )
 
-    results: List[models.BookingRequest] = []
+    if not rows:
+        return []
+
+    requests: List[models.BookingRequest] = []
+    for br, ts in rows:
+        timestamp = ts or br.updated_at or br.created_at
+        setattr(br, "last_message_timestamp", timestamp)
+        requests.append(br)
+
+    request_ids = [br.id for br in requests]
+    last_messages: Dict[int, models.Message] = crud_message.get_last_messages_for_requests(db, request_ids)
+
+    pv_ids = [
+        br.id
+        for br in requests
+        if (getattr(br.service, "service_type", "") or "").lower() == "personalized video"
+    ]
+    paid_pv_ids = (
+        crud_message.get_payment_received_booking_request_ids(db, pv_ids)
+        if pv_ids
+        else set()
+    )
+
     def _state_from_status(status: "models.BookingStatus") -> str:
         if status in [models.BookingStatus.DRAFT, models.BookingStatus.PENDING_QUOTE, models.BookingStatus.PENDING]:
             return "requested"
@@ -211,24 +228,13 @@ def get_booking_requests_with_last_message(
             return "cancelled"
         return "requested"
 
-    def _is_pv_paid(db: Session, br_id: int) -> bool:
-        try:
-            msgs = crud_message.get_messages_for_request(db, br_id, viewer=None, skip=0, limit=200)
-            for m in reversed(msgs):
-                txt = (m.content or '').strip().lower()
-                if txt.startswith('payment received'):
-                    return True
-        except Exception:
-            pass
-        return False
-
     filtered_results: List[models.BookingRequest] = []
+    recent_cache: Dict[int, List[models.Message]] = {}
 
-    for br, content, timestamp in rows:
-        # Compute preview via centralized helper for consistency
-        last_m = crud_message.get_last_message_for_request(db, br.id)
+    for br in requests:
+        last_m = last_messages.get(br.id)
         state = _state_from_status(br.status)
-        # Prefer counterparty display name when QUOTE
+
         sender_display = None
         if last_m and last_m.sender_id:
             if last_m.sender_id == br.artist_id and br.artist:
@@ -238,13 +244,18 @@ def get_booking_requests_with_last_message(
                     sender_display = f"{br.artist.first_name} {br.artist.last_name}"
             elif last_m.sender_id == br.client_id and br.client:
                 sender_display = f"{br.client.first_name} {br.client.last_name}"
-        # Personalized Video-specific preview adjustments
+
         service_type = (getattr(br.service, "service_type", "") or "").lower()
-        is_pv = service_type == "personalized video".lower()
+        is_pv = service_type == "personalized video"
+        if is_pv and br.id not in paid_pv_ids:
+            continue
+
+        preview_message = last_m
+        preview_key = None
+        preview_args: Dict[str, int | str] = {}
+
         if is_pv:
-            # For PV, skip initial "You have a new booking request" and booking-detail summaries
-            # and prefer meaningful system updates like payment received (with order #) or brief completed.
-            def _is_skip(msg) -> bool:
+            def _is_skip(msg: Optional[models.Message]) -> bool:
                 if not msg or not getattr(msg, "content", None):
                     return False
                 text = (msg.content or "").strip()
@@ -255,38 +266,52 @@ def get_booking_requests_with_last_message(
                     return True
                 return False
 
-            candidate = last_m
-            if _is_skip(candidate):
-                # Pull recent visible messages and choose the latest non-skipped one
-                viewer = models.VisibleTo.ARTIST if artist_id is not None else models.VisibleTo.CLIENT
-                try:
-                    msgs = crud_message.get_messages_for_request(db, br.id, viewer=viewer, skip=0, limit=200)
-                    for m in reversed(msgs):
-                        if not _is_skip(m):
-                            candidate = m
-                            break
-                except Exception:
-                    pass
+            if _is_skip(preview_message):
+                cached = recent_cache.get(br.id)
+                if cached is None:
+                    cached = crud_message.get_recent_messages_for_request(db, br.id, limit=6)
+                    recent_cache[br.id] = cached
+                for candidate in cached:
+                    if not _is_skip(candidate):
+                        preview_message = candidate
+                        break
 
-            # Build PV-aware preview label from candidate
-            if candidate is not None:
-                text = (candidate.content or "").strip()
-                low = text.lower()
-                if low.startswith("payment received"):
-                    # Include order number when present and hint a receipt is available in thread
-                    m = re.search(r"order\s*#\s*([A-Za-z0-9\-]+)", text, flags=re.IGNORECASE)
-                    order = f" — order #{m.group(1)}" if m else ""
-                    preview = f"Payment received{order} · View receipt"
-                elif "brief completed" in low:
-                    preview = "Brief completed"
-                else:
-                    preview = preview_label_for_message(candidate, thread_state=state, sender_display=sender_display)
+        if is_pv and preview_message is not None:
+            text = (preview_message.content or "").strip()
+            low = text.lower()
+            if low.startswith("payment received"):
+                m = re.search(r"order\s*#\s*([A-Za-z0-9\-]+)", text, flags=re.IGNORECASE)
+                order = f" — order #{m.group(1)}" if m else ""
+                preview = f"Payment received{order} · View receipt"
+                preview_key = "payment_received"
+            elif "brief completed" in low:
+                preview = "Brief completed"
+                preview_key = "brief_completed"
             else:
-                preview = preview_label_for_message(last_m, thread_state=state, sender_display=sender_display)
+                preview = preview_label_for_message(preview_message, thread_state=state, sender_display=sender_display)
         else:
-            preview = preview_label_for_message(last_m, thread_state=state, sender_display=sender_display)
-        setattr(br, "last_message_content", preview)
-        setattr(br, "last_message_timestamp", timestamp)
+            preview = preview_label_for_message(preview_message, thread_state=state, sender_display=sender_display)
+
+        meta_msg = preview_message or last_m
+        if meta_msg and getattr(meta_msg, "system_key", None):
+            sk = (meta_msg.system_key or "").strip().lower()
+            if sk.startswith("booking_details"):
+                preview_key = preview_key or "new_booking_request"
+            elif sk.startswith("payment_received") or sk == "payment_received":
+                preview_key = "payment_received"
+            elif sk.startswith("event_reminder"):
+                preview_key = "event_reminder"
+                low = (meta_msg.content or "").strip().lower()
+                dm = re.search(r"event\s+in\s+(\d+)\s+days\s*:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})", low, flags=re.IGNORECASE)
+                if dm:
+                    preview_args = {"daysBefore": int(dm.group(1)), "date": dm.group(2)}
+
+        setattr(br, "last_message_content", preview or "")
+        setattr(br, "_last_message", last_m)
+        setattr(br, "_preview_message", preview_message or last_m)
+        setattr(br, "_preview_key", preview_key)
+        setattr(br, "_preview_args", preview_args or None)
+
         if br.artist and br.artist.artist_profile:
             setattr(br, "artist_profile", br.artist.artist_profile)
         accepted = next(
@@ -306,11 +331,12 @@ def get_booking_requests_with_last_message(
         for q in br.quotes:
             if q.artist and q.artist.artist_profile:
                 setattr(q, "artist_profile", q.artist.artist_profile)
-        # Hide PV requests until payment is made (front-end should not see them yet)
-        service_type = (getattr(br.service, 'service_type', '') or '').lower()
-        is_pv = service_type == 'personalized video'
-        if is_pv and not _is_pv_paid(db, br.id):
-            continue
+
         filtered_results.append(br)
+
+    filtered_results.sort(
+        key=lambda req: getattr(req, "last_message_timestamp", req.created_at),
+        reverse=True,
+    )
 
     return filtered_results
