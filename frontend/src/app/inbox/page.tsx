@@ -749,7 +749,7 @@ export default function InboxPage() {
 
       // Fire-and-forget: mark read, then nudge global counters when done
       try {
-        if (previousUnread > 0) {
+        if (previousUnread > 0 && typeof window !== 'undefined') {
           try {
             window.dispatchEvent(
               new CustomEvent('inbox:unread', {
