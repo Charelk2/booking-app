@@ -242,6 +242,7 @@ PORTFOLIO_IMAGES_DIR = os.path.join(APP_STATIC_DIR, "portfolio_images")
 
 ATTACHMENTS_DIR = os.path.join(APP_STATIC_DIR, "attachments")
 ATTACHMENTS_DIR_OVERRIDE = os.getenv("ATTACHMENTS_DIR")
+ATTACHMENTS_DIR_FINAL = ATTACHMENTS_DIR
 
 # Optional: base dir for persistent uploads (e.g., on Fly volume)
 # When set, we'll symlink static subfolders to this base path so that
@@ -274,10 +275,13 @@ if ATTACHMENTS_DIR_OVERRIDE and os.path.abspath(ATTACHMENTS_DIR_OVERRIDE) != os.
             os.symlink(ATTACHMENTS_DIR_OVERRIDE, ATTACHMENTS_DIR)
         except FileExistsError:
             pass
+        ATTACHMENTS_DIR_FINAL = ATTACHMENTS_DIR_OVERRIDE
     except Exception as _exc:
         logging.getLogger(__name__).warning("Failed to link attachments dir: %s", _exc)
+        ATTACHMENTS_DIR_FINAL = ATTACHMENTS_DIR_OVERRIDE
 else:
     os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+    ATTACHMENTS_DIR_FINAL = ATTACHMENTS_DIR
 os.makedirs(INVOICE_PDFS_DIR, exist_ok=True)
 
 # If an uploads base dir is provided, symlink static folders to the volume
@@ -349,7 +353,7 @@ app.mount("/cover_photos", StaticFiles(directory=COVER_PHOTOS_DIR), name="cover_
 # Direct mount for attachments to avoid relying solely on /static path. This allows
 # clients to request /attachments/<file> and hit the same backing directory.
 try:
-    app.mount("/attachments", StaticFiles(directory=ATTACHMENTS_DIR), name="attachments")
+    app.mount("/attachments", StaticFiles(directory=ATTACHMENTS_DIR_FINAL), name="attachments")
 except Exception as _exc:
     logger.warning("Failed to mount /attachments: %s", _exc)
 
