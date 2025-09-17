@@ -306,20 +306,6 @@ function buildPrecomputed(
       const text = (req.last_message_content || '').toString();
       return /(sent a quote|quote sent|provided a quote|new quote)/i.test(text);
     })();
-    const showInquiry = (() => {
-      if (showEvent || showVideo || isQuote) return false;
-      const threadState = String(((req as any).thread_state ?? '') || '').toLowerCase();
-      const status = (req.status || '').toString().toLowerCase();
-      const hasBookingDetails = Boolean((req as any).proposed_datetime_1 || (req as any).proposed_datetime_2 || (req as any).travel_breakdown);
-      const hasQuotes = Boolean((req as any).accepted_quote_id) || (Array.isArray((req as any).quotes) && (req as any).quotes.length > 0) || threadState === 'quoted';
-      if ((req as any).has_inquiry_card === true) return true;
-      try { if (typeof window !== 'undefined' && localStorage.getItem(`inquiry-thread-${req.id}`)) return true; } catch {}
-      if (hasBookingDetails || hasQuotes || status.includes('pending_quote')) return false;
-      if (threadState === 'inquiry' || threadState === 'requested') return true;
-      const lastContentLower = String(req.last_message_content || '').toLowerCase();
-      if (lastContentLower.includes('new booking request')) return true;
-      return false;
-    })();
     const preview = (() => {
       const otherName = name;
       if (
@@ -335,6 +321,19 @@ function buildPrecomputed(
     const showApprovedChip = /^\s*listing\s+approved:/i.test(previewLower);
     const showRejectedChip = /^\s*listing\s+rejected:/i.test(previewLower);
     const isBookaModeration = isSyntheticBooka || showApprovedChip || showRejectedChip;
+    const showInquiry = (() => {
+      if (showEvent || showVideo || isQuote || isBookaModeration) return false;
+      const threadState = String(((req as any).thread_state ?? '') || '').toLowerCase();
+      const status = (req.status || '').toString().toLowerCase();
+      const hasBookingDetails = Boolean((req as any).proposed_datetime_1 || (req as any).proposed_datetime_2 || (req as any).travel_breakdown);
+      const hasQuotes = Boolean((req as any).accepted_quote_id) || (Array.isArray((req as any).quotes) && (req as any).quotes.length > 0) || threadState === 'quoted';
+      if ((req as any).has_inquiry_card === true) return true;
+      try { if (typeof window !== 'undefined' && localStorage.getItem(`inquiry-thread-${req.id}`)) return true; } catch {}
+      if (hasBookingDetails || hasQuotes || status.includes('pending_quote')) return false;
+      if (threadState === 'inquiry' || threadState === 'requested') return true;
+      if (previewLower.includes('new booking request')) return true;
+      return false;
+    })();
     const rawUnread = Number((req as any).unread_count || 0);
     const unreadCount = rawUnread > 0 ? rawUnread : (isUnread ? 1 : 0);
 
@@ -424,6 +423,9 @@ const Row = React.memo(function Row({ index, style, data }: { index: number; sty
         </div>
         <div className={clsx('text-xs', p.isUnread ? 'font-semibold text-gray-800' : 'text-gray-600', 'flex items-start justify-between gap-3')}>
           <span className="inline-flex items-center gap-2 min-w-0 flex-1 truncate">
+            {p.isBookaModeration && (
+              <span className="inline-flex items-center gap-1 rounded bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">BOOKA</span>
+            )}
             {p.showEvent && (
               <span className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">EVENT</span>
             )}
@@ -437,10 +439,17 @@ const Row = React.memo(function Row({ index, style, data }: { index: number; sty
               <span className="inline-flex items-center gap-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">INQUIRY</span>
             )}
             <span className="truncate">
-              {p.isBookaModeration ? (
-                <>
-                  <span className="text-[10px] font-semibold text-indigo-700 mr-1">Booka •</span>
-                  {q && partsPrev.has ? (
+              {p.isBookaModeration
+                ? (q && partsPrev.has ? (
+                    <>
+                      {partsPrev.before}
+                      <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsPrev.match}</span>
+                      {partsPrev.after}
+                    </>
+                  ) : (
+                    <span className="text-indigo-800 font-medium">{p.preview}</span>
+                  ))
+                : (q && partsPrev.has ? (
                     <>
                       {partsPrev.before}
                       <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsPrev.match}</span>
@@ -448,19 +457,7 @@ const Row = React.memo(function Row({ index, style, data }: { index: number; sty
                     </>
                   ) : (
                     p.preview
-                  )}
-                </>
-              ) : (
-                q && partsPrev.has ? (
-                  <>
-                    {partsPrev.before}
-                    <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsPrev.match}</span>
-                    {partsPrev.after}
-                  </>
-                ) : (
-                  p.preview
-                )
-              )}
+                  ))}
             </span>
           </span>
           {p.unreadCount > 0 ? (
