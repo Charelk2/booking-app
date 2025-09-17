@@ -495,6 +495,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [uploadingProgress, setUploadingProgress] = useState(0);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const uploadAbortRef = useRef<AbortController | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
   const [textareaLineHeight, setTextareaLineHeight] = useState(0);
@@ -796,6 +797,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Portal ready
   useEffect(() => { setIsPortalReady(true); }, []);
+  // Cleanup on unmount: abort uploads, clear timers, revoke URLs
+  useEffect(() => {
+    return () => {
+      try { uploadAbortRef.current?.abort(); } catch {}
+      try { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); } catch {}
+      try { if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current); } catch {}
+      try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
+      try { if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl); } catch {}
+      try { mediaRecorderRef.current?.stop(); } catch {}
+    };
+  }, []);
 
   // (Quote drawer removed)
 
@@ -1155,6 +1167,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     setImagePreviewUrls([]);
     setAttachmentFile(null);
     setAttachmentPreviewUrl(null);
+    setImageModalIndex(null);
+    setFilePreviewSrc(null);
+    try { uploadAbortRef.current?.abort(); } catch {}
+    try { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); } catch {}
+    try { if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current); } catch {}
     setThreadError(null);
     setLoading(true);
     initialLoadedRef.current = false;
@@ -2864,12 +2881,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           }
 
           setIsUploadingAttachment(true);
+          // Abort any previous upload attempt
+          try { uploadAbortRef.current?.abort(); } catch {}
+          uploadAbortRef.current = new AbortController();
           const res = await uploadMessageAttachment(
             bookingRequestId,
             fileToUpload,
             (evt) => {
               if (evt.total) setUploadingProgress(Math.round((evt.loaded * 100) / evt.total));
             },
+            uploadAbortRef.current?.signal,
           );
           attachment_url = res.data.url;
           // Do not revoke the temp audio URL yet; keep it until message post succeeds

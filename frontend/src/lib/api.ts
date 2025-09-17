@@ -636,6 +636,7 @@ export const uploadMessageAttachment = (
   bookingRequestId: number,
   file: File,
   onUploadProgress?: (event: AxiosProgressEvent) => void,
+  signal?: AbortSignal,
 ) => {
   if (!file || file.size === 0) {
     return Promise.reject(new Error('Attachment file is required'));
@@ -645,7 +646,7 @@ export const uploadMessageAttachment = (
   return api.post<{ url: string }>(
     `${API_V1}/booking-requests/${bookingRequestId}/attachments`,
     formData,
-    { onUploadProgress, headers: { 'Content-Type': undefined } },
+    { onUploadProgress, headers: { 'Content-Type': undefined }, signal },
   );
 };
 
