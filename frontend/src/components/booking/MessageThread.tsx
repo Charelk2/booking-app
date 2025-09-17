@@ -2659,6 +2659,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       let attachment_url: string | undefined;
       const tempId = -Date.now(); // negative to avoid collisions
+      let localTempAudioUrl: string | null = null;
 
       try {
         // Common reset helper (used by all send paths)
@@ -2802,6 +2803,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           // Voice notes and other files path
           const fileToUpload = attachmentFile;
           const isAudioFile = fileToUpload.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg|wav)$/i.test(fileToUpload.name || '');
+          let localTempAudioUrl: string | null = null;
 
           // If audio, add an optimistic bubble immediately using the local blob URL
           let optimisticAdded = false;
@@ -2815,7 +2817,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           }
 
           if (isAudioFile) {
-            const localUrl = attachmentPreviewUrl || URL.createObjectURL(fileToUpload);
+            // Always create a fresh object URL for the optimistic bubble so it
+            // isn't revoked by the attachment preview cleanup when we clear the composer.
+            const localUrl = URL.createObjectURL(fileToUpload);
+            localTempAudioUrl = localUrl;
             const optimisticAudio: ThreadMessage = {
               id: tempId,
               booking_request_id: bookingRequestId,
@@ -2855,6 +2860,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             },
           );
           attachment_url = res.data.url;
+          // Do not revoke the temp audio URL yet; keep it until message post succeeds
 
           // Build payload now that we have the final URL
           payload = {
@@ -2909,6 +2915,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             byId.set(real.id, real);
             return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
           });
+          // Now that the real message is in place, revoke any temporary audio blob URL
+          try { if (localTempAudioUrl) URL.revokeObjectURL(localTempAudioUrl); } catch {}
           // Update inbox preview for sender immediately
           try {
             if (typeof window !== 'undefined') {
@@ -4229,13 +4237,27 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     recordedChunksRef.current = [];
                     try {
                       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                      const mr = new MediaRecorder(stream);
+                      // Choose a supported audio mime type for widest compatibility
+                      const candidates = [
+                        'audio/webm;codecs=opus',
+                        'audio/webm',
+                        'audio/mp4',
+                        'audio/ogg',
+                        'audio/mpeg',
+                        'audio/wav',
+                      ];
+                      const supported = (candidates as string[]).find((t) => {
+                        try { return typeof (window as any).MediaRecorder !== 'undefined' && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(t); } catch { return false; }
+                      }) || undefined;
+                      const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
                       mediaRecorderRef.current = mr;
                       mr.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
                       mr.onstop = async () => {
-                        const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+                        const mime = recordedChunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || 'audio/webm';
+                        const blob = new Blob(recordedChunksRef.current, { type: mime });
                         if (blob.size === 0) return;
-                        const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
+                        const ext = /mp4/i.test(mime) ? 'm4a' : /mpeg/i.test(mime) ? 'mp3' : /ogg/i.test(mime) ? 'ogg' : /wav/i.test(mime) ? 'wav' : 'webm';
+                        const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
                         // Do not auto-send. Stage as attachment so user can press Send.
                         setAttachmentFile(file);
                         try { setShowEmojiPicker(false); } catch {}
