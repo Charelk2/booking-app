@@ -43,25 +43,26 @@ import {
   AttachmentMeta,
 } from '@/types';
 
-  import {
-    getMessagesForBookingRequest,
-    postMessageToBookingRequest,
-    uploadMessageAttachment,
-    createQuoteV2,
-    getQuoteV2,
-    getQuotesBatch,
-    acceptQuoteV2,
-    declineQuoteV2,
-    getBookingDetails,
-    getMyClientBookings,
-    getBookingRequestById,
-    markMessagesRead,
-    markThreadRead,
-    updateBookingRequestArtist,
-    deleteMessageForBookingRequest,
-    getService,
-  } from '@/lib/api';
-  import { useAuth } from '@/contexts/AuthContext';
+import {
+  getMessagesForBookingRequest,
+  postMessageToBookingRequest,
+  uploadMessageAttachment,
+  createQuoteV2,
+  getQuoteV2,
+  getQuotesBatch,
+  acceptQuoteV2,
+  declineQuoteV2,
+  getBookingDetails,
+  getMyClientBookings,
+  getBookingRequestById,
+  markMessagesRead,
+  markThreadRead,
+  updateBookingRequestArtist,
+  deleteMessageForBookingRequest,
+  getService,
+} from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { emitThreadsUpdated, type ThreadsUpdatedDetail } from '@/lib/threadsEvents';
 
 import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';
@@ -824,26 +825,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Buffer for WS messages that arrive before initial REST load completes
   const wsBufferRef = useRef<ThreadMessage[]>([]);
   const lastFetchAtRef = useRef<number>(0);
-  const lastThreadsUpdatedRef = useRef<number>(0);
   const serviceProviderByServiceIdRef = useRef<Record<number, number>>({});
   const pendingServiceFetchesRef = useRef<Map<number, Promise<void>>>(new Map());
   const clearedUnreadMessageIdsRef = useRef<Set<number>>(new Set());
-
-  const emitThreadsUpdated = useCallback(
-    (
-      detail: { source?: string; threadId?: number; immediate?: boolean } = {},
-      force = false,
-    ) => {
-      if (typeof window === 'undefined') return;
-      const now = Date.now();
-      if (!force && now - lastThreadsUpdatedRef.current < 1200) return;
-      lastThreadsUpdatedRef.current = now;
-      try {
-        window.dispatchEvent(new CustomEvent('threads:updated', { detail }));
-      } catch {}
-    },
-    [],
-  );
 
   // Local ephemeral features
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
@@ -1403,7 +1387,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         });
         if (hasInquiry && typeof window !== 'undefined') {
           try { localStorage.setItem(`inquiry-thread-${bookingRequestId}`,'1'); } catch {}
-          emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId }, true);
+          emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
         }
       } catch {}
 
@@ -1453,7 +1437,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
         void markThreadRead(bookingRequestId)
           .then(() => {
-            emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId });
+            emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: 'read' });
           })
           .catch(() => {});
       } catch {}
@@ -1505,7 +1489,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         setMessages([]);
         setThreadError('This conversation is no longer available.');
         setLoading(false);
-        emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId }, true);
+        emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
         try { window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id: bookingRequestId } })); } catch {}
         return;
       }
@@ -1553,8 +1537,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // When the global inbox emits a threads:updated (via notifications), refresh this thread too.
   useEffect(() => {
-    const onThreadsUpdated = () => {
+    const onThreadsUpdated = (event: Event) => {
       const now = Date.now();
+      const detail = (event as CustomEvent<ThreadsUpdatedDetail>).detail || {};
+      if (detail.threadId && detail.threadId !== bookingRequestId) return;
+      if (detail.source === 'thread' && detail.reason === 'read' && detail.threadId === bookingRequestId) return;
       if (activeThreadRef.current !== bookingRequestId) return;
       if (now - lastFetchAtRef.current < 800) return; // debounce
       lastFetchAtRef.current = now;
@@ -1658,7 +1645,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         setBookingConfirmed(true);
         onBookingConfirmedChange?.(true, bookingDetails);
         try { localStorage.setItem(`booking-confirmed-${bookingRequestId}`, '1'); } catch {}
-        try { if (typeof window !== 'undefined') window.dispatchEvent(new Event('threads:updated')); } catch {}
+        emitThreadsUpdated({ source: 'payment', threadId: bookingRequestId, immediate: true });
         if (paymentId) {
           setBookingDetails((prev) => (prev ? { ...prev, payment_id: paymentId as any } : prev));
         }
@@ -1945,9 +1932,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       // Update inbox thread previews on inbound
       try {
         const anyInbound = normalized.some((m) => m.sender_id !== user?.id);
-        if (anyInbound && typeof window !== 'undefined') {
-          window.dispatchEvent(new Event('threads:updated'));
-        }
+        if (anyInbound) emitThreadsUpdated({ source: 'realtime', threadId: bookingRequestId });
       } catch {}
 
       // Hydrate quotes if needed
@@ -3379,7 +3364,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 detail: { id: bookingRequestId, content: previewText, ts: real.timestamp, unread: false },
               }),
             );
-            window.dispatchEvent(new Event('threads:updated'));
+            emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
           }
         } catch {}
       };
