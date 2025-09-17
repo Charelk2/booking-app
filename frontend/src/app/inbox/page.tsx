@@ -7,6 +7,7 @@ import type { AxiosResponse } from 'axios';
 import MainLayout from '@/components/layout/MainLayout';
 // Corrected import path for AuthContext (assuming it's directly in contexts)
 import { useAuth } from '@/contexts/AuthContext';
+import { emitThreadsUpdated } from '@/lib/threadsEvents';
 import { Spinner } from '@/components/ui';
 import ConversationList from '@/components/inbox/ConversationList';
 import dynamic from 'next/dynamic';
@@ -623,7 +624,9 @@ export default function InboxPage() {
       }
     };
     // Also refresh when the chat layer signals updates (e.g., quote sent, payment received)
-    const onThreadsUpdated = () => {
+    const onThreadsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ source?: string; threadId?: number }>).detail || {};
+      if (detail.source === 'inbox' && detail.threadId === selectedBookingRequestId) return;
       const now = Date.now();
       if (now - lastRefreshAtRef.current > 1000) {
         lastRefreshAtRef.current = now;
@@ -638,7 +641,7 @@ export default function InboxPage() {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('threads:updated', onThreadsUpdated as any);
     };
-  }, [fetchAllRequests]);
+  }, [fetchAllRequests, selectedBookingRequestId]);
 
   // Select conversation based on URL param after requests load; if none, restore persisted selection
   useEffect(() => {
@@ -717,7 +720,10 @@ export default function InboxPage() {
       // Immediate UI feedback: select and update URL right away
       setPrevThreadId((prev) => (selectedBookingRequestId && selectedBookingRequestId !== id ? selectedBookingRequestId : prev));
       setSelectedBookingRequestId(id);
+      let previousUnread = 0;
       try {
+        const existing = allBookingRequests.find((r) => r.id === id) as any;
+        previousUnread = Number(existing?.unread_count || 0) || 0;
         setAllBookingRequests((prev) => prev.map((r) => (r.id === id ? ({
           ...r,
           is_unread_by_current_user: false as any,
@@ -743,9 +749,18 @@ export default function InboxPage() {
 
       // Fire-and-forget: mark read, then nudge global counters when done
       try {
+        if (previousUnread > 0) {
+          try {
+            window.dispatchEvent(
+              new CustomEvent('inbox:unread', {
+                detail: { delta: -previousUnread, threadId: id },
+              }),
+            );
+          } catch {}
+        }
         void markThreadRead(id)
           .then(() => {
-            try { if (typeof window !== 'undefined') window.dispatchEvent(new Event('threads:updated')); } catch {}
+            emitThreadsUpdated({ source: 'inbox', threadId: id, reason: 'read', immediate: true });
           })
           .catch(() => {});
       } catch {}

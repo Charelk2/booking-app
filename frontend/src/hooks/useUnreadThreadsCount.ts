@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMessageThreadsPreview, getMessageThreads, getInboxUnread } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import type { ThreadsUpdatedDetail } from '@/lib/threadsEvents';
 
 export default function useUnreadThreadsCount(pollMs = 30000) {
   const [count, setCount] = useState(0);
@@ -71,13 +72,13 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
     }
     void refresh();
     const handleBump = (event: Event) => {
-      const now = Date.now();
-      if (now - lastEventTsRef.current < 1500) return;
-      lastEventTsRef.current = now;
-      const detail = (event as CustomEvent<{ immediate?: boolean }>).detail;
-      if (detail?.immediate) {
-        lastEventTsRef.current = 0; // allow immediate follow-up if requested explicitly
+      const detail = (event as CustomEvent<ThreadsUpdatedDetail>).detail;
+      if (detail?.source && detail.reason === 'read' && (detail.source === 'thread' || detail.source === 'inbox')) {
+        return;
       }
+      const now = Date.now();
+      if (!detail?.immediate && now - lastEventTsRef.current < 1500) return;
+      lastEventTsRef.current = detail?.immediate ? 0 : now;
       void refresh();
     };
     if (typeof window !== 'undefined') {

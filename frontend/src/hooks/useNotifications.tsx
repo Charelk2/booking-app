@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Notification, UnifiedNotification } from '@/types';
 import { toUnifiedFromNotification } from './notificationUtils';
 import { authAwareMessage } from '@/lib/utils';
+import { emitThreadsUpdated } from '@/lib/threadsEvents';
 
 // Use the root API URL and include the /api prefix on each request so
 // paths match the FastAPI router mounted with prefix="/api".
@@ -112,7 +113,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         const newNotif: Notification = { ...(data as Notification), is_read: false };
         setNotifications((prev) => [newNotif, ...prev]);
         setUnreadCount((c) => c + 1);
-        try { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('threads:updated')); } catch {}
+        emitThreadsUpdated({ source: 'notifications', threadId: newNotif.booking_request_id, immediate: true });
       } catch (e) {
         console.error('Failed to handle notification message', e);
       }
