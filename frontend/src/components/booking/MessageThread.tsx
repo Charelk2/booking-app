@@ -809,7 +809,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (cancelled) return;
         const br = res.data;
         setBookingRequest(br);
-        setBookingRequest(br);
         const tb = (br.travel_breakdown || {}) as any;
         const svcPrice = Number(br.service?.price) || 0;
         setBaseFee(svcPrice);
@@ -2077,12 +2076,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   <>
                     {(() => {
                       // Suppress placeholder labels; style non-image attachments like a reply header box
-                                const url = msg.attachment_url
-                                  ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : altAttachmentPath(toApiAttachmentsUrl(msg.attachment_url)))
-                                  : '';
+                      const url = msg.attachment_url
+                        ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : altAttachmentPath(toApiAttachmentsUrl(msg.attachment_url)))
+                        : '';
                       const display = msg.local_preview_url || url;
-                                const isAudio = isAudioAttachmentUrl(msg.attachment_url || url);
-                      const isImage = isImageAttachment(msg.attachment_url || undefined);
+                      const isAudio = isAudioAttachmentUrl(display);
+                      const isImage = isImageAttachment(display);
                       const contentLower = String(msg.content || '').trim().toLowerCase();
                       const isVoicePlaceholder = contentLower === '[voice note]';
                       const isAttachmentPlaceholder = contentLower === '[attachment]';
@@ -2130,9 +2129,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     })()}
                     {msg.attachment_url && (
                       (() => {
-                        const url = toApiAttachmentsUrl(msg.attachment_url);
-                        const isAudio = isAudioAttachmentUrl(msg.attachment_url || url);
-                        if (isImageAttachment(msg.attachment_url)) {
+                        // Always derive from local preview (optimistic) if present
+                        const raw = msg.attachment_url!;
+                        const baseUrl = /^(blob:|data:)/i.test(raw) ? raw : toApiAttachmentsUrl(raw);
+                        const display = msg.local_preview_url || baseUrl;
+
+                        const isImg = isImageAttachment(display);
+                        const isAud = isAudioAttachmentUrl(display);
+
+                        if (isImg) {
                           return (
                             <div className="relative mt-0 inline-block w-full">
                               <button
@@ -2159,20 +2164,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             </div>
                           );
                         }
-                        if (isAudio) {
+
+                        if (isAud) {
                           return (
-                                    <div className="mt-1 inline-block">
-                                      <audio
-                                        className="w-56 cursor-pointer"
-                                        controls
-                                        src={toProxyPath(url)}
-                                        preload="metadata"
-                                        onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); }}
-                                      />
-                                    </div>
-                                  );
-                                }
-                        return null; // header is the clickable element for non-image, non-audio files
+                            <div className="mt-1 inline-block">
+                              <audio
+                                className="w-56 cursor-pointer"
+                                controls
+                                src={toProxyPath(display)}
+                                preload="metadata"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFilePreviewSrc(toProxyPath(display));
+                                }}
+                              />
+                            </div>
+                          );
+                        }
+
+                        return null;
                       })()
                     )}
                   </>
@@ -3522,8 +3532,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             {(() => {
                               // Suppress placeholder labels; style non-image attachments like a reply header box
                               const url = msg.attachment_url ? toApiAttachmentsUrl(msg.attachment_url) : '';
-                              const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
-                              const isImage = isImageAttachment(msg.attachment_url || undefined);
+                              const display = (msg as any).local_preview_url || url;
+                              const isAudio = isAudioAttachmentUrl(display);
+                              const isImage = isImageAttachment(display);
                               const contentLower = String(msg.content || '').trim().toLowerCase();
                               const isVoicePlaceholder = contentLower === '[voice note]';
                               const isAttachmentPlaceholder = contentLower === '[attachment]';
@@ -3609,9 +3620,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                       <audio
                                         className="w-56 cursor-pointer"
                                         controls
-                                        src={toProxyPath(url)}
+                                        src={toProxyPath(display)}
                                         preload="metadata"
-                                        onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); }}
+                                        onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(display)); }}
                                       />
                                     </div>
                                   );
