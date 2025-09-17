@@ -123,6 +123,29 @@ const formatBytes = (bytes: number) => {
   return `${i === 0 ? Math.round(val) : val.toFixed(1)} ${sizes[i]}`;
 };
 
+const normalizeServiceProviderViewUrl = (input?: string | null) => {
+  if (!input) return null;
+  let url = String(input).trim();
+  if (!url) return null;
+
+  const replaceSegment = (value: string) =>
+    value.replace(/(^|\/)services\/(\d+)(?=\/|$)/gi, (_match, prefix: string, id: string) => `${prefix}service-providers/${id}`);
+
+  if (/^https?:/i.test(url)) {
+    try {
+      const parsed = new URL(url);
+      parsed.pathname = replaceSegment(parsed.pathname);
+      return parsed.toString();
+    } catch {
+      return replaceSegment(url);
+    }
+  }
+
+  url = replaceSegment(url);
+  if (!url.startsWith('/')) url = `/${url}`;
+  return url;
+};
+
 // Convert a File to a data URL (no compression). For images this guarantees
 // the receiver can render without relying on static hosting.
 const fileToDataUrl = (file: File): Promise<string> =>
@@ -2076,6 +2099,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 const parsed = JSON.parse(raw);
                 const card = parsed?.inquiry_sent_v1;
                 if (card) {
+                  const cardViewUrl = normalizeServiceProviderViewUrl(card.view);
                   const alignClass = isMsgFromSelf ? 'ml-auto' : 'mr-auto';
                   const dateOnly = card.date ? String(card.date).slice(0, 10) : null;
                   const prettyDate = (() => {
@@ -2102,10 +2126,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               .join(' · ')}
                           </div>
                         )}
-                        {card.view && (
+                        {cardViewUrl && (
                           <div className="mt-3">
                             <a
-                              href={card.view}
+                              href={cardViewUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-800 hover:text-white hover:no-underline focus:text-white active:text-white"
@@ -2656,6 +2680,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (parsed && parsed.inquiry_sent_v1) card = parsed.inquiry_sent_v1;
       } catch {}
       if (card) {
+        const cardViewUrl = normalizeServiceProviderViewUrl(card.view);
         const isSelf = user?.id && msg.sender_id === user.id;
         const alignClass = isSelf ? 'ml-auto' : 'mr-auto';
         const dateOnly = card.date ? String(card.date).slice(0, 10) : null;
@@ -2683,10 +2708,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     .join(' · ')}
                 </div>
               )}
-              {card.view && (
+              {cardViewUrl && (
                 <div className="mt-3">
                   <a
-                    href={card.view}
+                    href={cardViewUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-800 hover:text-white hover:no-underline focus:text-white active:text-white"
@@ -2737,25 +2762,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         <ExclamationTriangleIcon className={`h-5 w-5 ${palette.iconFg}`} aria-hidden="true" />
       );
 
-      const resolvedViewUrl = (() => {
-        if (!viewUrlRaw) return null;
-        const convertPath = (input: string) => {
-          const match = input.match(/\/?services\/(\d+)/i);
-          if (match) {
-            const id = match[1];
-            return input.replace(/\/?services\/(\d+)/i, `/service-providers/${id}`);
-          }
-          return input;
-        };
-        let url = viewUrlRaw.trim();
-        if (/^https?:/i.test(url)) {
-          const converted = convertPath(url);
-          return converted;
-        }
-        url = convertPath(url);
-        if (!url.startsWith('/')) url = `/${url}`;
-        return url;
-      })();
+      const resolvedViewUrl = normalizeServiceProviderViewUrl(viewUrlRaw);
 
       return (
         <div className={`my-3 ${alignClass} w-full md:w-1/2 md:max-w-[520px]`} role="group" aria-label={isApproved ? t('system.listingApproved', 'Listing approved') : t('system.listingRejected', 'Listing rejected')}>
@@ -2827,9 +2834,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button
                     type="button"
+                    size="sm"
                     onClick={() => respondToSupplierInvite(msg.id, 'accept', program)}
                     disabled={supplierInviteAction?.msgId === msg.id}
-                    className="!py-1 !px-3 text-xs"
+                    className="!py-1 !px-3 !min-h-0 !min-w-0 text-xs"
                   >
                     {supplierInviteAction?.msgId === msg.id && supplierInviteAction?.choice === 'accept'
                       ? t('system.soundSupplierAccepting', 'Accepting...')
@@ -2838,9 +2846,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   <Button
                     type="button"
                     variant="secondary"
+                    size="sm"
                     onClick={() => respondToSupplierInvite(msg.id, 'decline', program)}
                     disabled={supplierInviteAction?.msgId === msg.id}
-                    className="!py-1 !px-3 text-xs"
+                    className="!py-1 !px-3 !min-h-0 !min-w-0 text-xs"
                   >
                     {supplierInviteAction?.msgId === msg.id && supplierInviteAction?.choice === 'decline'
                       ? t('system.soundSupplierDeclining', 'Declining...')
@@ -3705,6 +3714,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                       const parsed = JSON.parse(raw);
                       const card = parsed?.inquiry_sent_v1;
                       if (card) {
+                        const cardViewUrl = normalizeServiceProviderViewUrl(card.view);
                         const alignClass = isMsgFromSelf ? 'ml-auto' : 'mr-auto';
                         const dateOnly = card.date ? String(card.date).slice(0, 10) : null;
                         const prettyDate = (() => {
@@ -3731,10 +3741,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                     .join(' · ')}
                                 </div>
                               )}
-                              {card.view && (
+                              {cardViewUrl && (
                                 <div className="mt-3">
                                   <a
-                                    href={card.view}
+                                    href={cardViewUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-800 hover:text-white hover:no-underline focus:text-white active:text-white"

@@ -320,10 +320,12 @@ function buildPrecomputed(
       return (req.last_message_content ?? req.service?.title ?? (req as any).message ?? 'New Request') as string;
     })();
     const previewLower = String(preview || '').toLowerCase();
+    const previewNormalized = previewLower.replace(/\s+/g, ' ').trim();
     const isSyntheticBooka = Boolean((req as any).is_booka_synthetic);
     const showApprovedChip = /^\s*listing\s+approved:/i.test(previewLower);
     const showRejectedChip = /^\s*listing\s+rejected:/i.test(previewLower);
-    const isBookaModeration = isSyntheticBooka || showApprovedChip || showRejectedChip || previewLower.includes('booka update');
+    const isBookaUpdate = /booka\s*update\b/i.test(previewNormalized);
+    const isBookaModeration = isSyntheticBooka || showApprovedChip || showRejectedChip || isBookaUpdate;
     const isSupplierInvite = /preferred sound supplier/i.test(previewLower);
     const supplierProgram = (() => {
       if (!isSupplierInvite) return null;
