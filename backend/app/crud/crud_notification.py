@@ -220,7 +220,7 @@ def get_unread_counts_for_threads(db: Session, user_id: int) -> Dict[int, int]:
     for link, is_read in rows:
         if not link:
             continue
-        match = re.search(r"(?:/booking-requests/|/inbox\\?requestId=)(\\d+)", link)
+        match = re.search(r"(?:/booking-requests/|/inbox\?requestId=)(\d+)", link)
         if not match:
             continue
         request_id = int(match.group(1))
