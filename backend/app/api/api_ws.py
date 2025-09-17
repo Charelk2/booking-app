@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from starlette import status as ws_status
@@ -87,20 +88,21 @@ class ConnectionManager:
     async def broadcast(
         self, request_id: int, message: Any, publish: bool = True
     ) -> None:
+        payload = jsonable_encoder(message)
         if publish and redis:
-            await redis.publish(f"ws:{request_id}", json.dumps(message))
+            await redis.publish(f"ws:{request_id}", json.dumps(payload))
         # Fan out to multiplex topic subscribers in this process
         try:
             await multiplex_manager.broadcast_topic(
                 f"booking-requests:{request_id}",
-                message,
+                payload,
                 publish=publish,
             )
         except Exception:
             pass
         for ws in list(self.active_connections.get(request_id, [])):
             try:
-                await asyncio.wait_for(ws.send_json(message), timeout=SEND_TIMEOUT)
+                await asyncio.wait_for(ws.send_json(payload), timeout=SEND_TIMEOUT)
             except asyncio.TimeoutError:
                 logger.warning(
                     "Closing slow WebSocket for request %s due to backpressure",
@@ -173,30 +175,36 @@ class NotificationManager:
                 del self.active_connections[user_id]
 
     async def broadcast(self, user_id: int, message: Any) -> None:
+        payload = jsonable_encoder(message)
         # Publish to Redis for SSE/multiplex consumers
         if redis:
             try:
-                payload = dict(message)
-            except Exception:
-                payload = message
-            try:
-                if isinstance(payload, dict):
-                    payload.setdefault("v", 1)
-                    payload.setdefault("type", payload.get("type"))
-                    payload.setdefault("topic", f"notifications:{user_id}")
-                await redis.publish(f"ws-topic:notifications:{user_id}", json.dumps(payload))
+                publish_payload = payload
+                if isinstance(publish_payload, dict):
+                    publish_payload = {
+                        "v": publish_payload.get("v", 1),
+                        "type": publish_payload.get("type"),
+                        "topic": publish_payload.get(
+                            "topic", f"notifications:{user_id}"
+                        ),
+                        **publish_payload,
+                    }
+                await redis.publish(
+                    f"ws-topic:notifications:{user_id}",
+                    json.dumps(publish_payload),
+                )
             except Exception:
                 pass
         # Fan out to multiplex sockets in this process
         try:
             await multiplex_manager.broadcast_topic(
-                f"notifications:{user_id}", message, publish=False
+                f"notifications:{user_id}", payload, publish=False
             )
         except Exception:
             pass
         for ws in list(self.active_connections.get(user_id, [])):
             try:
-                await asyncio.wait_for(ws.send_json(message), timeout=SEND_TIMEOUT)
+                await asyncio.wait_for(ws.send_json(payload), timeout=SEND_TIMEOUT)
             except asyncio.TimeoutError:
                 logger.warning(
                     "Closing slow notification WebSocket for user %s", user_id
@@ -246,26 +254,34 @@ class MultiplexManager:
 
     async def broadcast_topic(self, topic: str, message: Any, publish: bool = True) -> None:
         # Publish cross-process via Redis if available
+        payload = jsonable_encoder(message)
         if publish and redis:
             try:
-                payload = dict(message)
-            except Exception:
-                payload = message
-            try:
-                if isinstance(payload, dict):
-                    payload.setdefault("v", 1)
-                    payload.setdefault("type", payload.get("type"))
-                    payload.setdefault("topic", topic)
-                await redis.publish(f"ws-topic:{topic}", json.dumps(payload))
+                publish_payload = payload
+                if isinstance(publish_payload, dict):
+                    publish_payload = {
+                        "v": publish_payload.get("v", 1),
+                        "type": publish_payload.get("type"),
+                        "topic": publish_payload.get("topic", topic),
+                        **publish_payload,
+                    }
+                await redis.publish(
+                    f"ws-topic:{topic}", json.dumps(publish_payload)
+                )
             except Exception:
                 pass
         # Local sockets
         for ws in list(self.topic_sockets.get(topic, [])):
             try:
-                await asyncio.wait_for(
-                    ws.send_json({"v": 1, "topic": topic, **(message if isinstance(message, dict) else {"payload": message})}),
-                    timeout=SEND_TIMEOUT,
-                )
+                data = {
+                    "v": 1,
+                    "topic": topic,
+                }
+                if isinstance(payload, dict):
+                    data.update(payload)
+                else:
+                    data["payload"] = payload
+                await asyncio.wait_for(ws.send_json(data), timeout=SEND_TIMEOUT)
             except Exception:
                 try:
                     await ws.close()
