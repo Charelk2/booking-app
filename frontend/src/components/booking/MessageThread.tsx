@@ -745,7 +745,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     payload: MessageCreate;
   }>('offlineSendQueue', async ({ tempId, payload }) => {
     const res = await postMessageToBookingRequest(bookingRequestId, payload);
-    setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...normalizeMessage(res.data), status: 'sent' } : m)));
+    setMessages((prev) => {
+      const next = prev.map((m) => (m.id === tempId ? { ...normalizeMessage(res.data), status: 'sent' } : m));
+      writeCachedMessages(bookingRequestId, next);
+      return next;
+    });
   });
 
   useEffect(() => {
@@ -3360,9 +3364,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               finalizeMessage(tempId, real);
             } catch (err) {
               console.error('Failed to send message:', err);
-              setMessages((prev) =>
-                prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' as const } : m)),
-              );
+              setMessages((prev) => {
+                const next = prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' as const } : m));
+                writeCachedMessages(bookingRequestId, next);
+                return next;
+              });
               enqueueMessage({ tempId, payload });
               setThreadError(
                 `Failed to send message. ${(err as Error).message || 'Please try again later.'}`,
@@ -3430,9 +3436,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               } catch {}
             } catch (err) {
               console.error('Failed to send attachment:', err);
-              setMessages((prev) =>
-                prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m)),
-              );
+              setMessages((prev) => {
+                const next = prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m));
+                writeCachedMessages(bookingRequestId, next);
+                return next;
+              });
               setThreadError(
                 `Failed to send attachment ${file.name || ''}. ${
                   (err as Error).message || 'Please try again later.'
@@ -3569,7 +3577,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     try {
       const text = 'Hi! It looks like the quote expired. Could you please send a new quote?';
       const res = await postMessageToBookingRequest(bookingRequestId, { content: text });
-      setMessages((prev) => mergeMessages(prev, normalizeMessage(res.data)));
+      setMessages((prev) => {
+        const next = mergeMessages(prev, normalizeMessage(res.data));
+        writeCachedMessages(bookingRequestId, next);
+        return next;
+      });
       setThreadError(null);
     } catch (err) {
       console.error('Failed to request new quote:', err);
