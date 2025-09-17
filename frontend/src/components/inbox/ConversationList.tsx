@@ -315,6 +315,9 @@ function buildPrecomputed(
       if ((req as any).has_inquiry_card === true) return true;
       try { if (typeof window !== 'undefined' && localStorage.getItem(`inquiry-thread-${req.id}`)) return true; } catch {}
       if (hasBookingDetails || hasQuotes || status.includes('pending_quote')) return false;
+      if (threadState === 'inquiry' || threadState === 'requested') return true;
+      const lastContentLower = String(req.last_message_content || '').toLowerCase();
+      if (lastContentLower.includes('new booking request')) return true;
       return false;
     })();
     const preview = (() => {
