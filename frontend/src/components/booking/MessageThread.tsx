@@ -1348,7 +1348,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     try { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); } catch {}
     try { if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current); } catch {}
     setThreadError(null);
-    setLoading(true);
     initialLoadedRef.current = false;
   }, [bookingRequestId]);
 
@@ -1359,6 +1358,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       setMessages(cached);
       setLoading(false);
       // Keep gate closed; realtime merges will flush after fresh fetch
+    } else {
+      setMessages([]);
+      setLoading(true);
     }
   }, [bookingRequestId]);
 
@@ -3399,13 +3401,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         {(() => {
           if (VIRTUALIZE && false) {
             return (
-              <div className="min-h-0 flex-1">
+              <div className="min-h-0 flex-1 h-full">
                 <Virtuoso
                   totalCount={groupedMessages.length}
                   computeItemKey={(index) => groupIds[index]}
                   itemContent={(index: number) => <div className="w-full">{renderGroupAtIndex(index)}</div>}
                   followOutput="smooth"
                   initialTopMostItemIndex={groupedMessages.length > 0 ? groupedMessages.length - 1 : 0}
+                  style={{ height: '100%', width: '100%' }}
                   atBottomStateChange={(atBottom: boolean) => {
                     setShowScrollButton(!atBottom);
                     setIsUserScrolledUp(!atBottom);
@@ -4100,13 +4103,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           });
           if (VIRTUALIZE) {
             return (
-              <div className="min-h-0 flex-1">
+              <div className="min-h-0 flex-1 h-full">
                 <Virtuoso
                   totalCount={elements.length}
                   computeItemKey={(index) => groupIds[index]}
                   itemContent={(index: number) => <div className="w-full">{elements[index]}</div>}
                   followOutput="smooth"
                   initialTopMostItemIndex={elements.length > 0 ? elements.length - 1 : 0}
+                  style={{ height: '100%', width: '100%' }}
                   atBottomStateChange={(atBottom: boolean) => {
                     setShowScrollButton(!atBottom);
                     setIsUserScrolledUp(!atBottom);
