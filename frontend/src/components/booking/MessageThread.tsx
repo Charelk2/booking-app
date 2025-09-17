@@ -2352,13 +2352,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         }
 
                         if (isAud) {
-                          const audioFallbacks = buildAttachmentFallbackChain(raw);
+                          const fallbackChain = buildAttachmentFallbackChain(raw);
+                          const initialAudioSrc = fallbackChain.find((c) => /^https?:/i.test(c) || /^blob:|^data:/i.test(c)) || toProxyPath(display);
+                          const audioFallbacks = initialAudioSrc
+                            ? [initialAudioSrc, ...fallbackChain.filter((c) => c !== initialAudioSrc)]
+                            : fallbackChain;
                           return (
                             <div className="mt-1 inline-block">
                               <audio
                                 className="w-56 cursor-pointer"
                                 controls
-                                src={toProxyPath(display)}
+                                src={initialAudioSrc}
                                 preload="metadata"
                                 crossOrigin="anonymous"
                                 onLoadedData={(e) => {
@@ -3825,13 +3829,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   );
                                 }
                                 if (isAudio) {
-                                  const audioFallbacks = buildAttachmentFallbackChain(msg.attachment_url || url);
+                                  const fallbackChain = buildAttachmentFallbackChain(msg.attachment_url || url);
+                                  const initialAudioSrc = fallbackChain.find((c) => /^https?:/i.test(c) || /^blob:|^data:/i.test(c)) || toProxyPath(display);
+                                  const audioFallbacks = initialAudioSrc
+                                    ? [initialAudioSrc, ...fallbackChain.filter((c) => c !== initialAudioSrc)]
+                                    : fallbackChain;
                                   return (
                                     <div className="mt-1 inline-block">
                                       <audio
                                         className="w-56 cursor-pointer"
                                         controls
-                                        src={toProxyPath(display)}
+                                        src={initialAudioSrc}
                                         preload="metadata"
                                         crossOrigin="anonymous"
                                         onLoadedData={(e) => {
