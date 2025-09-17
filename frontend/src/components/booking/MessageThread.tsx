@@ -298,8 +298,42 @@ const urlsSharePath = (a: string, b: string): boolean => {
   }
 };
 
-const advanceAudioFallback = (el: HTMLAudioElement, candidates: string[]): void => {
-  if (!Array.isArray(candidates) || candidates.length === 0) return;
+const fetchAttachmentBlobUrl = async (raw: string): Promise<string | null> => {
+  if (!raw || /^(blob:|data:)/i.test(raw)) return null;
+  try {
+    const primary = toApiAttachmentsUrl(raw);
+    const candidates = dedupeStrings([primary, altAttachmentPath(primary), raw, altAttachmentPath(raw)]);
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      try {
+        const response = await fetch(candidate, { credentials: 'include' });
+        if (!response.ok) continue;
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+      } catch {
+        continue;
+      }
+    }
+  } catch {}
+  return null;
+};
+
+const advanceAudioFallback = (el: HTMLAudioElement, candidates: string[], original?: string): void => {
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    if (original && el.dataset.fallbackBlobRequested !== '1') {
+      el.dataset.fallbackBlobRequested = '1';
+      void fetchAttachmentBlobUrl(original).then((blobUrl) => {
+        if (!blobUrl) return;
+        if (el.dataset.fallbackBlobUrl) {
+          try { URL.revokeObjectURL(el.dataset.fallbackBlobUrl); } catch {}
+        }
+        el.dataset.fallbackBlobUrl = blobUrl;
+        el.src = blobUrl;
+        try { el.load(); } catch {}
+      });
+    }
+    return;
+  }
   const attempt = Number(el.dataset.fallbackAttempt || '0');
   for (let idx = attempt; idx < candidates.length; idx += 1) {
     const candidate = candidates[idx];
@@ -313,6 +347,18 @@ const advanceAudioFallback = (el: HTMLAudioElement, candidates: string[]): void 
     return;
   }
   el.dataset.fallbackAttempt = String(candidates.length);
+  if (original && el.dataset.fallbackBlobRequested !== '1') {
+    el.dataset.fallbackBlobRequested = '1';
+    void fetchAttachmentBlobUrl(original).then((blobUrl) => {
+      if (!blobUrl) return;
+      if (el.dataset.fallbackBlobUrl) {
+        try { URL.revokeObjectURL(el.dataset.fallbackBlobUrl); } catch {}
+      }
+      el.dataset.fallbackBlobUrl = blobUrl;
+      el.src = blobUrl;
+      try { el.load(); } catch {}
+    });
+  }
 };
 const daySeparatorLabel = (date: Date) => {
   const now = new Date();
@@ -2315,10 +2361,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 preload="metadata"
                                 crossOrigin="anonymous"
                                 onLoadedData={(e) => {
-                                  e.currentTarget.dataset.fallbackAttempt = '0';
+                                  const el = e.currentTarget;
+                                  el.dataset.fallbackAttempt = '0';
+                                  el.dataset.fallbackBlobRequested = '0';
+                                }}
+                                onEmptied={(e) => {
+                                  const el = e.currentTarget;
+                                  if (el.dataset.fallbackBlobUrl) {
+                                    try { URL.revokeObjectURL(el.dataset.fallbackBlobUrl); } catch {}
+                                    delete el.dataset.fallbackBlobUrl;
+                                  }
+                                  el.dataset.fallbackBlobRequested = '0';
+                                  el.dataset.fallbackAttempt = '0';
                                 }}
                                 onError={(e) => {
-                                  advanceAudioFallback(e.currentTarget, audioFallbacks);
+                                  advanceAudioFallback(e.currentTarget, audioFallbacks, raw);
                                 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3777,9 +3834,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                         preload="metadata"
                                         crossOrigin="anonymous"
                                         onLoadedData={(e) => {
-                                          e.currentTarget.dataset.fallbackAttempt = '0';
+                                          const el = e.currentTarget;
+                                          el.dataset.fallbackAttempt = '0';
+                                          el.dataset.fallbackBlobRequested = '0';
                                         }}
-                                        onError={(e) => advanceAudioFallback(e.currentTarget, audioFallbacks)}
+                                        onEmptied={(e) => {
+                                          const el = e.currentTarget;
+                                          if (el.dataset.fallbackBlobUrl) {
+                                            try { URL.revokeObjectURL(el.dataset.fallbackBlobUrl); } catch {}
+                                            delete el.dataset.fallbackBlobUrl;
+                                          }
+                                          el.dataset.fallbackBlobRequested = '0';
+                                          el.dataset.fallbackAttempt = '0';
+                                        }}
+                                        onError={(e) => advanceAudioFallback(e.currentTarget, audioFallbacks, msg.attachment_url || url)}
                                         onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toApiAttachmentsUrl(display)); }}
                                       />
                                     </div>

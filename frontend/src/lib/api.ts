@@ -42,6 +42,9 @@ const api = axios.create({
   },
 });
 
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+const withApiOrigin = (path: string) => (API_ORIGIN ? `${API_ORIGIN}${path}` : path);
+
 // Allow sending/receiving HttpOnly cookies
 api.defaults.withCredentials = true;
 
@@ -919,7 +922,7 @@ export const getThreadsIndex = (role?: 'artist' | 'client', limit = 50) =>
 // ─── INBOX UNREAD TOTAL (tiny endpoint with optional ETag) ────────────────
 export const getInboxUnread = (etag?: string) =>
   api.get<{ total: number }>(
-    `${API_V1}/inbox/unread`,
+    withApiOrigin(`${API_V1}/inbox/unread`),
     {
       headers: etag ? { 'If-None-Match': etag } : undefined,
       validateStatus: (s) => (s >= 200 && s < 300) || s === 304,

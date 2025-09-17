@@ -565,6 +565,8 @@ def start_message_thread(
 
     db.commit()
     return {"booking_request_id": br.id}
+
+
 class InboxUnreadResponse(BaseModel):
     total: int
 
