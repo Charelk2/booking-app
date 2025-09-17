@@ -7,6 +7,7 @@ import { FixedSizeList as List } from 'react-window';
 import type { CSSProperties } from 'react';
 import React from 'react';
 import { getMessagesForBookingRequest } from '@/lib/api';
+import { t } from '@/lib/i18n';
 import { hasThreadCache, writeThreadCache } from '@/lib/threadCache';
 
 // Module-scope helpers so memoized Row can use them
