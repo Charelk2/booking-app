@@ -1,6 +1,7 @@
 # app/api/v1/api_service_provider.py
 
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Response, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.params import Query as QueryParam
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, or_
@@ -493,6 +494,8 @@ def read_all_service_provider_profiles(
         when = None
     if hasattr(artist, "default"):
         artist = None
+    if hasattr(fields, "default"):
+        fields = None
 
     # Normalize ``category`` to a slug (e.g. "videographer") so the filter works
     # regardless of whether the frontend sends "Videographer" or "videographer".
@@ -634,6 +637,7 @@ def read_all_service_provider_profiles(
             data.append(item)
 
         payload = {"data": data, "total": total, "price_distribution": []}
+        payload_for_etag = jsonable_encoder(payload)
         # Cache the fast-path payload so repeated requests HIT Redis
         try:
             cache_artist_list(
@@ -651,7 +655,7 @@ def read_all_service_provider_profiles(
         except Exception:
             pass
         try:
-            serialized = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+            serialized = json.dumps(payload_for_etag, separators=(",", ":"), sort_keys=True).encode("utf-8")
             etag = 'W/"' + hashlib.sha256(serialized).hexdigest() + '"'
         except Exception:
             etag = None
@@ -891,11 +895,20 @@ def read_all_service_provider_profiles(
         total_count = len(profiles)
 
     if cacheable:
+        try:
+            payload_for_cache = {
+                "data": [profile.model_dump() for profile in profiles],
+                "total": total_count,
+                "price_distribution": price_distribution_data,
+            }
+        except Exception:
+            payload_for_cache = {
+                "data": [],
+                "total": total_count,
+                "price_distribution": price_distribution_data,
+            }
         cache_artist_list(
-            [
-                {**profile.model_dump(), "user_id": profile.user_id}
-                for profile in profiles
-            ],
+            payload_for_cache,
             page=page,
             limit=limit,
             category=cache_category,
@@ -919,8 +932,7 @@ def read_all_service_provider_profiles(
     # Set caching headers on the response
     if cacheable:
         try:
-            # Serialize a compact representation for ETag stability
-            payload = [p.model_dump() for p in profiles]
+            payload = jsonable_encoder([p.model_dump() for p in profiles])
             etag = 'W/"' + hashlib.sha256(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest() + '"'
         except Exception:
             etag = None
