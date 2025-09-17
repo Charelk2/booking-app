@@ -2759,7 +2759,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       );
     }
 
-    // Receipt download (payment received / receipt available)
+    // Sound supplier invite card
     if (/preferred sound supplier/i.test(rawContent)) {
       const match = rawContent.match(/preferred sound supplier for\s+(.+?)(?:\.|$)/i);
       const program = match ? match[1].trim() : t('system.soundSupplierDefault', 'this Live Experience');
@@ -2802,6 +2802,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       );
     }
 
+    // Receipt download (payment received / receipt available)
     if (key === 'payment_received' || key === 'receipt_available' || key === 'download_receipt' || /\breceipt\b/i.test(label)) {
       let url = bookingDetails?.payment_id
         ? `/api/v1/payments/${bookingDetails.payment_id}/receipt`
