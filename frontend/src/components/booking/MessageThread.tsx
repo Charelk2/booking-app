@@ -2089,6 +2089,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                       const isAttachmentPlaceholder = contentLower === '[attachment]';
                       if (isAudio && isVoicePlaceholder) return null; // legacy voice-note placeholder hidden
                       if (isImage && isAttachmentPlaceholder) return null; // hide generic attachment label for images
+                      // For audio attachments, prefer the player only (no header label)
+                      if (isAudio) return null;
                       // For non-image attachments, render a reply-style header with file label; no text body below
                       if (!isImage && msg.attachment_url) {
                         let label = String(msg.content || '').trim();
@@ -2130,7 +2132,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     {msg.attachment_url && (
                       (() => {
                         const url = toApiAttachmentsUrl(msg.attachment_url);
-                        const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
+                        const isAudio = isAudioAttachmentUrl(msg.attachment_url || url);
                         if (isImageAttachment(msg.attachment_url)) {
                           return (
                             <div className="relative mt-0 inline-block w-full">
@@ -3528,6 +3530,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               const isAttachmentPlaceholder = contentLower === '[attachment]';
                               if (isAudio && isVoicePlaceholder) return null; // legacy voice-note placeholder hidden
                               if (isImage && isAttachmentPlaceholder) return null; // hide generic attachment label for images
+                              // For audio attachments, prefer the player only (no header label)
+                              if (isAudio) return null;
                               // For non-image attachments, render a reply-style header with file label; no text body below
                               if (!isImage && msg.attachment_url) {
                                 let label = String(msg.content || '').trim();
