@@ -123,7 +123,28 @@ api.interceptors.response.use(
       }
 
       // Attempt silent refresh once on 401, then retry original request
-      if (status === 401 && originalRequest && !originalRequest._retry) {
+      const rawUrl = typeof originalRequest?.url === 'string' ? originalRequest.url : '';
+      let normalizedPath = rawUrl;
+      try {
+        if (/^https?:\/\//i.test(rawUrl)) {
+          normalizedPath = new URL(rawUrl).pathname || rawUrl;
+        }
+      } catch {}
+      if (normalizedPath && !normalizedPath.startsWith('/')) {
+        normalizedPath = `/${normalizedPath}`;
+      }
+      const isAuthEndpoint = normalizedPath.startsWith('/auth/');
+      const detailText = Array.isArray(detail)
+        ? detail.map((d: any) => extractErrorMessage(d) ?? '').join(' ')
+        : extractErrorMessage(detail) ?? '';
+      const shouldSkipRefresh =
+        isAuthEndpoint ||
+        originalRequest?._skipRefresh ||
+        ['Missing refresh token', 'Incorrect email or password', 'Session expired', 'Token has been rotated'].some(
+          (msg) => detailText.includes(msg),
+        );
+
+      if (status === 401 && originalRequest && !originalRequest._retry && !shouldSkipRefresh) {
         if (isRefreshing) {
           return new Promise((resolve) => {
             pendingQueue.push(() => resolve(api(originalRequest)));
