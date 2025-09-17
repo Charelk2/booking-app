@@ -11,7 +11,11 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
   const etagRef = useRef<string | undefined>(undefined);
 
   const refresh = useCallback(async () => {
-    if (loading || !user) return; // Skip when unauthenticated or not ready
+    if (loading) return;
+    if (!user) {
+      setCount(0);
+      return;
+    }
     try {
       // Prefer tiny unread endpoint with ETag; fall back to previews if missing
       try {
@@ -42,7 +46,7 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
     } catch (err) {
       // best-effort; avoid console noise in header
     }
-  }, []);
+  }, [loading, user]);
 
   useEffect(() => {
     if (!user || loading) {
@@ -70,6 +74,22 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
       }
     };
   }, [refresh, pollMs, user, loading]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ total?: number; delta?: number }>).detail || {};
+      if (typeof detail.total === 'number') {
+        setCount(Math.max(0, detail.total));
+        return;
+      }
+      if (typeof detail.delta === 'number' && detail.delta !== 0) {
+        setCount((prev) => Math.max(0, prev + detail.delta));
+      }
+    };
+    window.addEventListener('inbox:unread', handler as EventListener);
+    return () => window.removeEventListener('inbox:unread', handler as EventListener);
+  }, []);
 
   return { count, refresh };
 }

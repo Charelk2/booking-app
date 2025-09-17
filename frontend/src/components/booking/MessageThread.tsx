@@ -57,6 +57,7 @@ import {
     markThreadRead,
     updateBookingRequestArtist,
     deleteMessageForBookingRequest,
+    getService,
   } from '@/lib/api';
   import { useAuth } from '@/contexts/AuthContext';
 
@@ -123,27 +124,63 @@ const formatBytes = (bytes: number) => {
   return `${i === 0 ? Math.round(val) : val.toFixed(1)} ${sizes[i]}`;
 };
 
-const normalizeServiceProviderViewUrl = (input?: string | null) => {
+type NormalizeViewUrlOptions = {
+  serviceProviderByServiceId?: Record<number, number>;
+  ensureServiceProvider?: (serviceId: number) => void;
+  defaultProviderId?: number | null;
+};
+
+const normalizeServiceProviderViewUrl = (input?: string | null, options: NormalizeViewUrlOptions = {}) => {
   if (!input) return null;
-  let url = String(input).trim();
-  if (!url) return null;
+  const raw = String(input).trim();
+  if (!raw) return null;
 
-  const replaceSegment = (value: string) =>
-    value.replace(/(^|\/)services\/(\d+)(?=\/|$)/gi, (_match, prefix: string, id: string) => `${prefix}service-providers/${id}`);
+  const { serviceProviderByServiceId = {}, ensureServiceProvider, defaultProviderId } = options;
+  const ensureNumber = (value: unknown): number | null => {
+    const num = Number(value);
+    return Number.isFinite(num) && num > 0 ? num : null;
+  };
 
-  if (/^https?:/i.test(url)) {
+  const normalizePathname = (pathname: string) => {
+    if (!pathname) return pathname;
+    const providerPattern = /(^|\/)service-providers\/(\d+)(?=\/?|$)/i;
+    if (providerPattern.test(pathname)) return pathname;
+
+    const match = pathname.match(/(^|\/)services\/(\d+)(?=\/?|$)/i);
+    if (match) {
+      const serviceId = Number(match[2]);
+      if (!Number.isNaN(serviceId)) {
+        const mappedId = ensureNumber(serviceProviderByServiceId[serviceId]);
+        const fallbackId = ensureNumber(defaultProviderId);
+        if (!mappedId && typeof ensureServiceProvider === 'function') ensureServiceProvider(serviceId);
+        const replacementId = mappedId ?? fallbackId;
+        if (replacementId) {
+          return pathname.replace(match[0], `${match[1]}service-providers/${replacementId}`);
+        }
+      }
+    }
+    return pathname;
+  };
+
+  if (/^https?:/i.test(raw)) {
     try {
-      const parsed = new URL(url);
-      parsed.pathname = replaceSegment(parsed.pathname);
+      const parsed = new URL(raw);
+      parsed.pathname = normalizePathname(parsed.pathname);
       return parsed.toString();
     } catch {
-      return replaceSegment(url);
+      // fall through to relative handling
     }
   }
 
-  url = replaceSegment(url);
-  if (!url.startsWith('/')) url = `/${url}`;
-  return url;
+  const idx = raw.search(/[?#]/);
+  const pathPart = idx === -1 ? raw : raw.slice(0, idx);
+  const suffix = idx === -1 ? '' : raw.slice(idx);
+  const normalizedPath = normalizePathname(pathPart);
+  let combined = `${normalizedPath}${suffix}`;
+  if (!/^https?:/i.test(raw) && !combined.startsWith('/')) {
+    combined = `/${combined.replace(/^\/+/, '')}`;
+  }
+  return combined;
 };
 
 // Convert a File to a data URL (no compression). For images this guarantees
@@ -708,6 +745,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [filePreviewSrc, setFilePreviewSrc] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [supplierInviteAction, setSupplierInviteAction] = useState<SupplierInviteActionState>(null);
+  const [serviceProviderByServiceId, setServiceProviderByServiceId] = useState<Record<number, number>>({});
   const isSendingRef = useRef(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const VIRTUALIZE = process.env.NEXT_PUBLIC_VIRTUALIZE_CHAT === '1';
@@ -720,6 +758,48 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const res = await postMessageToBookingRequest(bookingRequestId, payload);
     setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...normalizeMessage(res.data), status: 'sent' } : m)));
   });
+
+  useEffect(() => {
+    serviceProviderByServiceIdRef.current = serviceProviderByServiceId;
+  }, [serviceProviderByServiceId]);
+
+  useEffect(() => {
+    clearedUnreadMessageIdsRef.current = new Set();
+  }, [bookingRequestId]);
+
+  const ensureServiceProviderForService = useCallback((serviceId: number) => {
+    if (!serviceId || Number.isNaN(serviceId)) return;
+    if (serviceProviderByServiceIdRef.current[serviceId]) return;
+    if (pendingServiceFetchesRef.current.has(serviceId)) return;
+
+    const promise = getService(serviceId)
+      .then((res) => {
+        const data = res?.data as any;
+        const candidates = [
+          data?.service_provider_id,
+          data?.service_provider?.id,
+          data?.artist_id,
+          data?.artist?.id,
+        ];
+        const providerId = candidates.map((v) => Number(v)).find((v) => Number.isFinite(v) && v > 0);
+        if (providerId) {
+          setServiceProviderByServiceId((prev) => {
+            if (prev[serviceId] === providerId) return prev;
+            return { ...prev, [serviceId]: providerId };
+          });
+        }
+      })
+      .catch((err) => {
+        if (typeof window !== 'undefined' && localStorage.getItem('CHAT_DEBUG') === '1') {
+          try { console.warn('Failed to resolve service provider for service', serviceId, err); } catch {}
+        }
+      })
+      .finally(() => {
+        pendingServiceFetchesRef.current.delete(serviceId);
+      });
+
+    pendingServiceFetchesRef.current.set(serviceId, promise);
+  }, [setServiceProviderByServiceId]);
 
   // ---- Refs
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -746,6 +826,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Buffer for WS messages that arrive before initial REST load completes
   const wsBufferRef = useRef<ThreadMessage[]>([]);
   const lastFetchAtRef = useRef<number>(0);
+  const serviceProviderByServiceIdRef = useRef<Record<number, number>>({});
+  const pendingServiceFetchesRef = useRef<Map<number, Promise<void>>>(new Map());
+  const clearedUnreadMessageIdsRef = useRef<Set<number>>(new Set());
 
   // Local ephemeral features
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
@@ -930,6 +1013,30 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
     | undefined
   >(undefined);
+
+  const defaultProviderId = useMemo(() => {
+    const candidates = [
+      (bookingRequest?.service as any)?.service_provider_id,
+      (bookingRequest?.service as any)?.service_provider?.id,
+      bookingRequest?.service_provider_id,
+      bookingRequest?.artist_id,
+    ];
+    for (const candidate of candidates) {
+      const num = Number(candidate);
+      if (Number.isFinite(num) && num > 0) return num;
+    }
+    return null;
+  }, [bookingRequest]);
+
+  const resolveListingViewUrl = useCallback(
+    (raw?: string | null) =>
+      normalizeServiceProviderViewUrl(raw, {
+        serviceProviderByServiceId,
+        ensureServiceProvider: ensureServiceProviderForService,
+        defaultProviderId,
+      }),
+    [serviceProviderByServiceId, ensureServiceProviderForService, defaultProviderId],
+  );
 
   const eventDetails = useMemo(() => {
     // Prefer parsed date; otherwise fall back to proposed date from the booking request/booking
@@ -1261,8 +1368,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       // Fire-and-forget: mark as read and bump header badges
       try {
-        const hasUnread = normalized.some((m) => m.sender_id !== user?.id && !m.is_read);
-        if (hasUnread) void markMessagesRead(bookingRequestId);
+        const unreadMessages = normalized.filter((m) => m.sender_id !== user?.id && !m.is_read);
+        if (unreadMessages.length > 0) {
+          const newUnreadMessages = unreadMessages.filter((m) => !clearedUnreadMessageIdsRef.current.has(m.id));
+          if (newUnreadMessages.length > 0) {
+            newUnreadMessages.forEach((m) => clearedUnreadMessageIdsRef.current.add(m.id));
+            try {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('inbox:unread', {
+                    detail: { delta: -newUnreadMessages.length, threadId: bookingRequestId },
+                  }),
+                );
+              }
+            } catch {}
+          }
+          void markMessagesRead(bookingRequestId);
+        }
         void markThreadRead(bookingRequestId)
           .then(() => {
             try { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('threads:updated')); } catch {}
@@ -1699,10 +1821,27 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           const anchored = distance <= MIN_SCROLL_OFFSET;
           const gotIncoming = normalized.some((m) => m.sender_id !== (user?.id || 0));
           if (anchored && gotIncoming) {
+            const toClear = normalized
+              .filter((m) => m.sender_id !== (user?.id || 0) && !m.is_read && !clearedUnreadMessageIdsRef.current.has(m.id))
+              .map((m) => m.id);
             if ((typingTimeoutRef.current as any)?._readTimer) clearTimeout((typingTimeoutRef.current as any)?._readTimer);
             (typingTimeoutRef.current as any) = (typingTimeoutRef.current || null);
             (typingTimeoutRef.current as any)._readTimer = setTimeout(async () => {
-              try { await markMessagesRead(bookingRequestId); } catch {}
+              try {
+                await markMessagesRead(bookingRequestId);
+                if (toClear.length > 0) {
+                  toClear.forEach((id) => clearedUnreadMessageIdsRef.current.add(id));
+                  try {
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(
+                        new CustomEvent('inbox:unread', {
+                          detail: { delta: -toClear.length, threadId: bookingRequestId },
+                        }),
+                      );
+                    }
+                  } catch {}
+                }
+              } catch {}
               try {
                 const last = normalized[normalized.length - 1];
                 if (last && typeof last.id === 'number') {
@@ -2099,7 +2238,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 const parsed = JSON.parse(raw);
                 const card = parsed?.inquiry_sent_v1;
                 if (card) {
-                  const cardViewUrl = normalizeServiceProviderViewUrl(card.view);
+                  const cardViewUrl = resolveListingViewUrl(card.view);
                   const alignClass = isMsgFromSelf ? 'ml-auto' : 'mr-auto';
                   const dateOnly = card.date ? String(card.date).slice(0, 10) : null;
                   const prettyDate = (() => {
@@ -2634,7 +2773,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         </div>
       </React.Fragment>
     );
-  }, [groupedMessages, user?.id, user?.user_type, clientAvatarUrl, clientName, artistAvatarUrl, artistName]);
+  }, [groupedMessages, user?.id, user?.user_type, clientAvatarUrl, clientName, artistAvatarUrl, artistName, resolveListingViewUrl]);
 
   // Hide artist inline quote composer for pure inquiry threads created from profile page
   // Also treat threads started via message-threads/start (no booking details/quotes yet) as inquiries
@@ -2680,7 +2819,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (parsed && parsed.inquiry_sent_v1) card = parsed.inquiry_sent_v1;
       } catch {}
       if (card) {
-        const cardViewUrl = normalizeServiceProviderViewUrl(card.view);
+        const cardViewUrl = resolveListingViewUrl(card.view);
         const isSelf = user?.id && msg.sender_id === user.id;
         const alignClass = isSelf ? 'ml-auto' : 'mr-auto';
         const dateOnly = card.date ? String(card.date).slice(0, 10) : null;
@@ -2762,7 +2901,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         <ExclamationTriangleIcon className={`h-5 w-5 ${palette.iconFg}`} aria-hidden="true" />
       );
 
-      const resolvedViewUrl = normalizeServiceProviderViewUrl(viewUrlRaw);
+      const resolvedViewUrl = resolveListingViewUrl(viewUrlRaw);
 
       return (
         <div className={`my-3 ${alignClass} w-full md:w-1/2 md:max-w-[520px]`} role="group" aria-label={isApproved ? t('system.listingApproved', 'Listing approved') : t('system.listingRejected', 'Listing rejected')}>
@@ -3025,6 +3164,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     supplierInviteAction,
     t,
     user?.id,
+    resolveListingViewUrl,
   ]);
 
   // ---- Reactions helpers (persisted)
@@ -3714,7 +3854,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                       const parsed = JSON.parse(raw);
                       const card = parsed?.inquiry_sent_v1;
                       if (card) {
-                        const cardViewUrl = normalizeServiceProviderViewUrl(card.view);
+                        const cardViewUrl = resolveListingViewUrl(card.view);
                         const alignClass = isMsgFromSelf ? 'ml-auto' : 'mr-auto';
                         const dateOnly = card.date ? String(card.date).slice(0, 10) : null;
                         const prettyDate = (() => {
