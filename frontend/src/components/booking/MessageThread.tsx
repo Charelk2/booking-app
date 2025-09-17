@@ -142,8 +142,7 @@ const toProxyPath = (url: string): string => {
       // For attachments/static/media, return a path-only URL so Next.js rewrites
       // proxy via the frontend origin (avoids CORS for audio/video elements).
       if (u.pathname.startsWith('/static/attachments/')) {
-        const p = u.pathname.replace(/^\/static\//, '/'); // -> /attachments/...
-        return `${p}${u.search}`;
+        return `${u.pathname}${u.search}`;
       }
       if (u.pathname.startsWith('/attachments/')) {
         return `${u.pathname}${u.search}`;
@@ -2078,9 +2077,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   <>
                     {(() => {
                       // Suppress placeholder labels; style non-image attachments like a reply header box
-                      const url = msg.attachment_url
-                        ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : toApiAttachmentsUrl(msg.attachment_url))
-                        : '';
+                                const url = msg.attachment_url
+                                  ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : altAttachmentPath(toApiAttachmentsUrl(msg.attachment_url)))
+                                  : '';
                       const display = msg.local_preview_url || url;
                                 const isAudio = isAudioAttachmentUrl(msg.attachment_url || url);
                       const isImage = isImageAttachment(msg.attachment_url || undefined);
@@ -3573,7 +3572,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             {msg.attachment_url && (
                               (() => {
                                 const url = msg.attachment_url
-                                  ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : toApiAttachmentsUrl(msg.attachment_url))
+                                  ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : altAttachmentPath(toApiAttachmentsUrl(msg.attachment_url)))
                                   : '';
                                 const display = (msg as any).local_preview_url || url;
                                 const isAudio = isAudioAttachmentUrl(msg.attachment_url || url);
