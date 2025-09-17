@@ -824,9 +824,26 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Buffer for WS messages that arrive before initial REST load completes
   const wsBufferRef = useRef<ThreadMessage[]>([]);
   const lastFetchAtRef = useRef<number>(0);
+  const lastThreadsUpdatedRef = useRef<number>(0);
   const serviceProviderByServiceIdRef = useRef<Record<number, number>>({});
   const pendingServiceFetchesRef = useRef<Map<number, Promise<void>>>(new Map());
   const clearedUnreadMessageIdsRef = useRef<Set<number>>(new Set());
+
+  const emitThreadsUpdated = useCallback(
+    (
+      detail: { source?: string; threadId?: number; immediate?: boolean } = {},
+      force = false,
+    ) => {
+      if (typeof window === 'undefined') return;
+      const now = Date.now();
+      if (!force && now - lastThreadsUpdatedRef.current < 1200) return;
+      lastThreadsUpdatedRef.current = now;
+      try {
+        window.dispatchEvent(new CustomEvent('threads:updated', { detail }));
+      } catch {}
+    },
+    [],
+  );
 
   // Local ephemeral features
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
@@ -1386,7 +1403,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         });
         if (hasInquiry && typeof window !== 'undefined') {
           try { localStorage.setItem(`inquiry-thread-${bookingRequestId}`,'1'); } catch {}
-          try { window.dispatchEvent(new Event('threads:updated')); } catch {}
+          emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId }, true);
         }
       } catch {}
 
@@ -1436,7 +1453,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
         void markThreadRead(bookingRequestId)
           .then(() => {
-            try { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('threads:updated')); } catch {}
+            emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId });
           })
           .catch(() => {});
       } catch {}
@@ -1488,13 +1505,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         setMessages([]);
         setThreadError('This conversation is no longer available.');
         setLoading(false);
-        try {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(
-              new CustomEvent('thread:missing', { detail: { id: bookingRequestId } })
-            );
-          }
-        } catch {}
+        emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId }, true);
+        try { window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id: bookingRequestId } })); } catch {}
         return;
       }
       console.error('Failed to fetch messages:', err);
