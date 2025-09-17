@@ -42,8 +42,26 @@ const api = axios.create({
   },
 });
 
-const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
-const withApiOrigin = (path: string) => (API_ORIGIN ? `${API_ORIGIN}${path}` : path);
+const STATIC_API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+const resolveApiOrigin = (): string => {
+  if (STATIC_API_ORIGIN) return STATIC_API_ORIGIN;
+  if (typeof window === 'undefined') return '';
+  const { hostname, protocol } = window.location;
+  const normalized = hostname.replace(/^www\./i, '');
+  if (normalized === 'booka.co.za' || normalized === 'join.booka.co.za') {
+    return 'https://api.booka.co.za';
+  }
+  if (normalized === 'staging.booka.co.za') {
+    return 'https://api.staging.booka.co.za';
+  }
+  return '';
+};
+
+const withApiOrigin = (path: string) => {
+  if (!path || /^https?:/i.test(path)) return path;
+  const origin = resolveApiOrigin();
+  return origin ? `${origin}${path}` : path;
+};
 
 // Allow sending/receiving HttpOnly cookies
 api.defaults.withCredentials = true;
