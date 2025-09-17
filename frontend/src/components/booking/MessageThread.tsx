@@ -1234,8 +1234,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       try {
         const hasUnread = normalized.some((m) => m.sender_id !== user?.id && !m.is_read);
         if (hasUnread) void markMessagesRead(bookingRequestId);
-        void markThreadRead(bookingRequestId);
-        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('threads:updated'));
+        void markThreadRead(bookingRequestId)
+          .then(() => {
+            try { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('threads:updated')); } catch {}
+          })
+          .catch(() => {});
       } catch {}
 
       // Background: hydrate quotes (batch first, then per-id)
