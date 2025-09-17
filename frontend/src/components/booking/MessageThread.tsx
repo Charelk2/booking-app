@@ -188,23 +188,29 @@ const altAttachmentPath = (raw: string): string => {
   }
 };
 
-// Force attachment URLs to always hit the API origin directly, bypassing any
-// frontend rewrites. This avoids broken images when rewrites are stale or misconfigured.
+// Normalize URLs that are already on the API origin; leave third‑party absolute URLs unchanged.
 const toApiAttachmentsUrl = (raw: string): string => {
   try {
     if (/^(blob:|data:)/i.test(raw)) return raw;
-    const u = new URL(raw, API_BASE);
-    let path = u.pathname;
-    if (/^\/static\/attachments\//.test(path)) {
-      path = path.replace(/^\/static\//, '/');
-    } else if (!/^\/attachments\//.test(path)) {
-      // Fallback: if it looks like an image filename, place under /attachments
-      const leaf = path.split('/').pop() || '';
-      if (/\.(jpe?g|png|gif|webp|avif)$/i.test(leaf)) {
-        path = '/attachments/' + leaf;
-      }
-    }
     const api = new URL(API_BASE);
+    const u = new URL(raw, API_BASE);
+
+    // If this isn't the API origin, do not rewrite it (e.g., S3/CDN links)
+    if (u.host !== api.host) return u.toString();
+
+    // From here on we're same-origin: normalize known attachment/static paths
+    let path = u.pathname;
+
+    // Normalize /static/attachments/* to /attachments/*
+    if (/^\/static\/attachments\//i.test(path)) {
+      path = path.replace(/^\/static\//i, '/');
+    }
+
+    // Only return API-origin URLs for known paths; otherwise keep as-is
+    if (!/^\/(attachments|media|static)\//i.test(path)) {
+      return u.toString();
+    }
+
     return `${api.protocol}//${api.host}${path}${u.search}`;
   } catch {
     return raw;
