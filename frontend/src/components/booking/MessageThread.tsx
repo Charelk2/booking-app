@@ -745,8 +745,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     payload: MessageCreate;
   }>('offlineSendQueue', async ({ tempId, payload }) => {
     const res = await postMessageToBookingRequest(bookingRequestId, payload);
+    const delivered = { ...normalizeMessage(res.data), status: 'sent' as const } as ThreadMessage;
     setMessages((prev) => {
-      const next = prev.map((m) => (m.id === tempId ? { ...normalizeMessage(res.data), status: 'sent' } : m));
+      const next = prev.map((m) => (m.id === tempId ? delivered : m));
       writeCachedMessages(bookingRequestId, next);
       return next;
     });
