@@ -58,6 +58,29 @@ const withApiOrigin = (path: string) => {
 api.defaults.withCredentials = true;
 
 // Automatically attach the bearer token (if present) to every request
+let preferredMachineId: string | null = null;
+try {
+  if (typeof window !== 'undefined') {
+    const stored = window.sessionStorage.getItem('fly.preferred_instance');
+    if (stored) preferredMachineId = stored;
+  }
+} catch {}
+
+const rememberMachineFromResponse = (headers?: Record<string, unknown>) => {
+  try {
+    if (!headers) return;
+    const raw = (headers['fly-machine-id'] ?? headers['Fly-Machine-Id']) as string | undefined;
+    if (raw && raw.trim()) {
+      preferredMachineId = raw.trim();
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('fly.preferred_instance', preferredMachineId);
+        }
+      } catch {}
+    }
+  } catch {}
+};
+
 api.interceptors.request.use(
   (config) => {
     // Ensure uploads work: when sending FormData, remove any Content-Type so the
@@ -92,6 +115,11 @@ api.interceptors.request.use(
         }
       }
     } catch {}
+    if (preferredMachineId && config.headers) {
+      try {
+        (config.headers as any)['Fly-Prefer-Instance'] = preferredMachineId;
+      } catch {}
+    }
     return config;
   },
   (error) => Promise.reject(error)
@@ -103,9 +131,13 @@ let pendingQueue: Array<() => void> = [];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    rememberMachineFromResponse(response?.headers as any);
+    return response;
+  },
   (error) => {
     if (axios.isAxiosError(error)) {
+      rememberMachineFromResponse(error.response?.headers as any);
       const originalRequest = error.config;
       const status = error.response?.status;
       const detail = error.response?.data?.detail;
