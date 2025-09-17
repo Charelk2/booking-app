@@ -216,6 +216,104 @@ const toApiAttachmentsUrl = (raw: string): string => {
     return raw;
   }
 };
+
+const dedupeStrings = (values: (string | null | undefined)[]): string[] => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    if (!value) continue;
+    if (seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  return out;
+};
+
+const expandAttachmentVariant = (value?: string | null): string[] => {
+  if (!value) return [];
+  const variants = [value];
+  try {
+    const absolute = new URL(value, API_BASE);
+    variants.push(absolute.toString());
+    variants.push(`${absolute.pathname}${absolute.search}`);
+  } catch {
+    // Ignore non-URL values (blob:, data:, etc.)
+  }
+  return variants;
+};
+
+const buildAttachmentFallbackChain = (raw: string): string[] => {
+  if (!raw || /^(blob:|data:)/i.test(raw)) {
+    return [raw];
+  }
+
+  let normalized = toApiAttachmentsUrl(raw);
+  // Ensure normalized is absolute so URL parsing below succeeds
+  try {
+    normalized = new URL(normalized, API_BASE).toString();
+  } catch {
+    // keep original string; downstream guards handle parsing errors
+  }
+
+  let staticVariant: string | null = null;
+  try {
+    const u = new URL(normalized);
+    if (!u.pathname.startsWith('/static/')) {
+      const clone = new URL(normalized);
+      clone.pathname = `/static${clone.pathname}`;
+      staticVariant = clone.toString();
+    }
+  } catch {
+    staticVariant = null;
+  }
+
+  const candidates = dedupeStrings(
+    [
+      (() => {
+        try {
+          return toProxyPath(normalized);
+        } catch {
+          return normalized;
+        }
+      })(),
+      normalized,
+      raw,
+      staticVariant,
+      altAttachmentPath(normalized),
+      altAttachmentPath(raw),
+    ].flatMap(expandAttachmentVariant)
+  );
+
+  return candidates;
+};
+
+const urlsSharePath = (a: string, b: string): boolean => {
+  if (!a || !b) return a === b;
+  try {
+    const ua = new URL(a, API_BASE);
+    const ub = new URL(b, API_BASE);
+    return ua.pathname === ub.pathname && ua.search === ub.search;
+  } catch {
+    return a === b;
+  }
+};
+
+const advanceAudioFallback = (el: HTMLAudioElement, candidates: string[]): void => {
+  if (!Array.isArray(candidates) || candidates.length === 0) return;
+  const attempt = Number(el.dataset.fallbackAttempt || '0');
+  for (let idx = attempt; idx < candidates.length; idx += 1) {
+    const candidate = candidates[idx];
+    if (!candidate) continue;
+    if (urlsSharePath(candidate, el.currentSrc)) continue;
+    el.dataset.fallbackAttempt = String(idx + 1);
+    el.src = candidate;
+    try {
+      el.load();
+    } catch {}
+    return;
+  }
+  el.dataset.fallbackAttempt = String(candidates.length);
+};
 const daySeparatorLabel = (date: Date) => {
   const now = new Date();
   const days = differenceInCalendarDays(startOfDay(now), startOfDay(date));
@@ -2156,8 +2254,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             title={label}
                             role={!isAudio ? 'button' : undefined}
                             tabIndex={!isAudio ? 0 : undefined}
-                            onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); } : undefined}
-                            onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toProxyPath(url)); } } : undefined}
+                            onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toApiAttachmentsUrl(url)); } : undefined}
+                            onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toApiAttachmentsUrl(url)); } } : undefined}
                           >
                             <div className="flex items-center gap-1.5 w-full">
                               {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600" /> : null}
@@ -2207,6 +2305,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         }
 
                         if (isAud) {
+                          const audioFallbacks = buildAttachmentFallbackChain(raw);
                           return (
                             <div className="mt-1 inline-block">
                               <audio
@@ -2214,9 +2313,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 controls
                                 src={toProxyPath(display)}
                                 preload="metadata"
+                                crossOrigin="anonymous"
+                                onLoadedData={(e) => {
+                                  e.currentTarget.dataset.fallbackAttempt = '0';
+                                }}
+                                onError={(e) => {
+                                  advanceAudioFallback(e.currentTarget, audioFallbacks);
+                                }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setFilePreviewSrc(toProxyPath(display));
+                                  setFilePreviewSrc(toApiAttachmentsUrl(display));
                                 }}
                               />
                             </div>
@@ -3613,8 +3719,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                     title={label}
                                     role={!isAudio ? 'button' : undefined}
                                     tabIndex={!isAudio ? 0 : undefined}
-                                    onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); } : undefined}
-                                    onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toProxyPath(url)); } } : undefined}
+                                    onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toApiAttachmentsUrl(url)); } : undefined}
+                                    onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toApiAttachmentsUrl(url)); } } : undefined}
                                   >
                                     <div className="flex items-center gap-1.5 w-full">
                                       {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600" /> : null}
@@ -3661,6 +3767,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   );
                                 }
                                 if (isAudio) {
+                                  const audioFallbacks = buildAttachmentFallbackChain(msg.attachment_url || url);
                                   return (
                                     <div className="mt-1 inline-block">
                                       <audio
@@ -3668,7 +3775,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                         controls
                                         src={toProxyPath(display)}
                                         preload="metadata"
-                                        onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(display)); }}
+                                        crossOrigin="anonymous"
+                                        onLoadedData={(e) => {
+                                          e.currentTarget.dataset.fallbackAttempt = '0';
+                                        }}
+                                        onError={(e) => advanceAudioFallback(e.currentTarget, audioFallbacks)}
+                                        onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toApiAttachmentsUrl(display)); }}
                                       />
                                     </div>
                                   );

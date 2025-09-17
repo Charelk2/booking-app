@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, Response, Header
 from sqlalchemy.orm import Session
 from typing import Dict, List, Optional
 
@@ -18,6 +18,7 @@ import re
 import json
 from pydantic import BaseModel
 from datetime import datetime
+import hashlib
 
 router = APIRouter(tags=["threads"])
 
@@ -564,3 +565,28 @@ def start_message_thread(
 
     db.commit()
     return {"booking_request_id": br.id}
+class InboxUnreadResponse(BaseModel):
+    total: int
+
+
+@router.get("/inbox/unread", response_model=InboxUnreadResponse, responses={304: {"description": "Not Modified"}})
+def get_inbox_unread(
+    response: Response,
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return total unread message notifications with lightweight ETag support."""
+
+    total, latest_ts = crud_notification.get_unread_message_totals(db, current_user.id)
+    marker = latest_ts.isoformat(timespec="seconds") if latest_ts else "0"
+    etag_source = f"{current_user.id}:{total}:{marker}"
+    etag_value = f'W/"{hashlib.sha1(etag_source.encode()).hexdigest()}"'
+
+    if if_none_match and if_none_match.strip() == etag_value:
+        response.status_code = status.HTTP_304_NOT_MODIFIED
+        response.headers["ETag"] = etag_value
+        return None
+
+    response.headers["ETag"] = etag_value
+    return InboxUnreadResponse(total=total)

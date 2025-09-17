@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 // Use native <img> for chat attachments to avoid Next/Image overhead
 
@@ -17,6 +17,47 @@ interface ImagePreviewModalProps {
 
 export default function ImagePreviewModal({ open, src, alt = 'Image preview', onClose, images, index = 0, onIndexChange, onReply }: ImagePreviewModalProps) {
   const [embedSrc, setEmbedSrc] = useState<string | null>(null);
+
+  const attachmentFallbacks = useMemo(() => {
+    if (!src) return [] as string[];
+    if (/^(blob:|data:)/i.test(src)) return [src];
+    const variants = new Set<string>();
+    const add = (value?: string | null) => {
+      if (!value) return;
+      variants.add(value);
+    };
+    add(src);
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : undefined;
+      if (origin) {
+        const viaFrontend = new URL(src, origin);
+        add(viaFrontend.toString());
+        add(`${viaFrontend.pathname}${viaFrontend.search}`);
+        if (!viaFrontend.pathname.startsWith('/static/')) {
+          const clone = new URL(viaFrontend.toString());
+          clone.pathname = `/static${clone.pathname}`;
+          add(clone.toString());
+          add(`${clone.pathname}${clone.search}`);
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+    try {
+      const viaApi = new URL(src, process.env.NEXT_PUBLIC_API_URL || '');
+      add(viaApi.toString());
+      add(`${viaApi.pathname}${viaApi.search}`);
+      if (!viaApi.pathname.startsWith('/static/')) {
+        const clone = new URL(viaApi.toString());
+        clone.pathname = `/static${clone.pathname}`;
+        add(clone.toString());
+        add(`${clone.pathname}${clone.search}`);
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return Array.from(variants);
+  }, [src]);
   // Keyboard navigation (wrap-around)
   useEffect(() => {
     if (!open || !Array.isArray(images) || images.length === 0 || typeof onIndexChange !== 'function') return;
@@ -64,36 +105,49 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
   // For PDF and audio, fetch as blob and use object URL to avoid X-Frame-Options
   useEffect(() => {
     if (!open || !src) {
-      if (embedSrc) URL.revokeObjectURL(embedSrc);
-      setEmbedSrc(null);
+      setEmbedSrc((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
       return;
     }
     const isPdf = /\.pdf($|\?)/i.test(src);
     const isAudio = /\.(mp3|m4a|ogg|webm|wav)($|\?)/i.test(src);
     if (!isPdf && !isAudio) {
-      if (embedSrc) URL.revokeObjectURL(embedSrc);
-      setEmbedSrc(null);
+      setEmbedSrc((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
       return;
     }
     let aborted = false;
+    let objectUrl: string | null = null;
     (async () => {
       try {
-        const res = await fetch(src, { credentials: 'include' as RequestCredentials });
-        if (!res.ok) throw new Error(String(res.status));
-        const blob = await res.blob();
-        if (aborted) return;
-        const url = URL.createObjectURL(blob);
-        setEmbedSrc(url);
+        for (const candidate of attachmentFallbacks) {
+          if (aborted) return;
+          try {
+            const res = await fetch(candidate, { credentials: 'include' as RequestCredentials });
+            if (!res.ok) continue;
+            const blob = await res.blob();
+            if (aborted) return;
+            objectUrl = URL.createObjectURL(blob);
+            setEmbedSrc(objectUrl);
+            return;
+          } catch {
+            continue;
+          }
+        }
+        setEmbedSrc(null);
       } catch {
         setEmbedSrc(null);
       }
     })();
     return () => {
       aborted = true;
-      if (embedSrc) URL.revokeObjectURL(embedSrc);
-      setEmbedSrc(null);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [open, src]);
+  }, [open, src, attachmentFallbacks]);
   return (
     <Transition show={open} as={Fragment}>
       <Dialog as="div" className="relative z-[1000]" onClose={onClose}>
