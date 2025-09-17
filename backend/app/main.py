@@ -70,6 +70,7 @@ from .crud import crud_quote_v2
 from .database import Base, SessionLocal, engine
 from .db_utils import (
     ensure_attachment_url_column,
+    ensure_attachment_meta_column,
     ensure_booking_event_city_column,
     ensure_booking_request_travel_columns,
     ensure_booking_simple_columns,
@@ -150,6 +151,7 @@ ensure_message_type_column(engine)
 normalize_message_type_values(engine)
 ensure_message_core_columns(engine)
 ensure_attachment_url_column(engine)
+ensure_attachment_meta_column(engine)
 ensure_message_is_read_column(engine)
 ensure_visible_to_column(engine)
 ensure_message_action_column(engine)

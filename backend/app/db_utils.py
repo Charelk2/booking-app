@@ -427,6 +427,17 @@ def ensure_attachment_url_column(engine: Engine) -> None:
     )
 
 
+def ensure_attachment_meta_column(engine: Engine) -> None:
+    """Add the ``attachment_meta`` column if it's missing."""
+
+    add_column_if_missing(
+        engine,
+        "messages",
+        "attachment_meta",
+        "attachment_meta JSON",
+    )
+
+
 def ensure_message_is_read_column(engine: Engine) -> None:
     """Add the ``is_read`` column to ``messages`` if missing."""
 
