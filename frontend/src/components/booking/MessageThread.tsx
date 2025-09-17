@@ -78,6 +78,11 @@ const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
 // Type the dynamic Virtuoso component so TS recognizes its props (totalCount, itemContent, etc.)
 const Virtuoso = dynamic(() => import('react-virtuoso').then((m: any) => m.Virtuoso), { ssr: false }) as unknown as React.ComponentType<VirtuosoProps<any, any>>;
 const MemoQuoteBubble = React.memo(QuoteBubble);
+
+type SupplierInviteActionState = {
+  msgId: number;
+  choice: 'accept' | 'decline';
+} | null;
 const MemoInlineQuoteForm = React.memo(InlineQuoteForm);
 
 // ===== Constants ==============================================================
@@ -679,6 +684,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [imageModalIndex, setImageModalIndex] = useState<number | null>(null);
   const [filePreviewSrc, setFilePreviewSrc] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [supplierInviteAction, setSupplierInviteAction] = useState<SupplierInviteActionState>(null);
   const isSendingRef = useRef(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const VIRTUALIZE = process.env.NEXT_PUBLIC_VIRTUALIZE_CHAT === '1';
@@ -1295,6 +1301,30 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       fetchInFlightRef.current = false;
     }
   }, [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded]);
+
+  const respondToSupplierInvite = useCallback(
+    async (msgId: number, decision: 'accept' | 'decline', program: string) => {
+      if (supplierInviteAction) return;
+      const programLabel = program || t('system.soundSupplierDefault', 'this Live Experience');
+      const content =
+        decision === 'accept'
+          ? t('system.soundSupplierAcceptChat', 'Accepted preferred supplier invite for {program}.', { program: programLabel })
+          : t('system.soundSupplierDeclineChat', 'Declined preferred supplier invite for {program}.', { program: programLabel });
+      try {
+        setSupplierInviteAction({ msgId, choice: decision });
+        await postMessageToBookingRequest(bookingRequestId, { content } as MessageCreate);
+        await fetchMessages();
+      } catch (err) {
+        console.error('Failed to respond to supplier invite:', err);
+        setThreadError(
+          t('system.soundSupplierError', 'Could not send your response. Please try again or contact support.')
+        );
+      } finally {
+        setSupplierInviteAction(null);
+      }
+    },
+    [bookingRequestId, fetchMessages, supplierInviteAction, t],
+  );
   useImperativeHandle(ref, () => ({ refreshMessages: fetchMessages }), [fetchMessages]);
   useEffect(() => {
     activeThreadRef.current = bookingRequestId;
@@ -2709,9 +2739,22 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       const resolvedViewUrl = (() => {
         if (!viewUrlRaw) return null;
-        if (/^https?:/i.test(viewUrlRaw)) return viewUrlRaw;
-        if (viewUrlRaw.startsWith('/')) return viewUrlRaw;
-        return `/${viewUrlRaw}`;
+        const convertPath = (input: string) => {
+          const match = input.match(/\/?services\/(\d+)/i);
+          if (match) {
+            const id = match[1];
+            return input.replace(/\/?services\/(\d+)/i, `/service-providers/${id}`);
+          }
+          return input;
+        };
+        let url = viewUrlRaw.trim();
+        if (/^https?:/i.test(url)) {
+          const converted = convertPath(url);
+          return converted;
+        }
+        url = convertPath(url);
+        if (!url.startsWith('/')) url = `/${url}`;
+        return url;
       })();
 
       return (
@@ -2782,18 +2825,27 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   {t('system.soundSupplierInstructions', 'Please submit your indoor and outdoor tier pricing so we can book you quickly for this experience.')}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <a
-                    href="/dashboard/artist?tab=services"
-                    className="inline-flex items-center gap-1 rounded-full border border-indigo-500 bg-white px-3 py-1 text-[11px] font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100"
+                  <Button
+                    type="button"
+                    onClick={() => respondToSupplierInvite(msg.id, 'accept', program)}
+                    disabled={supplierInviteAction?.msgId === msg.id}
+                    className="!py-1 !px-3 text-xs"
                   >
-                    {t('system.soundSupplierUpdatePricing', 'Update pricing')}
-                  </a>
-                  <a
-                    href="/dashboard/artist?tab=pricing"
-                    className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-100 px-3 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-200"
+                    {supplierInviteAction?.msgId === msg.id && supplierInviteAction?.choice === 'accept'
+                      ? t('system.soundSupplierAccepting', 'Accepting...')
+                      : t('system.soundSupplierAccept', 'Accept invite')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => respondToSupplierInvite(msg.id, 'decline', program)}
+                    disabled={supplierInviteAction?.msgId === msg.id}
+                    className="!py-1 !px-3 text-xs"
                   >
-                    {t('system.soundSupplierViewRequests', 'View requests')}
-                  </a>
+                    {supplierInviteAction?.msgId === msg.id && supplierInviteAction?.choice === 'decline'
+                      ? t('system.soundSupplierDeclining', 'Declining...')
+                      : t('system.soundSupplierDecline', 'Decline')}
+                  </Button>
                 </div>
               </div>
             </div>
@@ -2949,7 +3001,22 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         )}
       </div>
     );
-  }, [bookingDetails, paymentInfo, quotes, isClientViewFlag, isPaidFlag, isPaymentOpen, openPaymentModal, bookingRequestId, onShowReviewModal, parsedBookingDetails]);
+  }, [
+    bookingDetails,
+    paymentInfo,
+    quotes,
+    isClientViewFlag,
+    isPaidFlag,
+    isPaymentOpen,
+    openPaymentModal,
+    bookingRequestId,
+    onShowReviewModal,
+    parsedBookingDetails,
+    respondToSupplierInvite,
+    supplierInviteAction,
+    t,
+    user?.id,
+  ]);
 
   // ---- Reactions helpers (persisted)
   const toggleReaction = useCallback(async (msgId: number, emoji: string) => {
