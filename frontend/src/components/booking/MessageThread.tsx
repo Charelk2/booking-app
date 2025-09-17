@@ -19,7 +19,7 @@ import type { VirtuosoProps } from 'react-virtuoso';
 import { createPortal } from 'react-dom';
 import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
 import data from '@emoji-mart/data';
-import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon, MusicalNoteIcon, PaperClipIcon } from '@heroicons/react/24/outline';
+import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon, MusicalNoteIcon, PaperClipIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { MicrophoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -2613,6 +2613,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const renderSystemLine = useCallback((msg: ThreadMessage) => {
     const key = (msg.system_key || '').toLowerCase();
     let label = systemLabel(msg);
+    const rawContent = String(msg.content || '').trim();
 
     const actions: React.ReactNode[] = [];
 
@@ -2759,6 +2760,48 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
 
     // Receipt download (payment received / receipt available)
+    if (/preferred sound supplier/i.test(rawContent)) {
+      const match = rawContent.match(/preferred sound supplier for\s+(.+?)(?:\.|$)/i);
+      const program = match ? match[1].trim() : t('system.soundSupplierDefault', 'this Live Experience');
+      const alignClass = msg.sender_id === user?.id ? 'ml-auto' : 'mr-auto';
+      return (
+        <div className={`my-3 ${alignClass} w-full md:w-1/2 md:max-w-[520px]`} data-testid="sound-supplier-invite">
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50/90 p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                <SparklesIcon className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
+                  {t('system.soundSupplierInvite', 'Preferred supplier invite')}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-indigo-900 truncate">
+                  {t('system.soundSupplierFor', 'for {program}', { program })}
+                </p>
+                <p className="mt-2 text-xs text-indigo-900">
+                  {t('system.soundSupplierInstructions', 'Please submit your indoor and outdoor tier pricing so we can book you quickly for this experience.')}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <a
+                    href="/dashboard/artist?tab=services"
+                    className="inline-flex items-center gap-1 rounded-full border border-indigo-500 bg-white px-3 py-1 text-[11px] font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100"
+                  >
+                    {t('system.soundSupplierUpdatePricing', 'Update pricing')}
+                  </a>
+                  <a
+                    href="/dashboard/artist?tab=pricing"
+                    className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-100 px-3 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-200"
+                  >
+                    {t('system.soundSupplierViewRequests', 'View requests')}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (key === 'payment_received' || key === 'receipt_available' || key === 'download_receipt' || /\breceipt\b/i.test(label)) {
       let url = bookingDetails?.payment_id
         ? `/api/v1/payments/${bookingDetails.payment_id}/receipt`

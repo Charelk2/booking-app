@@ -246,6 +246,8 @@ type PreRow = {
   isBookaModeration: boolean;
   showApprovedChip: boolean;
   showRejectedChip: boolean;
+  isSupplierInvite: boolean;
+  supplierProgram?: string | null;
 };
 
 function buildPrecomputed(
@@ -321,8 +323,14 @@ function buildPrecomputed(
     const showApprovedChip = /^\s*listing\s+approved:/i.test(previewLower);
     const showRejectedChip = /^\s*listing\s+rejected:/i.test(previewLower);
     const isBookaModeration = isSyntheticBooka || showApprovedChip || showRejectedChip;
+    const isSupplierInvite = /preferred sound supplier/i.test(previewLower);
+    const supplierProgram = (() => {
+      if (!isSupplierInvite) return null;
+      const match = preview.match(/preferred sound supplier for\s+(.+?)(?:\.|$)/i);
+      return match ? match[1].trim() : null;
+    })();
     const showInquiry = (() => {
-      if (showEvent || showVideo || isQuote || isBookaModeration) return false;
+      if (showEvent || showVideo || isQuote || isBookaModeration || isSupplierInvite) return false;
       const threadState = String(((req as any).thread_state ?? '') || '').toLowerCase();
       const status = (req.status || '').toString().toLowerCase();
       const hasBookingDetails = Boolean((req as any).proposed_datetime_1 || (req as any).proposed_datetime_2 || (req as any).travel_breakdown);
@@ -354,6 +362,8 @@ function buildPrecomputed(
       isBookaModeration,
       showApprovedChip,
       showRejectedChip,
+      isSupplierInvite,
+      supplierProgram,
     };
   }
   return out;
@@ -426,6 +436,9 @@ const Row = React.memo(function Row({ index, style, data }: { index: number; sty
             {p.isBookaModeration && (
               <span className="inline-flex items-center gap-1 rounded bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">BOOKA</span>
             )}
+            {p.isSupplierInvite && (
+              <span className="inline-flex items-center gap-1 rounded bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">SUPPLIER</span>
+            )}
             {p.showEvent && (
               <span className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">EVENT</span>
             )}
@@ -439,25 +452,31 @@ const Row = React.memo(function Row({ index, style, data }: { index: number; sty
               <span className="inline-flex items-center gap-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">INQUIRY</span>
             )}
             <span className="truncate">
-              {p.isBookaModeration
-                ? (q && partsPrev.has ? (
-                    <>
-                      {partsPrev.before}
-                      <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsPrev.match}</span>
-                      {partsPrev.after}
-                    </>
-                  ) : (
-                    <span className="text-indigo-800 font-medium">{p.preview}</span>
-                  ))
-                : (q && partsPrev.has ? (
-                    <>
-                      {partsPrev.before}
-                      <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsPrev.match}</span>
-                      {partsPrev.after}
-                    </>
-                  ) : (
-                    p.preview
-                  ))}
+              {p.isBookaModeration ? (
+                q && partsPrev.has ? (
+                  <>
+                    {partsPrev.before}
+                    <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsPrev.match}</span>
+                    {partsPrev.after}
+                  </>
+                ) : (
+                  <span className="text-indigo-800 font-medium">{p.preview}</span>
+                )
+              ) : p.isSupplierInvite ? (
+                <span className="text-purple-800 font-medium">
+                  {p.supplierProgram
+                    ? t('inbox.supplierInvitePreview', 'Preferred supplier · {program}', { program: p.supplierProgram })
+                    : t('inbox.supplierInvitePreviewGeneric', 'Preferred supplier invite')}
+                </span>
+              ) : q && partsPrev.has ? (
+                <>
+                  {partsPrev.before}
+                  <span className="bg-yellow-100 text-yellow-800 rounded px-0.5">{partsPrev.match}</span>
+                  {partsPrev.after}
+                </>
+              ) : (
+                p.preview
+              )}
             </span>
           </span>
           {p.unreadCount > 0 ? (
