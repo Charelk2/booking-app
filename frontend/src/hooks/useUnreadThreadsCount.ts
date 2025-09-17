@@ -9,6 +9,9 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { user, loading } = useAuth();
   const etagRef = useRef<string | undefined>(undefined);
+  const refreshingRef = useRef(false);
+  const rerunRef = useRef(false);
+  const lastEventTsRef = useRef(0);
 
   const refresh = useCallback(async () => {
     if (loading) return;
@@ -16,6 +19,11 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
       setCount(0);
       return;
     }
+    if (refreshingRef.current) {
+      rerunRef.current = true;
+      return;
+    }
+    refreshingRef.current = true;
     try {
       // Prefer tiny unread endpoint with ETag; fall back to previews if missing
       try {
@@ -46,6 +54,13 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
     } catch (err) {
       // best-effort; avoid console noise in header
     }
+    finally {
+      refreshingRef.current = false;
+      if (rerunRef.current) {
+        rerunRef.current = false;
+        void refresh();
+      }
+    }
   }, [loading, user]);
 
   useEffect(() => {
@@ -55,22 +70,31 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
       return; // Do not start timers when logged out
     }
     void refresh();
-    const handleBump = () => void refresh();
+    const handleBump = (event: Event) => {
+      const now = Date.now();
+      if (now - lastEventTsRef.current < 1500) return;
+      lastEventTsRef.current = now;
+      const detail = (event as CustomEvent<{ immediate?: boolean }>).detail;
+      if (detail?.immediate) {
+        lastEventTsRef.current = 0; // allow immediate follow-up if requested explicitly
+      }
+      void refresh();
+    };
     if (typeof window !== 'undefined') {
-      window.addEventListener('threads:updated', handleBump);
+      window.addEventListener('threads:updated', handleBump as EventListener);
     }
     if (pollMs > 0) {
       timerRef.current = setInterval(() => void refresh(), pollMs);
       return () => {
         if (timerRef.current) clearInterval(timerRef.current);
         if (typeof window !== 'undefined') {
-          window.removeEventListener('threads:updated', handleBump);
+          window.removeEventListener('threads:updated', handleBump as EventListener);
         }
       };
     }
     return () => {
       if (typeof window !== 'undefined') {
-        window.removeEventListener('threads:updated', handleBump);
+        window.removeEventListener('threads:updated', handleBump as EventListener);
       }
     };
   }, [refresh, pollMs, user, loading]);
