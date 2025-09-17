@@ -139,13 +139,14 @@ const toProxyPath = (url: string): string => {
     const u = new URL(url, API_BASE);
     const sameOrigin = u.protocol === api.protocol && u.hostname === api.hostname && (u.port || '') === (api.port || '');
     if (sameOrigin) {
-      // For attachments, always return absolute API URL
+      // For attachments/static/media, return a path-only URL so Next.js rewrites
+      // proxy via the frontend origin (avoids CORS for audio/video elements).
       if (u.pathname.startsWith('/static/attachments/')) {
-        const p = u.pathname.replace(/^\/static\//, '/');
-        return `${api.protocol}//${api.host}${p}${u.search}`;
+        const p = u.pathname.replace(/^\/static\//, '/'); // -> /attachments/...
+        return `${p}${u.search}`;
       }
       if (u.pathname.startsWith('/attachments/')) {
-        return `${api.protocol}//${api.host}${u.pathname}${u.search}`;
+        return `${u.pathname}${u.search}`;
       }
       if (u.pathname.startsWith('/static/')) return `${u.pathname}${u.search}`;
       if (u.pathname.startsWith('/media/')) return `${u.pathname}${u.search}`;
@@ -2159,17 +2160,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         }
                         if (isAudio) {
                           return (
-                            <div className="mt-1 inline-block">
-                              <audio
-                                className="w-56 cursor-pointer"
-                                controls
-                                src={url}
-                                preload="metadata"
-                                onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); }}
-                              />
-                            </div>
-                          );
-                        }
+                                    <div className="mt-1 inline-block">
+                                      <audio
+                                        className="w-56 cursor-pointer"
+                                        controls
+                                        src={toProxyPath(url)}
+                                        preload="metadata"
+                                        onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); }}
+                                      />
+                                    </div>
+                                  );
+                                }
                         return null; // header is the clickable element for non-image, non-audio files
                       })()
                     )}
@@ -3605,7 +3606,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                       <audio
                                         className="w-56 cursor-pointer"
                                         controls
-                                        src={url}
+                                        src={toProxyPath(url)}
                                         preload="metadata"
                                         onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); }}
                                       />
