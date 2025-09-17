@@ -1343,14 +1343,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
 
       // Render immediately and cache
-      setMessages((prev) => mergeMessages(prev.length ? prev : [], normalized));
+      setMessages((prev) => {
+        const base = prev.length ? prev : [];
+        const next = mergeMessages(base, normalized);
+        writeCachedMessages(bookingRequestId, next);
+        return next;
+      });
       writeCachedMessages(bookingRequestId, normalized);
       setThreadError(null);
       setLoading(false);
       initialLoadedRef.current = true; // open realtime gate now
       try {
         if (wsBufferRef.current.length) {
-          setMessages((prev) => mergeMessages(prev, wsBufferRef.current));
+          setMessages((prev) => {
+            const next = mergeMessages(prev, wsBufferRef.current);
+            writeCachedMessages(bookingRequestId, next);
+            return next;
+          });
           wsBufferRef.current = [];
         }
       } catch {}
@@ -1693,13 +1702,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         const upTo: number | undefined = typeof payload.up_to_id === 'number' ? payload.up_to_id : undefined;
         const readerId: number | undefined = typeof payload.user_id === 'number' ? payload.user_id : undefined;
         if (upTo && readerId && readerId !== user?.id) {
-          setMessages((prev) => prev.map((m) => (m.sender_id === (user?.id || 0) && m.id <= upTo ? { ...m, is_read: true } : m)));
+          setMessages((prev) => {
+            const next = prev.map((m) => (m.sender_id === (user?.id || 0) && m.id <= upTo ? { ...m, is_read: true } : m));
+            writeCachedMessages(bookingRequestId, next);
+            return next;
+          });
         }
         return;
       }
       if (typeStr === 'message_deleted' && typeof payload.id === 'number') {
         const mid = Number(payload.id);
-        setMessages((prev) => prev.filter((m) => m.id !== mid));
+        setMessages((prev) => {
+          const next = prev.filter((m) => m.id !== mid);
+          writeCachedMessages(bookingRequestId, next);
+          return next;
+        });
         return;
       }
       if (typeStr === 'event_prep_updated') return;
@@ -1796,7 +1813,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         return;
       }
 
-      setMessages((prev) => mergeMessages(prev, normalized));
+      setMessages((prev) => {
+        const next = mergeMessages(prev, normalized);
+        writeCachedMessages(bookingRequestId, next);
+        return next;
+      });
       lastRealtimeAtRef.current = Date.now();
       if (typeof window !== 'undefined' && localStorage.getItem('CHAT_DEBUG') === '1') {
         try { console.debug('[thread] merged', { topicId, added: normalized.length }); } catch {}
