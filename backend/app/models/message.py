@@ -9,6 +9,7 @@ from sqlalchemy import (
     Boolean,
     UniqueConstraint,
     Index,
+    JSON,
 )
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime, timezone, timedelta
@@ -95,6 +96,7 @@ class Message(BaseModel):
     # Link to the newer quotes_v2 table so quote messages render properly
     quote_id = Column(Integer, ForeignKey("quotes_v2.id"), nullable=True)
     attachment_url = Column(String, nullable=True)
+    attachment_meta = Column(JSON, nullable=True)
     action = Column(Enum(MessageAction), nullable=True)
     # Optional deterministic key for system messages to dedupe UPSERTs
     system_key = Column(String, nullable=True, index=True)

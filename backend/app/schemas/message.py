@@ -1,16 +1,17 @@
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from ..models.message import SenderType, MessageType, VisibleTo, MessageAction
 
 
 class MessageCreate(BaseModel):
-    content: str
+    content: Optional[str] = None
     message_type: MessageType = MessageType.USER
     visible_to: VisibleTo = VisibleTo.BOTH
     quote_id: int | None = None
     attachment_url: str | None = None
+    attachment_meta: dict[str, Any] | None = None
     action: MessageAction | None = None
     reply_to_message_id: int | None = None
     # For SYSTEM messages only; allows UPSERT by unique key
@@ -33,6 +34,15 @@ class MessageCreate(BaseModel):
                 return mapping[key]
         raise ValueError("message_type must be USER, QUOTE, or SYSTEM")
 
+    @model_validator(mode="after")
+    def ensure_content_or_attachment(cls, values: "MessageCreate") -> "MessageCreate":
+        content = (values.content or "").strip()
+        if not content and not (values.attachment_url and values.attachment_url.strip()):
+            raise ValueError("Message must include content or attachment")
+        if values.attachment_meta is not None and not isinstance(values.attachment_meta, dict):
+            raise ValueError("attachment_meta must be an object when provided")
+        return values
+
 
 class MessageResponse(BaseModel):
     id: int
@@ -44,6 +54,7 @@ class MessageResponse(BaseModel):
     content: str
     quote_id: int | None = None
     attachment_url: str | None = None
+    attachment_meta: dict[str, Any] | None = None
     action: MessageAction | None = None
     is_read: bool = False
     timestamp: datetime

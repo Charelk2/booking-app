@@ -39,6 +39,7 @@ import {
   QuoteV2,
   QuoteV2Create,
   BookingRequest,
+  AttachmentMeta,
 } from '@/types';
 
   import {
@@ -182,20 +183,6 @@ const normalizeServiceProviderViewUrl = (input?: string | null, options: Normali
   }
   return combined;
 };
-
-// Convert a File to a data URL (no compression). For images this guarantees
-// the receiver can render without relying on static hosting.
-const fileToDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    try {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = (e) => reject(e);
-      reader.readAsDataURL(file);
-    } catch (e) {
-      reject(e);
-    }
-  });
 
 // Proxy backend static/media URLs through Next so iframes/audio are same-origin
 const toProxyPath = (url: string): string => {
@@ -474,6 +461,7 @@ type ThreadMessage = {
   system_key?: string | null;
   quote_id?: number | null;
   attachment_url?: string | null;
+  attachment_meta?: AttachmentMeta | null;
   visible_to?: 'client' | 'service_provider' | 'both'; // normalized
   action?: string | null;
   avatar_url?: string | null;
@@ -536,6 +524,7 @@ function normalizeMessage(raw: any): ThreadMessage {
     system_key: raw.system_key ?? null,
     quote_id: raw.quote_id == null ? null : Number(raw.quote_id),
     attachment_url: raw.attachment_url ?? null,
+    attachment_meta: (raw as any).attachment_meta ?? null,
     visible_to: normalizeVisibleTo(raw.visible_to),
     action: raw.action ?? null,
     avatar_url: raw.avatar_url ?? null,
@@ -2470,15 +2459,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                       const isAudio = isAudioAttachmentUrl(display);
                       const isImage = isImageAttachment(display);
                       const contentLower = String(msg.content || '').trim().toLowerCase();
-                      const isVoicePlaceholder = contentLower === '[voice note]';
-                      const isAttachmentPlaceholder = contentLower === '[attachment]';
+                      const isVoicePlaceholder = contentLower === '[voice note]' || contentLower === 'voice note';
+                      const isAttachmentPlaceholder = contentLower === '[attachment]' || contentLower === 'attachment';
                       if (isAudio && isVoicePlaceholder) return null; // legacy voice-note placeholder hidden
                       if (isImage && isAttachmentPlaceholder) return null; // hide generic attachment label for images
                       // For audio attachments, prefer the player only (no header label)
                       if (isAudio) return null;
                       // For non-image attachments, render a reply-style header with file label; no text body below
                       if (!isImage && msg.attachment_url) {
-                        let label = String(msg.content || '').trim();
+                        const meta = (msg.attachment_meta as AttachmentMeta | null) ?? null;
+                        let label = meta?.original_filename?.trim() || String(msg.content || '').trim();
                         if (!label || isAttachmentPlaceholder) {
                           try {
                             label = decodeURIComponent((url.split('?')[0].split('/').pop() || 'Attachment'));
@@ -2486,6 +2476,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             label = 'Attachment';
                           }
                         }
+                        const sizeLabel = typeof meta?.size === 'number' && meta.size > 0 ? formatBytes(meta.size) : null;
                         // Pick an icon by extension
                         let IconComp: React.ComponentType<React.SVGProps<SVGSVGElement>> | null = DocumentTextIcon;
                         try {
@@ -2505,9 +2496,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toApiAttachmentsUrl(url)); } : undefined}
                             onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toApiAttachmentsUrl(url)); } } : undefined}
                           >
-                            <div className="flex items-center gap-1.5 w-full">
-                              {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600" /> : null}
-                              <span className="min-w-0 flex-1 line-clamp-2 break-words">{label}</span>
+                            <div className="flex items-start gap-1.5 w-full">
+                              {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600 flex-shrink-0 mt-0.5" /> : null}
+                              <div className="min-w-0 flex-1">
+                                <div className="line-clamp-2 break-words font-medium">{label}</div>
+                                {sizeLabel && <div className="text-[11px] text-gray-500 mt-0.5">{sizeLabel}</div>}
+                              </div>
                             </div>
                           </div>
                         );
@@ -3228,308 +3222,216 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const handleSendMessage = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      // Do not proceed if there's nothing to send
-      if (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0) return;
-      if (isSendingRef.current) return;
-      isSendingRef.current = true;
-      setIsSending(true);
+      const trimmed = newMessageContent.trim();
+      const pendingImages = imageFiles.map((file, index) => ({
+        file,
+        previewUrl:
+          imagePreviewUrls[index] || (typeof window !== 'undefined' ? URL.createObjectURL(file) : ''),
+      }));
+      const pendingAttachment = attachmentFile
+        ? [{ file: attachmentFile, previewUrl: attachmentPreviewUrl || (typeof window !== 'undefined' ? URL.createObjectURL(attachmentFile) : '') }]
+        : [];
+      const attachments = [...pendingImages, ...pendingAttachment];
 
-      if ((attachmentFile || imageFiles.length > 0) && !navigator.onLine) {
+      if (!trimmed && attachments.length === 0) return;
+      if (isSendingRef.current) return;
+
+      if (attachments.length > 0 && !navigator.onLine) {
         setThreadError('Cannot send attachments while offline.');
         return;
       }
 
-      let attachment_url: string | undefined;
-      const tempId = -Date.now(); // negative to avoid collisions
-      let localTempAudioUrl: string | null = null;
+      isSendingRef.current = true;
+      setIsSending(true);
+      setThreadError(null);
+
+      const resetComposer = () => {
+        setNewMessageContent('');
+        setAttachmentFile(null);
+        setAttachmentPreviewUrl(null);
+        setImageFiles([]);
+        setImagePreviewUrls([]);
+        setUploadingProgress(0);
+        setIsUploadingAttachment(false);
+        setReplyTarget(null);
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+          textareaRef.current.rows = 1;
+          textareaRef.current.focus();
+        }
+      };
+
+      const finalizeMessage = (tempId: number, real: ThreadMessage) => {
+        setMessages((prev) => {
+          const byId = new Map<number, ThreadMessage>();
+          for (const m of prev) if (m.id !== tempId) byId.set(m.id, m);
+          byId.set(real.id, real);
+          const next = Array.from(byId.values()).sort(
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+          );
+          writeCachedMessages(bookingRequestId, next);
+          return next;
+        });
+        try {
+          if (typeof window !== 'undefined') {
+            const previewText = String(real.content || '').slice(0, 160);
+            window.dispatchEvent(
+              new CustomEvent('thread:preview', {
+                detail: { id: bookingRequestId, content: previewText, ts: real.timestamp, unread: false },
+              }),
+            );
+            window.dispatchEvent(new Event('threads:updated'));
+          }
+        } catch {}
+      };
+
+      const createOptimisticMessage = (
+        tempId: number,
+        partial: Partial<ThreadMessage>,
+      ): ThreadMessage => {
+        const optimistic: ThreadMessage = {
+          id: tempId,
+          booking_request_id: bookingRequestId,
+          sender_id: user?.id || 0,
+          sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
+          content: partial.content ?? '',
+          message_type: (partial.message_type as MessageKind) || 'USER',
+          quote_id: null,
+          attachment_url: partial.attachment_url ?? null,
+          attachment_meta: (partial.attachment_meta as AttachmentMeta | null) ?? null,
+          visible_to: 'both',
+          action: null,
+          avatar_url: undefined,
+          expires_at: null,
+          unread: false,
+          is_read: true,
+          timestamp: gmt2ISOString(),
+          status: partial.status ?? (navigator.onLine ? 'sending' : 'queued'),
+          reply_to_message_id: partial.reply_to_message_id ?? null,
+          reply_to_preview: partial.reply_to_preview ?? null,
+          local_preview_url: partial.local_preview_url ?? null,
+        };
+        setMessages((prev) => mergeMessages(prev, optimistic));
+        return optimistic;
+      };
 
       try {
-        // Common reset helper (used by all send paths)
-        const resetInput = () => {
-          setNewMessageContent('');
-          setAttachmentFile(null);
-          setAttachmentPreviewUrl(null);
-          setImageFiles([]);
-          try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
-          setImagePreviewUrls([]);
-          setUploadingProgress(0);
-          setIsUploadingAttachment(false);
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.rows = 1;
-            textareaRef.current.focus();
-          }
-          setReplyTarget(null);
-        };
+        let replyId: number | null = replyTarget?.id ?? null;
 
-        let payload: MessageCreate | null = null;
-        let baseContentGlobal = newMessageContent;
-        if (imageFiles.length > 0) {
-          // Snapshot current selections and clear the preview UI immediately
-          const files = imageFiles.slice();
-          const previewUrlsToRevoke = imagePreviewUrls.slice();
-          let baseContent = newMessageContent;
-          if (!baseContent.trim()) baseContent = '[Attachment]';
-          const nowISO = gmt2ISOString();
+        if (trimmed) {
+          const tempId = -Date.now();
+          createOptimisticMessage(tempId, {
+            content: trimmed,
+            reply_to_message_id: replyId,
+            reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
+          });
+          const payload: MessageCreate = {
+            content: trimmed,
+            reply_to_message_id: replyId ?? undefined,
+          };
 
-          // Optimistic bubbles instantly using existing blob preview URLs
-          for (let i = 0; i < files.length; i++) {
-            const id = i === 0 ? tempId : (tempId - (i + 1));
-            const previewUrl = previewUrlsToRevoke[i];
-            const optimistic: ThreadMessage = {
-              id,
-              booking_request_id: bookingRequestId,
-              sender_id: user?.id || 0,
-              sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
-              content: i === 0 ? baseContent : '[Attachment]',
-              message_type: 'USER',
-              quote_id: null,
-              attachment_url: previewUrl || null,
-              local_preview_url: previewUrl || null,
-              visible_to: 'both',
-              action: null,
-              avatar_url: undefined,
-              expires_at: null,
-              unread: false,
-              is_read: true,
-              timestamp: nowISO,
-              status: 'sending',
-              reply_to_message_id: i === 0 ? (replyTarget?.id ?? null) : null,
-              reply_to_preview: i === 0 && replyTarget ? replyTarget.content.slice(0, 120) : null,
-            } as ThreadMessage;
-            setMessages((prev) => mergeMessages(prev, optimistic));
-          }
-
-          // Immediately clear the composer preview and input
-          setNewMessageContent('');
-          setImageFiles([]);
-          setImagePreviewUrls([]); // don't revoke yet; keep blob URLs alive for optimistic cards
-          setUploadingProgress(0);
-          setIsUploadingAttachment(false);
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.rows = 1;
-            textareaRef.current.focus();
-          }
-          setReplyTarget(null);
-          onMessageSent?.();
-
-          // Convert images to data URLs and send sequentially
-          const dataUrls: string[] = [];
-          for (let i = 0; i < files.length; i++) {
-            const f = files[i];
-            const dataUrl = await fileToDataUrl(f);
-            dataUrls.push(dataUrl);
-          }
-
-          // Send first image with text (or placeholder hidden later)
-          const firstUrl = dataUrls[0];
-          const firstPayload: MessageCreate = { content: baseContent, attachment_url: firstUrl } as any;
-
-          try {
-            const res = await postMessageToBookingRequest(bookingRequestId, firstPayload);
-            const real = { ...normalizeMessage(res.data), status: 'sent' as const } as ThreadMessage;
-            setMessages((prev) => {
-              const byId = new Map<number, ThreadMessage>();
-              for (const m of prev) if (m.id !== tempId) byId.set(m.id, m);
-              byId.set(real.id, real);
-              return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-            });
-            try {
-              if (typeof window !== 'undefined') {
-                const previewText = String(real.content || '').slice(0, 160);
-                window.dispatchEvent(new CustomEvent('thread:preview', { detail: { id: bookingRequestId, content: previewText, ts: real.timestamp, unread: false } }));
-                window.dispatchEvent(new Event('threads:updated'));
-              }
-            } catch {}
-          } catch (err) {
-            console.error('Failed to send first image message:', err);
-            setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' as const } : m)));
-            enqueueMessage({ tempId, payload: firstPayload });
-          }
-
-          // Send remaining images as individual messages with hidden placeholder
-          for (let i = 1; i < dataUrls.length; i++) {
-            const url = dataUrls[i];
-            const payload: MessageCreate = { content: '[Attachment]', attachment_url: url } as any;
-            const temp = tempId - (i + 1);
+          if (!navigator.onLine) {
+            enqueueMessage({ tempId, payload });
+          } else {
             try {
               const res = await postMessageToBookingRequest(bookingRequestId, payload);
               const real = { ...normalizeMessage(res.data), status: 'sent' as const } as ThreadMessage;
-              setMessages((prev) => {
-                const byId = new Map<number, ThreadMessage>();
-                for (const m of prev) if (m.id !== temp) byId.set(m.id, m);
-                byId.set(real.id, real);
-                return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-              });
+              finalizeMessage(tempId, real);
+            } catch (err) {
+              console.error('Failed to send message:', err);
+              setMessages((prev) =>
+                prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' as const } : m)),
+              );
+              enqueueMessage({ tempId, payload });
+              setThreadError(
+                `Failed to send message. ${(err as Error).message || 'Please try again later.'}`,
+              );
+            }
+          }
+
+          replyId = null;
+        }
+
+        if (attachments.length > 0) {
+          resetComposer();
+          setIsUploadingAttachment(true);
+
+          for (let index = 0; index < attachments.length; index += 1) {
+            const { file, previewUrl } = attachments[index];
+            const tempId = -Date.now() - (index + 1);
+            const fallbackContent = file.type.startsWith('audio/')
+              ? 'Voice note'
+              : file.type.startsWith('image/')
+              ? '[attachment]'
+              : file.name
+              ? file.name
+              : 'Attachment';
+            const optimisticMeta: AttachmentMeta = {
+              original_filename: file.name || null,
+              content_type: file.type || null,
+              size: Number.isFinite(file.size) ? file.size : null,
+            };
+            createOptimisticMessage(tempId, {
+              content: fallbackContent,
+              attachment_url: previewUrl || null,
+              attachment_meta: optimisticMeta,
+              reply_to_message_id: replyId,
+              reply_to_preview: replyId && replyTarget ? replyTarget.content.slice(0, 120) : null,
+              local_preview_url: previewUrl || null,
+            });
+
+            try {
+              try { uploadAbortRef.current?.abort(); } catch {}
+              uploadAbortRef.current = new AbortController();
+              const uploadRes = await uploadMessageAttachment(
+                bookingRequestId,
+                file,
+                (evt) => {
+                  if (evt.total) {
+                    setUploadingProgress(Math.round((evt.loaded * 100) / evt.total));
+                  }
+                },
+                uploadAbortRef.current?.signal,
+              );
+
+              const payload: MessageCreate = {
+                content: fallbackContent,
+                attachment_url: uploadRes.data.url,
+                attachment_meta: uploadRes.data.metadata ?? optimisticMeta,
+                reply_to_message_id: replyId ?? undefined,
+              };
+
+              const res = await postMessageToBookingRequest(bookingRequestId, payload);
+              const real = { ...normalizeMessage(res.data), status: 'sent' as const } as ThreadMessage;
+              finalizeMessage(tempId, real);
               try {
-                if (typeof window !== 'undefined') {
-                  const previewText = String(real.content || '').slice(0, 160);
-                  window.dispatchEvent(new CustomEvent('thread:preview', { detail: { id: bookingRequestId, content: previewText, ts: real.timestamp, unread: false } }));
-                  window.dispatchEvent(new Event('threads:updated'));
-                }
+                if (previewUrl && previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
               } catch {}
             } catch (err) {
-              console.error('Failed to send image message:', err);
-              setMessages((prev) => prev.map((m) => (m.id === temp ? { ...m, status: 'queued' as const } : m)));
-              enqueueMessage({ tempId: temp, payload });
+              console.error('Failed to send attachment:', err);
+              setMessages((prev) =>
+                prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m)),
+              );
+              setThreadError(
+                `Failed to send attachment ${file.name || ''}. ${
+                  (err as Error).message || 'Please try again later.'
+                }`.trim(),
+              );
+            } finally {
+              replyId = null;
+              setUploadingProgress(0);
             }
           }
 
-          // Revoke the now-unused preview object URLs
-          try { previewUrlsToRevoke.forEach((u) => URL.revokeObjectURL(u)); } catch {}
-          return;
-        }
-
-        if (attachmentFile) {
-          // Voice notes and other files path
-          const fileToUpload = attachmentFile;
-          const isAudioFile = fileToUpload.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg|wav)$/i.test(fileToUpload.name || '');
-          let localTempAudioUrl: string | null = null;
-
-          // If audio, add an optimistic bubble immediately using the local blob URL
-          let optimisticAdded = false;
-          let baseContent = newMessageContent;
-          if (!baseContent.trim()) {
-            if (!fileToUpload.type.startsWith('image/')) {
-              baseContent = `${fileToUpload.name} (${formatBytes(fileToUpload.size)})`;
-            } else {
-              baseContent = '[Attachment]';
-            }
-          }
-
-          if (isAudioFile) {
-            // Always create a fresh object URL for the optimistic bubble so it
-            // isn't revoked by the attachment preview cleanup when we clear the composer.
-            const localUrl = URL.createObjectURL(fileToUpload);
-            localTempAudioUrl = localUrl;
-            const optimisticAudio: ThreadMessage = {
-              id: tempId,
-              booking_request_id: bookingRequestId,
-              sender_id: user?.id || 0,
-              sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
-              content: baseContent,
-              message_type: 'USER',
-              quote_id: null,
-              attachment_url: localUrl,
-              local_preview_url: localUrl,
-              visible_to: 'both',
-              action: null,
-              avatar_url: undefined,
-              expires_at: null,
-              unread: false,
-              is_read: true,
-              timestamp: gmt2ISOString(),
-              status: navigator.onLine ? 'sending' : 'queued',
-              reply_to_message_id: replyTarget?.id ?? null,
-              reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
-            } as ThreadMessage;
-            setMessages((prev) => mergeMessages(prev, optimisticAudio));
-            optimisticAdded = true;
-            // Close the preview immediately
-            setNewMessageContent('');
-            setAttachmentFile(null);
-            setAttachmentPreviewUrl(null);
-            setReplyTarget(null);
-          }
-
-          setIsUploadingAttachment(true);
-          // Abort any previous upload attempt
-          try { uploadAbortRef.current?.abort(); } catch {}
-          uploadAbortRef.current = new AbortController();
-          const res = await uploadMessageAttachment(
-            bookingRequestId,
-            fileToUpload,
-            (evt) => {
-              if (evt.total) setUploadingProgress(Math.round((evt.loaded * 100) / evt.total));
-            },
-            uploadAbortRef.current?.signal,
-          );
-          attachment_url = res.data.url;
-          // Do not revoke the temp audio URL yet; keep it until message post succeeds
-
-          // Build payload now that we have the final URL
-          payload = {
-            content: baseContent,
-            attachment_url,
-          } as MessageCreate;
-          if (replyTarget?.id) (payload as any).reply_to_message_id = replyTarget.id;
-
-          if (!optimisticAdded) {
-            const optimistic: ThreadMessage = {
-              id: tempId,
-              booking_request_id: bookingRequestId,
-              sender_id: user?.id || 0,
-              sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
-              content: baseContent,
-              message_type: 'USER',
-              quote_id: null,
-              attachment_url: attachment_url ?? null,
-              visible_to: 'both',
-              action: null,
-              avatar_url: undefined,
-              expires_at: null,
-              unread: false,
-              is_read: true,
-              timestamp: gmt2ISOString(),
-              status: navigator.onLine ? 'sending' : 'queued',
-              reply_to_message_id: replyTarget?.id ?? null,
-              reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
-            };
-            setMessages((prev) => mergeMessages(prev, optimistic));
-          }
+          setIsUploadingAttachment(false);
         } else {
-          // Text-only message
-          baseContentGlobal = baseContentGlobal.trim();
-          payload = { content: baseContentGlobal, attachment_url: undefined } as MessageCreate;
-          if (replyTarget?.id) (payload as any).reply_to_message_id = replyTarget.id;
+          resetComposer();
         }
 
-        if (!navigator.onLine) {
-          // payload is guaranteed at this point
-          enqueueMessage({ tempId, payload: payload as MessageCreate });
-          resetInput();
-          return;
-        }
-
-        try {
-          const res = await postMessageToBookingRequest(bookingRequestId, payload as MessageCreate);
-          const real = { ...normalizeMessage(res.data), status: 'sent' as const };
-          setMessages((prev) => {
-            const byId = new Map<number, ThreadMessage>();
-            for (const m of prev) if (m.id !== tempId) byId.set(m.id, m);
-            byId.set(real.id, real);
-            return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-          });
-          // Now that the real message is in place, revoke any temporary audio blob URL
-          try { if (localTempAudioUrl) URL.revokeObjectURL(localTempAudioUrl); } catch {}
-          // Update inbox preview for sender immediately
-          try {
-            if (typeof window !== 'undefined') {
-              const previewText = String(real.content || '').slice(0, 160);
-              window.dispatchEvent(new CustomEvent('thread:preview', { detail: { id: bookingRequestId, content: previewText, ts: real.timestamp, unread: false } }));
-              window.dispatchEvent(new Event('threads:updated'));
-            }
-          } catch {}
-          onMessageSent?.();
-        } catch (err) {
-          console.error('Failed to send message:', err);
-          // keep optimistic but mark queued + enqueue
-          setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' as const } : m)));
-          enqueueMessage({ tempId, payload: payload as MessageCreate });
-          setThreadError(`Failed to send message. ${(err as Error).message || 'Please try again later.'}`);
-        }
-        // Always reset after attempting to send
-        resetInput();
+        onMessageSent?.();
       } catch (err) {
         console.error('Failed to send message:', err);
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m)));
-        setThreadError(
-          `Failed to send message. ${(err as Error).message || 'Please try again later.'}`
-        );
-        setIsUploadingAttachment(false);
-      }
-      finally {
+      } finally {
         isSendingRef.current = false;
         setIsSending(false);
       }
@@ -3537,12 +3439,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [
       newMessageContent,
       attachmentFile,
+      attachmentPreviewUrl,
+      imageFiles,
+      imagePreviewUrls,
       bookingRequestId,
       onMessageSent,
-      textareaRef,
       user?.id,
       user?.user_type,
       enqueueMessage,
+      replyTarget,
     ],
   );
 
@@ -4112,15 +4017,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               const isAudio = isAudioAttachmentUrl(display);
                               const isImage = isImageAttachment(display);
                               const contentLower = String(msg.content || '').trim().toLowerCase();
-                              const isVoicePlaceholder = contentLower === '[voice note]';
-                              const isAttachmentPlaceholder = contentLower === '[attachment]';
+                              const isVoicePlaceholder = contentLower === '[voice note]' || contentLower === 'voice note';
+                              const isAttachmentPlaceholder = contentLower === '[attachment]' || contentLower === 'attachment';
                               if (isAudio && isVoicePlaceholder) return null; // legacy voice-note placeholder hidden
                               if (isImage && isAttachmentPlaceholder) return null; // hide generic attachment label for images
                               // For audio attachments, prefer the player only (no header label)
                               if (isAudio) return null;
                               // For non-image attachments, render a reply-style header with file label; no text body below
                               if (!isImage && msg.attachment_url) {
-                                let label = String(msg.content || '').trim();
+                                const meta = (msg.attachment_meta as AttachmentMeta | null) ?? null;
+                                let label = meta?.original_filename?.trim() || String(msg.content || '').trim();
                                 if (!label || isAttachmentPlaceholder) {
                                   try {
                                     label = decodeURIComponent((url.split('?')[0].split('/').pop() || 'Attachment'));
@@ -4128,6 +4034,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                     label = 'Attachment';
                                   }
                                 }
+                                const sizeLabel = typeof meta?.size === 'number' && meta.size > 0 ? formatBytes(meta.size) : null;
                                 // Pick an icon by extension
                                 let IconComp: React.ComponentType<React.SVGProps<SVGSVGElement>> | null = DocumentTextIcon;
                                 try {
@@ -4147,9 +4054,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                     onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toApiAttachmentsUrl(url)); } : undefined}
                                     onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toApiAttachmentsUrl(url)); } } : undefined}
                                   >
-                                    <div className="flex items-center gap-1.5 w-full">
-                                      {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600" /> : null}
-                                      <span className="min-w-0 flex-1 line-clamp-2 break-words">{label}</span>
+                                    <div className="flex items-start gap-1.5 w-full">
+                                      {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600 flex-shrink-0 mt-0.5" /> : null}
+                                      <div className="min-w-0 flex-1">
+                                        <div className="line-clamp-2 break-words font-medium">{label}</div>
+                                        {sizeLabel && <div className="text-[11px] text-gray-500 mt-0.5">{sizeLabel}</div>}
+                                      </div>
                                     </div>
                                   </div>
                                 );

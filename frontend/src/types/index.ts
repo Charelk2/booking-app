@@ -357,6 +357,12 @@ export interface BookingSimple {
   updated_at: string;
 }
 
+export interface AttachmentMeta {
+  original_filename: string | null;
+  content_type: string | null;
+  size: number | null;
+}
+
 export interface Message {
   is_read: boolean;
   id: number;
@@ -372,6 +378,7 @@ export interface Message {
   message_type: 'text' | 'quote' | 'system' | 'USER' | 'QUOTE' | 'SYSTEM';
   quote_id?: number | null;
   attachment_url?: string | null;
+  attachment_meta?: AttachmentMeta | null;
 
   /** Canonical visibility values */
   visible_to?: 'service_provider' | 'client' | 'both';
@@ -395,11 +402,12 @@ export interface Message {
 }
 
 export interface MessageCreate {
-  content: string;
+  content?: string;
   // Allow either lowercase or uppercase message types when creating messages.
   message_type?: 'text' | 'quote' | 'system' | 'USER' | 'QUOTE' | 'SYSTEM';
   quote_id?: number;
   attachment_url?: string;
+  attachment_meta?: AttachmentMeta;
 
   /** Canonical visibility values */
   visible_to?: 'service_provider' | 'client' | 'both';
