@@ -320,6 +320,7 @@ const fetchAttachmentBlobUrl = async (raw: string): Promise<string | null> => {
 };
 
 const advanceAudioFallback = (el: HTMLAudioElement, candidates: string[], original?: string): void => {
+  if (el.dataset.fallbackDone === '1') return;
   if (!Array.isArray(candidates) || candidates.length === 0) {
     if (original && el.dataset.fallbackBlobRequested !== '1') {
       el.dataset.fallbackBlobRequested = '1';
@@ -333,6 +334,7 @@ const advanceAudioFallback = (el: HTMLAudioElement, candidates: string[], origin
         try { el.load(); } catch {}
       });
     }
+    el.dataset.fallbackDone = '1';
     return;
   }
   const attempt = Number(el.dataset.fallbackAttempt || '0');
@@ -360,6 +362,7 @@ const advanceAudioFallback = (el: HTMLAudioElement, candidates: string[], origin
       try { el.load(); } catch {}
     });
   }
+  el.dataset.fallbackDone = '1';
 };
 const daySeparatorLabel = (date: Date) => {
   const now = new Date();
@@ -2353,7 +2356,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
                         if (isAud) {
                           const fallbackChain = buildAttachmentFallbackChain(raw);
-                          const initialAudioSrc = fallbackChain.find((c) => /^https?:/i.test(c) || /^blob:|^data:/i.test(c)) || toProxyPath(display);
+                          const pathCandidate = fallbackChain.find((c) => typeof c === 'string' && c.startsWith('/'));
+                          const dataCandidate = fallbackChain.find((c) => /^blob:|^data:/i.test(c));
+                          const absoluteCandidate = fallbackChain.find((c) => /^https?:/i.test(c));
+                          const initialAudioSrc = pathCandidate || dataCandidate || absoluteCandidate || toProxyPath(display);
                           const audioFallbacks = initialAudioSrc
                             ? [initialAudioSrc, ...fallbackChain.filter((c) => c !== initialAudioSrc)]
                             : fallbackChain;
@@ -2369,6 +2375,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   const el = e.currentTarget;
                                   el.dataset.fallbackAttempt = '0';
                                   el.dataset.fallbackBlobRequested = '0';
+                                  delete el.dataset.fallbackDone;
                                 }}
                                 onEmptied={(e) => {
                                   const el = e.currentTarget;
@@ -2378,6 +2385,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   }
                                   el.dataset.fallbackBlobRequested = '0';
                                   el.dataset.fallbackAttempt = '0';
+                                  delete el.dataset.fallbackDone;
                                 }}
                                 onError={(e) => {
                                   advanceAudioFallback(e.currentTarget, audioFallbacks, raw);
@@ -3830,7 +3838,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 }
                                 if (isAudio) {
                                   const fallbackChain = buildAttachmentFallbackChain(msg.attachment_url || url);
-                                  const initialAudioSrc = fallbackChain.find((c) => /^https?:/i.test(c) || /^blob:|^data:/i.test(c)) || toProxyPath(display);
+                                  const pathCandidate = fallbackChain.find((c) => typeof c === 'string' && c.startsWith('/'));
+                                  const dataCandidate = fallbackChain.find((c) => /^blob:|^data:/i.test(c));
+                                  const absoluteCandidate = fallbackChain.find((c) => /^https?:/i.test(c));
+                                  const initialAudioSrc = pathCandidate || dataCandidate || absoluteCandidate || toProxyPath(display);
                                   const audioFallbacks = initialAudioSrc
                                     ? [initialAudioSrc, ...fallbackChain.filter((c) => c !== initialAudioSrc)]
                                     : fallbackChain;
@@ -3846,6 +3857,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                           const el = e.currentTarget;
                                           el.dataset.fallbackAttempt = '0';
                                           el.dataset.fallbackBlobRequested = '0';
+                                          delete el.dataset.fallbackDone;
                                         }}
                                         onEmptied={(e) => {
                                           const el = e.currentTarget;
@@ -3855,6 +3867,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                           }
                                           el.dataset.fallbackBlobRequested = '0';
                                           el.dataset.fallbackAttempt = '0';
+                                          delete el.dataset.fallbackDone;
                                         }}
                                         onError={(e) => advanceAudioFallback(e.currentTarget, audioFallbacks, msg.attachment_url || url)}
                                         onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toApiAttachmentsUrl(display)); }}
