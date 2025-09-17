@@ -21,6 +21,7 @@ import {
   BookingSimple,
   Message,
   MessageCreate,
+  AttachmentMeta,
   QuoteCalculationResponse,
   QuoteTemplate,
   Notification,
@@ -654,7 +655,7 @@ export const uploadMessageAttachment = (
   }
   const formData = new FormData();
   formData.append('file', file);
-  return api.post<{ url: string }>(
+  return api.post<{ url: string; metadata?: AttachmentMeta }>(
     `${API_V1}/booking-requests/${bookingRequestId}/attachments`,
     formData,
     { onUploadProgress, headers: { 'Content-Type': undefined }, signal },

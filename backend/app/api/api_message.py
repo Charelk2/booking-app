@@ -23,6 +23,7 @@ from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..utils import error_response
 from .api_ws import manager
 import os
+import mimetypes
 import uuid
 import shutil
 from pydantic import BaseModel
@@ -114,6 +115,8 @@ def read_messages(
             "is_read",
             "timestamp",
             "avatar_url",
+            "attachment_url",
+            "attachment_meta",
         }
         include.update({f.strip() for f in fields.split(",") if f.strip()})
     # Preload reactions for all messages (best-effort)
@@ -313,10 +316,24 @@ def create_message(
         if last:
             same_type = last.message_type == message_in.message_type
             same_visibility = last.visible_to == message_in.visible_to
-            same_content = (last.content or '').strip() == (message_in.content or '').strip()
-            same_attachment = (last.attachment_url or None) == (message_in.attachment_url or None)
-            same_reply = (last.reply_to_message_id or None) == (message_in.reply_to_message_id or None)
-            if same_type and same_visibility and same_content and same_attachment and same_reply:
+            same_content = (last.content or "").strip() == (message_in.content or "").strip()
+            same_attachment = (last.attachment_url or None) == (
+                message_in.attachment_url or None
+            )
+            same_meta = (last.attachment_meta or None) == (
+                message_in.attachment_meta or None
+            )
+            same_reply = (last.reply_to_message_id or None) == (
+                message_in.reply_to_message_id or None
+            )
+            if (
+                same_type
+                and same_visibility
+                and same_content
+                and same_attachment
+                and same_meta
+                and same_reply
+            ):
                 try:
                     dt_last_utc = last.timestamp.astimezone(timezone.utc)
                     dt_now_utc = datetime.now(timezone.utc)
@@ -353,6 +370,7 @@ def create_message(
         visible_to=message_in.visible_to,
         quote_id=message_in.quote_id,
         attachment_url=message_in.attachment_url,
+        attachment_meta=message_in.attachment_meta,
         action=message_in.action,
         system_key=message_in.system_key or sys_key,
         expires_at=message_in.expires_at,
@@ -546,7 +564,8 @@ async def upload_attachment(
             status.HTTP_403_FORBIDDEN,
         )
 
-    _, ext = os.path.splitext(file.filename)
+    original_name = file.filename or "attachment"
+    _, ext = os.path.splitext(original_name)
     unique_filename = f"{uuid.uuid4()}{ext}"
     save_path = os.path.join(ATTACHMENTS_DIR, unique_filename)
     try:
@@ -556,7 +575,18 @@ async def upload_attachment(
         file.file.close()
 
     url = f"/static/attachments/{unique_filename}"
-    return {"url": url}
+    try:
+        size = os.path.getsize(save_path)
+    except OSError:
+        size = None
+    content_type = file.content_type or mimetypes.guess_type(original_name)[0] or "application/octet-stream"
+    metadata = {
+        "original_filename": original_name,
+        "content_type": content_type,
+        "size": size,
+    }
+    return {"url": url, "metadata": metadata}
+
 class ReactionIn(BaseModel):
     emoji: str
 

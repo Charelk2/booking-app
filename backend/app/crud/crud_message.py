@@ -12,11 +12,12 @@ def create_message(
     booking_request_id: int,
     sender_id: int,
     sender_type: models.SenderType,
-    content: str,
+    content: str | None,
     message_type: models.MessageType = models.MessageType.USER,
     visible_to: models.VisibleTo = models.VisibleTo.BOTH,
     quote_id: int | None = None,
     attachment_url: str | None = None,
+    attachment_meta: dict | None = None,
     action: models.MessageAction | None = None,
     system_key: str | None = None,
     expires_at: datetime | None = None,
@@ -45,11 +46,12 @@ def create_message(
         booking_request_id=booking_request_id,
         sender_id=sender_id,
         sender_type=sender_type,
-        content=content,
+        content=(content or ""),
         message_type=message_type,
         visible_to=visible_to,
         quote_id=quote_id,
         attachment_url=attachment_url,
+        attachment_meta=attachment_meta,
         action=action,
         system_key=system_key,
         expires_at=expires_at,
@@ -73,8 +75,6 @@ def get_messages_for_request(
             joinedload(models.Message.sender).joinedload(models.User.artist_profile)
         )
         .filter(models.Message.booking_request_id == booking_request_id)
-        .filter(models.Message.content.isnot(None))
-        .filter(func.length(func.trim(models.Message.content)) > 0)
     )
     if viewer:
         query = query.filter(
