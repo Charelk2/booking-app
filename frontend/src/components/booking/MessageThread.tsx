@@ -292,6 +292,7 @@ const urlsSharePath = (a: string, b: string): boolean => {
   try {
     const ua = new URL(a, API_BASE);
     const ub = new URL(b, API_BASE);
+    if (ua.origin !== ub.origin) return false;
     return ua.pathname === ub.pathname && ua.search === ub.search;
   } catch {
     return a === b;
