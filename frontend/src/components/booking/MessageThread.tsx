@@ -101,7 +101,7 @@ const INITIAL_VISIBLE_COUNT = 30;
 const VISIBLE_CHUNK = 30;
 const MAX_TEXTAREA_LINES = 10;
 const isImageAttachment = (url?: string | null) =>
-  !!url && (/^blob:/i.test(url) || /^data:image\//i.test(url) || /\.(jpe?g|png|gif|webp)$/i.test(url));
+  !!url && (/^blob:/i.test(url) || /^data:image\//i.test(url) || /\.(jpe?g|png|gif|webp|avif)$/i.test(url));
 const isAudioAttachmentUrl = (url?: string | null) =>
   !!url && (/^blob:/i.test(url) || /^data:audio\//i.test(url) || /\.(webm|mp3|m4a|ogg|wav)$/i.test(url));
 
@@ -200,7 +200,7 @@ const toApiAttachmentsUrl = (raw: string): string => {
     } else if (!/^\/attachments\//.test(path)) {
       // Fallback: if it looks like an image filename, place under /attachments
       const leaf = path.split('/').pop() || '';
-      if (/\.(jpe?g|png|gif|webp)$/i.test(leaf)) {
+      if (/\.(jpe?g|png|gif|webp|avif)$/i.test(leaf)) {
         path = '/attachments/' + leaf;
       }
     }
@@ -2112,7 +2112,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     {(() => {
                       // Suppress placeholder labels; style non-image attachments like a reply header box
                       const url = msg.attachment_url
-                        ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : altAttachmentPath(toApiAttachmentsUrl(msg.attachment_url)))
+                        ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : toApiAttachmentsUrl(msg.attachment_url))
                         : '';
                       const display = msg.local_preview_url || url;
                       const isAudio = isAudioAttachmentUrl(display);
