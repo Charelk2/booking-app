@@ -107,8 +107,9 @@ def test_google_oauth_creates_user(monkeypatch):
     Session = setup_app(monkeypatch)
     configure_google(monkeypatch)
 
-    async def fake_exchange(code):
+    async def fake_exchange(code, redirect_uri):
         assert code == "code123"
+        assert redirect_uri.endswith("/auth/google/callback")
         return {"access_token": "token"}
 
     async def fake_profile(request, token):
@@ -165,8 +166,9 @@ def test_google_oauth_updates_user(monkeypatch):
 
     configure_google(monkeypatch)
 
-    async def fake_exchange(code):
+    async def fake_exchange(code, redirect_uri):
         assert code == "code123"
+        assert redirect_uri.endswith("/auth/google/callback")
         return {"access_token": "token"}
 
     async def fake_profile(request, token):
@@ -338,7 +340,8 @@ def test_google_login_rewrites_login_next(monkeypatch):
     Session = setup_app(monkeypatch)
     redis_stub = configure_google(monkeypatch)
 
-    async def fake_exchange(code):
+    async def fake_exchange(code, redirect_uri):
+        assert redirect_uri.endswith("/auth/google/callback")
         return {"access_token": "token"}
 
     async def fake_profile(request, token):
@@ -371,7 +374,8 @@ def test_google_login_redirects_to_dashboard(monkeypatch):
     Session = setup_app(monkeypatch)
     configure_google(monkeypatch)
 
-    async def fake_exchange(code):
+    async def fake_exchange(code, redirect_uri):
+        assert redirect_uri.endswith("/auth/google/callback")
         return {"access_token": "token"}
 
     async def fake_profile(request, token):
@@ -404,7 +408,8 @@ def test_google_login_uses_signed_state_when_redis_down(monkeypatch):
     redis_stub.fail_writes = True
     redis_stub.fail_reads = True
 
-    async def fake_exchange(code):
+    async def fake_exchange(code, redirect_uri):
+        assert redirect_uri.endswith("/auth/google/callback")
         return {"access_token": "token"}
 
     async def fake_profile(request, token):
@@ -447,7 +452,8 @@ def test_oauth_merges_case_insensitive_email(monkeypatch):
 
     configure_google(monkeypatch)
 
-    async def fake_exchange(code):
+    async def fake_exchange(code, redirect_uri):
+        assert redirect_uri.endswith("/auth/google/callback")
         return {"access_token": "token"}
 
     async def fake_profile(request, token):
@@ -494,7 +500,8 @@ def test_oauth_merges_gmail_alias(monkeypatch):
 
     configure_google(monkeypatch)
 
-    async def fake_exchange(code):
+    async def fake_exchange(code, redirect_uri):
+        assert redirect_uri.endswith("/auth/google/callback")
         return {"access_token": "token"}
 
     async def fake_profile(request, token):
@@ -526,7 +533,7 @@ def test_google_oauth_token_error(monkeypatch):
 
     configure_google(monkeypatch)
 
-    async def bad_exchange(code):
+    async def bad_exchange(code, redirect_uri):
         raise HTTPException(status_code=400, detail="boom")
 
     monkeypatch.setattr(api_oauth, "_exchange_google_code_for_tokens", bad_exchange, raising=False)
