@@ -1,6 +1,6 @@
 // frontend/src/lib/api.ts
 
-import axios, { AxiosProgressEvent } from 'axios';
+import axios, { AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
 import logger from './logger';
 import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
@@ -287,7 +287,9 @@ export const disableMfa = (code: string) =>
 export const confirmEmail = (token: string) =>
   api.post('/auth/confirm-email', { token });
 
-export const getCurrentUser = () => api.get<User>('/auth/me');
+type RequestConfig = AxiosRequestConfig & { _skipRefresh?: boolean };
+
+export const getCurrentUser = (config?: RequestConfig) => api.get<User>('/auth/me', config);
 
 export const logout = () => api.post('/auth/logout');
 
