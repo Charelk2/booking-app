@@ -60,3 +60,4 @@ export function NavBarWithProvider({ children }: { children: React.ReactNode }) 
     </NotificationsProvider>
   );
 }
+//note
