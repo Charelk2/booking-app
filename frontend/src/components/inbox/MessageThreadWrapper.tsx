@@ -31,12 +31,14 @@ interface MessageThreadWrapperProps {
   bookingRequestId: number | null;
   bookingRequest: BookingRequest | null;
   setShowReviewModal: (show: boolean) => void;
+  isActive?: boolean;
 }
 
 export default function MessageThreadWrapper({
   bookingRequestId,
   bookingRequest,
   setShowReviewModal,
+  isActive = true,
 }: MessageThreadWrapperProps) {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [confirmedBookingDetails, setConfirmedBookingDetails] = useState<Booking | null>(null);
@@ -235,6 +237,7 @@ export default function MessageThreadWrapper({
         >
           <MessageThread
             bookingRequestId={bookingRequestId}
+            isActive={isActive}
             serviceId={bookingRequest?.service_id ?? undefined}
             clientName={bookingRequest?.client?.first_name}
             artistName={bookingRequest?.artist_profile?.business_name || bookingRequest?.artist?.first_name}

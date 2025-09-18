@@ -670,7 +670,7 @@ export const confirmQuoteBooking = (id: number) =>
 // ─── MESSAGES ───────────────────────────────────────────────────────────
 export const getMessagesForBookingRequest = (
   bookingRequestId: number,
-  params?: { limit?: number; before?: string }
+  params?: { limit?: number; before?: string; after?: number }
 ) =>
   api.get<Message[]>(
     `${API_V1}/booking-requests/${bookingRequestId}/messages`,
