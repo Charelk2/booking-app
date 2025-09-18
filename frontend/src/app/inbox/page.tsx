@@ -922,31 +922,30 @@ export default function InboxPage() {
               </button>
             )}
             {selectedBookingRequestId ? (
-              hydratedThreadIds.length ? (
-                hydratedThreadIds.map((id) => {
-                  const request = allBookingRequests.find((r) => r.id === id) || null;
-                  const isActiveThread = id === selectedBookingRequestId;
-                  return (
-                    <div
-                      key={id}
-                      style={{ display: isActiveThread ? 'block' : 'none' }}
-                      aria-hidden={isActiveThread ? undefined : true}
-                      className={isActiveThread ? '' : 'pointer-events-none'}
-                    >
-                      <MessageThreadWrapper
-                        bookingRequestId={id}
-                        bookingRequest={request}
-                        setShowReviewModal={setShowReviewModal}
-                        isActive={isActiveThread}
-                      />
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
-                  <p>Loading conversation…</p>
-                </div>
-              )
+              <>
+                <MessageThreadWrapper
+                  key={`active-${selectedBookingRequestId}`}
+                  bookingRequestId={selectedBookingRequestId}
+                  bookingRequest={allBookingRequests.find((r) => r.id === selectedBookingRequestId) || null}
+                  setShowReviewModal={setShowReviewModal}
+                  isActive={true}
+                />
+                {hydratedThreadIds.filter((id) => id !== selectedBookingRequestId).length > 0 && (
+                  <div style={{ display: 'none' }} aria-hidden="true">
+                    {hydratedThreadIds
+                      .filter((id) => id !== selectedBookingRequestId)
+                      .map((id) => (
+                        <MessageThreadWrapper
+                          key={`bg-${id}`}
+                          bookingRequestId={id}
+                          bookingRequest={allBookingRequests.find((r) => r.id === id) || null}
+                          setShowReviewModal={setShowReviewModal}
+                          isActive={false}
+                        />
+                      ))}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
                 <p>Select a conversation to view messages.</p>
