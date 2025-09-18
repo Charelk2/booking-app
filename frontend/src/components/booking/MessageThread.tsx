@@ -89,6 +89,12 @@ type SupplierInviteActionState = {
 } | null;
 const MemoInlineQuoteForm = React.memo(InlineQuoteForm);
 
+type FetchMessagesOptions = {
+  mode?: 'initial' | 'incremental';
+  force?: boolean;
+  reason?: string;
+};
+
 // ===== Constants ==============================================================
 const API_BASE = (() => {
   try {
@@ -662,6 +668,7 @@ interface MessageThreadProps {
   isDetailsPanelOpen?: boolean;
   /** Disable the chat composer for system-only threads (e.g., Booka updates). */
   disableComposer?: boolean;
+  isActive?: boolean;
 }
 
 // SVG
@@ -700,11 +707,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     instantBookingPrice,
     isDetailsPanelOpen = false,
     disableComposer = false,
+    isActive = true,
   }: MessageThreadProps,
   ref,
 ) {
   const { user, token } = useAuth();
   const router = useRouter();
+  const isActiveThread = isActive !== false;
 
   // ---- State
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
@@ -762,6 +771,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     clearedUnreadMessageIdsRef.current = new Set();
   }, [bookingRequestId]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+    if (messages.length) {
+      lastMessageIdRef.current[bookingRequestId] = messages[messages.length - 1].id;
+    } else {
+      delete lastMessageIdRef.current[bookingRequestId];
+    }
+  }, [messages, bookingRequestId]);
 
   const ensureServiceProviderForService = useCallback((serviceId: number) => {
     if (!serviceId || Number.isNaN(serviceId)) return;
@@ -828,6 +846,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const serviceProviderByServiceIdRef = useRef<Record<number, number>>({});
   const pendingServiceFetchesRef = useRef<Map<number, Promise<void>>>(new Map());
   const clearedUnreadMessageIdsRef = useRef<Set<number>>(new Set());
+  const messagesRef = useRef<ThreadMessage[]>([]);
+  const loadedThreadsRef = useRef<Set<number>>(new Set());
+  const lastMessageIdRef = useRef<Record<number, number>>({});
 
   // Local ephemeral features
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
@@ -1333,178 +1354,204 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   }, [VIRTUALIZE, bookingRequestId, composerHeight]);
 
   // ---- Fetch messages (initial + refresh)
-  const fetchMessages = useCallback(async () => {
-    if (missingThreadRef.current) return;
-    if (fetchInFlightRef.current) return;
-    fetchInFlightRef.current = true;
-    if (!initialLoadedRef.current) setLoading(true);
-    try {
-      // Fetch the latest batch first for a fast initial paint
-      const res = await getMessagesForBookingRequest(bookingRequestId, { limit: 100 });
-      // If the user switched threads while this request was in flight, ignore the result
-      if (activeThreadRef.current !== bookingRequestId) {
-        return;
-      }
+  const fetchMessages = useCallback(
+    async (options: FetchMessagesOptions = {}) => {
+      if (missingThreadRef.current) return;
+      if (fetchInFlightRef.current) return;
+      if (!options.force && !isActiveThread) return;
+      fetchInFlightRef.current = true;
 
-      let parsedDetails: ParsedBookingDetails | undefined;
-      // Parse booking-details system messages. In thread view, skip adding the
-      // lightweight placeholder line to avoid flicker before the full inquiry card.
-      const normalized: ThreadMessage[] = [];
-      for (const raw of res.data as any[]) {
-        const msg = normalizeMessage(raw);
-        // Capture booking details for the side panel; do not push a minimal system
-        // preview line here so we avoid "placeholder → full card" swaps in-thread.
-        if (
-          normalizeType(msg.message_type) === 'SYSTEM' &&
-          typeof msg.content === 'string' &&
-          msg.content.startsWith(BOOKING_DETAILS_PREFIX)
-        ) {
-          parsedDetails = parseBookingDetailsFromMessage(msg.content);
-          continue;
-        }
-        // Hide the initial user-provided notes that we already show in the details panel
-        if (
-          initialNotes &&
-          normalizeType(msg.message_type) === 'USER' &&
-          msg.content.trim() === initialNotes.trim()
-        ) {
-          continue;
-        }
-        normalized.push(msg);
-      }
+      const lastId = lastMessageIdRef.current[bookingRequestId];
+      let mode: 'initial' | 'incremental' =
+        options.mode ?? (messagesRef.current.length > 0 ? 'incremental' : 'initial');
+      if (mode === 'incremental' && !lastId) mode = 'initial';
+      if (mode === 'initial' && !initialLoadedRef.current) setLoading(true);
 
-      // If we detect an inquiry card in this thread, flag it locally so the
-      // inbox list can show the INQUIRY chip immediately (works for both the
-      // explicit SYSTEM card and the JSON payload fallback).
+      const params: { limit?: number; after?: number } = {};
+      params.limit = mode === 'initial' ? 100 : 50;
+      if (mode === 'incremental' && lastId) params.after = lastId;
+
       try {
-        const hasInquiry = normalized.some((m) => {
-          try {
-            const key = ((m as any).system_key || '').toString().toLowerCase();
-            if (key === 'inquiry_sent_v1') return true;
-            const raw = String((m as any).content || '');
-            return raw.startsWith('{') && raw.includes('inquiry_sent_v1');
-          } catch { return false; }
-        });
-        if (hasInquiry && typeof window !== 'undefined') {
-          try { localStorage.setItem(`inquiry-thread-${bookingRequestId}`,'1'); } catch {}
-          emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
+        const res = await getMessagesForBookingRequest(bookingRequestId, params);
+        if (!options.force && activeThreadRef.current !== bookingRequestId) {
+          return;
         }
-      } catch {}
 
-      setParsedBookingDetails(parsedDetails);
-      if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
-
-      // Render immediately and cache
-      setMessages((prev) => {
-        const base = prev.length ? prev : [];
-        const next = mergeMessages(base, normalized);
-        writeCachedMessages(bookingRequestId, next);
-        return next;
-      });
-      writeCachedMessages(bookingRequestId, normalized);
-      setThreadError(null);
-      setLoading(false);
-      initialLoadedRef.current = true; // open realtime gate now
-      try {
-        if (wsBufferRef.current.length) {
-          setMessages((prev) => {
-            const next = mergeMessages(prev, wsBufferRef.current);
-            writeCachedMessages(bookingRequestId, next);
-            return next;
-          });
-          wsBufferRef.current = [];
+        const rows = Array.isArray(res.data) ? res.data : [];
+        if (mode === 'incremental' && rows.length === 0) {
+          setThreadError(null);
+          setLoading(false);
+          initialLoadedRef.current = true;
+          loadedThreadsRef.current.add(bookingRequestId);
+          return;
         }
-      } catch {}
 
-      // Fire-and-forget: mark as read and bump header badges
-      try {
-        const unreadMessages = normalized.filter((m) => m.sender_id !== user?.id && !m.is_read);
-        if (unreadMessages.length > 0) {
-          const newUnreadMessages = unreadMessages.filter((m) => !clearedUnreadMessageIdsRef.current.has(m.id));
-          if (newUnreadMessages.length > 0) {
-            newUnreadMessages.forEach((m) => clearedUnreadMessageIdsRef.current.add(m.id));
-            try {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(
-                  new CustomEvent('inbox:unread', {
-                    detail: { delta: -newUnreadMessages.length, threadId: bookingRequestId },
-                  }),
-                );
-              }
-            } catch {}
+        let parsedDetails: ParsedBookingDetails | undefined;
+        const normalized: ThreadMessage[] = [];
+        for (const raw of rows as any[]) {
+          const msg = normalizeMessage(raw);
+          if (
+            normalizeType(msg.message_type) === 'SYSTEM' &&
+            typeof msg.content === 'string' &&
+            msg.content.startsWith(BOOKING_DETAILS_PREFIX)
+          ) {
+            parsedDetails = parseBookingDetailsFromMessage(msg.content);
+            continue;
           }
-          void markMessagesRead(bookingRequestId);
+          if (
+            initialNotes &&
+            normalizeType(msg.message_type) === 'USER' &&
+            msg.content.trim() === initialNotes.trim()
+          ) {
+            continue;
+          }
+          normalized.push(msg);
         }
-        void markThreadRead(bookingRequestId)
-          .then(() => {
-            emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: 'read' });
-          })
-          .catch(() => {});
-      } catch {}
 
-      // Background: hydrate quotes (batch first, then per-id)
-      (async () => {
         try {
-          const qids = Array.from(new Set(
-            normalized.map((m) => Number(m.quote_id)).filter((qid) => qid > 0)
-          ));
-          const missing = qids.filter((id) => !quotes[id]);
-          if (missing.length) {
-            const batch = await getQuotesBatch(missing);
-            const got = Array.isArray(batch.data) ? batch.data : [];
-            if (got.length) {
-              setQuotes((prev) => ({
-                ...prev,
-                ...Object.fromEntries(got.map((q: any) => [q.id, q])),
-              }));
+          const hasInquiry = normalized.some((m) => {
+            try {
+              const key = ((m as any).system_key || '').toString().toLowerCase();
+              if (key === 'inquiry_sent_v1') return true;
+              const raw = String((m as any).content || '');
+              return raw.startsWith('{') && raw.includes('inquiry_sent_v1');
+            } catch {
+              return false;
             }
-            const receivedIds = new Set<number>(got.map((q: any) => Number(q?.id)).filter((n) => !Number.isNaN(n)));
-            const stillMissing = missing.filter((id) => !receivedIds.has(id));
-            for (const id of stillMissing) {
-              try { await ensureQuoteLoaded(id); } catch {}
-            }
+          });
+          if (hasInquiry && typeof window !== 'undefined') {
+            try { localStorage.setItem(`inquiry-thread-${bookingRequestId}`,'1'); } catch {}
+            emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
           }
-        } catch (e) {
-          for (const m of normalized) {
-            const qid = Number(m.quote_id);
-            const isQuote = qid > 0 && (normalizeType(m.message_type) === 'QUOTE' || (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
-            if (isQuote) void ensureQuoteLoaded(qid);
-          }
+        } catch {}
+
+        if (parsedDetails !== undefined) {
+          setParsedBookingDetails(parsedDetails);
+          if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
         }
-      })();
-      // hydrate reactions and my reactions from response if present
-      try {
-        const newReactions: Record<number, Record<string, number>> = {};
-        const newMine: Record<number, Set<string>> = {};
-        (normalized as any[]).forEach((m: any) => {
-          if (m.reactions) newReactions[m.id] = m.reactions;
-          if (m.my_reactions) newMine[m.id] = new Set<string>(m.my_reactions);
+
+        setMessages((prev) => {
+          const base = mode === 'initial' ? [] : (prev.length ? prev : []);
+          const next = mergeMessages(base, normalized);
+          writeCachedMessages(bookingRequestId, next);
+          return next;
         });
-        if (Object.keys(newReactions).length) setReactions((prev) => ({ ...prev, ...newReactions }));
-        if (Object.keys(newMine).length) setMyReactions((prev) => ({ ...prev, ...newMine }));
-      } catch {}
-    } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 404) {
-        missingThreadRef.current = true;
-        setMessages([]);
-        setThreadError('This conversation is no longer available.');
+        setThreadError(null);
         setLoading(false);
-        emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
-        try { window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id: bookingRequestId } })); } catch {}
-        return;
+        const wasGateClosed = !initialLoadedRef.current;
+        initialLoadedRef.current = true;
+        loadedThreadsRef.current.add(bookingRequestId);
+        if (wasGateClosed) {
+          try {
+            if (wsBufferRef.current.length) {
+              setMessages((prev) => {
+                const next = mergeMessages(prev, wsBufferRef.current);
+                writeCachedMessages(bookingRequestId, next);
+                return next;
+              });
+              wsBufferRef.current = [];
+            }
+          } catch {}
+        }
+
+        try {
+          const unreadMessages = normalized.filter((m) => m.sender_id !== user?.id && !m.is_read);
+          if (unreadMessages.length > 0) {
+            const newUnreadMessages = unreadMessages.filter((m) => !clearedUnreadMessageIdsRef.current.has(m.id));
+            if (newUnreadMessages.length > 0) {
+              newUnreadMessages.forEach((m) => clearedUnreadMessageIdsRef.current.add(m.id));
+              try {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(
+                    new CustomEvent('inbox:unread', {
+                      detail: { delta: -newUnreadMessages.length, threadId: bookingRequestId },
+                    }),
+                  );
+                }
+              } catch {}
+            }
+            void markMessagesRead(bookingRequestId);
+          }
+          void markThreadRead(bookingRequestId)
+            .then(() => {
+              emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: 'read' });
+            })
+            .catch(() => {});
+        } catch {}
+
+        (async () => {
+          try {
+            const qids = Array.from(new Set(
+              normalized.map((m) => Number(m.quote_id)).filter((qid) => qid > 0)
+            ));
+            const missing = qids.filter((id) => !quotes[id]);
+            if (missing.length) {
+              const batch = await getQuotesBatch(missing);
+              const got = Array.isArray(batch.data) ? batch.data : [];
+              if (got.length) {
+                setQuotes((prev) => ({
+                  ...prev,
+                  ...Object.fromEntries(got.map((q: any) => [q.id, q])),
+                }));
+              }
+              const receivedIds = new Set<number>(
+                got.map((q: any) => Number(q?.id)).filter((n) => !Number.isNaN(n)),
+              );
+              const stillMissing = missing.filter((id) => !receivedIds.has(id));
+              for (const id of stillMissing) {
+                try {
+                  await ensureQuoteLoaded(id);
+                } catch {}
+              }
+            }
+          } catch (e) {
+            for (const m of normalized) {
+              const qid = Number(m.quote_id);
+              const isQuote =
+                qid > 0 &&
+                (normalizeType(m.message_type) === 'QUOTE' ||
+                  (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
+              if (isQuote) void ensureQuoteLoaded(qid);
+            }
+          }
+        })();
+
+        try {
+          const newReactions: Record<number, Record<string, number>> = {};
+          const newMine: Record<number, Set<string>> = {};
+          (normalized as any[]).forEach((m: any) => {
+            if (m.reactions) newReactions[m.id] = m.reactions;
+            if (m.my_reactions) newMine[m.id] = new Set<string>(m.my_reactions);
+          });
+          if (Object.keys(newReactions).length) setReactions((prev) => ({ ...prev, ...newReactions }));
+          if (Object.keys(newMine).length) setMyReactions((prev) => ({ ...prev, ...newMine }));
+        } catch {}
+      } catch (err) {
+        if (isAxiosError(err) && err.response?.status === 404) {
+          missingThreadRef.current = true;
+          setMessages([]);
+          setThreadError('This conversation is no longer available.');
+          setLoading(false);
+          loadedThreadsRef.current.delete(bookingRequestId);
+          emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
+          try {
+            window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id: bookingRequestId } }));
+          } catch {}
+          return;
+        }
+        console.error('Failed to fetch messages:', err);
+        setThreadError(`Failed to load messages. ${(err as Error).message || 'Please try again.'}`);
+      } finally {
+        stabilizingRef.current = true;
+        if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current);
+        stabilizeTimerRef.current = setTimeout(() => {
+          stabilizingRef.current = false;
+        }, 250);
+        fetchInFlightRef.current = false;
       }
-      console.error('Failed to fetch messages:', err);
-      setThreadError(`Failed to load messages. ${(err as Error).message || 'Please try again.'}`);
-    } finally {
-      // Defer initial scroll to a layout effect to avoid any visible jump
-      stabilizingRef.current = true;
-      if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current);
-      stabilizeTimerRef.current = setTimeout(() => {
-        stabilizingRef.current = false;
-      }, 250);
-      fetchInFlightRef.current = false;
-    }
-  }, [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded]);
+    },
+    [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded, isActiveThread],
+  );
 
   const respondToSupplierInvite = useCallback(
     async (msgId: number, decision: 'accept' | 'decline', program: string) => {
@@ -1517,7 +1564,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       try {
         setSupplierInviteAction({ msgId, choice: decision });
         await postMessageToBookingRequest(bookingRequestId, { content } as MessageCreate);
-        await fetchMessages();
+        await fetchMessages({ mode: 'incremental', force: true, reason: 'supplier-invite' });
       } catch (err) {
         console.error('Failed to respond to supplier invite:', err);
         setThreadError(
@@ -1531,9 +1578,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   );
   useImperativeHandle(ref, () => ({ refreshMessages: fetchMessages }), [fetchMessages]);
   useEffect(() => {
-    activeThreadRef.current = bookingRequestId;
-    fetchMessages();
-  }, [bookingRequestId, fetchMessages]);
+    if (isActiveThread) {
+      activeThreadRef.current = bookingRequestId;
+      if (!loadedThreadsRef.current.has(bookingRequestId)) {
+        void fetchMessages({ mode: 'initial', reason: 'activate' });
+      }
+    } else if (activeThreadRef.current === bookingRequestId) {
+      activeThreadRef.current = null;
+    }
+  }, [bookingRequestId, fetchMessages, isActiveThread]);
 
   // When the global inbox emits a threads:updated (via notifications), refresh this thread too.
   useEffect(() => {
@@ -1542,14 +1595,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       const detail = (event as CustomEvent<ThreadsUpdatedDetail>).detail || {};
       if (detail.threadId && detail.threadId !== bookingRequestId) return;
       if (detail.source === 'thread' && detail.reason === 'read' && detail.threadId === bookingRequestId) return;
+      if (!isActiveThread) return;
       if (activeThreadRef.current !== bookingRequestId) return;
       if (now - lastFetchAtRef.current < 800) return; // debounce
       lastFetchAtRef.current = now;
-      void fetchMessages();
+      void fetchMessages({ mode: 'incremental', reason: 'threads:updated' });
     };
     try { window.addEventListener('threads:updated', onThreadsUpdated as any); } catch {}
     return () => { try { window.removeEventListener('threads:updated', onThreadsUpdated as any); } catch {} };
-  }, [bookingRequestId, fetchMessages]);
+  }, [bookingRequestId, fetchMessages, isActiveThread]);
 
   // Reset initial scrolled flag when switching threads
   useEffect(() => {
@@ -1595,10 +1649,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (cached && cached.length) {
       setMessages(cached);
       setLoading(false);
+      initialLoadedRef.current = true;
+      loadedThreadsRef.current.add(bookingRequestId);
       // Keep gate closed; realtime merges will flush after fresh fetch
     } else {
       setMessages([]);
       setLoading(true);
+      initialLoadedRef.current = false;
+      loadedThreadsRef.current.delete(bookingRequestId);
     }
   }, [bookingRequestId]);
 
@@ -1667,7 +1725,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           }
         }
         // Fetch fresh messages so the server-authored (or persisted) system line shows up and persists
-        void fetchMessages();
+        void fetchMessages({ mode: 'incremental', force: true, reason: 'payment-confirmation' });
         // Also resolve booking from this thread so Event Prep can render immediately
         void resolveBookingFromRequest();
       }
@@ -1833,7 +1891,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         // a concrete message payload, trigger a light REST refresh so the thread stays live.
         const looksLikeMessage = /message/.test(typeStr) || payload?.last_message || payload?.preview;
         if (looksLikeMessage) {
-          try { void fetchMessages(); } catch {}
+          try { void fetchMessages({ mode: 'incremental', reason: 'realtime-fallback' }); } catch {}
         }
         return;
       }
@@ -1951,13 +2009,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Gentle polling fallback: if no realtime in ~4s, poll every 2s until we see activity
   useEffect(() => {
+    if (!isActiveThread) return;
     lastRealtimeAtRef.current = Date.now();
     const id = setInterval(() => {
       const idleMs = Date.now() - lastRealtimeAtRef.current;
-      if (idleMs > 4000) void fetchMessages();
+      if (idleMs > 4000) {
+        void fetchMessages({ mode: 'incremental', reason: 'poll' });
+      }
     }, 2000);
     return () => clearInterval(id);
-  }, [fetchMessages]);
+  }, [fetchMessages, isActiveThread]);
 
   // Also listen to global notifications as a safety net; if a new_message
   // notification arrives, refresh this thread if ids match or if no id is present.
@@ -1976,7 +2037,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           NaN
         );
         if (!Number.isFinite(id) || id === bookingRequestId) {
-          void fetchMessages();
+          void fetchMessages({ mode: 'incremental', reason: 'notification' });
         }
       } catch {}
     });
@@ -3547,7 +3608,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         const created = res.data;
         setQuotes((prev) => ({ ...prev, [created.id]: created }));
         // No drawer — QuoteBubble modal presents details via "View quote".
-        void fetchMessages();
+        void fetchMessages({ mode: 'incremental', force: true, reason: 'quote-send' });
         onMessageSent?.();
         onQuoteSent?.();
       } catch (err) {
@@ -3561,7 +3622,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const handleDeclineRequest = useCallback(async () => {
     try {
       await updateBookingRequestArtist(bookingRequestId, { status: 'request_declined' });
-      void fetchMessages();
+      void fetchMessages({ mode: 'incremental', force: true, reason: 'request-decline' });
       onMessageSent?.();
     } catch (err) {
       console.error('Failed to decline request:', err);
@@ -3593,7 +3654,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         setBookingDetails(details.data);
 
         // Payment modal (triggered separately via onPayNow) will update status
-        void fetchMessages();
+        void fetchMessages({ mode: 'incremental', force: true, reason: 'quote-accept' });
       } catch (err) {
         console.error('Failed to finalize quote acceptance process:', err);
         setThreadError(`Quote accepted, but there was an issue setting up payment. ${(err as Error).message || 'Please try again.'}`);

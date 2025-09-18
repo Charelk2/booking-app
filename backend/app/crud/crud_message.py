@@ -68,6 +68,7 @@ def get_messages_for_request(
     viewer: models.VisibleTo | None = None,
     skip: int = 0,
     limit: int = 100,
+    after_id: int | None = None,
 ) -> List[models.Message]:
     query = (
         db.query(models.Message)
@@ -80,6 +81,8 @@ def get_messages_for_request(
         query = query.filter(
             models.Message.visible_to.in_([models.VisibleTo.BOTH, viewer])
         )
+    if after_id:
+        query = query.filter(models.Message.id > after_id)
     query = (
         query.order_by(models.Message.timestamp.asc())
         .offset(skip)

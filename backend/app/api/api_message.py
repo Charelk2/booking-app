@@ -47,6 +47,11 @@ def read_messages(
     current_user: models.User = Depends(get_current_user),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
+    after_id: Optional[int] = Query(
+        None,
+        ge=0,
+        description="Return only messages with an id greater than this value",
+    ),
     fields: Optional[str] = Query(
         None, description="Comma-separated fields to include in the response"
     ),
@@ -80,7 +85,12 @@ def read_messages(
 
     try:
         db_messages = crud.crud_message.get_messages_for_request(
-            db, request_id, viewer, skip=skip, limit=limit
+            db,
+            request_id,
+            viewer,
+            skip=skip,
+            limit=limit,
+            after_id=after_id,
         )
     except Exception as exc:
         # Defensive logging to diagnose unexpected DB shape mismatches in the field

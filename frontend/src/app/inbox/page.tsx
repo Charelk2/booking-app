@@ -41,7 +41,7 @@ export default function InboxPage() {
   const [allBookingRequests, setAllBookingRequests] = useState<BookingRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [selectedBookingRequestId, setSelectedBookingRequestId] = useState<number | null>(null);
-  const [prevThreadId, setPrevThreadId] = useState<number | null>(null);
+  const [hydratedThreadIds, setHydratedThreadIds] = useState<number[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -58,6 +58,18 @@ export default function InboxPage() {
   const lastRefreshAtRef = useRef<number>(0);
   // Header unread badge (live)
   const { count: unreadTotal } = useUnreadThreadsCount(30000);
+
+  useEffect(() => {
+    if (selectedBookingRequestId === null) return;
+    setHydratedThreadIds((prev) => {
+      const next = [
+        selectedBookingRequestId,
+        ...prev.filter((id) => id !== selectedBookingRequestId),
+      ];
+      // Keep current + most recent previous thread hydrated
+      return next.slice(0, 2);
+    });
+  }, [selectedBookingRequestId]);
 
   // If not authenticated, send to login early and avoid firing API calls
   useEffect(() => {
@@ -718,7 +730,6 @@ export default function InboxPage() {
   const handleSelect = useCallback(
     (id: number) => {
       // Immediate UI feedback: select and update URL right away
-      setPrevThreadId((prev) => (selectedBookingRequestId && selectedBookingRequestId !== id ? selectedBookingRequestId : prev));
       setSelectedBookingRequestId(id);
       let previousUnread = 0;
       try {
@@ -810,7 +821,7 @@ export default function InboxPage() {
         })();
       }
     },
-    [allBookingRequests, filteredRequests, searchParams, isMobile, router, fetchAllRequests, SEL_KEY, selectedBookingRequestId, prefetchThreadMessages]
+    [allBookingRequests, filteredRequests, searchParams, isMobile, router, fetchAllRequests, SEL_KEY, prefetchThreadMessages]
   );
 
   const handleBackToList = useCallback(() => {
@@ -911,24 +922,31 @@ export default function InboxPage() {
               </button>
             )}
             {selectedBookingRequestId ? (
-              <>
-                <MessageThreadWrapper
-                  key={`current-${selectedBookingRequestId}`}
-                  bookingRequestId={selectedBookingRequestId}
-                  bookingRequest={selectedRequest}
-                  setShowReviewModal={setShowReviewModal}
-                />
-                {prevThreadId && prevThreadId !== selectedBookingRequestId && (
-                  <div style={{ display: 'none' }}>
-                    <MessageThreadWrapper
-                      key={`prev-${prevThreadId}`}
-                      bookingRequestId={prevThreadId}
-                      bookingRequest={allBookingRequests.find((r) => r.id === prevThreadId) || null}
-                      setShowReviewModal={setShowReviewModal}
-                    />
-                  </div>
-                )}
-              </>
+              hydratedThreadIds.length ? (
+                hydratedThreadIds.map((id) => {
+                  const request = allBookingRequests.find((r) => r.id === id) || null;
+                  const isActiveThread = id === selectedBookingRequestId;
+                  return (
+                    <div
+                      key={id}
+                      style={{ display: isActiveThread ? 'block' : 'none' }}
+                      aria-hidden={isActiveThread ? undefined : true}
+                      className={isActiveThread ? '' : 'pointer-events-none'}
+                    >
+                      <MessageThreadWrapper
+                        bookingRequestId={id}
+                        bookingRequest={request}
+                        setShowReviewModal={setShowReviewModal}
+                        isActive={isActiveThread}
+                      />
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
+                  <p>Loading conversation…</p>
+                </div>
+              )
             ) : (
               <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
                 <p>Select a conversation to view messages.</p>
