@@ -394,9 +394,21 @@ app.add_middleware(
 logger.info("CORS origins set to: %s", ALLOWED_ORIGINS)
 
 # OAuthlib's Starlette integration stores the authorization state in a
-# session cookie. Add SessionMiddleware so Authlib can sign and read
-# that cookie using our SECRET_KEY.
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+# session cookie. Ensure the cookie is accessible across app + API hosts
+# when COOKIE_DOMAIN is configured (e.g., ".booka.co.za") so social login
+# callbacks sent to api.booka.co.za can read the stored state.
+session_kwargs = {
+    "same_site": "lax",
+    "https_only": False,
+}
+try:
+    session_kwargs["https_only"] = settings.FRONTEND_URL.lower().startswith("https")
+except Exception:
+    pass
+cookie_domain = getattr(settings, "COOKIE_DOMAIN", "") or None
+if cookie_domain:
+    session_kwargs["domain"] = cookie_domain
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY, **session_kwargs)
 # Honor X-Forwarded-* headers from the reverse proxy so url_for() builds
 # correct HTTPS callback URLs for OAuth (e.g., Google). This prevents
 # redirect_uri mismatches in production behind TLS terminators.
