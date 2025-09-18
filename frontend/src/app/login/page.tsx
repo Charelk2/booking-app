@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -9,7 +9,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
 import AuthInput from '@/components/auth/AuthInput';
 import { useAuth } from '@/contexts/AuthContext';
-import api, { requestMagicLink } from '@/lib/api';
+import api, { getEmailStatus, requestMagicLink } from '@/lib/api';
 
 // --------------------------------------
 // Types
@@ -17,10 +17,22 @@ import api, { requestMagicLink } from '@/lib/api';
 type EmailOnlyForm = { email: string };
 type PwForm = { email: string; password: string; remember: boolean };
 type MfaForm = { code: string; trustedDevice?: boolean };
+type EmailStatusResponse = { exists: boolean; providers: string[]; locked: boolean };
+
+type GoogleIdentity = {
+  accounts?: {
+    id?: {
+      initialize: (...args: unknown[]) => void;
+      prompt: (...args: unknown[]) => void;
+      cancel: () => void;
+      disableAutoSelect: () => void;
+    };
+  };
+};
 
 declare global {
   interface Window {
-    google?: any;
+    google?: GoogleIdentity;
   }
 }
 
@@ -41,9 +53,13 @@ export default function LoginPage() {
   // UI & flow state
   const [stage, setStage] = useState<Stage>('email');
   const [error, setError] = useState('');
+  const [errorSubtext, setErrorSubtext] = useState('');
+  const [errorPrimaryAction, setErrorPrimaryAction] = useState<{ label: string; href: string } | null>(null);
+  const [errorSecondaryAction, setErrorSecondaryAction] = useState<{ label: string; onClick: () => void } | null>(null);
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   // Passkey auto-try removed for this view
   const [magicSent, setMagicSent] = useState(false);
+  const [emailStatusCache, setEmailStatusCache] = useState<{ email: string; status: EmailStatusResponse } | null>(null);
 
   // Hide official buttons; keep One Tap only
 
@@ -61,6 +77,42 @@ export default function LoginPage() {
   const liveRef = useRef<HTMLParagraphElement | null>(null);
   const announce = (msg: string) => {
     if (liveRef.current) liveRef.current.textContent = msg;
+  };
+
+  const showError = (
+    message: string,
+    options?: {
+      subtext?: string;
+      primaryAction?: { label: string; href: string };
+      secondaryAction?: { label: string; onClick: () => void };
+    },
+  ) => {
+    setError(message);
+    setErrorSubtext(options?.subtext ?? '');
+    setErrorPrimaryAction(options?.primaryAction ?? null);
+    setErrorSecondaryAction(options?.secondaryAction ?? null);
+  };
+
+  const clearError = () => {
+    showError('');
+  };
+
+  const extractMessage = (err: unknown, fallback = 'An unexpected error occurred.') => {
+    if (typeof err === 'string' && err) return err;
+    if (err instanceof Error && err.message) return err.message;
+    if (typeof err === 'object' && err !== null && 'message' in err) {
+      const maybeMessage = (err as { message?: unknown }).message;
+      if (typeof maybeMessage === 'string' && maybeMessage) return maybeMessage;
+    }
+    return fallback;
+  };
+
+  const goToEmailStage = () => {
+    setStage('email');
+    clearError();
+    setMagicSent(false);
+    setEmailStatusCache(null);
+    setPwValue('password', '');
   };
 
   // Redirect if already signed in
@@ -115,22 +167,34 @@ export default function LoginPage() {
       document.head.appendChild(s);
     });
 
-  const handleGsiCredential = async (response: { credential?: string }) => {
-    try {
-      if (!response?.credential) return;
-      await api.post('/auth/google/onetap', {
-        credential: response.credential,
-        next: nextPath,
-        deviceId: trustedDeviceId,
-      });
+  const handleGsiCredential = useCallback(
+    async (response: { credential?: string }) => {
       try {
-        await refreshUser?.();
-      } catch {}
-      router.replace(nextPath);
-    } catch (e: any) {
-      console.warn('One Tap / button sign-in failed', e?.response?.data || e?.message);
-    }
-  };
+        if (!response?.credential) return;
+        await api.post('/auth/google/onetap', {
+          credential: response.credential,
+          next: nextPath,
+          deviceId: trustedDeviceId,
+        });
+        try {
+          await refreshUser?.();
+        } catch {
+          /* ignore refresh failures */
+        }
+        router.replace(nextPath);
+      } catch (error: unknown) {
+        let detail = extractMessage(error, 'Sign-in failed');
+        if (typeof error === 'object' && error && 'response' in error) {
+          const responseData = (error as { response?: { data?: unknown } }).response?.data;
+          if (responseData !== undefined) {
+            detail = typeof responseData === 'string' ? responseData : JSON.stringify(responseData);
+          }
+        }
+        console.warn('One Tap / button sign-in failed', detail);
+      }
+    },
+    [nextPath, refreshUser, router, trustedDeviceId],
+  );
 
   // Hide official Google button; only initialize One Tap prompt
 
@@ -158,13 +222,15 @@ export default function LoginPage() {
           try {
             window.google?.accounts.id.cancel();
             window.google?.accounts.id.disableAutoSelect();
-          } catch {}
+          } catch {
+            /* ignore cancel errors */
+          }
         };
-      } catch (e) {
-        console.warn('GSI init failed', e);
+      } catch (error: unknown) {
+        console.warn('GSI init failed', extractMessage(error, 'Initialization error'));
       }
     })();
-  }, [googleClientId, nextPath, trustedDeviceId]);
+  }, [googleClientId, handleGsiCredential]);
 
   // Apple official widget removed; we use redirect via icon button
 
@@ -174,43 +240,97 @@ export default function LoginPage() {
   // Actions
   // --------------------------------------
   const onEmailContinue = ({ email }: EmailOnlyForm) => {
-    setError('');
-    setPwValue('email', (email || '').trim().toLowerCase());
+    clearError();
+    const normalized = (email || '').trim().toLowerCase();
+    setPwValue('email', normalized);
+    setPwValue('password', '');
     setStage('password');
+    setEmailStatusCache(null);
   };
 
   const onPasswordSignIn = async ({ email, password, remember }: PwForm) => {
-    setError('');
+    clearError();
     try {
-      const res = await login(email.trim().toLowerCase(), password, remember);
+      const normalized = email.trim().toLowerCase();
+      const res = await login(normalized, password, remember);
       if (res?.mfaRequired && res?.token) {
         setMfaToken(res.token);
         setStage('mfa');
         return;
       }
-    } catch (e: any) {
-      setError(e?.message || 'Invalid email or password.');
+    } catch (error: unknown) {
+      const normalized = email.trim().toLowerCase();
+      let message = extractMessage(error, 'Invalid email or password.');
+      let subtext = '';
+      let primaryAction: { label: string; href: string } | undefined;
+      let secondaryAction: { label: string; onClick: () => void } | undefined;
+
+      const ensureStatus = async () => {
+        if (emailStatusCache?.email === normalized) {
+          return emailStatusCache.status;
+        }
+        try {
+          const res = await getEmailStatus(normalized);
+          const status = res.data as EmailStatusResponse;
+          setEmailStatusCache({ email: normalized, status });
+          return status;
+        } catch {
+          /* ignore email status lookup failures */
+          return null;
+        }
+      };
+
+      const status = await ensureStatus();
+      const registerHref = `/register?email=${encodeURIComponent(normalized)}&next=${encodeURIComponent(nextPath)}`;
+      const resetHref = `/forgot-password?email=${encodeURIComponent(normalized)}`;
+
+      if (status && !status.exists) {
+        message = `We couldn’t find an account for ${normalized}.`;
+        subtext = 'Create a free account to continue or try a different email address.';
+        primaryAction = { label: 'Create an account', href: registerHref };
+        secondaryAction = { label: 'Try a different email', onClick: goToEmailStage };
+        announce(`We couldn't find an account for ${normalized}. You can create one or try another email.`);
+        showError(message, { subtext, primaryAction, secondaryAction });
+        return;
+      }
+
+      if (status && status.locked) {
+        message = 'We temporarily locked this account after too many attempts.';
+        subtext = 'Reset your password and we’ll guide you back in right away.';
+        primaryAction = { label: 'Reset password', href: resetHref };
+        announce('Account temporarily locked. Reset your password to continue.');
+        showError(message, { subtext, primaryAction });
+        return;
+      }
+
+      if (!subtext) {
+        subtext = 'Double-check your password or reset it below.';
+      }
+      if (!primaryAction) {
+        primaryAction = { label: 'Reset password', href: resetHref };
+      }
       announce('Sign-in failed.');
+      showError(message, { subtext, primaryAction });
     }
   };
 
   const onVerifyMfa = async ({ code, trustedDevice }: MfaForm) => {
     if (!mfaToken) return;
     try {
-      setError('');
+      clearError();
       await verifyMfa(mfaToken, code, trustedDevice, trustedDevice ? trustedDeviceId : undefined);
     } catch {
-      setError('Invalid verification code.');
+      showError('Invalid verification code.');
       announce('Invalid verification code.');
     }
   };
 
   const onSendMagicLink = async () => {
-    setError('');
+    clearError();
     setMagicSent(false);
     const email = (getEmailValues('email') || '').trim().toLowerCase();
     if (!email) {
-      setError('Enter your email first.');
+      showError('Enter your email first.');
       return;
     }
     try {
@@ -218,7 +338,7 @@ export default function LoginPage() {
       setMagicSent(true);
       announce('Magic link sent. Check your inbox.');
     } catch {
-      setError('Unable to send magic link.');
+      showError('Unable to send magic link.');
       announce('Unable to send magic link.');
     }
   };
@@ -347,7 +467,7 @@ const SocialRow = () => (
                     <h2 className="text-base font-semibold">Enter your password</h2>
                     <button
                       type="button"
-                      onClick={() => setStage('email')}
+                      onClick={goToEmailStage}
                       className="text-sm text-gray-600 hover:text-gray-900"
                     >
                       Change email
@@ -396,7 +516,33 @@ const SocialRow = () => (
                     </Link>
                   </div>
 
-                  {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>}
+                  {error && (
+                    <div className="space-y-2 rounded-md bg-red-50 p-3 text-sm text-red-800">
+                      <p>{error}</p>
+                      {errorSubtext && <p className="text-red-700/90">{errorSubtext}</p>}
+                      {(errorPrimaryAction || errorSecondaryAction) && (
+                        <div className="flex flex-wrap gap-3 pt-1">
+                          {errorPrimaryAction && (
+                            <Link
+                              href={errorPrimaryAction.href}
+                              className="inline-flex items-center justify-center rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 hover:border-red-300 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                            >
+                              {errorPrimaryAction.label}
+                            </Link>
+                          )}
+                          {errorSecondaryAction && (
+                            <button
+                              type="button"
+                              onClick={errorSecondaryAction.onClick}
+                              className="text-sm font-medium text-red-700 underline-offset-2 hover:underline"
+                            >
+                              {errorSecondaryAction.label}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <Button type="submit" disabled={pwSubmitting} className="w-full">
                     {pwSubmitting ? 'Signing in…' : 'Sign in'}
