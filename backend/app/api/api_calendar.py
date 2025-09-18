@@ -65,8 +65,13 @@ def google_calendar_callback(
     state: str,
     db: Session = Depends(get_db),
 ):
-    user_id = int(state)
+    user_id = calendar_service.resolve_calendar_state(state)
     status = "success"
+    if user_id is None:
+        logger.error("Invalid Google Calendar state value", extra={"state": state})
+        status = "error"
+        redirect_target = f"{settings.FRONTEND_URL}/dashboard/profile/edit?calendarSync={status}"
+        return RedirectResponse(url=redirect_target)
     try:
         redirect_uri = _effective_redirect_uri(request)
         calendar_service.exchange_code(user_id, code, redirect_uri, db)

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from unittest.mock import Mock
+import types
 
 import pytest
 from app.api import api_calendar
@@ -28,6 +29,27 @@ def patch_calendar(monkeypatch):
     """Disable credential checks and avoid network calls."""
 
     monkeypatch.setattr(calendar_service, "require_credentials", lambda: None)
+
+    store: dict[str, str] = {}
+
+    class DummyRedis:
+        def setex(self, key, ttl, value):
+            store[key] = value
+
+        def get(self, key):
+            return store.get(key)
+
+        def delete(self, key):
+            store.pop(key, None)
+
+    dummy_redis = DummyRedis()
+
+    monkeypatch.setattr(
+        calendar_service,
+        "get_redis_client",
+        lambda: dummy_redis,
+        raising=False,
+    )
 
     def dummy_build(api, version, credentials=None):
         if api == "oauth2":
@@ -369,7 +391,16 @@ def test_callback_success(monkeypatch):
         api_calendar.settings, "FRONTEND_URL", "http://frontend", raising=False
     )
 
-    resp = api_calendar.google_calendar_callback("code", str(user.id), db)
+    request = types.SimpleNamespace(
+        url_for=lambda name: "https://api.example.com/api/v1/google-calendar/callback"
+    )
+
+    resp = api_calendar.google_calendar_callback(
+        request=request,
+        code="code",
+        state=str(user.id),
+        db=db,
+    )
     assert (
         resp.headers["location"]
         == "http://frontend/dashboard/profile/edit?calendarSync=success"
@@ -400,9 +431,87 @@ def test_callback_error(monkeypatch):
         api_calendar.settings, "FRONTEND_URL", "http://frontend", raising=False
     )
 
-    resp = api_calendar.google_calendar_callback("c", str(user.id), db)
+    request = types.SimpleNamespace(
+        url_for=lambda name: "https://api.example.com/api/v1/google-calendar/callback"
+    )
+
+    resp = api_calendar.google_calendar_callback(
+        request=request,
+        code="c",
+        state=str(user.id),
+        db=db,
+    )
     assert (
         resp.headers["location"]
         == "http://frontend/dashboard/profile/edit?calendarSync=error"
     )
     mock_logger.error.assert_called()
+
+
+def test_callback_with_random_state(monkeypatch):
+    db = setup_db()
+    user = User(
+        email="rand@test.com",
+        password="x",
+        first_name="Rand",
+        last_name="State",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    dummy_called = {}
+
+    def dummy_exchange(uid, code, uri, session):
+        dummy_called["uid"] = uid
+
+    monkeypatch.setattr(calendar_service, "exchange_code", dummy_exchange)
+    monkeypatch.setattr(
+        api_calendar.settings, "FRONTEND_URL", "http://frontend", raising=False
+    )
+
+    state_token = "state-token"
+
+    def resolver(token):
+        value = user.id if token == state_token else None
+        dummy_called.setdefault("resolver_calls", []).append((token, value))
+        return value
+
+    monkeypatch.setattr(
+        calendar_service,
+        "resolve_calendar_state",
+        resolver,
+    )
+    monkeypatch.setattr(
+        api_calendar.calendar_service,
+        "resolve_calendar_state",
+        resolver,
+    )
+
+    assert api_calendar.calendar_service.resolve_calendar_state(state_token) == user.id
+
+    request = types.SimpleNamespace(
+        url_for=lambda name: "https://api.example.com/api/v1/google-calendar/callback"
+    )
+
+    resp = api_calendar.google_calendar_callback(
+        request=request,
+        code="code",
+        state=state_token,
+        db=db,
+    )
+    assert (
+        resp.headers["location"]
+        == "http://frontend/dashboard/profile/edit?calendarSync=success"
+    )
+    assert dummy_called["uid"] == user.id
+
+
+def test_resolve_calendar_state_uses_redis(monkeypatch):
+    state_token = "redis-token"
+    redis_client = calendar_service.get_redis_client()
+    redis_client.setex("oauth:calendar:state:" + state_token, 600, "42")
+    assert calendar_service.resolve_calendar_state(state_token) == 42
+    # Second call should fall back to int conversion (state already popped)
+    assert calendar_service.resolve_calendar_state("99") == 99
