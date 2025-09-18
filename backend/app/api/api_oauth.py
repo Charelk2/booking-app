@@ -1,15 +1,23 @@
-from fastapi import APIRouter, Request, Depends, status
+from fastapi import APIRouter, Request, Depends, status, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import timedelta
+from datetime import datetime, timedelta
 import secrets
 import logging
-from urllib.parse import quote
+from urllib.parse import urlencode
 
 from authlib.integrations.starlette_client import OAuth
+import httpx
 
-from app.core.config import settings
+from app.auth.utils import new_oauth_state, sanitize_next, set_session_cookie
+from app.core.config import (
+    settings,
+    FRONTEND_PRIMARY,
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
+    GOOGLE_REDIRECT_URI,
+)
 from app.database import get_db
 from app.models import User, UserType
 from app.api.auth import (
@@ -24,6 +32,7 @@ from app.api.auth import (
 from app.utils.auth import get_password_hash, normalize_email
 from app.utils import error_response
 from app.models import TrustedDevice
+from app.services.redis_client import redis
 
 try:
     # Prefer google-auth for token verification
@@ -38,6 +47,123 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 oauth = OAuth()
+
+_STATE_TTL_SECONDS = 600
+_STATE_KEY_PREFIX = "oauth:state:"
+_NEXT_KEY_PREFIX = "oauth:next:"
+
+
+async def _store_oauth_state(state: str, next_path: str) -> None:
+    try:
+        await redis.setex(f"{_STATE_KEY_PREFIX}{state}", _STATE_TTL_SECONDS, "1")
+        await redis.setex(f"{_NEXT_KEY_PREFIX}{state}", _STATE_TTL_SECONDS, next_path)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.error("Failed to persist OAuth state: %s", exc)
+        raise error_response(
+            "OAuth temporarily unavailable",
+            {},
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
+async def _consume_oauth_state(state: str) -> str:
+    try:
+        exists = await redis.get(f"{_STATE_KEY_PREFIX}{state}")
+    except Exception as exc:  # pragma: no cover
+        logger.error("Failed to read OAuth state: %s", exc)
+        raise RuntimeError("oauth_state_lookup_failed") from exc
+    if not exists:
+        raise ValueError("invalid_or_expired_state")
+    try:
+        raw_next = await redis.get(f"{_NEXT_KEY_PREFIX}{state}")
+    except Exception:
+        raw_next = None
+    try:
+        await redis.delete(f"{_STATE_KEY_PREFIX}{state}", f"{_NEXT_KEY_PREFIX}{state}")
+    except Exception:
+        # Non-fatal; keys will expire naturally
+        pass
+    return sanitize_next(raw_next if isinstance(raw_next, str) else None)
+
+
+async def _exchange_google_code_for_tokens(code: str) -> dict:
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise error_response(
+            "Google OAuth not configured",
+            {},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    payload = {
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "grant_type": "authorization_code",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            token_resp = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data=payload,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+    except Exception as exc:  # pragma: no cover - network failure
+        logger.error("Google token request failed: %s", exc)
+        raise error_response("Google authentication failed", {}, status.HTTP_400_BAD_REQUEST)
+
+    if token_resp.status_code != 200:
+        logger.error(
+            "Google token exchange error: status=%s body=%s",
+            token_resp.status_code,
+            token_resp.text,
+        )
+        raise error_response("Google authentication failed", {}, status.HTTP_400_BAD_REQUEST)
+
+    try:
+        token_data = token_resp.json()
+    except Exception:  # pragma: no cover - unexpected payload
+        raise error_response("Invalid Google token response", {}, status.HTTP_400_BAD_REQUEST)
+
+    if "access_token" not in token_data:
+        raise error_response("Google token missing access_token", {}, status.HTTP_400_BAD_REQUEST)
+    return token_data
+
+
+async def _fetch_google_profile(request: Request, token_data: dict) -> dict:
+    profile = None
+    try:
+        profile = await oauth.google.parse_id_token(request, token_data)
+    except KeyError:
+        profile = None
+    except Exception as exc:  # pragma: no cover - parsing edge cases
+        logger.warning("Failed to parse Google id_token: %s", exc)
+        profile = None
+
+    if profile:
+        return profile
+
+    access_token = token_data.get("access_token")
+    if not access_token:
+        return {}
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                "https://openidconnect.googleapis.com/v1/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+    except Exception as exc:  # pragma: no cover - network failure
+        logger.error("Failed Google userinfo fetch: %s", exc)
+        return {}
+
+    if resp.status_code == 200:
+        try:
+            return resp.json()
+        except Exception:
+            return {}
+
+    logger.error("Failed Google userinfo fetch: %s %s", resp.status_code, resp.text)
+    return {}
 
 # Allow fallback to GOOGLE_CLIENT_ID/SECRET if OAUTH-specific vars aren't set
 _google_oauth_client_id = settings.GOOGLE_OAUTH_CLIENT_ID or settings.GOOGLE_CLIENT_ID
@@ -93,82 +219,99 @@ if getattr(settings, "APPLE_CLIENT_ID", None) and getattr(settings, "APPLE_TEAM_
 
 
 @router.get("/google/login")
-async def google_login(
-    request: Request,
-    next: str = settings.FRONTEND_URL.rstrip("/") + "/dashboard",
-):
-    """Start Google OAuth flow."""
-    if not hasattr(oauth, "google"):
+async def google_login(request: Request, next: str = "/dashboard"):
+    """Start Google OAuth flow without relying on browser session cookies."""
+    if not hasattr(oauth, "google") or not GOOGLE_CLIENT_ID:
         raise error_response(
             "Google OAuth not configured",
             {},
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-    redirect_uri = request.url_for("google_callback")
-    return await oauth.google.authorize_redirect(request, redirect_uri, state=next)
+
+    state = new_oauth_state()
+    next_path = sanitize_next(next)
+    await _store_oauth_state(state, next_path)
+
+    params = {
+        "response_type": "code",
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "offline",
+        "include_granted_scopes": "true",
+    }
+    prompt = request.query_params.get("prompt")
+    if prompt:
+        params["prompt"] = prompt
+    else:
+        params["prompt"] = "consent"
+
+    google_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+    return RedirectResponse(url=google_url, status_code=302)
 
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
-    if not hasattr(oauth, "google"):
+    if not hasattr(oauth, "google") or not GOOGLE_CLIENT_ID:
         raise error_response(
             "Google OAuth not configured",
             {},
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-    next_url = request.query_params.get("state") or settings.FRONTEND_URL
-    if next_url.startswith("/"):
-        next_url = settings.FRONTEND_URL.rstrip("/") + next_url
-    try:
-        token = await oauth.google.authorize_access_token(request)
-    except Exception as exc:  # pragma: no cover - network/token errors
-        logger.error("Google token exchange failed: %s", exc)
-        raise error_response(
-            "Google authentication failed",
-            {},
-            status.HTTP_400_BAD_REQUEST,
+
+    state = request.query_params.get("state")
+    if not state:
+        return RedirectResponse(
+            url=f"{FRONTEND_PRIMARY}/login?oauth_error=state",
+            status_code=302,
         )
 
-    profile = None
     try:
-        profile = await oauth.google.parse_id_token(request, token)
-    except KeyError:
-        # Older API responses may not include an id_token field
-        profile = None
-    except Exception as exc:  # pragma: no cover - unexpected parsing issue
-        logger.warning("Failed to parse Google id_token: %s", exc)
-        profile = None
-    if not profile:
-        resp = await oauth.google.get("userinfo", token=token)
-        if resp.status_code == 200:
-            profile = resp.json()
-        else:
-            logger.error(
-                "Failed Google userinfo fetch: %s %s", resp.status_code, resp.text
-            )
-            raise error_response(
-                "Failed to fetch Google profile",
-                {},
-                status.HTTP_400_BAD_REQUEST,
-            )
-    if not profile:
-        raise error_response(
-            "Failed to fetch Google profile",
-            {},
-            status.HTTP_400_BAD_REQUEST,
+        next_path = await _consume_oauth_state(state)
+    except ValueError:
+        return RedirectResponse(
+            url=f"{FRONTEND_PRIMARY}/login?oauth_error=state",
+            status_code=302,
         )
+    except RuntimeError:
+        return RedirectResponse(
+            url=f"{FRONTEND_PRIMARY}/login?oauth_error=state",
+            status_code=302,
+        )
+
+    code = request.query_params.get("code")
+    if not code:
+        return RedirectResponse(
+            url=f"{FRONTEND_PRIMARY}/login?oauth_error=code",
+            status_code=302,
+        )
+
+    try:
+        token = await _exchange_google_code_for_tokens(code)
+    except HTTPException:
+        return RedirectResponse(
+            url=f"{FRONTEND_PRIMARY}/login?oauth_error=token",
+            status_code=302,
+        )
+    profile = await _fetch_google_profile(request, token)
+    if not profile:
+        return RedirectResponse(
+            url=f"{FRONTEND_PRIMARY}/login?oauth_error=profile",
+            status_code=302,
+        )
+
     email = profile.get("email")
     if not email:
-        raise error_response(
-            "Email not available from Google",
-            {},
-            status.HTTP_400_BAD_REQUEST,
+        return RedirectResponse(
+            url=f"{FRONTEND_PRIMARY}/login?oauth_error=email",
+            status_code=302,
         )
+
     first_name = profile.get("given_name") or ""
     last_name = profile.get("family_name") or ""
 
     email = normalize_email(email)
-    # Reuse any existing account matching this canonicalized email
     user = get_user_by_email(db, email)
     if not user:
         user = User(
@@ -187,15 +330,24 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    # Issue tokens and set HttpOnly cookies; avoid token-in-URL
     expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token({"sub": user.email}, expires)
-    refresh_token, r_exp = _create_refresh_token(user.email)
-    _store_refresh_token(db, user, refresh_token, r_exp)
-    resp = RedirectResponse(url=next_url)
-    _set_access_cookie(resp, access_token)
-    _set_refresh_cookie(resp, refresh_token, r_exp)
-    return resp
+    refresh_token, refresh_expires_at = _create_refresh_token(user.email)
+    _store_refresh_token(db, user, refresh_token, refresh_expires_at)
+
+    redirect_url = f"{FRONTEND_PRIMARY}{next_path}"
+    response = RedirectResponse(url=redirect_url, status_code=302)
+    access_max_age = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    set_session_cookie(response, "access_token", access_token, max_age=access_max_age)
+
+    try:
+        refresh_delta = int((refresh_expires_at - datetime.utcnow()).total_seconds())
+    except Exception:
+        refresh_delta = 30 * 24 * 3600
+    refresh_max_age = max(refresh_delta, 60)
+    set_session_cookie(response, "refresh_token", refresh_token, max_age=refresh_max_age)
+    set_session_cookie(response, "session", access_token, max_age=access_max_age)
+    return response
 
 
 @router.post("/google/onetap")

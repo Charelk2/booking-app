@@ -9,7 +9,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
 import AuthInput from '@/components/auth/AuthInput';
 import { useAuth } from '@/contexts/AuthContext';
-import api, { getEmailStatus, requestMagicLink } from '@/lib/api';
+import api, { getApiOrigin, getEmailStatus, requestMagicLink } from '@/lib/api';
 
 // --------------------------------------
 // Types
@@ -344,7 +344,7 @@ export default function LoginPage() {
   };
 
   // Fallback OAuth links (only used if JS widgets fail)
-  const base = (api.defaults.baseURL || '').replace(/\/+$/, '');
+  const base = getApiOrigin();
   const googleHref = `${base}/auth/google/login?next=${encodeURIComponent(nextPath)}`;
   const appleHref  = `${base}/auth/apple/login?next=${encodeURIComponent(nextPath)}`;
   const facebookHref = `${base}/auth/facebook/login?next=${encodeURIComponent(nextPath)}`;

@@ -27,10 +27,15 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3002"]
     CORS_ALLOW_ALL: bool = False
 
+    # Frontend domains
+    FRONTEND_ORIGINS: list[str] = []
+    FRONTEND_PRIMARY: str = ""
+
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/google-calendar/callback"
+    GOOGLE_OAUTH_REDIRECT_URI: str = ""
 
     # Social login OAuth credentials
     GOOGLE_OAUTH_CLIENT_ID: str = ""
@@ -182,3 +187,144 @@ def load_settings() -> "Settings":
 
 
 settings = load_settings()
+
+
+def _dedupe(seq: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for item in seq:
+        key = item.strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        ordered.append(key)
+    return ordered
+
+
+_DEFAULT_FRONTEND_ORIGINS = [
+    "https://booka.co.za",
+    "https://www.booka.co.za",
+]
+
+_DEV_FRONTEND_FALLBACKS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
+
+
+def _collect_frontend_origins() -> list[str]:
+    origins: list[str] = []
+    origins.extend(_DEFAULT_FRONTEND_ORIGINS)
+    try:
+        cfg = getattr(settings, "FRONTEND_ORIGINS", []) or []
+        origins.extend(cfg)
+    except Exception:
+        pass
+    try:
+        cors = getattr(settings, "CORS_ORIGINS", []) or []
+        origins.extend(cors)
+    except Exception:
+        pass
+    try:
+        base = (getattr(settings, "FRONTEND_URL", "") or "").strip()
+        if base:
+            origins.append(base.rstrip("/"))
+    except Exception:
+        pass
+    origins.extend(_DEV_FRONTEND_FALLBACKS)
+    return _dedupe(origins)
+
+
+FRONTEND_ORIGINS = _collect_frontend_origins()
+
+
+def _primary_frontend() -> str:
+    env_primary = os.getenv("FRONTEND_PRIMARY", "").strip()
+    if env_primary:
+        return env_primary.rstrip("/")
+    try:
+        cfg_primary = (getattr(settings, "FRONTEND_PRIMARY", "") or "").strip()
+        if cfg_primary:
+            return cfg_primary.rstrip("/")
+    except Exception:
+        pass
+    try:
+        frontend_url = (getattr(settings, "FRONTEND_URL", "") or "").strip()
+        if frontend_url:
+            return frontend_url.rstrip("/")
+    except Exception:
+        pass
+    return "https://booka.co.za"
+
+
+FRONTEND_PRIMARY = _primary_frontend()
+
+
+def _cookie_domain() -> str | None:
+    env_domain = os.getenv("COOKIE_DOMAIN", "").strip()
+    if env_domain:
+        return env_domain
+    configured = (getattr(settings, "COOKIE_DOMAIN", "") or "").strip()
+    if configured:
+        return configured
+    return ".booka.co.za"
+
+
+COOKIE_DOMAIN = _cookie_domain()
+
+
+def _redis_url() -> str:
+    env_url = os.getenv("REDIS_URL")
+    if env_url:
+        return env_url
+    return getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
+
+
+REDIS_URL = _redis_url()
+
+
+def _google_client_id() -> str | None:
+    env_client = os.getenv("GOOGLE_CLIENT_ID")
+    if env_client:
+        return env_client
+    try:
+        oauth_client = (getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "") or "").strip()
+        if oauth_client:
+            return oauth_client
+    except Exception:
+        pass
+    return (getattr(settings, "GOOGLE_CLIENT_ID", "") or "").strip() or None
+
+
+def _google_client_secret() -> str | None:
+    env_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    if env_secret:
+        return env_secret
+    try:
+        oauth_secret = (getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", "") or "").strip()
+        if oauth_secret:
+            return oauth_secret
+    except Exception:
+        pass
+    return (getattr(settings, "GOOGLE_CLIENT_SECRET", "") or "").strip() or None
+
+
+def _google_redirect_uri() -> str:
+    env_redirect = os.getenv("GOOGLE_OAUTH_REDIRECT_URI", "").strip()
+    if env_redirect:
+        return env_redirect
+    env_alt = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
+    if env_alt:
+        return env_alt
+    try:
+        configured = (getattr(settings, "GOOGLE_OAUTH_REDIRECT_URI", "") or "").strip()
+        if configured:
+            return configured
+    except Exception:
+        pass
+    return "https://api.booka.co.za/auth/google/callback"
+
+
+GOOGLE_CLIENT_ID = _google_client_id()
+GOOGLE_CLIENT_SECRET = _google_client_secret()
+GOOGLE_REDIRECT_URI = _google_redirect_uri()

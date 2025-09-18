@@ -9,7 +9,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
 import AuthInput from '@/components/auth/AuthInput';
 import { useAuth } from '@/contexts/AuthContext';
-import api, { getEmailStatus, requestMagicLink } from '@/lib/api';
+import api, { getApiOrigin, getEmailStatus, requestMagicLink } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 type EmailStatus = { exists: boolean; providers: string[]; locked: boolean };
@@ -219,7 +219,7 @@ export default function RegisterPage() {
                 <div className="space-y-3">
                   {status.providers.includes('google') && (
                     <a
-                      href={`${(api.defaults.baseURL || '').replace(/\/+$/, '')}/auth/google/login?next=${encodeURIComponent(nextPath)}`}
+                      href={`${getApiOrigin()}/auth/google/login?next=${encodeURIComponent(nextPath)}`}
                       className="inline-flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                     >
                       Continue with Google
@@ -227,7 +227,7 @@ export default function RegisterPage() {
                   )}
                   {status.providers.includes('apple') && (
                     <a
-                      href={`${(api.defaults.baseURL || '').replace(/\/+$/, '')}/auth/apple/login?next=${encodeURIComponent(nextPath)}`}
+                      href={`${getApiOrigin()}/auth/apple/login?next=${encodeURIComponent(nextPath)}`}
                       className="inline-flex w-full items-center justify-center rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-900"
                     >
                       Continue with Apple

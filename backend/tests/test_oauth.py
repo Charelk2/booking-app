@@ -1,4 +1,5 @@
 import types
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from fastapi.responses import RedirectResponse
 from sqlalchemy import create_engine, func
@@ -13,6 +14,7 @@ from app.api import api_oauth
 from app.api.auth import SECRET_KEY, ALGORITHM
 from app.core.config import settings
 import jwt
+from urllib.parse import parse_qs, urlparse
 
 
 def setup_app(monkeypatch):
@@ -33,6 +35,46 @@ def setup_app(monkeypatch):
 
     app.dependency_overrides[get_db] = override_db
     return Session
+
+
+class DummyAsyncRedis:
+    def __init__(self) -> None:
+        self.store: dict[str, str] = {}
+
+    async def setex(self, key: str, ttl: int, value: str) -> None:
+        self.store[key] = value
+
+    async def get(self, key: str):
+        return self.store.get(key)
+
+    async def delete(self, *keys: str) -> int:
+        removed = 0
+        for key in keys:
+            if key in self.store:
+                del self.store[key]
+                removed += 1
+        return removed
+
+
+def configure_google(monkeypatch) -> DummyAsyncRedis:
+    redis_stub = DummyAsyncRedis()
+    monkeypatch.setattr(api_oauth, "redis", redis_stub, raising=False)
+    monkeypatch.setattr(api_oauth, "GOOGLE_CLIENT_ID", "test-google-client", raising=False)
+    monkeypatch.setattr(api_oauth, "GOOGLE_CLIENT_SECRET", "test-google-secret", raising=False)
+    monkeypatch.setattr(
+        api_oauth,
+        "GOOGLE_REDIRECT_URI",
+        "https://api.example.com/auth/google/callback",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        api_oauth,
+        "oauth",
+        types.SimpleNamespace(google=types.SimpleNamespace()),
+        raising=False,
+    )
+    monkeypatch.setattr(api_oauth, "FRONTEND_PRIMARY", "https://booka.co.za", raising=False)
+    return redis_stub
 
 
 class DummyResponse:
@@ -57,24 +99,39 @@ async def fake_parse_id_token(request, token):
 
 def test_google_oauth_creates_user(monkeypatch):
     Session = setup_app(monkeypatch)
-    monkeypatch.setattr(
-        api_oauth.oauth,
-        "google",
-        types.SimpleNamespace(
-            authorize_access_token=fake_authorize_access_token,
-            parse_id_token=fake_parse_id_token,
-        ),
-        raising=False,
-    )
+    configure_google(monkeypatch)
+
+    async def fake_exchange(code):
+        assert code == "code123"
+        return {"access_token": "token"}
+
+    async def fake_profile(request, token):
+        return {
+            "email": "new@example.com",
+            "given_name": "New",
+            "family_name": "User",
+        }
+
+    monkeypatch.setattr(api_oauth, "_exchange_google_code_for_tokens", fake_exchange, raising=False)
+    monkeypatch.setattr(api_oauth, "_fetch_google_profile", fake_profile, raising=False)
 
     client = TestClient(app)
-    res = client.get("/auth/google/callback?code=x&state=/done", follow_redirects=False)
-    assert res.status_code == 307
-    assert res.headers["location"].startswith("http://localhost:3000/login?token=")
-    assert "next=%2Fdone" in res.headers["location"]
-    token = res.headers["location"].split("token=")[1].split("&")[0]
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    assert payload["sub"] == "new@example.com"
+    login = client.get("/auth/google/login?next=/done", follow_redirects=False)
+    assert login.status_code == 302
+    assert login.headers["location"].startswith("https://accounts.google.com/")
+    qs = parse_qs(urlparse(login.headers["location"]).query)
+    state = qs["state"][0]
+
+    cb = client.get(f"/auth/google/callback?code=code123&state={state}", follow_redirects=False)
+    assert cb.status_code == 302
+    assert cb.headers["location"] == "https://booka.co.za/done"
+
+    set_cookie_header = cb.headers.get("set-cookie", "")
+    assert "access_token=" in set_cookie_header
+    assert "Domain=.booka.co.za" in set_cookie_header
+    assert "HttpOnly" in set_cookie_header
+    assert "Secure" in set_cookie_header
+    assert "SameSite=None" in set_cookie_header
 
     db = Session()
     user = db.query(User).filter(User.email == "new@example.com").first()
@@ -100,24 +157,30 @@ def test_google_oauth_updates_user(monkeypatch):
     db.commit()
     db.close()
 
-    monkeypatch.setattr(
-        api_oauth.oauth,
-        "google",
-        types.SimpleNamespace(
-            authorize_access_token=fake_authorize_access_token,
-            parse_id_token=fake_parse_id_token,
-        ),
-        raising=False,
-    )
+    configure_google(monkeypatch)
+
+    async def fake_exchange(code):
+        assert code == "code123"
+        return {"access_token": "token"}
+
+    async def fake_profile(request, token):
+        return {
+            "email": "new@example.com",
+            "given_name": "New",
+            "family_name": "User",
+        }
+
+    monkeypatch.setattr(api_oauth, "_exchange_google_code_for_tokens", fake_exchange, raising=False)
+    monkeypatch.setattr(api_oauth, "_fetch_google_profile", fake_profile, raising=False)
 
     client = TestClient(app)
-    res = client.get("/auth/google/callback?code=x&state=/here", follow_redirects=False)
-    assert res.status_code == 307
-    assert res.headers["location"].startswith("http://localhost:3000/login?token=")
-    assert "next=%2Fhere" in res.headers["location"]
-    token = res.headers["location"].split("token=")[1].split("&")[0]
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    assert payload["sub"] == "new@example.com"
+    login = client.get("/auth/google/login?next=/here", follow_redirects=False)
+    qs = parse_qs(urlparse(login.headers["location"]).query)
+    state = qs["state"][0]
+
+    res = client.get(f"/auth/google/callback?code=code123&state={state}", follow_redirects=False)
+    assert res.status_code == 302
+    assert res.headers["location"] == "https://booka.co.za/here"
 
     db = Session()
     users = db.query(User).filter(User.email == "new@example.com").all()
@@ -239,79 +302,56 @@ def test_github_login_redirects_to_dashboard(monkeypatch):
 
 def test_google_login_sets_session(monkeypatch):
     Session = setup_app(monkeypatch)
-
-    async def fake_redirect(req, redirect_uri, state=None):
-        req.session["oauth_state"] = state
-        return RedirectResponse(url=redirect_uri)
-
-    monkeypatch.setattr(
-        api_oauth.oauth,
-        "google",
-        types.SimpleNamespace(authorize_redirect=fake_redirect),
-        raising=False,
-    )
+    redis_stub = configure_google(monkeypatch)
     client = TestClient(app)
     resp = client.get("/auth/google/login?next=/dash", follow_redirects=False)
-    assert resp.status_code == 307
-    assert "session=" in resp.headers.get("set-cookie", "")
+    assert resp.status_code == 302
+    qs = parse_qs(urlparse(resp.headers["location"]).query)
+    state = qs["state"][0]
+    assert redis_stub.store[f"oauth:state:{state}"] == "1"
+    assert redis_stub.store[f"oauth:next:{state}"] == "/dash"
     app.dependency_overrides.pop(get_db, None)
 
 
 def test_google_login_default_next(monkeypatch):
     Session = setup_app(monkeypatch)
-    captured = {}
-
-    async def fake_redirect(req, redirect_uri, state=None):
-        captured["state"] = state
-        return RedirectResponse(url=redirect_uri)
-
-    monkeypatch.setattr(
-        api_oauth.oauth,
-        "google",
-        types.SimpleNamespace(authorize_redirect=fake_redirect),
-        raising=False,
-    )
+    redis_stub = configure_google(monkeypatch)
     client = TestClient(app)
     resp = client.get("/auth/google/login", follow_redirects=False)
-    assert resp.status_code == 307
-    assert captured["state"] == settings.FRONTEND_URL.rstrip("/") + "/dashboard"
+    assert resp.status_code == 302
+    state = parse_qs(urlparse(resp.headers["location"]).query)["state"][0]
+    assert redis_stub.store[f"oauth:next:{state}"] == "/dashboard"
     app.dependency_overrides.pop(get_db, None)
 
 
 def test_google_login_redirects_to_dashboard(monkeypatch):
     """Login without ?next= should redirect to /dashboard."""
     Session = setup_app(monkeypatch)
-    captured = {}
+    configure_google(monkeypatch)
 
-    async def fake_redirect(req, redirect_uri, state=None):
-        captured["state"] = state
-        return RedirectResponse(url=redirect_uri)
+    async def fake_exchange(code):
+        return {"access_token": "token"}
 
-    monkeypatch.setattr(
-        api_oauth.oauth,
-        "google",
-        types.SimpleNamespace(
-            authorize_redirect=fake_redirect,
-            authorize_access_token=fake_authorize_access_token,
-            parse_id_token=fake_parse_id_token,
-        ),
-        raising=False,
-    )
+    async def fake_profile(request, token):
+        return {
+            "email": "dash@example.com",
+            "given_name": "Dash",
+            "family_name": "Board",
+        }
+
+    monkeypatch.setattr(api_oauth, "_exchange_google_code_for_tokens", fake_exchange, raising=False)
+    monkeypatch.setattr(api_oauth, "_fetch_google_profile", fake_profile, raising=False)
+
     client = TestClient(app)
-
-    resp = client.get("/auth/google/login", follow_redirects=False)
-    assert resp.status_code == 307
-    assert captured["state"] == settings.FRONTEND_URL.rstrip("/") + "/dashboard"
+    login = client.get("/auth/google/login", follow_redirects=False)
+    state = parse_qs(urlparse(login.headers["location"]).query)["state"][0]
 
     cb = client.get(
-        f'/auth/google/callback?code=x&state={captured["state"]}',
+        f"/auth/google/callback?code=ok&state={state}",
         follow_redirects=False,
     )
-    assert cb.status_code == 307
-    assert cb.headers["location"].startswith(
-        settings.FRONTEND_URL.rstrip("/") + "/login?token="
-    )
-    assert "next=%2Fdashboard" in cb.headers["location"]
+    assert cb.status_code == 302
+    assert cb.headers["location"] == "https://booka.co.za/dashboard"
 
     app.dependency_overrides.pop(get_db, None)
 
@@ -331,28 +371,26 @@ def test_oauth_merges_case_insensitive_email(monkeypatch):
     db.commit()
     db.close()
 
-    async def fake_authorize_access_token(request):
+    configure_google(monkeypatch)
+
+    async def fake_exchange(code):
         return {"access_token": "token"}
 
-    async def fake_parse_id_token(request, token):
+    async def fake_profile(request, token):
         return {
             "email": "case@example.com",
             "given_name": "New",
             "family_name": "Name",
         }
 
-    monkeypatch.setattr(
-        api_oauth.oauth,
-        "google",
-        types.SimpleNamespace(
-            authorize_access_token=fake_authorize_access_token,
-            parse_id_token=fake_parse_id_token,
-        ),
-        raising=False,
-    )
+    monkeypatch.setattr(api_oauth, "_exchange_google_code_for_tokens", fake_exchange, raising=False)
+    monkeypatch.setattr(api_oauth, "_fetch_google_profile", fake_profile, raising=False)
+
     client = TestClient(app)
-    res = client.get("/auth/google/callback?code=x&state=/done", follow_redirects=False)
-    assert res.status_code == 307
+    login = client.get("/auth/google/login?next=/done", follow_redirects=False)
+    state = parse_qs(urlparse(login.headers["location"]).query)["state"][0]
+    res = client.get(f"/auth/google/callback?code=ok&state={state}", follow_redirects=False)
+    assert res.status_code == 302
 
     db = Session()
     users = db.query(User).filter(func.lower(User.email) == "case@example.com").all()
@@ -380,28 +418,26 @@ def test_oauth_merges_gmail_alias(monkeypatch):
     db.commit()
     db.close()
 
-    async def fake_authorize_access_token(request):
+    configure_google(monkeypatch)
+
+    async def fake_exchange(code):
         return {"access_token": "token"}
 
-    async def fake_parse_id_token(request, token):
+    async def fake_profile(request, token):
         return {
             "email": "u.ser+spam@googlemail.com",
             "given_name": "New",
             "family_name": "Name",
         }
 
-    monkeypatch.setattr(
-        api_oauth.oauth,
-        "google",
-        types.SimpleNamespace(
-            authorize_access_token=fake_authorize_access_token,
-            parse_id_token=fake_parse_id_token,
-        ),
-        raising=False,
-    )
+    monkeypatch.setattr(api_oauth, "_exchange_google_code_for_tokens", fake_exchange, raising=False)
+    monkeypatch.setattr(api_oauth, "_fetch_google_profile", fake_profile, raising=False)
+
     client = TestClient(app)
-    res = client.get("/auth/google/callback?code=x&state=/done", follow_redirects=False)
-    assert res.status_code == 307
+    login = client.get("/auth/google/login?next=/done", follow_redirects=False)
+    state = parse_qs(urlparse(login.headers["location"]).query)["state"][0]
+    res = client.get(f"/auth/google/callback?code=ok&state={state}", follow_redirects=False)
+    assert res.status_code == 302
 
     db = Session()
     users = db.query(User).filter(func.lower(User.email) == "user@gmail.com").all()
@@ -414,21 +450,21 @@ def test_oauth_merges_gmail_alias(monkeypatch):
 def test_google_oauth_token_error(monkeypatch):
     Session = setup_app(monkeypatch)
 
-    async def bad_authorize_access_token(request):
-        raise Exception("boom")
+    configure_google(monkeypatch)
 
-    monkeypatch.setattr(
-        api_oauth.oauth,
-        "google",
-        types.SimpleNamespace(authorize_access_token=bad_authorize_access_token),
-        raising=False,
-    )
+    async def bad_exchange(code):
+        raise HTTPException(status_code=400, detail="boom")
+
+    monkeypatch.setattr(api_oauth, "_exchange_google_code_for_tokens", bad_exchange, raising=False)
 
     client = TestClient(app)
-    res = client.get("/auth/google/callback?code=x&state=/done", follow_redirects=False)
-    assert res.status_code == 400
-    data = res.json()
-    assert data["detail"]["message"] == "Google authentication failed"
-    assert data["detail"]["field_errors"] == {}
+    login = client.get("/auth/google/login", follow_redirects=False)
+    state = parse_qs(urlparse(login.headers["location"]).query)["state"][0]
+    res = client.get(
+        f"/auth/google/callback?code=bad&state={state}",
+        follow_redirects=False,
+    )
+    assert res.status_code == 302
+    assert res.headers["location"] == "https://booka.co.za/login?oauth_error=token"
 
     app.dependency_overrides.pop(get_db, None)
