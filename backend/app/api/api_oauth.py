@@ -10,7 +10,7 @@ import json
 import logging
 import secrets
 import time
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from authlib.integrations.starlette_client import OAuth
 import httpx
@@ -21,7 +21,6 @@ from app.core.config import (
     FRONTEND_PRIMARY,
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
-    GOOGLE_REDIRECT_URI,
 )
 from app.database import get_db
 from app.models import User, UserType
@@ -158,7 +157,38 @@ async def _consume_redis_state(state_id: str) -> str:
     return _normalize_next_path(raw_next if isinstance(raw_next, str) else None)
 
 
-async def _exchange_google_code_for_tokens(code: str) -> dict:
+def _login_redirect_uri(request: Request) -> str:
+    """Derive the Google OAuth redirect URI for classic button flows."""
+    fallback = "https://api.booka.co.za/auth/google/callback"
+    try:
+        configured = (getattr(settings, "GOOGLE_OAUTH_REDIRECT_URI", "") or "").strip()
+        if configured:
+            fallback = configured
+    except Exception:  # pragma: no cover - defensive safeguard
+        pass
+
+    try:
+        candidate = str(request.url_for("google_callback"))
+    except Exception:  # pragma: no cover - defensive guard
+        return fallback
+
+    parsed = urlparse(candidate)
+    host = (parsed.hostname or "").lower()
+    forwarded_proto = (
+        request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+    )
+
+    if parsed.scheme != "https" and forwarded_proto == "https":
+        candidate = candidate.replace("http://", "https://", 1)
+        parsed = urlparse(candidate)
+
+    if parsed.scheme == "https" or host in {"localhost", "127.0.0.1"}:
+        return candidate
+
+    return fallback
+
+
+async def _exchange_google_code_for_tokens(code: str, redirect_uri: str) -> dict:
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise error_response(
             "Google OAuth not configured",
@@ -169,7 +199,7 @@ async def _exchange_google_code_for_tokens(code: str) -> dict:
         "code": code,
         "client_id": GOOGLE_CLIENT_ID,
         "client_secret": GOOGLE_CLIENT_SECRET,
-        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
     }
     try:
@@ -302,10 +332,12 @@ async def google_login(request: Request, next: str = "/dashboard"):
 
     state_token = await _issue_oauth_state(next)
 
+    redirect_uri = _login_redirect_uri(request)
+
     params = {
         "response_type": "code",
         "client_id": GOOGLE_CLIENT_ID,
-        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "redirect_uri": redirect_uri,
         "scope": "openid email profile",
         "state": state_token,
         "access_type": "online",
@@ -357,8 +389,10 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             status_code=302,
         )
 
+    redirect_uri = _login_redirect_uri(request)
+
     try:
-        token = await _exchange_google_code_for_tokens(code)
+        token = await _exchange_google_code_for_tokens(code, redirect_uri)
     except HTTPException:
         return RedirectResponse(
             url=f"{FRONTEND_PRIMARY}/login?oauth_error=token",
