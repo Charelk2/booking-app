@@ -355,6 +355,11 @@ export default function MainLayout({
     !isArtistView &&
     (pathname === '/' || pathname.startsWith('/service-providers') || pathname.startsWith('/category'));
 
+  const isAuthScreen = pathname === '/login' || pathname === '/register';
+  const headerVariant = isAuthScreen ? 'auth' : 'default';
+  const suppressHeaderActions = isAuthScreen;
+  const shouldHideFooter = hideFooter || isAuthScreen;
+
   return (
     <div className="flex min-h-screen flex-col bg-white bg-gradient-to-b from-brand-light/50 to-gray-50">
       {/* Desktop expanded overlay */}
@@ -394,6 +399,8 @@ export default function MainLayout({
           }
           showSearchBar={showSearchBar}
           filterControl={headerFilter}
+          variant={headerVariant}
+          hideAccountActions={suppressHeaderActions}
         />
 
         {/* Mobile search overlay (outside header, covers page content) */}
@@ -425,7 +432,7 @@ export default function MainLayout({
         </main>
       </div>
 
-      {!hideFooter && <Footer />}
+      {!shouldHideFooter && <Footer />}
 
       {user && <MobileBottomNav user={user} />}
 

@@ -211,12 +211,23 @@ HeaderMessagesLink.Definition = function Definition() {
   return null;
 };
 
-function HeaderMessagesLinkMobile({ unread }: { unread: number }) {
+function HeaderMessagesLinkMobile({
+  unread,
+  variant,
+}: {
+  unread: number;
+  variant: 'default' | 'auth';
+}) {
   const router = useRouter();
   return (
     <Link
       href="/inbox"
-      className="md:hidden p-2 rounded-xl transition text-white relative hover:bg-gray-900 hover:text-white hover:no-underline"
+      className={clsx(
+        'md:hidden p-2 rounded-xl transition relative hover:no-underline',
+        variant === 'auth'
+          ? 'text-gray-900 hover:bg-gray-100'
+          : 'text-white hover:bg-gray-900 hover:text-white'
+      )}
       aria-label={unread > 0 ? `Messages (${unread} unread)` : 'Messages'}
       onMouseEnter={() => router.prefetch?.('/inbox')}
       onFocus={() => router.prefetch?.('/inbox')}
@@ -244,10 +255,20 @@ interface HeaderProps {
   onForceHeaderState: (state: HeaderState, scrollTarget?: number) => void;
   showSearchBar?: boolean;
   filterControl?: ReactNode;
+  variant?: 'default' | 'auth';
+  hideAccountActions?: boolean;
 }
 
 const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
-  { extraBar, headerState, onForceHeaderState, showSearchBar = true, filterControl },
+  {
+    extraBar,
+    headerState,
+    onForceHeaderState,
+    showSearchBar = true,
+    filterControl,
+    variant = 'default',
+    hideAccountActions = false,
+  },
   ref,
 ) {
   const { user, logout, artistViewActive, toggleArtistView } = useAuth();
@@ -257,6 +278,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const searchParams = useSearchParams();
 
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
+  const headerVariant = variant;
+  const isAuthVariant = headerVariant === 'auth';
+  const suppressAccountActions = hideAccountActions;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showBecomeProvider, setShowBecomeProvider] = useState(false);
@@ -412,9 +436,31 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Visual style
   const headerClasses = clsx(
-    'sticky top-0 z-50',
-    'bg-black supports-[backdrop-filter]:backdrop-blur-md',
-    'border-b border-black/5'
+    'sticky top-0 z-50 border-b',
+    isAuthVariant
+      ? 'bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm border-slate-200'
+      : 'bg-black supports-[backdrop-filter]:backdrop-blur-md border-black/5'
+  );
+
+  const topRowClasses = clsx(
+    'grid px-2 grid-cols-[auto,1fr,auto] items-center gap-2',
+    isAuthVariant ? 'bg-transparent text-gray-900' : 'bg-black text-white'
+  );
+
+  const menuButtonClasses = clsx(
+    'md:hidden p-2 rounded-xl transition',
+    isAuthVariant
+      ? 'text-gray-900 hover:bg-gray-100 active:bg-gray-200'
+      : 'hover:bg-white/10 active:bg-white/15 text-white'
+  );
+
+  const brandLinkClasses = clsx(
+    'text-4xl font-bold tracking-tight no-underline hover:no-underline',
+    isAuthVariant
+      ? 'text-gray-900 hover:text-gray-900 focus-visible:ring-black/20'
+      : 'text-white hover:text-white focus-visible:ring-white/50',
+    'rounded-md px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+    isAuthVariant ? 'focus-visible:ring-offset-white' : 'focus-visible:ring-offset-black'
   );
 
   return (
@@ -429,32 +475,26 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       <HeaderMessagesLink.Definition />
       <div className="mx-auto full-width px-2 sm:px-4 lg:px-6">
         {/* Top Row */}
-        <div className="grid px-2 bg-black grid-cols-[auto,1fr,auto] items-center gap-2">
+        <div className={topRowClasses}>
           {/* Left cluster: menu + brand + (mobile pill) */}
           <div className="col-span-3 md:col-span-1 flex items-center gap-2 w-full min-w-0">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="Open menu"
-              className={clsx(
-                'md:hidden p-2 rounded-xl transition',
-                'hover:bg-white/10 active:bg-white/15',
-                hoverNeutralLink
-              )}
+              className={clsx(menuButtonClasses, hoverNeutralLink)}
             >
-              <Bars3Icon className="h-6 w-6 text-white" />
+              <Bars3Icon className={clsx('h-6 w-6', isAuthVariant ? 'text-gray-900' : 'text-white')} />
             </button>
 
             {/* MOBILE: messages shortcut with non-flicker unread badge */}
-            <HeaderMessagesLinkMobile unread={unreadThreadsCount} />
+            {!suppressAccountActions && (
+              <HeaderMessagesLinkMobile unread={unreadThreadsCount} variant={headerVariant} />
+            )}
 
             <Link
               href="/"
-              className={clsx(
-                'text-4xl font-bold tracking-tight hover:text-white',
-                'text-white',
-                hoverNeutralLink2
-              )}
+              className={brandLinkClasses}
               aria-label="Booka home"
             >
               Booka
@@ -481,7 +521,14 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
             {/* MOBILE: filter icon (inline, forced white) */}
             {filterControl && (
-              <div className="md:hidden ml-2 shrink-0 text-white [&_svg]:!text-white [&_svg]:!stroke-white [&_*]:!text-white">
+              <div
+                className={clsx(
+                  'md:hidden ml-2 shrink-0 [&_svg]:!stroke-inherit [&_*]:!text-inherit',
+                  isAuthVariant
+                    ? 'text-gray-900 [&_svg]:!text-gray-900'
+                    : 'text-white [&_svg]:!text-white'
+                )}
+              >
                 {filterControl}
               </div>
             )}
@@ -559,8 +606,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
           {/* Right actions */}
           <div className="hidden sm:flex items-center justify-end gap-2">
-            {user ? (
-              <>
+            {!suppressAccountActions && (
+              user ? (
+                <>
                 {user.user_type === 'service_provider' && (
                   <button
                     onClick={toggleArtistView}
@@ -770,58 +818,59 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     </Menu.Items>
                   </Transition>
                 </Menu>
-              </>
-            ) : (
-              <div className="flex gap-2">
-                {(!user || user.user_type === 'client') && (
-                  user ? (
-                    <button
-                      onClick={() => setShowBecomeProvider(true)}
-                      className={clsx(
-                        'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
-                        hoverNeutralLink2
-                      )}
-                    >
-                      List your service
-                    </button>
-                  ) : (
-                    <Link
-                      href="/register"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const next = '/dashboard/artist';
-                        router.push(`/register?user_type=service_provider&next=${encodeURIComponent(next)}`);
-                      }}
-                      className={clsx(
-                        'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
-                        hoverNeutralLink2
-                      )}
-                    >
-                      List your service
-                    </Link>
-                  )
-                )}
-                <Link
-                  href="/login"
-                  onClick={goToLogin}
-                  className={clsx(
-                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 hover:text-white',
-                    hoverNeutralLink2
+                </>
+              ) : (
+                <div className="flex gap-2">
+                  {(!user || user.user_type === 'client') && (
+                    user ? (
+                      <button
+                        onClick={() => setShowBecomeProvider(true)}
+                        className={clsx(
+                          'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
+                          hoverNeutralLink2
+                        )}
+                      >
+                        List your service
+                      </button>
+                    ) : (
+                      <Link
+                        href="/register"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const next = '/dashboard/artist';
+                          router.push(`/register?user_type=service_provider&next=${encodeURIComponent(next)}`);
+                        }}
+                        className={clsx(
+                          'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
+                          hoverNeutralLink2
+                        )}
+                      >
+                        List your service
+                      </Link>
+                    )
                   )}
-                >
-                  Sign in
-                </Link>
-                <Link
-                  href="/register"
-                  onClick={goToRegister}
-                  className={clsx(
-                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 hover:text-white',
-                    hoverNeutralLink2
-                  )}
-                >
-                  Sign up
-                </Link>
-              </div>
+                  <Link
+                    href="/login"
+                    onClick={goToLogin}
+                    className={clsx(
+                      'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 hover:text-white',
+                      hoverNeutralLink2
+                    )}
+                  >
+                    Sign in
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={goToRegister}
+                    className={clsx(
+                      'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 hover:text-white',
+                      hoverNeutralLink2
+                    )}
+                  >
+                    Sign up
+                  </Link>
+                </div>
+              )
             )}
           </div>
         </div>
@@ -898,6 +947,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         user={user}
         logout={logout}
         pathname={pathname}
+        hideAuthLinks={suppressAccountActions}
       />
 
       {/* Notifications UI removed from dropdown per request */}
