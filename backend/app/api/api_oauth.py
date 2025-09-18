@@ -301,14 +301,14 @@ async def google_login(request: Request, next: str = "/dashboard"):
         "redirect_uri": GOOGLE_REDIRECT_URI,
         "scope": "openid email profile",
         "state": state_token,
-        "access_type": "offline",
+        "access_type": "online",
         "include_granted_scopes": "true",
     }
     prompt = request.query_params.get("prompt")
     if prompt:
         params["prompt"] = prompt
     else:
-        params["prompt"] = "consent"
+        params["prompt"] = "select_account"
 
     google_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
     return RedirectResponse(url=google_url, status_code=302)
