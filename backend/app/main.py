@@ -405,7 +405,7 @@ try:
     session_kwargs["https_only"] = settings.FRONTEND_URL.lower().startswith("https")
 except Exception:
     pass
-cookie_domain = getattr(settings, "COOKIE_DOMAIN", "") or None
+cookie_domain = auth.get_cookie_domain()
 if cookie_domain:
     session_kwargs["domain"] = cookie_domain
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY, **session_kwargs)
