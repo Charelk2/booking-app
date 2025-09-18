@@ -25,11 +25,15 @@ interface MobileMenuDrawerProps {
   user: User | null;
   logout: () => void;
   pathname: string;
+  hideAuthLinks?: boolean;
 }
 
-const useMobileNavItems = (user: User | null): NavItem[] => {
+const useMobileNavItems = (user: User | null, hideAuthLinks: boolean): NavItem[] => {
   return useMemo(() => {
     if (!user) {
+      if (hideAuthLinks) {
+        return [];
+      }
       return [
         { name: 'Sign in', href: '/login' },
         { name: 'Sign up', href: '/register' },
@@ -48,7 +52,7 @@ const useMobileNavItems = (user: User | null): NavItem[] => {
       { name: 'Messages', href: '/inbox' },
       { name: 'Edit Profile', href: '/account' },
     ];
-  }, [user]);
+  }, [user, hideAuthLinks]);
 };
 
 interface NavigationSectionProps {
@@ -91,8 +95,9 @@ export default function MobileMenuDrawer({
   user,
   logout,
   pathname,
+  hideAuthLinks = false,
 }: MobileMenuDrawerProps) {
-  const accountLinks = useMobileNavItems(user);
+  const accountLinks = useMobileNavItems(user, hideAuthLinks);
   const extraNavigation = secondaryNavigation.filter(
     (item) => !navigation.some((nav) => nav.href === item.href),
   );
