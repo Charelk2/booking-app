@@ -1,6 +1,7 @@
 'use client';
 
 import Button from '@/components/ui/Button';
+import { getApiOrigin } from '@/lib/api';
 
 interface SocialLoginButtonsProps {
   redirectPath?: string;
@@ -15,8 +16,7 @@ const providers = [
 
 export default function SocialLoginButtons({ redirectPath = '/dashboard' }: SocialLoginButtonsProps) {
   const handleLogin = (provider: string) => {
-    // Navigate via same-origin path so cookies are set for booka.co.za
-    window.location.href = `/auth/${provider}/login?next=${encodeURIComponent(redirectPath)}`;
+    window.location.href = `${getApiOrigin()}/auth/${provider}/login?next=${encodeURIComponent(redirectPath)}`;
   };
 
   return (

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timedelta
+from typing import Iterable
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
@@ -64,7 +65,7 @@ from .api import (
 # The “service-provider-profiles” router lives under app/api/v1/
 from .api.v1 import api_service_provider as api_service_provider_profiles
 from .api.v1.api_images import img_router
-from .core.config import settings
+from .core.config import settings, FRONTEND_ORIGINS
 from .core.observability import setup_logging, setup_tracer
 from .crud import crud_quote_v2
 from .database import Base, SessionLocal, engine
@@ -362,26 +363,26 @@ except Exception as _exc:
 
 # ─── CORS middleware (credentials-compatible, explicit allowlist) ─────────────
 # With cookies, Access-Control-Allow-Origin cannot be "*". Build a safe allowlist.
-ALLOWED_ORIGINS = [
-    "https://booka.co.za",
-    "https://www.booka.co.za",
+
+def _merge_origins(*groups: Iterable[str]) -> list[str]:
+    merged: list[str] = []
+    for group in groups:
+        for origin in group:
+            if not origin:
+                continue
+            normalized = origin.rstrip("/")
+            if normalized not in merged:
+                merged.append(normalized)
+    return merged
+
+
+ADDITIONAL_ORIGINS = [
     "https://join.booka.co.za",
     "https://staging.booka.co.za",
     "https://booka-admin.fly.dev",
-    "http://localhost:3000",
-    "http://localhost:5173",
 ]
-# Include env-configured origins if present (e.g., FRONTEND_URL or CORS_ORIGINS)
-env_frontend = os.getenv("FRONTEND_URL")
-if env_frontend:
-    ALLOWED_ORIGINS.append(env_frontend)
-if getattr(settings, "CORS_ORIGINS", None):
-    try:
-        for o in settings.CORS_ORIGINS:
-            if o not in ALLOWED_ORIGINS:
-                ALLOWED_ORIGINS.append(o)
-    except Exception:
-        pass
+
+ALLOWED_ORIGINS = _merge_origins(FRONTEND_ORIGINS, ADDITIONAL_ORIGINS)
 
 app.add_middleware(
     CORSMiddleware,

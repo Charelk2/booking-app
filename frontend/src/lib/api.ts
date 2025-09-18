@@ -31,19 +31,23 @@ import {
   ServiceCategory,
 } from '@/types';
 
+export const getApiOrigin = () =>
+  (process.env.NEXT_PUBLIC_API_URL || 'https://api.booka.co.za').replace(/\/+$/, '');
+
 // Create a single axios instance for all requests
 // Use same-origin relative base so browser calls go through Next.js rewrites
 // and avoid CORS in production. Server-side or tests still work since the
 // requests are relative to the Next.js server origin.
 const api = axios.create({
   baseURL: '',
+  withCredentials: true,
   headers: {
     // Do not force a global Content-Type. Let axios infer JSON for plain objects
     // and let the browser set multipart boundaries for FormData uploads.
   },
 });
 
-const STATIC_API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+const STATIC_API_ORIGIN = getApiOrigin();
 const withApiOrigin = (path: string) => {
   if (!path || /^https?:/i.test(path)) return path;
   if (typeof window !== 'undefined') {
@@ -55,7 +59,6 @@ const withApiOrigin = (path: string) => {
 };
 
 // Allow sending/receiving HttpOnly cookies
-api.defaults.withCredentials = true;
 
 // Automatically attach the bearer token (if present) to every request
 let preferredMachineId: string | null = null;
