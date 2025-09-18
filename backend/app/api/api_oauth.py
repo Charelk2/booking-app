@@ -3,8 +3,13 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
-import secrets
+import base64
+import hashlib
+import hmac
+import json
 import logging
+import secrets
+import time
 from urllib.parse import urlencode
 
 from authlib.integrations.starlette_client import OAuth
@@ -51,37 +56,97 @@ oauth = OAuth()
 _STATE_TTL_SECONDS = 600
 _STATE_KEY_PREFIX = "oauth:state:"
 _NEXT_KEY_PREFIX = "oauth:next:"
+_REDIS_STATE_PREFIX = "redis:"
+_SIGNED_STATE_PREFIX = "sig:"
 
 
-async def _store_oauth_state(state: str, next_path: str) -> None:
+def _b64_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def _b64_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode(value + padding)
+
+
+def _encode_signed_state(next_path: str) -> str:
+    payload = json.dumps(
+        {
+            "n": new_oauth_state(),
+            "exp": int(time.time()) + _STATE_TTL_SECONDS,
+            "next": next_path,
+        },
+        separators=(",", ":"),
+    ).encode("utf-8")
+    secret = settings.SECRET_KEY.encode("utf-8")
+    digest = hmac.new(secret, payload, hashlib.sha256).digest()
+    token = f"{_SIGNED_STATE_PREFIX}{_b64_encode(payload)}.{_b64_encode(digest)}"
+    return token
+
+
+def _decode_signed_state(token: str) -> str:
+    if not token.startswith(_SIGNED_STATE_PREFIX):
+        raise ValueError("invalid_signed_state")
     try:
-        await redis.setex(f"{_STATE_KEY_PREFIX}{state}", _STATE_TTL_SECONDS, "1")
-        await redis.setex(f"{_NEXT_KEY_PREFIX}{state}", _STATE_TTL_SECONDS, next_path)
-    except Exception as exc:  # pragma: no cover - defensive logging
-        logger.error("Failed to persist OAuth state: %s", exc)
-        raise error_response(
-            "OAuth temporarily unavailable",
-            {},
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
-
-
-async def _consume_oauth_state(state: str) -> str:
+        encoded_payload, encoded_digest = token[len(_SIGNED_STATE_PREFIX) :].split(".", 1)
+    except ValueError as exc:  # pragma: no cover - defensive guard
+        raise ValueError("malformed_signed_state") from exc
+    payload = _b64_decode(encoded_payload)
+    provided_digest = _b64_decode(encoded_digest)
+    secret = settings.SECRET_KEY.encode("utf-8")
+    expected_digest = hmac.new(secret, payload, hashlib.sha256).digest()
+    if not hmac.compare_digest(expected_digest, provided_digest):
+        raise ValueError("invalid_signature")
     try:
-        exists = await redis.get(f"{_STATE_KEY_PREFIX}{state}")
+        data = json.loads(payload.decode("utf-8"))
+    except json.JSONDecodeError as exc:  # pragma: no cover - defensive guard
+        raise ValueError("invalid_payload") from exc
+    exp = data.get("exp")
+    if isinstance(exp, int) and time.time() > exp:
+        raise ValueError("state_expired")
+    return sanitize_next(data.get("next"))
+
+
+async def _issue_oauth_state(next_path: str) -> str:
+    sanitized = sanitize_next(next_path)
+    state_id = new_oauth_state()
+    try:
+        await redis.setex(f"{_STATE_KEY_PREFIX}{state_id}", _STATE_TTL_SECONDS, "1")
+        await redis.setex(f"{_NEXT_KEY_PREFIX}{state_id}", _STATE_TTL_SECONDS, sanitized)
+        return f"{_REDIS_STATE_PREFIX}{state_id}"
+    except Exception as exc:
+        logger.warning("Redis unavailable for OAuth state, using signed token: %s", exc)
+        return _encode_signed_state(sanitized)
+
+
+async def _consume_oauth_state(state_token: str) -> str:
+    if not state_token:
+        raise ValueError("missing_state")
+    if state_token.startswith(_SIGNED_STATE_PREFIX):
+        return _decode_signed_state(state_token)
+    if state_token.startswith(_REDIS_STATE_PREFIX):
+        return await _consume_redis_state(state_token[len(_REDIS_STATE_PREFIX) :])
+    # Backwards compatibility: plain Redis state without prefix
+    return await _consume_redis_state(state_token)
+
+
+async def _consume_redis_state(state_id: str) -> str:
+    if not state_id:
+        raise ValueError("invalid_state")
+    try:
+        exists = await redis.get(f"{_STATE_KEY_PREFIX}{state_id}")
     except Exception as exc:  # pragma: no cover
         logger.error("Failed to read OAuth state: %s", exc)
         raise RuntimeError("oauth_state_lookup_failed") from exc
     if not exists:
         raise ValueError("invalid_or_expired_state")
     try:
-        raw_next = await redis.get(f"{_NEXT_KEY_PREFIX}{state}")
+        raw_next = await redis.get(f"{_NEXT_KEY_PREFIX}{state_id}")
     except Exception:
         raw_next = None
     try:
-        await redis.delete(f"{_STATE_KEY_PREFIX}{state}", f"{_NEXT_KEY_PREFIX}{state}")
+        await redis.delete(f"{_STATE_KEY_PREFIX}{state_id}", f"{_NEXT_KEY_PREFIX}{state_id}")
     except Exception:
-        # Non-fatal; keys will expire naturally
         pass
     return sanitize_next(raw_next if isinstance(raw_next, str) else None)
 
@@ -228,16 +293,14 @@ async def google_login(request: Request, next: str = "/dashboard"):
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    state = new_oauth_state()
-    next_path = sanitize_next(next)
-    await _store_oauth_state(state, next_path)
+    state_token = await _issue_oauth_state(next)
 
     params = {
         "response_type": "code",
         "client_id": GOOGLE_CLIENT_ID,
         "redirect_uri": GOOGLE_REDIRECT_URI,
         "scope": "openid email profile",
-        "state": state,
+        "state": state_token,
         "access_type": "offline",
         "include_granted_scopes": "true",
     }
