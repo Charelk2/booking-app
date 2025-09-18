@@ -334,6 +334,38 @@ def test_google_login_default_next(monkeypatch):
     app.dependency_overrides.pop(get_db, None)
 
 
+def test_google_login_rewrites_login_next(monkeypatch):
+    Session = setup_app(monkeypatch)
+    redis_stub = configure_google(monkeypatch)
+
+    async def fake_exchange(code):
+        return {"access_token": "token"}
+
+    async def fake_profile(request, token):
+        return {
+            "email": "loop@example.com",
+            "given_name": "Loop",
+            "family_name": "Breaker",
+        }
+
+    monkeypatch.setattr(api_oauth, "_exchange_google_code_for_tokens", fake_exchange, raising=False)
+    monkeypatch.setattr(api_oauth, "_fetch_google_profile", fake_profile, raising=False)
+
+    client = TestClient(app)
+    resp = client.get("/auth/google/login?next=/login", follow_redirects=False)
+    assert resp.status_code == 302
+    state = parse_qs(urlparse(resp.headers["location"]).query)["state"][0]
+    assert state.startswith("redis:")
+    state_id = state.split(":", 1)[1]
+    assert redis_stub.store[f"oauth:next:{state_id}"] == "/dashboard"
+
+    cb = client.get(f"/auth/google/callback?code=ok&state={state}", follow_redirects=False)
+    assert cb.status_code == 302
+    assert cb.headers["location"] == "https://booka.co.za/dashboard"
+
+    app.dependency_overrides.pop(get_db, None)
+
+
 def test_google_login_redirects_to_dashboard(monkeypatch):
     """Login without ?next= should redirect to /dashboard."""
     Session = setup_app(monkeypatch)

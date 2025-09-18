@@ -69,6 +69,13 @@ def _b64_decode(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + padding)
 
 
+def _normalize_next_path(next_path: str | None) -> str:
+    sanitized = sanitize_next(next_path)
+    if sanitized.startswith("/login"):
+        return "/dashboard"
+    return sanitized or "/"
+
+
 def _encode_signed_state(next_path: str) -> str:
     payload = json.dumps(
         {
@@ -104,11 +111,11 @@ def _decode_signed_state(token: str) -> str:
     exp = data.get("exp")
     if isinstance(exp, int) and time.time() > exp:
         raise ValueError("state_expired")
-    return sanitize_next(data.get("next"))
+    return _normalize_next_path(data.get("next"))
 
 
 async def _issue_oauth_state(next_path: str) -> str:
-    sanitized = sanitize_next(next_path)
+    sanitized = _normalize_next_path(next_path)
     state_id = new_oauth_state()
     try:
         await redis.setex(f"{_STATE_KEY_PREFIX}{state_id}", _STATE_TTL_SECONDS, "1")
@@ -148,7 +155,7 @@ async def _consume_redis_state(state_id: str) -> str:
         await redis.delete(f"{_STATE_KEY_PREFIX}{state_id}", f"{_NEXT_KEY_PREFIX}{state_id}")
     except Exception:
         pass
-    return sanitize_next(raw_next if isinstance(raw_next, str) else None)
+    return _normalize_next_path(raw_next if isinstance(raw_next, str) else None)
 
 
 async def _exchange_google_code_for_tokens(code: str) -> dict:
