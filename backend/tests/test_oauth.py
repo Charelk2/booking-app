@@ -40,11 +40,17 @@ def setup_app(monkeypatch):
 class DummyAsyncRedis:
     def __init__(self) -> None:
         self.store: dict[str, str] = {}
+        self.fail_writes = False
+        self.fail_reads = False
 
     async def setex(self, key: str, ttl: int, value: str) -> None:
+        if self.fail_writes:
+            raise RuntimeError("redis down")
         self.store[key] = value
 
     async def get(self, key: str):
+        if self.fail_reads:
+            raise RuntimeError("redis down")
         return self.store.get(key)
 
     async def delete(self, *keys: str) -> int:
@@ -308,8 +314,10 @@ def test_google_login_sets_session(monkeypatch):
     assert resp.status_code == 302
     qs = parse_qs(urlparse(resp.headers["location"]).query)
     state = qs["state"][0]
-    assert redis_stub.store[f"oauth:state:{state}"] == "1"
-    assert redis_stub.store[f"oauth:next:{state}"] == "/dash"
+    assert state.startswith("redis:")
+    state_id = state.split(":", 1)[1]
+    assert redis_stub.store[f"oauth:state:{state_id}"] == "1"
+    assert redis_stub.store[f"oauth:next:{state_id}"] == "/dash"
     app.dependency_overrides.pop(get_db, None)
 
 
@@ -320,7 +328,9 @@ def test_google_login_default_next(monkeypatch):
     resp = client.get("/auth/google/login", follow_redirects=False)
     assert resp.status_code == 302
     state = parse_qs(urlparse(resp.headers["location"]).query)["state"][0]
-    assert redis_stub.store[f"oauth:next:{state}"] == "/dashboard"
+    assert state.startswith("redis:")
+    state_id = state.split(":", 1)[1]
+    assert redis_stub.store[f"oauth:next:{state_id}"] == "/dashboard"
     app.dependency_overrides.pop(get_db, None)
 
 
@@ -352,6 +362,38 @@ def test_google_login_redirects_to_dashboard(monkeypatch):
     )
     assert cb.status_code == 302
     assert cb.headers["location"] == "https://booka.co.za/dashboard"
+
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_google_login_uses_signed_state_when_redis_down(monkeypatch):
+    Session = setup_app(monkeypatch)
+    redis_stub = configure_google(monkeypatch)
+    redis_stub.fail_writes = True
+    redis_stub.fail_reads = True
+
+    async def fake_exchange(code):
+        return {"access_token": "token"}
+
+    async def fake_profile(request, token):
+        return {
+            "email": "signed@example.com",
+            "given_name": "Signed",
+            "family_name": "State",
+        }
+
+    monkeypatch.setattr(api_oauth, "_exchange_google_code_for_tokens", fake_exchange, raising=False)
+    monkeypatch.setattr(api_oauth, "_fetch_google_profile", fake_profile, raising=False)
+
+    client = TestClient(app)
+    login = client.get("/auth/google/login?next=/signed", follow_redirects=False)
+    assert login.status_code == 302
+    state = parse_qs(urlparse(login.headers["location"]).query)["state"][0]
+    assert state.startswith("sig:")
+
+    callback = client.get(f"/auth/google/callback?code=ok&state={state}", follow_redirects=False)
+    assert callback.status_code == 302
+    assert callback.headers["location"] == "https://booka.co.za/signed"
 
     app.dependency_overrides.pop(get_db, None)
 
