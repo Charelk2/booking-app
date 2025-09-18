@@ -1,7 +1,7 @@
 """Helpers for Google Calendar OAuth and event sync."""
 
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 import logging
 
 from fastapi import HTTPException
@@ -13,8 +13,10 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
 
+from app.auth.utils import new_oauth_state
 from app.core.config import settings
 from app.models import CalendarAccount, CalendarProvider
+from app.utils.redis_cache import get_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,9 @@ SCOPES = [
     "https://www.googleapis.com/auth/userinfo.profile",
     "openid",
 ]
+
+_CALENDAR_STATE_PREFIX = "oauth:calendar:state:"
+_CALENDAR_STATE_TTL = 600  # 10 minutes
 
 
 def _require_credentials() -> None:
@@ -54,17 +59,63 @@ def _flow(redirect_uri: str, flow_cls: type[Flow] = Flow) -> Flow:
     )
 
 
+def _store_calendar_state(state: str, user_id: int) -> None:
+    client = get_redis_client()
+    try:
+        client.setex(f"{_CALENDAR_STATE_PREFIX}{state}", _CALENDAR_STATE_TTL, str(user_id))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to persist calendar OAuth state: %s", exc)
+        raise
+
+
+def _pop_calendar_state(state: str) -> Optional[int]:
+    client = get_redis_client()
+    try:
+        key = f"{_CALENDAR_STATE_PREFIX}{state}"
+        raw = client.get(key)
+        if raw is None:
+            return None
+        try:
+            client.delete(key)
+        except Exception:
+            pass
+        return int(raw)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to read calendar OAuth state: %s", exc)
+        return None
+
+
 def get_auth_url(user_id: int, redirect_uri: str) -> str:
     """Return the Google OAuth authorization URL for the user."""
     require_credentials()
     flow = _flow(redirect_uri)
+
+    # Prefer a random state stored server-side; fall back to user_id on failure.
+    state_token = None
+    try:
+        state_token = new_oauth_state()
+        _store_calendar_state(state_token, user_id)
+    except Exception:  # noqa: BLE001
+        state_token = str(user_id)
+
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
-        state=str(user_id),
+        state=state_token,
     )
     return auth_url
+
+
+def resolve_calendar_state(state: str) -> Optional[int]:
+    """Convert the OAuth state string back into the originating user id."""
+    user_id = _pop_calendar_state(state)
+    if user_id is not None:
+        return user_id
+    try:
+        return int(state)
+    except (TypeError, ValueError):
+        return None
 
 
 def exchange_code(user_id: int, code: str, redirect_uri: str, db: Session) -> None:
