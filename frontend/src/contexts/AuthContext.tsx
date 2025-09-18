@@ -60,8 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [artistViewActive, user]);
 
-  const fetchCurrentUserWithArtist = async () => {
-    const res = await getCurrentUser();
+  const fetchCurrentUserWithArtist = async (options?: { skipRefresh?: boolean }) => {
+    const res = await getCurrentUser(options?.skipRefresh ? { _skipRefresh: true } : undefined);
     let userData = res.data;
     if (userData.user_type === 'service_provider') {
       try {
@@ -82,32 +82,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Cookie-only sessions: no token in URL handling
 
-    const storedUser =
-      localStorage.getItem('user') || sessionStorage.getItem('user');
+    let storedUser: string | null = null;
+    let storagePreference: 'local' | 'session' = 'local';
+    try {
+      if (typeof window !== 'undefined') {
+        const fromLocal = localStorage.getItem('user');
+        if (fromLocal) {
+          storedUser = fromLocal;
+          storagePreference = 'local';
+        } else {
+          const fromSession = sessionStorage.getItem('user');
+          if (fromSession) {
+            storedUser = fromSession;
+            storagePreference = 'session';
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to read stored user:', e);
+    }
+
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
       } catch (e) {
         console.error('Failed to parse stored user:', e);
-        localStorage.removeItem('user');
-        sessionStorage.removeItem('user');
+        storedUser = null;
+        try {
+          localStorage.removeItem('user');
+          sessionStorage.removeItem('user');
+        } catch {}
       }
     }
-    // Only attempt to fetch the current user if a user is already present in storage
-    // This avoids an extra /auth/me request for anonymous homepage visitors.
+
     (async () => {
-      if (storedUser) {
+      try {
+        const userData = await fetchCurrentUserWithArtist({ skipRefresh: !storedUser });
+        setUser(userData);
         try {
-          const userData = await fetchCurrentUserWithArtist();
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
-        } catch (err) {
-          // Not authenticated by cookie; axios interceptor will broadcast session expiry.
-          // Proceed silently; session-expired handler will redirect if needed.
-        } finally {
-          setLoading(false);
+          const serialized = JSON.stringify(userData);
+          if (storagePreference === 'session') {
+            sessionStorage.setItem('user', serialized);
+            localStorage.removeItem('user');
+          } else {
+            localStorage.setItem('user', serialized);
+            sessionStorage.removeItem('user');
+          }
+        } catch (e) {
+          console.error('Failed to persist user payload:', e);
         }
-      } else {
+      } catch (err) {
+        if (!storedUser) {
+          try {
+            localStorage.removeItem('user');
+            sessionStorage.removeItem('user');
+          } catch {}
+        }
+      } finally {
         setLoading(false);
       }
     })();
