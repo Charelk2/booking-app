@@ -15,6 +15,7 @@ import logging
 import secrets
 import hashlib
 from dotenv import load_dotenv
+from urllib.parse import urlparse
 
 from ..database import get_db
 from ..models.user import User, UserType
@@ -98,11 +99,57 @@ def _is_secure_cookie() -> bool:
         return False
 
 
+def _compute_cookie_domain() -> str | None:
+    configured = (getattr(settings, "COOKIE_DOMAIN", "") or "").strip()
+    if configured:
+        return configured
+
+    def _candidate_to_domain(candidate: str) -> str | None:
+        candidate = (candidate or '').strip()
+        if not candidate:
+            return None
+        parsed = urlparse(candidate)
+        host = (parsed.hostname or candidate).strip().lstrip('.').lower()
+        if not host:
+            return None
+        if host in {"localhost", "127.0.0.1"} or host.endswith('.local'):
+            return None
+        if host.startswith('www.'):
+            host = host[4:]
+        if not host or '.' not in host:
+            return None
+        return f".{host}"
+
+    try:
+        direct = _candidate_to_domain(getattr(settings, "FRONTEND_URL", ""))
+        if direct:
+            return direct
+    except Exception:
+        pass
+
+    try:
+        for origin in getattr(settings, "CORS_ORIGINS", []) or []:
+            domain = _candidate_to_domain(origin)
+            if domain:
+                return domain
+    except Exception:
+        pass
+
+    return None
+
+
+_AUTH_COOKIE_DOMAIN = _compute_cookie_domain()
+
+
+def get_cookie_domain() -> str | None:
+    return _AUTH_COOKIE_DOMAIN
+
+
 def _set_access_cookie(response: Response, token: str, minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> None:
     max_age = minutes * 60
     # Optionally scope cookie to parent domain (e.g., .booka.co.za) to support
     # both app and API subdomains sharing the same session.
-    cookie_domain = getattr(settings, "COOKIE_DOMAIN", "") or None
+    cookie_domain = get_cookie_domain()
     response.set_cookie(
         key="access_token",
         value=token,
@@ -121,7 +168,7 @@ def _set_refresh_cookie(response: Response, token: str, expires_at: datetime) ->
         delta = int((expires_at - datetime.utcnow()).total_seconds())
     except Exception:
         delta = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
-    cookie_domain = getattr(settings, "COOKIE_DOMAIN", "") or None
+    cookie_domain = get_cookie_domain()
     response.set_cookie(
         key="refresh_token",
         value=token,
@@ -145,7 +192,7 @@ def _clear_auth_cookies(response: Response) -> None:
             httponly=True,
             secure=_is_secure_cookie(),
             samesite="Lax",
-            domain=(getattr(settings, "COOKIE_DOMAIN", "") or None),
+            domain=get_cookie_domain(),
         )
 
 

@@ -1527,17 +1527,32 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           if (Object.keys(newMine).length) setMyReactions((prev) => ({ ...prev, ...newMine }));
         } catch {}
       } catch (err) {
-        if (isAxiosError(err) && err.response?.status === 404) {
-          missingThreadRef.current = true;
-          setMessages([]);
-          setThreadError('This conversation is no longer available.');
-          setLoading(false);
-          loadedThreadsRef.current.delete(bookingRequestId);
-          emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
-          try {
-            window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id: bookingRequestId } }));
-          } catch {}
-          return;
+        if (isAxiosError(err)) {
+          const status = err.response?.status;
+          if (status === 404 || status === 403) {
+            const isForbidden = status === 403;
+            missingThreadRef.current = true;
+            setMessages([]);
+            setThreadError(
+              isForbidden
+                ? 'You no longer have access to this conversation.'
+                : 'This conversation is no longer available.',
+            );
+            setLoading(false);
+            loadedThreadsRef.current.delete(bookingRequestId);
+            emitThreadsUpdated({
+              source: 'thread',
+              threadId: bookingRequestId,
+              immediate: true,
+              reason: isForbidden ? 'forbidden' : 'missing',
+            });
+            try {
+              window.dispatchEvent(
+                new CustomEvent('thread:missing', { detail: { id: bookingRequestId } }),
+              );
+            } catch {}
+            return;
+          }
         }
         console.error('Failed to fetch messages:', err);
         setThreadError(`Failed to load messages. ${(err as Error).message || 'Please try again.'}`);
