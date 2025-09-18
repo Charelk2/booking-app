@@ -68,8 +68,8 @@ def configure_google(monkeypatch) -> DummyAsyncRedis:
     monkeypatch.setattr(api_oauth, "GOOGLE_CLIENT_ID", "test-google-client", raising=False)
     monkeypatch.setattr(api_oauth, "GOOGLE_CLIENT_SECRET", "test-google-secret", raising=False)
     monkeypatch.setattr(
-        api_oauth,
-        "GOOGLE_REDIRECT_URI",
+        settings,
+        "GOOGLE_OAUTH_REDIRECT_URI",
         "https://api.example.com/auth/google/callback",
         raising=False,
     )
@@ -128,6 +128,7 @@ def test_google_oauth_creates_user(monkeypatch):
     assert login.headers["location"].startswith("https://accounts.google.com/")
     qs = parse_qs(urlparse(login.headers["location"]).query)
     state = qs["state"][0]
+    assert qs["redirect_uri"][0] == "https://api.example.com/auth/google/callback"
 
     cb = client.get(f"/auth/google/callback?code=code123&state={state}", follow_redirects=False)
     assert cb.status_code == 302
@@ -185,6 +186,7 @@ def test_google_oauth_updates_user(monkeypatch):
     login = client.get("/auth/google/login?next=/here", follow_redirects=False)
     qs = parse_qs(urlparse(login.headers["location"]).query)
     state = qs["state"][0]
+    assert qs["redirect_uri"][0] == "https://api.example.com/auth/google/callback"
 
     res = client.get(f"/auth/google/callback?code=code123&state={state}", follow_redirects=False)
     assert res.status_code == 302
@@ -431,6 +433,46 @@ def test_google_login_uses_signed_state_when_redis_down(monkeypatch):
     callback = client.get(f"/auth/google/callback?code=ok&state={state}", follow_redirects=False)
     assert callback.status_code == 302
     assert callback.headers["location"] == "https://booka.co.za/signed"
+
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_google_login_honors_forwarded_proto(monkeypatch):
+    Session = setup_app(monkeypatch)
+    configure_google(monkeypatch)
+
+    async def fake_exchange(code, redirect_uri):
+        assert redirect_uri == "https://testserver/auth/google/callback"
+        return {"access_token": "token"}
+
+    async def fake_profile(request, token):
+        return {
+            "email": "forwarded@example.com",
+            "given_name": "For",
+            "family_name": "Ward",
+        }
+
+    monkeypatch.setattr(api_oauth, "_exchange_google_code_for_tokens", fake_exchange, raising=False)
+    monkeypatch.setattr(api_oauth, "_fetch_google_profile", fake_profile, raising=False)
+
+    client = TestClient(app)
+    login = client.get(
+        "/auth/google/login?next=/forward",
+        headers={"X-Forwarded-Proto": "https"},
+        follow_redirects=False,
+    )
+    assert login.status_code == 302
+    login_qs = parse_qs(urlparse(login.headers["location"]).query)
+    assert login_qs["redirect_uri"][0] == "https://testserver/auth/google/callback"
+    state = login_qs["state"][0]
+
+    cb = client.get(
+        f"/auth/google/callback?code=ok&state={state}",
+        headers={"X-Forwarded-Proto": "https"},
+        follow_redirects=False,
+    )
+    assert cb.status_code == 302
+    assert cb.headers["location"] == "https://booka.co.za/forward"
 
     app.dependency_overrides.pop(get_db, None)
 
