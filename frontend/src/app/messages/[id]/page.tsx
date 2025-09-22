@@ -21,7 +21,7 @@ export default function MessagesRedirectPage() {
           router.replace('/inbox');
         }
       } else {
-        router.replace(`/login?redirect=/messages/${id}`);
+        router.replace(`/auth?intent=login&redirect=/messages/${id}`);
       }
     }
   }, [id, router, user, loading]);

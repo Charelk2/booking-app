@@ -12,7 +12,7 @@ export default function DashboardRedirectPage() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      router.replace("/login?next=/dashboard");
+      router.replace("/auth?intent=login&next=/dashboard");
       return;
     }
     if (user.user_type === "service_provider") {
@@ -26,4 +26,3 @@ export default function DashboardRedirectPage() {
     <div className="p-8 flex justify-center"><Spinner /></div>
   );
 }
-

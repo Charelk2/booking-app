@@ -533,7 +533,7 @@ export default function ServiceProviderProfilePage() {
   function openMessageModalOrLogin() {
     if (!authLoading && !user) {
       const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/inbox';
-      router.push(`/login?next=${encodeURIComponent(next)}`);
+      router.push(`/auth?intent=login&next=${encodeURIComponent(next)}`);
       return;
     }
     setIsMessageOpen(true);

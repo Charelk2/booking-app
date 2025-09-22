@@ -161,11 +161,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           sessionStorage.removeItem('token');
           const path = window.location.pathname + window.location.search;
           const next = encodeURIComponent(path || '/');
-          router.replace(`/login?next=${next}`);
+          router.replace(`/auth?intent=login&next=${next}`);
           return;
         }
       } catch {}
-      router.replace('/login');
+      router.replace('/auth?intent=login');
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('app:session-expired', onExpired);

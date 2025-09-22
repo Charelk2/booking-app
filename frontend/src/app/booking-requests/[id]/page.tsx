@@ -21,7 +21,7 @@ export default function BookingRequestRedirectPage() {
           router.replace('/inbox');
         }
       } else {
-        router.replace(`/login?redirect=/booking-requests/${id}`);
+        router.replace(`/auth?intent=login&redirect=/booking-requests/${id}`);
       }
     }
   }, [id, router, user, authLoading]);

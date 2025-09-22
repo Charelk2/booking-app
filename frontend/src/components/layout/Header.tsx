@@ -56,7 +56,7 @@ import { ChatBubbleLeftRightIcon as ChatOutline } from '@heroicons/react/24/outl
 import React from 'react';
 import { FEATURE_EVENT_PREP } from '@/lib/constants';
 import dynamic from 'next/dynamic';
-const BecomeProviderModal = dynamic(() => import('@/components/auth/BecomeProviderModal'), { ssr: false });
+const ProviderOnboardingModal = dynamic(() => import('@/components/auth/ProviderOnboardingModal'), { ssr: false });
 import useIsMobile from '@/hooks/useIsMobile';
 
   // (Notifications UI dynamically loaded elsewhere if needed)
@@ -283,7 +283,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const suppressAccountActions = hideAccountActions;
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showBecomeProvider, setShowBecomeProvider] = useState(false);
+  const [showProviderOnboarding, setShowProviderOnboarding] = useState(false);
+  const [providerOnboardingNext, setProviderOnboardingNext] = useState<string | undefined>(undefined);
   const isMobile = useIsMobile();
   const [currentBookingId, setCurrentBookingId] = useState<number | null>(null);
 
@@ -319,14 +320,29 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     return q ? `${pathname}?${q}` : pathname;
   }, [pathname, searchParams]);
 
+  // Global controller for provider onboarding modal
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent<any>).detail || {};
+        setProviderOnboardingNext(typeof detail.next === 'string' ? detail.next : '/dashboard/artist');
+      } catch {
+        setProviderOnboardingNext('/dashboard/artist');
+      }
+      setShowProviderOnboarding(true);
+    };
+    window.addEventListener('provider:onboarding-open', onOpen as any);
+    return () => window.removeEventListener('provider:onboarding-open', onOpen as any);
+  }, []);
+
   const goToLogin = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    router.push(`/login?next=${encodeURIComponent(nextAfterAuth)}`);
+    router.push(`/auth?intent=login&next=${encodeURIComponent(nextAfterAuth)}`);
   }, [router, nextAfterAuth]);
 
   const goToRegister = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    router.push(`/register?next=${encodeURIComponent(nextAfterAuth)}`);
+    router.push(`/auth?intent=signup&next=${encodeURIComponent(nextAfterAuth)}`);
   }, [router, nextAfterAuth]);
 
   // Hydrate from URL
@@ -619,7 +635,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 )}
                 {user.user_type === 'client' && (
                   <button
-                    onClick={() => setShowBecomeProvider(true)}
+                    onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                     className={clsx(
                       'px-3 py-2 text-sm rounded-lg border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
                       hoverNeutralLink2
@@ -824,7 +840,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   {(!user || user.user_type === 'client') && (
                     user ? (
                       <button
-                        onClick={() => setShowBecomeProvider(true)}
+                        onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                         className={clsx(
                           'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
                           hoverNeutralLink2
@@ -834,11 +850,16 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       </button>
                     ) : (
                       <Link
-                        href="/register"
+                        href="/auth?intent=signup&role=service_provider&next=/onboarding/provider"
                         onClick={(e) => {
                           e.preventDefault();
-                          const next = '/dashboard/artist';
-                          router.push(`/register?user_type=service_provider&next=${encodeURIComponent(next)}`);
+                          // If signed in (client), open modal directly
+                          if (user) {
+                            setProviderOnboardingNext('/dashboard/artist');
+                            setShowProviderOnboarding(true);
+                          } else {
+                            router.push(`/auth?intent=signup&role=service_provider&next=${encodeURIComponent('/onboarding/provider')}`);
+                          }
                         }}
                         className={clsx(
                           'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
@@ -850,7 +871,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     )
                   )}
                   <Link
-                    href="/login"
+                    href="/auth?intent=login"
                     onClick={goToLogin}
                     className={clsx(
                       'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 hover:text-white',
@@ -860,7 +881,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     Sign in
                   </Link>
                   <Link
-                    href="/register"
+                    href="/auth?intent=signup"
                     onClick={goToRegister}
                     className={clsx(
                       'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 hover:text-white',
@@ -952,8 +973,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
       {/* Notifications UI removed from dropdown per request */}
     </header>
-    {showBecomeProvider && (
-      <BecomeProviderModal isOpen={showBecomeProvider} onClose={() => setShowBecomeProvider(false)} />
+    {showProviderOnboarding && (
+      <ProviderOnboardingModal isOpen={showProviderOnboarding} onClose={() => setShowProviderOnboarding(false)} next={providerOnboardingNext} />
     )}
     </>
   );

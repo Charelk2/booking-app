@@ -29,7 +29,7 @@ export default function ResetPasswordPage() {
     try {
       await resetPassword(token, password);
       setStatus('success');
-      setTimeout(() => router.push('/login'), 1200);
+      setTimeout(() => router.push('/auth?intent=login'), 1200);
     } catch (e) {
       setStatus('invalid');
       setError('Invalid or expired reset link.');
@@ -71,4 +71,3 @@ export default function ResetPasswordPage() {
     </MainLayout>
   );
 }
-

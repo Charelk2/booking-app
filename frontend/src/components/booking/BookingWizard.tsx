@@ -1188,7 +1188,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const wantsLogin = window.confirm(
         'You need an account to submit a booking request. Press OK to sign in or Cancel to sign up.'
       );
-      router.push(wantsLogin ? '/login' : '/register');
+      router.push(wantsLogin ? '/auth?intent=login' : '/auth?intent=signup');
       return;
     }
     if (isLoadingReviewData || reviewDataError || calculatedPrice === null || travelResult === null) {

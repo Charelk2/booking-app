@@ -30,7 +30,7 @@ export default function ConfirmEmailPage() {
         {status === 'success' && (
           <>
             <h1 className="text-2xl font-bold">Email confirmed!</h1>
-            <Button onClick={() => router.push('/login')}>Continue to Login</Button>
+            <Button onClick={() => router.push('/auth?intent=login')}>Continue to Login</Button>
           </>
         )}
         {status === 'error' && <p className="text-red-600">Invalid or expired token.</p>}
@@ -38,5 +38,4 @@ export default function ConfirmEmailPage() {
     </MainLayout>
   );
 }
-
 

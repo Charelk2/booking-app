@@ -35,8 +35,8 @@ const useMobileNavItems = (user: User | null, hideAuthLinks: boolean): NavItem[]
         return [];
       }
       return [
-        { name: 'Sign in', href: '/login' },
-        { name: 'Sign up', href: '/register' },
+        { name: 'Sign in', href: '/auth?intent=login' },
+        { name: 'Sign up', href: '/auth?intent=signup' },
       ];
     }
     if (user.user_type === 'service_provider') {

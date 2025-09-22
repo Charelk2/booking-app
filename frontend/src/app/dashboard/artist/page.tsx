@@ -172,7 +172,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      router.push(`/login?next=${encodeURIComponent(pathname)}`);
+      router.push(`/auth?intent=login&next=${encodeURIComponent(pathname)}`);
       return;
     }
     if (user.user_type !== "service_provider") {

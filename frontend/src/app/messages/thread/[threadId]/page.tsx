@@ -21,7 +21,7 @@ export default function ThreadPageRedirect() {
           router.replace('/inbox');
         }
       } else {
-        router.replace(`/login?redirect=/messages/thread/${id}`);
+        router.replace(`/auth?intent=login&redirect=/messages/thread/${id}`);
       }
     }
   }, [id, router, user, loading]);

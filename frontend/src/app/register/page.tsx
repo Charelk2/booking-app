@@ -34,6 +34,16 @@ export default function RegisterPage() {
   const qRole = (params.get('user_type') || params.get('role') || '').toLowerCase();
   const defaultUserType: RegisterForm['user_type'] | '' = qRole === 'service_provider' ? 'service_provider' : '' as any;
 
+  // Thin redirect to unified /auth page
+  useEffect(() => {
+    try {
+      const intent = 'signup';
+      const role = qRole === 'service_provider' ? '&role=service_provider' : '';
+      const emailParam = prefillEmail ? `&email=${encodeURIComponent(prefillEmail)}` : '';
+      router.replace(`/auth?intent=${intent}${role}&next=${encodeURIComponent(next)}${emailParam}`);
+    } catch {}
+  }, [router, next, qRole, prefillEmail]);
+
   const { register: registerUser, login } = useAuth();
 
   const [phase, setPhase] = useState<'email' | 'existing' | 'signup'>('email');

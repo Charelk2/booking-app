@@ -48,6 +48,14 @@ export default function LoginPage() {
   const next = params.get('next') || '/dashboard';
   const nextPath = useMemo(() => next, [next]);
 
+  // Thin redirect to unified /auth page
+  useEffect(() => {
+    try {
+      const intent = 'login';
+      router.replace(`/auth?intent=${intent}&next=${encodeURIComponent(nextPath)}`);
+    } catch {}
+  }, [router, nextPath]);
+
   const { login, verifyMfa, user, refreshUser } = useAuth();
 
   // UI & flow state

@@ -355,7 +355,7 @@ export default function MainLayout({
     !isArtistView &&
     (pathname === '/' || pathname.startsWith('/service-providers') || pathname.startsWith('/category'));
 
-  const isAuthScreen = pathname === '/login' || pathname === '/register';
+  const isAuthScreen = pathname === '/auth' || pathname === '/login' || pathname === '/register';
   const headerVariant = isAuthScreen ? 'auth' : 'default';
   const suppressHeaderActions = isAuthScreen;
   const shouldHideFooter = hideFooter || isAuthScreen;

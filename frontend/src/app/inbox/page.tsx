@@ -77,7 +77,7 @@ export default function InboxPage() {
     if (!user) {
       try {
         const next = encodeURIComponent('/inbox');
-        window.location.replace(`/login?next=${next}`);
+        window.location.replace(`/auth?intent=login&next=${next}`);
       } catch {}
     }
   }, [authLoading, user]);

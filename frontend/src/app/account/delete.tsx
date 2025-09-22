@@ -18,7 +18,7 @@ export default function DeleteAccountPage() {
     setError('');
     try {
       await deleteMyAccount(password);
-      router.push('/login');
+      router.push('/auth?intent=login');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Delete failed';
       setError(message);
