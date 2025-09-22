@@ -345,9 +345,16 @@ export default function AuthPage() {
         phone_number: (data.phone_number || '').trim(),
         password: data.password,
         marketing_opt_in: !!data.marketing_opt_in,
+        // Explicitly default to 'client' to match backend default and keep role pick out of signup.
+        user_type: 'client' as any,
       });
       await onAuthSuccess(true);
     } catch (e: any) {
+      try {
+        // Helpful diagnostics for 422s
+        // eslint-disable-next-line no-console
+        console.error('Register failed:', e?.response?.status, e?.response?.data);
+      } catch {}
       showError(e?.message || 'Registration failed');
       announce('Registration failed.');
     }
