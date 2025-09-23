@@ -13,6 +13,7 @@ from typing import List, Optional
 from datetime import datetime, timezone
 
 from .. import crud, models, schemas
+from ..schemas.storage import PresignIn, PresignOut
 from .dependencies import get_db, get_current_user
 from ..utils.notifications import (
     notify_user_new_message,
@@ -21,6 +22,7 @@ from ..utils.notifications import (
 )
 from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..utils import error_response
+from ..utils import r2 as r2utils
 from .api_ws import manager
 import os
 import mimetypes
@@ -156,6 +158,16 @@ def read_messages(
             pass
         return val
 
+    # Helper: transform attachment_url to a signed GET if it's an R2 public URL
+    def _maybe_sign_attachment_url(val: Optional[str]) -> Optional[str]:
+        try:
+            if val:
+                signed = r2utils.presign_get_for_public_url(val)
+                return signed or val
+        except Exception:
+            pass
+        return val
+
     result = []
     for m in db_messages:
         avatar_url = None
@@ -170,6 +182,9 @@ def read_messages(
         avatar_url = _scrub_avatar(avatar_url)
         data = schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
+        # Sign attachment URL on the fly when pointing at private R2
+        if data.get("attachment_url"):
+            data["attachment_url"] = _maybe_sign_attachment_url(str(data.get("attachment_url") or ""))
         # Server-computed preview label for uniform clients
         try:
             data["preview_label"] = preview_label_for_message(m)
@@ -453,6 +468,11 @@ def create_message(
 
     data = schemas.MessageResponse.model_validate(msg).model_dump()
     data["avatar_url"] = avatar_url
+    if data.get("attachment_url"):
+        try:
+            data["attachment_url"] = r2utils.presign_get_for_public_url(str(data.get("attachment_url") or "")) or data["attachment_url"]
+        except Exception:
+            pass
     # Add reply preview if any
     if msg.reply_to_message_id:
         parent = (
@@ -656,3 +676,42 @@ def remove_reaction(
     except Exception:
         pass
     return
+
+
+@router.post(
+    "/booking-requests/{request_id}/attachments/presign",
+    response_model=PresignOut,
+)
+def presign_attachment(
+    request_id: int,
+    payload: PresignIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    if not booking_request:
+        raise error_response("Booking request not found", {"request_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
+        raise error_response("Not authorized to upload attachment", {}, status.HTTP_403_FORBIDDEN)
+
+    try:
+        info = r2utils.presign_put(
+            kind=(payload.kind or "file"),
+            booking_id=request_id,
+            filename=payload.filename,
+            content_type=payload.content_type,
+        )
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).exception("Failed to presign R2 upload: %s", exc)
+        raise error_response("Failed to prepare upload", {}, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return PresignOut(
+        key=info["key"],
+        put_url=info["put_url"],
+        get_url=info.get("get_url"),
+        public_url=info.get("public_url"),
+        headers=info.get("headers") or {},
+        upload_expires_in=int(info.get("upload_expires_in") or 0),
+        download_expires_in=int(info.get("download_expires_in") or 0),
+    )

@@ -702,7 +702,7 @@ export const markMessagesRead = (bookingRequestId: number) =>
     `${API_V1}/booking-requests/${bookingRequestId}/messages/read`
   );
 
-export const uploadMessageAttachment = (
+export const uploadMessageAttachment = async (
   bookingRequestId: number,
   file: File,
   onUploadProgress?: (event: AxiosProgressEvent) => void,
@@ -711,13 +711,48 @@ export const uploadMessageAttachment = (
   if (!file || file.size === 0) {
     return Promise.reject(new Error('Attachment file is required'));
   }
-  const formData = new FormData();
-  formData.append('file', file);
-  return api.post<{ url: string; metadata?: AttachmentMeta }>(
-    `${API_V1}/booking-requests/${bookingRequestId}/attachments`,
-    formData,
-    { onUploadProgress, headers: { 'Content-Type': undefined }, signal },
-  );
+  // 1) Ask backend for a presigned PUT to R2
+  const kind = file.type.startsWith('audio/')
+    ? 'voice'
+    : file.type.startsWith('video/')
+    ? 'video'
+    : file.type.startsWith('image/')
+    ? 'image'
+    : 'file';
+  const presign = await api.post<{
+    key: string;
+    put_url: string;
+    get_url?: string;
+    public_url?: string;
+    headers?: Record<string, string>;
+    upload_expires_in: number;
+    download_expires_in: number;
+  }>(`${API_V1}/booking-requests/${bookingRequestId}/attachments/presign`, {
+    kind,
+    filename: file.name || undefined,
+    content_type: file.type || undefined,
+    size: Number.isFinite(file.size) ? file.size : undefined,
+  });
+
+  const { put_url, public_url, get_url, headers } = presign.data || {};
+  if (!put_url) throw new Error('Failed to prepare upload');
+
+  // 2) Upload the file directly to R2
+  await axios.put(put_url, file, {
+    headers: { ...(headers || {}), 'Content-Type': file.type || undefined },
+    onUploadProgress,
+    signal,
+  });
+
+  // 3) Return canonical URL (public custom domain) for DB storage
+  const url = (public_url || get_url || '').toString();
+  if (!url) throw new Error('Upload completed but no URL was returned');
+  const metadata: AttachmentMeta = {
+    original_filename: file.name || null,
+    content_type: file.type || null,
+    size: Number.isFinite(file.size) ? file.size : null,
+  };
+  return { data: { url, metadata } } as { data: { url: string; metadata?: AttachmentMeta } };
 };
 
 export const addMessageReaction = (

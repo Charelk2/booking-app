@@ -112,6 +112,19 @@ class Settings(BaseSettings):
     ADMIN_EMAILS: str = ""
     ADMIN_DOMAINS: str = ""
 
+    # R2 / S3-compatible storage configuration (Cloudflare R2)
+    R2_ACCOUNT_ID: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET: str = ""
+    # Example: https://<account_id>.r2.cloudflarestorage.com or EU endpoint
+    R2_S3_ENDPOINT: str = ""
+    # Public custom domain for reads (e.g., https://media.booka.co.za)
+    R2_PUBLIC_BASE_URL: str = ""
+    # Presign TTLs (seconds)
+    R2_PRESIGN_UPLOAD_TTL: int = 3600  # 1h
+    R2_PRESIGN_DOWNLOAD_TTL: int = 604800  # 7d
+
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:
         """Parse comma-separated or JSON list of origins from environment."""
