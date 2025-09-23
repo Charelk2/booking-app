@@ -105,6 +105,36 @@ if (process.env.NEXT_PUBLIC_CF_IMAGES_DOMAIN) {
   } catch {}
 }
 
+// Allow media served from Cloudflare R2 (public base) and the S3 endpoint host
+try {
+  const r2Public = (process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL || 'https://media.booka.co.za').replace(/\/+$/, '');
+  const r2PublicHost = new URL(r2Public).hostname;
+  if (r2PublicHost && r2PublicHost !== 'api.booka.co.za') {
+    remotePatterns.push({ protocol: 'https', hostname: r2PublicHost, pathname: '/**' });
+  }
+} catch {}
+try {
+  const r2Endpoint = (process.env.NEXT_PUBLIC_R2_S3_ENDPOINT || '').replace(/\/+$/, '');
+  const r2Host = r2Endpoint ? new URL(r2Endpoint).hostname : (process.env.NEXT_PUBLIC_R2_ACCOUNT_ID ? `${process.env.NEXT_PUBLIC_R2_ACCOUNT_ID}.eu.r2.cloudflarestorage.com` : '');
+  if (r2Host) {
+    remotePatterns.push({ protocol: 'https', hostname: r2Host, pathname: '/**' });
+  }
+} catch {}
+
+// Helper: derive R2 endpoints for CSP/image allowlists
+const R2_PUBLIC_BASE = (process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL || 'https://media.booka.co.za').replace(/\/+$/, '');
+const R2_ACCOUNT_ID = process.env.NEXT_PUBLIC_R2_ACCOUNT_ID || process.env.R2_ACCOUNT_ID || '';
+const R2_S3_ENDPOINT = (process.env.NEXT_PUBLIC_R2_S3_ENDPOINT || '').replace(/\/+$/, '');
+// Prefer explicit endpoint, otherwise build EU endpoint from account id, otherwise wildcard subdomain
+const R2_S3_ORIGIN = (() => {
+  try {
+    if (R2_S3_ENDPOINT) return new URL(R2_S3_ENDPOINT).origin;
+    if (R2_ACCOUNT_ID) return `https://${R2_ACCOUNT_ID}.eu.r2.cloudflarestorage.com`;
+  } catch {}
+  // CSP supports wildcard subdomains; use as a last resort
+  return 'https://*.r2.cloudflarestorage.com';
+})();
+
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
@@ -127,11 +157,13 @@ const nextConfig = {
       // Allow Google Identity Services, Google Maps, and Paystack inline checkout
       "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co",
       // Permit XHR/fetch and secure WebSocket to backend API, Google Identity/Maps, and Paystack API endpoints
-      `connect-src 'self' ${connectApi} ${wsApi} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co`,
+      `connect-src 'self' ${connectApi} ${wsApi} ${R2_S3_ORIGIN} ${R2_PUBLIC_BASE} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co`,
       // Frames for Google Identity widgets and Paystack's checkout iframe
       "frame-src 'self' https://accounts.google.com https://accounts.gstatic.com https://js.paystack.co https://checkout.paystack.com",
       // Images from backend API, Google Identity, and Google Maps (tiles, sprites)
-      `img-src 'self' data: blob: ${connectApi} https://api.booka.co.za https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com`,
+      `img-src 'self' data: blob: ${connectApi} https://api.booka.co.za ${R2_PUBLIC_BASE} ${R2_S3_ORIGIN} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com`,
+      // Media (audio/video) sources including R2 and local blob previews
+      `media-src 'self' data: blob: ${connectApi} ${R2_PUBLIC_BASE} ${R2_S3_ORIGIN}`,
       // Allow inline styles and GSI stylesheet; Maps injects inline styles too
       "style-src 'self' 'unsafe-inline' https://accounts.google.com",
     ].join('; ');
