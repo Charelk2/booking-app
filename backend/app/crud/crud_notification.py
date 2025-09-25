@@ -233,18 +233,28 @@ def get_unread_counts_for_threads(db: Session, user_id: int) -> Dict[int, int]:
 
 
 def mark_thread_read(db: Session, user_id: int, booking_request_id: int) -> None:
-    """Mark all message notifications for the given thread as read."""
+    """Mark all message notifications for the given thread as read.
+
+    Be tolerant of absolute URLs saved historically. Match notifications where
+    the link either equals or contains the expected relative patterns.
+    """
+    from sqlalchemy import or_
+
+    patterns = [
+        models.Notification.link == f"/booking-requests/{booking_request_id}",
+        models.Notification.link.like(f"%%/booking-requests/{booking_request_id}"),
+        models.Notification.link == f"/inbox?requestId={booking_request_id}",
+        models.Notification.link.like(f"%%requestId={booking_request_id}%%"),
+        # Booka moderation alias (no numeric id)
+        models.Notification.link == "/inbox?booka=1",
+    ]
     notifs: Iterable[models.Notification] = (
         db.query(models.Notification)
         .filter(
             models.Notification.user_id == user_id,
             models.Notification.type == models.NotificationType.NEW_MESSAGE,
-            models.Notification.link.in_([
-                f"/booking-requests/{booking_request_id}",
-                f"/inbox?requestId={booking_request_id}",
-                "/inbox?booka=1",
-            ]),
-            models.Notification.is_read == False,
+            or_(*patterns),
+            models.Notification.is_read.is_(False),
         )
         .all()
     )
