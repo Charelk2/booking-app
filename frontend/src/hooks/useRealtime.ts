@@ -45,11 +45,9 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
 
   const wsUrl = useMemo(() => {
     if (!wsBase) return null;
-    // Require an explicit token to open WS. Cookie-based WS can be flaky across
-    // subdomains and causes noisy retries for anonymous users. Authenticated
-    // views pass a token from AuthContext.
-    if (!wsToken) return null;
-    return `${wsBase}/api/v1/ws?token=${encodeURIComponent(wsToken)}`;
+    // Prefer token when available; otherwise rely on HttpOnly cookie for same-site/subdomain
+    const q = wsToken ? `?token=${encodeURIComponent(wsToken)}` : '';
+    return `${wsBase}/api/v1/ws${q}`;
   }, [wsBase, wsToken]);
 
   const sseUrlForTopics = useCallback((topics: string[]) => {
@@ -194,9 +192,8 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
 
   useEffect(() => {
     // Don’t open any realtime connection until there’s at least one topic
-    // or an explicit token for authenticated multiplex usage.
     const hasTopics = subs.current.size > 0;
-    if (!hasTopics && !wsToken) { setStatus('closed'); return () => {}; }
+    if (!hasTopics) { setStatus('closed'); return () => {}; }
     if (mode === 'ws') {
       if (!wsUrl) {
         openSSE();
