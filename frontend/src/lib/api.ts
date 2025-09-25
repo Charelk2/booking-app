@@ -738,8 +738,14 @@ export const uploadMessageAttachment = async (
   if (!put_url) throw new Error('Failed to prepare upload');
 
   // 2) Upload the file directly to R2
+  // Use exactly the headers that were included in the signature.
+  // If backend didn't sign Content-Type, don't set it here.
+  const signedHeaders = headers && Object.keys(headers).length > 0
+    ? headers
+    : (file.type ? { 'Content-Type': file.type } : {});
   await axios.put(put_url, file, {
-    headers: { ...(headers || {}), 'Content-Type': file.type || undefined },
+    headers: signedHeaders,
+    withCredentials: false,
     onUploadProgress,
     signal,
   });

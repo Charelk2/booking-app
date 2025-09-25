@@ -36,13 +36,24 @@ class R2Config:
 
 
 def _client(cfg: R2Config):
+    """Create an S3 client configured for Cloudflare R2.
+
+    Important bits:
+    - signature_version s3v4 (required for presigned URLs)
+    - region "auto" (R2 requirement)
+    - path-style addressing (virtual-hosted style is not supported the same way)
+    - endpoint_url MUST match the host you will call (eu vs non-eu)
+    """
     return boto3.client(
         "s3",
         aws_access_key_id=cfg.access_key_id,
         aws_secret_access_key=cfg.secret_access_key,
         endpoint_url=cfg.endpoint_url,
         region_name="auto",
-        config=Config(signature_version="s3v4"),
+        config=Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "path"},
+        ),
     )
 
 
@@ -139,4 +150,3 @@ def presign_get_for_public_url(public_url: str) -> Optional[str]:
         Params={"Bucket": cfg.bucket, "Key": key},
         ExpiresIn=cfg.download_ttl_seconds,
     )
-
