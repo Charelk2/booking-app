@@ -22,6 +22,7 @@ import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns'
 import data from '@emoji-mart/data';
 import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon, MusicalNoteIcon, PaperClipIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { CheckIcon } from '@heroicons/react/24/solid';
 import { MicrophoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 import {
@@ -2605,9 +2606,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                       </span>
                     </button>
                   )}
-                  {!isMsgFromSelf && !msg.is_read && (
-                    <span className="" aria-label="Unread message" />
-                  )}
+                  {/* No dot indicator; receipts are shown on sender bubbles as double checks */}
 
                   <>
                     {(() => {
@@ -2758,8 +2757,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 </div>
 
                 {/* Time & status */}
-                <div className="absolute bottom-0 right-1 text-[10px] text-gray-500 select-none">
+                <div className="absolute bottom-0 right-1 text-[10px] text-gray-500 select-none flex items-center gap-1">
                   <span className="tabular-nums">{messageTime}</span>
+                  {isMsgFromSelf && (
+                    msg.status === 'failed' ? (
+                      <ExclamationTriangleIcon className="w-3 h-3 text-red-500" aria-label="Failed to send" />
+                    ) : (msg.status === 'sending' || msg.status === 'queued') ? (
+                      <ClockIcon className="w-3 h-3" aria-label="Sending" />
+                    ) : (
+                      <span className="inline-flex items-center gap-px" aria-label={msg.is_read ? 'Read' : 'Delivered'}>
+                        <CheckIcon className={`w-3 h-3 ${msg.is_read ? 'text-blue-600' : 'text-gray-400'}`} />
+                        <CheckIcon className={`w-3 h-3 -ml-1 ${msg.is_read ? 'text-blue-600' : 'text-gray-400'}`} />
+                      </span>
+                    )
+                  )}
                 </div>
 
                 {/* Hover actions (desktop): small chevron button to open menu */}
