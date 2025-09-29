@@ -23,6 +23,7 @@ import data from '@emoji-mart/data';
 import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon, MusicalNoteIcon, PaperClipIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { MicrophoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import ReadReceipt, { type DeliveryState } from '@/components/booking/ReadReceipt';
 
 import {
   getFullImageUrl,
@@ -132,6 +133,19 @@ const formatBytes = (bytes: number) => {
   const val = bytes / Math.pow(k, i);
   return `${i === 0 ? Math.round(val) : val.toFixed(1)} ${sizes[i]}`;
 };
+
+// Map backend status/flags → delivery UI state
+function toDeliveryState(m: ThreadMessage): DeliveryState {
+  try {
+    if (m.status === 'failed') return 'error';
+    if ((m as any).is_read || (m as any).read_at) return 'read';
+    if ((m as any).is_delivered || (m as any).delivered_at) return 'delivered';
+    if (m.status === 'sent') return 'sent';
+    return 'sending';
+  } catch {
+    return 'sending';
+  }
+}
 
 type NormalizeViewUrlOptions = {
   serviceProviderByServiceId?: Record<number, number>;
@@ -2770,17 +2784,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     ) : (msg.status === 'sending' || msg.status === 'queued') ? (
                       <ClockIcon className="w-3 h-3" aria-label="Sending" />
                     ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 16 16"
-                        className={`w-4 h-4 ${msg.is_read ? 'text-blue-600' : 'text-gray-400'}`}
-                        fill="currentColor"
-                        role="img"
-                        aria-label={msg.is_read ? 'Read' : 'Delivered'}
-                      >
-                        <path d="M12.793 4.293a1 1 0 0 1 1.414 1.414l-8.5 8.5a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L4 11.586l7.793-7.793z" />
-                        <path d="M12.793 4.293a1 1 0 0 1 1.414 1.414l-8.5 8.5a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L4 11.586l7.793-7.793z" transform="translate(4,-2)" />
-                      </svg>
+                      <ReadReceipt state={toDeliveryState(msg)} at={msg.timestamp} align={isMsgFromSelf ? 'outgoing' : 'incoming'} />
                     )
                   )}
                 </div>
