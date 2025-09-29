@@ -2605,9 +2605,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               >
                 {/* Desktop hover extender zones: make hover area span full row side */}
                 {isMsgFromSelf ? (
-                  <div className="hidden md:block absolute inset-y-0 left-0 -translate-x-full w-screen" aria-hidden="true" />
+                  <div className="hidden md:block absolute inset-y-0 left-0 -translate-x-full max-w-full" aria-hidden="true" />
                 ) : (
-                  <div className="hidden md:block absolute inset-y-0 right-0 translate-x-full w-screen" aria-hidden="true" />
+                  <div className="hidden md:block absolute inset-y-0 right-0 translate-x-full max-w-full" aria-hidden="true" />
                 )}
                 <div className={isImageAttachment(msg.attachment_url || undefined) ? '' : 'pr-9 mb-1'}>
                   {msg.reply_to_preview && (

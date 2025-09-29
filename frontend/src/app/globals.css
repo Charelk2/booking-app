@@ -11,6 +11,7 @@
 
 html, body {
   overscroll-behavior: none;
+  overflow-x: hidden; /* Prevent horizontal scroll across the app */
 }
 
 @media (max-width: 640px) {
