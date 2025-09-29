@@ -2609,7 +2609,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 ) : (
                   <div className="hidden md:block absolute inset-y-0 right-0 translate-x-full w-screen" aria-hidden="true" />
                 )}
-                <div className={isImageAttachment(msg.attachment_url || undefined) ? '' : 'pr-9'}>
+                <div className={isImageAttachment(msg.attachment_url || undefined) ? '' : 'pr-9 mb-1'}>
                   {msg.reply_to_preview && (
                     <button
                       type="button"
@@ -2776,7 +2776,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 </div>
 
                 {/* Time & status */}
-                <div className="absolute bottom-0 right-1 text-[10px] text-gray-500 select-none flex items-center gap-1">
+                <div className="absolute bottom-0 right-1 text-[10px] text-gray-500 select-none flex items-center">
                   <span className="tabular-nums">{messageTime}</span>
                   {isMsgFromSelf && (
                     msg.status === 'failed' ? (
