@@ -1532,26 +1532,32 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           const status = err.response?.status;
           if (status === 404 || status === 403) {
             const isForbidden = status === 403;
-            missingThreadRef.current = true;
-            setMessages([]);
+            const hadMessages = (messagesRef.current?.length || 0) > 0;
+            // Harden UI: if we already have messages, keep them on screen and show a banner,
+            // do not clear list or clamp visible window. Treat as transient.
             setThreadError(
               isForbidden
                 ? 'You no longer have access to this conversation.'
                 : 'This conversation is no longer available.',
             );
             setLoading(false);
-            loadedThreadsRef.current.delete(bookingRequestId);
-            emitThreadsUpdated({
-              source: 'thread',
-              threadId: bookingRequestId,
-              immediate: true,
-              reason: isForbidden ? 'forbidden' : 'missing',
-            });
-            try {
-              window.dispatchEvent(
-                new CustomEvent('thread:missing', { detail: { id: bookingRequestId } }),
-              );
-            } catch {}
+            if (!hadMessages) {
+              // Initial load and nothing to show: mark as missing to prevent loops
+              missingThreadRef.current = true;
+              setMessages([]);
+              loadedThreadsRef.current.delete(bookingRequestId);
+              emitThreadsUpdated({
+                source: 'thread',
+                threadId: bookingRequestId,
+                immediate: true,
+                reason: isForbidden ? 'forbidden' : 'missing',
+              });
+              try {
+                window.dispatchEvent(
+                  new CustomEvent('thread:missing', { detail: { id: bookingRequestId } }),
+                );
+              } catch {}
+            }
             return;
           }
         }
