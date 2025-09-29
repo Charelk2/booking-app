@@ -2765,9 +2765,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     ) : (msg.status === 'sending' || msg.status === 'queued') ? (
                       <ClockIcon className="w-3 h-3" aria-label="Sending" />
                     ) : (
-                      <span className="inline-flex items-center gap-px" aria-label={msg.is_read ? 'Read' : 'Delivered'}>
-                        <CheckIcon className={`w-3 h-3 ${msg.is_read ? 'text-blue-600' : 'text-gray-400'}`} />
-                        <CheckIcon className={`w-3 h-3 -ml-1 ${msg.is_read ? 'text-blue-600' : 'text-gray-400'}`} />
+                      <span className="relative inline-flex w-4 h-3 align-middle" aria-label={msg.is_read ? 'Read' : 'Delivered'}>
+                        <CheckIcon className={`absolute left-0 top-0 w-3 h-3 ${msg.is_read ? 'text-blue-600' : 'text-gray-400'}`} aria-hidden="true" />
+                        <CheckIcon className={`absolute left-2 top-0 w-3 h-3 ${msg.is_read ? 'text-blue-600' : 'text-gray-400'}`} aria-hidden="true" />
                       </span>
                     )
                   )}
