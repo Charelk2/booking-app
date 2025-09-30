@@ -2605,9 +2605,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               >
                 {/* Desktop hover extender zones: make hover area span full row side */}
                 {isMsgFromSelf ? (
-                  <div className="hidden md:block absolute inset-y-0 left-0 -translate-x-full max-w-full" aria-hidden="true" />
+                  <div className="hidden md:block absolute inset-y-0 left-0 -translate-x-full w-screen" aria-hidden="true" />
                 ) : (
-                  <div className="hidden md:block absolute inset-y-0 right-0 translate-x-full max-w-full" aria-hidden="true" />
+                  <div className="hidden md:block absolute inset-y-0 right-0 translate-x-full w-screen" aria-hidden="true" />
                 )}
                 <div className={isImageAttachment(msg.attachment_url || undefined) ? '' : 'pr-9 mb-1'}>
                   {msg.reply_to_preview && (
@@ -2797,7 +2797,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   const isLikelyOneLine = looksLikeMessage && !hasReply && !content.includes('\n') && content.length <= 36;
                   const chevronPos = isLikelyOneLine ? 'bottom-4 right-1' : 'top-1 right-1';
                   return (
-                    <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity`}>
+                    <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity flex items-center gap-1`}>
+                      {/* Hover reaction entrypoint */}
+                      <button
+                        type="button"
+                        title="React"
+                        aria-label="React to message"
+                        className="w-6 h-6 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActionMenuFor(null);
+                          setReactionPickerFor((v) => (v === msg.id ? null : msg.id));
+                        }}
+                      >
+                        <FaceSmileIcon className="w-4 h-4" />
+                      </button>
+
+                      {/* Chevron menu */}
                       <button
                         type="button"
                         title="More"
