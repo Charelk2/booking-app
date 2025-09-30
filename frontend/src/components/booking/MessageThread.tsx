@@ -2797,22 +2797,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   const isLikelyOneLine = looksLikeMessage && !hasReply && !content.includes('\n') && content.length <= 36;
                   const chevronPos = isLikelyOneLine ? 'bottom-4 right-1' : 'top-1 right-1';
                   return (
-                    <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity flex items-center gap-1`}>
-                      {/* Hover reaction entrypoint */}
-                      <button
-                        type="button"
-                        title="React"
-                        aria-label="React to message"
-                        className="w-6 h-6 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActionMenuFor(null);
-                          setReactionPickerFor((v) => (v === msg.id ? null : msg.id));
-                        }}
-                      >
-                        <FaceSmileIcon className="w-4 h-4" />
-                      </button>
-
+                    <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity`}>
                       {/* Chevron menu */}
                       <button
                         type="button"
@@ -2948,6 +2933,28 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     </div>
                   </>
                 )}
+
+                {/* Hover reaction emoji – outside bubble, vertically centered */}
+                <div
+                  className={`hidden md:block absolute top-1/2 -translate-y-1/2 z-20 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto ${
+                    isMsgFromSelf ? '-left-6' : '-right-6'
+                  }`}
+                  aria-hidden
+                >
+                  <button
+                    type="button"
+                    title="React"
+                    aria-label="React to message"
+                    className="w-6 h-6 flex items-center justify-center text-black hover:scale-110 transition-transform"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActionMenuFor(null);
+                      setReactionPickerFor((v) => (v === msg.id ? null : msg.id));
+                    }}
+                  >
+                    <FaceSmileIcon className="w-5 h-5 text-black" />
+                  </button>
+                </div>
 
                 {/* Reactions badge: bottom-left of bubble for both sender and receiver.
                     Sits half inside, half outside the bubble for emphasis. */}
