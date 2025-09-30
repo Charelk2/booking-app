@@ -2791,137 +2791,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 </div>
 
                 {/* Hover actions (desktop): small chevron button to open menu */}
-                {(() => {
-                  const looksLikeMessage = typeof msg.content === 'string' && msg.content.trim().length > 0;
-                  const content = String(msg.content || '');
-                  const hasReply = Boolean(msg.reply_to_preview);
-                  const isLikelyOneLine = looksLikeMessage && !hasReply && !content.includes('\n') && content.length <= 36;
-                  const chevronPos = isLikelyOneLine ? 'bottom-4 right-1' : 'top-1 right-1';
-                  return (
-                    <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity`}>
-                      {/* Chevron menu */}
-                      <button
-                        type="button"
-                        title="More"
-                        className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setReactionPickerFor(null);
-                          setActionMenuFor((v) => (v === msg.id ? null : msg.id));
-                        }}
-                      >
-                        <ChevronDownIcon className="w-3 h-3" />
-                      </button>
-                      <div
-                        ref={actionMenuRef}
-                        className={`absolute bottom-full ${isMsgFromSelf ? 'right-0' : 'left-0'} z-20 min-w-[160px] rounded-md border border-gray-200 bg-white shadow-lg ${
-                          actionMenuFor === msg.id && !(isMobile && !isMsgFromSelf)
-                            ? 'block opacity-100 pointer-events-auto'
-                            : 'hidden opacity-0 pointer-events-none'
-                        }`}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                          <button
-                            type="button"
-                            className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
-                            onClick={() => {
-                              try {
-                                const parts: string[] = [];
-                                if (msg.content) parts.push(msg.content);
-                                if (msg.attachment_url) parts.push(toApiAttachmentsUrl(msg.attachment_url));
-                                void navigator.clipboard.writeText(parts.join('\n'));
-                              } catch (e) {
-                                console.error('Copy failed', e);
-                              } finally {
-                                setActionMenuFor(null);
-                                setCopiedFor(msg.id);
-                                setHighlightFor(msg.id);
-                                setTimeout(() => {
-                                  setCopiedFor((v) => (v === msg.id ? null : v));
-                                  setHighlightFor((v) => (v === msg.id ? null : v));
-                                }, 1200);
-                              }
-                            }}
-                          >
-                            Copy
-                          </button>
-                          <button
-                            type="button"
-                            className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
-                            onClick={() => {
-                              setReplyTarget(msg);
-                              setReactionPickerFor(null);
-                              setActionMenuFor(null);
-                            }}
-                          >
-                            Reply
-                          </button>
-                          <button
-                            type="button"
-                            className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
-                            onClick={() => {
-                              setActionMenuFor(null);
-                              setReactionPickerFor(msg.id);
-                            }}
-                          >
-                            React
-                          </button>
-                          {msg.attachment_url && (
-                            <button
-                              type="button"
-                              className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
-                              onClick={async () => {
-                                try {
-                                  const url = toApiAttachmentsUrl(msg.attachment_url!);
-                                  const res = await fetch(url, { credentials: 'include' as RequestCredentials });
-                                  if (!res.ok) throw new Error(String(res.status));
-                                  const blob = await res.blob();
-                                  const a = document.createElement('a');
-                                  const objectUrl = URL.createObjectURL(blob);
-                                  a.href = objectUrl;
-                                  a.download = url.split('/').pop() || 'file';
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  a.remove();
-                                  URL.revokeObjectURL(objectUrl);
-                                } catch (err) {
-                                  try { window.open(toApiAttachmentsUrl(msg.attachment_url!), '_blank', 'noopener,noreferrer'); } catch {}
-                                } finally {
-                                  setActionMenuFor(null);
-                                }
-                              }}
-                            >
-                              Download
-                            </button>
-                          )}
-                          {isMsgFromSelf && (
-                            <button
-                              type="button"
-                              className="block w-full text-left px-3 py-2 text-[12px] text-red-600 hover:bg-red-50"
-                              onClick={async () => {
-                                setActionMenuFor(null);
-                                const ok = typeof window !== 'undefined' ? window.confirm('Delete this message?') : true;
-                                if (!ok) return;
-                                const snapshot = messages;
-                                setMessages((prev) => prev.filter((m) => m.id !== msg.id));
-                                try {
-                                  const bid = bookingDetails?.id || (parsedBookingDetails as any)?.id;
-                                  if (bid) await deleteMessageForBookingRequest(bookingRequestId, msg.id);
-                                } catch (e) {
-                                  setMessages(snapshot);
-                                  console.error('Delete failed', e);
-                                  alert('Could not delete this message.');
-                                }
-                              }}
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
+                <HoverActions msg={msg} isMsgFromSelf={isMsgFromSelf} />
 
                 {/* Reaction picker */}
                 {/* Desktop/Tablet anchored picker (always mounted for instant open) */}
@@ -3417,6 +3287,139 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             {e}
           </button>
         ))}
+      </div>
+    );
+  };
+
+  // Isolate complex hover actions to avoid JSX bracket/paren drift in the map callback
+  const HoverActions: React.FC<{ msg: ThreadMessage; isMsgFromSelf: boolean }> = ({ msg, isMsgFromSelf }) => {
+    const looksLikeMessage = typeof msg.content === 'string' && msg.content.trim().length > 0;
+    const content = String(msg.content || '');
+    const hasReply = Boolean(msg.reply_to_preview);
+    const isLikelyOneLine = looksLikeMessage && !hasReply && !content.includes('\n') && content.length <= 36;
+    const chevronPos = isLikelyOneLine ? 'bottom-4 right-1' : 'top-1 right-1';
+
+    return (
+      <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity`}>
+        {/* Chevron menu */}
+        <button
+          type="button"
+          title="More"
+          className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
+          onClick={(e) => {
+            e.stopPropagation();
+            setReactionPickerFor(null);
+            setActionMenuFor((v) => (v === msg.id ? null : msg.id));
+          }}
+        >
+          <ChevronDownIcon className="w-3 h-3" />
+        </button>
+        <div
+          ref={actionMenuRef}
+          className={`absolute bottom-full ${isMsgFromSelf ? 'right-0' : 'left-0'} z-20 min-w-[160px] rounded-md border border-gray-200 bg-white shadow-lg ${
+            actionMenuFor === msg.id && !(isMobile && !isMsgFromSelf)
+              ? 'block opacity-100 pointer-events-auto'
+              : 'hidden opacity-0 pointer-events-none'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+            onClick={() => {
+              try {
+                const parts: string[] = [];
+                if (msg.content) parts.push(msg.content);
+                if (msg.attachment_url) parts.push(toApiAttachmentsUrl(msg.attachment_url));
+                void navigator.clipboard.writeText(parts.join('\n'));
+              } catch (e) {
+                console.error('Copy failed', e);
+              } finally {
+                setActionMenuFor(null);
+                setCopiedFor(msg.id);
+                setHighlightFor(msg.id);
+                setTimeout(() => {
+                  setCopiedFor((v) => (v === msg.id ? null : v));
+                  setHighlightFor((v) => (v === msg.id ? null : v));
+                }, 1200);
+              }
+            }}
+          >
+            Copy
+          </button>
+          <button
+            type="button"
+            className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+            onClick={() => {
+              setReplyTarget(msg);
+              setReactionPickerFor(null);
+              setActionMenuFor(null);
+            }}
+          >
+            Reply
+          </button>
+          <button
+            type="button"
+            className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+            onClick={() => {
+              setActionMenuFor(null);
+              setReactionPickerFor(msg.id);
+            }}
+          >
+            React
+          </button>
+          {msg.attachment_url && (
+            <button
+              type="button"
+              className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+              onClick={async () => {
+                try {
+                  const url = toApiAttachmentsUrl(msg.attachment_url!);
+                  const res = await fetch(url, { credentials: 'include' as RequestCredentials });
+                  if (!res.ok) throw new Error(String(res.status));
+                  const blob = await res.blob();
+                  const a = document.createElement('a');
+                  const objectUrl = URL.createObjectURL(blob);
+                  a.href = objectUrl;
+                  a.download = url.split('/').pop() || 'file';
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(objectUrl);
+                } catch (err) {
+                  try { window.open(toApiAttachmentsUrl(msg.attachment_url!), '_blank', 'noopener,noreferrer'); } catch {}
+                } finally {
+                  setActionMenuFor(null);
+                }
+              }}
+            >
+              Download
+            </button>
+          )}
+          {isMsgFromSelf && (
+            <button
+              type="button"
+              className="block w-full text-left px-3 py-2 text-[12px] text-red-600 hover:bg-red-50"
+              onClick={async () => {
+                setActionMenuFor(null);
+                const ok = typeof window !== 'undefined' ? window.confirm('Delete this message?') : true;
+                if (!ok) return;
+                const snapshot = messages;
+                setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                try {
+                  const bid = bookingDetails?.id || (parsedBookingDetails as any)?.id;
+                  if (bid) await deleteMessageForBookingRequest(bookingRequestId, msg.id);
+                } catch (e) {
+                  setMessages(snapshot);
+                  console.error('Delete failed', e);
+                  alert('Could not delete this message.');
+                }
+              }}
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </div>
     );
   };
