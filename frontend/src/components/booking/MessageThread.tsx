@@ -2812,12 +2812,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                       >
                         <ChevronDownIcon className="w-3 h-3" />
                       </button>
-                      {actionMenuFor === msg.id && !(isMobile && !isMsgFromSelf) && (
-                        <div
-                          ref={actionMenuRef}
-                          className={`absolute bottom-full ${isMsgFromSelf ? 'right-0' : 'left-0'} z-20 min-w-[160px] rounded-md border border-gray-200 bg-white shadow-lg`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                      <div
+                        ref={actionMenuRef}
+                        className={`absolute bottom-full ${isMsgFromSelf ? 'right-0' : 'left-0'} z-20 min-w-[160px] rounded-md border border-gray-200 bg-white shadow-lg ${
+                          actionMenuFor === msg.id && !(isMobile && !isMsgFromSelf)
+                            ? 'block opacity-100 pointer-events-auto'
+                            : 'hidden opacity-0 pointer-events-none'
+                        }`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                           <button
                             type="button"
                             className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
@@ -2915,25 +2918,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             </button>
                           )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })()}
 
                 {/* Reaction picker */}
-                {reactionPickerFor === msg.id && (
-                  <>
-                    {/* Desktop/Tablet anchored picker */}
-                    <div
-                      ref={reactionPickerRefDesktop}
-                      className={`hidden sm:block absolute -top-10 z-30 pointer-events-auto ${
-                        isMsgFromSelf ? 'left-1/2 transform -translate-x-full' : 'left-1/2'
-                      }`}
-                    >
-                      <ReactionBar id={msg.id} />
-                    </div>
-                  </>
-                )}
+                {/* Desktop/Tablet anchored picker (always mounted for instant open) */}
+                <div
+                  ref={reactionPickerRefDesktop}
+                  className={`hidden sm:block absolute -top-10 z-30 ${
+                    isMsgFromSelf ? 'left-1/2 transform -translate-x-full' : 'left-1/2'
+                  } ${reactionPickerFor === msg.id ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                >
+                  <ReactionBar id={msg.id} />
+                </div>
 
                 {/* Hover reaction emoji – outside bubble, vertically centered */}
                 <div
