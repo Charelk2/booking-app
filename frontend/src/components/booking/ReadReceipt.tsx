@@ -32,8 +32,8 @@ export default function ReadReceipt({
   const color =
     state === 'read' ? 'text-sky-500' :
     state === 'delivered' ? 'text-zinc-500' :
-    state === 'sent' ? 'text-zinc-500' :
-    state === 'sending' ? 'text-zinc-400' : 'text-rose-500';
+    state === 'sent' ? 'text-zinc-500' : // treat sending as sent for UI
+    state === 'sending' ? 'text-zinc-500' : 'text-rose-500';
 
   return (
     <span
@@ -43,7 +43,7 @@ export default function ReadReceipt({
       title={formatTooltip(label, at)}
     >
       {state === 'sending' ? (
-        <DotPulse className="ml-1" />
+        <TickSingle className={`${size} ${color}`} />
       ) : state === 'sent' ? (
         <TickSingle className={`${size} ${color}`} />
       ) : state === 'delivered' ? (
@@ -103,4 +103,3 @@ function DotPulse({ className = '' }: { className?: string }) {
     </span>
   );
 }
-

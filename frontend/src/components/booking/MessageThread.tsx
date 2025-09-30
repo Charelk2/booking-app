@@ -140,10 +140,11 @@ function toDeliveryState(m: ThreadMessage): DeliveryState {
     if (m.status === 'failed') return 'error';
     if ((m as any).is_read || (m as any).read_at) return 'read';
     if ((m as any).is_delivered || (m as any).delivered_at) return 'delivered';
-    if (m.status === 'sent') return 'sent';
-    return 'sending';
+    // Treat queued/sending/sent all as single-check 'sent'
+    if (m.status === 'sent' || m.status === 'sending' || m.status === 'queued') return 'sent';
+    return 'sent';
   } catch {
-    return 'sending';
+    return 'sent';
   }
 }
 
