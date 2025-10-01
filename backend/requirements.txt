@@ -7,6 +7,9 @@ sqlalchemy==2.0.23
 psycopg2-binary==2.9.10
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+# pin bcrypt <4 until passlib drops the legacy detection path that triggers
+# ValueError / missing __about__ on 4.x
+bcrypt==3.2.2
 python-multipart==0.0.20
 pydantic==2.11.5
 python-dotenv==1.0.0

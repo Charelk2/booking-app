@@ -390,6 +390,8 @@ def get_current_user(
     jwt_token = token
     if (not jwt_token) and request is not None:
         jwt_token = request.cookies.get("access_token")
+    if not jwt_token:
+        raise credentials_exception
     try:
         payload = jwt.decode(jwt_token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
