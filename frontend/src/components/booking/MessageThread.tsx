@@ -31,6 +31,8 @@ import {
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
 import { isSystemMessage as isSystemMsgHelper, systemLabel } from '@/lib/systemMessages';
+import { trackEvent } from '@/lib/analytics';
+import { inboxVirtualizationEnabled, inboxTelemetryEnabled } from '@/lib/flags';
 
 import {
   Booking,
@@ -69,6 +71,7 @@ import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import useRealtime from '@/hooks/useRealtime';
 import useBookingView from '@/hooks/useBookingView';
+import useThreadScrollAnchor from '@/hooks/useThreadScrollAnchor';
 
 import Button from '../ui/Button';
 import { addMessageReaction, removeMessageReaction } from '@/lib/api';
@@ -763,7 +766,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [serviceProviderByServiceId, setServiceProviderByServiceId] = useState<Record<number, number>>({});
   const isSendingRef = useRef(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const VIRTUALIZE = process.env.NEXT_PUBLIC_VIRTUALIZE_CHAT === '1';
+  const VIRTUALIZE = inboxVirtualizationEnabled();
+  const TELEMETRY_ON = inboxTelemetryEnabled();
 
   // ---- Offline queue
   const { enqueue: enqueueMessage } = useOfflineQueue<{
@@ -887,6 +891,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return () => window.removeEventListener('resize', update);
   }, []);
   const mobileOverlayOpenedAtRef = useRef<number>(0);
+  const telemetryRef = useRef<{ didHydratePaint?: boolean; didReady?: boolean; didScrollRestore?: boolean }>({});
+  const { computeDistanceFromBottom, isAnchored, pinToBottom, adjustForComposerDelta } = useThreadScrollAnchor(MIN_SCROLL_OFFSET);
 
   // When mobile long-press overlay is open, ensure composer does not focus/type
   const isMobileOverlayOpen = isMobile && actionMenuFor !== null;
@@ -1584,6 +1590,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           stabilizingRef.current = false;
         }, 250);
         fetchInFlightRef.current = false;
+        if (TELEMETRY_ON && !telemetryRef.current.didReady) {
+          telemetryRef.current.didReady = true;
+          try { trackEvent('thread_ready', { thread_id: bookingRequestId }); } catch {}
+        }
       }
     },
     [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded, isActiveThread],
@@ -1687,6 +1697,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       setLoading(false);
       initialLoadedRef.current = true;
       loadedThreadsRef.current.add(bookingRequestId);
+      if (TELEMETRY_ON && !telemetryRef.current.didHydratePaint) {
+        telemetryRef.current.didHydratePaint = true;
+        try { trackEvent('thread_hydrate_first_paint', { thread_id: bookingRequestId, count: cached.length }); } catch {}
+      }
       // Keep gate closed; realtime merges will flush after fresh fetch
     } else {
       setMessages([]);
@@ -1702,12 +1716,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (initialScrolledRef.current) return;
     const el = messagesContainerRef.current;
     if (!el) return;
-    try {
-      el.scrollTop = el.scrollHeight;
-      prevScrollHeightRef.current = el.scrollHeight;
-      distanceFromBottomRef.current = 0;
-    } catch {}
+    pinToBottom(el);
+    try { prevScrollHeightRef.current = el.scrollHeight; } catch {}
+    try { distanceFromBottomRef.current = 0; } catch {}
     initialScrolledRef.current = true;
+    if (TELEMETRY_ON && !telemetryRef.current.didScrollRestore) {
+      telemetryRef.current.didScrollRestore = true;
+      try { trackEvent('thread_scroll_restored', { thread_id: bookingRequestId }); } catch {}
+    }
   }, [messages.length, bookingRequestId]);
 
   // Resolve booking from request for paid/confirmed state (client path)
@@ -2121,13 +2137,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (VIRTUALIZE) return;
     if (!messagesContainerRef.current || !messagesEndRef.current) return;
     if (stabilizingRef.current) return;
-    const anchored = distanceFromBottomRef.current <= MIN_SCROLL_OFFSET;
+    const anchored = isAnchored(messagesContainerRef.current, distanceFromBottomRef.current);
     const shouldAutoScroll = messages.length > prevMessageCountRef.current || (typingIndicator && anchored);
     if (shouldAutoScroll) {
       try { messagesContainerRef.current.scrollTo({ top: messagesContainerRef.current.scrollHeight, behavior: 'auto' }); } catch {}
     }
     prevMessageCountRef.current = messages.length;
-  }, [messages, typingIndicator, VIRTUALIZE]);
+  }, [messages, typingIndicator, VIRTUALIZE, isAnchored]);
 
   // Hook typing emission to composer input
   useEffect(() => {
@@ -2142,9 +2158,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (stabilizingRef.current) return;
     const el = messagesContainerRef.current;
     if (!el) return;
-    const distance = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    const distance = computeDistanceFromBottom(el);
     distanceFromBottomRef.current = distance;
-    const atBottom = distance <= MIN_SCROLL_OFFSET;
+    const atBottom = isAnchored(el, distance);
     setShowScrollButton(!atBottom);
     setIsUserScrolledUp(!atBottom);
     prevScrollHeightRef.current = el.scrollHeight;
@@ -2159,7 +2175,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         prevScrollHeightRef.current = prevHeight;
       }
     }
-  }, []);
+  }, [computeDistanceFromBottom, isAnchored]);
   useEffect(() => {
     if (VIRTUALIZE) return;
     handleScroll();
@@ -3798,16 +3814,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
-    const anchored = distanceFromBottomRef.current <= MIN_SCROLL_OFFSET;
     const deltaH = composerHeight - (prevComposerHeightRef.current || 0);
-    if (anchored && deltaH !== 0) {
-      // Move content up by the same amount the composer grew
-      el.scrollTop = Math.max(0, el.scrollTop + deltaH);
-    }
+    adjustForComposerDelta(el, deltaH);
     prevComposerHeightRef.current = composerHeight;
     // Recompute distance from bottom after adjustments
-    distanceFromBottomRef.current = el.scrollHeight - (el.scrollTop + el.clientHeight);
-  }, [composerHeight]);
+    distanceFromBottomRef.current = computeDistanceFromBottom(el);
+  }, [composerHeight, adjustForComposerDelta, computeDistanceFromBottom]);
 
   // ===== Render ===============================================================
   return (
@@ -3822,6 +3834,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         className={containerClasses}
         style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overflowX: 'hidden' }}
       >
+        {loading && (
+          <div className="py-2 space-y-2" aria-hidden="true">
+            <div className="flex w-full">
+              <div className="max-w-[65%] rounded-2xl rounded-bl-none bg-gray-100 h-12 animate-pulse" />
+            </div>
+            <div className="flex w-full justify-end">
+              <div className="max-w-[55%] rounded-2xl rounded-br-none bg-gray-100 h-8 animate-pulse" />
+            </div>
+            <div className="flex w-full">
+              <div className="max-w-[72%] rounded-2xl rounded-bl-none bg-gray-100 h-16 animate-pulse" />
+            </div>
+          </div>
+        )}
         {!loading && (
           visibleMessages.length === 0 && !isSystemTyping && (
             <div className="text-center py-4">
