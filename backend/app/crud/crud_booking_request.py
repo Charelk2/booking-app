@@ -179,11 +179,14 @@ def get_booking_requests_with_last_message(
                 models.ServiceProviderProfile.user_id,
                 models.ServiceProviderProfile.business_name,
                 models.ServiceProviderProfile.profile_picture_url,
+                models.ServiceProviderProfile.cancellation_policy,
             ),
             selectinload(models.BookingRequest.service).load_only(
                 models.Service.id,
                 models.Service.service_type,
                 models.Service.title,
+                models.Service.price,
+                models.Service.details,
             ),
             selectinload(models.BookingRequest.quotes)
             .load_only(
@@ -228,11 +231,14 @@ def get_booking_requests_with_last_message(
                 models.ServiceProviderProfile.user_id,
                 models.ServiceProviderProfile.business_name,
                 models.ServiceProviderProfile.profile_picture_url,
+                models.ServiceProviderProfile.cancellation_policy,
             ),
             selectinload(models.BookingRequest.service).load_only(
                 models.Service.id,
                 models.Service.service_type,
                 models.Service.title,
+                models.Service.price,
+                models.Service.details,
             ),
         )
 

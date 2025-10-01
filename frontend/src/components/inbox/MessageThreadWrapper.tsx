@@ -237,6 +237,7 @@ export default function MessageThreadWrapper({
         >
           <MessageThread
             bookingRequestId={bookingRequestId}
+            initialBookingRequest={bookingRequest}
             isActive={isActive}
             serviceId={bookingRequest?.service_id ?? undefined}
             clientName={bookingRequest?.client?.first_name}

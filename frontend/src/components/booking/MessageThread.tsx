@@ -665,6 +665,7 @@ interface ParsedBookingDetails {
 
 interface MessageThreadProps {
   bookingRequestId: number;
+  initialBookingRequest?: BookingRequest | null;
   onMessageSent?: () => void;
   onQuoteSent?: () => void;
   serviceId?: number;
@@ -735,6 +736,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     isDetailsPanelOpen = false,
     disableComposer = false,
     isActive = true,
+    initialBookingRequest = null,
   }: MessageThreadProps,
   ref,
 ) {
@@ -753,7 +755,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
-  const [bookingRequest, setBookingRequest] = useState<BookingRequest | null>(null);
+  const [bookingRequest, setBookingRequest] = useState<BookingRequest | null>(initialBookingRequest ?? null);
+  const [bookingRequestVersion, setBookingRequestVersion] = useState(0);
   const [parsedBookingDetails, setParsedBookingDetails] = useState<ParsedBookingDetails | undefined>();
   const [threadError, setThreadError] = useState<string | null>(null);
   const [wsFailed, setWsFailed] = useState(false);
@@ -1209,67 +1212,97 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- Prefill quote form (SP side)
   const hasSentQuote = useMemo(() => messages.some((m) => Number(m.quote_id) > 0), [messages]);
   useEffect(() => {
+    if (initialBookingRequest && initialBookingRequest.id === bookingRequestId) {
+      setBookingRequest(initialBookingRequest);
+    }
+  }, [initialBookingRequest, bookingRequestId]);
+
+  useEffect(() => {
+    if (initialBookingRequest && initialBookingRequest.id === bookingRequestId && bookingRequestVersion === 0) {
+      return;
+    }
     let cancelled = false;
-    async function load() {
+    (async () => {
       try {
         const res = await getBookingRequestById(bookingRequestId);
-        if (cancelled) return;
-        const br = res.data;
-        setBookingRequest(br);
-        const tb = (br.travel_breakdown || {}) as any;
-        const svcPrice = Number(br.service?.price) || 0;
-        setBaseFee(svcPrice);
-        setTravelFee(Number(br.travel_cost) || 0);
-        if (typeof initialSound === 'undefined') {
-          setInitialSound(Boolean(tb.sound_required));
-        }
-        const soundProv = (br.service?.details || {}).sound_provisioning;
-        if (tb.sound_required && soundProv?.mode === 'artist_provides_variable') {
-          const drive = Number(soundProv.price_driving_sound_zar || soundProv.price_driving_sound || 0);
-          const fly = Number(soundProv.price_flying_sound_zar || soundProv.price_flying_sound || 0);
-          const mode = tb.travel_mode || tb.mode;
-          setInitialSoundCost(mode === 'fly' ? fly : drive);
-        } else if (tb.sound_required && tb.sound_cost) {
-          setInitialSoundCost(Number(tb.sound_cost));
-        } else {
-          setInitialSoundCost(undefined);
-        }
-        const distance = Number(tb.distance_km ?? tb.distanceKm);
-        const eventCity = tb.event_city || parsedBookingDetails?.location || '';
-        const svcId = br.service_id || serviceId || 0;
-        if (distance && eventCity && svcId && tb.sound_required) {
-          const params: {
-            base_fee: number;
-            distance_km: number;
-            service_id: number;
-            event_city: string;
-            accommodation_cost?: number;
-          } = {
-            base_fee: svcPrice,
-            distance_km: distance,
-            service_id: svcId,
-            event_city: eventCity,
-          };
-          if (tb.accommodation_cost) params.accommodation_cost = Number(tb.accommodation_cost);
-          setCalculationParams(params);
-        } else {
-          setCalculationParams(undefined);
+        if (!cancelled) {
+          setBookingRequest(res.data);
         }
       } catch (err) {
-        console.error('Failed to load quote calculation params:', err);
+        console.error('Failed to load booking request:', err);
       }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingRequestId, initialBookingRequest, bookingRequestVersion]);
+
+  useEffect(() => {
+    const br = bookingRequest;
+    if (!br) return;
+    const tb = (br.travel_breakdown || {}) as any;
+    const svcPriceRaw = br.service?.price;
+    const svcPrice = Number(svcPriceRaw);
+    if (Number.isFinite(svcPrice)) {
+      setBaseFee(svcPrice);
+    } else if (typeof initialBaseFee === 'number') {
+      setBaseFee(initialBaseFee);
     }
-    void load();
-    return () => { cancelled = true; };
+    const travelCostRaw = br.travel_cost;
+    const travelCost = Number(travelCostRaw);
+    if (Number.isFinite(travelCost)) {
+      setTravelFee(travelCost);
+    } else if (typeof initialTravelCost === 'number') {
+      setTravelFee(initialTravelCost);
+    }
+    if (typeof initialSound === 'undefined') {
+      setInitialSound(Boolean(tb.sound_required));
+    }
+    const soundProv = (br.service as any)?.details?.sound_provisioning;
+    if (tb.sound_required && soundProv?.mode === 'artist_provides_variable') {
+      const drive = Number(soundProv.price_driving_sound_zar || soundProv.price_driving_sound || 0);
+      const fly = Number(soundProv.price_flying_sound_zar || soundProv.price_flying_sound || 0);
+      const mode = tb.travel_mode || tb.mode;
+      setInitialSoundCost(mode === 'fly' ? fly : drive);
+    } else if (tb.sound_required && tb.sound_cost) {
+      const cost = Number(tb.sound_cost);
+      setInitialSoundCost(Number.isFinite(cost) ? cost : undefined);
+    } else {
+      setInitialSoundCost(undefined);
+    }
+    const distance = Number(tb.distance_km ?? tb.distanceKm);
+    const eventCity = tb.event_city || parsedBookingDetails?.location || '';
+    const svcId = br.service_id || serviceId || 0;
+    if (Number.isFinite(distance) && distance > 0 && eventCity && svcId && tb.sound_required) {
+      const params: {
+        base_fee: number;
+        distance_km: number;
+        service_id: number;
+        event_city: string;
+        accommodation_cost?: number;
+      } = {
+        base_fee: Number.isFinite(svcPrice) ? svcPrice : Number(initialBaseFee ?? 0),
+        distance_km: distance,
+        service_id: svcId,
+        event_city: eventCity,
+      };
+      if (tb.accommodation_cost) params.accommodation_cost = Number(tb.accommodation_cost);
+      setCalculationParams(params);
+    } else {
+      setCalculationParams(undefined);
+    }
   }, [
-    bookingRequestId,
-    serviceId,
-    user?.user_type,
-    bookingConfirmed,
-    hasSentQuote,
-    parsedBookingDetails,
+    bookingRequest,
+    initialBaseFee,
+    initialTravelCost,
     initialSound,
+    parsedBookingDetails,
+    serviceId,
   ]);
+
+  const refreshBookingRequest = useCallback(() => {
+    setBookingRequestVersion((v) => v + 1);
+  }, []);
 
   // ---- Typing indicator label
   const typingIndicator = useMemo(() => {
@@ -1351,12 +1384,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               console.error('Failed to fetch booking details for accepted quote:', err);
             }
           }
+          refreshBookingRequest();
         }
       } catch (err) {
         console.error(`Failed to fetch quote ${quoteId}:`, err);
       }
     },
-    [quotes, bookingDetails],
+    [quotes, bookingDetails, refreshBookingRequest],
   );
 
   // ---- Composer height for padding
@@ -1724,6 +1758,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     try { if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current); } catch {}
     setThreadError(null);
     initialLoadedRef.current = false;
+    setBookingRequestVersion(0);
   }, [bookingRequestId]);
 
   useEffect(() => {
@@ -3705,12 +3740,22 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         void fetchMessages({ mode: 'incremental', force: true, reason: 'quote-send' });
         onMessageSent?.();
         onQuoteSent?.();
+        refreshBookingRequest();
       } catch (err) {
         console.error('Failed to send quote:', err);
         setThreadError(`Failed to send quote. ${(err as Error).message || 'Please try again.'}`);
       }
     },
-    [fetchMessages, onMessageSent, onQuoteSent, bookingRequestId, user?.id, user?.user_type, clientName],
+    [
+      fetchMessages,
+      onMessageSent,
+      onQuoteSent,
+      bookingRequestId,
+      user?.id,
+      user?.user_type,
+      clientName,
+      refreshBookingRequest,
+    ],
   );
 
   const handleDeclineRequest = useCallback(async () => {
@@ -3718,11 +3763,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       await updateBookingRequestArtist(bookingRequestId, { status: 'request_declined' });
       void fetchMessages({ mode: 'incremental', force: true, reason: 'request-decline' });
       onMessageSent?.();
+      refreshBookingRequest();
     } catch (err) {
       console.error('Failed to decline request:', err);
       setThreadError(`Failed to decline request. ${(err as Error).message || 'Please try again.'}`);
     }
-  }, [bookingRequestId, fetchMessages, onMessageSent]);
+  }, [bookingRequestId, fetchMessages, onMessageSent, refreshBookingRequest]);
 
   const handleAcceptQuote = useCallback(
     async (quote: QuoteV2) => {
@@ -3749,12 +3795,22 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
         // Payment modal (triggered separately via onPayNow) will update status
         void fetchMessages({ mode: 'incremental', force: true, reason: 'quote-accept' });
+        refreshBookingRequest();
       } catch (err) {
         console.error('Failed to finalize quote acceptance process:', err);
         setThreadError(`Quote accepted, but there was an issue setting up payment. ${(err as Error).message || 'Please try again.'}`);
       }
     },
-    [bookingRequestId, fetchMessages, serviceId, onBookingConfirmedChange, user?.id, user?.user_type, clientName],
+    [
+      bookingRequestId,
+      fetchMessages,
+      serviceId,
+      onBookingConfirmedChange,
+      user?.id,
+      user?.user_type,
+      clientName,
+      refreshBookingRequest,
+    ],
   );
 
   const handleDeclineQuote = useCallback(
@@ -3763,12 +3819,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         await declineQuoteV2(quote.id);
         const updatedQuote = await getQuoteV2(quote.id);
         setQuotes((prev) => ({ ...prev, [quote.id]: updatedQuote.data }));
+        refreshBookingRequest();
       } catch (err) {
         console.error('Failed to decline quote:', err);
         setThreadError('Failed to decline quote. Please refresh and try again.');
       }
     },
-    [],
+    [refreshBookingRequest],
   );
 
   // Emit booking context for header menus (additive, safe)

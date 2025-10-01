@@ -166,6 +166,29 @@ def read_messages(
             pass
         return val
 
+    def _scrub_attachment_meta(val: Optional[dict]) -> Optional[dict]:
+        if not isinstance(val, dict):
+            return val
+        try:
+            cleaned = {
+                key: value
+                for key, value in val.items()
+                if key not in {
+                    "data_url",
+                    "dataUrl",
+                    "preview",
+                    "preview_base64",
+                    "previewBase64",
+                    "preview_data_url",
+                }
+            }
+            thumb = cleaned.get("thumbnail")
+            if isinstance(thumb, str) and thumb.startswith("data:") and len(thumb) > 200:
+                cleaned.pop("thumbnail", None)
+            return cleaned or None
+        except Exception:
+            return None
+
     # Helper: transform attachment_url to a signed GET if it's an R2 public URL
     def _maybe_sign_attachment_url(val: Optional[str]) -> Optional[str]:
         try:
@@ -193,6 +216,8 @@ def read_messages(
         # Sign attachment URL on the fly when pointing at private R2
         if data.get("attachment_url"):
             data["attachment_url"] = _maybe_sign_attachment_url(str(data.get("attachment_url") or ""))
+        if data.get("attachment_meta"):
+            data["attachment_meta"] = _scrub_attachment_meta(data.get("attachment_meta"))
         # Server-computed preview label for uniform clients
         try:
             data["preview_label"] = preview_label_for_message(m)
