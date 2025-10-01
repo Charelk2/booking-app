@@ -28,7 +28,7 @@ import ReadReceipt, { type DeliveryState } from '@/components/booking/ReadReceip
 import {
   getFullImageUrl,
 } from '@/lib/utils';
-import { BOOKING_DETAILS_PREFIX, FEATURE_INBOX_SECONDARY_PIPELINE } from '@/lib/constants';
+import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
 import { isSystemMessage as isSystemMsgHelper, systemLabel } from '@/lib/systemMessages';
 // Telemetry & flags removed in Batch 1 clean revamp
@@ -745,7 +745,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const { user, token } = useAuth();
   const router = useRouter();
   const isActiveThread = isActive !== false;
-  const secondaryPipelineEnabled = FEATURE_INBOX_SECONDARY_PIPELINE;
   const hasInitialBookingRequest = useMemo(
     () => Boolean(initialBookingRequest && initialBookingRequest.id === bookingRequestId),
     [initialBookingRequest, bookingRequestId],
@@ -1190,7 +1189,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       ),
     [bookingDetails, bookingRequest, bookingRequestId, initialBookingRequest],
   );
-  const showBookingSummarySkeleton = secondaryPipelineEnabled && !bookingSummaryReady;
+  const showBookingSummarySkeleton = !bookingSummaryReady;
 
   // List of image URLs in this thread (for modal navigation)
   const imageMessages = useMemo(() => messages.filter((m) => isImageAttachment(m.attachment_url || undefined)), [messages]);
@@ -1241,31 +1240,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     setBookingRequest(initialBookingRequest);
     setBookingRequestHydration('success');
   }, [hasInitialBookingRequest, initialBookingRequest]);
-
-  useEffect(() => {
-    if (secondaryPipelineEnabled) return;
-    if (hasInitialBookingRequest && bookingRequestVersion === 0) {
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        setBookingRequestHydration('loading');
-        const res = await getBookingRequestById(bookingRequestId);
-        if (!cancelled) {
-          setBookingRequest(res.data);
-          setBookingRequestHydration('success');
-        }
-      } catch (err) {
-        console.error('Failed to load booking request:', err);
-        if (!cancelled) setBookingRequestHydration('error');
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [bookingRequestId, bookingRequestVersion, hasInitialBookingRequest, secondaryPipelineEnabled]);
-
   useEffect(() => {
     const br = bookingRequest;
     if (!br) return;
@@ -1924,8 +1898,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   }, [bookingRequestId, bookingDetails]);
 
   useEffect(() => {
-    if (!secondaryPipelineEnabled) return;
-    if (bookingRequestHydration === 'loading') return;
+    if (bookingRequestHydration !== 'idle') return;
     let cancelled = false;
     const cancelFns: Array<() => void> = [];
 
@@ -1973,7 +1946,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       cancelFns.forEach((fn) => fn());
     };
   }, [
-    secondaryPipelineEnabled,
     bookingRequestHydration,
     bookingRequestId,
     bookingRequestVersion,

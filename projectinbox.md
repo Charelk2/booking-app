@@ -174,7 +174,7 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 **Progress**
 - Inbox now reuses booking request payloads supplied by the thread list, eliminating repeated `/booking-requests/{id}` fetches on every switch and keeping ancillary fetches in the background.
 - Quote and booking mutations trigger a local refresh hook instead of rereading the entire request synchronously, letting the composer stay live while secondary data streams in.
-- Secondary pipeline now runs behind `NEXT_PUBLIC_INBOX_SECONDARY_PIPELINE_ENABLED`; `MessageThread` defers booking-request and client booking hydrations via a staged idle queue so initial painter stays snappy.
+- Secondary pipeline now runs by default; `MessageThread` defers booking-request and client booking hydrations via a staged idle queue so the initial painter stays snappy.
 - Skeleton components (`BookingSummarySkeleton`, `QuoteBubbleSkeleton`, `EventPrepSkeleton`) reserve space for booking panels, quote bubbles, and prep cards while ancillary fetches complete, keeping the composer available.
 
 **Open Work**

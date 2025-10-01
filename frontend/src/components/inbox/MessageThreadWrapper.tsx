@@ -14,7 +14,6 @@ import MessageThread from '../booking/MessageThread';
 import BookingDetailsPanel from './BookingDetailsPanel';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import BookingSummarySkeleton from '../booking/BookingSummarySkeleton';
-import { FEATURE_INBOX_SECONDARY_PIPELINE } from '@/lib/constants';
 
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -54,7 +53,6 @@ export default function MessageThreadWrapper({
   const [isUserArtist, setIsUserArtist] = useState(false);
   const { user } = useContextAuth();
   const router = useRouter();
-  const secondaryPipelineEnabled = FEATURE_INBOX_SECONDARY_PIPELINE;
 
   useEffect(() => {
     setIsUserArtist(Boolean(user && user.user_type === 'service_provider'));
@@ -296,11 +294,11 @@ export default function MessageThreadWrapper({
                 openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount } as any)
               }
             />
-          ) : secondaryPipelineEnabled ? (
-            <div className="mt-2">
-              <BookingSummarySkeleton />
-            </div>
-          ) : null}
+            ) : (
+              <div className="mt-2">
+                <BookingSummarySkeleton />
+              </div>
+            )}
         </section>
 
         {/* Mobile overlay backdrop */}
@@ -349,9 +347,9 @@ export default function MessageThreadWrapper({
                   openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount } as any)
                 }
               />
-            ) : secondaryPipelineEnabled ? (
+            ) : (
               <BookingSummarySkeleton variant="modal" />
-            ) : null}
+            )}
           </div>
         </section>
       </div>
