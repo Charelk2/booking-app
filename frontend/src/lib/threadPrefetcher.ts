@@ -1,4 +1,5 @@
 import { readThreadFromIndexedDb, readThreadCache } from '@/lib/threadCache';
+import { trackEvent } from '@/lib/analytics';
 
 export type PrefetchCandidate = {
   id: number;
@@ -57,6 +58,15 @@ let initialized = false;
 
 let connectionRef: Connection | null = null;
 const cleanupCallbacks: Array<() => void> = [];
+
+const nowMs = (): number => {
+  try {
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+      return performance.now();
+    }
+  } catch {}
+  return Date.now();
+};
 
 function getNavigatorConnection(): Connection | null {
   try {
@@ -181,9 +191,19 @@ function processQueue() {
 
   runningCount += 1;
   shouldPrefetch(item)
-    .then((need) => {
+    .then(async (need) => {
       if (!need) return;
-      return fetchThread!(item.id, item.limit ?? options.defaultLimit);
+      const startedAt = nowMs();
+      await fetchThread!(item.id, item.limit ?? options.defaultLimit);
+      const duration = Math.max(0, nowMs() - startedAt);
+      trackEvent('inbox_prefetch_batch_ms', {
+        threadId: item.id,
+        durationMs: Math.round(duration),
+        reason: item.reason,
+        priority: item.priority,
+        limit: item.limit ?? options.defaultLimit,
+        remainingQueueSize: queue.size,
+      });
     })
     .catch(() => {
       requeueItem(item, { incrementAttempt: true });

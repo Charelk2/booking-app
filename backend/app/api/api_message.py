@@ -11,6 +11,8 @@ from fastapi import (
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timezone
+import logging
+import time
 
 from .. import crud, models, schemas
 from ..schemas.storage import PresignIn, PresignOut
@@ -29,8 +31,11 @@ import mimetypes
 import uuid
 import shutil
 from pydantic import BaseModel
+import orjson
 
 router = APIRouter(tags=["messages"])
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_ATTACHMENTS_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "static", "attachments")
@@ -85,7 +90,11 @@ def read_messages(
     if hasattr(fields, "default"):
         fields = None
 
+    request_start = time.perf_counter()
+    db_latency_ms: float = 0.0
+
     try:
+        query_start = time.perf_counter()
         db_messages = crud.crud_message.get_messages_for_request(
             db,
             request_id,
@@ -94,11 +103,10 @@ def read_messages(
             limit=limit,
             after_id=after_id,
         )
+        db_latency_ms = (time.perf_counter() - query_start) * 1000.0
     except Exception as exc:
         # Defensive logging to diagnose unexpected DB shape mismatches in the field
-        import logging
         from sqlalchemy import inspect
-        logger = logging.getLogger(__name__)
         try:
             insp = inspect(db.get_bind())
             cols = []
@@ -225,6 +233,31 @@ def read_messages(
         if include is not None:
             data = {k: v for k, v in data.items() if k in include}
         result.append(data)
+
+    payload_bytes = 0
+    try:
+        payload_bytes = len(orjson.dumps(result))
+    except Exception:
+        payload_bytes = 0
+
+    total_latency_ms = (time.perf_counter() - request_start) * 1000.0
+
+    logger.info(
+        "inbox_messages_response",
+        extra={
+            "event": "inbox_messages_response",
+            "thread_id": request_id,
+            "viewer": viewer.value if hasattr(viewer, "value") else str(viewer),
+            "result_count": len(result),
+            "db_latency_ms": round(db_latency_ms, 2),
+            "total_latency_ms": round(total_latency_ms, 2),
+            "payload_bytes": payload_bytes,
+            "limit": limit,
+            "after_id": after_id,
+            "user_id": current_user.id,
+        },
+    )
+
     return result
 
 

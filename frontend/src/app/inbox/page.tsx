@@ -44,6 +44,7 @@ import {
   kickThreadPrefetcher,
 } from '@/lib/threadPrefetcher';
 import type { PrefetchCandidate } from '@/lib/threadPrefetcher';
+import { recordThreadSwitchStart } from '@/lib/inboxTelemetry';
 // Telemetry flags removed; keep code minimal
 
 export default function InboxPage() {
@@ -682,12 +683,20 @@ export default function InboxPage() {
         try {
           const res = await ensureBookaThread();
           const realId = res.data?.booking_request_id;
-          if (realId) setSelectedBookingRequestId(realId);
+          if (realId && realId !== selectedBookingRequestId) {
+            recordThreadSwitchStart(realId, { source: 'system' });
+            setSelectedBookingRequestId(realId);
+          }
         } catch {}
       })();
       return;
     }
-    if (urlId && allBookingRequests.find((r) => r.id === urlId)) {
+    if (
+      urlId &&
+      urlId !== selectedBookingRequestId &&
+      allBookingRequests.find((r) => r.id === urlId)
+    ) {
+      recordThreadSwitchStart(urlId, { source: 'restored' });
       setSelectedBookingRequestId(urlId);
     } else if (selectedBookingRequestId == null) {
       // Try restore persisted selection first
@@ -703,13 +712,22 @@ export default function InboxPage() {
             if (obj.id && age >= 0 && age < PERSIST_TTL_MS) selId = Number(obj.id);
           } catch {}
         }
-        if (selId && allBookingRequests.find((r) => r.id === selId)) {
+        if (
+          selId &&
+          selId !== selectedBookingRequestId &&
+          allBookingRequests.find((r) => r.id === selId)
+        ) {
+          recordThreadSwitchStart(selId, { source: 'restored' });
           setSelectedBookingRequestId(selId);
           return;
         }
       } catch {}
       // Fallback to most recent
-      setSelectedBookingRequestId(allBookingRequests[0].id);
+      const fallbackId = allBookingRequests[0].id;
+      if (fallbackId && fallbackId !== selectedBookingRequestId) {
+        recordThreadSwitchStart(fallbackId, { source: 'restored' });
+        setSelectedBookingRequestId(fallbackId);
+      }
     }
   }, [allBookingRequests, searchParams, selectedBookingRequestId, SEL_KEY, PERSIST_TTL_MS]);
 
@@ -757,21 +775,27 @@ export default function InboxPage() {
 
   const handleSelect = useCallback(
     (id: number) => {
-      // Telemetry: mark the beginning of a thread switch
-      // noop telemetry removed
+      if (!id) return;
+      let previousUnread = 0;
+      let selectedNow: any = null;
+      try {
+        selectedNow = allBookingRequests.find((r) => r.id === id) as any;
+        previousUnread = Number(selectedNow?.unread_count || 0) || 0;
+      } catch {}
+      recordThreadSwitchStart(id, { source: 'list_click', unreadBefore: previousUnread });
       // Immediate UI feedback: select and update URL right away
       setSelectedBookingRequestId(id);
-      let previousUnread = 0;
-      try {
-        const existing = allBookingRequests.find((r) => r.id === id) as any;
-        previousUnread = Number(existing?.unread_count || 0) || 0;
-        setAllBookingRequests((prev) => prev.map((r) => (r.id === id ? ({
-          ...r,
-          is_unread_by_current_user: false as any,
-          unread_count: 0 as any,
-        }) : r)));
-      } catch {}
-      const selectedNow = allBookingRequests.find((r) => r.id === id) as any;
+      setAllBookingRequests((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? ({
+                ...r,
+                is_unread_by_current_user: false as any,
+                unread_count: 0 as any,
+              })
+            : r,
+        ),
+      );
       const isBooka = Boolean(selectedNow?.is_booka_synthetic);
       const params = new URLSearchParams(searchParams.toString());
       if (isBooka) {
@@ -829,7 +853,8 @@ export default function InboxPage() {
           try {
             const res = await ensureBookaThread();
             const realId = res.data?.booking_request_id || id;
-            if (realId && realId !== id) {
+            if (realId && realId !== id && realId !== selectedBookingRequestId) {
+              recordThreadSwitchStart(realId, { source: 'system' });
               setSelectedBookingRequestId(realId);
               // Replace URL
               const p = new URLSearchParams(searchParams.toString());
@@ -846,7 +871,19 @@ export default function InboxPage() {
         })();
       }
     },
-    [allBookingRequests, filteredRequests, searchParams, isMobile, router, fetchAllRequests, SEL_KEY, enqueueThreadPrefetch, kickThreadPrefetcher]
+    [
+      allBookingRequests,
+      filteredRequests,
+      searchParams,
+      isMobile,
+      router,
+      fetchAllRequests,
+      SEL_KEY,
+      enqueueThreadPrefetch,
+      kickThreadPrefetcher,
+      selectedBookingRequestId,
+      recordThreadSwitchStart,
+    ]
   );
 
   useEffect(() => {

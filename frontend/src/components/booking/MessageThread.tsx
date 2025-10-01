@@ -65,6 +65,7 @@ import {
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { emitThreadsUpdated, type ThreadsUpdatedDetail } from '@/lib/threadsEvents';
+import { emissionPayload, getThreadSwitchSnapshot, trackHydrationEvent } from '@/lib/inboxTelemetry';
 
 import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';
@@ -875,6 +876,43 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const messagesRef = useRef<ThreadMessage[]>([]);
   const loadedThreadsRef = useRef<Set<number>>(new Set());
   const lastMessageIdRef = useRef<Record<number, number>>({});
+  const hydrationStartRef = useRef<number>(0);
+  const hydrationThreadRef = useRef<number | null>(null);
+  const hydrationSourceRef = useRef<'session' | 'indexeddb' | 'network' | null>(null);
+  const cacheEventSentRef = useRef(false);
+  const firstPaintSentRef = useRef(false);
+  const readySentRef = useRef(false);
+  const scrollSentRef = useRef(false);
+
+  const perfNow = () => {
+    try {
+      if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+        return performance.now();
+      }
+    } catch {}
+    return Date.now();
+  };
+
+  const emitStage = useCallback(
+    (
+      stage: 'first_paint' | 'ready' | 'scroll_restored' | 'cache_hit' | 'cache_miss',
+      cacheType: string | null = hydrationSourceRef.current,
+    ) => {
+      if (!bookingRequestId) return;
+      if (hydrationThreadRef.current !== null && hydrationThreadRef.current !== bookingRequestId) return;
+      const start = hydrationStartRef.current || perfNow();
+      const duration = Math.max(0, perfNow() - start);
+      trackHydrationEvent(
+        emissionPayload({
+          threadId: bookingRequestId,
+          durationMs: duration,
+          cacheType: cacheType ?? hydrationSourceRef.current ?? null,
+          stage,
+        }),
+      );
+    },
+    [bookingRequestId],
+  );
 
   // Local ephemeral features
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
@@ -1463,6 +1501,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         });
         setThreadError(null);
         setLoading(false);
+        hydrationSourceRef.current = hydrationSourceRef.current ?? 'network';
+        if (!cacheEventSentRef.current) {
+          emitStage('cache_miss', 'none');
+          cacheEventSentRef.current = true;
+        }
+        if (!firstPaintSentRef.current) {
+          emitStage('first_paint', hydrationSourceRef.current ?? 'network');
+          firstPaintSentRef.current = true;
+        }
         const wasGateClosed = !initialLoadedRef.current;
         initialLoadedRef.current = true;
         loadedThreadsRef.current.add(bookingRequestId);
@@ -1679,10 +1726,30 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     initialLoadedRef.current = false;
   }, [bookingRequestId]);
 
+  useEffect(() => {
+    const snapshot = getThreadSwitchSnapshot(bookingRequestId);
+    hydrationStartRef.current = snapshot?.startedAtMs ?? perfNow();
+    hydrationThreadRef.current = bookingRequestId;
+    hydrationSourceRef.current = 'network';
+    cacheEventSentRef.current = false;
+    firstPaintSentRef.current = false;
+    readySentRef.current = false;
+    scrollSentRef.current = false;
+  }, [bookingRequestId]);
+
   // Hydrate from cache immediately on thread switch for instant paint
   useEffect(() => {
     const cached = readCachedMessages(bookingRequestId);
     if (cached && cached.length) {
+      hydrationSourceRef.current = 'session';
+      if (!cacheEventSentRef.current) {
+        emitStage('cache_hit', 'session');
+        cacheEventSentRef.current = true;
+      }
+      if (!firstPaintSentRef.current) {
+        emitStage('first_paint', 'session');
+        firstPaintSentRef.current = true;
+      }
       setMessages(cached);
       setLoading(false);
       initialLoadedRef.current = true;
@@ -1710,6 +1777,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           .filter((m: any) => Number.isFinite(m.id))
           .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
         if (!normalized.length) return;
+        if (hydrationSourceRef.current !== 'session') hydrationSourceRef.current = 'indexeddb';
+        if (!cacheEventSentRef.current) {
+          emitStage('cache_hit', 'indexeddb');
+          cacheEventSentRef.current = true;
+        }
+        if (!firstPaintSentRef.current) {
+          emitStage('first_paint', 'indexeddb');
+          firstPaintSentRef.current = true;
+        }
         const cachedLastId = normalized[normalized.length - 1]?.id;
         const currentLastId = lastMessageIdRef.current[bookingRequestId] || 0;
         if (cachedLastId && (!currentLastId || cachedLastId > currentLastId)) {
@@ -1728,6 +1804,24 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       cancelled = true;
     };
   }, [bookingRequestId, threadStoreEnabled]);
+
+  useEffect(() => {
+    if (hydrationThreadRef.current !== bookingRequestId) return;
+    if (readySentRef.current) return;
+    if (loading) return;
+    readySentRef.current = true;
+    emitStage('ready', hydrationSourceRef.current ?? 'network');
+  }, [bookingRequestId, loading, emitStage]);
+
+  useEffect(() => {
+    if (hydrationThreadRef.current !== bookingRequestId) return;
+    if (scrollSentRef.current) return;
+    if (loading) return;
+    if (!initialLoadedRef.current) return;
+    if (virtuosoViewportHeight <= 0) return;
+    scrollSentRef.current = true;
+    emitStage('scroll_restored', hydrationSourceRef.current ?? 'network');
+  }, [bookingRequestId, loading, virtuosoViewportHeight, emitStage]);
 
   useEffect(() => {
     if (isActiveThread) {
