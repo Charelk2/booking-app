@@ -2606,9 +2606,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               >
                 {/* Desktop hover extender zones: make hover area span full row side */}
                 {isMsgFromSelf ? (
-                  <div className="hidden md:block absolute inset-y-0 left-0 -translate-x-full w-screen" aria-hidden="true" />
+                  <div className="hidden md:block absolute inset-y-0 left-0 right-0" aria-hidden="true" />
                 ) : (
-                  <div className="hidden md:block absolute inset-y-0 right-0 translate-x-full w-screen" aria-hidden="true" />
+                  <div className="hidden md:block absolute inset-y-0 left-0 right-0" aria-hidden="true" />
                 )}
                 <div className={isImageAttachment(msg.attachment_url || undefined) ? '' : 'pr-9 mb-1'}>
                   {msg.reply_to_preview && (
@@ -3790,7 +3790,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const effectiveBottomPadding = `calc(${BOTTOM_GAP_PX}px + env(safe-area-inset-bottom))`;
 
   const containerClasses = VIRTUALIZE
-    ? 'relative flex-1 min-h-0 flex flex-col gap-3 bg-white px-3 pt-3 overflow-hidden'
+    ? 'relative flex-1 min-h-0 flex flex-col gap-3 bg-white px-3 pt-3 overflow-x-hidden overflow-y-hidden'
     : 'relative flex-1 min-h-0 flex flex-col justify-end gap-3 bg-white px-3 pt-3 overflow-y-auto overflow-x-hidden';
 
   // When the composer height changes and the user is anchored at bottom, keep the view pinned
@@ -3820,7 +3820,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         onTouchMove={VIRTUALIZE ? undefined : handleTouchMoveOnList}
         onWheel={VIRTUALIZE ? undefined : handleWheelOnList}
         className={containerClasses}
-        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overflowX: 'hidden' }}
       >
         {!loading && (
           visibleMessages.length === 0 && !isSystemTyping && (
