@@ -28,7 +28,7 @@ import ReadReceipt, { type DeliveryState } from '@/components/booking/ReadReceip
 import {
   getFullImageUrl,
 } from '@/lib/utils';
-import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
+import { BOOKING_DETAILS_PREFIX, FEATURE_INBOX_SECONDARY_PIPELINE } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
 import { isSystemMessage as isSystemMsgHelper, systemLabel } from '@/lib/systemMessages';
 // Telemetry & flags removed in Batch 1 clean revamp
@@ -76,8 +76,10 @@ import useBookingView from '@/hooks/useBookingView';
 import Button from '../ui/Button';
 import { addMessageReaction, removeMessageReaction } from '@/lib/api';
 import QuoteBubble from './QuoteBubble';
+import QuoteBubbleSkeleton from './QuoteBubbleSkeleton';
 import InlineQuoteForm from './InlineQuoteForm';
 import BookingSummaryCard from './BookingSummaryCard';
+import BookingSummarySkeleton from './BookingSummarySkeleton';
 import { t } from '@/lib/i18n';
 import EventPrepCard from './EventPrepCard';
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal';
@@ -743,6 +745,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const { user, token } = useAuth();
   const router = useRouter();
   const isActiveThread = isActive !== false;
+  const secondaryPipelineEnabled = FEATURE_INBOX_SECONDARY_PIPELINE;
+  const hasInitialBookingRequest = useMemo(
+    () => Boolean(initialBookingRequest && initialBookingRequest.id === bookingRequestId),
+    [initialBookingRequest, bookingRequestId],
+  );
+  const [bookingRequestHydration, setBookingRequestHydration] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    hasInitialBookingRequest ? 'success' : 'idle',
+  );
   const threadStoreEnabled = useMemo(() => isThreadStoreEnabled(), []);
 
   // ---- State
@@ -778,6 +788,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [supplierInviteAction, setSupplierInviteAction] = useState<SupplierInviteActionState>(null);
   const [serviceProviderByServiceId, setServiceProviderByServiceId] = useState<Record<number, number>>({});
   const isSendingRef = useRef(false);
+
+  useEffect(() => {
+    setBookingRequestHydration(hasInitialBookingRequest ? 'success' : 'idle');
+  }, [hasInitialBookingRequest]);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   // Virtualization always enabled
 
@@ -1167,6 +1181,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     } as any;
   }, [clientName, parsedBookingDetails, bookingRequest, bookingDetails]);
 
+  const bookingSummaryReady = useMemo(
+    () =>
+      Boolean(
+        (bookingRequest && bookingRequest.id === bookingRequestId) ||
+        (initialBookingRequest && initialBookingRequest.id === bookingRequestId) ||
+        bookingDetails,
+      ),
+    [bookingDetails, bookingRequest, bookingRequestId, initialBookingRequest],
+  );
+  const showBookingSummarySkeleton = secondaryPipelineEnabled && !bookingSummaryReady;
+
   // List of image URLs in this thread (for modal navigation)
   const imageMessages = useMemo(() => messages.filter((m) => isImageAttachment(m.attachment_url || undefined)), [messages]);
   const imageUrls = useMemo(() => imageMessages.map((m) => toApiAttachmentsUrl(m.attachment_url!)), [imageMessages]);
@@ -1212,30 +1237,34 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- Prefill quote form (SP side)
   const hasSentQuote = useMemo(() => messages.some((m) => Number(m.quote_id) > 0), [messages]);
   useEffect(() => {
-    if (initialBookingRequest && initialBookingRequest.id === bookingRequestId) {
-      setBookingRequest(initialBookingRequest);
-    }
-  }, [initialBookingRequest, bookingRequestId]);
+    if (!hasInitialBookingRequest) return;
+    setBookingRequest(initialBookingRequest);
+    setBookingRequestHydration('success');
+  }, [hasInitialBookingRequest, initialBookingRequest]);
 
   useEffect(() => {
-    if (initialBookingRequest && initialBookingRequest.id === bookingRequestId && bookingRequestVersion === 0) {
+    if (secondaryPipelineEnabled) return;
+    if (hasInitialBookingRequest && bookingRequestVersion === 0) {
       return;
     }
     let cancelled = false;
     (async () => {
       try {
+        setBookingRequestHydration('loading');
         const res = await getBookingRequestById(bookingRequestId);
         if (!cancelled) {
           setBookingRequest(res.data);
+          setBookingRequestHydration('success');
         }
       } catch (err) {
         console.error('Failed to load booking request:', err);
+        if (!cancelled) setBookingRequestHydration('error');
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [bookingRequestId, initialBookingRequest, bookingRequestVersion]);
+  }, [bookingRequestId, bookingRequestVersion, hasInitialBookingRequest, secondaryPipelineEnabled]);
 
   useEffect(() => {
     const br = bookingRequest;
@@ -1301,8 +1330,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   ]);
 
   const refreshBookingRequest = useCallback(() => {
+    setBookingRequestHydration('idle');
     setBookingRequestVersion((v) => v + 1);
   }, []);
+
 
   // ---- Typing indicator label
   const typingIndicator = useMemo(() => {
@@ -1891,6 +1922,65 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
     return null;
   }, [bookingRequestId, bookingDetails]);
+
+  useEffect(() => {
+    if (!secondaryPipelineEnabled) return;
+    if (bookingRequestHydration === 'loading') return;
+    let cancelled = false;
+    const cancelFns: Array<() => void> = [];
+
+    const schedule = (cb: () => Promise<void> | void, delay = 0) => {
+      if (typeof window === 'undefined') {
+        Promise.resolve().then(() => {
+          if (!cancelled) void cb();
+        });
+        return;
+      }
+      const handle = window.setTimeout(() => {
+        if (cancelled) return;
+        void cb();
+      }, delay);
+      cancelFns.push(() => window.clearTimeout(handle));
+    };
+
+    schedule(async () => {
+      if (hasInitialBookingRequest && bookingRequestVersion === 0) return;
+      try {
+        setBookingRequestHydration('loading');
+        const res = await getBookingRequestById(bookingRequestId);
+        if (!cancelled) {
+          setBookingRequest(res.data);
+          setBookingRequestHydration('success');
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setBookingRequestHydration('error');
+        }
+      }
+    }, 40);
+
+    schedule(async () => {
+      if (user?.user_type !== 'client') return;
+      try {
+        await resolveBookingFromRequest();
+      } catch {
+        // resolve handles its own failures; ignore here
+      }
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      cancelFns.forEach((fn) => fn());
+    };
+  }, [
+    secondaryPipelineEnabled,
+    bookingRequestHydration,
+    bookingRequestId,
+    bookingRequestVersion,
+    hasInitialBookingRequest,
+    resolveBookingFromRequest,
+    user?.user_type,
+  ]);
 
   // ---- Payment modal (moved after fetchMessages is defined)
   const { openPaymentModal, paymentModal } = usePaymentModal(
@@ -2532,7 +2622,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
             if (isQuoteMessage) {
               const quoteData = quotes[quoteId];
-              if (!quoteData) return null;
+              if (!quoteData) {
+                return (
+                  <div
+                    key={msg.id}
+                    id={`quote-${quoteId}`}
+                    className="mb-0.5 w-full"
+                    ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
+                  >
+                    <QuoteBubbleSkeleton align={isMsgFromSelf ? 'right' : 'left'} />
+                  </div>
+                );
+              }
               const isClient = isClientViewFlag;
               const isPaid = isPaidFlag;
               return (
@@ -4184,31 +4285,37 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   </svg>
                 </button>
               </div>
-              <BookingSummaryCard
-                parsedBookingDetails={parsedBookingDetails}
-                imageUrl={bookingDetails?.service?.media_url}
-                serviceName={computedServiceName}
-                artistName={artistName}
-                bookingConfirmed={bookingConfirmed}
-                paymentInfo={paymentInfo}
-                bookingDetails={bookingDetails}
-                quotes={quotes}
-                allowInstantBooking={Boolean(allowInstantBooking && user?.user_type === 'client')}
-                openPaymentModal={openPaymentModal}
-                bookingRequestId={bookingRequestId}
-                baseFee={baseFee}
-                travelFee={travelFee}
-                initialSound={initialSound}
-                artistCancellationPolicy={artistCancellationPolicy}
-                currentArtistId={currentArtistId}
-                instantBookingPrice={instantBookingPrice}
-                // Adapt UI to service type in modal
-                showTravel={!isPersonalizedVideo}
-                showSound={!isPersonalizedVideo}
-                showPolicy={!isPersonalizedVideo}
-                showEventDetails={!isPersonalizedVideo}
-                showReceiptBelowTotal={isPersonalizedVideo}
-              />
+              {showBookingSummarySkeleton ? (
+                <div className="px-4 py-4">
+                  <BookingSummarySkeleton variant="modal" />
+                </div>
+              ) : (
+                <BookingSummaryCard
+                  parsedBookingDetails={parsedBookingDetails}
+                  imageUrl={bookingDetails?.service?.media_url}
+                  serviceName={computedServiceName}
+                  artistName={artistName}
+                  bookingConfirmed={bookingConfirmed}
+                  paymentInfo={paymentInfo}
+                  bookingDetails={bookingDetails}
+                  quotes={quotes}
+                  allowInstantBooking={Boolean(allowInstantBooking && user?.user_type === 'client')}
+                  openPaymentModal={openPaymentModal}
+                  bookingRequestId={bookingRequestId}
+                  baseFee={baseFee}
+                  travelFee={travelFee}
+                  initialSound={initialSound}
+                  artistCancellationPolicy={artistCancellationPolicy}
+                  currentArtistId={currentArtistId}
+                  instantBookingPrice={instantBookingPrice}
+                  // Adapt UI to service type in modal
+                  showTravel={!isPersonalizedVideo}
+                  showSound={!isPersonalizedVideo}
+                  showPolicy={!isPersonalizedVideo}
+                  showEventDetails={!isPersonalizedVideo}
+                  showReceiptBelowTotal={isPersonalizedVideo}
+                />
+              )}
             </div>
           </div>
         ),

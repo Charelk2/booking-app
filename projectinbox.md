@@ -174,11 +174,11 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 **Progress**
 - Inbox now reuses booking request payloads supplied by the thread list, eliminating repeated `/booking-requests/{id}` fetches on every switch and keeping ancillary fetches in the background.
 - Quote and booking mutations trigger a local refresh hook instead of rereading the entire request synchronously, letting the composer stay live while secondary data streams in.
+- Secondary pipeline now runs behind `NEXT_PUBLIC_INBOX_SECONDARY_PIPELINE_ENABLED`; `MessageThread` defers booking-request and client booking hydrations via a staged idle queue so initial painter stays snappy.
+- Skeleton components (`BookingSummarySkeleton`, `QuoteBubbleSkeleton`, `EventPrepSkeleton`) reserve space for booking panels, quote bubbles, and prep cards while ancillary fetches complete, keeping the composer available.
 
 **Open Work**
-- Capture a definitive inventory of quote, payment, and booking detail fetches (owner + call sites) and flag which data is required for first paint.
-- Decide between a consolidated thread-context endpoint vs. staggered background fetches; document contract shape and rollout flag plan.
-- Implement fixed-dimension placeholders/skeletons for quote cards, payment widgets, and booking panels so CLS stays ≤0.02.
+- Document rollout plan for the staged hydrator vs. future consolidated endpoint (capabilities, kill-switch, expected benefits).
 - Decouple composer readiness from ancillary fetch promises and surface non-blocking retry toasts for failures.
 - Add targeted logging/metrics (`inbox_secondary_pipeline_latency`, error counts) to prove de-waterfalling improves perceived readiness.
 

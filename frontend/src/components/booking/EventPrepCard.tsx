@@ -21,6 +21,7 @@ import {
   CurrencyDollarIcon,
   HomeModernIcon,
 } from '@heroicons/react/24/outline';
+import EventPrepSkeleton from './EventPrepSkeleton';
 
 type EventPrepCardProps = {
   bookingId: number;
@@ -69,6 +70,7 @@ const IconWrap: React.FC<{ done?: boolean; children?: React.ReactNode }> = ({ do
 const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequestId, eventDateISO, canEdit, onContinuePrep, summaryOnly }) => {
   const router = useRouter();
   const [ep, setEp] = useState<EventPrep | null>(null);
+  const [initializing, setInitializing] = useState(true);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [loadinStart, setLoadinStart] = useState('');
@@ -81,6 +83,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
   // Bootstrap data
   useEffect(() => {
     let mounted = true;
+    setInitializing(true);
     (async () => {
       try {
         const data = await getEventPrep(bookingId);
@@ -91,7 +94,9 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
         setLoadinStart(toHHMM(data.loadin_start));
         setLoadinEnd(toHHMM(data.loadin_end));
       } catch (e) {
-        // swallow
+        // swallow — skeleton will collapse into CTA once loading finishes
+      } finally {
+        if (mounted) setInitializing(false);
       }
     })();
     return () => { mounted = false; };
@@ -186,6 +191,10 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
 
   // If the prep record isn't loaded yet (or not created yet), still render
   // a minimal CTA so users can reach the event prep form immediately.
+  if (initializing) {
+    return <EventPrepSkeleton summaryOnly={summaryOnly} />;
+  }
+
   if (!ep) {
     return (
       <section

@@ -16,6 +16,18 @@ export const FEATURE_EVENT_PREP: boolean = !!(
 );
 
 /**
+ * Controls the staged secondary pipeline for ancillary inbox data (quotes,
+ * booking context, payments). Defaults to disabled so we can opt-in per env.
+ */
+export const FEATURE_INBOX_SECONDARY_PIPELINE: boolean = (() => {
+  const raw = (process.env.NEXT_PUBLIC_INBOX_SECONDARY_PIPELINE_ENABLED || '').trim().toLowerCase();
+  if (!raw) return false;
+  if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') return true;
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false;
+  return false;
+})();
+
+/**
  * Fetch the default currency from `/api/v1/settings` when not provided via
  * environment variables. The resolved value updates `DEFAULT_CURRENCY` so
  * subsequent calls use the fetched value.
