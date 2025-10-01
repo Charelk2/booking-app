@@ -44,6 +44,10 @@ Deliver WhatsApp-level fast conversation switching and perceived instant load fo
 
 Batch 1 is now baked in by default (no flags). Later batches can still be staged, but the rendering/scroll changes are permanent unless reverted by code.
 
+### Current Status
+- Stabilizing Batch 1: tightened `MessageThread` realtime merges (debounced read receipts now use a dedicated timer ref, dynamic Virtuoso ref typing corrected) to keep virtualization reliable ahead of wider QA.
+- Batch 2 prep is queued behind Batch 1 soak; backlog grooming and IndexedDB spike notes remain unchanged until the current deployment bakes.
+
 ---
 
 ## Batch 1 — Rendering & State Stabilization (Idea 1)

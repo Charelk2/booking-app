@@ -85,7 +85,9 @@ import ThreadMessageGroup from './ThreadMessageGroup';
 
 const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
 // Type the dynamic Virtuoso component so TS recognizes its props (totalCount, itemContent, etc.)
-const Virtuoso = dynamic(() => import('react-virtuoso').then((m: any) => m.Virtuoso), { ssr: false }) as unknown as React.ComponentType<VirtuosoProps<any, any>>;
+const Virtuoso = dynamic(() => import('react-virtuoso').then((m: any) => m.Virtuoso), { ssr: false }) as unknown as React.ForwardRefExoticComponent<
+  VirtuosoProps<any, any> & React.RefAttributes<any>
+>;
 const MemoQuoteBubble = React.memo(QuoteBubble);
 
 type SupplierInviteActionState = {
@@ -849,6 +851,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
   const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const readReceiptTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialLoadedRef = useRef(false); // gate WS until first REST load
   const touchStartYRef = useRef(0);
   const stabilizingRef = useRef(true);
@@ -1148,6 +1151,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return () => {
       try { uploadAbortRef.current?.abort(); } catch {}
       try { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); } catch {}
+      try { if (readReceiptTimeoutRef.current) clearTimeout(readReceiptTimeoutRef.current); } catch {}
       try { if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current); } catch {}
       try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
       try { if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl); } catch {}
@@ -1971,42 +1975,38 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
 
       // Debounced read receipt when anchored and new incoming
-      try {
-          const anchored = atBottomRef.current === true;
-          const gotIncoming = normalized.some((m) => m.sender_id !== (user?.id || 0));
-          if (anchored && gotIncoming) {
-            const toClear = normalized
-              .filter((m) => m.sender_id !== (user?.id || 0) && !m.is_read && !clearedUnreadMessageIdsRef.current.has(m.id))
-              .map((m) => m.id);
-            if ((typingTimeoutRef.current as any)?._readTimer) clearTimeout((typingTimeoutRef.current as any)?._readTimer);
-            (typingTimeoutRef.current as any) = (typingTimeoutRef.current || null);
-            (typingTimeoutRef.current as any)._readTimer = setTimeout(async () => {
+      const anchored = atBottomRef.current === true;
+      const gotIncoming = normalized.some((m) => m.sender_id !== (user?.id || 0));
+      if (anchored && gotIncoming) {
+        const toClear = normalized
+          .filter((m) => m.sender_id !== (user?.id || 0) && !m.is_read && !clearedUnreadMessageIdsRef.current.has(m.id))
+          .map((m) => m.id);
+        if (readReceiptTimeoutRef.current) clearTimeout(readReceiptTimeoutRef.current);
+        readReceiptTimeoutRef.current = setTimeout(async () => {
+          try {
+            await markMessagesRead(bookingRequestId);
+            if (toClear.length > 0) {
+              toClear.forEach((id) => clearedUnreadMessageIdsRef.current.add(id));
               try {
-                await markMessagesRead(bookingRequestId);
-                if (toClear.length > 0) {
-                  toClear.forEach((id) => clearedUnreadMessageIdsRef.current.add(id));
-                  try {
-                    if (typeof window !== 'undefined') {
-                      window.dispatchEvent(
-                        new CustomEvent('inbox:unread', {
-                          detail: { delta: -toClear.length, threadId: bookingRequestId },
-                        }),
-                      );
-                    }
-                  } catch {}
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(
+                    new CustomEvent('inbox:unread', {
+                      detail: { delta: -toClear.length, threadId: bookingRequestId },
+                    }),
+                  );
                 }
               } catch {}
-              try {
-                const last = normalized[normalized.length - 1];
-                if (last && typeof last.id === 'number') {
-                  const replyTopic = String(payload?.topic || primaryTopic);
-                  publish(replyTopic, { v: 1, type: 'read', up_to_id: last.id, user_id: user?.id });
-                }
-              } catch {}
-            }, 700);
-          }
-        }
-      } catch {}
+            }
+          } catch {}
+          try {
+            const last = normalized[normalized.length - 1];
+            if (last && typeof last.id === 'number') {
+              const replyTopic = String(payload?.topic || primaryTopic);
+              publish(replyTopic, { v: 1, type: 'read', up_to_id: last.id, user_id: user?.id });
+            }
+          } catch {}
+        }, 700);
+      }
 
       // Update inbox thread previews on inbound
       try {
