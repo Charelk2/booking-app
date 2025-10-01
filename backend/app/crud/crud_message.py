@@ -1,7 +1,7 @@
 from typing import Dict, List
 from datetime import datetime
 
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func, or_
 
 from .. import models, schemas
@@ -73,7 +73,20 @@ def get_messages_for_request(
     query = (
         db.query(models.Message)
         .options(
-            joinedload(models.Message.sender).joinedload(models.User.artist_profile)
+            selectinload(models.Message.sender)
+            .load_only(
+                models.User.id,
+                models.User.first_name,
+                models.User.last_name,
+                models.User.profile_picture_url,
+                models.User.user_type,
+            )
+            .selectinload(models.User.artist_profile)
+            .load_only(
+                models.ServiceProviderProfile.user_id,
+                models.ServiceProviderProfile.business_name,
+                models.ServiceProviderProfile.profile_picture_url,
+            )
         )
         .filter(models.Message.booking_request_id == booking_request_id)
     )
@@ -159,6 +172,64 @@ def get_recent_messages_for_request(
         .all()
     )
     return rows
+
+
+def get_recent_messages_for_requests(
+    db: Session,
+    booking_request_ids: List[int],
+    per_request: int = 5,
+) -> Dict[int, List[models.Message]]:
+    """Return up to ``per_request`` most recent messages for each booking request.
+
+    Uses a window function so results arrive in a single round-trip instead of
+    issuing a follow-up query per booking request.
+    """
+
+    if not booking_request_ids or per_request <= 0:
+        return {}
+
+    window = (
+        db.query(
+            models.Message.booking_request_id.label('br_id'),
+            models.Message.id.label('message_id'),
+            func.row_number()
+            .over(
+                partition_by=models.Message.booking_request_id,
+                order_by=models.Message.timestamp.desc(),
+            )
+            .label('rn'),
+        )
+        .filter(models.Message.booking_request_id.in_(booking_request_ids))
+        .subquery()
+    )
+
+    recent_ids = (
+        db.query(window.c.br_id, window.c.message_id, window.c.rn)
+        .filter(window.c.rn <= per_request)
+        .all()
+    )
+
+    message_ids = [row.message_id for row in recent_ids if row.message_id is not None]
+    if not message_ids:
+        return {}
+
+    messages = (
+        db.query(models.Message)
+        .filter(models.Message.id.in_(message_ids))
+        .all()
+    )
+
+    grouped: Dict[int, List[models.Message]] = {int(bid): [] for bid in booking_request_ids}
+    # Ensure newest first ordering per booking request using rn ordering
+    by_id = {msg.id: msg for msg in messages}
+    for row in sorted(recent_ids, key=lambda r: (int(r.br_id), int(r.rn))):
+        msg = by_id.get(row.message_id)
+        if msg is None:
+            continue
+        grouped.setdefault(int(row.br_id), []).append(msg)
+    for key in grouped:
+        grouped[key].sort(key=lambda m: m.timestamp or datetime.min, reverse=True)
+    return grouped
 
 
 def get_payment_received_booking_request_ids(

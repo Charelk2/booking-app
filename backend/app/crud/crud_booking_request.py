@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, joinedload, load_only
+from sqlalchemy.orm import Session, joinedload, selectinload
 import re
 from sqlalchemy import select, func
 from typing import Dict, List, Optional
@@ -161,37 +161,78 @@ def get_booking_requests_with_last_message(
 
     if include_relationships:
         query = query.options(
-            joinedload(models.BookingRequest.client),
-            joinedload(models.BookingRequest.artist).joinedload(models.User.artist_profile),
-            joinedload(models.BookingRequest.service).joinedload(models.Service.artist),
-            joinedload(models.BookingRequest.quotes)
-            .joinedload(models.Quote.artist)
-            .joinedload(models.User.artist_profile),
-        )
-    else:
-        query = query.options(
-            joinedload(models.BookingRequest.client).load_only(
+            selectinload(models.BookingRequest.client).load_only(
                 models.User.id,
                 models.User.first_name,
                 models.User.last_name,
                 models.User.profile_picture_url,
             ),
-            joinedload(models.BookingRequest.artist)
+            selectinload(models.BookingRequest.artist)
             .load_only(
                 models.User.id,
                 models.User.first_name,
                 models.User.last_name,
                 models.User.profile_picture_url,
             )
-            .joinedload(models.User.artist_profile)
+            .selectinload(models.User.artist_profile)
             .load_only(
                 models.ServiceProviderProfile.user_id,
                 models.ServiceProviderProfile.business_name,
                 models.ServiceProviderProfile.profile_picture_url,
             ),
-            joinedload(models.BookingRequest.service).load_only(
+            selectinload(models.BookingRequest.service).load_only(
                 models.Service.id,
                 models.Service.service_type,
+                models.Service.title,
+            ),
+            selectinload(models.BookingRequest.quotes)
+            .load_only(
+                models.Quote.id,
+                models.Quote.booking_request_id,
+                models.Quote.status,
+                models.Quote.created_at,
+                models.Quote.price,
+                models.Quote.currency,
+            )
+            .selectinload(models.Quote.artist)
+            .load_only(
+                models.User.id,
+                models.User.first_name,
+                models.User.last_name,
+                models.User.profile_picture_url,
+            )
+            .selectinload(models.User.artist_profile)
+            .load_only(
+                models.ServiceProviderProfile.user_id,
+                models.ServiceProviderProfile.business_name,
+                models.ServiceProviderProfile.profile_picture_url,
+            ),
+        )
+    else:
+        query = query.options(
+            selectinload(models.BookingRequest.client).load_only(
+                models.User.id,
+                models.User.first_name,
+                models.User.last_name,
+                models.User.profile_picture_url,
+            ),
+            selectinload(models.BookingRequest.artist)
+            .load_only(
+                models.User.id,
+                models.User.first_name,
+                models.User.last_name,
+                models.User.profile_picture_url,
+            )
+            .selectinload(models.User.artist_profile)
+            .load_only(
+                models.ServiceProviderProfile.user_id,
+                models.ServiceProviderProfile.business_name,
+                models.ServiceProviderProfile.profile_picture_url,
+            ),
+            selectinload(models.BookingRequest.service).load_only(
+                models.Service.id,
+                models.Service.service_type,
+                models.Service.title,
             ),
         )
 
@@ -226,7 +267,11 @@ def get_booking_requests_with_last_message(
         requests.append(br)
 
     request_ids = [br.id for br in requests]
-    last_messages: Dict[int, models.Message] = crud_message.get_last_messages_for_requests(db, request_ids)
+    recent_message_map: Dict[int, List[models.Message]] = crud_message.get_recent_messages_for_requests(
+        db,
+        request_ids,
+        per_request=6,
+    )
 
     pv_ids = [
         br.id
@@ -275,10 +320,9 @@ def get_booking_requests_with_last_message(
         return "requested"
 
     filtered_results: List[models.BookingRequest] = []
-    recent_cache: Dict[int, List[models.Message]] = {}
-
     for br in requests:
-        last_m = last_messages.get(br.id)
+        message_candidates = recent_message_map.get(br.id, [])
+        last_m = message_candidates[0] if message_candidates else None
         state = _state_from_status(br.status)
 
         sender_display = None
@@ -313,11 +357,7 @@ def get_booking_requests_with_last_message(
                 return False
 
             if _is_skip(preview_message):
-                cached = recent_cache.get(br.id)
-                if cached is None:
-                    cached = crud_message.get_recent_messages_for_request(db, br.id, limit=6)
-                    recent_cache[br.id] = cached
-                for candidate in cached:
+                for candidate in message_candidates:
                     if not _is_skip(candidate):
                         preview_message = candidate
                         break
