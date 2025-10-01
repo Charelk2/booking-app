@@ -81,6 +81,8 @@ import BookingSummaryCard from './BookingSummaryCard';
 import { t } from '@/lib/i18n';
 import EventPrepCard from './EventPrepCard';
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal';
+import ThreadDayDivider from './ThreadDayDivider';
+import ThreadMessageGroup from './ThreadMessageGroup';
 
 const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
 // Type the dynamic Virtuoso component so TS recognizes its props (totalCount, itemContent, etc.)
@@ -2346,55 +2348,50 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const firstMsgInGroup = group.messages[0];
     const firstNonSystem = group.messages.find((m) => normalizeType(m.message_type) !== 'SYSTEM');
     const showHeader = !!firstNonSystem && firstNonSystem.sender_id !== user?.id;
+    const __dayLabel = group.showDayDivider ? daySeparatorLabel(new Date(firstMsgInGroup.timestamp)) : null;
+    const __headerView = showHeader ? (
+      <div className="flex items-center mb-1">
+        {user?.user_type === 'service_provider'
+          ? clientAvatarUrl
+            ? (
+                <SafeImage
+                  src={clientAvatarUrl}
+                  alt="Client avatar"
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 rounded-full object-cover mr-2"
+                />
+              )
+            : (
+                <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-[10px] font-medium mr-2">
+                  {clientName?.charAt(0)}
+                </div>
+              )
+          : artistAvatarUrl
+          ? (
+              <SafeImage
+                src={artistAvatarUrl}
+                alt="Artist avatar"
+                width={20}
+                height={20}
+                className="h-5 w-5 rounded-full object-cover mr-2"
+              />
+            )
+          : (
+              <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-[10px] font-medium mr-2">
+                {artistName?.charAt(0)}
+              </div>
+            )}
+        <span className="text-xs text-gray-600">
+          {user?.user_type === 'service_provider' ? clientName : artistName}
+        </span>
+      </div>
+    ) : null;
 
     return (
-      <React.Fragment key={firstMsgInGroup.id}>
-        {group.showDayDivider && (
-          <div className="flex justify-center my-3 w-full">
-            <span className="px-3 text-[11px] text-gray-500 bg-gray-100 rounded-full py-1">
-              {daySeparatorLabel(new Date(firstMsgInGroup.timestamp))}
-            </span>
-          </div>
-        )}
+      <ThreadMessageGroup key={firstMsgInGroup.id} dayLabel={__dayLabel}>
         <div className="flex flex-col w-full">
-          {showHeader && (
-            <div className="flex items-center mb-1">
-              {user?.user_type === 'service_provider'
-                ? clientAvatarUrl
-                  ? (
-                      <SafeImage
-                        src={clientAvatarUrl}
-                        alt="Client avatar"
-                        width={20}
-                        height={20}
-                        className="h-5 w-5 rounded-full object-cover mr-2"
-                      />
-                    )
-                  : (
-                      <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-[10px] font-medium mr-2">
-                        {clientName?.charAt(0)}
-                      </div>
-                    )
-                : artistAvatarUrl
-                ? (
-                    <SafeImage
-                      src={artistAvatarUrl}
-                      alt="Artist avatar"
-                      width={20}
-                      height={20}
-                      className="h-5 w-5 rounded-full object-cover mr-2"
-                    />
-                  )
-                : (
-                    <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-[10px] font-medium mr-2">
-                      {artistName?.charAt(0)}
-                    </div>
-                  )}
-              <span className="text-xs text-gray-600">
-                {user?.user_type === 'service_provider' ? clientName : artistName}
-              </span>
-            </div>
-          )}
+          {__headerView}
           {/* Bubbles */}
           {group.messages.map((msg, msgIdx) => {
             const isMsgFromSelf = msg.sender_id === user?.id;
@@ -2861,7 +2858,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             );
           })}
         </div>
-      </React.Fragment>
+      </ThreadMessageGroup>
     );
   }, [groupedMessages, user?.id, user?.user_type, clientAvatarUrl, clientName, artistAvatarUrl, artistName, resolveListingViewUrl]);
 
