@@ -44,6 +44,13 @@ const DEFAULT_LIMIT = 80;
 const DEFAULT_STALE_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_ATTEMPTS = 3;
 
+type InflightTiming = {
+  startedAt: number;
+  priority: number;
+  reason: string;
+  limit: number;
+};
+
 let fetchThread: FetchFn | null = null;
 let options: Required<PrefetcherOptions> = {
   defaultLimit: DEFAULT_LIMIT,
@@ -58,6 +65,7 @@ let initialized = false;
 
 let connectionRef: Connection | null = null;
 const cleanupCallbacks: Array<() => void> = [];
+const inflightTimings = new Map<number, InflightTiming>();
 
 const nowMs = (): number => {
   try {
@@ -193,23 +201,33 @@ function processQueue() {
   shouldPrefetch(item)
     .then(async (need) => {
       if (!need) return;
-      const startedAt = nowMs();
-      await fetchThread!(item.id, item.limit ?? options.defaultLimit);
-      const duration = Math.max(0, nowMs() - startedAt);
-      trackEvent('inbox_prefetch_batch_ms', {
-        threadId: item.id,
-        durationMs: Math.round(duration),
-        reason: item.reason,
+      const timing: InflightTiming = {
+        startedAt: nowMs(),
         priority: item.priority,
+        reason: item.reason,
         limit: item.limit ?? options.defaultLimit,
-        remainingQueueSize: queue.size,
-      });
+      };
+      inflightTimings.set(item.id, timing);
+      await fetchThread!(item.id, timing.limit);
     })
     .catch(() => {
       requeueItem(item, { incrementAttempt: true });
     })
     .finally(() => {
       runningCount = Math.max(0, runningCount - 1);
+      const timing = inflightTimings.get(item.id);
+      inflightTimings.delete(item.id);
+      if (timing) {
+        const duration = Math.max(0, nowMs() - timing.startedAt);
+        trackEvent('inbox_prefetch_batch_ms', {
+          threadId: item.id,
+          durationMs: Math.round(duration),
+          reason: timing.reason,
+          priority: timing.priority,
+          limit: timing.limit,
+          remainingQueueSize: queue.size,
+        });
+      }
       if (queue.size && navigator?.onLine !== false) scheduleProcess();
     });
 
