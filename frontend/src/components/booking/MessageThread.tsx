@@ -454,7 +454,13 @@ const daySeparatorLabel = (date: Date) => {
 };
 
 // --- Per-thread session cache for instant switches --------------------------
-import { readThreadCache as _readThreadCache, writeThreadCache as _writeThreadCache, cacheKeyForThread } from '@/lib/threadCache';
+import {
+  readThreadCache as _readThreadCache,
+  writeThreadCache as _writeThreadCache,
+  cacheKeyForThread,
+  readThreadFromIndexedDb,
+  isThreadStoreEnabled,
+} from '@/lib/threadCache';
 function readCachedMessages(threadId: number): ThreadMessage[] | null {
   try {
     const arr = _readThreadCache(threadId);
@@ -734,6 +740,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const { user, token } = useAuth();
   const router = useRouter();
   const isActiveThread = isActive !== false;
+  const threadStoreEnabled = useMemo(() => isThreadStoreEnabled(), []);
 
   // ---- State
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
@@ -1617,17 +1624,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [bookingRequestId, fetchMessages, supplierInviteAction, t],
   );
   useImperativeHandle(ref, () => ({ refreshMessages: fetchMessages }), [fetchMessages]);
-  useEffect(() => {
-    if (isActiveThread) {
-      activeThreadRef.current = bookingRequestId;
-      if (!loadedThreadsRef.current.has(bookingRequestId)) {
-        void fetchMessages({ mode: 'initial', reason: 'activate' });
-      }
-    } else if (activeThreadRef.current === bookingRequestId) {
-      activeThreadRef.current = null;
-    }
-  }, [bookingRequestId, fetchMessages, isActiveThread]);
-
   // When the global inbox emits a threads:updated (via notifications), refresh this thread too.
   useEffect(() => {
     const onThreadsUpdated = (event: Event) => {
@@ -1699,6 +1695,50 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       loadedThreadsRef.current.delete(bookingRequestId);
     }
   }, [bookingRequestId]);
+
+  useEffect(() => {
+    if (!threadStoreEnabled) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const record = await readThreadFromIndexedDb(bookingRequestId);
+        if (cancelled || !record) return;
+        const stored = Array.isArray(record.messages) ? record.messages : [];
+        if (!stored.length) return;
+        const normalized = stored
+          .map((m: any) => normalizeMessage(m))
+          .filter((m: any) => Number.isFinite(m.id))
+          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        if (!normalized.length) return;
+        const cachedLastId = normalized[normalized.length - 1]?.id;
+        const currentLastId = lastMessageIdRef.current[bookingRequestId] || 0;
+        if (cachedLastId && (!currentLastId || cachedLastId > currentLastId)) {
+          lastMessageIdRef.current[bookingRequestId] = cachedLastId;
+        }
+        try { _writeThreadCache(bookingRequestId, normalized); } catch {}
+        if (messagesRef.current.length === 0) {
+          setMessages(normalized);
+          setLoading(false);
+        }
+        initialLoadedRef.current = initialLoadedRef.current || normalized.length > 0;
+        if (normalized.length) loadedThreadsRef.current.add(bookingRequestId);
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingRequestId, threadStoreEnabled]);
+
+  useEffect(() => {
+    if (isActiveThread) {
+      activeThreadRef.current = bookingRequestId;
+      if (!loadedThreadsRef.current.has(bookingRequestId)) {
+        void fetchMessages({ mode: 'initial', reason: 'activate' });
+      }
+    } else if (activeThreadRef.current === bookingRequestId) {
+      activeThreadRef.current = null;
+    }
+  }, [bookingRequestId, fetchMessages, isActiveThread]);
 
   // Initial anchor handled by Virtuoso (no manual DOM scroll)
 

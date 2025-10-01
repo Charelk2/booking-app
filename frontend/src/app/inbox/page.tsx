@@ -34,7 +34,7 @@ import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
-import { writeThreadCache, hasThreadCache } from '@/lib/threadCache';
+import { writeThreadCache, hasThreadCache, hasThreadCacheAsync } from '@/lib/threadCache';
 // Telemetry flags removed; keep code minimal
 
 export default function InboxPage() {
@@ -720,7 +720,9 @@ export default function InboxPage() {
 
   // Prefetch helper with LRU writes
   const prefetchThreadMessages = useCallback(async (id: number, limit = 50) => {
-    if (!id || hasThreadCache(id)) return;
+    if (!id) return;
+    if (hasThreadCache(id)) return;
+    if (await hasThreadCacheAsync(id)) return;
     try {
       const res = await getMessagesForBookingRequest(id, { limit });
       const arr = Array.isArray(res.data) ? res.data : [];

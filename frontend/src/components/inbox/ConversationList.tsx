@@ -8,7 +8,7 @@ import type { CSSProperties } from 'react';
 import React from 'react';
 import { getMessagesForBookingRequest } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import { hasThreadCache, writeThreadCache } from '@/lib/threadCache';
+import { hasThreadCache, hasThreadCacheAsync, writeThreadCache } from '@/lib/threadCache';
 
 // Module-scope helpers so memoized Row can use them
 function formatThreadTime(iso: string | null | undefined): string {
@@ -131,6 +131,7 @@ export default function ConversationList({
     if (!id) return;
     if (prefetchingRef.current.has(id)) return;
     if (hasThreadCache(id)) return;
+    if (await hasThreadCacheAsync(id)) return;
     prefetchingRef.current.add(id);
     try {
       const res = await getMessagesForBookingRequest(id, { limit: 50 });

@@ -47,6 +47,7 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 ### Current Status
 - Stabilizing Batch 1: tightened `MessageThread` realtime merges (debounced read receipts now use a dedicated timer ref, dynamic Virtuoso ref typing corrected) to keep virtualization reliable ahead of wider QA.
 - Batch 2 prep is queued behind Batch 1 soak; backlog grooming and IndexedDB spike notes remain unchanged until the current deployment bakes.
+- Batch 2 shipped: `threadCache.ts` mirrors session caches into IndexedDB with a 60-thread LRU, auto-clears on logout/session expiry, and `MessageThread` hydrates from the store before requesting server deltas.
 
 ---
 
@@ -100,10 +101,14 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - Cache clears on tab close; no offline continuity.
 
 **Deliverables**
-- Storage schema: threads (id, participants, lastMessageMeta, unreadCount, updatedAt) and messages (id, threadId, createdAt, authorId, kind, content refs, localStatus) with indices on `(threadId, createdAt)` and `(threadId, id)`.
-- Cache lifecycle policy: size budget (~100–300 MB), LRU eviction, attachment meta retention (no blobs).
-- Hydration order spec: local-first render → schedule delta fetch → reconcile with deterministic merge (by id and timestamp).
-- Migration plan from sessionStorage; opt-in flag with auto-migrate once stable; clear on sign-out/account switch.
+- IndexedDB-backed thread cache (`frontend/src/lib/threadCache.ts`) storing the most recent ~200 messages per thread with `updatedAt`, `lastMessageId`, and `messageCount` metadata; 60-thread LRU eviction enforced.
+- Session cache mirror preserved for synchronous hydration while IndexedDB load resolves; MessageThread promotes cached payloads and uses cached `lastMessageId` for delta fetches.
+- Clear-on-logout/session-expiry pipeline (`AuthContext.logout` and session-expired handler) to drop IndexedDB + session caches.
+- Runtime behaviour defaults to IndexedDB; sessionStorage mirroring remains as an immediate fallback for environments where IndexedDB is unavailable.
+
+**Status (Implemented)**
+- IndexedDB write/read path shipped; MessageThread now hydrates locally before requesting deltas.
+- Follow-up: add structured instrumentation (cache hit vs. cold fetch) and expand records with lightweight thread metadata for conversation list prefetch.
 
 **Acceptance Criteria**
 - Hot switch first paint ≤150 ms P95 for cached threads.
@@ -114,7 +119,7 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - Dedupe bugs → canonical IDs, audit rules, automated merge tests.
 
 **Rollback**
-- Disable `inbox.store.indexeddb`; regress to sessionStorage seamlessly.
+- Roll back via code revert or by shipping a hotfix that short-circuits `openThreadDb()` to return `null`.
 
 ---
 

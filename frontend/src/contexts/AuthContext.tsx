@@ -14,6 +14,7 @@ import {
   getCurrentUser,
   getServiceProviderProfileMe,
 } from '@/lib/api';
+import { clearThreadCaches } from '@/lib/threadCache';
 
 interface AuthContextType {
   user: User | null;
@@ -152,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try { void import('@/lib/api').then(m => m.logout()); } catch {}
       setUser(null);
       setArtistViewActive(true);
+      void clearThreadCaches({ includeSession: true });
       try {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('user');
@@ -289,6 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { void import('@/lib/api').then(m => m.logout()); } catch {}
     setUser(null);
     setArtistViewActive(true);
+    void clearThreadCaches({ includeSession: true });
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('artistViewActive');
