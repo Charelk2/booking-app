@@ -32,6 +32,7 @@ Deliver WhatsApp-level fast conversation switching and perceived instant load fo
 - RUM events: `inbox_switch_start`, `thread_hydrate_first_paint`, `thread_ready`, `thread_scroll_restored`, `inbox_prefetch_batch_ms` with P50/P95 dashboards.
 - Network profiles captured during canary rollouts.
 - Backend latency and payload histograms for message list endpoints.
+- Next instrumentation: cache hit/miss ratios from the Dexie store, secondary-pipeline latency/error events, and delta-contract success metrics feeding the Inbox SLO dashboards.
 
 ## Implementation Batches Overview
 | Batch | Focus | Idea |
@@ -45,10 +46,12 @@ Deliver WhatsApp-level fast conversation switching and perceived instant load fo
 Batch 1 is now baked in by default (no flags). Later batches can still be staged, but the rendering/scroll changes are permanent unless reverted by code.
 
 ### Current Status
-- Stabilizing Batch 1: tightened `MessageThread` realtime merges (debounced read receipts now use a dedicated timer ref, dynamic Virtuoso ref typing corrected) to keep virtualization reliable ahead of wider QA.
-- Batch 2 prep is queued behind Batch 1 soak; backlog grooming and IndexedDB spike notes remain unchanged until the current deployment bakes.
-- Batch 2 shipped: `threadCache.ts` mirrors session caches into IndexedDB with a 60-thread LRU, auto-clears on logout/session expiry, and `MessageThread` hydrates from the store before requesting server deltas.
-- Batch 3 shipped: the network-aware prefetch queue (`frontend/src/lib/threadPrefetcher.ts` + `app/inbox/page.tsx`) hydrates priority threads in the background, honors staleness windows, and replays realtime updates into the persistent store without runtime flags.
+- Batch 1 (rendering/state stabilization) shipped and soaking in production; realtime merge fixes plus virtualization flag removal are stable with no open regressions.
+- Batch 2 (persistent thread store) shipped; instrumentation for cache hit/miss ratios and thread metadata expansion is still outstanding.
+- Batch 3 (prefetching/sync) shipped; prefetch queue meets latency targets and runs unflagged.
+- Batch 4 (secondary pipelines) partially planned—initial reuse of hydrated booking payloads is live, but fetch inventory, placeholder specs, and non-blocking error flows remain.
+- Batch 5 (backend contracts) partially delivered—payload trimming landed, while delta contract, lightweight/enriched response negotiation, and index/TTL work are pending.
+- Instrumentation dashboards for Inbox SLOs are live; need to extend with Batch 2 cache metrics and Batch 4/5 error tracking before broader rollout.
 
 ---
 
@@ -168,6 +171,35 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - UI placeholders with fixed dimensions to avoid CLS; composer availability decoupled from secondary requests.
 - Non-blocking error handling with unobtrusive retries.
 
+**Progress**
+- Inbox now reuses booking request payloads supplied by the thread list, eliminating repeated `/booking-requests/{id}` fetches on every switch and keeping ancillary fetches in the background.
+- Quote and booking mutations trigger a local refresh hook instead of rereading the entire request synchronously, letting the composer stay live while secondary data streams in.
+
+**Open Work**
+- Capture a definitive inventory of quote, payment, and booking detail fetches (owner + call sites) and flag which data is required for first paint.
+- Decide between a consolidated thread-context endpoint vs. staggered background fetches; document contract shape and rollout flag plan.
+- Implement fixed-dimension placeholders/skeletons for quote cards, payment widgets, and booking panels so CLS stays ≤0.02.
+- Decouple composer readiness from ancillary fetch promises and surface non-blocking retry toasts for failures.
+- Add targeted logging/metrics (`inbox_secondary_pipeline_latency`, error counts) to prove de-waterfalling improves perceived readiness.
+
+**Ancillary Fetch Inventory (2025-07-07)**
+| Data slice | API helper(s) | Initiator | Trigger & timing | First paint? | Owner |
+|------------|---------------|-----------|------------------|--------------|-------|
+| Booking request payload | `getBookingRequestById` | `MessageThread` effect (`frontend/src/components/booking/MessageThread.tsx:1227`) | Runs on mount or `refreshBookingRequest()` bumps version when no `initialBookingRequest` provided | Required today; target to defer once thread list passes hydrated payload + placeholder | Inbox FE |
+| Booking details (accepted quote) | `getBookingDetails` | `ensureQuoteLoaded` (`frontend/src/components/booking/MessageThread.tsx:1369-1387`) | Fired when quote arrives with a `booking_id` | Defer; use cached summary placeholder until hydrate | Inbox FE |
+| Booking details (client resolve) | `getMyClientBookings`, `getBookingDetails` | `resolveBookingFromRequest` (`frontend/src/components/booking/MessageThread.tsx:1875-1887`) | Invoked after thread activation on client side | Defer; keep composer live while summary panel shows skeleton | Inbox FE |
+| Quote info | `getQuotesBatch`, `getQuoteV2` | Post-fetch quote hydration (`frontend/src/components/booking/MessageThread.tsx:1588-1619`) | After message list fetch or as fallback on WS message | Defer; render quote skeleton with CTA placeholders | Inbox FE |
+| Service provider lookup | `getService` | `ensureServiceProviderForService` (`frontend/src/components/booking/MessageThread.tsx:804-832`) | Lazy fetch when a service id lacks cached provider mapping | Defer; fallback to generic provider label | Inbox FE |
+| Provider reviews (quote peek) | `getServiceProviderReviews` | `QuoteBubble` `useEffect` (`frontend/src/components/booking/QuoteBubble.tsx:284-297`) | Runs when quote modal renders with provider id | Defer/optional; load after modal open | Inbox FE |
+| Event prep checklist | `getEventPrep` | `EventPrepCard` bootstrap (`frontend/src/components/booking/EventPrepCard.tsx:82-97`) | When Event Prep card mounts for confirmed bookings | Defer; card should show CTA skeleton until data arrives | Inbox FE |
+
+**Placeholder & Composer Plan**
+- Booking summary panel: introduce a `BookingSummarySkeleton` that reserves 420 px height on desktop (modal) and 280 px on mobile, mirroring image + list layout; swap in until either `initialBookingRequest` or `bookingDetails` resolves so CLS stays <0.02.
+- Quote bubbles: render a fixed 220 px skeleton block for `QUOTE` messages while `quotes[quote_id]` is missing, keeping CTA button slots and amount rows in place so the composer never blocks on quote hydration.
+- Payment/instant-book CTA: dedicate a 72 px high placeholder button row that appears whenever a quote is pending but payment data not ready, avoiding jumps when `openPaymentModal` injects the banner.
+- Event prep card: add skeleton tiles for the progress bar and step list (3 × 56 px rows) so the card can mount immediately after booking confirmation without awaiting `getEventPrep`.
+- Composer readiness: gate only on `disableComposer` / auth errors; ancillary fetch failures should show inline retry toasts but leave the textarea active and message list interactive.
+
 **Acceptance Criteria**
 - Time to first input unchanged from Batch 3 baseline (±5%).
 - CLS from ancillary content ≤0.02.
@@ -197,6 +229,18 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - Stable media URLs with long TTL to prevent repeated avatar payloads.
 - Observability: P50/P95 latency, payload size histograms, DB timing dashboards.
 
+**Progress**
+- Message list endpoint switched to `selectinload` for senders and profiles, trimming redundant joins and cutting latency (<10 ms on staging for 20–60 message slices).
+- Attachment metadata now strips embedded base64 previews, so payloads for attachment-heavy threads dropped from ~1.8 MB to tens of kilobytes while preserving signed URLs for browser fetch.
+- `get_recent_messages_for_requests` batches the latest messages per thread, powering thread previews without issuing N queries.
+
+**Open Work**
+- Design and expose the delta contract (`after_id`/`since_ts` cursors + pagination semantics) and negotiate client capability flags to fall back safely.
+- Implement lightweight vs. enriched response modes, including avatar/media URL TTL handling and cache headers.
+- Add and verify composite indexes (e.g., `(booking_request_id, created_at, id)`) with EXPLAIN plans captured in docs.
+- Extend observability: payload/latency histograms per mode, delta response error tracking, and alert thresholds.
+- Provide migration guidance for existing consumers (MessageThread, notifications) and stage rollout behind `inbox.delta_api.enabled` or similar feature flag.
+
 **Acceptance Criteria**
 - P95 latency for “latest 50 messages” down ≥30%; payload size down ≥40% from baseline.
 - Delta fetch returns in ≤150 ms P95 on production infra.
@@ -220,6 +264,7 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - Devices: recent Mac/Windows laptops, mid-tier Android (3–4 GB RAM), iPhone SE class.
 - Networks: Good 4G (25 Mbps), Constrained 4G (5 Mbps, 100 ms RTT), offline/flaky simulation.
 - Thread sizes: <100, ~1k, ≥5k messages; attachment-heavy and text-only scenarios.
+- Add-ons for upcoming batches: prefetch enabled vs disabled, cache-warm vs cold, ancillary data failures (quotes/payments) with retry UX, and delta-pagination smoke tests.
 
 ### Security & Privacy
 - IndexedDB cleared on sign-out/account switch; respect private/incognito limitations.
