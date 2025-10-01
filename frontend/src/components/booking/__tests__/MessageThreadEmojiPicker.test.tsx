@@ -3,6 +3,21 @@ import { render, fireEvent } from '@testing-library/react';
 import MessageThread from '../MessageThread';
 import * as api from '@/lib/api';
 
+const makeEnvelope = (items: any[] = []) => ({
+  data: {
+    mode: 'full' as const,
+    items,
+    has_more: false,
+    next_cursor: null,
+    delta_cursor: null,
+    requested_after_id: null,
+    requested_since: null,
+    total_latency_ms: 0,
+    db_latency_ms: 0,
+    payload_bytes: 0,
+  },
+});
+
 jest.mock('@emoji-mart/data', () => ({}));
 
 // Mock emoji picker to provide deterministic emoji selection
@@ -21,7 +36,7 @@ jest.mock('@/lib/api');
 describe('MessageThread emoji picker', () => {
   beforeEach(() => {
     (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client' } });
-    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue(makeEnvelope());
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({ data: null });
     (api.getBookingDetails as jest.Mock).mockResolvedValue({ data: { id: 1, service: { title: 'Gig' } } });
   });
@@ -43,4 +58,3 @@ describe('MessageThread emoji picker', () => {
     expect(textarea.value).toBe('Hello😀');
   });
 });
-

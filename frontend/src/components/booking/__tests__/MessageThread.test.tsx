@@ -19,12 +19,29 @@ function flushPromises() {
   return new Promise((res) => setTimeout(res, 0));
 }
 
+const baseEnvelope = {
+  mode: 'full' as const,
+  items: [] as any[],
+  has_more: false,
+  next_cursor: null as string | null,
+  delta_cursor: null as string | null,
+  requested_after_id: null as number | null,
+  requested_since: null as string | null,
+  total_latency_ms: 0,
+  db_latency_ms: 0,
+  payload_bytes: 0,
+};
+
+const makeEnvelope = (items: any[], overrides: Partial<typeof baseEnvelope> = {}) => ({
+  data: { ...baseEnvelope, items, ...overrides },
+});
+
 describe('MessageThread quote actions', () => {
   it('lets clients open quote review from the quote bubble', async () => {
     (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
-      data: [
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue(
+      makeEnvelope([
         {
           id: 1,
           booking_request_id: 1,
@@ -37,8 +54,8 @@ describe('MessageThread quote actions', () => {
           is_read: true,
           timestamp: '2025-01-01T00:00:00Z',
         },
-      ],
-    });
+      ]),
+    );
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({
       data: {
         id: 42,
@@ -86,8 +103,8 @@ describe('MessageThread quote actions', () => {
   it('renders quote bubble for system review_quote messages', async () => {
     (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
-      data: [
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue(
+      makeEnvelope([
         {
           id: 1,
           booking_request_id: 1,
@@ -101,8 +118,8 @@ describe('MessageThread quote actions', () => {
           is_read: true,
           timestamp: '2025-01-01T00:00:00Z',
         },
-      ],
-    });
+      ]),
+    );
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({
       data: {
         id: 55,
@@ -135,8 +152,8 @@ describe('MessageThread quote actions', () => {
   it('ignores messages with quote_id 0', async () => {
     (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
-      data: [
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue(
+      makeEnvelope([
         {
           id: 1,
           booking_request_id: 1,
@@ -148,8 +165,8 @@ describe('MessageThread quote actions', () => {
           is_read: true,
           timestamp: '2025-01-01T00:00:00Z',
         },
-      ],
-    });
+      ]),
+    );
 
     const container = document.createElement('div');
     const root = createRoot(container);
@@ -171,7 +188,7 @@ describe('MessageThread quote actions', () => {
   it('shows quote bubble to artists when no quote exists', async () => {
     (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider' } });
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue(makeEnvelope([]));
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({ data: null });
     (api.getBookingDetails as jest.Mock).mockResolvedValue({ data: { id: 1, service: { title: 'Gig' } } });
 
@@ -201,7 +218,7 @@ describe('MessageThread composer positioning', () => {
   it('uses CSS variable to offset the composer from the bottom nav', async () => {
     (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue(makeEnvelope([]));
 
     const container = document.createElement('div');
     const root = createRoot(container);

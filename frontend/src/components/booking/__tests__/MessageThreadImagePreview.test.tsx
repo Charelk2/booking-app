@@ -2,6 +2,21 @@ import { render, fireEvent } from '@testing-library/react';
 import MessageThread from '../MessageThread';
 import * as api from '@/lib/api';
 
+const makeEnvelope = (items: any[] = []) => ({
+  data: {
+    mode: 'full' as const,
+    items,
+    has_more: false,
+    next_cursor: null,
+    delta_cursor: null,
+    requested_after_id: null,
+    requested_since: null,
+    total_latency_ms: 0,
+    db_latency_ms: 0,
+    payload_bytes: 0,
+  },
+});
+
 jest.mock('@/hooks/useWebSocket', () => () => ({ send: jest.fn(), onMessage: jest.fn(), updatePresence: jest.fn() }));
 jest.mock('@/lib/api');
 
@@ -21,8 +36,8 @@ describe('MessageThread image attachments', () => {
   });
 
   it('renders image preview and opens modal on click', async () => {
-    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
-      data: [
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue(
+      makeEnvelope([
         {
           id: 1,
           booking_request_id: 1,
@@ -33,8 +48,8 @@ describe('MessageThread image attachments', () => {
           is_read: true,
           timestamp: '2025-01-01T00:00:00Z',
         },
-      ],
-    });
+      ]),
+    );
 
     const { findByAltText, queryByRole } = render(<MessageThread bookingRequestId={1} />);
     const img = await findByAltText('Image attachment');

@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Optional, Any, List, Literal
 from datetime import datetime
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -77,5 +77,20 @@ class MessageResponse(BaseModel):
         if v == MessageType.TEXT or (isinstance(v, str) and v.upper() == "TEXT"):
             return MessageType.USER
         return v
+
+    model_config = {"from_attributes": True}
+
+
+class MessageListResponse(BaseModel):
+    mode: Literal["full", "lite", "delta"]
+    items: List[MessageResponse]
+    has_more: bool
+    next_cursor: Optional[str] = None
+    delta_cursor: Optional[str] = None
+    requested_after_id: Optional[int] = None
+    requested_since: Optional[datetime] = None
+    total_latency_ms: float
+    db_latency_ms: float
+    payload_bytes: int
 
     model_config = {"from_attributes": True}

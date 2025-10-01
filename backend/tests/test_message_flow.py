@@ -202,10 +202,11 @@ def test_read_messages_pagination_and_fields():
         msg_in = MessageCreate(content=f"m{i}", message_type=MessageType.USER)
         api_message.create_message(br.id, msg_in, db, current_user=client)
 
-    result = api_message.read_messages(
+    envelope = api_message.read_messages(
         br.id, db=db, current_user=client, skip=1, limit=1, fields="content"
     )
-    assert len(result) == 1
-    msg = result[0]
-    assert msg["content"] == "m1"
-    assert "quote_id" not in msg
+    assert len(envelope.items) == 1
+    msg = envelope.items[0]
+    assert msg.content == "m1"
+    assert msg.quote_id is None
+    assert envelope.mode == "full"

@@ -7,11 +7,27 @@ import { render, fireEvent, waitFor } from '@testing-library/react';
 import MessageThread from '../MessageThread';
 import * as api from '@/lib/api';
 
+const makeEnvelope = (items: any[] = [], overrides: Partial<api.MessageListResponseEnvelope> = {}) => ({
+  data: {
+    mode: 'full' as const,
+    items,
+    has_more: false,
+    next_cursor: null,
+    delta_cursor: null,
+    requested_after_id: null,
+    requested_since: null,
+    total_latency_ms: 0,
+    db_latency_ms: 0,
+    payload_bytes: 0,
+    ...overrides,
+  },
+});
+
 describe('MessageThread send flow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
-    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue(makeEnvelope());
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({ data: null });
     (api.getBookingDetails as jest.Mock).mockResolvedValue({
       data: { id: 1, service: { title: 'Gig' }, start_time: '2024-01-01T00:00:00Z' },

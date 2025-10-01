@@ -51,7 +51,8 @@ def test_read_messages_handles_missing_sender():
         visible_to=models.VisibleTo.BOTH,
     )
 
-    messages = api_message.read_messages(br.id, db=db, current_user=client)
-    assert len(messages) == 1
-    assert messages[0]['content'] == 'hello'
-    assert messages[0]['avatar_url'] is None
+    envelope = api_message.read_messages(br.id, db=db, current_user=client)
+    assert len(envelope.items) == 1
+    message = envelope.items[0]
+    assert message.content == 'hello'
+    assert message.avatar_url is None

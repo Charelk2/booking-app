@@ -47,8 +47,8 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
 
   const refreshFlow = useCallback(async () => {
     try {
-      const res = await getMessagesForBookingRequest(bookingRequestId);
-      const msgs = res.data;
+      const res = await getMessagesForBookingRequest(bookingRequestId, { mode: 'lite', limit: 80 });
+      const msgs = res.data.items;
       const progressCount = computeVideoProgress(msgs);
       setProgress(progressCount);
 

@@ -71,6 +71,11 @@ class Message(BaseModel):
             "message_type",
             "timestamp",
         ),
+        Index(
+            "ix_messages_request_id_id",
+            "booking_request_id",
+            "id",
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)

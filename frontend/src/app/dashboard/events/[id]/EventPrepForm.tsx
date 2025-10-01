@@ -843,8 +843,8 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
     // Try parse from booking thread system booking-details message
     const brId = booking.booking_request_id;
     if (brId) {
-      getMessagesForBookingRequest(brId).then((res) => {
-        const msgs = res.data || [] as any[];
+      getMessagesForBookingRequest(brId, { mode: 'lite', limit: 60 }).then((res) => {
+        const msgs = res.data.items as any[];
         const sys = msgs.find((m) => {
           if (String(m.message_type).toUpperCase() !== 'SYSTEM' || typeof m.content !== 'string') return false;
           const c = m.content.trim();

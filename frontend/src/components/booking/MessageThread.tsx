@@ -47,6 +47,7 @@ import {
 
 import {
   getMessagesForBookingRequest,
+  type MessageListParams,
   postMessageToBookingRequest,
   uploadMessageAttachment,
   createQuoteV2,
@@ -1469,9 +1470,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (mode === 'incremental' && !lastId) mode = 'initial';
       if (mode === 'initial' && !initialLoadedRef.current) setLoading(true);
 
-      const params: { limit?: number; after?: number } = {};
-      params.limit = mode === 'initial' ? 100 : 50;
-      if (mode === 'incremental' && lastId) params.after = lastId;
+      const params: MessageListParams = {
+        limit: mode === 'initial' ? 100 : 50,
+      };
+      if (mode === 'incremental' && lastId) {
+        params.after = lastId;
+        params.mode = 'delta';
+      } else {
+        params.mode = 'full';
+      }
 
       try {
         const res = await getMessagesForBookingRequest(bookingRequestId, params);
@@ -1479,13 +1486,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           return;
         }
 
-        const rows = Array.isArray(res.data) ? res.data : [];
+        const envelope = res.data || { items: [] };
+        const rows = Array.isArray((envelope as any).items) ? (envelope as any).items : [];
         if (mode === 'incremental' && rows.length === 0) {
           setThreadError(null);
           setLoading(false);
           initialLoadedRef.current = true;
           loadedThreadsRef.current.add(bookingRequestId);
           return;
+        }
+
+        if (typeof (envelope as any).delta_cursor !== 'undefined') {
+          const cursorValue = Number((envelope as any).delta_cursor);
+          if (Number.isFinite(cursorValue) && cursorValue > 0) {
+            lastMessageIdRef.current[bookingRequestId] = cursorValue;
+          }
         }
 
         let parsedDetails: ParsedBookingDetails | undefined;

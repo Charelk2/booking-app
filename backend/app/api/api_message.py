@@ -9,7 +9,7 @@ from fastapi import (
     Path,
 )
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Literal
 from datetime import datetime, timezone
 import logging
 import time
@@ -46,7 +46,7 @@ os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 
 @router.get(
     "/booking-requests/{request_id}/messages",
-    response_model=List[schemas.MessageResponse],
+    response_model=schemas.MessageListResponse,
 )
 def read_messages(
     request_id: int,
@@ -61,6 +61,13 @@ def read_messages(
     ),
     fields: Optional[str] = Query(
         None, description="Comma-separated fields to include in the response"
+    ),
+    mode: Literal["full", "lite", "delta"] = Query(
+        "full", description="full returns the legacy payload, lite trims optional fields, delta is optimized for after_id fetches"
+    ),
+    since: Optional[datetime] = Query(
+        None,
+        description="ISO datetime: include messages with timestamp >= since; primarily used with mode=delta",
     ),
 ):
     booking_request = crud.crud_booking_request.get_booking_request(
@@ -90,6 +97,16 @@ def read_messages(
     if hasattr(fields, "default"):
         fields = None
 
+    normalized_mode: Literal["full", "lite", "delta"] = mode
+    if normalized_mode == "delta" and after_id is None and since is None:
+        # Delta without a cursor degrades to lite to avoid returning duplicate history
+        normalized_mode = "lite"
+
+    effective_limit = int(limit)
+    query_limit = effective_limit
+    if normalized_mode in ("lite", "delta"):
+        query_limit = effective_limit + 1
+
     request_start = time.perf_counter()
     db_latency_ms: float = 0.0
 
@@ -100,18 +117,20 @@ def read_messages(
             request_id,
             viewer,
             skip=skip,
-            limit=limit,
+            limit=query_limit,
             after_id=after_id,
+            since=since,
         )
         db_latency_ms = (time.perf_counter() - query_start) * 1000.0
     except Exception as exc:
         # Defensive logging to diagnose unexpected DB shape mismatches in the field
         from sqlalchemy import inspect
+
         try:
             insp = inspect(db.get_bind())
-            cols = []
-            if 'messages' in insp.get_table_names():
-                cols = [c['name'] for c in insp.get_columns('messages')]
+            cols: List[str] = []
+            if "messages" in insp.get_table_names():
+                cols = [c["name"] for c in insp.get_columns("messages")]
             logger.exception(
                 "Failed to load messages for request %s; columns=%s error=%s",
                 request_id,
@@ -120,11 +139,57 @@ def read_messages(
             )
         except Exception:
             logger.exception("Failed to inspect messages table after error: %s", exc)
-        # Do not block the UI; return an empty list so the thread can render
-        return []
-    include = None
+
+        total_latency_ms = (time.perf_counter() - request_start) * 1000.0
+        envelope = schemas.MessageListResponse(
+            mode=normalized_mode,
+            items=[],
+            has_more=False,
+            next_cursor=None,
+            delta_cursor=None,
+            requested_after_id=after_id,
+            requested_since=since,
+            total_latency_ms=round(total_latency_ms, 2),
+            db_latency_ms=round(db_latency_ms, 2),
+            payload_bytes=0,
+        )
+        return envelope
+
+    has_more = False
+    if normalized_mode in ("lite", "delta") and len(db_messages) > effective_limit:
+        has_more = True
+        db_messages = db_messages[:effective_limit]
+
+    lite_base_fields = {
+        "id",
+        "booking_request_id",
+        "sender_id",
+        "sender_type",
+        "message_type",
+        "visible_to",
+        "content",
+        "quote_id",
+        "attachment_url",
+        "timestamp",
+        "system_key",
+        "action",
+        "is_read",
+        "reply_to_message_id",
+        "avatar_url",
+        "preview_label",
+        "preview_key",
+    }
+    delta_extra_fields = {"reactions", "my_reactions"}
+
+    include: Optional[set[str]] = None
+    if normalized_mode == "lite":
+        include = set(lite_base_fields)
+    elif normalized_mode == "delta":
+        include = set(lite_base_fields | delta_extra_fields)
+
     if fields:
-        include = {
+        extras = {f.strip() for f in fields.split(",") if f.strip()}
+        base_for_fields = {
             "id",
             "booking_request_id",
             "sender_id",
@@ -138,21 +203,33 @@ def read_messages(
             "attachment_url",
             "attachment_meta",
         }
-        include.update({f.strip() for f in fields.split(",") if f.strip()})
+        include = include or set()
+        include.update(base_for_fields)
+        include.update(extras)
+
+    include_reactions = normalized_mode != "lite"
+    if include and not ("reactions" in include or "my_reactions" in include):
+        include_reactions = False
+    include_reply_preview = normalized_mode == "full"
+    if include and "reply_to_preview" in include:
+        include_reply_preview = True
+    include_attachment_meta = normalized_mode == "full"
+    if include and "attachment_meta" in include:
+        include_attachment_meta = True
+    include_preview_args = normalized_mode == "full"
+    if include and "preview_args" in include:
+        include_preview_args = True
+
     # Preload reactions for all messages (best-effort)
     ids = [m.id for m in db_messages]
-    try:
-        aggregates = (
-            crud.crud_message_reaction.get_reaction_aggregates(db, ids) if ids else {}
-        )
-        my = (
-            crud.crud_message_reaction.get_user_reactions(db, ids, current_user.id)
-            if ids
-            else {}
-        )
-    except Exception:
-        # If the reactions table is missing or a transient error occurs,
-        # continue rendering messages without reactions.
+    if ids and include_reactions:
+        try:
+            aggregates = crud.crud_message_reaction.get_reaction_aggregates(db, ids)
+            my = crud.crud_message_reaction.get_user_reactions(db, ids, current_user.id)
+        except Exception:
+            aggregates = {}
+            my = {}
+    else:
         aggregates = {}
         my = {}
 
@@ -199,7 +276,7 @@ def read_messages(
             pass
         return val
 
-    result = []
+    result: List[dict] = []
     for m in db_messages:
         avatar_url = None
         sender = m.sender  # sender may be None if the user was deleted
@@ -211,22 +288,27 @@ def read_messages(
             elif sender.profile_picture_url:
                 avatar_url = sender.profile_picture_url
         avatar_url = _scrub_avatar(avatar_url)
+
         data = schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
+
         # Sign attachment URL on the fly when pointing at private R2
         if data.get("attachment_url"):
             data["attachment_url"] = _maybe_sign_attachment_url(str(data.get("attachment_url") or ""))
-        if data.get("attachment_meta"):
-            data["attachment_meta"] = _scrub_attachment_meta(data.get("attachment_meta"))
+
+        if include_attachment_meta:
+            if data.get("attachment_meta"):
+                data["attachment_meta"] = _scrub_attachment_meta(data.get("attachment_meta"))
+        else:
+            data.pop("attachment_meta", None)
+
         # Server-computed preview label for uniform clients
         try:
             data["preview_label"] = preview_label_for_message(m)
-            # Provide a coarse preview_key/args so clients can unify previews
             key = None
             if m.message_type == models.MessageType.QUOTE:
                 key = "quote"
             elif m.system_key:
-                # normalize known keys
                 low = (m.system_key or "").strip().lower()
                 if low.startswith("booking_details"):
                     key = "new_booking_request"
@@ -237,35 +319,84 @@ def read_messages(
                 else:
                     key = low
             data["preview_key"] = key
-            data["preview_args"] = {}
+            if include_preview_args:
+                data["preview_args"] = {}
+            else:
+                data.pop("preview_args", None)
         except Exception:
             data["preview_label"] = None
-        # Reply preview
-        if m.reply_to_message_id:
+            if include_preview_args:
+                data["preview_args"] = {}
+            else:
+                data.pop("preview_args", None)
+
+        if include_reply_preview and m.reply_to_message_id:
             parent = (
                 db.query(models.Message)
+                .with_entities(models.Message.id, models.Message.content)
                 .filter(models.Message.id == m.reply_to_message_id)
                 .first()
             )
             if parent:
                 data["reply_to_message_id"] = parent.id
-                data["reply_to_preview"] = parent.content[:160]
-        # Reactions aggregates
-        if m.id in aggregates:
-            data["reactions"] = aggregates[m.id]
-        if m.id in my:
-            data["my_reactions"] = my[m.id]
+                data["reply_to_preview"] = (parent.content or "")[:160]
+        else:
+            data.pop("reply_to_preview", None)
+
+        if include_reactions:
+            if m.id in aggregates:
+                data["reactions"] = aggregates[m.id]
+            else:
+                data.pop("reactions", None)
+            if m.id in my:
+                data["my_reactions"] = my[m.id]
+            else:
+                data.pop("my_reactions", None)
+        else:
+            data.pop("reactions", None)
+            data.pop("my_reactions", None)
+
         if include is not None:
             data = {k: v for k, v in data.items() if k in include}
+
         result.append(data)
 
-    payload_bytes = 0
-    try:
-        payload_bytes = len(orjson.dumps(result))
-    except Exception:
-        payload_bytes = 0
+    delta_cursor = None
+    next_cursor = None
+    if result:
+        last_row = result[-1]
+        last_id = last_row.get("id")
+        if last_id is not None:
+            delta_cursor = str(last_id)
+        ts_val = last_row.get("timestamp")
+        if isinstance(ts_val, datetime):
+            next_cursor = ts_val.isoformat()
+        elif isinstance(ts_val, str):
+            next_cursor = ts_val
 
     total_latency_ms = (time.perf_counter() - request_start) * 1000.0
+
+    envelope_dict = {
+        "mode": normalized_mode,
+        "items": result,
+        "has_more": has_more,
+        "next_cursor": next_cursor,
+        "delta_cursor": delta_cursor,
+        "requested_after_id": after_id,
+        "requested_since": since,
+        "total_latency_ms": round(total_latency_ms, 2),
+        "db_latency_ms": round(db_latency_ms, 2),
+        "payload_bytes": 0,
+    }
+
+    payload_probe = {
+        **envelope_dict,
+        "requested_since": since.isoformat() if isinstance(since, datetime) else None,
+    }
+    try:
+        envelope_dict["payload_bytes"] = len(orjson.dumps(payload_probe))
+    except Exception:
+        envelope_dict["payload_bytes"] = 0
 
     logger.info(
         "inbox_messages_response",
@@ -274,16 +405,19 @@ def read_messages(
             "thread_id": request_id,
             "viewer": viewer.value if hasattr(viewer, "value") else str(viewer),
             "result_count": len(result),
-            "db_latency_ms": round(db_latency_ms, 2),
-            "total_latency_ms": round(total_latency_ms, 2),
-            "payload_bytes": payload_bytes,
+            "db_latency_ms": envelope_dict["db_latency_ms"],
+            "total_latency_ms": envelope_dict["total_latency_ms"],
+            "payload_bytes": envelope_dict["payload_bytes"],
             "limit": limit,
             "after_id": after_id,
+            "mode": normalized_mode,
+            "has_more": has_more,
+            "requested_since": since.isoformat() if isinstance(since, datetime) else None,
             "user_id": current_user.id,
         },
     )
 
-    return result
+    return schemas.MessageListResponse(**envelope_dict)
 
 
 @router.put("/booking-requests/{request_id}/messages/read")

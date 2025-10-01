@@ -455,8 +455,8 @@ export default function InboxPage() {
               .slice(0, 6);
             const results = await Promise.allSettled(
               sample.map(async (r) => {
-                const res = await getMessagesForBookingRequest(r.id);
-                const msgs = res.data || [];
+                const res = await getMessagesForBookingRequest(r.id, { limit: 40, mode: 'lite' });
+                const { items: msgs } = res.data;
                 // Detect Booka moderation update based on the last message
                 const last = msgs[msgs.length - 1];
                 let moderation: { id: number; text: string; ts: string } | null = null;
@@ -757,9 +757,8 @@ export default function InboxPage() {
   const prefetchThreadMessages = useCallback(async (id: number, limit = PREFETCH_DEFAULT_LIMIT) => {
     if (!id) return;
     try {
-      const res = await getMessagesForBookingRequest(id, { limit });
-      const arr = Array.isArray(res.data) ? res.data : [];
-      writeThreadCache(id, arr);
+      const res = await getMessagesForBookingRequest(id, { limit, mode: 'lite' });
+      writeThreadCache(id, res.data.items);
     } catch {}
   }, []);
 

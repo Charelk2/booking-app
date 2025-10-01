@@ -673,14 +673,39 @@ export const confirmQuoteBooking = (id: number) =>
   api.post<Booking>(`${API_V1}/quotes/${id}/confirm-booking`, {});
 
 // ─── MESSAGES ───────────────────────────────────────────────────────────
+export interface MessageListResponseEnvelope {
+  mode: 'full' | 'lite' | 'delta';
+  items: Message[];
+  has_more: boolean;
+  next_cursor: string | null;
+  delta_cursor: string | null;
+  requested_after_id: number | null;
+  requested_since: string | null;
+  total_latency_ms: number;
+  db_latency_ms: number;
+  payload_bytes: number;
+}
+
+export interface MessageListParams {
+  limit?: number;
+  after?: number;
+  since?: string;
+  skip?: number;
+  fields?: string;
+  mode?: 'full' | 'lite' | 'delta';
+}
+
 export const getMessagesForBookingRequest = (
   bookingRequestId: number,
-  params?: { limit?: number; before?: string; after?: number }
-) =>
-  api.get<Message[]>(
+  params: MessageListParams = {},
+) => {
+  const qp: MessageListParams = { ...params };
+  if (!qp.mode) qp.mode = 'full';
+  return api.get<MessageListResponseEnvelope>(
     `${API_V1}/booking-requests/${bookingRequestId}/messages`,
-    { params }
+    { params: qp }
   );
+};
 
 export const postMessageToBookingRequest = (
   bookingRequestId: number,

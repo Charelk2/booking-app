@@ -205,10 +205,25 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - CLS from ancillary content ≤0.02.
 
 **Risks & Mitigations**
-- Hidden coupling where callers expect enriched payload → ship under flag with compatibility shim.
+- Hidden coupling where callers expect enriched payload → monitor telemetry and be ready to short-circuit the deferred hydration effect (set `bookingRequestHydration` to `'success'`) or revert the pipeline code if regressions surface.
+- No runtime kill switch now that the pipeline is default → keep a lightweight patch snippet documented so we can quickly disable the queued fetch in production.
 
 **Rollback**
-- Disable `inbox.secondary_pipeline.enabled`; revert to existing waterfall while keeping placeholder styles if harmless.
+- Hotfix: short-circuit the queued hydration effect to return early (e.g., bail before `setBookingRequestHydration('loading')`) to restore the legacy waterfall.
+- Hotfix snippet for on-call runbook:
+
+  ```tsx
+  useEffect(() => {
+    if (bookingRequestHydration !== 'idle') return;
+    // --- HOTFIX: short-circuit secondary pipeline ---
+    setBookingRequestHydration('success');
+    return;
+    // --- End hotfix ---
+    // original deferred queue below …
+  }, [...deps]);
+  ```
+- Full rollback: revert the MessageThread skeleton + hydration commits to reinstate the previous synchronous loading path.
+- Full rollback: revert the MessageThread skeleton + hydration commits to reinstate the previous synchronous loading path.
 
 ---
 
@@ -218,28 +233,29 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - Shrink payloads and latency for message list endpoints; enable delta fetches and external avatar caching.
 
 **Current Observations**
-- `get_messages_for_request` joins sender profiles and returns full payload each time (`backend/app/crud/crud_message.py:44`).
-- No `after_id` support beyond simple filters; clients still refetch full slices.
-- Avatars/Profile data repeated per message; no caching hints.
+- Message envelope rolls out everywhere; older integrations may still assume a bare list response.
+- Logging captures latency/payload stats but nothing forwards to dashboards yet; no alerts on regression.
+- Avatar URLs remain per-message with short-lived signatures; cache hints pending so repeated delta fetches still pull the string each time.
 
 **Deliverables**
-- Delta contract: message list supports `after_id`/`since_ts` returning only new/changed messages with cursors.
-- Lightweight vs enriched responses controlled via param/capability token.
-- Index audits and additions (e.g., `(booking_request_id, timestamp, id)` composite) plus EXPLAIN plan validation.
+- ✅ Delta contract: message list supports `after_id`/`since_ts` returning only new/changed messages with cursors.
+- Lightweight vs enriched responses controlled via param/capability token (lite shipped; enriched opt-in pending).
+- ✅ Index audits and additions (e.g., `(booking_request_id, id)` composite) landed; capture EXPLAIN output for docs.
 - Stable media URLs with long TTL to prevent repeated avatar payloads.
-- Observability: P50/P95 latency, payload size histograms, DB timing dashboards.
+- Observability: P50/P95 latency & payload histograms, DB timing dashboards, alert thresholds.
 
 **Progress**
-- Message list endpoint switched to `selectinload` for senders and profiles, trimming redundant joins and cutting latency (<10 ms on staging for 20–60 message slices).
-- Attachment metadata now strips embedded base64 previews, so payloads for attachment-heavy threads dropped from ~1.8 MB to tens of kilobytes while preserving signed URLs for browser fetch.
-- `get_recent_messages_for_requests` batches the latest messages per thread, powering thread previews without issuing N queries.
+- `/booking-requests/{id}/messages` now returns a `MessageListResponse` envelope with `mode`, cursors, and payload/db latency stats; `mode=delta` fetches only rows after the supplied cursor and trims optional fields.
+- Added composite index `ix_messages_request_id_id` and guarded Alembic migration (`20250920_add_messages_request_id_id_index.py`) to keep `after_id` lookups using the covering index.
+- Lite/delta modes skip per-message reply lookups and attachment meta scrubbing, and logging now tags each response with `mode`, `has_more`, and cursor info for downstream metrics.
+- Frontend MessageThread + inbox wrappers consume the new envelope, default to `mode=delta` for incremental hydrations, and prefetch using `mode=lite` so cached panes stay lightweight.
 
 **Open Work**
-- Design and expose the delta contract (`after_id`/`since_ts` cursors + pagination semantics) and negotiate client capability flags to fall back safely.
-- Implement lightweight vs. enriched response modes, including avatar/media URL TTL handling and cache headers.
-- Add and verify composite indexes (e.g., `(booking_request_id, created_at, id)`) with EXPLAIN plans captured in docs.
-- Extend observability: payload/latency histograms per mode, delta response error tracking, and alert thresholds.
-- Provide migration guidance for existing consumers (MessageThread, notifications) and stage rollout behind `inbox.delta_api.enabled` or similar feature flag.
+- Wire the structured log metrics into the actual telemetry sink (StatsD/OTel) so we can chart `payload_bytes`, `db_latency_ms`, and `mode`-specific latency in dashboards.
+- Audit non-inbox consumers (notifications service, API clients) and update them to handle the envelope; ship a compatibility shim or alternate endpoint if any still rely on the legacy list payload.
+- Re-introduce optional enriched mode when clients explicitly request it (e.g., `fields=attachment_meta,reactions`) and document the contract for third parties.
+- Add cache/TTL guidance for avatar + attachment URLs and confirm Signed URL lifetime meets prefetch requirements.
+- Capture EXPLAIN plans for the new index on Postgres prod and add them to the runbook (current guard only checks existence).
 
 **Acceptance Criteria**
 - P95 latency for “latest 50 messages” down ≥30%; payload size down ≥40% from baseline.
@@ -256,8 +272,8 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 ## Cross-Cutting Concerns
 
 ### Feature Flags
-- Batches 1–3 now ship without runtime flags; their behaviour is always enabled.
-- Upcoming batches may still use targeted flags (e.g., `inbox.secondary_pipeline.enabled`) during staged rollouts.
+- Batches 1–3 now ship without runtime flags; their behaviour is always enabled.
+- Upcoming batches may still use targeted flags (e.g., `inbox.delta_api.enabled`) during staged rollouts.
 - Keep an emergency kill-switch pattern for future incremental launches even if current stages run unflagged.
 
 ### QA Matrix

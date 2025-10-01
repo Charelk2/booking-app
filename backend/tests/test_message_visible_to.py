@@ -75,9 +75,9 @@ def test_read_messages_filters_by_visible_to():
     )
 
     client_msgs = api_message.read_messages(br.id, db=db, current_user=client)
-    assert len(client_msgs) == 2
-    assert {m["content"] for m in client_msgs} == {"hi", "note"}
+    assert len(client_msgs.items) == 2
+    assert {m.content for m in client_msgs.items} == {"hi", "note"}
 
     artist_msgs = api_message.read_messages(br.id, db=db, current_user=artist)
-    assert len(artist_msgs) == 2
-    assert {m["content"] for m in artist_msgs} == {"hi", "secret"}
+    assert len(artist_msgs.items) == 2
+    assert {m.content for m in artist_msgs.items} == {"hi", "secret"}
