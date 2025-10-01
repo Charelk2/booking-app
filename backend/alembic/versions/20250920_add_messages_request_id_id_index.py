@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '20250920_add_messages_request_id_id_index'
-down_revision: Union[str, None] = 'a1f3e2d4c6b7'
+down_revision: Union[str, None] = '20250901_add_attachment_meta_to_messages'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

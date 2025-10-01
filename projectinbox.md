@@ -256,6 +256,7 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - Re-introduce optional enriched mode when clients explicitly request it (e.g., `fields=attachment_meta,reactions`) and document the contract for third parties.
 - Add cache/TTL guidance for avatar + attachment URLs and confirm Signed URL lifetime meets prefetch requirements.
 - Capture EXPLAIN plans for the new index on Postgres prod and add them to the runbook (current guard only checks existence).
+- Restore backend test runs in environments missing `boto3` (install deps or use Docker) so regression suites cover the new payload modes.
 
 **Acceptance Criteria**
 - P95 latency for “latest 50 messages” down ≥30%; payload size down ≥40% from baseline.

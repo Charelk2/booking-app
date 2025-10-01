@@ -27,7 +27,7 @@ from .quote_template import (
 )
 from .rider import RiderCreate, RiderUpdate, RiderRead
 from .pricebook import PricebookCreate, PricebookUpdate, PricebookRead, EstimateIn, EstimateOut
-from .message import MessageCreate, MessageResponse
+from .message import MessageCreate, MessageResponse, MessageListResponse
 from .notification import (
     NotificationCreate,
     NotificationResponse,
@@ -89,6 +89,7 @@ __all__ = [
     "EstimateOut",
     "MessageCreate",
     "MessageResponse",
+    "MessageListResponse",
     "NotificationCreate",
     "NotificationResponse",
     "BookingDetailsSummary",
