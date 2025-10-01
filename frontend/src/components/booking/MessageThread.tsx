@@ -31,8 +31,7 @@ import {
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
 import { isSystemMessage as isSystemMsgHelper, systemLabel } from '@/lib/systemMessages';
-import { trackEvent } from '@/lib/analytics';
-import { inboxVirtualizationEnabled, inboxTelemetryEnabled } from '@/lib/flags';
+// Telemetry & flags removed in Batch 1 clean revamp
 
 import {
   Booking,
@@ -71,7 +70,7 @@ import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import useRealtime from '@/hooks/useRealtime';
 import useBookingView from '@/hooks/useBookingView';
-import useThreadScrollAnchor from '@/hooks/useThreadScrollAnchor';
+// Non-virtual scroll helpers no longer needed
 
 import Button from '../ui/Button';
 import { addMessageReaction, removeMessageReaction } from '@/lib/api';
@@ -118,8 +117,7 @@ const API_V1 = '/api/v1';
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 const MIN_SCROLL_OFFSET = 24;
 const BOTTOM_GAP_PX = 8;
-const INITIAL_VISIBLE_COUNT = 30;
-const VISIBLE_CHUNK = 30;
+// Virtualized list renders full dataset efficiently
 const MAX_TEXTAREA_LINES = 10;
 const isImageAttachment = (url?: string | null) =>
   !!url && (/^blob:/i.test(url) || /^data:image\//i.test(url) || /\.(jpe?g|png|gif|webp|avif)$/i.test(url));
@@ -768,8 +766,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [serviceProviderByServiceId, setServiceProviderByServiceId] = useState<Record<number, number>>({});
   const isSendingRef = useRef(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const VIRTUALIZE = inboxVirtualizationEnabled();
-  const TELEMETRY_ON = inboxTelemetryEnabled();
+  // Virtualization always enabled
 
   // ---- Offline queue
   const { enqueue: enqueueMessage } = useOfflineQueue<{
@@ -837,12 +834,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   }, [setServiceProviderByServiceId]);
 
   // ---- Refs
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  // Removed non-virtual container refs
   const virtualizationHostRef = useRef<HTMLDivElement | null>(null);
+  const virtuosoRef = useRef<any>(null);
   const [virtuosoViewportHeight, setVirtuosoViewportHeight] = useState(0);
-  const loadingOlderRef = useRef(false);
-  const visibleCountRef = useRef<number>(INITIAL_VISIBLE_COUNT);
   const distanceFromBottomRef = useRef<number>(0);
   const prevScrollHeightRef = useRef<number>(0);
   const prevComposerHeightRef = useRef<number>(0);
@@ -893,8 +888,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return () => window.removeEventListener('resize', update);
   }, []);
   const mobileOverlayOpenedAtRef = useRef<number>(0);
-  const telemetryRef = useRef<{ didHydratePaint?: boolean; didReady?: boolean; didScrollRestore?: boolean }>({});
-  const { computeDistanceFromBottom, isAnchored, pinToBottom, adjustForComposerDelta } = useThreadScrollAnchor(MIN_SCROLL_OFFSET);
+  // Track bottom anchoring from Virtuoso callbacks
+  const atBottomRef = useRef<boolean>(true);
 
   // When mobile long-press overlay is open, ensure composer does not focus/type
   const isMobileOverlayOpen = isMobile && actionMenuFor !== null;
@@ -1336,10 +1331,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   }, [composerRef]);
 
   useLayoutEffect(() => {
-    if (!VIRTUALIZE) {
-      setVirtuosoViewportHeight(0);
-      return;
-    }
     const host = virtualizationHostRef.current;
     if (!host) return;
 
@@ -1374,7 +1365,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (ro && host) ro.unobserve(host);
       if (hasWindow) window.removeEventListener('resize', update);
     };
-  }, [VIRTUALIZE, bookingRequestId, composerHeight]);
+  }, [bookingRequestId, composerHeight]);
 
   // ---- Fetch messages (initial + refresh)
   const fetchMessages = useCallback(
@@ -1592,10 +1583,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           stabilizingRef.current = false;
         }, 250);
         fetchInFlightRef.current = false;
-        if (TELEMETRY_ON && !telemetryRef.current.didReady) {
-          telemetryRef.current.didReady = true;
-          try { trackEvent('thread_ready', { thread_id: bookingRequestId }); } catch {}
-        }
+        // ready
       }
     },
     [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded, isActiveThread],
@@ -1699,10 +1687,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       setLoading(false);
       initialLoadedRef.current = true;
       loadedThreadsRef.current.add(bookingRequestId);
-      if (TELEMETRY_ON && !telemetryRef.current.didHydratePaint) {
-        telemetryRef.current.didHydratePaint = true;
-        try { trackEvent('thread_hydrate_first_paint', { thread_id: bookingRequestId, count: cached.length }); } catch {}
-      }
       // Keep gate closed; realtime merges will flush after fresh fetch
     } else {
       setMessages([]);
@@ -1712,21 +1696,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
   }, [bookingRequestId]);
 
-  // Ensure the thread starts anchored at bottom on first load, without a noticeable scroll
-  useLayoutEffect(() => {
-    if (!initialLoadedRef.current) return;
-    if (initialScrolledRef.current) return;
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    pinToBottom(el);
-    try { prevScrollHeightRef.current = el.scrollHeight; } catch {}
-    try { distanceFromBottomRef.current = 0; } catch {}
-    initialScrolledRef.current = true;
-    if (TELEMETRY_ON && !telemetryRef.current.didScrollRestore) {
-      telemetryRef.current.didScrollRestore = true;
-      try { trackEvent('thread_scroll_restored', { thread_id: bookingRequestId }); } catch {}
-    }
-  }, [messages.length, bookingRequestId]);
+  // Initial anchor handled by Virtuoso (no manual DOM scroll)
 
   // Resolve booking from request for paid/confirmed state (client path)
   const resolveBookingFromRequest = useCallback(async () => {
@@ -2002,10 +1972,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       // Debounced read receipt when anchored and new incoming
       try {
-        const el = messagesContainerRef.current;
-        if (el) {
-          const distance = el.scrollHeight - (el.scrollTop + el.clientHeight);
-          const anchored = distance <= MIN_SCROLL_OFFSET;
+          const anchored = atBottomRef.current === true;
           const gotIncoming = normalized.some((m) => m.sender_id !== (user?.id || 0));
           if (anchored && gotIncoming) {
             const toClear = normalized
@@ -2134,18 +2101,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     });
   }, []);
 
-  // ---- Scrolling logic (disabled when virtualized)
-  useEffect(() => {
-    if (VIRTUALIZE) return;
-    if (!messagesContainerRef.current || !messagesEndRef.current) return;
-    if (stabilizingRef.current) return;
-    const anchored = isAnchored(messagesContainerRef.current, distanceFromBottomRef.current);
-    const shouldAutoScroll = messages.length > prevMessageCountRef.current || (typingIndicator && anchored);
-    if (shouldAutoScroll) {
-      try { messagesContainerRef.current.scrollTo({ top: messagesContainerRef.current.scrollHeight, behavior: 'auto' }); } catch {}
-    }
-    prevMessageCountRef.current = messages.length;
-  }, [messages, typingIndicator, VIRTUALIZE, isAnchored]);
+  // Virtualized path: Virtuoso handles scrolling.
 
   // Hook typing emission to composer input
   useEffect(() => {
@@ -2156,77 +2112,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return () => { ta.removeEventListener('input', onInput); };
   }, [emitTyping]);
 
-  const handleScroll = useCallback(() => {
-    if (stabilizingRef.current) return;
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    const distance = computeDistanceFromBottom(el);
-    distanceFromBottomRef.current = distance;
-    const atBottom = isAnchored(el, distance);
-    setShowScrollButton(!atBottom);
-    setIsUserScrolledUp(!atBottom);
-    prevScrollHeightRef.current = el.scrollHeight;
-    // Reveal older messages when reaching the top (non-virtualized)
-    if (!VIRTUALIZE) {
-      const nearTop = el.scrollTop <= MIN_SCROLL_OFFSET;
-      const total = messages.length;
-      if (nearTop && visibleCountRef.current < total) {
-        const prevHeight = el.scrollHeight;
-        loadingOlderRef.current = true;
-        setVisibleCount((c) => Math.min(total, c + VISIBLE_CHUNK));
-        prevScrollHeightRef.current = prevHeight;
-      }
-    }
-  }, [computeDistanceFromBottom, isAnchored]);
-  useEffect(() => {
-    if (VIRTUALIZE) return;
-    handleScroll();
-    const container = messagesContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll, { passive: true });
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-    return () => {};
-  }, [handleScroll, VIRTUALIZE]);
+  // Virtualized path updates atBottom via Virtuoso callbacks below.
 
   // ---- Visible messages (keep it simple; only hide booking-details meta)
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
-  // Keep a ref in sync for non-reactive handlers
-  useEffect(() => { visibleCountRef.current = visibleCount; }, [visibleCount]);
-  // Reset slice when the thread changes
-  useEffect(() => { setVisibleCount(INITIAL_VISIBLE_COUNT); }, [bookingRequestId]);
-
-  // Maintain anchor when older slice is revealed
-  useLayoutEffect(() => {
-    if (!loadingOlderRef.current) return;
-    const el = messagesContainerRef.current;
-    if (!el) { loadingOlderRef.current = false; return; }
-    const prevH = prevScrollHeightRef.current || 0;
-    const newH = el.scrollHeight;
-    try {
-      el.scrollTop = Math.max(0, newH - prevH);
-    } catch {}
-    loadingOlderRef.current = false;
-  }, [visibleCount]);
+  // Visible slice logic removed; all messages flow through Virtuoso efficiently.
 
   // ---- iOS scroll unlocks
-  const handleTouchStartOnList = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-    touchStartYRef.current = e.touches?.[0]?.clientY ?? 0;
-  }, []);
-  const handleTouchMoveOnList = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-    const y = e.touches?.[0]?.clientY ?? 0;
-    const dy = y - touchStartYRef.current;
-    if (dy > 6 && document.activeElement === textareaRef.current) {
-      textareaRef.current?.blur();
-      setShowEmojiPicker(false);
-    }
-  }, []);
-  const handleWheelOnList = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-    if (e.deltaY < 0 && document.activeElement === textareaRef.current) {
-      textareaRef.current?.blur();
-      setShowEmojiPicker(false);
-    }
-  }, []);
+  // Non-virtual scroll touch handlers removed.
 
   // ---- Grouping helpers
   const shouldShowTimestampGroup = useCallback(
@@ -2293,21 +2185,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
     } catch {}
 
-    const full = deduped;
-    const count = Math.max(0, Math.min(full.length, visibleCount));
-    const start = Math.max(0, full.length - count);
-    return full.slice(start);
-  }, [messages, user?.user_type, visibleCount]);
-
-  // Keep visibleCount within bounds when messages update
-  useEffect(() => {
-    setVisibleCount((c) => {
-      const total = messages.length;
-      if (total === 0) return INITIAL_VISIBLE_COUNT;
-      if (c > total) return total;
-      return c;
-    });
-  }, [messages.length]);
+    return deduped;
+  }, [messages, user?.user_type]);
 
   const groupedMessages = useMemo(() => {
     const groups: { sender_id: number | null; sender_type: string; messages: ThreadMessage[]; showDayDivider: boolean }[] = [];
@@ -3802,35 +3681,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Do not pad by composer height to avoid large jumps while typing.
   const effectiveBottomPadding = `calc(${BOTTOM_GAP_PX}px + env(safe-area-inset-bottom))`;
 
-  const containerClasses = VIRTUALIZE
-    ? 'relative flex-1 min-h-0 flex flex-col gap-3 bg-white px-3 pt-3 overflow-x-hidden overflow-y-hidden'
-    : 'relative flex-1 min-h-0 flex flex-col justify-end gap-3 bg-white px-3 pt-3 overflow-y-auto overflow-x-hidden';
+  const containerClasses = 'relative flex-1 min-h-0 flex flex-col gap-3 bg-white px-3 pt-3 overflow-x-hidden overflow-y-hidden';
 
-  // When the composer height changes and the user is anchored at bottom, keep the view pinned
-  // On composer height changes, if anchored, shift by the exact composer delta
-  useEffect(() => {
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    const deltaH = composerHeight - (prevComposerHeightRef.current || 0);
-    adjustForComposerDelta(el, deltaH);
-    prevComposerHeightRef.current = composerHeight;
-    // Recompute distance from bottom after adjustments
-    distanceFromBottomRef.current = computeDistanceFromBottom(el);
-  }, [composerHeight, adjustForComposerDelta, computeDistanceFromBottom]);
+  // Composer height changes are handled implicitly by Virtuoso layout.
 
   // ===== Render ===============================================================
   return (
     <div ref={wrapperRef} className="relative flex flex-col rounded-b-2xl overflow-hidden w-full bg-white h-full min-h-0">
       {/* Messages */}
-      <div
-        ref={VIRTUALIZE ? null : messagesContainerRef}
-        onScroll={VIRTUALIZE ? undefined : handleScroll}
-        onTouchStart={VIRTUALIZE ? undefined : handleTouchStartOnList}
-        onTouchMove={VIRTUALIZE ? undefined : handleTouchMoveOnList}
-        onWheel={VIRTUALIZE ? undefined : handleWheelOnList}
-        className={containerClasses}
-        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overflowX: 'hidden' }}
-      >
+      <div className={containerClasses} style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overflowX: 'hidden' }}>
         {loading && (
           <div className="py-2 space-y-2" aria-hidden="true">
             <div className="flex w-full">
@@ -3898,44 +3757,38 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         )}
 
         {/* Grouped messages (virtualized when enabled) */}
-        {(() => {
-          if (VIRTUALIZE) {
-            return (
-              <div
-                ref={virtualizationHostRef}
-                className="relative flex-1 min-h-[80px] overflow-hidden flex"
-                style={{ paddingBottom: effectiveBottomPadding }}
-                data-thread-virtuoso-host
-              >
-                {virtuosoViewportHeight > 0 ? (
-                  <Virtuoso
-                    key={bookingRequestId}
-                    totalCount={groupedMessages.length}
-                    computeItemKey={(index) => groupIds[index]}
-                    itemContent={(index: number) => <div className="w-full">{renderGroupAtIndex(index)}</div>}
-                    followOutput="smooth"
-                    initialTopMostItemIndex={groupedMessages.length > 0 ? groupedMessages.length - 1 : 0}
-                    style={{ height: Math.max(1, virtuosoViewportHeight), width: '100%' }}
-                    atBottomStateChange={(atBottom: boolean) => {
-                      setShowScrollButton(!atBottom);
-                      setIsUserScrolledUp(!atBottom);
-                    }}
-                    increaseViewportBy={{ top: 400, bottom: 600 }}
-                    overscan={200}
-                  />
-                ) : (
-                  <div className="w-full" style={{ minHeight: '50vh' }} aria-hidden="true" />
-                )}
-              </div>
-            );
-          }
-          return groupedMessages.map((_, idx) => renderGroupAtIndex(idx));
-        })()}
+        <div
+          ref={virtualizationHostRef}
+          className="relative flex-1 min-h-[80px] overflow-hidden flex"
+          style={{ paddingBottom: effectiveBottomPadding }}
+          data-thread-virtuoso-host
+        >
+          {virtuosoViewportHeight > 0 ? (
+            <Virtuoso
+              ref={virtuosoRef}
+              key={bookingRequestId}
+              totalCount={groupedMessages.length}
+              computeItemKey={(index) => groupIds[index]}
+              itemContent={(index: number) => <div className="w-full">{renderGroupAtIndex(index)}</div>}
+              followOutput="smooth"
+              initialTopMostItemIndex={groupedMessages.length > 0 ? groupedMessages.length - 1 : 0}
+              style={{ height: Math.max(1, virtuosoViewportHeight), width: '100%' }}
+              atBottomStateChange={(atBottom: boolean) => {
+                setShowScrollButton(!atBottom);
+                setIsUserScrolledUp(!atBottom);
+                atBottomRef.current = atBottom;
+              }}
+              increaseViewportBy={{ top: 400, bottom: 600 }}
+              overscan={200}
+            />
+          ) : (
+            <div className="w-full" style={{ minHeight: '50vh' }} aria-hidden="true" />
+          )}
+        </div>
 
         {typingIndicator && <p className="text-xs text-gray-500" aria-live="polite">{typingIndicator}</p>}
 
-        {/* messagesEnd anchor (non-virtual only) */}
-        {!VIRTUALIZE && <div ref={messagesEndRef} className="absolute bottom-0 left-0 w-0 h-0" aria-hidden="true" />}
+        {/* messagesEnd anchor removed (virtualized) */}
       </div>
 
       {/* No skeleton or spinner per request */}
@@ -4107,9 +3960,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           type="button"
           aria-label="Scroll to latest message"
           onClick={() => {
-            if (messagesContainerRef.current) {
-              messagesContainerRef.current.scrollTo({ top: messagesContainerRef.current.scrollHeight, behavior: 'smooth' });
-            }
+            try {
+              virtuosoRef.current?.scrollToIndex?.({ index: Math.max(0, groupedMessages.length - 1), align: 'end', behavior: 'smooth' });
+            } catch {}
             setShowScrollButton(false);
             setIsUserScrolledUp(false);
           }}

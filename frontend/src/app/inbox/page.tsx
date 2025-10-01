@@ -35,8 +35,7 @@ import { BookingRequest } from '@/types';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
 import { writeThreadCache, hasThreadCache } from '@/lib/threadCache';
-import { trackEvent } from '@/lib/analytics';
-import { inboxTelemetryEnabled } from '@/lib/flags';
+// Telemetry flags removed; keep code minimal
 
 export default function InboxPage() {
   const { user, loading: authLoading } = useAuth();
@@ -732,7 +731,7 @@ export default function InboxPage() {
   const handleSelect = useCallback(
     (id: number) => {
       // Telemetry: mark the beginning of a thread switch
-      try { if (inboxTelemetryEnabled()) trackEvent('inbox_switch_start', { thread_id: id }); } catch {}
+      // noop telemetry removed
       // Immediate UI feedback: select and update URL right away
       setSelectedBookingRequestId(id);
       let previousUnread = 0;

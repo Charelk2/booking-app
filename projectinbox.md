@@ -42,7 +42,7 @@ Deliver WhatsApp-level fast conversation switching and perceived instant load fo
 | 4 | Secondary data pipelines | Idea 4 |
 | 5 | Backend performance & contracts | Idea 6 |
 
-Each batch ships behind its own feature flag plus a master `inbox.revamp.enabled` gate, with explicit rollback instructions.
+Batch 1 is now baked in by default (no flags). Later batches can still be staged, but the rendering/scroll changes are permanent unless reverted by code.
 
 ---
 
@@ -59,10 +59,10 @@ Each batch ships behind its own feature flag plus a master `inbox.revamp.enabled
 - Ancillary UI (payment banners, quote cards) renders inline without skeletons, causing jank.
 
 **Deliverables**
-- Feature flag: `inbox.virtualization.enabled` default true, with server-configured kill-switch.
-- Component boundaries and memoization map (design doc + lightweight diagrams).
-- Scroll manager spec capturing measurement, restore logic, and anchor handling for “new messages” markers.
-- Skeleton states for header, bubble placeholders, composer.
+- Virtualized rendering as the default path; non‑virtual path removed.
+- Component boundaries and memoization of render‑only pieces.
+- Unified scroll behavior handled by the virtualized viewport.
+- Skeleton states for bubble placeholders and initial readiness.
 
 **Acceptance Criteria**
 - Switching between two 5k+ message threads (cached) maintains ≥55 FPS on mid-tier laptops; P95 input delay <50 ms.
@@ -73,7 +73,15 @@ Each batch ships behind its own feature flag plus a master `inbox.revamp.enabled
 - Mobile regressions → device-matrix QA and perf budget checks.
 
 **Rollback**
-- Toggle `inbox.virtualization.enabled` OFF. Component decomposition remains for future work.
+- Requires a code revert (no runtime flags). Use your backup branch/commit to restore the previous behavior if needed.
+
+**Status (Implemented)**
+- Virtualized rendering is always ON; non‑virtual code and runtime flags have been removed.
+- Extracted memoized, render‑only pieces:
+  - `frontend/src/components/booking/ThreadDayDivider.tsx` (day separator line)
+  - `frontend/src/components/booking/ThreadMessageGroup.tsx` (group wrapper)
+- Unified scroll handled by the virtualized viewport; no DOM anchoring hacks.
+- Lightweight skeletons render during initial load for better perceived readiness.
 
 ---
 
@@ -245,4 +253,3 @@ Each batch ships behind its own feature flag plus a master `inbox.revamp.enabled
 2. Do we need server support for cursor-based pagination beyond `after_id` to meet SLOs?
 3. Can we reuse existing metrics pipeline or do we need new dashboards for Inbox-specific SLOs?
 4. What attachment size limits should trigger skipping local caching to respect storage budgets?
-
