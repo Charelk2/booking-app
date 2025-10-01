@@ -7,7 +7,7 @@ import type { AxiosResponse } from 'axios';
 import MainLayout from '@/components/layout/MainLayout';
 // Corrected import path for AuthContext (assuming it's directly in contexts)
 import { useAuth } from '@/contexts/AuthContext';
-import { emitThreadsUpdated } from '@/lib/threadsEvents';
+import { emitThreadsUpdated, type ThreadsUpdatedDetail } from '@/lib/threadsEvents';
 import { Spinner } from '@/components/ui';
 import ConversationList from '@/components/inbox/ConversationList';
 import dynamic from 'next/dynamic';
@@ -34,7 +34,16 @@ import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
-import { writeThreadCache, hasThreadCache, hasThreadCacheAsync } from '@/lib/threadCache';
+import { writeThreadCache } from '@/lib/threadCache';
+import {
+  initThreadPrefetcher,
+  resetThreadPrefetcher,
+  enqueueThreadPrefetch,
+  setActivePrefetchThread,
+  markThreadAsStale,
+  kickThreadPrefetcher,
+} from '@/lib/threadPrefetcher';
+import type { PrefetchCandidate } from '@/lib/threadPrefetcher';
 // Telemetry flags removed; keep code minimal
 
 export default function InboxPage() {
@@ -70,6 +79,10 @@ export default function InboxPage() {
       // Keep current + most recent previous thread hydrated
       return next.slice(0, 2);
     });
+  }, [selectedBookingRequestId]);
+
+  useEffect(() => {
+    setActivePrefetchThread(selectedBookingRequestId ?? null);
   }, [selectedBookingRequestId]);
 
   // If not authenticated, send to login early and avoid firing API calls
@@ -719,16 +732,28 @@ export default function InboxPage() {
   }, [allBookingRequests, query, user]);
 
   // Prefetch helper with LRU writes
-  const prefetchThreadMessages = useCallback(async (id: number, limit = 50) => {
+  const PREFETCH_STALE_MS = 5 * 60 * 1000;
+  const PREFETCH_DEFAULT_LIMIT = 80;
+  const PREFETCH_CANDIDATE_LIMIT = 15;
+
+  const prefetchThreadMessages = useCallback(async (id: number, limit = PREFETCH_DEFAULT_LIMIT) => {
     if (!id) return;
-    if (hasThreadCache(id)) return;
-    if (await hasThreadCacheAsync(id)) return;
     try {
       const res = await getMessagesForBookingRequest(id, { limit });
       const arr = Array.isArray(res.data) ? res.data : [];
       writeThreadCache(id, arr);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    initThreadPrefetcher(prefetchThreadMessages, {
+      defaultLimit: PREFETCH_DEFAULT_LIMIT,
+      staleMs: PREFETCH_STALE_MS,
+    });
+    return () => {
+      resetThreadPrefetcher();
+    };
+  }, [prefetchThreadMessages]);
 
   const handleSelect = useCallback(
     (id: number) => {
@@ -783,24 +808,19 @@ export default function InboxPage() {
 
       // Prefetch current, previous, and next thread (sorted list) on idle
       try {
-        const schedule = (fn: () => void) => {
-          try {
-            const ric = (window as any)?.requestIdleCallback as ((cb: () => void, opts?: any) => void) | undefined;
-            if (typeof ric === 'function') ric(fn, { timeout: 800 });
-            else setTimeout(fn, 80);
-          } catch { setTimeout(fn, 80); }
-        };
-        schedule(() => {
-          void prefetchThreadMessages(id);
-          const list = filteredRequests.length ? filteredRequests : allBookingRequests;
-          const idx = list.findIndex((r) => r.id === id);
-          if (idx >= 0) {
-            const prev = list[idx - 1]?.id;
-            const next = list[idx + 1]?.id;
-            if (prev) void prefetchThreadMessages(prev);
-            if (next) void prefetchThreadMessages(next);
+        const list = filteredRequests.length ? filteredRequests : allBookingRequests;
+        const idx = list.findIndex((r) => r.id === id);
+        if (idx >= 0) {
+          const neighbors = [] as { id: number; priority: number; reason: string }[];
+          const prevId = list[idx - 1]?.id;
+          const nextId = list[idx + 1]?.id;
+          if (prevId && prevId !== id) neighbors.push({ id: prevId, priority: 260, reason: 'neighbor' });
+          if (nextId && nextId !== id) neighbors.push({ id: nextId, priority: 240, reason: 'neighbor' });
+          if (neighbors.length) {
+            enqueueThreadPrefetch(neighbors);
+            kickThreadPrefetcher();
           }
-        });
+        }
       } catch {}
 
       // If this is a Booka synthetic row, resolve the real thread in the background
@@ -826,8 +846,76 @@ export default function InboxPage() {
         })();
       }
     },
-    [allBookingRequests, filteredRequests, searchParams, isMobile, router, fetchAllRequests, SEL_KEY, prefetchThreadMessages]
+    [allBookingRequests, filteredRequests, searchParams, isMobile, router, fetchAllRequests, SEL_KEY, enqueueThreadPrefetch, kickThreadPrefetcher]
   );
+
+  useEffect(() => {
+    if (!allBookingRequests.length) return;
+    const now = Date.now();
+    const candidates = [] as PrefetchCandidate[];
+    for (let i = 0; i < allBookingRequests.length && candidates.length < PREFETCH_CANDIDATE_LIMIT; i += 1) {
+      const req = allBookingRequests[i];
+      const id = Number(req?.id);
+      if (!id || id === selectedBookingRequestId) continue;
+      const unread = Number((req as any).unread_count || 0);
+      const tsSource = (req as any).last_message_at || req.updated_at || req.created_at;
+      const lastTs = tsSource ? Date.parse(String(tsSource)) : NaN;
+      let recencyBoost = 0;
+      if (!Number.isNaN(lastTs)) {
+        const minutes = Math.max(0, Math.floor((now - lastTs) / 60000));
+        recencyBoost = Math.max(0, 60 - Math.min(minutes, 60));
+      }
+      const priorityBase = unread > 0 ? 420 : 240;
+      const priority = priorityBase + recencyBoost - i * 4;
+      candidates.push({ id, priority, reason: unread > 0 ? 'unread' : 'list' });
+    }
+    if (candidates.length) {
+      enqueueThreadPrefetch(candidates);
+      kickThreadPrefetcher();
+    }
+  }, [allBookingRequests, selectedBookingRequestId, enqueueThreadPrefetch]);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed || !filteredRequests.length) return;
+    const now = Date.now();
+    const candidates = filteredRequests
+      .filter((req) => req.id !== selectedBookingRequestId)
+      .slice(0, PREFETCH_CANDIDATE_LIMIT)
+      .map((req, index) => {
+        const unread = Number((req as any).unread_count || 0);
+        const tsSource = (req as any).last_message_at || req.updated_at || req.created_at;
+        const lastTs = tsSource ? Date.parse(String(tsSource)) : NaN;
+        let recencyBoost = 0;
+        if (!Number.isNaN(lastTs)) {
+          const minutes = Math.max(0, Math.floor((now - lastTs) / 60000));
+          recencyBoost = Math.max(0, 50 - Math.min(minutes, 50));
+        }
+        const priority = (unread > 0 ? 380 : 210) + recencyBoost - index * 5;
+        return { id: Number(req.id), priority, reason: 'filter' as const };
+      })
+      .filter((candidate) => candidate.id !== selectedBookingRequestId && candidate.id > 0);
+    if (candidates.length) {
+      enqueueThreadPrefetch(candidates);
+      kickThreadPrefetcher();
+    }
+  }, [filteredRequests, query, selectedBookingRequestId, enqueueThreadPrefetch]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<ThreadsUpdatedDetail>).detail || {};
+      const id = Number(detail.threadId || 0);
+      if (!id || id === selectedBookingRequestId) return;
+      const reason = detail.reason || 'updated';
+      const priority = detail.source === 'realtime' ? 360 : 250;
+      markThreadAsStale(id, priority, reason);
+      kickThreadPrefetcher();
+    };
+    window.addEventListener('threads:updated', handler as any);
+    return () => {
+      window.removeEventListener('threads:updated', handler as any);
+    };
+  }, [selectedBookingRequestId]);
 
   const handleBackToList = useCallback(() => {
     setShowList(true);

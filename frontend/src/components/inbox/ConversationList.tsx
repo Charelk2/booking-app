@@ -6,9 +6,7 @@ import { BookingRequest, User } from '@/types';
 import { FixedSizeList as List } from 'react-window';
 import type { CSSProperties } from 'react';
 import React from 'react';
-import { getMessagesForBookingRequest } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import { hasThreadCache, hasThreadCacheAsync, writeThreadCache } from '@/lib/threadCache';
 
 // Module-scope helpers so memoized Row can use them
 function formatThreadTime(iso: string | null | undefined): string {
@@ -125,41 +123,6 @@ export default function ConversationList({
   const DEFAULT_HEIGHT = typeof window !== 'undefined' ? Math.min(window.innerHeight * 0.7, 640) : 560;
   const listHeight = Number.isFinite(height as any) && (height ?? 0) > 0 ? (height as number) : DEFAULT_HEIGHT;
 
-  // --- Lightweight prefetch of top conversations for instant open ---------
-  const prefetchingRef = React.useRef<Set<number>>(new Set());
-  const prefetchThread = React.useCallback(async (id: number) => {
-    if (!id) return;
-    if (prefetchingRef.current.has(id)) return;
-    if (hasThreadCache(id)) return;
-    if (await hasThreadCacheAsync(id)) return;
-    prefetchingRef.current.add(id);
-    try {
-      const res = await getMessagesForBookingRequest(id, { limit: 50 });
-      const arr = Array.isArray(res.data) ? res.data : [];
-      writeThreadCache(id, arr);
-    } catch {
-      // ignore network/cache errors – best effort
-    } finally {
-      prefetchingRef.current.delete(id);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (!bookingRequests.length) return;
-    const top = bookingRequests.slice(0, Math.min(5, bookingRequests.length));
-    // Prefer rows with unread first
-    const prioritized = [...top].sort((a, b) => (Number((b as any).unread_count || 0) - Number((a as any).unread_count || 0)));
-    const ids = prioritized.slice(0, Math.min(3, prioritized.length)).map((r) => r.id);
-    const schedule = (fn: () => void) => {
-      try {
-        const ric = (window as any)?.requestIdleCallback as ((cb: () => void, opts?: any) => void) | undefined;
-        if (typeof ric === 'function') ric(fn, { timeout: 800 });
-        else setTimeout(fn, 50);
-      } catch { setTimeout(fn, 50); }
-    };
-    schedule(() => { ids.forEach((id) => { void prefetchThread(id); }); });
-  }, [bookingRequests, prefetchThread]);
-
   // Outer wrapper that suppresses anchor navigation inside the list.
   // IMPORTANT: Pass a stable component reference to react-window to avoid remounting the scroller.
   const Outer = React.useMemo(
@@ -211,7 +174,7 @@ export default function ConversationList({
         } catch {}
       }}
       outerElementType={Outer}
-      itemData={useRowData(bookingRequests, selectedRequestId, onSelectRequest, React.useMemo(() => buildPrecomputed(bookingRequests, currentUser, q), [bookingRequests, currentUser, q]), q, prefetchThread)}
+      itemData={useRowData(bookingRequests, selectedRequestId, onSelectRequest, React.useMemo(() => buildPrecomputed(bookingRequests, currentUser, q), [bookingRequests, currentUser, q]), q)}
       children={Row}
     />
   );
@@ -512,7 +475,7 @@ const Row = React.memo(function Row({ index, style, data }: { index: number; sty
 });
 
 // Provide itemData with stable handlers to avoid per-row closures
-function useRowData(bookingRequests: BookingRequest[], selectedId: number | null, onSelect: (id: number) => void, pre: Record<number, PreRow>, q: string, prefetchThread: (id: number) => void): RowData {
+function useRowData(bookingRequests: BookingRequest[], selectedId: number | null, onSelect: (id: number) => void, pre: Record<number, PreRow>, q: string): RowData {
   const onRowClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     const id = Number((e.currentTarget as HTMLButtonElement).dataset.id);
     if (!Number.isFinite(id)) return;
@@ -540,10 +503,7 @@ function useRowData(bookingRequests: BookingRequest[], selectedId: number | null
       if (Number.isFinite(id)) onSelect(id);
     }
   }, [onSelect]);
-  const onRowMouseEnter = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    const id = Number((e.currentTarget as HTMLButtonElement).dataset.id);
-    if (Number.isFinite(id)) prefetchThread(id);
-  }, [prefetchThread]);
+  const onRowMouseEnter = React.useCallback(() => {}, []);
   return React.useMemo<RowData>(() => (
     { items: bookingRequests, selectedId, onSelect, pre, q, onRowClick, onRowKeyDown, onRowPointerDown, onRowMouseDownCapture, onRowMouseEnter }
   ), [bookingRequests, selectedId, onSelect, pre, q, onRowClick, onRowKeyDown, onRowPointerDown, onRowMouseDownCapture, onRowMouseEnter]);

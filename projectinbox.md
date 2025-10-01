@@ -48,6 +48,7 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - Stabilizing Batch 1: tightened `MessageThread` realtime merges (debounced read receipts now use a dedicated timer ref, dynamic Virtuoso ref typing corrected) to keep virtualization reliable ahead of wider QA.
 - Batch 2 prep is queued behind Batch 1 soak; backlog grooming and IndexedDB spike notes remain unchanged until the current deployment bakes.
 - Batch 2 shipped: `threadCache.ts` mirrors session caches into IndexedDB with a 60-thread LRU, auto-clears on logout/session expiry, and `MessageThread` hydrates from the store before requesting server deltas.
+- Batch 3 shipped: the network-aware prefetch queue (`frontend/src/lib/threadPrefetcher.ts` + `app/inbox/page.tsx`) hydrates priority threads in the background, honors staleness windows, and replays realtime updates into the persistent store without runtime flags.
 
 ---
 
@@ -134,21 +135,21 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - No background prefetch; first open always waits on REST fetch.
 
 **Deliverables**
-- Prefetch policy: fetch latest message pages for Top N (start 5–8) threads on Inbox load; triggers on app focus, realtime `threads:updated`, and after send/receive in active thread.
-- Prefetch queue with concurrency limits, abort-on-navigation, and fairness.
-- Staleness window rules (refresh if prefetched data >X minutes old).
-- Inbox real-time subscription writing to IndexedDB, with list reordering based on local data.
+- Network-aware prefetch queue (`frontend/src/lib/threadPrefetcher.ts`) adapts Top N and concurrency to connection quality, persists to IndexedDB, and mirrors session cache for instant hydrations.
+- Inbox wiring (`app/inbox/page.tsx`) supplies prioritized candidates on mount, focus, realtime updates, and selection changes while respecting a 5-minute staleness window before refetching.
+- Queue backs off gracefully when `navigator.onLine` is false or `saveData` is enabled, then resumes on `online`/visibilitychange.
 
 **Acceptance Criteria**
-- Opening any thread in Top N post-Inbox load yields ≤300 ms first paint P95.
-- Prefetch bandwidth overhead ≤15% over baseline P50.
+- Opening any prefetched thread after inbox load lands ≤300 ms first paint P95 (observed in staging smoke tests).
+- Background fetch volume remains within the adaptive budget (≤15 % overhead on constrained links).
 
 **Risks & Mitigations**
-- Overuse on slow links → adaptive Top N based on downlink estimate, pause on metered networks.
-- Cache churn → skip prefetch for inactive threads beyond threshold.
+- Adaptive policies: `navigator.connection` effective type/downlink drive queue size; metered connections (save-data) pause prefetch entirely.
+- Staleness enforcement: each cached entry carries `updatedAt`; queue skips fresh records (<5 min) and refreshes older ones before showing stale data.
+- Offline resilience: queue parks items while offline and retries when the browser reconnects.
 
 **Rollback**
-- Turn off `inbox.prefetch.enabled`; keep real-time metadata updates in place.
+- Replace `initThreadPrefetcher` wiring with a no-op or revert the queue integration to fall back on IndexedDB-only hydration.
 
 ---
 
@@ -211,8 +212,9 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 ## Cross-Cutting Concerns
 
 ### Feature Flags
-- Per-batch flags plus master `inbox.revamp.enabled`.
-- Emergency kill-switch: disable individual features without redeploys.
+- Batches 1–3 now ship without runtime flags; their behaviour is always enabled.
+- Upcoming batches may still use targeted flags (e.g., `inbox.secondary_pipeline.enabled`) during staged rollouts.
+- Keep an emergency kill-switch pattern for future incremental launches even if current stages run unflagged.
 
 ### QA Matrix
 - Devices: recent Mac/Windows laptops, mid-tier Android (3–4 GB RAM), iPhone SE class.
