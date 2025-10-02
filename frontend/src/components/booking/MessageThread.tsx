@@ -1473,9 +1473,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       const params: MessageListParams = {
         limit: mode === 'initial' ? 100 : 50,
       };
+      let requestedDelta = false;
       if (mode === 'incremental' && lastId) {
-        params.after = lastId;
+        params.after_id = lastId;
         params.mode = 'delta';
+        requestedDelta = true;
       } else {
         params.mode = 'full';
       }
@@ -1496,10 +1498,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           return;
         }
 
-        if (typeof (envelope as any).delta_cursor !== 'undefined') {
-          const cursorValue = Number((envelope as any).delta_cursor);
-          if (Number.isFinite(cursorValue) && cursorValue > 0) {
-            lastMessageIdRef.current[bookingRequestId] = cursorValue;
+        const { delta_cursor: rawCursor, mode: responseMode } = (envelope as any) ?? {};
+        let cursorValue: number | null = null;
+        if (typeof rawCursor !== 'undefined' && rawCursor !== null) {
+          const parsedCursor = Number(rawCursor);
+          if (Number.isFinite(parsedCursor) && parsedCursor > 0) {
+            cursorValue = parsedCursor;
           }
         }
 
@@ -1541,6 +1545,32 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
           }
         } catch {}
+
+        if (!cursorValue && normalized.length > 0) {
+          const lastNormalizedId = Number(normalized[normalized.length - 1]?.id);
+          if (Number.isFinite(lastNormalizedId) && lastNormalizedId > 0) {
+            cursorValue = lastNormalizedId;
+          }
+        }
+        if (cursorValue) {
+          lastMessageIdRef.current[bookingRequestId] = cursorValue;
+        }
+
+        if (
+          requestedDelta &&
+          responseMode &&
+          responseMode !== 'delta' &&
+          process.env.NODE_ENV === 'development'
+        ) {
+          try {
+            console.debug('[thread] delta fallback', {
+              requestId: bookingRequestId,
+              requestedMode: 'delta',
+              responseMode,
+              cursorValue,
+            });
+          } catch {}
+        }
 
         if (parsedDetails !== undefined) {
           setParsedBookingDetails(parsedDetails);

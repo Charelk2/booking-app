@@ -249,6 +249,7 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - Added composite index `ix_messages_request_id_id` and guarded Alembic migration (`20250920_add_messages_request_id_id_index.py`) to keep `after_id` lookups using the covering index.
 - Lite/delta modes skip per-message reply lookups and attachment meta scrubbing, and logging now tags each response with `mode`, `has_more`, and cursor info for downstream metrics.
 - Frontend MessageThread + inbox wrappers consume the new envelope, default to `mode=delta` for incremental hydrations, and prefetch using `mode=lite` so cached panes stay lightweight.
+- Corrected the client delta path to send the backend’s `after_id` cursor, tightened cursor propagation when summaries are collapsed, and added dev-only logging if the server downgrades the response mode so regressions surface quickly.
 
 **Open Work**
 - Wire the structured log metrics into the actual telemetry sink (StatsD/OTel) so we can chart `payload_bytes`, `db_latency_ms`, and `mode`-specific latency in dashboards.
@@ -257,6 +258,7 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 - Add cache/TTL guidance for avatar + attachment URLs and confirm Signed URL lifetime meets prefetch requirements.
 - Capture EXPLAIN plans for the new index on Postgres prod and add them to the runbook (current guard only checks existence).
 - Restore backend test runs in environments missing `boto3` (install deps or use Docker) so regression suites cover the new payload modes.
+- HTTP/3/QUIC disabled at the CDN (Cloudflare) so browsers stick to HTTP/2; reduces inbox/homepage latency noted in post-deploy testing.
 
 **Acceptance Criteria**
 - P95 latency for “latest 50 messages” down ≥30%; payload size down ≥40% from baseline.

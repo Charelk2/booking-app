@@ -688,6 +688,12 @@ export interface MessageListResponseEnvelope {
 
 export interface MessageListParams {
   limit?: number;
+  /**
+   * Cursor for incremental fetches. Matches backend `after_id` query param.
+   * Keep the deprecated `after` alias around briefly so older callers still work.
+   */
+  after_id?: number;
+  /** @deprecated use `after_id` */
   after?: number;
   since?: string;
   skip?: number;
@@ -699,8 +705,18 @@ export const getMessagesForBookingRequest = (
   bookingRequestId: number,
   params: MessageListParams = {},
 ) => {
-  const qp: MessageListParams = { ...params };
-  if (!qp.mode) qp.mode = 'full';
+  const qp: Record<string, unknown> = { ...params };
+  const afterCandidate = params.after_id ?? params.after;
+  if (afterCandidate != null) {
+    const parsed = typeof afterCandidate === 'number' ? afterCandidate : Number(afterCandidate);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      qp.after_id = parsed;
+    }
+  }
+  delete qp.after;
+  if (!('mode' in qp) || qp.mode == null) {
+    qp.mode = 'full';
+  }
   return api.get<MessageListResponseEnvelope>(
     `${API_V1}/booking-requests/${bookingRequestId}/messages`,
     { params: qp }
