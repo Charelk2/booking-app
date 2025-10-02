@@ -12,6 +12,8 @@ import React, {
   useCallback,
 } from 'react';
 import { isAxiosError } from 'axios';
+import { useTransportState } from '@/hooks/useTransportState';
+import { isOfflineError, isTransientTransportError, runWithTransport } from '@/lib/transportState';
 // Use SafeImage everywhere for consistent Next/Image optimization
 import SafeImage from '@/components/ui/SafeImage';
 import { useRouter } from 'next/navigation';
@@ -754,6 +756,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     hasInitialBookingRequest ? 'success' : 'idle',
   );
   const threadStoreEnabled = useMemo(() => isThreadStoreEnabled(), []);
+  const transport = useTransportState();
 
   // ---- State
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
@@ -1482,6 +1485,34 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         params.mode = 'full';
       }
 
+      const metadata = {
+        type: 'thread-fetch',
+        threadId: bookingRequestId,
+        requestedMode: mode,
+        mode: params.mode,
+        reason: options.reason,
+      };
+
+      const queueRetry = (reason: 'offline' | 'transient') => {
+        runWithTransport(
+          `thread-fetch:${bookingRequestId}`,
+          () =>
+            fetchMessages({
+              ...options,
+              force: true,
+            }),
+          { metadata: { ...metadata, retryReason: reason } },
+        );
+      };
+
+      if (!transport.online && !options.force) {
+        setLoading(false);
+        setThreadError(null);
+        fetchInFlightRef.current = false;
+        queueRetry('offline');
+        return;
+      }
+
       try {
         const res = await getMessagesForBookingRequest(bookingRequestId, params);
         if (!options.force && activeThreadRef.current !== bookingRequestId) {
@@ -1541,7 +1572,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             }
           });
           if (hasInquiry && typeof window !== 'undefined') {
-            try { localStorage.setItem(`inquiry-thread-${bookingRequestId}`,'1'); } catch {}
+            try { localStorage.setItem(`inquiry-thread-${bookingRequestId}`, '1'); } catch {}
             emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
           }
         } catch {}
@@ -1578,7 +1609,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
 
         setMessages((prev) => {
-          const base = mode === 'initial' ? [] : (prev.length ? prev : []);
+          const base = mode === 'initial' ? [] : prev;
           const next = mergeMessages(base, normalized);
           writeCachedMessages(bookingRequestId, next);
           return next;
@@ -1626,13 +1657,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 }
               } catch {}
             }
-            void markMessagesRead(bookingRequestId);
+            runWithTransport(
+              `messages-read:${bookingRequestId}`,
+              () => markMessagesRead(bookingRequestId),
+              { metadata: { type: 'markMessagesRead', threadId: bookingRequestId } },
+            );
           }
-          void markThreadRead(bookingRequestId)
-            .then(() => {
-              emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: 'read' });
-            })
-            .catch(() => {});
+          runWithTransport(
+            `thread-read:${bookingRequestId}`,
+            () => markThreadRead(bookingRequestId),
+            { metadata: { type: 'markThreadRead', threadId: bookingRequestId } },
+          );
+          emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: 'read' });
         } catch {}
 
         (async () => {
@@ -1688,8 +1724,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           if (status === 404 || status === 403) {
             const isForbidden = status === 403;
             const hadMessages = (messagesRef.current?.length || 0) > 0;
-            // Harden UI: if we already have messages, keep them on screen and show a banner,
-            // do not clear list or clamp visible window. Treat as transient.
             setThreadError(
               isForbidden
                 ? 'You no longer have access to this conversation.'
@@ -1697,7 +1731,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             );
             setLoading(false);
             if (!hadMessages) {
-              // Initial load and nothing to show: mark as missing to prevent loops
               missingThreadRef.current = true;
               setMessages([]);
               loadedThreadsRef.current.delete(bookingRequestId);
@@ -1715,6 +1748,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             }
             return;
           }
+          if (isTransientTransportError(err) || isOfflineError(err)) {
+            setThreadError(null);
+            setLoading(false);
+            queueRetry(isOfflineError(err) ? 'offline' : 'transient');
+            return;
+          }
+        } else if (isTransientTransportError(err) || isOfflineError(err)) {
+          setThreadError(null);
+          setLoading(false);
+          queueRetry(isOfflineError(err) ? 'offline' : 'transient');
+          return;
         }
         console.error('Failed to fetch messages:', err);
         setThreadError(`Failed to load messages. ${(err as Error).message || 'Please try again.'}`);
@@ -1725,10 +1769,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           stabilizingRef.current = false;
         }, 250);
         fetchInFlightRef.current = false;
-        // ready
       }
     },
-    [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded, isActiveThread],
+    [
+      bookingRequestId,
+      transport.online,
+      user?.id,
+      initialNotes,
+      onBookingDetailsParsed,
+      ensureQuoteLoaded,
+      isActiveThread,
+    ],
   );
 
   const respondToSupplierInvite = useCallback(
@@ -2258,22 +2309,30 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           .filter((m) => m.sender_id !== (user?.id || 0) && !m.is_read && !clearedUnreadMessageIdsRef.current.has(m.id))
           .map((m) => m.id);
         if (readReceiptTimeoutRef.current) clearTimeout(readReceiptTimeoutRef.current);
-        readReceiptTimeoutRef.current = setTimeout(async () => {
+        readReceiptTimeoutRef.current = setTimeout(() => {
           try {
-            await markMessagesRead(bookingRequestId);
             if (toClear.length > 0) {
               toClear.forEach((id) => clearedUnreadMessageIdsRef.current.add(id));
-              try {
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(
-                    new CustomEvent('inbox:unread', {
-                      detail: { delta: -toClear.length, threadId: bookingRequestId },
-                    }),
-                  );
-                }
-              } catch {}
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('inbox:unread', {
+                    detail: { delta: -toClear.length, threadId: bookingRequestId },
+                  }),
+                );
+              }
             }
           } catch {}
+          runWithTransport(
+            `messages-read:${bookingRequestId}`,
+            () => markMessagesRead(bookingRequestId),
+            {
+              metadata: {
+                type: 'markMessagesRead',
+                threadId: bookingRequestId,
+                trigger: 'realtime',
+              },
+            },
+          );
           try {
             const last = normalized[normalized.length - 1];
             if (last && typeof last.id === 'number') {
@@ -3999,6 +4058,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     <div ref={wrapperRef} className="relative flex flex-col rounded-b-2xl overflow-hidden w-full bg-white h-full min-h-0">
       {/* Messages */}
       <div className={containerClasses} style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overflowX: 'hidden' }}>
+        {!transport.online && (
+          <div
+            className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-100 px-3 py-2 text-xs text-amber-900"
+            role="status"
+          >
+            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
+            <span>You're offline. We’ll sync this conversation when you’re back online.</span>
+          </div>
+        )}
         {loading && (
           <div className="py-2 space-y-2" aria-hidden="true">
             <div className="flex w-full">

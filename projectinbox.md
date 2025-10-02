@@ -272,6 +272,61 @@ Batch 1 is now baked in by default (no flags). Later batches can still be staged
 
 ---
 
+## Batch 6 — Resilience & Offline Continuity (Idea 7)
+
+**Objectives**
+- Keep the inbox usable when connectivity drops (sleep mode, network switch, captive portals).
+- Prevent transient transport failures from clearing message lists or surfacing fatal banners.
+- Ensure read markers, counters, and prefetch queues recover automatically once the network returns.
+
+**Implementation Steps**
+1. **Connectivity Sensing & UX**
+   - Subscribe to `online`, `offline`, `visibilitychange`, and `navigator.connection` events.
+   - Maintain a shared “transport state” store; surface a lightweight offline banner and freeze destructive UI states (no full-screen error overlays).
+2. **Error Classification Layer**
+   - Wrap Axios responses to tag network conditions (`ERR_NETWORK_CHANGED`, `ERR_NETWORK_IO_SUSPENDED`, `ECONNABORTED`, DNS failures) as transient and separate them from HTTP 4xx/5xx.
+   - Feed the classifier into MessageThread, inbox list, notifications, and prefetchers so they can skip setting fatal errors while offline.
+3. **Retry & Backoff**
+   - Queue read-only fetches (threads index, messages delta, inbox unread, thread notifications) when offline and drain with exponential backoff once back online.
+   - Add jitter and a guard so we do not stampede the API on reconnect.
+4. **Read-State Queueing**
+   - Buffer `markThreadRead`, `markMessagesRead`, and notification read acknowledgements while offline, then flush sequentially on reconnect (with retry and final failure logging).
+   - Capture method/status when the server responds with 405 to confirm no proxy rewrites.
+5. **Prefetcher Guardrails**
+   - Pause the prefetch queue when the tab is hidden or offline; resume and perform a catch-up delta fetch when the user returns.
+   - Extend IndexedDB/session cache metadata with a “stale since” timestamp to decide what to refresh immediately after reconnect.
+6. **Instrumentation & Telemetry**
+   - Emit structured events (`inbox_offline_start`, `inbox_offline_end`, `inbox_retry_success`) and aggregate retry counts/durations for dashboards.
+   - Add frontend logging around queued read acknowledgements and reconnection success.
+7. **QA & Verification**
+   - Test combinations: Wi‑Fi toggles, laptop sleep, network throttling (“Offline” and “Slow 3G”), and captive portal scenarios across desktop + mobile browsers.
+   - Confirm inbox stays rendered from cache, banners update correctly, read counters converge, and delta fetches resume without manual refresh.
+
+**Deliverables**
+- Transport state manager + shared hooks for offline-aware components.
+- Updated fetch utilities with transient error detection, queued retries, and configurable backoff.
+- UI affordances (banner/toast) that keep the inbox visible and explain connectivity status.
+- Buffered read acknowledgements with durable retries.
+- Prefetcher enhancements and post-reconnect reconciliation pass.
+- Telemetry events + dashboard notes documenting how to monitor resilience KPIs.
+
+**Progress**
+- Client transport state monitor, retry queue, and offline banners now ship across inbox/thread flows; API errors are annotated so transient outages no longer clear conversations.
+
+**Acceptance Criteria**
+- Inbox conversation list and active thread remain visible during simulated network loss; no hard error banners appear for transient failures.
+- After reconnect, message history and counters sync within 5 s without user intervention; queued read acknowledgements flush successfully (≤1 retry P95).
+- Instrumentation captures offline duration and retry metrics for dashboards.
+
+**Risks & Mitigations**
+- Excessive retries on flaky networks → enforce max-attempt ceilings and backoff windows.
+- Stale cached data → mark cache timestamps and run an automatic delta fetch after reconnect.
+
+**Rollback**
+- Disable the resilience layer via flag (fall back to existing behaviour) while keeping telemetry intact for analysis.
+
+---
+
 ## Cross-Cutting Concerns
 
 ### Feature Flags

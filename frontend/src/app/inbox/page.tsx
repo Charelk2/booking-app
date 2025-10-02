@@ -30,6 +30,12 @@ import {
   getMessageThreads,
   getMessageThreadsPreview,
 } from '@/lib/api';
+import { useTransportState } from '@/hooks/useTransportState';
+import {
+  isOfflineError,
+  isTransientTransportError,
+  runWithTransport,
+} from '@/lib/transportState';
 import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
@@ -45,6 +51,7 @@ import {
 } from '@/lib/threadPrefetcher';
 import type { PrefetchCandidate } from '@/lib/threadPrefetcher';
 import { recordThreadSwitchStart } from '@/lib/inboxTelemetry';
+import OfflineBanner from '@/components/inbox/OfflineBanner';
 // Telemetry flags removed; keep code minimal
 
 export default function InboxPage() {
@@ -69,6 +76,11 @@ export default function InboxPage() {
   const lastRefreshAtRef = useRef<number>(0);
   // Header unread badge (live)
   const { count: unreadTotal } = useUnreadThreadsCount(30000);
+  const transport = useTransportState();
+  const fetchTaskId = useMemo(
+    () => `inbox-threads:${user?.id ?? 'anon'}`,
+    [user?.id],
+  );
 
   useEffect(() => {
     if (selectedBookingRequestId === null) return;
@@ -126,6 +138,25 @@ export default function InboxPage() {
   // Bootstrap from cache immediately for snappy paint
   useEffect(() => {
     if (authLoading || !user) return; // guard unauthenticated
+
+    if (!transport.online) {
+      if (allBookingRequests.length === 0) setLoadingRequests(false);
+      setError(null);
+      runWithTransport(
+        fetchTaskId,
+        () => fetchAllRequests(),
+        {
+          metadata: {
+            type: 'threads-index',
+            scope: 'inbox',
+            retryReason: 'offline',
+          },
+        },
+      );
+      return;
+    }
+
+    if (allBookingRequests.length === 0) setLoadingRequests(true);
     try {
       if (typeof window === 'undefined') return;
       // 1) Prefer session cache (fastest, always safe)
@@ -182,8 +213,6 @@ export default function InboxPage() {
   }, []);
 
   const fetchAllRequests = useCallback(async () => {
-    // Only show the page-level spinner if we have nothing yet
-    if (allBookingRequests.length === 0) setLoadingRequests(true);
     // Small helper: timeout wrapper to avoid long hangs on slow networks
     const withTimeout = <T,>(p: Promise<T>, ms = 3000, fallback?: T): Promise<T> => {
       return new Promise<T>((resolve) => {
@@ -554,11 +583,36 @@ export default function InboxPage() {
       }
     } catch (err: unknown) {
       console.error('Failed to load booking requests:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load conversations');
+      if (isTransientTransportError(err) || isOfflineError(err)) {
+        setError(null);
+        runWithTransport(
+          fetchTaskId,
+          () => fetchAllRequests(),
+          {
+            metadata: {
+              type: 'threads-index',
+              scope: 'inbox',
+              retryReason: isOfflineError(err) ? 'offline' : 'transient',
+            },
+          },
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load conversations');
+      }
     } finally {
       setLoadingRequests(false);
     }
-  }, [user?.user_type, allBookingRequests.length, CACHE_KEY, LATEST_CACHE_KEY, persistKey]);
+  }, [
+    user?.user_type,
+    user?.id,
+    allBookingRequests.length,
+    CACHE_KEY,
+    LATEST_CACHE_KEY,
+    persistKey,
+    authLoading,
+    transport.online,
+    fetchTaskId,
+  ]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -822,11 +876,18 @@ export default function InboxPage() {
             );
           } catch {}
         }
-        void markThreadRead(id)
-          .then(() => {
-            emitThreadsUpdated({ source: 'inbox', threadId: id, reason: 'read', immediate: true });
-          })
-          .catch(() => {});
+        emitThreadsUpdated({ source: 'inbox', threadId: id, reason: 'read', immediate: true });
+        runWithTransport(
+          `thread-read:${id}`,
+          () => markThreadRead(id),
+          {
+            metadata: {
+              type: 'markThreadRead',
+              threadId: id,
+              scope: 'inbox',
+            },
+          },
+        );
       } catch {}
 
       // Prefetch current, previous, and next thread (sorted list) on idle
@@ -981,9 +1042,11 @@ export default function InboxPage() {
     <MainLayout fullWidthContent hideFooter={true}>
       {/* Lock inbox to viewport to prevent page scroll; headers stay visible */}
       <div
-        className="fixed inset-x-0 bottom-0 flex flex-col md:flex-row overflow-hidden bg-white"
+        className="fixed inset-x-0 bottom-0 flex flex-col bg-white"
         style={{ top: isMobile && !showList ? 0 : 'var(--app-header-height, 64px)', zIndex: isMobile && !showList ? 60 : undefined }}
       >
+        {!transport.online && <OfflineBanner />}
+        <div className="flex flex-col md:flex-row overflow-hidden flex-1">
         {(!isMobile || showList) && (
           <div
             id="conversation-list-wrapper"
@@ -1082,6 +1145,7 @@ export default function InboxPage() {
             )}
           </div>
         )}
+        </div>
       </div>
       {selectedRequest && (
         <ReviewFormModal

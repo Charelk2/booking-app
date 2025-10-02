@@ -1,6 +1,7 @@
 // frontend/src/lib/api.ts
 
 import axios, { AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
+import { setTransportErrorMeta } from '@/lib/transportState';
 import logger from './logger';
 import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
@@ -145,6 +146,7 @@ api.interceptors.response.use(
       const status = error.response?.status;
       const detail = error.response?.data?.detail;
       let message = extractErrorMessage(detail);
+      const originalMessage = error.message;
 
       // Lightweight retry for idempotent requests on transient upstream errors
       const method = (originalRequest?.method || 'get').toLowerCase();
@@ -242,7 +244,53 @@ api.interceptors.response.use(
           detail,
         });
       }
-      return Promise.reject(new Error(message));
+
+      try {
+        if (originalMessage && message && originalMessage !== message) {
+          (error as any).__originalMessage = originalMessage;
+        }
+        error.message = message;
+      } catch {}
+
+      const offline = typeof window !== 'undefined' ? window.navigator.onLine === false : false;
+      const code = error.code;
+      const networkCodes = new Set([
+        'ECONNABORTED',
+        'ERR_NETWORK',
+        'ERR_NETWORK_CHANGED',
+        'ERR_NETWORK_IO_SUSPENDED',
+        'ERR_INTERNET_DISCONNECTED',
+        'ERR_NAME_NOT_RESOLVED',
+        'ERR_CONNECTION_RESET',
+        'ERR_CONNECTION_REFUSED',
+        'ENETDOWN',
+        'ENETUNREACH',
+        'ETIMEDOUT',
+      ]);
+
+      const normalizedMessage = (message || '').toLowerCase();
+      const isNetworkError =
+        (!status && offline) ||
+        (typeof code === 'string' && networkCodes.has(code)) ||
+        normalizedMessage.includes('network error') ||
+        normalizedMessage.includes('failed to fetch');
+
+      let isTransient = isNetworkError;
+      if (status) {
+        if (status === 408 || status === 425 || status === 429) isTransient = true;
+        if (status >= 500) isTransient = true;
+      }
+      if (code === 'ECONNABORTED') isTransient = true;
+
+      setTransportErrorMeta(error, {
+        isNetworkError,
+        isOffline: offline || code === 'ERR_NETWORK_IO_SUSPENDED',
+        isTransient,
+        status,
+        code: typeof code === 'string' ? code : null,
+      });
+
+      return Promise.reject(error);
     }
 
     if (process.env.NODE_ENV === 'development') {
