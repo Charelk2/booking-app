@@ -421,7 +421,7 @@ def read_messages(
 
 
 @router.put("/booking-requests/{request_id}/messages/read")
-def mark_messages_read(
+async def mark_messages_read(
     request_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -442,7 +442,18 @@ def mark_messages_read(
             {},
             status.HTTP_403_FORBIDDEN,
         )
+    last_unread = crud.crud_message.get_last_unread_message_id(
+        db, request_id, current_user.id
+    )
     updated = crud.crud_message.mark_messages_read(db, request_id, current_user.id)
+    if updated > 0 and last_unread:
+        try:
+            await manager.broadcast(
+                request_id,
+                {"v": 1, "type": "read", "up_to_id": last_unread, "user_id": current_user.id},
+            )
+        except Exception:  # pragma: no cover - broadcast best effort
+            logger.exception("Failed to broadcast read receipt", extra={"request_id": request_id, "user_id": current_user.id})
     return {"updated": updated}
 
 

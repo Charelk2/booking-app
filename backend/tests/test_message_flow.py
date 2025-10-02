@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -162,7 +163,7 @@ def test_mark_messages_read_updates_flag():
     msgs = crud_message.get_messages_for_request(db, br.id)
     assert msgs[0].is_read is False
 
-    api_message.mark_messages_read(br.id, db=db, current_user=client)
+    asyncio.run(api_message.mark_messages_read(br.id, db=db, current_user=client))
 
     msgs = crud_message.get_messages_for_request(db, br.id)
     assert msgs[0].is_read is True

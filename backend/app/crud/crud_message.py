@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from datetime import datetime
 
 from sqlalchemy.orm import Session, selectinload
@@ -259,14 +259,42 @@ def get_payment_received_booking_request_ids(
     return {int(row[0]) for row in rows if row[0] is not None}
 
 
+def get_last_unread_message_id(
+    db: Session, booking_request_id: int, user_id: int
+) -> Optional[int]:
+    """Return the highest message id still unread by the viewer."""
+    row = (
+        db.query(func.max(models.Message.id))
+        .filter(models.Message.booking_request_id == booking_request_id)
+        .filter(models.Message.sender_id != user_id)
+        .filter(
+            or_(
+                models.Message.is_read.is_(False),
+                models.Message.is_read.is_(None),
+            )
+        )
+        .scalar()
+    )
+    if row is None:
+        return None
+    try:
+        return int(row)
+    except (TypeError, ValueError):
+        return None
+
+
 def mark_messages_read(db: Session, booking_request_id: int, user_id: int) -> int:
     """Mark all messages sent by the other user as read."""
+    unread_filter = or_(
+        models.Message.is_read.is_(False),
+        models.Message.is_read.is_(None),
+    )
     updated = (
         db.query(models.Message)
         .filter(
             models.Message.booking_request_id == booking_request_id,
             models.Message.sender_id != user_id,
-            models.Message.is_read.is_(False),
+            unread_filter,
         )
         .update({"is_read": True}, synchronize_session="fetch")
     )
