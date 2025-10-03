@@ -746,6 +746,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   ref,
 ) {
   const { user, token } = useAuth();
+  const myUserId = useMemo(() => Number(user?.id ?? 0), [user?.id]);
   const router = useRouter();
   const isActiveThread = isActive !== false;
   const hasInitialBookingRequest = useMemo(
@@ -1103,7 +1104,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     bookingDetails?.client_id ||
     messages.find((m) => m.sender_type === 'client')?.sender_id ||
     0;
-  const currentArtistId = propArtistId || bookingDetails?.artist_id || user?.id || 0;
+  const currentArtistId = propArtistId || bookingDetails?.artist_id || myUserId;
 
   const [baseFee, setBaseFee] = useState(initialBaseFee ?? 0);
   const [travelFee, setTravelFee] = useState(initialTravelCost ?? 0);
@@ -1371,8 +1372,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   }, [showEmojiPicker]);
 
   const firstUnreadIndex = useMemo(
-    () => messages.findIndex((msg) => msg.sender_id !== user?.id && !msg.is_read),
-    [messages, user?.id],
+    () => messages.findIndex((msg) => msg.sender_id !== myUserId && !msg.is_read),
+    [messages, myUserId],
   );
 
   // ---- Quote hydration (used by REST & WS)
@@ -1642,7 +1643,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
 
         try {
-          const unreadMessages = normalized.filter((m) => m.sender_id !== user?.id && !m.is_read);
+          const unreadMessages = normalized.filter((m) => m.sender_id !== myUserId && !m.is_read);
           if (unreadMessages.length > 0) {
             const newUnreadMessages = unreadMessages.filter((m) => !clearedUnreadMessageIdsRef.current.has(m.id));
             if (newUnreadMessages.length > 0) {
@@ -1774,7 +1775,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [
       bookingRequestId,
       transport.online,
-      user?.id,
+      myUserId,
       initialNotes,
       onBookingDetailsParsed,
       ensureQuoteLoaded,
@@ -2151,21 +2152,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Presence updates via multiplex (v1 envelope)
   useEffect(() => {
-    if (!user?.id) return;
-    try { topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [user.id]: 'online' } })); } catch {}
+    if (!myUserId) return;
+    try { topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [myUserId]: 'online' } })); } catch {}
     const handleVisibility = () =>
-      topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [user.id]: document.hidden ? 'away' : 'online' } }));
+      topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [myUserId]: document.hidden ? 'away' : 'online' } }));
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      try { topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [user.id]: 'offline' } })); } catch {}
+      try { topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [myUserId]: 'offline' } })); } catch {}
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [publish, topics, user?.id]);
+  }, [publish, topics, myUserId]);
 
   // ---- Typing emission (throttled)
   const lastTypingSentRef = useRef(0);
   const emitTyping = useCallback(() => {
-    if (!user?.id) return;
+    if (!myUserId) return;
     const ta = textareaRef.current;
     if (!ta) return;
     const now = Date.now();
@@ -2175,13 +2176,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       topics.forEach((t) => publish(t, {
         v: 1,
         type: 'typing',
-        user_id: user.id,
-        users: [user.id],
-        payload: { user_id: user.id },
-        data: { user_id: user.id },
+        user_id: myUserId,
+        users: [myUserId],
+        payload: { user_id: myUserId },
+        data: { user_id: myUserId },
       }));
     } catch {}
-  }, [publish, topics, user?.id]);
+  }, [publish, topics, myUserId]);
 
   // ---- Realtime: subscribe per topic (unwrap v1 envelopes; accept both typing shapes)
   const lastRealtimeAtRef = useRef<number>(0);
@@ -2207,7 +2208,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           src.user_id ?? src.userId ?? src.sender_id ?? src.from_user_id ?? payload?.user_id ?? payload?.userId;
         const incoming = arr ? arr : (typeof idCandidate === 'number' ? [idCandidate] : []);
         if (incoming.length) {
-          setTypingUsers(incoming.filter((id: number) => id !== user?.id));
+          setTypingUsers(incoming.filter((id: number) => id !== myUserId));
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setTypingUsers([]), 2000);
         }
@@ -2220,9 +2221,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (typeStr === 'read') {
         const upTo: number | undefined = typeof payload.up_to_id === 'number' ? payload.up_to_id : undefined;
         const readerId: number | undefined = typeof payload.user_id === 'number' ? payload.user_id : undefined;
-        if (upTo && readerId && readerId !== user?.id) {
+        if (upTo && readerId && readerId !== myUserId) {
           setMessages((prev) => {
-            const next = prev.map((m) => (m.sender_id === (user?.id || 0) && m.id <= upTo ? { ...m, is_read: true } : m));
+            const next = prev.map((m) => (m.sender_id === myUserId && m.id <= upTo ? { ...m, is_read: true } : m));
             writeCachedMessages(bookingRequestId, next);
             return next;
           });
@@ -2241,7 +2242,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (typeStr === 'event_prep_updated') return;
       if (typeStr === 'reaction_added' && payload?.payload) {
         const { message_id, emoji, user_id } = payload.payload as { message_id: number; emoji: string; user_id: number };
-        if (user_id === user?.id) {
+        if (user_id === myUserId) {
           const mine = myReactionsRef.current[message_id];
           if (mine && mine.has(emoji)) return;
         }
@@ -2250,7 +2251,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           cur[emoji] = (cur[emoji] || 0) + 1;
           return { ...prev, [message_id]: cur };
         });
-        if (user_id === user?.id) {
+        if (user_id === myUserId) {
           setMyReactions((m) => {
             const set = new Set(m[message_id] || []);
             set.add(emoji);
@@ -2261,7 +2262,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
       if (typeStr === 'reaction_removed' && payload?.payload) {
         const { message_id, emoji, user_id } = payload.payload as { message_id: number; emoji: string; user_id: number };
-        if (user_id === user?.id) {
+        if (user_id === myUserId) {
           const mine = myReactionsRef.current[message_id];
           if (!mine || !mine.has(emoji)) return;
         }
@@ -2270,7 +2271,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           cur[emoji] = Math.max(0, (cur[emoji] || 0) - 1);
           return { ...prev, [message_id]: cur };
         });
-        if (user_id === user?.id) {
+        if (user_id === myUserId) {
           setMyReactions((m) => {
             const set = new Set(m[message_id] || []);
             set.delete(emoji);
@@ -2344,10 +2345,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       // Debounced read receipt when anchored and new incoming
       const anchored = atBottomRef.current === true;
-      const gotIncoming = normalized.some((m) => m.sender_id !== (user?.id || 0));
+      const gotIncoming = normalized.some((m) => m.sender_id !== myUserId);
       if (anchored && gotIncoming) {
         const toClear = normalized
-          .filter((m) => m.sender_id !== (user?.id || 0) && !m.is_read && !clearedUnreadMessageIdsRef.current.has(m.id))
+          .filter((m) => m.sender_id !== myUserId && !m.is_read && !clearedUnreadMessageIdsRef.current.has(m.id))
           .map((m) => m.id);
         if (readReceiptTimeoutRef.current) clearTimeout(readReceiptTimeoutRef.current);
         readReceiptTimeoutRef.current = setTimeout(() => {
@@ -2378,7 +2379,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             const last = normalized[normalized.length - 1];
             if (last && typeof last.id === 'number') {
               const replyTopic = String(payload?.topic || primaryTopic);
-              publish(replyTopic, { v: 1, type: 'read', up_to_id: last.id, user_id: user?.id });
+              publish(replyTopic, { v: 1, type: 'read', up_to_id: last.id, user_id: myUserId });
             }
           } catch {}
         }, 700);
@@ -2386,7 +2387,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       // Update inbox thread previews on inbound
       try {
-        const anyInbound = normalized.some((m) => m.sender_id !== user?.id);
+        const anyInbound = normalized.some((m) => m.sender_id !== myUserId);
         if (anyInbound) emitThreadsUpdated({ source: 'realtime', threadId: bookingRequestId });
       } catch {}
 
@@ -2402,7 +2403,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     };
     const unsubs = topics.map((t) => subscribe(t, handler));
     return () => { unsubs.forEach((u) => u()); };
-  }, [subscribe, topics, ensureQuoteLoaded, user?.id, bookingRequestId, fetchMessages]);
+  }, [subscribe, topics, ensureQuoteLoaded, myUserId, bookingRequestId, fetchMessages]);
 
   // ---- Gentle polling fallback: if no realtime in ~4s, poll every 2s until we see activity
   useEffect(() => {
@@ -2602,7 +2603,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
     const firstMsgInGroup = group.messages[0];
     const firstNonSystem = group.messages.find((m) => normalizeType(m.message_type) !== 'SYSTEM');
-    const showHeader = !!firstNonSystem && firstNonSystem.sender_id !== user?.id;
+    const showHeader = !!firstNonSystem && firstNonSystem.sender_id !== myUserId;
     const __dayLabel = group.showDayDivider ? daySeparatorLabel(new Date(firstMsgInGroup.timestamp)) : null;
     const __headerView = showHeader ? (
       <div className="flex items-center mb-1">
@@ -2649,7 +2650,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           {__headerView}
           {/* Bubbles */}
           {group.messages.map((msg, msgIdx) => {
-            const isMsgFromSelf = msg.sender_id === user?.id;
+            const isMsgFromSelf = msg.sender_id === myUserId;
             const isLastInGroup = msgIdx === group.messages.length - 1;
 
             const isSystemMsg = isSystemMsgHelper(msg);
@@ -3126,7 +3127,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         </div>
       </ThreadMessageGroup>
     );
-  }, [groupedMessages, user?.id, user?.user_type, clientAvatarUrl, clientName, artistAvatarUrl, artistName, resolveListingViewUrl]);
+  }, [groupedMessages, myUserId, user?.user_type, clientAvatarUrl, clientName, artistAvatarUrl, artistName, resolveListingViewUrl]);
 
   // Hide artist inline quote composer for pure inquiry threads created from profile page
   // Also treat threads started via message-threads/start (no booking details/quotes yet) as inquiries
@@ -3173,7 +3174,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       } catch {}
       if (card) {
         const cardViewUrl = resolveListingViewUrl(card.view);
-        const isSelf = user?.id && msg.sender_id === user.id;
+        const isSelf = myUserId && msg.sender_id === myUserId;
         const alignClass = isSelf ? 'ml-auto' : 'mr-auto';
         const dateOnly = card.date ? String(card.date).slice(0, 10) : null;
         const prettyDate = (() => {
@@ -3229,7 +3230,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       const viewLine = lines.find((line) => /^view listing:/i.test(line));
       const viewUrlRaw = viewLine ? viewLine.split(':').slice(1).join(':').trim() : null;
       const supportLine = lines.find((line) => /^need help/i.test(line));
-      const alignClass = msg.sender_id === user?.id ? 'ml-auto' : 'mr-auto';
+      const alignClass = msg.sender_id === myUserId ? 'ml-auto' : 'mr-auto';
       const palette = isApproved
         ? {
             border: 'border-emerald-200',
@@ -3305,7 +3306,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (/preferred sound supplier/i.test(rawContent)) {
       const match = rawContent.match(/preferred sound supplier for\s+(.+?)(?:\.|$)/i);
       const program = match ? match[1].trim() : t('system.soundSupplierDefault', 'this Live Experience');
-      const alignClass = msg.sender_id === user?.id ? 'ml-auto' : 'mr-auto';
+      const alignClass = msg.sender_id === myUserId ? 'ml-auto' : 'mr-auto';
       return (
         <div className={`my-3 ${alignClass} w-full md:w-1/2 md:max-w-[520px]`} data-testid="sound-supplier-invite">
           <div className="rounded-2xl border border-indigo-200 bg-indigo-50/90 p-4 shadow-sm">
@@ -3516,7 +3517,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     respondToSupplierInvite,
     supplierInviteAction,
     t,
-    user?.id,
+    myUserId,
     resolveListingViewUrl,
   ]);
 
@@ -3784,7 +3785,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         const optimistic: ThreadMessage = {
           id: tempId,
           booking_request_id: bookingRequestId,
-          sender_id: user?.id || 0,
+          sender_id: myUserId,
           sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
           content: partial.content ?? '',
           message_type: (partial.message_type as MessageKind) || 'USER',
@@ -3940,7 +3941,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       imagePreviewUrls,
       bookingRequestId,
       onMessageSent,
-      user?.id,
+      myUserId,
       user?.user_type,
       enqueueMessage,
       replyTarget,
@@ -3969,7 +3970,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       onMessageSent,
       onQuoteSent,
       bookingRequestId,
-      user?.id,
+      myUserId,
       user?.user_type,
       clientName,
       refreshBookingRequest,
@@ -4024,7 +4025,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       fetchMessages,
       serviceId,
       onBookingConfirmedChange,
-      user?.id,
+      myUserId,
       user?.user_type,
       clientName,
       refreshBookingRequest,
@@ -4239,7 +4240,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           />
           {(() => {
             const msg = messages.find((m) => m.id === actionMenuFor);
-            const isFromSelf = msg ? (msg.sender_id === (user?.id || 0)) : false;
+            const isFromSelf = msg ? (msg.sender_id === myUserId) : false;
             return (
               <div className="relative w-full h-full flex items-center justify-center px-6 pointer-events-none">
                 <div className="w-full max-w-sm flex flex-col items-stretch gap-3 z-[2002] pointer-events-auto">
