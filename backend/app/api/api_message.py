@@ -56,7 +56,6 @@ def read_messages(
     limit: int = Query(100, ge=1, le=100),
     after_id: Optional[int] = Query(
         None,
-        ge=0,
         description="Return only messages with an id greater than this value",
     ),
     fields: Optional[str] = Query(
@@ -90,6 +89,8 @@ def read_messages(
         if current_user.id == booking_request.client_id
         else models.VisibleTo.ARTIST
     )
+    if after_id is not None and after_id < 0:
+        after_id = None
     if hasattr(skip, "default"):
         skip = skip.default
     if hasattr(limit, "default"):

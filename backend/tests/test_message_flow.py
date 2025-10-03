@@ -169,6 +169,44 @@ def test_mark_messages_read_updates_flag():
     assert msgs[0].is_read is True
 
 
+def test_read_messages_negative_after_id_gracefully_ignored():
+    db = setup_db()
+    client = User(
+        email="neg@test.com",
+        password="x",
+        first_name="Neg",
+        last_name="Client",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="negartist@test.com",
+        password="x",
+        first_name="Neg",
+        last_name="Artist",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+
+    msg_in = MessageCreate(content="hello", message_type=MessageType.USER)
+    api_message.create_message(br.id, msg_in, db, current_user=artist)
+
+    response = api_message.read_messages(br.id, db=db, current_user=client, after_id=-5)
+    assert isinstance(response.items, list)
+    assert len(response.items) == 1
+
+
+
 def test_read_messages_pagination_and_fields():
     db = setup_db()
     client = User(
