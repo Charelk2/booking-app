@@ -132,8 +132,8 @@ const isImageAttachment = (url?: string | null) =>
 const isAudioAttachmentUrl = (url?: string | null) =>
   !!url && (/^blob:/i.test(url) || /^data:audio\//i.test(url) || /\.(webm|mp3|m4a|ogg|wav)$/i.test(url));
 
-const gmt2ISOString = () =>
-  new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().replace('Z', '+02:00');
+// Use UTC ISO timestamps for API payloads and optimistic messages
+const gmt2ISOString = () => new Date().toISOString();
 
 const normalizeType = (v?: string | null) => (v ?? '').toUpperCase();
 const formatBytes = (bytes: number) => {
@@ -570,7 +570,8 @@ function normalizeMessage(raw: any): ThreadMessage {
     avatar_url: raw.avatar_url ?? null,
     expires_at: raw.expires_at ?? null,
     unread: Boolean(raw.unread),
-    is_read: Boolean(raw.is_read),
+    // Consider read_at in addition to is_read for robustness across shapes
+    is_read: Boolean((raw as any).is_read || (raw as any).read_at),
     timestamp: ts,
     status: raw.status as MessageStatus | undefined,
     reactions: (raw as any).reactions || null,
@@ -972,6 +973,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const mobileOverlayOpenedAtRef = useRef<number>(0);
   // Track bottom anchoring from Virtuoso callbacks
   const atBottomRef = useRef<boolean>(true);
+
+  // Unified guard for read receipts: active thread, visible tab, anchored to bottom
+  const canMarkReadNow = useCallback((): boolean => {
+    try {
+      if (!isActiveThread) return false;
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return false;
+      if (atBottomRef.current !== true) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  }, [isActiveThread]);
 
   // When mobile long-press overlay is open, ensure composer does not focus/type
   const isMobileOverlayOpen = isMobile && actionMenuFor !== null;
@@ -1390,9 +1403,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   );
 
   // ---- Quote hydration (used by REST & WS)
+  // Dedupe in-flight quote loads and add light rate-limiting for missing quotes
+  const pendingQuotesRef = useRef<Set<number>>(new Set());
+  const lastQuoteAttemptRef = useRef<Map<number, number>>(new Map());
   const ensureQuoteLoaded = useCallback(
     async (quoteId: number) => {
+      if (!Number.isFinite(quoteId) || quoteId <= 0) return;
       if (quotes[quoteId]) return;
+      if (pendingQuotesRef.current.has(quoteId)) return;
+      const now = Date.now();
+      const lastTried = lastQuoteAttemptRef.current.get(quoteId) || 0;
+      // Avoid hammering API for permanently missing quotes
+      if (now - lastTried < 30000) return;
+      pendingQuotesRef.current.add(quoteId);
+      lastQuoteAttemptRef.current.set(quoteId, now);
       try {
         const res = await getQuoteV2(quoteId);
         setQuotes((prev) => ({ ...prev, [quoteId]: res.data }));
@@ -1411,6 +1435,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
       } catch (err) {
         console.error(`Failed to fetch quote ${quoteId}:`, err);
+      } finally {
+        pendingQuotesRef.current.delete(quoteId);
       }
     },
     [quotes, bookingDetails, refreshBookingRequest],
@@ -1418,7 +1444,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   const markIncomingAsRead = useCallback(
     (subset: ThreadMessage[], source: 'fetch' | 'realtime' | 'cache' | 'hydrate') => {
-      if (!subset.length || myUserId <= 0 || !isActiveThread) return;
+      if (!subset.length || myUserId <= 0) return;
+      if (!canMarkReadNow()) return;
       const inbound = subset.filter((m) => m.sender_id !== myUserId && !m.is_read);
       if (inbound.length === 0) return;
       const fresh = inbound.filter((m) => !clearedUnreadMessageIdsRef.current.has(m.id));
@@ -1440,30 +1467,50 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
         return prev;
       });
-      try {
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('inbox:unread', {
-              detail: { delta: -freshIds.size, threadId: bookingRequestId },
-            }),
-          );
-        }
-      } catch {}
-      runWithTransport(
+      // Defer unread decrement until server ack (online case). If offline/queued, skip.
+      const p = runWithTransport(
         `messages-read:${bookingRequestId}`,
         async () => { await markMessagesRead(bookingRequestId); },
         { metadata: { type: 'markMessagesRead', threadId: bookingRequestId } },
-      );
-      runWithTransport(
-        `thread-read:${bookingRequestId}`,
-        async () => { await markThreadRead(bookingRequestId); },
-        { metadata: { type: 'markThreadRead', threadId: bookingRequestId } },
-      );
-      const reasonLabel = source ? `read:${source}` : 'read';
-      emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: reasonLabel });
+      ) as Promise<void> | void;
+      if (p && typeof (p as Promise<void>).then === 'function') {
+        (p as Promise<void>)
+          .then(() => {
+            try {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('inbox:unread', {
+                    detail: { delta: -freshIds.size, threadId: bookingRequestId },
+                  }),
+                );
+              }
+            } catch {}
+            // Optionally also mark thread read after messages read succeeds
+            runWithTransport(
+              `thread-read:${bookingRequestId}`,
+              async () => { await markThreadRead(bookingRequestId); },
+              { metadata: { type: 'markThreadRead', threadId: bookingRequestId } },
+            );
+            const reasonLabel = source ? `read:${source}` : 'read';
+            emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: reasonLabel });
+          })
+          .catch(() => {
+            // no-op: we didn't decrement yet, so nothing to rollback
+          });
+      }
     },
-    [myUserId, isActiveThread, bookingRequestId, setMessages, markMessagesRead, markThreadRead, writeCachedMessages, emitThreadsUpdated, runWithTransport],
+    [myUserId, bookingRequestId, setMessages, markMessagesRead, markThreadRead, writeCachedMessages, emitThreadsUpdated, runWithTransport, canMarkReadNow],
   );
+
+  // Debounced read scheduling used by REST/cache/hydrate paths to mirror realtime
+  const scheduleMarkRead = useCallback((subset: ThreadMessage[], source: 'fetch' | 'cache' | 'hydrate') => {
+    if (!subset.length) return;
+    if (readReceiptTimeoutRef.current) clearTimeout(readReceiptTimeoutRef.current);
+    readReceiptTimeoutRef.current = setTimeout(() => {
+      if (!canMarkReadNow()) return;
+      markIncomingAsRead(subset, source);
+    }, 700);
+  }, [markIncomingAsRead, canMarkReadNow]);
 
   const hydrateQuotesForMessages = useCallback(
     async (msgs: ThreadMessage[]) => {
@@ -1509,8 +1556,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   useEffect(() => {
     if (!isActiveThread || myUserId <= 0 || messages.length === 0) return;
-    markIncomingAsRead(messages, 'hydrate');
-  }, [isActiveThread, myUserId, messages, markIncomingAsRead]);
+    scheduleMarkRead(messages, 'hydrate');
+  }, [isActiveThread, myUserId, messages, scheduleMarkRead]);
 
   // ---- Composer height for padding
   const [composerHeight, setComposerHeight] = useState(0);
@@ -1762,7 +1809,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           } catch {}
         }
 
-        markIncomingAsRead(normalized, 'fetch');
+        scheduleMarkRead(normalized, 'fetch');
 
         void hydrateQuotesForMessages(normalized);
 
@@ -1945,7 +1992,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         firstPaintSentRef.current = true;
       }
       setMessages(cached);
-      markIncomingAsRead(cached, 'cache');
+      scheduleMarkRead(cached, 'cache');
       void hydrateQuotesForMessages(cached);
       setLoading(false);
       initialLoadedRef.current = true;
@@ -1990,7 +2037,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         try { _writeThreadCache(bookingRequestId, normalized); } catch {}
         if (messagesRef.current.length === 0) {
           setMessages(normalized);
-          markIncomingAsRead(normalized, 'cache');
+          scheduleMarkRead(normalized, 'cache');
           void hydrateQuotesForMessages(normalized);
           setLoading(false);
         }
@@ -2330,7 +2377,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
         setReactions((prev) => {
           const cur = { ...(prev[message_id] || {}) } as Record<string, number>;
-          cur[emoji] = Math.max(0, (cur[emoji] || 0) - 1);
+          const nextCount = Math.max(0, (cur[emoji] || 0) - 1);
+          if (nextCount <= 0) {
+            delete cur[emoji];
+          } else {
+            cur[emoji] = nextCount;
+          }
+          // If no reactions left for this message, drop the key entirely
+          if (Object.keys(cur).length === 0) {
+            const copy = { ...prev } as Record<number, Record<string, number>>;
+            delete copy[message_id];
+            return copy;
+          }
           return { ...prev, [message_id]: cur };
         });
         if (user_id === myUserId) {
@@ -2412,6 +2470,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (anchored && gotIncoming) {
         if (readReceiptTimeoutRef.current) clearTimeout(readReceiptTimeoutRef.current);
         readReceiptTimeoutRef.current = setTimeout(() => {
+          if (!canMarkReadNow()) return;
           markIncomingAsRead(normalized, 'realtime');
           try {
             const last = normalized[normalized.length - 1];
@@ -3572,9 +3631,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         ...((prev[msgId] as any) || {}),
         ...(((msgSnapshot?.reactions as any) || {}) as Record<string, number>),
       } as Record<string, number>;
-      const updated = { ...merged, [emoji]: Math.max(0, (merged[emoji] || 0) + (hasNow ? -1 : 1)) };
-      committedCounts = updated;
-      return { ...prev, [msgId]: updated };
+      const nextCount = Math.max(0, (merged[emoji] || 0) + (hasNow ? -1 : 1));
+      if (nextCount <= 0) delete merged[emoji];
+      else merged[emoji] = nextCount;
+      committedCounts = { ...merged };
+      if (Object.keys(merged).length === 0) {
+        const copy = { ...prev } as Record<number, Record<string, number>>;
+        delete copy[msgId];
+        return copy;
+      }
+      return { ...prev, [msgId]: merged };
     });
     setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, reactions: committedCounts } : m)));
     setMyReactions((m) => {
