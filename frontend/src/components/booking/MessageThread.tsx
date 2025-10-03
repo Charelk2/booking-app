@@ -829,47 +829,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
   }, [messages, bookingRequestId]);
 
-  useEffect(() => {
-    const paymentMessage = messages.find((msg) => {
-      const key = String((msg as any)?.system_key || '').toLowerCase();
-      if (key.startsWith('payment_received')) return true;
-      const content = String(msg.content || '').toLowerCase();
-      return content.includes('payment received');
-    });
-    if (!paymentMessage) return;
-
-    setBookingConfirmed((prev) => (prev ? prev : true));
-    setPaymentInfo((prev) => {
-      const alreadyPaid = prev.status === 'paid';
-      let receiptUrl = prev.receiptUrl ?? null;
-      if (typeof paymentMessage.content === 'string') {
-        const match = paymentMessage.content.match(/(https?:\/\/[^\s]+\/api\/v1\/payments\/[^\s/]+\/receipt|\/?api\/v1\/payments\/[^\s/]+\/receipt)/i);
-        if (match) {
-          const raw = match[1];
-          receiptUrl = /^https?:/i.test(raw) ? raw : `${raw.startsWith('/') ? '' : '/'}${raw}`;
-        }
-      }
-      if (alreadyPaid && receiptUrl === prev.receiptUrl) return prev;
-      return {
-        status: 'paid',
-        amount: prev.amount,
-        receiptUrl,
-      };
-    });
-    if (!bookingConfirmed) {
-      refreshBookingRequest();
-      if (user?.user_type === 'client') {
-        void resolveBookingFromRequest();
-      }
-    }
-  }, [
-    messages,
-    bookingConfirmed,
-    refreshBookingRequest,
-    resolveBookingFromRequest,
-    user?.user_type,
-  ]);
-
   const ensureServiceProviderForService = useCallback((serviceId: number) => {
     if (!serviceId || Number.isNaN(serviceId)) return;
     if (serviceProviderByServiceIdRef.current[serviceId]) return;
@@ -2087,6 +2046,47 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     bookingRequestId,
     bookingRequestVersion,
     hasInitialBookingRequest,
+    resolveBookingFromRequest,
+    user?.user_type,
+  ]);
+
+  useEffect(() => {
+    const paymentMessage = messages.find((msg) => {
+      const key = String((msg as any)?.system_key || '').toLowerCase();
+      if (key.startsWith('payment_received')) return true;
+      const content = String(msg.content || '').toLowerCase();
+      return content.includes('payment received');
+    });
+    if (!paymentMessage) return;
+
+    setBookingConfirmed((prev) => (prev ? prev : true));
+    setPaymentInfo((prev) => {
+      const alreadyPaid = prev.status === 'paid';
+      let receiptUrl = prev.receiptUrl ?? null;
+      if (typeof paymentMessage.content === 'string') {
+        const match = paymentMessage.content.match(/(https?:\/\/[^\s]+\/api\/v1\/payments\/[^\s/]+\/receipt|\/?api\/v1\/payments\/[^\s/]+\/receipt)/i);
+        if (match) {
+          const raw = match[1];
+          receiptUrl = /^https?:/i.test(raw) ? raw : `${raw.startsWith('/') ? '' : '/'}${raw}`;
+        }
+      }
+      if (alreadyPaid && receiptUrl === prev.receiptUrl) return prev;
+      return {
+        status: 'paid',
+        amount: prev.amount,
+        receiptUrl,
+      };
+    });
+    if (!bookingConfirmed) {
+      refreshBookingRequest();
+      if (user?.user_type === 'client') {
+        void resolveBookingFromRequest();
+      }
+    }
+  }, [
+    messages,
+    bookingConfirmed,
+    refreshBookingRequest,
     resolveBookingFromRequest,
     user?.user_type,
   ]);
