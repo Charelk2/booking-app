@@ -18,7 +18,17 @@ interface UseRealtimeReturn {
 // Compute realtime endpoints with safe defaults.
 // - WS: prefer explicit NEXT_PUBLIC_WS_URL (e.g., wss://api.booka.co.za); else same-origin (http->ws)
 // - SSE: always use a same-origin relative path so it flows through Next.js rewrites
-let WS_BASE_ENV = (process.env.NEXT_PUBLIC_WS_URL || '') as string;
+// Prefer explicit WS URL. If not provided, fall back to API URL origin.
+let WS_BASE_ENV = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '') as string;
+// Reduce full API URL to origin since WS endpoint path is fixed under /api/v1/ws
+try {
+  if (WS_BASE_ENV) {
+    const u = new URL(WS_BASE_ENV);
+    WS_BASE_ENV = `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
+  }
+} catch {
+  // Keep as-is if not a valid URL (e.g., empty)
+}
 WS_BASE_ENV = WS_BASE_ENV.replace(/\/+$/, '');
 
 export default function useRealtime(token?: string | null): UseRealtimeReturn {
@@ -38,6 +48,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   useEffect(() => { setWsToken(token ?? null); }, [token]);
 
   const wsBase = useMemo(() => {
+    // If an explicit WS (or API) base is configured, prefer it — avoids Next dev server WS proxy issues
     if (WS_BASE_ENV) return WS_BASE_ENV.replace(/^http/, 'ws');
     if (typeof window !== 'undefined') return window.location.origin.replace(/^http/, 'ws');
     return '';

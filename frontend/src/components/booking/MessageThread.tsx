@@ -2491,8 +2491,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           try {
             const last = normalized[normalized.length - 1];
             if (last && typeof last.id === 'number') {
-              const replyTopic = String(payload?.topic || primaryTopic);
-              publish(replyTopic, { v: 1, type: 'read', up_to_id: last.id, user_id: myUserId });
+              // Always publish to the canonical room topic so the server routes it
+              publish(primaryTopic, { v: 1, type: 'read', up_to_id: last.id, user_id: myUserId });
             }
           } catch {}
         }, 700);
