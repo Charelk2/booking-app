@@ -1659,13 +1659,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             }
             runWithTransport(
               `messages-read:${bookingRequestId}`,
-              () => markMessagesRead(bookingRequestId),
+              async () => { await markMessagesRead(bookingRequestId); },
               { metadata: { type: 'markMessagesRead', threadId: bookingRequestId } },
             );
           }
           runWithTransport(
             `thread-read:${bookingRequestId}`,
-            () => markThreadRead(bookingRequestId),
+            async () => { await markThreadRead(bookingRequestId); },
             { metadata: { type: 'markThreadRead', threadId: bookingRequestId } },
           );
           emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: 'read' });
@@ -2365,7 +2365,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           } catch {}
           runWithTransport(
             `messages-read:${bookingRequestId}`,
-            () => markMessagesRead(bookingRequestId),
+            async () => { await markMessagesRead(bookingRequestId); },
             {
               metadata: {
                 type: 'markMessagesRead',
