@@ -147,15 +147,16 @@ def get_cookie_domain() -> str | None:
 
 def _set_access_cookie(response: Response, token: str, minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> None:
     max_age = minutes * 60
-    # Optionally scope cookie to parent domain (e.g., .booka.co.za) to support
-    # both app and API subdomains sharing the same session.
     cookie_domain = get_cookie_domain()
+    secure = _is_secure_cookie()
+    # Allow third‑party cookie usage in production: SameSite=None requires Secure
+    same_site = "None" if secure else "Lax"
     response.set_cookie(
         key="access_token",
         value=token,
         httponly=True,
-        secure=_is_secure_cookie(),
-        samesite="Lax",
+        secure=secure,
+        samesite=same_site,
         max_age=max_age,
         path="/",
         domain=cookie_domain,
@@ -169,12 +170,14 @@ def _set_refresh_cookie(response: Response, token: str, expires_at: datetime) ->
     except Exception:
         delta = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
     cookie_domain = get_cookie_domain()
+    secure = _is_secure_cookie()
+    same_site = "None" if secure else "Lax"
     response.set_cookie(
         key="refresh_token",
         value=token,
         httponly=True,
-        secure=_is_secure_cookie(),
-        samesite="Lax",
+        secure=secure,
+        samesite=same_site,
         max_age=delta,
         path="/",
         domain=cookie_domain,
@@ -191,7 +194,7 @@ def _clear_auth_cookies(response: Response) -> None:
             path="/",
             httponly=True,
             secure=_is_secure_cookie(),
-            samesite="Lax",
+            samesite=("None" if _is_secure_cookie() else "Lax"),
             domain=get_cookie_domain(),
         )
 
