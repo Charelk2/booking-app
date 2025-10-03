@@ -824,9 +824,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     messagesRef.current = messages;
     if (messages.length) {
-      const maybeLast = Number(messages[messages.length - 1].id);
-      if (Number.isFinite(maybeLast) && maybeLast > 0) {
-        lastMessageIdRef.current[bookingRequestId] = maybeLast;
+      let latestServerId: number | null = null;
+      for (let i = messages.length - 1; i >= 0; i -= 1) {
+        const idCandidate = Number(messages[i]?.id);
+        if (Number.isFinite(idCandidate) && idCandidate > 0) {
+          latestServerId = idCandidate;
+          break;
+        }
+      }
+      if (latestServerId !== null) {
+        lastMessageIdRef.current[bookingRequestId] = latestServerId;
       } else {
         delete lastMessageIdRef.current[bookingRequestId];
       }
@@ -1474,7 +1481,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       fetchInFlightRef.current = true;
 
       const rawLastId = lastMessageIdRef.current[bookingRequestId];
-      const lastId = Number(rawLastId);
+      let lastId = Number(rawLastId);
+      if (!Number.isFinite(lastId) || lastId <= 0) {
+        lastId = NaN;
+        delete lastMessageIdRef.current[bookingRequestId];
+      }
       const hasValidCursor = Number.isFinite(lastId) && lastId > 0;
       let mode: 'initial' | 'incremental' =
         options.mode ?? (messagesRef.current.length > 0 ? 'incremental' : 'initial');
@@ -1486,9 +1497,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       };
       let requestedDelta = false;
       if (mode === 'incremental' && hasValidCursor) {
-        params.after_id = lastId;
-        params.mode = 'delta';
-        requestedDelta = true;
+        const safeLastId = Number(lastId);
+        if (Number.isFinite(safeLastId) && safeLastId > 0) {
+          params.after_id = safeLastId;
+          params.mode = 'delta';
+          requestedDelta = true;
+        } else {
+          params.mode = 'full';
+        }
       } else {
         params.mode = 'full';
       }
@@ -1591,7 +1607,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             cursorValue = lastNormalizedId;
           }
         }
-        if (cursorValue) {
+        if (typeof cursorValue === 'number' && Number.isFinite(cursorValue) && cursorValue > 0) {
           lastMessageIdRef.current[bookingRequestId] = cursorValue;
         }
 
