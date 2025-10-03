@@ -1986,9 +1986,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     if (isActiveThread) {
       activeThreadRef.current = bookingRequestId;
-      if (!loadedThreadsRef.current.has(bookingRequestId)) {
-        void fetchMessages({ mode: 'initial', reason: 'activate' });
-      }
+      const hasCache = loadedThreadsRef.current.has(bookingRequestId);
+      const desiredMode: 'initial' | 'incremental' = hasCache ? 'incremental' : 'initial';
+      void fetchMessages({ mode: desiredMode, reason: 'activate', force: hasCache });
+      if (!hasCache) loadedThreadsRef.current.add(bookingRequestId);
     } else if (activeThreadRef.current === bookingRequestId) {
       activeThreadRef.current = null;
     }
