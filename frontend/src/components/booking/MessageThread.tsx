@@ -65,6 +65,7 @@ import {
   updateBookingRequestArtist,
   deleteMessageForBookingRequest,
   getService,
+  getQuotesForBookingRequest,
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { emitThreadsUpdated, type ThreadsUpdatedDetail } from '@/lib/threadsEvents';
@@ -1435,11 +1436,22 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
       } catch (err) {
         console.error(`Failed to fetch quote ${quoteId}:`, err);
+        // Fallback: fetch all quotes for this request and pick the one we need
+        try {
+          const list = await getQuotesForBookingRequest(bookingRequestId);
+          const arr = Array.isArray(list.data) ? list.data : [];
+          const found = arr.find((q: any) => Number(q?.id) === Number(quoteId));
+          if (found) {
+            setQuotes((prev) => ({ ...prev, [quoteId]: found }));
+          }
+        } catch (e2) {
+          // swallow; skeleton will remain and future retries/backoffs may succeed
+        }
       } finally {
         pendingQuotesRef.current.delete(quoteId);
       }
     },
-    [quotes, bookingDetails, refreshBookingRequest],
+    [quotes, bookingDetails, refreshBookingRequest, bookingRequestId],
   );
 
   const markIncomingAsRead = useCallback(
@@ -1483,6 +1495,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     detail: { delta: -freshIds.size, threadId: bookingRequestId },
                   }),
                 );
+                // Cross-tab: persist last seen id for this thread and let other tabs reconcile
+                const maxId = Math.max(...Array.from(freshIds));
+                try { localStorage.setItem(`thread:last_seen:${bookingRequestId}`, String(maxId)); } catch {}
               }
             } catch {}
             // Optionally also mark thread read after messages read succeeds
@@ -2330,9 +2345,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (typeStr === 'read') {
         const upTo: number | undefined = typeof payload.up_to_id === 'number' ? payload.up_to_id : undefined;
         const readerId: number | undefined = typeof payload.user_id === 'number' ? payload.user_id : undefined;
-        if (upTo && readerId && readerId !== myUserId) {
+        if (upTo && readerId) {
+          // Mark messages as read for all messages not authored by the reader, up to id
           setMessages((prev) => {
-            const next = prev.map((m) => (m.sender_id === myUserId && m.id <= upTo ? { ...m, is_read: true } : m));
+            const next = prev.map((m) => (m.sender_id !== readerId && m.id <= upTo ? { ...m, is_read: true } : m));
             writeCachedMessages(bookingRequestId, next);
             return next;
           });
@@ -4300,6 +4316,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 setShowScrollButton(!atBottom);
                 setIsUserScrolledUp(!atBottom);
                 atBottomRef.current = atBottom;
+                // If the user anchored at bottom after initial load, flush read receipts now.
+                if (atBottom) {
+                  try { scheduleMarkRead(messagesRef.current, 'hydrate'); } catch {}
+                }
               }}
               increaseViewportBy={{ top: 400, bottom: 600 }}
               overscan={200}

@@ -113,7 +113,20 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
       }
     };
     window.addEventListener('inbox:unread', handler as EventListener);
-    return () => window.removeEventListener('inbox:unread', handler as EventListener);
+    const onStorage = (e: StorageEvent) => {
+      try {
+        if (!e.key) return;
+        // Any thread last-seen update from another tab triggers a refresh
+        if (e.key.startsWith('thread:last_seen:')) {
+          void refresh();
+        }
+      } catch {}
+    };
+    window.addEventListener('storage', onStorage as EventListener);
+    return () => {
+      window.removeEventListener('inbox:unread', handler as EventListener);
+      window.removeEventListener('storage', onStorage as EventListener);
+    };
   }, []);
 
   return { count, refresh };
