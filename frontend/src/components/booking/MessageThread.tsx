@@ -843,97 +843,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   }, [messages, bookingRequestId]);
 
 
-  const markIncomingAsRead = useCallback(
-    (subset: ThreadMessage[], source: 'fetch' | 'realtime' | 'cache' | 'hydrate') => {
-      if (!subset.length || myUserId <= 0 || !isActiveThread) return;
-      const inbound = subset.filter((m) => m.sender_id !== myUserId && !m.is_read);
-      if (inbound.length === 0) return;
-      const fresh = inbound.filter((m) => !clearedUnreadMessageIdsRef.current.has(m.id));
-      if (fresh.length === 0) return;
-      fresh.forEach((msg) => clearedUnreadMessageIdsRef.current.add(msg.id));
-      const freshIds = new Set(fresh.map((msg) => msg.id));
-      setMessages((prev) => {
-        let mutated = false;
-        const next = prev.map((msg) => {
-          if (freshIds.has(msg.id) && !msg.is_read) {
-            mutated = true;
-            return { ...msg, is_read: true };
-          }
-          return msg;
-        });
-        if (mutated) {
-          try { writeCachedMessages(bookingRequestId, next); } catch {}
-          return next;
-        }
-        return prev;
-      });
-      try {
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('inbox:unread', {
-              detail: { delta: -freshIds.size, threadId: bookingRequestId },
-            }),
-          );
-        }
-      } catch {}
-      runWithTransport(
-        `messages-read:${bookingRequestId}`,
-        async () => { await markMessagesRead(bookingRequestId); },
-        { metadata: { type: 'markMessagesRead', threadId: bookingRequestId } },
-      );
-      runWithTransport(
-        `thread-read:${bookingRequestId}`,
-        async () => { await markThreadRead(bookingRequestId); },
-        { metadata: { type: 'markThreadRead', threadId: bookingRequestId } },
-      );
-      const reasonLabel = source ? `read:${source}` : 'read';
-      emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: reasonLabel });
-    },
-    [myUserId, isActiveThread, bookingRequestId, setMessages, markMessagesRead, markThreadRead, writeCachedMessages, emitThreadsUpdated, runWithTransport],
-  );
-
-  const hydrateQuotesForMessages = useCallback(
-    async (msgs: ThreadMessage[]) => {
-      const ids = Array.from(
-        new Set(msgs.map((m) => Number(m.quote_id)).filter((qid) => Number.isFinite(qid) && qid > 0)),
-      );
-      if (!ids.length) return;
-      const missing = ids.filter((id) => !quotes[id]);
-      if (!missing.length) return;
-      try {
-        const batch = await getQuotesBatch(missing);
-        const got = Array.isArray(batch.data) ? batch.data : [];
-        if (got.length) {
-          setQuotes((prev) => ({
-            ...prev,
-            ...Object.fromEntries(got.map((q: any) => [q.id, q])),
-          }));
-        }
-        const receivedIds = new Set<number>(
-          got.map((q: any) => Number(q?.id)).filter((n) => Number.isFinite(n)),
-        );
-        const stillMissing = missing.filter((id) => !receivedIds.has(id));
-        for (const id of stillMissing) {
-          try {
-            await ensureQuoteLoaded(id);
-          } catch {}
-        }
-      } catch (err) {
-        for (const msg of msgs) {
-          const qid = Number(msg.quote_id);
-          const isQuote =
-            qid > 0 &&
-            (normalizeType(msg.message_type) === 'QUOTE' ||
-              (normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'review_quote'));
-          if (isQuote) {
-            try { await ensureQuoteLoaded(qid); } catch {}
-          }
-        }
-      }
-    },
-    [quotes, setQuotes, ensureQuoteLoaded],
-  );
-
   const ensureServiceProviderForService = useCallback((serviceId: number) => {
     if (!serviceId || Number.isNaN(serviceId)) return;
     if (serviceProviderByServiceIdRef.current[serviceId]) return;
@@ -1008,12 +917,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const firstPaintSentRef = useRef(false);
   const readySentRef = useRef(false);
   const scrollSentRef = useRef(false);
-
-  useEffect(() => {
-    if (!isActiveThread || myUserId <= 0 || messages.length === 0) return;
-    markIncomingAsRead(messages, 'hydrate');
-  }, [isActiveThread, myUserId, messages, markIncomingAsRead]);
-
 
   const perfNow = () => {
     try {
@@ -1512,6 +1415,102 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     },
     [quotes, bookingDetails, refreshBookingRequest],
   );
+
+  const markIncomingAsRead = useCallback(
+    (subset: ThreadMessage[], source: 'fetch' | 'realtime' | 'cache' | 'hydrate') => {
+      if (!subset.length || myUserId <= 0 || !isActiveThread) return;
+      const inbound = subset.filter((m) => m.sender_id !== myUserId && !m.is_read);
+      if (inbound.length === 0) return;
+      const fresh = inbound.filter((m) => !clearedUnreadMessageIdsRef.current.has(m.id));
+      if (fresh.length === 0) return;
+      fresh.forEach((msg) => clearedUnreadMessageIdsRef.current.add(msg.id));
+      const freshIds = new Set(fresh.map((msg) => msg.id));
+      setMessages((prev) => {
+        let mutated = false;
+        const next = prev.map((msg) => {
+          if (freshIds.has(msg.id) && !msg.is_read) {
+            mutated = true;
+            return { ...msg, is_read: true };
+          }
+          return msg;
+        });
+        if (mutated) {
+          try { writeCachedMessages(bookingRequestId, next); } catch {}
+          return next;
+        }
+        return prev;
+      });
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('inbox:unread', {
+              detail: { delta: -freshIds.size, threadId: bookingRequestId },
+            }),
+          );
+        }
+      } catch {}
+      runWithTransport(
+        `messages-read:${bookingRequestId}`,
+        async () => { await markMessagesRead(bookingRequestId); },
+        { metadata: { type: 'markMessagesRead', threadId: bookingRequestId } },
+      );
+      runWithTransport(
+        `thread-read:${bookingRequestId}`,
+        async () => { await markThreadRead(bookingRequestId); },
+        { metadata: { type: 'markThreadRead', threadId: bookingRequestId } },
+      );
+      const reasonLabel = source ? `read:${source}` : 'read';
+      emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: reasonLabel });
+    },
+    [myUserId, isActiveThread, bookingRequestId, setMessages, markMessagesRead, markThreadRead, writeCachedMessages, emitThreadsUpdated, runWithTransport],
+  );
+
+  const hydrateQuotesForMessages = useCallback(
+    async (msgs: ThreadMessage[]) => {
+      const ids = Array.from(
+        new Set(msgs.map((m) => Number(m.quote_id)).filter((qid) => Number.isFinite(qid) && qid > 0)),
+      );
+      if (!ids.length) return;
+      const missing = ids.filter((id) => !quotes[id]);
+      if (!missing.length) return;
+      try {
+        const batch = await getQuotesBatch(missing);
+        const got = Array.isArray(batch.data) ? batch.data : [];
+        if (got.length) {
+          setQuotes((prev) => ({
+            ...prev,
+            ...Object.fromEntries(got.map((q: any) => [q.id, q])),
+          }));
+        }
+        const receivedIds = new Set<number>(
+          got.map((q: any) => Number(q?.id)).filter((n) => Number.isFinite(n)),
+        );
+        const stillMissing = missing.filter((id) => !receivedIds.has(id));
+        for (const id of stillMissing) {
+          try {
+            await ensureQuoteLoaded(id);
+          } catch {}
+        }
+      } catch (err) {
+        for (const msg of msgs) {
+          const qid = Number(msg.quote_id);
+          const isQuote =
+            qid > 0 &&
+            (normalizeType(msg.message_type) === 'QUOTE' ||
+              (normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'review_quote'));
+          if (isQuote) {
+            try { await ensureQuoteLoaded(qid); } catch {}
+          }
+        }
+      }
+    },
+    [quotes, setQuotes, ensureQuoteLoaded],
+  );
+
+  useEffect(() => {
+    if (!isActiveThread || myUserId <= 0 || messages.length === 0) return;
+    markIncomingAsRead(messages, 'hydrate');
+  }, [isActiveThread, myUserId, messages, markIncomingAsRead]);
 
   // ---- Composer height for padding
   const [composerHeight, setComposerHeight] = useState(0);
