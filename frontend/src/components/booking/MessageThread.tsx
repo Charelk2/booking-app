@@ -842,6 +842,98 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
   }, [messages, bookingRequestId]);
 
+
+  const markIncomingAsRead = useCallback(
+    (subset: ThreadMessage[], source: 'fetch' | 'realtime' | 'cache' | 'hydrate') => {
+      if (!subset.length || myUserId <= 0 || !isActiveThread) return;
+      const inbound = subset.filter((m) => m.sender_id !== myUserId && !m.is_read);
+      if (inbound.length === 0) return;
+      const fresh = inbound.filter((m) => !clearedUnreadMessageIdsRef.current.has(m.id));
+      if (fresh.length === 0) return;
+      fresh.forEach((msg) => clearedUnreadMessageIdsRef.current.add(msg.id));
+      const freshIds = new Set(fresh.map((msg) => msg.id));
+      setMessages((prev) => {
+        let mutated = false;
+        const next = prev.map((msg) => {
+          if (freshIds.has(msg.id) && !msg.is_read) {
+            mutated = true;
+            return { ...msg, is_read: true };
+          }
+          return msg;
+        });
+        if (mutated) {
+          try { writeCachedMessages(bookingRequestId, next); } catch {}
+          return next;
+        }
+        return prev;
+      });
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('inbox:unread', {
+              detail: { delta: -freshIds.size, threadId: bookingRequestId },
+            }),
+          );
+        }
+      } catch {}
+      runWithTransport(
+        `messages-read:${bookingRequestId}`,
+        async () => { await markMessagesRead(bookingRequestId); },
+        { metadata: { type: 'markMessagesRead', threadId: bookingRequestId } },
+      );
+      runWithTransport(
+        `thread-read:${bookingRequestId}`,
+        async () => { await markThreadRead(bookingRequestId); },
+        { metadata: { type: 'markThreadRead', threadId: bookingRequestId } },
+      );
+      const reasonLabel = source ? `read:${source}` : 'read';
+      emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: reasonLabel });
+    },
+    [myUserId, isActiveThread, bookingRequestId, setMessages, markMessagesRead, markThreadRead, writeCachedMessages, emitThreadsUpdated, runWithTransport],
+  );
+
+  const hydrateQuotesForMessages = useCallback(
+    async (msgs: ThreadMessage[]) => {
+      const ids = Array.from(
+        new Set(msgs.map((m) => Number(m.quote_id)).filter((qid) => Number.isFinite(qid) && qid > 0)),
+      );
+      if (!ids.length) return;
+      const missing = ids.filter((id) => !quotes[id]);
+      if (!missing.length) return;
+      try {
+        const batch = await getQuotesBatch(missing);
+        const got = Array.isArray(batch.data) ? batch.data : [];
+        if (got.length) {
+          setQuotes((prev) => ({
+            ...prev,
+            ...Object.fromEntries(got.map((q: any) => [q.id, q])),
+          }));
+        }
+        const receivedIds = new Set<number>(
+          got.map((q: any) => Number(q?.id)).filter((n) => Number.isFinite(n)),
+        );
+        const stillMissing = missing.filter((id) => !receivedIds.has(id));
+        for (const id of stillMissing) {
+          try {
+            await ensureQuoteLoaded(id);
+          } catch {}
+        }
+      } catch (err) {
+        for (const msg of msgs) {
+          const qid = Number(msg.quote_id);
+          const isQuote =
+            qid > 0 &&
+            (normalizeType(msg.message_type) === 'QUOTE' ||
+              (normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'review_quote'));
+          if (isQuote) {
+            try { await ensureQuoteLoaded(qid); } catch {}
+          }
+        }
+      }
+    },
+    [quotes, setQuotes, ensureQuoteLoaded],
+  );
+
   const ensureServiceProviderForService = useCallback((serviceId: number) => {
     if (!serviceId || Number.isNaN(serviceId)) return;
     if (serviceProviderByServiceIdRef.current[serviceId]) return;
@@ -916,6 +1008,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const firstPaintSentRef = useRef(false);
   const readySentRef = useRef(false);
   const scrollSentRef = useRef(false);
+
+  useEffect(() => {
+    if (!isActiveThread || myUserId <= 0 || messages.length === 0) return;
+    markIncomingAsRead(messages, 'hydrate');
+  }, [isActiveThread, myUserId, messages, markIncomingAsRead]);
+
 
   const perfNow = () => {
     try {
@@ -1665,72 +1763,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           } catch {}
         }
 
-        try {
-          const unreadMessages = normalized.filter((m) => m.sender_id !== myUserId && !m.is_read);
-          if (unreadMessages.length > 0) {
-            const newUnreadMessages = unreadMessages.filter((m) => !clearedUnreadMessageIdsRef.current.has(m.id));
-            if (newUnreadMessages.length > 0) {
-              newUnreadMessages.forEach((m) => clearedUnreadMessageIdsRef.current.add(m.id));
-              try {
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(
-                    new CustomEvent('inbox:unread', {
-                      detail: { delta: -newUnreadMessages.length, threadId: bookingRequestId },
-                    }),
-                  );
-                }
-              } catch {}
-            }
-            runWithTransport(
-              `messages-read:${bookingRequestId}`,
-              async () => { await markMessagesRead(bookingRequestId); },
-              { metadata: { type: 'markMessagesRead', threadId: bookingRequestId } },
-            );
-          }
-          runWithTransport(
-            `thread-read:${bookingRequestId}`,
-            async () => { await markThreadRead(bookingRequestId); },
-            { metadata: { type: 'markThreadRead', threadId: bookingRequestId } },
-          );
-          emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: 'read' });
-        } catch {}
+        markIncomingAsRead(normalized, 'fetch');
 
-        (async () => {
-          try {
-            const qids = Array.from(new Set(
-              normalized.map((m) => Number(m.quote_id)).filter((qid) => qid > 0)
-            ));
-            const missing = qids.filter((id) => !quotes[id]);
-            if (missing.length) {
-              const batch = await getQuotesBatch(missing);
-              const got = Array.isArray(batch.data) ? batch.data : [];
-              if (got.length) {
-                setQuotes((prev) => ({
-                  ...prev,
-                  ...Object.fromEntries(got.map((q: any) => [q.id, q])),
-                }));
-              }
-              const receivedIds = new Set<number>(
-                got.map((q: any) => Number(q?.id)).filter((n) => !Number.isNaN(n)),
-              );
-              const stillMissing = missing.filter((id) => !receivedIds.has(id));
-              for (const id of stillMissing) {
-                try {
-                  await ensureQuoteLoaded(id);
-                } catch {}
-              }
-            }
-          } catch (e) {
-            for (const m of normalized) {
-              const qid = Number(m.quote_id);
-              const isQuote =
-                qid > 0 &&
-                (normalizeType(m.message_type) === 'QUOTE' ||
-                  (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
-              if (isQuote) void ensureQuoteLoaded(qid);
-            }
-          }
-        })();
+        void hydrateQuotesForMessages(normalized);
 
         try {
           const newReactions: Record<number, Record<string, number>> = {};
@@ -1911,6 +1946,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         firstPaintSentRef.current = true;
       }
       setMessages(cached);
+      markIncomingAsRead(cached, 'cache');
+      void hydrateQuotesForMessages(cached);
       setLoading(false);
       initialLoadedRef.current = true;
       loadedThreadsRef.current.add(bookingRequestId);
@@ -1954,6 +1991,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         try { _writeThreadCache(bookingRequestId, normalized); } catch {}
         if (messagesRef.current.length === 0) {
           setMessages(normalized);
+          markIncomingAsRead(normalized, 'cache');
+          void hydrateQuotesForMessages(normalized);
           setLoading(false);
         }
         initialLoadedRef.current = initialLoadedRef.current || normalized.length > 0;
@@ -2366,39 +2405,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (typeof window !== 'undefined' && localStorage.getItem('CHAT_DEBUG') === '1') {
         try { console.debug('[thread] merged', { topicId, added: normalized.length }); } catch {}
       }
+      void hydrateQuotesForMessages(normalized);
 
       // Debounced read receipt when anchored and new incoming
       const anchored = atBottomRef.current === true;
       const gotIncoming = normalized.some((m) => m.sender_id !== myUserId);
       if (anchored && gotIncoming) {
-        const toClear = normalized
-          .filter((m) => m.sender_id !== myUserId && !m.is_read && !clearedUnreadMessageIdsRef.current.has(m.id))
-          .map((m) => m.id);
         if (readReceiptTimeoutRef.current) clearTimeout(readReceiptTimeoutRef.current);
         readReceiptTimeoutRef.current = setTimeout(() => {
-          try {
-            if (toClear.length > 0) {
-              toClear.forEach((id) => clearedUnreadMessageIdsRef.current.add(id));
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(
-                  new CustomEvent('inbox:unread', {
-                    detail: { delta: -toClear.length, threadId: bookingRequestId },
-                  }),
-                );
-              }
-            }
-          } catch {}
-          runWithTransport(
-            `messages-read:${bookingRequestId}`,
-            async () => { await markMessagesRead(bookingRequestId); },
-            {
-              metadata: {
-                type: 'markMessagesRead',
-                threadId: bookingRequestId,
-                trigger: 'realtime',
-              },
-            },
-          );
+          markIncomingAsRead(normalized, 'realtime');
           try {
             const last = normalized[normalized.length - 1];
             if (last && typeof last.id === 'number') {
