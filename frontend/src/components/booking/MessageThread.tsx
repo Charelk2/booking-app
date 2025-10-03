@@ -824,7 +824,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     messagesRef.current = messages;
     if (messages.length) {
-      lastMessageIdRef.current[bookingRequestId] = messages[messages.length - 1].id;
+      const maybeLast = Number(messages[messages.length - 1].id);
+      if (Number.isFinite(maybeLast) && maybeLast > 0) {
+        lastMessageIdRef.current[bookingRequestId] = maybeLast;
+      } else {
+        delete lastMessageIdRef.current[bookingRequestId];
+      }
     } else {
       delete lastMessageIdRef.current[bookingRequestId];
     }
@@ -1468,17 +1473,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (!options.force && !isActiveThread) return;
       fetchInFlightRef.current = true;
 
-      const lastId = lastMessageIdRef.current[bookingRequestId];
+      const rawLastId = lastMessageIdRef.current[bookingRequestId];
+      const lastId = Number(rawLastId);
+      const hasValidCursor = Number.isFinite(lastId) && lastId > 0;
       let mode: 'initial' | 'incremental' =
         options.mode ?? (messagesRef.current.length > 0 ? 'incremental' : 'initial');
-      if (mode === 'incremental' && !lastId) mode = 'initial';
+      if (mode === 'incremental' && !hasValidCursor) mode = 'initial';
       if (mode === 'initial' && !initialLoadedRef.current) setLoading(true);
 
       const params: MessageListParams = {
         limit: mode === 'initial' ? 100 : 50,
       };
       let requestedDelta = false;
-      if (mode === 'incremental' && lastId) {
+      if (mode === 'incremental' && hasValidCursor) {
         params.after_id = lastId;
         params.mode = 'delta';
         requestedDelta = true;
@@ -1923,10 +1930,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           emitStage('first_paint', 'indexeddb');
           firstPaintSentRef.current = true;
         }
-        const cachedLastId = normalized[normalized.length - 1]?.id;
-        const currentLastId = lastMessageIdRef.current[bookingRequestId] || 0;
-        if (cachedLastId && (!currentLastId || cachedLastId > currentLastId)) {
-          lastMessageIdRef.current[bookingRequestId] = cachedLastId;
+        const cachedLast = Number(normalized[normalized.length - 1]?.id);
+        const currentLast = Number(lastMessageIdRef.current[bookingRequestId] || 0);
+        if (Number.isFinite(cachedLast) && cachedLast > 0 && (!Number.isFinite(currentLast) || cachedLast > currentLast)) {
+          lastMessageIdRef.current[bookingRequestId] = cachedLast;
         }
         try { _writeThreadCache(bookingRequestId, normalized); } catch {}
         if (messagesRef.current.length === 0) {
