@@ -72,8 +72,9 @@ def get_threads_preview(
         include_relationships=False,
     )
 
-    # Map unread counts via notification aggregator
-    unread_by_id = crud_notification.get_unread_counts_for_threads(db, current_user.id)
+    # Map unread counts using messages table for a single source of truth
+    thread_ids = [int(br.id) for br in brs if getattr(br, 'id', None) is not None]
+    unread_by_id = crud_message.get_unread_counts_for_user_threads(db, current_user.id, thread_ids=thread_ids)
 
     items: List[ThreadPreviewItem] = []
     for br in brs:
@@ -174,8 +175,9 @@ def get_threads_index(
         limit=limit,
         include_relationships=False,
     )
-    # Map unread counts via notification aggregator for now
-    unread_by_id = crud_notification.get_unread_counts_for_threads(db, current_user.id)
+    # Map unread counts using messages table
+    thread_ids = [int(br.id) for br in brs if getattr(br, 'id', None) is not None]
+    unread_by_id = crud_message.get_unread_counts_for_user_threads(db, current_user.id, thread_ids=thread_ids)
 
     items: List[ThreadsIndexItem] = []
     for br in brs:
@@ -496,7 +498,8 @@ def get_inbox_unread(
 ):
     """Return total unread message notifications with lightweight ETag support."""
 
-    total, latest_ts = crud_notification.get_unread_message_totals(db, current_user.id)
+    # Total unread based on messages table (other-party messages only)
+    total, latest_ts = crud_message.get_unread_message_totals_for_user(db, current_user.id)
     marker = latest_ts.isoformat(timespec="seconds") if latest_ts else "0"
     etag_source = f"{current_user.id}:{total}:{marker}"
     etag_value = f'W/"{hashlib.sha1(etag_source.encode()).hexdigest()}"'

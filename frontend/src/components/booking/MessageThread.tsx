@@ -2083,6 +2083,31 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     emitStage('scroll_restored', hydrationSourceRef.current ?? 'network');
   }, [bookingRequestId, loading, virtuosoViewportHeight, emitStage]);
 
+  // Proactively mark thread notifications as read on activation, regardless of
+  // whether inbound messages were detected. This keeps aggregate counts in sync
+  // when only system messages exist (which may be attributed to the same-side sender).
+  useEffect(() => {
+    if (!isActiveThread) return;
+    if (!bookingRequestId) return;
+    try {
+      const op = runWithTransport(
+        `thread-read:init:${bookingRequestId}`,
+        async () => { await markThreadRead(bookingRequestId); },
+        { metadata: { type: 'markThreadRead', threadId: bookingRequestId } },
+      ) as Promise<void> | void;
+      if (op && typeof (op as Promise<void>).then === 'function') {
+        (op as Promise<void>)
+          .then(() => {
+            emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, reason: 'read' });
+            try { window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { delta: 0 } })); } catch {}
+          })
+          .catch(() => {});
+      }
+    } catch {
+      // best-effort; do not block thread rendering
+    }
+  }, [isActiveThread, bookingRequestId]);
+
   useEffect(() => {
     if (isActiveThread) {
       activeThreadRef.current = bookingRequestId;

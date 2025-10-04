@@ -1,8 +1,8 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_
 
 from .. import models, schemas
 
@@ -313,3 +313,79 @@ def delete_message(db: Session, message_id: int) -> bool:
     db.delete(msg)
     db.commit()
     return True
+
+
+def get_unread_counts_for_user_threads(
+    db: Session,
+    user_id: int,
+    thread_ids: Optional[List[int]] = None,
+) -> Dict[int, int]:
+    """Compute unread counts per thread based on messages table.
+
+    Unread = messages in a thread where:
+      - the booking request involves the user (as artist or client)
+      - the message sender is NOT the user
+      - the message is not read (is_read is False or NULL)
+
+    Optionally limit to a subset of ``thread_ids`` to reduce workload.
+    """
+    from .. import models
+
+    query = (
+        db.query(models.Message.booking_request_id, func.count(models.Message.id))
+        .join(
+            models.BookingRequest,
+            models.BookingRequest.id == models.Message.booking_request_id,
+        )
+        .filter(
+            or_(
+                models.BookingRequest.client_id == user_id,
+                models.BookingRequest.artist_id == user_id,
+            )
+        )
+        .filter(models.Message.sender_id != user_id)
+        .filter(or_(models.Message.is_read.is_(False), models.Message.is_read.is_(None)))
+    )
+    if thread_ids:
+        query = query.filter(models.Message.booking_request_id.in_(thread_ids))
+
+    rows = query.group_by(models.Message.booking_request_id).all()
+    out: Dict[int, int] = {}
+    for bid, cnt in rows:
+        try:
+            out[int(bid)] = int(cnt or 0)
+        except Exception:
+            continue
+    return out
+
+
+def get_unread_message_totals_for_user(
+    db: Session, user_id: int
+) -> Tuple[int, datetime | None]:
+    """Return total unread messages and the latest unread timestamp for the user.
+
+    This aggregates across all threads the user participates in and only
+    considers messages sent by the other party.
+    """
+    from .. import models
+
+    count, latest_ts = (
+        db.query(
+            func.count(models.Message.id),
+            func.max(models.Message.timestamp),
+        )
+        .join(
+            models.BookingRequest,
+            models.BookingRequest.id == models.Message.booking_request_id,
+        )
+        .filter(
+            or_(
+                models.BookingRequest.client_id == user_id,
+                models.BookingRequest.artist_id == user_id,
+            )
+        )
+        .filter(models.Message.sender_id != user_id)
+        .filter(or_(models.Message.is_read.is_(False), models.Message.is_read.is_(None)))
+        .one()
+    )
+    return int(count or 0), latest_ts

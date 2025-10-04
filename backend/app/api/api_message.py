@@ -447,6 +447,14 @@ async def mark_messages_read(
         db, request_id, current_user.id
     )
     updated = crud.crud_message.mark_messages_read(db, request_id, current_user.id)
+    # Also clear thread-scoped NEW_MESSAGE notifications for this user so
+    # aggregate counts stay in sync even if the client does not call the
+    # notifications API explicitly.
+    try:
+        from ..crud import crud_notification as _crud_notif  # local import to avoid cycles
+        _crud_notif.mark_thread_read(db, current_user.id, request_id)
+    except Exception:
+        pass
     if updated > 0 and last_unread:
         try:
             await manager.broadcast(
