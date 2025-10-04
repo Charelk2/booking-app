@@ -692,6 +692,23 @@ def create_message(
         request_id,
         data,
     )
+
+    # Opportunistic read receipt: when a user sends a message, consider all
+    # prior incoming messages as read and broadcast a 'read' event so the
+    # counterparty's UI updates immediately even if the reader's tab is not
+    # strictly anchored at the bottom.
+    try:
+        last_unread = crud.crud_message.get_last_unread_message_id(db, request_id, current_user.id)
+        updated = crud.crud_message.mark_messages_read(db, request_id, current_user.id)
+    except Exception:
+        last_unread = None
+        updated = 0
+    if updated and last_unread:
+        background_tasks.add_task(
+            manager.broadcast,
+            request_id,
+            {"v": 1, "type": "read", "up_to_id": int(last_unread), "user_id": int(current_user.id)},
+        )
     return data
 
 
