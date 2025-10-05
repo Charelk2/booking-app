@@ -3140,7 +3140,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
                 {/* Hover reaction emoji – outside bubble, vertically centered */}
                 <div
-                  className={`hidden md:block absolute top-1/2 -translate-y-1/2 z-20 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto ${
+                  className={`hidden md:block absolute top-1/2 -translate-y-1/2 z-20 opacity-0 group-hover:opacity-100 hover:opacity-100 focus-within:opacity-100 pointer-events-auto ${
                     isMsgFromSelf ? '-left-6' : '-right-6'
                   }`}
                 >
@@ -3640,7 +3640,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const chevronPos = isLikelyOneLine ? 'bottom-4 right-1' : 'top-1 right-1';
 
     return (
-      <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity`}>
+      <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 hover:opacity-100 focus-within:opacity-100 pointer-events-auto transition-opacity`}>
         {/* Chevron menu */}
         <button
           type="button"
