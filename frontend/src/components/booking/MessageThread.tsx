@@ -1073,6 +1073,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const imageMenuRef = useRef<HTMLDivElement | null>(null);
   // Simple responsive helper (reactive)
   const [isMobile, setIsMobile] = useState(false);
+  // Guard: when we programmatically open a popover in response to a click,
+  // ignore the next document click closer so it doesn’t instantly close it.
+  const justOpenedAtRef = useRef<number>(0);
   useEffect(() => {
     const update = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 640);
     update();
@@ -1129,6 +1132,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Close pickers/menus when clicking outside (use click, not mousedown)
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
+      // If a popover was just opened in this tick, ignore this closing click.
+      // This avoids the open → immediate close race on certain browsers/React setups.
+      if (Date.now() - (justOpenedAtRef.current || 0) < 200) return;
       const t = e.target as Node;
       // When mobile overlay is open, let its handlers manage open/close
       if (isMobile && actionMenuFor !== null) return;
@@ -3420,10 +3426,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     title="React"
                     aria-label="React to message"
                     className="w-6 h-6 flex items-center justify-center text-black hover:scale-110 transition-transform"
-                    onClick={(e) => {
+                    onMouseDown={(e) => {
+                      // Make the toggle deterministic and resilient to global click-closers.
+                      e.preventDefault();
                       e.stopPropagation();
                       setActionMenuFor(null);
-                      // Defer open until after document mousedown/click closes have run
+                      // Mark that we are opening so the global click listener ignores this cycle.
+                      justOpenedAtRef.current = Date.now();
+                      // Defer to next tick to avoid interfering with current event bubbling.
                       setTimeout(() => {
                         setReactionPickerFor((v) => (v === msg.id ? null : msg.id));
                       }, 0);
@@ -4011,9 +4021,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           type="button"
           title="More"
           className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
-          onClick={(e) => {
+          onMouseDown={(e) => {
+            // Ensure opening is not immediately canceled by the global click-closer.
+            e.preventDefault();
             e.stopPropagation();
             setReactionPickerFor(null);
+            justOpenedAtRef.current = Date.now();
             setTimeout(() => {
               setActionMenuFor((v) => (v === msg.id ? null : msg.id));
             }, 0);
