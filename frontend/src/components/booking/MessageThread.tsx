@@ -334,6 +334,17 @@ const toApiAttachmentsUrl = (raw: string): string => {
           return fixed.toString();
         }
       }
+      // Also repair mistakenly prefixed /static/booka-storage/ paths
+      if (hostLower === 'booka.co.za' && /^\/static\/booka-storage\//i.test(u.pathname)) {
+        const preferred = Array.from(MEDIA_HOSTS)[0];
+        if (preferred) {
+          const fixed = new URL(u.toString());
+          fixed.protocol = 'https:';
+          fixed.host = preferred;
+          fixed.pathname = fixed.pathname.replace(/^\/static\/booka-storage\//i, '/');
+          return fixed.toString();
+        }
+      }
       if (u.protocol === 'https:' && isTrusted) {
         return u.toString();
       }
@@ -381,7 +392,7 @@ const expandAttachmentVariant = (value?: string | null): string[] => {
     // Only add a path-only variant for known local mounts. Avoid creating
     // arbitrary same-origin paths (e.g., /booka-storage/...) that will 404.
     const p = `${absolute.pathname}${absolute.search}`;
-    if (/^\/(attachments|media|static)\//i.test(absolute.pathname)) {
+    if (/^\/(attachments|media)\//i.test(absolute.pathname) || /^\/static\/(attachments|media)\//i.test(absolute.pathname)) {
       variants.push(p);
     }
   } catch {
@@ -406,10 +417,15 @@ const buildAttachmentFallbackChain = (raw: string): string[] => {
   let staticVariant: string | null = null;
   try {
     const u = new URL(normalized);
-    if (!u.pathname.startsWith('/static/')) {
+    // Do not generate /static variants for audio; we don't mirror audio under /static
+    const isAudioPath = /\.(webm|mp3|m4a|ogg|wav)(?:\?.*)?$/i.test(u.pathname);
+    if (!isAudioPath && !u.pathname.startsWith('/static/')) {
       const clone = new URL(normalized);
-      clone.pathname = `/static${clone.pathname}`;
-      staticVariant = clone.toString();
+      // Only create a /static variant for mounts we actually serve via /static
+      if (/^\/(attachments|media)\//i.test(clone.pathname)) {
+        clone.pathname = `/static${clone.pathname}`;
+        staticVariant = clone.toString();
+      }
     }
   } catch {
     staticVariant = null;
@@ -3218,9 +3234,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
                         if (isAud) {
                           const fallbackChain = buildAttachmentFallbackChain(raw);
-                          // Only consider path-only candidates that map to known mounts
+                          // Only consider path-only candidates that map to known mounts we actually serve
                           const pathCandidate = fallbackChain.find(
-                            (c) => typeof c === 'string' && /^\/(attachments|media|static)(\/|$)/i.test(c),
+                            (c) => typeof c === 'string' && (/^\/(attachments|media)(\/|$)/i.test(c) || /^\/static\/(attachments|media)(\/|$)/i.test(c)),
                           );
                           const dataCandidate = fallbackChain.find((c) => /^blob:|^data:/i.test(c));
                           const absoluteCandidate = fallbackChain.find((c) => /^https?:/i.test(c));
