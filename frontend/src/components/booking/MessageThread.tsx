@@ -824,7 +824,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   }: MessageThreadProps,
   ref,
 ) {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const myUserId = useMemo(() => Number(user?.id ?? 0), [user?.id]);
   const router = useRouter();
   const isActiveThread = isActive !== false;
@@ -1325,7 +1325,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     setImageModalIndex(idx >= 0 ? idx : null);
   }, [imageUrls]);
 
-  const { isClientView: isClientViewFlag, isProviderView: isProviderViewFlag, isPaid: isPaidFlag } = useBookingView(user, bookingDetails, paymentInfo, bookingConfirmed);
+  const { isClientView: isClientViewFlag, isPaid: isPaidFlag } = useBookingView(user, bookingDetails, paymentInfo, bookingConfirmed);
 
   // No manual retry UI; quotes load with messages fetch.
 
