@@ -866,6 +866,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [uploadingProgress, setUploadingProgress] = useState(0);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [uploadProgressById, setUploadProgressById] = useState<Record<number, number>>({});
   const uploadAbortRef = useRef<AbortController | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
@@ -3179,6 +3180,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 {sizeLabel && <div className="text-[11px] text-gray-500 mt-0.5">{sizeLabel}</div>}
                               </div>
                             </div>
+                            {uploadProgressById[msg.id] != null && (
+                              <div className="mt-1 h-1 bg-gray-300 rounded-full overflow-hidden">
+                                <div className="h-1 bg-indigo-500" style={{ width: `${uploadProgressById[msg.id]}%` }} />
+                              </div>
+                            )}
                           </div>
                         );
                       }
@@ -3220,6 +3226,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   }}
                                 />
                               </button>
+                              {uploadProgressById[msg.id] != null && (
+                                <div className="absolute left-0 right-0 bottom-0 px-2 pb-2">
+                                  <div className="h-1 bg-gray-200/80 rounded-full overflow-hidden">
+                                    <div className="h-1 bg-indigo-500" style={{ width: `${uploadProgressById[msg.id]}%` }} />
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         }
@@ -3264,6 +3277,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   advanceAudioFallback(e.currentTarget, audioFallbacks, raw);
                                 }}
                               />
+                              {uploadProgressById[msg.id] != null && (
+                                <div className="mt-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                  <div className="h-1 bg-indigo-500" style={{ width: `${uploadProgressById[msg.id]}%` }} />
+                                </div>
+                              )}
                             </div>
                           );
                         }
@@ -3271,7 +3289,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         if (isVid) {
                           const videoSrc = toProxyPath(display);
                           return (
-                            <div className="mt-1 inline-block w-full md:w-1/2 lg:w-1/2">
+                            <div className="mt-1 inline-block w-full md:w-1/2 lg:w-1/2 relative">
                               <video
                                 className="w-full rounded-xl"
                                 controls
@@ -3279,6 +3297,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 playsInline
                                 src={videoSrc}
                               />
+                              {uploadProgressById[msg.id] != null && (
+                                <div className="absolute left-0 right-0 bottom-0 px-2 pb-2">
+                                  <div className="h-1 bg-gray-200/80 rounded-full overflow-hidden">
+                                    <div className="h-1 bg-indigo-500" style={{ width: `${uploadProgressById[msg.id]}%` }} />
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         }
@@ -4005,6 +4030,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           writeCachedMessages(bookingRequestId, next);
           return next;
         });
+        setUploadProgressById((prev) => {
+          const next = { ...prev };
+          delete next[tempId];
+          return next;
+        });
         try {
           if (typeof window !== 'undefined') {
             const previewText = String(real.content || '').slice(0, 160);
@@ -4114,6 +4144,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               reply_to_preview: replyId && replyTarget ? replyTarget.content.slice(0, 120) : null,
               local_preview_url: previewUrl || null,
             });
+            setUploadProgressById((prev) => ({ ...prev, [tempId]: 0 }));
 
             try {
               try { uploadAbortRef.current?.abort(); } catch {}
@@ -4123,7 +4154,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 file,
                 (evt) => {
                   if (evt.total) {
-                    setUploadingProgress(Math.round((evt.loaded * 100) / evt.total));
+                    const pct = Math.round((evt.loaded * 100) / evt.total);
+                    setUploadingProgress(pct);
+                    setUploadProgressById((prev) => ({ ...prev, [tempId]: pct }));
                   }
                 },
                 uploadAbortRef.current?.signal,
@@ -4146,6 +4179,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 const next = prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m));
                 writeCachedMessages(bookingRequestId, next);
                 return next;
+              });
+              setUploadProgressById((prev) => {
+                const n = { ...prev };
+                delete n[tempId];
+                return n;
               });
               setThreadError(
                 `Failed to send attachment ${file.name || ''}. ${
@@ -4903,22 +4941,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               />
               </div>
 
-              {isUploadingAttachment && (
-                <div
-                  className="flex items-center gap-1"
-                  role="progressbar"
-                  aria-label="Upload progress"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={uploadingProgress}
-                  aria-valuetext={`${uploadingProgress}%`}
-                >
-                  <div className="w-10 bg-gray-200 rounded-full h-1">
-                    <div className="h-1 rounded-full bg-indigo-500" style={{ width: `${uploadingProgress}%` }} />
-                  </div>
-                  <span className="text-[11px] text-gray-600">{uploadingProgress}%</span>
-                </div>
-              )}
+              {/* Upload progress moved into the message bubble overlay for clarity */}
 
               <Button
                 type="submit"
