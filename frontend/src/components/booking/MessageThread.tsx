@@ -330,37 +330,41 @@ const toApiAttachmentsUrl = (raw: string): string => {
     const api = new URL(API_BASE);
     const u = new URL(raw, API_BASE);
 
-    // If this isn't the API origin, route via same-origin proxy to avoid CORS
+    // If this isn't the API origin, prefer canonical media hosts or proxy to add stable caching.
     if (u.host !== api.host) {
       const hostLower = normHost(u.host);
       const isR2 = hostLower === 'r2.cloudflarestorage.com' || hostLower.endsWith('.r2.cloudflarestorage.com');
-      const isTrusted = isR2 || isTrustedMediaHost(hostLower);
-      // Repair historically mis-stored URLs like https://booka.co.za/booka-storage/...
-      // by rewriting to the preferred media host if available.
-      if (hostLower === 'booka.co.za' && /^\/booka-storage\//i.test(u.pathname)) {
-        const preferred = Array.from(MEDIA_HOSTS)[0];
-        if (preferred) {
-          const fixed = new URL(u.toString());
-          fixed.protocol = 'https:';
-          fixed.host = preferred;
-          fixed.pathname = fixed.pathname.replace(/^\/booka-storage\//i, '/');
-          return fixed.toString();
-        }
-      }
-      // Also repair mistakenly prefixed /static/booka-storage/ paths
-      if (hostLower === 'booka.co.za' && /^\/static\/booka-storage\//i.test(u.pathname)) {
-        const preferred = Array.from(MEDIA_HOSTS)[0];
-        if (preferred) {
-          const fixed = new URL(u.toString());
-          fixed.protocol = 'https:';
-          fixed.host = preferred;
-          fixed.pathname = fixed.pathname.replace(/^\/static\/booka-storage\//i, '/');
-          return fixed.toString();
-        }
-      }
-      if (u.protocol === 'https:' && isTrusted) {
+
+      // 1) If this is our canonical media host, allow direct
+      if (isTrustedMediaHost(hostLower)) {
         return u.toString();
       }
+
+      // 2) Repair legacy booka.co.za/booka-storage URLs → preferred media host
+      if ((hostLower === 'booka.co.za') && (/^\/booka-storage\//i.test(u.pathname) || /^\/static\/booka-storage\//i.test(u.pathname))) {
+        const preferred = Array.from(MEDIA_HOSTS)[0];
+        if (preferred) {
+          const fixed = new URL(u.toString());
+          fixed.protocol = 'https:';
+          fixed.host = preferred;
+          fixed.pathname = fixed.pathname.replace(/^\/static\//i, '/').replace(/^\/booka-storage\//i, '/');
+          return fixed.toString();
+        }
+      }
+
+      // 3) Rewrite raw R2 endpoints to our preferred media host when configured
+      if (isR2) {
+        const preferred = Array.from(MEDIA_HOSTS)[0];
+        if (preferred) {
+          const fixed = new URL(u.toString());
+          fixed.protocol = 'https:';
+          fixed.host = preferred;
+          fixed.pathname = fixed.pathname.replace(/^\/static\//i, '/').replace(/^\/booka-storage\//i, '/');
+          return fixed.toString();
+        }
+      }
+
+      // 4) Fallback to same-origin proxy for anything else
       const proxied = `${api.protocol}//${api.host}${API_V1}/attachments/proxy?u=${encodeURIComponent(u.toString())}`;
       return proxied;
     }
