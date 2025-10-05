@@ -4951,8 +4951,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             data-testid="composer-container"
             className={
               isDetailsPanelOpen
-                ? 'hidden md:block sticky bottom-0 z-[60] bg-white border-t border-gray-100 shadow pb-safe flex-shrink-0 relative'
-                : 'block sticky bottom-0 z-[60] bg-white border-t border-gray-100 shadow pb-safe flex-shrink-0 relative'
+                ? 'hidden md:block sticky bottom-0 z-[60] bg-white shadow pb-safe flex-shrink-0 relative'
+                : 'block sticky bottom-0 z-[60] bg-white shadow pb-safe flex-shrink-0 relative'
             }
           >
             {/* Event Prep: show as a bottom bar above the composer, always in view */}
