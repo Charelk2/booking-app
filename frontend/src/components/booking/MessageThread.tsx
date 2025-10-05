@@ -840,7 +840,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- State
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
-  const { quotesById: quotes, setQuote, ensureQuotesLoaded, resetQuotes } = useQuotes(bookingRequestId);
+  const { quotesById: quotes, setQuote, ensureQuotesLoaded } = useQuotes(bookingRequestId);
   const [loading, setLoading] = useState(true);
   const [newMessageContent, setNewMessageContent] = useState('');
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
@@ -1972,37 +1972,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     prevMessageCountRef.current = 0;
   }, [bookingRequestId]);
 
-  // Hard-reset thread state on conversation switch to avoid cross-thread merging
+  // On thread switch, only clear ephemeral UI and abort in-flight ops; keep data for SWR.
   useEffect(() => {
-    missingThreadRef.current = false;
-    setMessages([]);
-    resetQuotes();
-    setBookingDetails(null);
-    setBookingRequest(null);
-    setParsedBookingDetails(undefined);
-    setBookingConfirmed(false);
-    setPaymentInfo({ status: null, amount: null, receiptUrl: null });
-    setIsPaymentOpen(false);
-    setTypingUsers([]);
-    setWsFailed(false);
-    setShowDetailsCard(false);
-    setReactions({});
-    setMyReactions({});
-    setReplyTarget(null);
-    setActionMenuFor(null);
-    setReactionPickerFor(null);
-    setImageFiles([]);
-    setImagePreviewUrls([]);
-    setAttachmentFile(null);
-    setAttachmentPreviewUrl(null);
-    setImageModalIndex(null);
-    setFilePreviewSrc(null);
     try { uploadAbortRef.current?.abort(); } catch {}
     try { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); } catch {}
     try { if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current); } catch {}
+    setActionMenuFor(null);
+    setReactionPickerFor(null);
+    setReplyTarget(null);
+    setShowDetailsCard(false);
     setThreadError(null);
-    initialLoadedRef.current = false;
-    setBookingRequestVersion(0);
+    // Do NOT clear messages/quotes/details/payment; stale-while-revalidate keeps UI stable.
   }, [bookingRequestId]);
 
   useEffect(() => {
