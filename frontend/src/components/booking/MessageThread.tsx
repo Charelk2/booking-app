@@ -3155,6 +3155,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         }
                         const sizeLabel = typeof meta?.size === 'number' && meta.size > 0 ? formatBytes(meta.size) : null;
                         // Pick an icon by extension
+                        const metaTypeLower = String(meta?.content_type || '').toLowerCase();
                         let IconComp: React.ComponentType<React.SVGProps<SVGSVGElement>> | null = DocumentTextIcon;
                         try {
                           const clean = url.split('?')[0];
@@ -3164,25 +3165,40 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           else if (['doc','docx','txt','rtf','ppt','pptx','xls','xlsx','csv','md'].includes(ext)) IconComp = DocumentTextIcon;
                           else IconComp = PaperClipIcon;
                         } catch { IconComp = DocumentTextIcon; }
+                        const isPdf = metaTypeLower.includes('pdf') || (() => { try { const clean = url.split('?')[0]; return (clean.split('.').pop() || '').toLowerCase() === 'pdf'; } catch { return false; } })();
                         return (
                           <div
                             className={`mb-3 w-full rounded bg-gray-200 text-left text-[12px] text-gray-700 px-2 py-1 ${!isAudio ? 'cursor-pointer' : ''}`}
                             title={label}
                             role={!isAudio ? 'button' : undefined}
                             tabIndex={!isAudio ? 0 : undefined}
-                            onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toApiAttachmentsUrl(url)); } : undefined}
-                            onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toApiAttachmentsUrl(url)); } } : undefined}
+                            onClick={!isAudio ? (e) => {
+                              e.stopPropagation();
+                              const target = toApiAttachmentsUrl(url);
+                              if (isPdf) {
+                                try { window.open(target, '_blank', 'noopener,noreferrer'); } catch {}
+                              } else {
+                                setFilePreviewSrc(target);
+                              }
+                            } : undefined}
+                            onKeyDown={!isAudio ? (e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                const target = toApiAttachmentsUrl(url);
+                                if (isPdf) {
+                                  try { window.open(target, '_blank', 'noopener,noreferrer'); } catch {}
+                                } else {
+                                  setFilePreviewSrc(target);
+                                }
+                              }
+                            } : undefined}
                           >
                             <div className="flex items-start gap-1.5 w-full">
                               {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600 flex-shrink-0 mt-0.5" /> : null}
                               <div className="min-w-0 flex-1">
                                 <div className="line-clamp-2 break-words font-medium">{label}</div>
                                 {sizeLabel && <div className="text-[11px] text-gray-500 mt-0.5">{sizeLabel}</div>}
-                                {(() => {
-                                  const ext = (() => { try { const c = url.split('?')[0]; return (c.split('.').pop() || '').toLowerCase(); } catch { return ''; } })();
-                                  if (ext === 'pdf') return <div className="mt-0.5 text-[11px] text-indigo-700">View PDF</div>;
-                                  return null;
-                                })()}
+                                {isPdf ? <div className="mt-0.5 text-[11px] text-indigo-700">Open PDF</div> : null}
                               </div>
                             </div>
                             {uploadProgressById[msg.id] != null && (

@@ -17,7 +17,7 @@ interface ImagePreviewModalProps {
 
 export default function ImagePreviewModal({ open, src, alt = 'Image preview', onClose, images, index = 0, onIndexChange, onReply }: ImagePreviewModalProps) {
   const [embedSrc, setEmbedSrc] = useState<string | null>(null);
-  const [embedType, setEmbedType] = useState<'pdf' | 'audio' | null>(null);
+  const [embedType, setEmbedType] = useState<'audio' | null>(null);
 
   const attachmentFallbacks = useMemo(() => {
     if (!src) return [] as string[];
@@ -103,8 +103,8 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
     }
   };
 
-  // For PDF and audio, fetch as blob and use object URL to avoid X-Frame-Options.
-  // If type is unknown and not an image, probe the blob content-type to decide.
+  // For audio, fetch as blob and use object URL if needed.
+  // PDFs are not embedded inline (X-Frame-Options/CORS); they open in a new tab from the bubble.
   useEffect(() => {
     if (!open || !src) {
       setEmbedSrc((prev) => {
@@ -115,9 +115,7 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
       return;
     }
     const looksLikeImage = /\.(jpe?g|png|gif|webp|avif)(?:\?.*)?$/i.test(src) || /^data:image\//i.test(src);
-    const declaredPdf = /\.pdf($|\?)/i.test(src);
     const declaredAudio = /\.(mp3|m4a|ogg|webm|wav)($|\?)/i.test(src) || /^data:audio\//i.test(src);
-    // If it looks like an image, do not try to embed as PDF/audio
     if (looksLikeImage) {
       setEmbedSrc((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
       setEmbedType(null);
@@ -135,12 +133,11 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
             const blob = await res.blob();
             if (aborted) return;
             const ct = (blob.type || '').toLowerCase();
-            const isPdf = declaredPdf || ct.includes('pdf');
             const isAudio = declaredAudio || ct.startsWith('audio/');
-            if (isPdf || isAudio) {
+            if (isAudio) {
               objectUrl = URL.createObjectURL(blob);
               setEmbedSrc(objectUrl);
-              setEmbedType(isPdf ? 'pdf' : 'audio');
+              setEmbedType('audio');
               return;
             }
           } catch {
@@ -215,17 +212,7 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
               {/* Main media area */}
               <div className="relative inline-block">
                 {(() => {
-                  const isPdf = embedType === 'pdf' || /\.pdf($|\?)/i.test(src);
                   const isAudio = embedType === 'audio' || /\.(mp3|m4a|ogg|webm|wav)($|\?)/i.test(src);
-                  if (isPdf) {
-                    return (
-                      <iframe
-                        src={embedSrc || src}
-                        className="max-h-[80vh] max-w-[96vw] w-[96vw] h-[80vh] rounded-md bg-white"
-                        title={alt}
-                      />
-                    );
-                  }
                   if (isAudio) {
                     return (
                       <div className="max-w-[96vw] max-h-[80vh] p-6 bg-white rounded-md flex items-center justify-center">
