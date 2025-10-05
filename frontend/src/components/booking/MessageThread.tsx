@@ -1896,6 +1896,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
         }
 
+        // Basic, synchronous quote hydration: fetch any referenced quotes
+        // before updating messages so the quote card renders immediately.
+        try {
+          const quoteIds = Array.from(new Set(normalized
+            .map((m) => Number(m.quote_id))
+            .filter((qid) => Number.isFinite(qid) && qid > 0)));
+          if (quoteIds.length) {
+            await ensureQuotesLoaded(quoteIds);
+          }
+        } catch {}
+
         setMessages((prev) => {
           const base = mode === 'initial' ? [] : prev;
           const next = mergeMessages(base, normalized);
@@ -1931,6 +1942,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
         scheduleMarkRead(normalized, 'fetch');
 
+        // Already hydrated above; keep this as a no-op safety net
         void hydrateQuotesForMessages(normalized);
 
         try {
@@ -2003,6 +2015,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       initialNotes,
       onBookingDetailsParsed,
       ensureQuoteLoaded,
+      ensureQuotesLoaded,
       isActiveThread,
     ],
   );
