@@ -54,7 +54,6 @@ import {
   uploadMessageAttachment,
   createQuoteV2,
   getQuoteV2,
-  getQuotesBatch,
   acceptQuoteV2,
   declineQuoteV2,
   getBookingDetails,
@@ -65,7 +64,6 @@ import {
   updateBookingRequestArtist,
   deleteMessageForBookingRequest,
   getService,
-  getQuotesForBookingRequest,
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { emitThreadsUpdated, type ThreadsUpdatedDetail } from '@/lib/threadsEvents';
@@ -75,6 +73,7 @@ import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import useRealtime from '@/hooks/useRealtime';
 import useBookingView from '@/hooks/useBookingView';
+import { useQuotes } from '@/hooks/useQuotes';
 // Non-virtual scroll helpers no longer needed
 
 import Button from '../ui/Button';
@@ -763,7 +762,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- State
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
-  const [quotes, setQuotes] = useState<Record<number, QuoteV2>>({});
+  const { quotesById: quotes, setQuote, ensureQuoteLoaded, ensureQuotesLoaded, resetQuotes } = useQuotes(bookingRequestId);
   const [loading, setLoading] = useState(true);
   const [newMessageContent, setNewMessageContent] = useState('');
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
@@ -1405,54 +1404,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Quote hydration (used by REST & WS)
   // Dedupe in-flight quote loads and add light rate-limiting for missing quotes
-  const pendingQuotesRef = useRef<Set<number>>(new Set());
-  const lastQuoteAttemptRef = useRef<Map<number, number>>(new Map());
-  const ensureQuoteLoaded = useCallback(
-    async (quoteId: number) => {
-      if (!Number.isFinite(quoteId) || quoteId <= 0) return;
-      if (quotes[quoteId]) return;
-      if (pendingQuotesRef.current.has(quoteId)) return;
-      const now = Date.now();
-      const lastTried = lastQuoteAttemptRef.current.get(quoteId) || 0;
-      // Avoid hammering API for permanently missing quotes
-      if (now - lastTried < 30000) return;
-      pendingQuotesRef.current.add(quoteId);
-      lastQuoteAttemptRef.current.set(quoteId, now);
-      try {
-        const res = await getQuoteV2(quoteId);
-        setQuotes((prev) => ({ ...prev, [quoteId]: res.data }));
-
-        if (res.data.status === 'accepted' && res.data.booking_id) {
-          setBookingConfirmed(true);
-          if (!bookingDetails || bookingDetails.id !== res.data.booking_id) {
-            try {
-              const detailsRes = await getBookingDetails(res.data.booking_id);
-              setBookingDetails(detailsRes.data);
-            } catch (err) {
-              console.error('Failed to fetch booking details for accepted quote:', err);
-            }
-          }
-          refreshBookingRequest();
-        }
-      } catch (err) {
-        console.error(`Failed to fetch quote ${quoteId}:`, err);
-        // Fallback: fetch all quotes for this request and pick the one we need
-        try {
-          const list = await getQuotesForBookingRequest(bookingRequestId);
-          const arr = Array.isArray(list.data) ? list.data : [];
-          const found = arr.find((q: any) => Number(q?.id) === Number(quoteId));
-          if (found) {
-            setQuotes((prev) => ({ ...prev, [quoteId]: found }));
-          }
-        } catch (e2) {
-          // swallow; skeleton will remain and future retries/backoffs may succeed
-        }
-      } finally {
-        pendingQuotesRef.current.delete(quoteId);
-      }
-    },
-    [quotes, bookingDetails, refreshBookingRequest, bookingRequestId],
-  );
+  // Quote loading is handled by useQuotes; acceptance side-effects occur on explicit accept
 
   const markIncomingAsRead = useCallback(
     (subset: ThreadMessage[], source: 'fetch' | 'realtime' | 'cache' | 'hydrate') => {
@@ -1527,47 +1479,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }, 700);
   }, [markIncomingAsRead, canMarkReadNow]);
 
-  const hydrateQuotesForMessages = useCallback(
-    async (msgs: ThreadMessage[]) => {
-      const ids = Array.from(
-        new Set(msgs.map((m) => Number(m.quote_id)).filter((qid) => Number.isFinite(qid) && qid > 0)),
-      );
-      if (!ids.length) return;
-      const missing = ids.filter((id) => !quotes[id]);
-      if (!missing.length) return;
-      try {
-        const batch = await getQuotesBatch(missing);
-        const got = Array.isArray(batch.data) ? batch.data : [];
-        if (got.length) {
-          setQuotes((prev) => ({
-            ...prev,
-            ...Object.fromEntries(got.map((q: any) => [q.id, q])),
-          }));
-        }
-        const receivedIds = new Set<number>(
-          got.map((q: any) => Number(q?.id)).filter((n) => Number.isFinite(n)),
-        );
-        const stillMissing = missing.filter((id) => !receivedIds.has(id));
-        for (const id of stillMissing) {
-          try {
-            await ensureQuoteLoaded(id);
-          } catch {}
-        }
-      } catch (err) {
-        for (const msg of msgs) {
-          const qid = Number(msg.quote_id);
-          const isQuote =
-            qid > 0 &&
-            (normalizeType(msg.message_type) === 'QUOTE' ||
-              (normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'review_quote'));
-          if (isQuote) {
-            try { await ensureQuoteLoaded(qid); } catch {}
-          }
-        }
-      }
-    },
-    [quotes, setQuotes, ensureQuoteLoaded],
-  );
+  const hydrateQuotesForMessages = useCallback(async (msgs: ThreadMessage[]) => {
+    const ids = Array.from(new Set(msgs.map((m) => Number(m.quote_id)).filter((qid) => Number.isFinite(qid) && qid > 0)));
+    if (!ids.length) return;
+    await ensureQuotesLoaded(ids);
+  }, [ensureQuotesLoaded]);
 
   useEffect(() => {
     if (!isActiveThread || myUserId <= 0 || messages.length === 0) return;
@@ -1953,7 +1869,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     missingThreadRef.current = false;
     setMessages([]);
-    setQuotes({});
+    resetQuotes();
     setBookingDetails(null);
     setBookingRequest(null);
     setParsedBookingDetails(undefined);
@@ -4099,7 +4015,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       try {
         const res = await createQuoteV2(quoteData);
         const created = res.data;
-        setQuotes((prev) => ({ ...prev, [created.id]: created }));
+        setQuote(created);
         // No drawer — QuoteBubble modal presents details via "View quote".
         void fetchMessages({ mode: 'incremental', force: true, reason: 'quote-send' });
         onMessageSent?.();
@@ -4148,7 +4064,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       try {
         const freshQuote = await getQuoteV2(quote.id);
-        setQuotes((prev) => ({ ...prev, [quote.id]: freshQuote.data }));
+        setQuote(freshQuote.data);
 
         const bookingId = freshQuote.data.booking_id;
         if (!bookingId) throw new Error('Booking not found after accepting quote');
@@ -4182,7 +4098,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       try {
         await declineQuoteV2(quote.id);
         const updatedQuote = await getQuoteV2(quote.id);
-        setQuotes((prev) => ({ ...prev, [quote.id]: updatedQuote.data }));
+        setQuote(updatedQuote.data);
         refreshBookingRequest();
       } catch (err) {
         console.error('Failed to decline quote:', err);
