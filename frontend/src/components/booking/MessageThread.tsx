@@ -4556,7 +4556,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               totalCount={groupedMessages.length}
               computeItemKey={(index) => groupIds[index]}
               itemContent={(index: number) => <div className="w-full">{renderGroupAtIndex(index)}</div>}
-              followOutput="smooth"
+              // Open at bottom but do not animate scrolling on first render
+              followOutput={true}
               initialTopMostItemIndex={groupedMessages.length > 0 ? groupedMessages.length - 1 : 0}
               style={{ height: Math.max(1, virtuosoViewportHeight), width: '100%' }}
               atBottomStateChange={(atBottom: boolean) => {
