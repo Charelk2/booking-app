@@ -885,6 +885,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [supplierInviteAction, setSupplierInviteAction] = useState<SupplierInviteActionState>(null);
   const [serviceProviderByServiceId, setServiceProviderByServiceId] = useState<Record<number, number>>({});
   const isSendingRef = useRef(false);
+  // Stable per-message image src to prevent reloading/flicker on re-render
+  const [imageSrcById, setImageSrcById] = useState<Record<number, string>>({});
 
   // Revoke object URLs on a short delay to avoid races where the DOM
   // still tries to paint a <img>/<audio> using a blob: URL we just revoked.
@@ -2838,32 +2840,45 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   : 'bg-gray-50 text-gray-900 whitespace-pre-wrap break-words';
                 const bubbleShapeAlbum = isMsgFromSelfAlbum ? 'rounded-br-none rounded-xl' : 'rounded-bl-none rounded-xl';
                 const albumAlignClass = isMsgFromSelfAlbum ? 'ml-auto mr-0' : 'mr-auto ml-0';
-                const urls = msgs.map((mm) => toApiAttachmentsUrl(mm.local_preview_url || mm.attachment_url || ''));
+                const albumItems = msgs.map((mm) => {
+                  const raw = mm.local_preview_url || mm.attachment_url || '';
+                  return { id: mm.id, raw, url: toApiAttachmentsUrl(raw) };
+                });
                 return (
                   <div
                     key={`album-${first.id}`}
                     className={`group relative inline-block select-none w-auto max-w-[75%] px-3 py-2 text-[13px] leading-snug ${bubbleBase} ${bubbleShapeAlbum} ${albumAlignClass} mb-2`}
                   >
                     <div className="w-full overflow-x-auto flex gap-2 snap-x" style={{ WebkitOverflowScrolling: 'touch' } as any}>
-                      {urls.map((u, k) => (
+                      {albumItems.map((item, k) => (
                         <button
-                          key={u + k}
+                          key={`${item.id}-${k}`}
                           type="button"
                           className="relative flex-shrink-0 snap-center"
-                          onClick={() => openImageModalForUrl(u)}
+                          onClick={() => openImageModalForUrl(imageSrcById[item.id] || item.url)}
                           aria-label="Open image"
                         >
                           <img
-                            src={u}
+                            src={imageSrcById[item.id] || item.url}
                             alt={`Image ${k + 1}`}
                             className="block h-40 w-auto max-w-[70vw] rounded-lg object-cover"
                             loading="lazy"
                             decoding="async"
                             onError={(e) => {
-                              const tried = (e.currentTarget as any).dataset.triedAlt;
-                              if (!tried) {
-                                (e.currentTarget as HTMLImageElement).src = altAttachmentPath(u);
-                                (e.currentTarget as any).dataset.triedAlt = '1';
+                              const el = e.currentTarget as HTMLImageElement & { dataset: any };
+                              const current = imageSrcById[item.id] || item.url;
+                              const hasAlt = !!el.dataset.triedAlt;
+                              if (!hasAlt) {
+                                const alt = altAttachmentPath(current);
+                                setImageSrcById((prev) => ({ ...prev, [item.id]: alt }));
+                                el.dataset.triedAlt = '1';
+                                return;
+                              }
+                              if (!el.dataset.triedBlob) {
+                                el.dataset.triedBlob = '1';
+                                void fetchAttachmentBlobUrl(item.url).then((blobUrl) => {
+                                  if (blobUrl) setImageSrcById((prev) => ({ ...prev, [item.id]: blobUrl }));
+                                });
                               }
                             }}
                           />
@@ -3253,21 +3268,31 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             <div className="relative mt-0 inline-block w-full">
                               <button
                                 type="button"
-                                onClick={() => openImageModalForUrl(display)}
+                                onClick={() => openImageModalForUrl(imageSrcById[msg.id] || toApiAttachmentsUrl(display))}
                                 className="block"
                                 aria-label="Open image"
                               >
                                 <img
-                                  src={toApiAttachmentsUrl(display)}
+                                  src={imageSrcById[msg.id] || toApiAttachmentsUrl(display)}
                                   alt="Image attachment"
                                   className="block w-full h-auto rounded-xl"
                                   loading="lazy"
                                   decoding="async"
                                   onError={(e) => {
-                                    const tried = (e.currentTarget as any).dataset.triedAlt;
-                                    if (!tried) {
-                                      (e.currentTarget as HTMLImageElement).src = altAttachmentPath(toApiAttachmentsUrl(display));
-                                      (e.currentTarget as any).dataset.triedAlt = '1';
+                                    const el = e.currentTarget as HTMLImageElement & { dataset: any };
+                                    const primary = toApiAttachmentsUrl(display);
+                                    const cur = imageSrcById[msg.id] || primary;
+                                    if (!el.dataset.triedAlt) {
+                                      const alt = altAttachmentPath(cur);
+                                      setImageSrcById((prev) => ({ ...prev, [msg.id]: alt }));
+                                      el.dataset.triedAlt = '1';
+                                      return;
+                                    }
+                                    if (!el.dataset.triedBlob) {
+                                      el.dataset.triedBlob = '1';
+                                      void fetchAttachmentBlobUrl(primary).then((blobUrl) => {
+                                        if (blobUrl) setImageSrcById((prev) => ({ ...prev, [msg.id]: blobUrl }));
+                                      });
                                     }
                                   }}
                                 />
