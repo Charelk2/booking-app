@@ -1,0 +1,95 @@
+from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
+from typing import Optional
+import httpx
+from urllib.parse import urlparse
+import logging
+
+from ..models.user import User
+from .dependencies import get_current_user_optional
+
+router = APIRouter(tags=["attachments"])
+
+logger = logging.getLogger(__name__)
+
+
+def _allowed_host(netloc: str) -> bool:
+    host = (netloc or "").lower()
+    # Allow Cloudflare R2 public endpoints (bucket subdomains)
+    if host.endswith(".r2.cloudflarestorage.com"):
+        return True
+    # Future: allow additional hosts via env/config
+    return False
+
+
+@router.get("/attachments/proxy")
+async def proxy_attachment(
+    request: Request,
+    u: str = Query(..., description="Absolute URL to the upstream media (http/https)"),
+    user: Optional[User] = Depends(get_current_user_optional),
+):
+    """Stream an upstream attachment through same-origin to avoid CORS issues.
+
+    - Only permits whitelisted hosts (e.g., Cloudflare R2 public endpoints)
+    - Forwards Range requests to support audio/video scrubbing
+    - Relays relevant headers (Content-Type, Content-Length, Accept-Ranges, Content-Range, ETag, Last-Modified)
+    - Adds conservative public caching
+    """
+    try:
+        parsed = urlparse(u)
+        if parsed.scheme not in ("http", "https"):
+            return Response(status_code=status.HTTP_400_BAD_REQUEST)
+        if not _allowed_host(parsed.netloc):
+            return Response(status_code=status.HTTP_403_FORBIDDEN)
+    except Exception:
+        return Response(status_code=status.HTTP_400_BAD_REQUEST)
+
+    headers = {}
+    # Forward Range for partial content support
+    rng = request.headers.get("range")
+    if rng:
+        headers["Range"] = rng
+
+    # Do not forward cookies/Authorization; upstream is public
+    async with httpx.AsyncClient(follow_redirects=True, timeout=20.0) as client:
+        try:
+            upstream = await client.stream("GET", u, headers=headers)
+        except Exception as exc:
+            logger.warning("Attachment proxy error: %s", exc)
+            return Response(status_code=status.HTTP_502_BAD_GATEWAY)
+
+        # Map headers to relay
+        relay_headers = {}
+        # Content type & length
+        ct = upstream.headers.get("content-type")
+        if ct:
+            relay_headers["Content-Type"] = ct
+        cl = upstream.headers.get("content-length")
+        if cl:
+            relay_headers["Content-Length"] = cl
+        # Partial content support
+        ar = upstream.headers.get("accept-ranges")
+        if ar:
+            relay_headers["Accept-Ranges"] = ar
+        cr = upstream.headers.get("content-range")
+        if cr:
+            relay_headers["Content-Range"] = cr
+        # Caching hints
+        etag = upstream.headers.get("etag")
+        if etag:
+            relay_headers["ETag"] = etag
+        lm = upstream.headers.get("last-modified")
+        if lm:
+            relay_headers["Last-Modified"] = lm
+        # Avoid private set by upstream; use public cache unless headers say otherwise
+        if "cache-control" in upstream.headers:
+            relay_headers["Cache-Control"] = upstream.headers.get("cache-control")
+        else:
+            relay_headers["Cache-Control"] = "public, max-age=3600"
+
+        return StreamingResponse(
+            upstream.aiter_raw(),
+            status_code=upstream.status_code,
+            headers=relay_headers,
+        )
+

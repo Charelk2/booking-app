@@ -60,6 +60,7 @@ from .api import (
     api_webhooks_events,
     api_uploads,
     api_artist_alias,
+    api_attachments,
 )
 
 # The “service-provider-profiles” router lives under app/api/v1/
@@ -505,6 +506,7 @@ app.include_router(
 
 # Lightweight image proxy routes (e.g., avatar thumbs)
 app.include_router(img_router, prefix=f"{api_prefix}")
+app.include_router(api_attachments.router, prefix=f"{api_prefix}")
 
 
 # ─── SERVICE ROUTES (under /api/v1/services) ────────────────────────────────────────

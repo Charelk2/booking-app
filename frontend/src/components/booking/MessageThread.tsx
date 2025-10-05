@@ -281,8 +281,11 @@ const toApiAttachmentsUrl = (raw: string): string => {
     const api = new URL(API_BASE);
     const u = new URL(raw, API_BASE);
 
-    // If this isn't the API origin, do not rewrite it (e.g., S3/CDN links)
-    if (u.host !== api.host) return u.toString();
+    // If this isn't the API origin, route via same-origin proxy to avoid CORS
+    if (u.host !== api.host) {
+      const proxied = `${api.protocol}//${api.host}${API_V1}/attachments/proxy?u=${encodeURIComponent(u.toString())}`;
+      return proxied;
+    }
 
     // From here on we're same-origin: normalize known attachment/static paths
     let path = u.pathname;
