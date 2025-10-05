@@ -3203,6 +3203,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             const isImg = metaType.startsWith('image/') || (!isAud && !isVid && isImageAttachment(display));
 
                         if (isImg) {
+                          const pct = uploadProgressById[msg.id];
+                          const R = 18; // ring radius
+                          const C = Math.PI * 2 * R;
                           return (
                             <div className="relative mt-0 inline-block w-full">
                               <button
@@ -3226,10 +3229,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   }}
                                 />
                               </button>
-                              {uploadProgressById[msg.id] != null && (
-                                <div className="absolute left-0 right-0 bottom-0 px-2 pb-2">
-                                  <div className="h-1 bg-gray-200/80 rounded-full overflow-hidden">
-                                    <div className="h-1 bg-indigo-500" style={{ width: `${uploadProgressById[msg.id]}%` }} />
+                              {pct != null && (
+                                <div className="absolute inset-0 grid place-items-center">
+                                  <div className="relative">
+                                    <svg width="48" height="48" viewBox="0 0 48 48">
+                                      <circle cx="24" cy="24" r={R} stroke="#e5e7eb" strokeWidth="4" fill="none" />
+                                      <circle
+                                        cx="24"
+                                        cy="24"
+                                        r={R}
+                                        stroke="#6366f1"
+                                        strokeWidth="4"
+                                        fill="none"
+                                        strokeDasharray={`${C} ${C}`}
+                                        strokeDashoffset={`${C * (1 - Math.max(0, Math.min(100, pct)) / 100)}`}
+                                        transform="rotate(-90 24 24)"
+                                      />
+                                    </svg>
                                   </div>
                                 </div>
                               )}
@@ -3288,6 +3304,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
                         if (isVid) {
                           const videoSrc = toProxyPath(display);
+                          const pct = uploadProgressById[msg.id];
+                          const R = 18; const C = Math.PI * 2 * R;
                           return (
                             <div className="mt-1 inline-block w-full md:w-1/2 lg:w-1/2 relative">
                               <video
@@ -3297,10 +3315,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 playsInline
                                 src={videoSrc}
                               />
-                              {uploadProgressById[msg.id] != null && (
-                                <div className="absolute left-0 right-0 bottom-0 px-2 pb-2">
-                                  <div className="h-1 bg-gray-200/80 rounded-full overflow-hidden">
-                                    <div className="h-1 bg-indigo-500" style={{ width: `${uploadProgressById[msg.id]}%` }} />
+                              {pct != null && (
+                                <div className="absolute inset-0 grid place-items-center">
+                                  <div className="relative">
+                                    <svg width="48" height="48" viewBox="0 0 48 48">
+                                      <circle cx="24" cy="24" r={R} stroke="#e5e7eb" strokeWidth="4" fill="none" />
+                                      <circle
+                                        cx="24"
+                                        cy="24"
+                                        r={R}
+                                        stroke="#6366f1"
+                                        strokeWidth="4"
+                                        fill="none"
+                                        strokeDasharray={`${C} ${C}`}
+                                        strokeDashoffset={`${C * (1 - Math.max(0, Math.min(100, pct)) / 100)}`}
+                                        transform="rotate(-90 24 24)"
+                                      />
+                                    </svg>
                                   </div>
                                 </div>
                               )}
@@ -4021,9 +4052,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       const finalizeMessage = (tempId: number, real: ThreadMessage) => {
         setMessages((prev) => {
+          const prevOptimistic = prev.find((m) => m.id === tempId);
+          const realWithPreview = prevOptimistic?.local_preview_url
+            ? { ...real, local_preview_url: prevOptimistic.local_preview_url }
+            : real;
           const byId = new Map<number, ThreadMessage>();
           for (const m of prev) if (m.id !== tempId) byId.set(m.id, m);
-          byId.set(real.id, real);
+          byId.set(real.id, realWithPreview);
           const next = Array.from(byId.values()).sort(
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
           );
