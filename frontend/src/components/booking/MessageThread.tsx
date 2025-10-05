@@ -2306,7 +2306,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       // Light cadence: incremental fetch every 8s while offline/reconnecting
       const tick = () => {
         if (!isActiveThread) return;
-        void fetchMessages({ mode: 'incremental', reason: 'poll' });
+        // Use a full refresh to capture read-status changes on existing messages
+        void fetchMessages({ mode: 'initial', force: true, reason: 'poll' });
       };
       tick();
       timer = setInterval(tick, 8000);
@@ -3548,7 +3549,22 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         </div>
       </ThreadMessageGroup>
     );
-  }, [groupedMessages, myUserId, user?.user_type, clientAvatarUrl, clientName, artistAvatarUrl, artistName, resolveListingViewUrl]);
+  }, [
+    groupedMessages,
+    myUserId,
+    user?.user_type,
+    clientAvatarUrl,
+    clientName,
+    artistAvatarUrl,
+    artistName,
+    resolveListingViewUrl,
+    // ensure UI responds to local toggles and badges
+    reactionPickerFor,
+    actionMenuFor,
+    reactions,
+    copiedFor,
+    highlightFor,
+  ]);
 
   // Hide artist inline quote composer for pure inquiry threads created from profile page
   // Also treat threads started via message-threads/start (no booking details/quotes yet) as inquiries
