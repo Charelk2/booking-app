@@ -1249,6 +1249,35 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     };
   }, [hasUserActivity]);
 
+  // Treat component mount and thread switch as activity; also kick a presence refresh fetch
+  useEffect(() => {
+    lastActivityRef.current = Date.now();
+    if (!hasUserActivity) setHasUserActivity(true);
+    // Small merge-update fetch to refresh last-seen immediately on mount
+    void fetchMessages({ mode: 'initial', force: true, reason: 'activity-mount', limit: 100, behavior: 'merge_update' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // On thread switch, consider as activity and refresh presence/last-seen snapshot
+    lastActivityRef.current = Date.now();
+    if (!hasUserActivity) setHasUserActivity(true);
+    void fetchMessages({ mode: 'initial', force: true, reason: 'activity-thread-switch', limit: 100, behavior: 'merge_update' });
+  }, [bookingRequestId]);
+
+  // Consider tab becoming visible as user activity (e.g., navigating back to inbox)
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        lastActivityRef.current = Date.now();
+        if (!hasUserActivity) setHasUserActivity(true);
+        void fetchMessages({ mode: 'initial', force: true, reason: 'activity-visible', limit: 100, behavior: 'merge_update' });
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [hasUserActivity, fetchMessages]);
+
   // ---- Derived
   const computedServiceName = serviceName ?? bookingDetails?.service?.title;
   const serviceTypeFromThread = bookingRequest?.service?.service_type || bookingDetails?.service?.service_type || '';
