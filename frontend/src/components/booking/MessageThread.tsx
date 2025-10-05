@@ -3097,7 +3097,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <div
                 key={msg.id}
                 id={`msg-${msg.id}`}
-                className={`group relative inline-block select-none w-auto max-w-[75%] px-3 py-2 text-[13px] leading-snug ${bubbleClasses} ${hasReactionsForMsg ? 'mb-5' : (msgIdx < group.messages.length - 1 ? 'mb-0.5' : '')} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'} ${highlightFor === msg.id ? 'ring-1 ring-indigo-200' : ''}`}
+                className={`group relative inline-block select-none w-auto max-w-[75%] px-3 py-2 text-[13px] leading-snug ${bubbleClasses} ${hasReactionsForMsg ? 'mb-5' : (msgIdx < group.messages.length - 1 ? 'mb-0.5' : 'mb-3')} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'} ${highlightFor === msg.id ? 'ring-1 ring-indigo-200' : ''}`}
                 ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                 onTouchStart={(e) => startLongPress(msg.id, e)}
                 onTouchMove={moveLongPress}
