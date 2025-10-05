@@ -2297,6 +2297,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     try { (window as any).__threadInfo = () => ({ bookingRequestId, topics }); } catch {}
   }, [bookingRequestId, topics]);
 
+  // Fallback: When realtime isn't open, poll for updates so read receipts and
+  // reactions still progress without requiring manual refresh.
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (timer) return;
+      // Light cadence: incremental fetch every 8s while offline/reconnecting
+      const tick = () => {
+        if (!isActiveThread) return;
+        void fetchMessages({ mode: 'incremental', reason: 'poll' });
+      };
+      tick();
+      timer = setInterval(tick, 8000);
+    };
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    if (socketStatus !== 'open') start(); else stop();
+    return () => stop();
+  }, [socketStatus, isActiveThread, fetchMessages]);
+
   // ---- Presence updates via multiplex (v1 envelope)
   useEffect(() => {
     if (!myUserId) return;
