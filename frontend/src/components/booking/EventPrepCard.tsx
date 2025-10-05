@@ -23,6 +23,9 @@ import {
 } from '@heroicons/react/24/outline';
 import EventPrepSkeleton from './EventPrepSkeleton';
 
+// Simple in-memory cache so Event Prep renders instantly on thread switch.
+const EVENT_PREP_CACHE: Map<number, EventPrep> = new Map();
+
 type EventPrepCardProps = {
   bookingId: number;
   bookingRequestId: number;
@@ -80,15 +83,27 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
   const { user } = useAuth();
   const isProvider = (user?.user_type || '').toString() === 'service_provider';
 
-  // Bootstrap data
+  // Bootstrap data with stale-while-revalidate using the in-memory cache
   useEffect(() => {
     let mounted = true;
-    setInitializing(true);
+    // If we have cached data, render it immediately without a skeleton.
+    const cached = EVENT_PREP_CACHE.get(bookingId);
+    if (cached) {
+      setEp(cached);
+      setName(cached.day_of_contact_name || '');
+      setPhone(cached.day_of_contact_phone || '');
+      setLoadinStart(toHHMM(cached.loadin_start));
+      setLoadinEnd(toHHMM(cached.loadin_end));
+      setInitializing(false);
+    } else {
+      setInitializing(true);
+    }
     (async () => {
       try {
         const data = await getEventPrep(bookingId);
         if (!mounted) return;
         setEp(data);
+        EVENT_PREP_CACHE.set(bookingId, data);
         setName(data.day_of_contact_name || '');
         setPhone(data.day_of_contact_phone || '');
         setLoadinStart(toHHMM(data.loadin_start));
@@ -145,7 +160,11 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
       try {
         const data = JSON.parse(event.data as string);
         if (data?.type === 'event_prep_updated' && data?.payload?.booking_id === bookingId) {
-          setEp((prev) => ({ ...(prev || {} as any), ...data.payload }));
+          setEp((prev) => {
+            const next = { ...(prev || ({} as any)), ...data.payload } as EventPrep;
+            EVENT_PREP_CACHE.set(bookingId, next);
+            return next;
+          });
         }
       } catch { /* ignore */ }
     });
@@ -177,11 +196,17 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
 
   const patch = useCallback(async (p: Partial<EventPrep>) => {
     if (!ep) return;
-    setEp({ ...ep, ...p }); // optimistic
+    const optimistic = { ...ep, ...p } as EventPrep;
+    setEp(optimistic); // optimistic
+    EVENT_PREP_CACHE.set(bookingId, optimistic);
     setSaving(true); startSaving();
     try {
       const fresh = await updateEventPrep(bookingId, p as any, { idempotencyKey: makeIdemKey() });
-      setEp((prev) => ({ ...(prev || {} as any), ...fresh }));
+      setEp((prev) => {
+        const next = { ...(prev || ({} as any)), ...fresh } as EventPrep;
+        EVENT_PREP_CACHE.set(bookingId, next);
+        return next;
+      });
     } catch {
       // on failure, keep optimistic (WS or next fetch will correct)
     } finally {

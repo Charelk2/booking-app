@@ -5,6 +5,8 @@ import SafeImage from '@/components/ui/SafeImage';
 import { BookingRequest, User } from '@/types';
 import { FixedSizeList as List } from 'react-window';
 import type { CSSProperties } from 'react';
+import { getMessagesForBookingRequest } from '@/lib/api';
+import { hasThreadCacheAsync, writeThreadCache } from '@/lib/threadCache';
 import React from 'react';
 import { t } from '@/lib/i18n';
 
@@ -163,7 +165,7 @@ export default function ConversationList({
       onScroll={(ev: { scrollOffset: number }) => {
         try { sessionStorage.setItem(STORAGE_KEY, String(ev.scrollOffset)); } catch {}
       }}
-      onItemsRendered={({ visibleStartIndex }: { visibleStartIndex: number }) => {
+      onItemsRendered={({ visibleStartIndex, visibleStopIndex, overscanStartIndex, overscanStopIndex }: any) => {
         lastVisibleStartRef.current = visibleStartIndex;
         try {
           const id = bookingRequests[visibleStartIndex]?.id;
@@ -172,6 +174,22 @@ export default function ConversationList({
             sessionStorage.setItem(STORAGE_TOP_INDEX, String(visibleStartIndex));
           }
         } catch {}
+
+        // Prefetch messages for threads currently in view to warm caches.
+        const start = Math.max(0, Number.isFinite(visibleStartIndex) ? visibleStartIndex : 0);
+        const stop = Math.min(bookingRequests.length - 1, Number.isFinite(visibleStopIndex) ? visibleStopIndex : start);
+        for (let i = start; i <= stop; i += 1) {
+          const req = bookingRequests[i];
+          if (!req || !req.id) continue;
+          schedulePrefetch(req.id);
+        }
+
+        // Lightly prefetch one item just outside the viewport (lookahead)
+        const ahead = Math.min(bookingRequests.length - 1, stop + 1);
+        if (ahead > stop) {
+          const req = bookingRequests[ahead];
+          if (req && req.id) schedulePrefetch(req.id);
+        }
       }}
       outerElementType={Outer}
       itemData={useRowData(bookingRequests, selectedRequestId, onSelectRequest, React.useMemo(() => buildPrecomputed(bookingRequests, currentUser, q), [bookingRequests, currentUser, q]), q)}
@@ -507,6 +525,39 @@ function useRowData(bookingRequests: BookingRequest[], selectedId: number | null
   return React.useMemo<RowData>(() => (
     { items: bookingRequests, selectedId, onSelect, pre, q, onRowClick, onRowKeyDown, onRowPointerDown, onRowMouseDownCapture, onRowMouseEnter }
   ), [bookingRequests, selectedId, onSelect, pre, q, onRowClick, onRowKeyDown, onRowPointerDown, onRowMouseDownCapture, onRowMouseEnter]);
+}
+
+// ─── Prefetch helpers (in-view warmup) ──────────────────────────────────────
+const PREFETCH_INFLIGHT: Set<number> = new Set();
+async function prefetchThread(threadId: number) {
+  try {
+    if (PREFETCH_INFLIGHT.has(threadId)) return;
+    PREFETCH_INFLIGHT.add(threadId);
+    try {
+      const hasCache = await hasThreadCacheAsync(threadId);
+      if (hasCache) return;
+    } catch {}
+    const res = await getMessagesForBookingRequest(threadId, { limit: 60, mode: 'full' });
+    const items = Array.isArray((res.data as any)?.items) ? (res.data as any).items : [];
+    if (items.length) writeThreadCache(threadId, items);
+  } catch {
+    // ignore — prefetch is best-effort
+  } finally {
+    PREFETCH_INFLIGHT.delete(threadId);
+  }
+}
+
+let prefetchTimer: number | null = null;
+const prefetchQueue: Set<number> = new Set();
+function schedulePrefetch(threadId: number) {
+  prefetchQueue.add(threadId);
+  if (prefetchTimer != null) return;
+  prefetchTimer = window.setTimeout(() => {
+    const ids = Array.from(prefetchQueue);
+    prefetchQueue.clear();
+    prefetchTimer = null;
+    ids.forEach((id) => { void prefetchThread(id); });
+  }, 200);
 }
 
 // End
