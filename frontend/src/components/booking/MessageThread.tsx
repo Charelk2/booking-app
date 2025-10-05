@@ -3423,7 +3423,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     onClick={(e) => {
                       e.stopPropagation();
                       setActionMenuFor(null);
-                      setReactionPickerFor((v) => (v === msg.id ? null : msg.id));
+                      // Defer open until after document mousedown/click closes have run
+                      setTimeout(() => {
+                        setReactionPickerFor((v) => (v === msg.id ? null : msg.id));
+                      }, 0);
                     }}
                   >
                     <FaceSmileIcon className="w-5 h-5 text-black" />
@@ -4011,7 +4014,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           onClick={(e) => {
             e.stopPropagation();
             setReactionPickerFor(null);
-            setActionMenuFor((v) => (v === msg.id ? null : msg.id));
+            setTimeout(() => {
+              setActionMenuFor((v) => (v === msg.id ? null : msg.id));
+            }, 0);
           }}
         >
           <ChevronDownIcon className="w-3 h-3" />
