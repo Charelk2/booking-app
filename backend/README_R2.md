@@ -16,6 +16,19 @@ Set these in your deployment (Fly.io, Render, etc.). Do not commit secrets.
 - R2_PRESIGN_UPLOAD_TTL=3600 (optional, seconds)
 - R2_PRESIGN_DOWNLOAD_TTL=604800 (optional, seconds)
 
+Attachments proxy/redirect (API)
+- The API endpoint `/api/v1/attachments/proxy` now validates then 302‑redirects
+  to presigned URLs by default. Browsers stream media directly from R2 which
+  avoids most 5xxs.
+- Optional environment variables:
+  - ATTACHMENTS_PROXY_ALLOWED_HOSTS — comma‑separated extra hosts allowed by
+    the proxy/redirect in addition to the default `*.r2.cloudflarestorage.com`.
+    Only set this if you serve attachments from a custom domain
+    (e.g., `media.booka.co.za`).
+  - ATTACHMENTS_PROXY_MAX_MB — maximum size (MB) the streaming mode will relay
+    when `mode=stream` is requested. Redirect mode is not affected. Set to `0`
+    to disable; default is `50`.
+
 API
 - POST /api/v1/booking-requests/{id}/attachments/presign
   Body: { kind: voice|video|image|file, filename, content_type, size }
