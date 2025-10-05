@@ -1073,9 +1073,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const imageMenuRef = useRef<HTMLDivElement | null>(null);
   // Simple responsive helper (reactive)
   const [isMobile, setIsMobile] = useState(false);
-  // Guard: when we programmatically open a popover in response to a click,
-  // ignore the next document click closer so it doesn’t instantly close it.
-  const justOpenedAtRef = useRef<number>(0);
+  // No global click-away closers: keep interactions simple and explicit.
   useEffect(() => {
     const update = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 640);
     update();
@@ -1131,39 +1129,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // Close pickers/menus when clicking outside (use click, not mousedown)
   useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      // If a popover was just opened in this tick, ignore this closing click.
-      // This avoids the open → immediate close race on certain browsers/React setups.
-      if (Date.now() - (justOpenedAtRef.current || 0) < 200) return;
-      const t = e.target as Node;
-      // When mobile overlay is open, let its handlers manage open/close
-      if (isMobile && actionMenuFor !== null) return;
-      if (reactionPickerFor) {
-        const inDesktop = reactionPickerRefDesktop.current?.contains(t) ?? false;
-        const inMobile = reactionPickerRefMobile.current?.contains(t) ?? false;
-        if (!inDesktop && !inMobile) setReactionPickerFor(null);
-      }
-      if (actionMenuFor && actionMenuRef.current && !actionMenuRef.current.contains(t)) {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setReactionPickerFor(null);
         setActionMenuFor(null);
-      }
-      if (imageMenuFor && imageMenuRef.current && !imageMenuRef.current.contains(t)) {
         setImageMenuFor(null);
       }
     };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (reactionPickerFor) setReactionPickerFor(null);
-        if (actionMenuFor) setActionMenuFor(null);
-        if (imageMenuFor) setImageMenuFor(null);
-      }
-    };
-    document.addEventListener('click', onDocClick);
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('click', onDocClick);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [reactionPickerFor, actionMenuFor, imageMenuFor, isMobile]);
+  }, []);
 
   const startLongPress = useCallback((msgId: number, e: React.TouchEvent) => {
     try {
@@ -3426,17 +3403,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     title="React"
                     aria-label="React to message"
                     className="w-6 h-6 flex items-center justify-center text-black hover:scale-110 transition-transform"
-                    onMouseDown={(e) => {
-                      // Make the toggle deterministic and resilient to global click-closers.
-                      e.preventDefault();
+                    onClick={(e) => {
                       e.stopPropagation();
                       setActionMenuFor(null);
-                      // Mark that we are opening so the global click listener ignores this cycle.
-                      justOpenedAtRef.current = Date.now();
-                      // Defer to next tick to avoid interfering with current event bubbling.
-                      setTimeout(() => {
-                        setReactionPickerFor((v) => (v === msg.id ? null : msg.id));
-                      }, 0);
+                      setReactionPickerFor((v) => (v === msg.id ? null : msg.id));
                     }}
                   >
                     <FaceSmileIcon className="w-5 h-5 text-black" />
@@ -4021,15 +3991,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           type="button"
           title="More"
           className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
-          onMouseDown={(e) => {
-            // Ensure opening is not immediately canceled by the global click-closer.
-            e.preventDefault();
+          onClick={(e) => {
             e.stopPropagation();
             setReactionPickerFor(null);
-            justOpenedAtRef.current = Date.now();
-            setTimeout(() => {
-              setActionMenuFor((v) => (v === msg.id ? null : msg.id));
-            }, 0);
+            setActionMenuFor((v) => (v === msg.id ? null : msg.id));
           }}
         >
           <ChevronDownIcon className="w-3 h-3" />
