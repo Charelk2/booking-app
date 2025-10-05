@@ -2940,9 +2940,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               >
                 {/* Desktop hover extender zones: make hover area span full row side */}
                 {isMsgFromSelf ? (
-                  <div className="hidden md:block absolute inset-y-0 left-0 right-0" aria-hidden="true" />
+                  <div className="hidden md:block absolute inset-y-0 left-0 right-0 pointer-events-none" aria-hidden="true" />
                 ) : (
-                  <div className="hidden md:block absolute inset-y-0 left-0 right-0" aria-hidden="true" />
+                  <div className="hidden md:block absolute inset-y-0 left-0 right-0 pointer-events-none" aria-hidden="true" />
                 )}
                 <div className={isImageAttachment(msg.attachment_url || undefined) ? '' : 'pr-9 mb-1'}>
                   {msg.reply_to_preview && (
@@ -3143,7 +3143,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   className={`hidden md:block absolute top-1/2 -translate-y-1/2 z-20 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto ${
                     isMsgFromSelf ? '-left-6' : '-right-6'
                   }`}
-                  aria-hidden
                 >
                   <button
                     type="button"
