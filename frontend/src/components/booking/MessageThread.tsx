@@ -107,6 +107,10 @@ type FetchMessagesOptions = {
   mode?: 'initial' | 'incremental';
   force?: boolean;
   reason?: string;
+  /** override page size (defaults: 100 initial, 50 incremental) */
+  limit?: number;
+  /** merge_update: do not replace the list; only merge new + update flags */
+  behavior?: 'replace' | 'merge_update';
 };
 
 // ===== Constants ==============================================================
@@ -1669,7 +1673,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (mode === 'initial' && !initialLoadedRef.current) setLoading(true);
 
       const params: MessageListParams = {
-        limit: mode === 'initial' ? 100 : 50,
+        limit: (options.limit != null
+          ? options.limit
+          : (mode === 'initial' ? 100 : 50)),
       };
       let requestedDelta = false;
       if (mode === 'incremental' && hasValidCursor) {
@@ -1820,10 +1826,58 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         } catch {}
 
         setMessages((prev) => {
-          const base = mode === 'initial' ? [] : prev;
-          const next = mergeMessages(base, normalized);
-          writeCachedMessages(bookingRequestId, next);
-          return next;
+          // Default behavior: replace on initial, merge on incremental
+          const defaultReplace = mode === 'initial';
+          const behavior = options.behavior || (defaultReplace ? 'replace' : 'merge_update');
+
+          if (behavior === 'replace') {
+            const base: ThreadMessage[] = defaultReplace ? [] : prev;
+            const next = mergeMessages(base, normalized);
+            try { writeCachedMessages(bookingRequestId, next); } catch {}
+            return next;
+          }
+
+          // merge_update: only add new messages and update flags on existing ones
+          // Build quick lookup for normalized subset
+          const byId = new Map<number, ThreadMessage>();
+          for (const m of normalized) byId.set(m.id, m);
+
+          // 1) Add any new messages (not present in prev)
+          let out = prev;
+          const missing = normalized.filter((m) => !prev.some((p) => p.id === m.id));
+          if (missing.length) {
+            out = mergeMessages(out, missing);
+          }
+
+          // 2) Update read/reactions status for overlapping ids without remounting all
+          let mutated = false;
+          const next = out.map((msg) => {
+            const nm = byId.get(msg.id);
+            if (!nm) return msg;
+            let changed = false;
+            // Only update fields that affect receipts/reactions
+            const updates: Partial<ThreadMessage> = {};
+            if (msg.is_read !== nm.is_read) { updates.is_read = nm.is_read; changed = true; }
+            // Delivery state approximation (from timestamps/flags)
+            const msgState = toDeliveryState(msg);
+            const nmState = toDeliveryState(nm);
+            if (msgState !== nmState) { updates.status = nm.status ?? msg.status; changed = true; }
+            // Reactions map
+            const a = (msg.reactions || {});
+            const b = (nm.reactions || {});
+            const aKeys = Object.keys(a);
+            const bKeys = Object.keys(b);
+            const sameKeys = aKeys.length === bKeys.length && aKeys.every((k) => a[k] === (b as any)[k]);
+            if (!sameKeys) { updates.reactions = nm.reactions || null; changed = true; }
+            if (!changed) return msg;
+            mutated = true;
+            return { ...msg, ...updates };
+          });
+          if (mutated) {
+            try { writeCachedMessages(bookingRequestId, next); } catch {}
+            return next;
+          }
+          return out;
         });
         setThreadError(null);
         setLoading(false);
@@ -2303,8 +2357,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     try { (window as any).__threadInfo = () => ({ bookingRequestId, topics }); } catch {}
   }, [bookingRequestId, topics]);
 
-  // Fallback: When realtime isn't open, poll for new messages only (delta)
-  // so the UI doesn't thrash/re-render unnecessarily.
+  // Fallback: When realtime isn't open, poll and gently merge updates
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
     const start = () => {
@@ -2312,9 +2365,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       // Light cadence: incremental fetch every 8s while offline/reconnecting
       const tick = () => {
         if (!isActiveThread) return;
-        // Only request deltas; if no new rows, fetchMessages early-returns
-        // without touching component state.
-        void fetchMessages({ mode: 'incremental', force: true, reason: 'poll' });
+        // Use a merge_update on a small full fetch to refresh read flags,
+        // while minimizing remounts and network.
+        void fetchMessages({ mode: 'initial', force: true, reason: 'poll-read', limit: 100, behavior: 'merge_update' });
       };
       tick();
       timer = setInterval(tick, 8000);
