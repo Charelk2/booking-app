@@ -3197,7 +3197,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 className="w-56"
                                 controls
                                 src={initialAudioSrc}
-                                preload="metadata"
+                                preload="none"
                                 crossOrigin="anonymous"
                                 onLoadedData={(e) => {
                                   const el = e.currentTarget;
@@ -4662,7 +4662,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         <div className={isDetailsPanelOpen ? 'hidden md:flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner' : 'flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner'}>
           {attachmentFile && (attachmentFile.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg)$/i.test(attachmentFile.name || '')) ? (
             <>
-              <audio className="w-48" controls src={attachmentPreviewUrl} preload="metadata" />
+              <audio className="w-48" controls src={attachmentPreviewUrl} preload="none" />
               <span className="text-xs text-gray-700 font-medium">{attachmentFile.name} ({formatBytes(attachmentFile.size)})</span>
             </>
           ) : (
