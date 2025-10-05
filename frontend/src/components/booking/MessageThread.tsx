@@ -127,10 +127,35 @@ const MIN_SCROLL_OFFSET = 24;
 const BOTTOM_GAP_PX = 8;
 // Virtualized list renders full dataset efficiently
 const MAX_TEXTAREA_LINES = 10;
-const isImageAttachment = (url?: string | null) =>
-  !!url && (/^blob:/i.test(url) || /^data:image\//i.test(url) || /\.(jpe?g|png|gif|webp|avif)$/i.test(url));
-const isAudioAttachmentUrl = (url?: string | null) =>
-  !!url && (/^blob:/i.test(url) || /^data:audio\//i.test(url) || /\.(webm|mp3|m4a|ogg|wav)$/i.test(url));
+// Robust type guards that also recognize our same‑origin proxy
+const _underlyingUrlForProxy = (value?: string | null): string | null => {
+  if (!value) return null;
+  try {
+    const u = new URL(value, API_BASE);
+    // Match both absolute and path-only forms of our proxy endpoint
+    if (/\/api\/v1\/attachments\/proxy$/i.test(u.pathname) || /\/attachments\/proxy$/i.test(u.pathname)) {
+      const raw = u.searchParams.get('u');
+      if (raw) return raw;
+    }
+  } catch {}
+  return null;
+};
+
+const isImageAttachment = (url?: string | null) => {
+  if (!url) return false;
+  if (/^blob:/i.test(url) || /^data:image\//i.test(url)) return true;
+  if (/\.(jpe?g|png|gif|webp|avif)(?:\?.*)?$/i.test(url)) return true;
+  const proxied = _underlyingUrlForProxy(url);
+  return proxied ? /\.(jpe?g|png|gif|webp|avif)(?:\?.*)?$/i.test(proxied) : false;
+};
+
+const isAudioAttachmentUrl = (url?: string | null) => {
+  if (!url) return false;
+  if (/^blob:/i.test(url) || /^data:audio\//i.test(url)) return true;
+  if (/\.(webm|mp3|m4a|ogg|wav)(?:\?.*)?$/i.test(url)) return true;
+  const proxied = _underlyingUrlForProxy(url);
+  return proxied ? /\.(webm|mp3|m4a|ogg|wav)(?:\?.*)?$/i.test(proxied) : false;
+};
 
 // Use UTC ISO timestamps for API payloads and optimistic messages
 const gmt2ISOString = () => new Date().toISOString();
