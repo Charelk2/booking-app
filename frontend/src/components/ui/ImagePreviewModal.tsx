@@ -17,6 +17,7 @@ interface ImagePreviewModalProps {
 
 export default function ImagePreviewModal({ open, src, alt = 'Image preview', onClose, images, index = 0, onIndexChange, onReply }: ImagePreviewModalProps) {
   const [embedSrc, setEmbedSrc] = useState<string | null>(null);
+  const [embedType, setEmbedType] = useState<'pdf' | 'audio' | null>(null);
 
   const attachmentFallbacks = useMemo(() => {
     if (!src) return [] as string[];
@@ -102,22 +103,24 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
     }
   };
 
-  // For PDF and audio, fetch as blob and use object URL to avoid X-Frame-Options
+  // For PDF and audio, fetch as blob and use object URL to avoid X-Frame-Options.
+  // If type is unknown and not an image, probe the blob content-type to decide.
   useEffect(() => {
     if (!open || !src) {
       setEmbedSrc((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
       });
+      setEmbedType(null);
       return;
     }
-    const isPdf = /\.pdf($|\?)/i.test(src);
-    const isAudio = /\.(mp3|m4a|ogg|webm|wav)($|\?)/i.test(src);
-    if (!isPdf && !isAudio) {
-      setEmbedSrc((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
+    const looksLikeImage = /\.(jpe?g|png|gif|webp|avif)(?:\?.*)?$/i.test(src) || /^data:image\//i.test(src);
+    const declaredPdf = /\.pdf($|\?)/i.test(src);
+    const declaredAudio = /\.(mp3|m4a|ogg|webm|wav)($|\?)/i.test(src) || /^data:audio\//i.test(src);
+    // If it looks like an image, do not try to embed as PDF/audio
+    if (looksLikeImage) {
+      setEmbedSrc((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+      setEmbedType(null);
       return;
     }
     let aborted = false;
@@ -131,16 +134,24 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
             if (!res.ok) continue;
             const blob = await res.blob();
             if (aborted) return;
-            objectUrl = URL.createObjectURL(blob);
-            setEmbedSrc(objectUrl);
-            return;
+            const ct = (blob.type || '').toLowerCase();
+            const isPdf = declaredPdf || ct.includes('pdf');
+            const isAudio = declaredAudio || ct.startsWith('audio/');
+            if (isPdf || isAudio) {
+              objectUrl = URL.createObjectURL(blob);
+              setEmbedSrc(objectUrl);
+              setEmbedType(isPdf ? 'pdf' : 'audio');
+              return;
+            }
           } catch {
             continue;
           }
         }
         setEmbedSrc(null);
+        setEmbedType(null);
       } catch {
         setEmbedSrc(null);
+        setEmbedType(null);
       }
     })();
     return () => {
@@ -179,11 +190,33 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
             >
+              {/* Top-right close and download actions */}
+              <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+                <a
+                  href={embedSrc || src}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded bg-white/90 border border-gray-200 px-2 py-1 text-[12px] text-gray-700 hover:bg-white"
+                >
+                  Download
+                </a>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close preview"
+                  className="rounded-full bg-white/90 border border-gray-200 w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-white"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
               {/* Main media area */}
               <div className="relative inline-block">
                 {(() => {
-                  const isPdf = /\.pdf($|\?)/i.test(src);
-                  const isAudio = /\.(mp3|m4a|ogg|webm|wav)($|\?)/i.test(src);
+                  const isPdf = embedType === 'pdf' || /\.pdf($|\?)/i.test(src);
+                  const isAudio = embedType === 'audio' || /\.(mp3|m4a|ogg|webm|wav)($|\?)/i.test(src);
                   if (isPdf) {
                     return (
                       <iframe

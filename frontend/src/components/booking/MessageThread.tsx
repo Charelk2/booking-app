@@ -3178,6 +3178,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               <div className="min-w-0 flex-1">
                                 <div className="line-clamp-2 break-words font-medium">{label}</div>
                                 {sizeLabel && <div className="text-[11px] text-gray-500 mt-0.5">{sizeLabel}</div>}
+                                {(() => {
+                                  const ext = (() => { try { const c = url.split('?')[0]; return (c.split('.').pop() || '').toLowerCase(); } catch { return ''; } })();
+                                  if (ext === 'pdf') return <div className="mt-0.5 text-[11px] text-indigo-700">View PDF</div>;
+                                  return null;
+                                })()}
                               </div>
                             </div>
                             {uploadProgressById[msg.id] != null && (
