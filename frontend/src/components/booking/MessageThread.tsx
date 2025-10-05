@@ -1066,8 +1066,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => { myReactionsRef.current = myReactions; }, [myReactions]);
   const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
   const [actionMenuFor, setActionMenuFor] = useState<number | null>(null);
-  // Basic mobile detection for interaction affordances
-  const isMobile = typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false;
   const reactionPickerRefDesktop = useRef<HTMLDivElement | null>(null);
   const reactionPickerRefMobile = useRef<HTMLDivElement | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
