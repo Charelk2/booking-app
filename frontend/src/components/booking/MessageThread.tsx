@@ -2698,15 +2698,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       // No extra quote hydration here; fetchMessages handles it synchronously.
     };
+    if (!hasUserActivity || !myUserId) return () => {};
     const unsubs = topics.map((t) => subscribe(t, handler));
     return () => { unsubs.forEach((u) => u()); };
-  }, [subscribe, topics, myUserId, bookingRequestId, fetchMessages]);
+  }, [subscribe, topics, myUserId, bookingRequestId, fetchMessages, hasUserActivity]);
 
   // Removed aggressive polling; the 8s delta poll (when WS is closed) is enough.
 
   // Also listen to global notifications as a safety net; if a new_message
   // notification arrives, refresh this thread if ids match or if no id is present.
   useEffect(() => {
+    if (!hasUserActivity || !myUserId) return () => {};
     const unsub = subscribe('notifications', (payload: any) => {
       try {
         const typ = String(payload?.type || '').toLowerCase();
@@ -2726,7 +2728,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       } catch {}
     });
     return () => { try { unsub(); } catch {} };
-  }, [subscribe, bookingRequestId, fetchMessages]);
+  }, [subscribe, bookingRequestId, fetchMessages, hasUserActivity, myUserId]);
 
   // ---- Attachment preview URL
   useEffect(() => {
