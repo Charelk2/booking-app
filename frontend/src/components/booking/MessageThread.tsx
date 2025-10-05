@@ -153,7 +153,9 @@ const isImageAttachment = (url?: string | null) => {
 
 const isAudioAttachmentUrl = (url?: string | null) => {
   if (!url) return false;
-  if (/^blob:/i.test(url) || /^data:audio\//i.test(url)) return true;
+  // Only data:audio is a reliable signal from URL; generic blob: must be
+  // classified by content-type metadata, not URL scheme.
+  if (/^data:audio\//i.test(url)) return true;
   if (/\.(webm|mp3|m4a|ogg|wav)(?:\?.*)?$/i.test(url)) return true;
   const proxied = _underlyingUrlForProxy(url);
   return proxied ? /\.(webm|mp3|m4a|ogg|wav)(?:\?.*)?$/i.test(proxied) : false;
@@ -3133,8 +3135,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         ? (/^(blob:|data:)/i.test(msg.attachment_url) ? msg.attachment_url : toApiAttachmentsUrl(msg.attachment_url))
                         : '';
                       const display = msg.local_preview_url || url;
-                      const isAudio = isAudioAttachmentUrl(display);
-                      const isImage = isImageAttachment(display);
+                      const metaTypeH = String((msg.attachment_meta as any)?.content_type || '').toLowerCase();
+                      const isAudio = metaTypeH.startsWith('audio/') || isAudioAttachmentUrl(display);
+                      const isImage = metaTypeH.startsWith('image/') || (!isAudio && isImageAttachment(display));
                       const contentLower = String(msg.content || '').trim().toLowerCase();
                       const isVoicePlaceholder = contentLower === '[voice note]' || contentLower === 'voice note';
                       const isAttachmentPlaceholder = contentLower === '[attachment]' || contentLower === 'attachment';
@@ -3210,7 +3213,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               <div className="min-w-0 flex-1">
                                 <div className="line-clamp-2 break-words font-medium">{label}</div>
                                 {sizeLabel && <div className="text-[11px] text-gray-500 mt-0.5">{sizeLabel}</div>}
-                                {isPdf || isOfficeDoc ? <div className="mt-0.5 text-[11px] text-indigo-700">Open in new tab</div> : null}
+                                {isPdf || isOfficeDoc ? <div className="mt-0.5 text-[11px] text-indigo-700">Open</div> : null}
                               </div>
                             </div>
                             {uploadProgressById[msg.id] != null && (

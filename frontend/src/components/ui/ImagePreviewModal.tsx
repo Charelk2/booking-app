@@ -212,11 +212,11 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
                     );
                   }
                   return (
-                    <div className="relative">
+                    <div className="relative text-center">
                       <img
                         src={src}
                         alt={alt}
-                        className="max-h-[80vh] max-w-[96vw] object-contain rounded-md"
+                        className="block mx-auto max-h-[80vh] max-w-[96vw] object-contain rounded-md"
                         loading="eager"
                         decoding="async"
                         onError={(e) => {
