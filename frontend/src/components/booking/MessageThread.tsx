@@ -322,6 +322,18 @@ const toApiAttachmentsUrl = (raw: string): string => {
       const hostLower = normHost(u.host);
       const isR2 = hostLower === 'r2.cloudflarestorage.com' || hostLower.endsWith('.r2.cloudflarestorage.com');
       const isTrusted = isR2 || isTrustedMediaHost(hostLower);
+      // Repair historically mis-stored URLs like https://booka.co.za/booka-storage/...
+      // by rewriting to the preferred media host if available.
+      if (hostLower === 'booka.co.za' && /^\/booka-storage\//i.test(u.pathname)) {
+        const preferred = Array.from(MEDIA_HOSTS)[0];
+        if (preferred) {
+          const fixed = new URL(u.toString());
+          fixed.protocol = 'https:';
+          fixed.host = preferred;
+          fixed.pathname = fixed.pathname.replace(/^\/booka-storage\//i, '/');
+          return fixed.toString();
+        }
+      }
       if (u.protocol === 'https:' && isTrusted) {
         return u.toString();
       }
@@ -366,7 +378,12 @@ const expandAttachmentVariant = (value?: string | null): string[] => {
   try {
     const absolute = new URL(value, API_BASE);
     variants.push(absolute.toString());
-    variants.push(`${absolute.pathname}${absolute.search}`);
+    // Only add a path-only variant for known local mounts. Avoid creating
+    // arbitrary same-origin paths (e.g., /booka-storage/...) that will 404.
+    const p = `${absolute.pathname}${absolute.search}`;
+    if (/^\/(attachments|media|static)\//i.test(absolute.pathname)) {
+      variants.push(p);
+    }
   } catch {
     // Ignore non-URL values (blob:, data:, etc.)
   }
@@ -3201,7 +3218,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
                         if (isAud) {
                           const fallbackChain = buildAttachmentFallbackChain(raw);
-                          const pathCandidate = fallbackChain.find((c) => typeof c === 'string' && c.startsWith('/'));
+                          // Only consider path-only candidates that map to known mounts
+                          const pathCandidate = fallbackChain.find(
+                            (c) => typeof c === 'string' && /^\/(attachments|media|static)(\/|$)/i.test(c),
+                          );
                           const dataCandidate = fallbackChain.find((c) => /^blob:|^data:/i.test(c));
                           const absoluteCandidate = fallbackChain.find((c) => /^https?:/i.test(c));
                           const initialAudioSrc = pathCandidate || dataCandidate || absoluteCandidate || toProxyPath(display);

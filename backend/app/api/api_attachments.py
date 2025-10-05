@@ -30,8 +30,8 @@ def _allowed_host(netloc: str) -> bool:
     extra = (os.getenv("ATTACHMENTS_PROXY_ALLOWED_HOSTS") or "").strip()
     if extra:
         for h in [p.strip().lower() for p in extra.split(",") if p.strip()]:
-                hh = _normalize_host(h)
-                if host == hh:
+            hh = _normalize_host(h)
+            if host == hh:
                 return True
     # Future: allow additional hosts via env/config
     return False
