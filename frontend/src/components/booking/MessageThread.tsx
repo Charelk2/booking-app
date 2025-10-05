@@ -23,6 +23,7 @@ import { createPortal } from 'react-dom';
 import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
 import data from '@emoji-mart/data';
 import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon, MusicalNoteIcon, PaperClipIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { WordIcon, ExcelIcon, PowerPointIcon, PdfIcon } from '@/components/icons/OfficeIcons';
 import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { MicrophoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import ReadReceipt, { type DeliveryState } from '@/components/booking/ReadReceipt';
@@ -3164,8 +3165,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           const clean = url.split('?')[0];
                           const ext = (clean.split('.').pop() || '').toLowerCase();
                           if (['mp3','m4a','ogg','webm','wav'].includes(ext)) IconComp = MusicalNoteIcon;
-                          else if (ext === 'pdf') IconComp = DocumentIcon;
-                          else if (['doc','docx','txt','rtf','ppt','pptx','xls','xlsx','csv','md'].includes(ext)) IconComp = DocumentTextIcon;
+                          else if (ext === 'pdf') IconComp = PdfIcon as any;
+                          else if (['doc','docx'].includes(ext)) IconComp = WordIcon as any;
+                          else if (['xls','xlsx','csv'].includes(ext)) IconComp = ExcelIcon as any;
+                          else if (['ppt','pptx'].includes(ext)) IconComp = PowerPointIcon as any;
+                          else if (['txt','rtf','md'].includes(ext)) IconComp = DocumentTextIcon;
                           else IconComp = PaperClipIcon;
                         } catch { IconComp = DocumentTextIcon; }
                         const extLower = (() => { try { const clean = url.split('?')[0]; return (clean.split('.').pop() || '').toLowerCase(); } catch { return ''; } })();
@@ -3209,7 +3213,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             } : undefined}
                           >
                             <div className="flex items-start gap-1.5 w-full">
-                              {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600 flex-shrink-0 mt-0.5" /> : null}
+                               {IconComp ? <IconComp className="w-4 h-4 flex-shrink-0 mt-0.5" /> : null}
                               <div className="min-w-0 flex-1">
                                 <div className="line-clamp-2 break-words font-medium">{label}</div>
                                 {sizeLabel && <div className="text-[11px] text-gray-500 mt-0.5">{sizeLabel}</div>}
