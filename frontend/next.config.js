@@ -5,6 +5,15 @@ const API_URL =
   (process.env.NODE_ENV === 'production' ? 'https://api.booka.co.za' : 'http://localhost:8000');
 const { protocol, hostname, port } = new URL(API_URL);
 const apiBase = `${protocol}//${hostname}${port ? `:${port}` : ''}`;
+// Optional separate WS URL (e.g., to avoid Next dev proxy); default to API_URL
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || API_URL;
+let wsOrigin = '';
+try {
+  const u = new URL(WS_URL);
+  wsOrigin = `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`
+    .replace(/^http:/, 'ws:')
+    .replace(/^https:/, 'wss:');
+} catch {}
 
 // PWA
 const withPWA = require('next-pwa')({
@@ -151,13 +160,14 @@ const nextConfig = {
   },
   async headers() {
     const connectApi = apiBase; // e.g., https://api.booka.co.za
-    // Derive the secure WebSocket origin for CSP connect-src
+    // Derive WebSocket origins for CSP connect-src (API base + explicit WS base if set)
     const wsApi = apiBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+    const wsExtra = wsOrigin && wsOrigin !== wsApi ? ` ${wsOrigin}` : '';
     const csp = [
       // Scripts: allow Google Identity, Maps, Paystack, and Cloudflare Insights beacon
       "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com",
       // XHR/fetch and WebSocket: backend API, R2, Google Identity/Maps, Paystack, and Cloudflare Insights collection
-      `connect-src 'self' ${connectApi} ${wsApi} ${R2_S3_ORIGIN} ${R2_PUBLIC_BASE} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co https://cloudflareinsights.com`,
+      `connect-src 'self' ${connectApi} ${wsApi}${wsExtra} ${R2_S3_ORIGIN} ${R2_PUBLIC_BASE} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co https://cloudflareinsights.com`,
       // Frames for Google Identity widgets and Paystack's checkout iframe
       "frame-src 'self' https://accounts.google.com https://accounts.gstatic.com https://js.paystack.co https://checkout.paystack.com",
       // Images: backend API, Cloudflare R2, Cloudflare Images, Google Identity/Maps, and local blob/data
