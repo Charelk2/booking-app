@@ -1,12 +1,10 @@
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from typing import Optional
 import httpx
 from urllib.parse import urlparse
 import logging
 
-from ..models.user import User
-from .dependencies import get_current_user_optional
 
 router = APIRouter(tags=["attachments"])
 
@@ -26,7 +24,6 @@ def _allowed_host(netloc: str) -> bool:
 async def proxy_attachment(
     request: Request,
     u: str = Query(..., description="Absolute URL to the upstream media (http/https)"),
-    user: Optional[User] = Depends(get_current_user_optional),
 ):
     """Stream an upstream attachment through same-origin to avoid CORS issues.
 
@@ -92,4 +89,3 @@ async def proxy_attachment(
             status_code=upstream.status_code,
             headers=relay_headers,
         )
-
