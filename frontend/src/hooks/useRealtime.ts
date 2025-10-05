@@ -136,7 +136,27 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     };
     const schedule = (e?: CloseEvent) => {
       if (e?.code === 4401) {
-        setStatus('closed');
+        // Unauthorized – attempt to refresh access token, then reconnect once
+        (async () => {
+          try {
+            const res = await fetch('/auth/refresh', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+            if (res.ok) {
+              const body = await res.json().catch(() => null);
+              const at = body?.access_token as string | undefined;
+              if (at && at.trim()) {
+                setWsToken(at);
+                attemptsRef.current = 0;
+                setStatus('reconnecting');
+                openWS();
+                return;
+              }
+            }
+          } catch {}
+          // If refresh fails, fall back to SSE to keep realtime limping
+          setMode('sse');
+          setStatus('connecting');
+          openSSE();
+        })();
         return;
       }
       attemptsRef.current += 1;

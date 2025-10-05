@@ -309,10 +309,18 @@ async def booking_request_ws(
     if not token:
         token = websocket.cookies.get("access_token")
     if not token:
+        # Authorization: Bearer fallback
+        try:
+            auth = websocket.headers.get("authorization") or websocket.headers.get("Authorization")
+            if auth and auth.lower().startswith("bearer "):
+                token = auth.split(" ", 1)[1].strip()
+        except Exception:
+            token = None
+    if not token:
         logger.warning("Rejecting WebSocket for request %s: missing token", request_id)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"leeway": 60})
         email = payload.get("sub")
         if email:
             user = get_user_by_email(db, email)
@@ -458,9 +466,16 @@ async def multiplex_ws(
     if not token:
         token = websocket.cookies.get("access_token")
     if not token:
+        try:
+            auth = websocket.headers.get("authorization") or websocket.headers.get("Authorization")
+            if auth and auth.lower().startswith("bearer "):
+                token = auth.split(" ", 1)[1].strip()
+        except Exception:
+            token = None
+    if not token:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"leeway": 60})
         email = payload.get("sub")
         if email:
             user = get_user_by_email(db, email)
@@ -702,10 +717,17 @@ async def notifications_ws(
     if not token:
         token = websocket.cookies.get("access_token")
     if not token:
+        try:
+            auth = websocket.headers.get("authorization") or websocket.headers.get("Authorization")
+            if auth and auth.lower().startswith("bearer "):
+                token = auth.split(" ", 1)[1].strip()
+        except Exception:
+            token = None
+    if not token:
         logger.warning("Rejecting notifications WebSocket: missing token")
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"leeway": 60})
         email = payload.get("sub")
         if email:
             user = get_user_by_email(db, email)

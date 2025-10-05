@@ -122,13 +122,44 @@ export default function useWebSocket(
       const scheduleReconnect = (e?: CloseEvent) => {
         if (cancelled) return;
         if (e?.code === 4401) {
-          if (onError) onError(e);
-          cancelled = true;
-          if (timerRef.current) {
-            clearTimeout(timerRef.current);
-            timerRef.current = null;
-          }
-          setStatus('closed');
+          // Try to refresh token and reconnect once with updated URL
+          (async () => {
+            try {
+              const res = await fetch('/auth/refresh', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+              if (res.ok) {
+                const body = await res.json().catch(() => null);
+                const at = body?.access_token as string | undefined;
+                if (at && at.trim()) {
+                  try {
+                    const u = new URL(url);
+                    const qs = new URLSearchParams(u.search || '');
+                    qs.set('token', at);
+                    const nextUrl = `${u.origin}${u.pathname}?${qs.toString()}`;
+                    // Immediate reconnect with fresh token
+                    if (timerRef.current) clearTimeout(timerRef.current);
+                    attemptsRef.current = 0;
+                    setStatus('reconnecting');
+                    cancelled = false;
+                    // Recurse by calling connect with new URL
+                    // Close existing just in case
+                    try { socketRef.current?.close(); } catch {}
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const _ = nextUrl; // keep reference for closure
+                    // Re-init by creating a new WebSocket with nextUrl
+                    const ws2 = new WebSocket(nextUrl);
+                    socketRef.current = ws2;
+                    ws2.onopen = ws.onopen;
+                    ws2.onmessage = ws.onmessage;
+                    ws2.onerror = ws.onerror;
+                    ws2.onclose = ws.onclose as any;
+                    return;
+                  } catch { /* fall through */ }
+                }
+              }
+            } catch { /* refresh failed */ }
+            if (onError) onError(e);
+            setStatus('closed');
+          })();
           return;
         }
         if (onError) onError(e);

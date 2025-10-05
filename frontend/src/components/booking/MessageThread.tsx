@@ -2201,8 +2201,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   );
 
   // ---- Realtime (multiplex) connection
-  const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || sessionStorage.getItem('token') || null) : null);
-  const { subscribe, publish, status: socketStatus, lastReconnectDelay, forceReconnect } = useRealtime(authToken || undefined);
+  // Use cookie-based WS auth for reliability; do not pass stale storage tokens.
+  const { subscribe, publish, status: socketStatus, lastReconnectDelay, forceReconnect } = useRealtime(undefined);
   const topics = useMemo(() => [
     `booking-requests:${bookingRequestId}`,
     `threads:${bookingRequestId}`,
