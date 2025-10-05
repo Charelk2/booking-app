@@ -3152,7 +3152,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           return (
                             <div className="mt-1 inline-block">
                               <audio
-                                className="w-56 cursor-pointer"
+                                className="w-56"
                                 controls
                                 src={initialAudioSrc}
                                 preload="metadata"
@@ -3175,10 +3175,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 }}
                                 onError={(e) => {
                                   advanceAudioFallback(e.currentTarget, audioFallbacks, raw);
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setFilePreviewSrc(toApiAttachmentsUrl(display));
                                 }}
                               />
                             </div>

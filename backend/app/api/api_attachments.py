@@ -4,6 +4,7 @@ from typing import Optional
 import httpx
 from urllib.parse import urlparse
 import logging
+import os
 
 
 router = APIRouter(tags=["attachments"])
@@ -16,7 +17,26 @@ def _allowed_host(netloc: str) -> bool:
     # Allow Cloudflare R2 public endpoints (bucket subdomains)
     if host.endswith(".r2.cloudflarestorage.com"):
         return True
+    # Optional allowlist via env: comma-separated hosts
+    extra = (os.getenv("ATTACHMENTS_PROXY_ALLOWED_HOSTS") or "").strip()
+    if extra:
+        for h in [p.strip().lower() for p in extra.split(",") if p.strip()]:
+            if host == h or host.endswith("." + h):
+                return True
     # Future: allow additional hosts via env/config
+    return False
+
+
+def _allowed_content_type(ct: str | None) -> bool:
+    if not ct:
+        return False
+    val = ct.split(";")[0].strip().lower()
+    if val.startswith("audio/"):
+        return True
+    if val.startswith("image/"):
+        return True
+    if val == "application/pdf":
+        return True
     return False
 
 
@@ -64,6 +84,22 @@ async def proxy_attachment(
         cl = upstream.headers.get("content-length")
         if cl:
             relay_headers["Content-Length"] = cl
+        # Enforce basic safety limits
+        try:
+            max_mb = float(os.getenv("ATTACHMENTS_PROXY_MAX_MB", "50"))
+        except Exception:
+            max_mb = 50.0
+        try:
+            if cl and max_mb > 0 and float(cl) > max_mb * 1024 * 1024:
+                await upstream.aclose()
+                return Response(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+        except Exception:
+            pass
+
+        # Content-Type allowlist: audio/*, image/*, application/pdf
+        if not _allowed_content_type(ct):
+            await upstream.aclose()
+            return Response(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
         # Partial content support
         ar = upstream.headers.get("accept-ranges")
         if ar:
