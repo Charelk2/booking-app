@@ -1066,6 +1066,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => { myReactionsRef.current = myReactions; }, [myReactions]);
   const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
   const [actionMenuFor, setActionMenuFor] = useState<number | null>(null);
+  // Basic mobile detection for interaction affordances
+  const isMobile = typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false;
   const reactionPickerRefDesktop = useRef<HTMLDivElement | null>(null);
   const reactionPickerRefMobile = useRef<HTMLDivElement | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
@@ -1126,9 +1128,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }, 1500);
   }, []);
 
-  // Close pickers/menus when clicking outside
+  // Close pickers/menus when clicking outside (use click, not mousedown)
   useEffect(() => {
-    const onDocMouseDown = (e: MouseEvent) => {
+    const onDocClick = (e: MouseEvent) => {
       const t = e.target as Node;
       // When mobile overlay is open, let its handlers manage open/close
       if (isMobile && actionMenuFor !== null) return;
@@ -1151,13 +1153,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (imageMenuFor) setImageMenuFor(null);
       }
     };
-    document.addEventListener('mousedown', onDocMouseDown);
+    document.addEventListener('click', onDocClick);
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onDocMouseDown);
+      document.removeEventListener('click', onDocClick);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [reactionPickerFor, actionMenuFor, imageMenuFor]);
+  }, [reactionPickerFor, actionMenuFor, imageMenuFor, isMobile]);
 
   const startLongPress = useCallback((msgId: number, e: React.TouchEvent) => {
     try {
