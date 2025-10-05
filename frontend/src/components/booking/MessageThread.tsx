@@ -797,6 +797,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [serviceProviderByServiceId, setServiceProviderByServiceId] = useState<Record<number, number>>({});
   const isSendingRef = useRef(false);
 
+  // Revoke object URLs on a short delay to avoid races where the DOM
+  // still tries to paint a <img>/<audio> using a blob: URL we just revoked.
+  const revokeObjectUrlSoon = useCallback((u: string | null | undefined) => {
+    if (!u || typeof u !== 'string' || !u.startsWith('blob:')) return;
+    try {
+      const schedule = (cb: () => void) => {
+        // Prefer requestIdleCallback if available; fallback to a short timeout
+        const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, opts?: any) => number);
+        if (typeof ric === 'function') ric(() => cb());
+        else setTimeout(() => cb(), 200);
+      };
+      schedule(() => {
+        try { URL.revokeObjectURL(u); } catch {}
+      });
+    } catch {}
+  }, []);
+
   useEffect(() => {
     setBookingRequestHydration(hasInitialBookingRequest ? 'success' : 'idle');
   }, [hasInitialBookingRequest]);
@@ -4037,9 +4054,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               const res = await postMessageToBookingRequest(bookingRequestId, payload);
               const real = { ...normalizeMessage(res.data), status: 'sent' as const } as ThreadMessage;
               finalizeMessage(tempId, real);
-              try {
-                if (previewUrl && previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
-              } catch {}
+              revokeObjectUrlSoon(previewUrl);
             } catch (err) {
               console.error('Failed to send attachment:', err);
               setMessages((prev) => {

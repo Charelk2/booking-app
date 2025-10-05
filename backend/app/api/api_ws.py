@@ -33,6 +33,35 @@ router = APIRouter()
 REDIS_URL = os.getenv("WEBSOCKET_REDIS_URL")
 redis = aioredis.from_url(REDIS_URL) if aioredis and REDIS_URL else None
 
+
+async def _safe_publish(channel: str, payload: str) -> None:
+    """Publish to Redis with auto-retry on a fresh client if the connection is closed.
+
+    Avoids bubbling transport errors from background tasks (e.g., Starlette BackgroundTask)
+    when the underlying TCP connection has been closed by the event loop or idle timeout.
+    """
+    global redis  # allow recreation if needed
+    if not aioredis or not REDIS_URL:
+        return
+    if not redis:
+        try:
+            redis = aioredis.from_url(REDIS_URL)
+        except Exception:
+            return
+    try:
+        await redis.publish(channel, payload)
+        return
+    except Exception as exc:
+        # Attempt a one-time reconnect and retry
+        try:
+            logger.warning("Redis publish failed on %s (%s); recreating client", channel, exc)
+            redis = aioredis.from_url(REDIS_URL)
+            await redis.publish(channel, payload)
+        except Exception:
+            # Swallow to keep user requests succeeding; clients will still poll and receive updates
+            logger.warning("Redis publish retry failed on %s", channel)
+            return
+
 PING_INTERVAL = 30
 PONG_TIMEOUT = 10
 SEND_TIMEOUT = 1
@@ -89,8 +118,8 @@ class ConnectionManager:
         self, request_id: int, message: Any, publish: bool = True
     ) -> None:
         payload = jsonable_encoder(message)
-        if publish and redis:
-            await redis.publish(f"ws:{request_id}", json.dumps(payload))
+        if publish:
+            await _safe_publish(f"ws:{request_id}", json.dumps(payload))
         # Fan out to multiplex topic subscribers in this process
         try:
             await multiplex_manager.broadcast_topic(
@@ -177,7 +206,7 @@ class NotificationManager:
     async def broadcast(self, user_id: int, message: Any) -> None:
         payload = jsonable_encoder(message)
         # Publish to Redis for SSE/multiplex consumers
-        if redis:
+        if True:  # use safe publisher (no-op when Redis not configured)
             try:
                 publish_payload = payload
                 if isinstance(publish_payload, dict):
@@ -189,9 +218,8 @@ class NotificationManager:
                         ),
                         **publish_payload,
                     }
-                await redis.publish(
-                    f"ws-topic:notifications:{user_id}",
-                    json.dumps(publish_payload),
+                await _safe_publish(
+                    f"ws-topic:notifications:{user_id}", json.dumps(publish_payload)
                 )
             except Exception:
                 pass
@@ -255,7 +283,7 @@ class MultiplexManager:
     async def broadcast_topic(self, topic: str, message: Any, publish: bool = True) -> None:
         # Publish cross-process via Redis if available
         payload = jsonable_encoder(message)
-        if publish and redis:
+        if publish:
             try:
                 publish_payload = payload
                 if isinstance(publish_payload, dict):
@@ -265,7 +293,7 @@ class MultiplexManager:
                         "topic": publish_payload.get("topic", topic),
                         **publish_payload,
                     }
-                await redis.publish(
+                await _safe_publish(
                     f"ws-topic:{topic}", json.dumps(publish_payload)
                 )
             except Exception:

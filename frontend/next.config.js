@@ -154,17 +154,17 @@ const nextConfig = {
     // Derive the secure WebSocket origin for CSP connect-src
     const wsApi = apiBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
     const csp = [
-      // Allow Google Identity Services, Google Maps, and Paystack inline checkout
-      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co",
-      // Permit XHR/fetch and secure WebSocket to backend API, Google Identity/Maps, and Paystack API endpoints
-      `connect-src 'self' ${connectApi} ${wsApi} ${R2_S3_ORIGIN} ${R2_PUBLIC_BASE} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co`,
+      // Scripts: allow Google Identity, Maps, Paystack, and Cloudflare Insights beacon
+      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com",
+      // XHR/fetch and WebSocket: backend API, R2, Google Identity/Maps, Paystack, and Cloudflare Insights collection
+      `connect-src 'self' ${connectApi} ${wsApi} ${R2_S3_ORIGIN} ${R2_PUBLIC_BASE} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co https://cloudflareinsights.com`,
       // Frames for Google Identity widgets and Paystack's checkout iframe
       "frame-src 'self' https://accounts.google.com https://accounts.gstatic.com https://js.paystack.co https://checkout.paystack.com",
-      // Images from backend API, Google Identity, and Google Maps (tiles, sprites)
-      `img-src 'self' data: blob: ${connectApi} https://api.booka.co.za ${R2_PUBLIC_BASE} ${R2_S3_ORIGIN} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com`,
+      // Images: backend API, Cloudflare R2, Cloudflare Images, Google Identity/Maps, and local blob/data
+      `img-src 'self' data: blob: ${connectApi} https://api.booka.co.za ${R2_PUBLIC_BASE} ${R2_S3_ORIGIN} https://imagedelivery.net https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com`,
       // Media (audio/video) sources including R2 and local blob previews
       `media-src 'self' data: blob: ${connectApi} ${R2_PUBLIC_BASE} ${R2_S3_ORIGIN}`,
-      // Allow inline styles and GSI stylesheet; Maps injects inline styles too
+      // Styles: inline + GSI stylesheet; Maps injects inline styles too
       "style-src 'self' 'unsafe-inline' https://accounts.google.com",
     ].join('; ');
     return [
