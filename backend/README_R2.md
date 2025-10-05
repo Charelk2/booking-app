@@ -14,7 +14,7 @@ Set these in your deployment (Fly.io, Render, etc.). Do not commit secrets.
 - R2_S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com (or EU endpoint)
 - R2_PUBLIC_BASE_URL=https://media.booka.co.za
 - R2_PRESIGN_UPLOAD_TTL=3600 (optional, seconds)
-- R2_PRESIGN_DOWNLOAD_TTL=604800 (optional, seconds)
+- R2_PRESIGN_DOWNLOAD_TTL=1800 (optional, seconds; default 30 minutes)
 
 Attachments proxy/redirect (API)
 - The API endpoint `/api/v1/attachments/proxy` now validates then 302‑redirects

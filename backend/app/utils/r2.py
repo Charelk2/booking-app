@@ -28,8 +28,9 @@ class R2Config:
         self.public_base_url = (_env("R2_PUBLIC_BASE_URL") or "").rstrip("/")
         # TTLs
         self.upload_ttl_seconds = int(_env("R2_PRESIGN_UPLOAD_TTL", "3600") or 3600)  # 1h
-        # Cloudflare examples show up to 7 days; keep conservative default
-        self.download_ttl_seconds = int(_env("R2_PRESIGN_DOWNLOAD_TTL", str(7 * 24 * 3600)) or (7 * 24 * 3600))
+        # Keep download TTL short for playback URLs (default 30 minutes).
+        # Can be extended via R2_PRESIGN_DOWNLOAD_TTL if required.
+        self.download_ttl_seconds = int(_env("R2_PRESIGN_DOWNLOAD_TTL", str(30 * 60)) or (30 * 60))
 
     def is_configured(self) -> bool:
         return bool(self.bucket and self.endpoint_url and self.access_key_id and self.secret_access_key)

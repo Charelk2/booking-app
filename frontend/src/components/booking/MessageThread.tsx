@@ -299,7 +299,18 @@ const altAttachmentPath = (raw: string): string => {
   }
 };
 
-// Normalize URLs that are already on the API origin; leave third‑party absolute URLs unchanged.
+// Trusted media host allowlist is built once (cheap & predictable)
+const MEDIA_HOSTS = new Set(
+  String(process.env.NEXT_PUBLIC_MEDIA_HOSTS || 'media.booka.co.za')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean),
+);
+const normHost = (h: string) => h.replace(/\.$/, '').toLowerCase();
+const isTrustedMediaHost = (h: string) => MEDIA_HOSTS.has(normHost(h));
+
+// Normalize URLs that are already on the API origin; optionally allow direct
+// use of known media hosts (R2/public CDN) to skip proxy entirely when CORS is configured.
 const toApiAttachmentsUrl = (raw: string): string => {
   try {
     if (/^(blob:|data:)/i.test(raw)) return raw;
@@ -308,6 +319,12 @@ const toApiAttachmentsUrl = (raw: string): string => {
 
     // If this isn't the API origin, route via same-origin proxy to avoid CORS
     if (u.host !== api.host) {
+      const hostLower = normHost(u.host);
+      const isR2 = hostLower === 'r2.cloudflarestorage.com' || hostLower.endsWith('.r2.cloudflarestorage.com');
+      const isTrusted = isR2 || isTrustedMediaHost(hostLower);
+      if (u.protocol === 'https:' && isTrusted) {
+        return u.toString();
+      }
       const proxied = `${api.protocol}//${api.host}${API_V1}/attachments/proxy?u=${encodeURIComponent(u.toString())}`;
       return proxied;
     }
@@ -3199,6 +3216,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 src={initialAudioSrc}
                                 preload="none"
                                 crossOrigin="anonymous"
+                                referrerPolicy="no-referrer"
                                 onLoadedData={(e) => {
                                   const el = e.currentTarget;
                                   el.dataset.fallbackAttempt = '0';
@@ -4662,7 +4680,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         <div className={isDetailsPanelOpen ? 'hidden md:flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner' : 'flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner'}>
           {attachmentFile && (attachmentFile.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg)$/i.test(attachmentFile.name || '')) ? (
             <>
-              <audio className="w-48" controls src={attachmentPreviewUrl} preload="none" />
+              <audio className="w-48" controls src={attachmentPreviewUrl} preload="none" referrerPolicy="no-referrer" />
               <span className="text-xs text-gray-700 font-medium">{attachmentFile.name} ({formatBytes(attachmentFile.size)})</span>
             </>
           ) : (

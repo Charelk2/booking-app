@@ -12,16 +12,26 @@ router = APIRouter(tags=["attachments"])
 logger = logging.getLogger(__name__)
 
 
+def _normalize_host(h: str) -> str:
+    # Strip optional port and a trailing dot; lower-case for compare
+    try:
+        host = (h or "").split(":", 1)[0].rstrip(".").lower()
+    except Exception:
+        host = (h or "").lower()
+    return host
+
+
 def _allowed_host(netloc: str) -> bool:
-    host = (netloc or "").lower()
+    host = _normalize_host(netloc)
     # Allow Cloudflare R2 public endpoints (bucket subdomains)
-    if host.endswith(".r2.cloudflarestorage.com"):
+    if host == "r2.cloudflarestorage.com" or host.endswith(".r2.cloudflarestorage.com"):
         return True
     # Optional allowlist via env: comma-separated hosts
     extra = (os.getenv("ATTACHMENTS_PROXY_ALLOWED_HOSTS") or "").strip()
     if extra:
         for h in [p.strip().lower() for p in extra.split(",") if p.strip()]:
-            if host == h or host.endswith("." + h):
+                hh = _normalize_host(h)
+                if host == hh:
                 return True
     # Future: allow additional hosts via env/config
     return False
@@ -86,7 +96,8 @@ async def proxy_attachment(
 
     # Preferred pattern: validate, then 302 redirect so browsers fetch bytes directly
     if (mode or "").lower() != "stream":
-        return RedirectResponse(url=u, status_code=status.HTTP_302_FOUND)
+        # Prevent caches from storing the redirect itself
+        return RedirectResponse(url=u, status_code=status.HTTP_302_FOUND, headers={"Cache-Control": "private, no-store"})
 
     headers = {}
     # Forward Range for partial content support
