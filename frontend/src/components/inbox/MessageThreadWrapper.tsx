@@ -49,6 +49,7 @@ export default function MessageThreadWrapper({
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(null);
+  const [presenceHeader, setPresenceHeader] = useState<string>('');
 
   const [isUserArtist, setIsUserArtist] = useState(false);
   const { user } = useContextAuth();
@@ -197,16 +198,23 @@ export default function MessageThreadWrapper({
             <div className="h-10 w-10 rounded-full bg-gray-200" aria-hidden="true" />
           )}
 
-          {/* Name */}
-          <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
-            {bookingRequest
-              ? isBookaModeration
-                ? 'Booka'
-                : (isUserArtist
-                    ? bookingRequest.client?.first_name || 'User'
-                    : bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'User')
-              : 'Messages'}
-          </span>
+          {/* Name + presence */}
+          <div className="flex flex-col">
+            <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
+              {bookingRequest
+                ? isBookaModeration
+                  ? 'Booka'
+                  : (isUserArtist
+                      ? bookingRequest.client?.first_name || 'User'
+                      : bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'User')
+                : 'Messages'}
+            </span>
+            {presenceHeader ? (
+              <span className="text-[11px] text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis -mt-0.5">
+                {presenceHeader}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         {/* Actions */}
@@ -263,6 +271,7 @@ export default function MessageThreadWrapper({
             }}
             onShowReviewModal={setShowReviewModal}
             onOpenDetailsPanel={() => setShowSidePanel(true)}
+            onPresenceUpdate={(s) => setPresenceHeader(s.label)}
             /** KEY: hide composer on mobile when details sheet is open */
             isDetailsPanelOpen={showSidePanel}
             /** Disable composer for Booka system-only threads */

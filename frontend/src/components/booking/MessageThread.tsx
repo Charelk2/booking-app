@@ -802,6 +802,8 @@ interface MessageThreadProps {
   /** Disable the chat composer for system-only threads (e.g., Booka updates). */
   disableComposer?: boolean;
   isActive?: boolean;
+  /** Header presence/status updater for parent wrapper */
+  onPresenceUpdate?: (status: { online: boolean; lastSeenMs: number | null; label: string }) => void;
 }
 
 // SVG
@@ -842,6 +844,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     disableComposer = false,
     isActive = true,
     initialBookingRequest = null,
+    onPresenceUpdate,
   }: MessageThreadProps,
   ref,
 ) {
@@ -2360,6 +2363,24 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     try { (window as any).__threadInfo = () => ({ bookingRequestId, topics }); } catch {}
   }, [bookingRequestId, topics]);
 
+  // ---- Header presence exporter (2-minute grace window)
+  const OTHER_ONLINE_WINDOW_MS = 2 * 60 * 1000;
+  const otherUserIdForHeader = useMemo(() => (
+    (user?.user_type === 'service_provider' ? currentClientId : currentArtistId) || 0
+  ), [user?.user_type, currentClientId, currentArtistId]);
+  useEffect(() => {
+    if (!onPresenceUpdate) return;
+    const presence = presenceByUser[otherUserIdForHeader];
+    const lastSeenMs = lastSeenByUser[otherUserIdForHeader];
+    const now = Date.now();
+    const recent = Number.isFinite(lastSeenMs) && (now - (lastSeenMs || 0)) <= OTHER_ONLINE_WINDOW_MS;
+    const isOnline = presence === 'online' || presence === 'away' || recent;
+    const label = isOnline
+      ? 'Online'
+      : (Number.isFinite(lastSeenMs) ? `Last seen ${formatDistanceToNow(new Date(lastSeenMs), { addSuffix: true })}` : '');
+    onPresenceUpdate({ online: isOnline, lastSeenMs: Number.isFinite(lastSeenMs) ? lastSeenMs : null, label });
+  }, [onPresenceUpdate, presenceByUser, lastSeenByUser, otherUserIdForHeader]);
+
   // Fallback: When realtime isn't open, poll and gently merge updates
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
@@ -2867,19 +2888,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const firstNonSystem = group.messages.find((m) => normalizeType(m.message_type) !== 'SYSTEM');
     const showHeader = !!firstNonSystem && firstNonSystem.sender_id !== myUserId;
     const __dayLabel = group.showDayDivider ? daySeparatorLabel(new Date(firstMsgInGroup.timestamp)) : null;
-    const otherUserId = (user?.user_type === 'service_provider' ? currentClientId : currentArtistId) || 0;
-    const otherPresence = presenceByUser[otherUserId];
-    const lastSeenMs = lastSeenByUser[otherUserId];
-    const statusLabel = (() => {
-      if (otherPresence === 'online' || otherPresence === 'away') return 'Online';
-      if (Number.isFinite(lastSeenMs)) return `Last seen ${formatDistanceToNow(new Date(lastSeenMs), { addSuffix: true })}`;
-      try {
-        const lastOther = [...messages].reverse().find((m) => m.sender_id === otherUserId);
-        if (lastOther) return `Last seen ${formatDistanceToNow(new Date(lastOther.timestamp), { addSuffix: true })}`;
-      } catch {}
-      return '';
-    })();
-
     const __headerView = showHeader ? (
       <div className="flex items-center mb-1">
         {user?.user_type === 'service_provider'
@@ -2913,14 +2921,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 {artistName?.charAt(0)}
               </div>
             )}
-        <div className="flex flex-col">
-          <span className="text-xs text-gray-600">
-            {user?.user_type === 'service_provider' ? clientName : artistName}
-          </span>
-          {statusLabel ? (
-            <span className="text-[10px] text-gray-500">{statusLabel}</span>
-          ) : null}
-        </div>
+        <span className="text-xs text-gray-600">
+          {user?.user_type === 'service_provider' ? clientName : artistName}
+        </span>
       </div>
     ) : null;
 
