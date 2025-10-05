@@ -209,7 +209,7 @@ export default function MessageThreadWrapper({
                       : bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'User')
                 : 'Messages'}
             </span>
-            {presenceHeader ? (
+            {presenceHeader && !isBookaModeration ? (
               <span className="text-[11px] text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis -mt-0.5">
                 {presenceHeader}
               </span>
@@ -271,7 +271,7 @@ export default function MessageThreadWrapper({
             }}
             onShowReviewModal={setShowReviewModal}
             onOpenDetailsPanel={() => setShowSidePanel(true)}
-            onPresenceUpdate={(s) => setPresenceHeader(s.label)}
+            onPresenceUpdate={isBookaModeration ? undefined : (s) => setPresenceHeader(s.label)}
             /** KEY: hide composer on mobile when details sheet is open */
             isDetailsPanelOpen={showSidePanel}
             /** Disable composer for Booka system-only threads */

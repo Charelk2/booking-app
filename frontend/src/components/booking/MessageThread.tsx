@@ -1228,6 +1228,26 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Presence (realtime + fallback)
   const [presenceByUser, setPresenceByUser] = useState<Record<number, 'online' | 'away' | 'offline'>>({});
   const [lastSeenByUser, setLastSeenByUser] = useState<Record<number, number>>({});
+  // User activity gate: only enable realtime/polling and show presence once there is activity
+  const [hasUserActivity, setHasUserActivity] = useState<boolean>(false);
+  const lastActivityRef = useRef<number>(0);
+  useEffect(() => {
+    const markActive = () => {
+      lastActivityRef.current = Date.now();
+      if (!hasUserActivity) setHasUserActivity(true);
+    };
+    const opts: AddEventListenerOptions | boolean = { passive: true } as any;
+    try { window.addEventListener('scroll', markActive, opts); } catch {}
+    document.addEventListener('mousedown', markActive, true);
+    document.addEventListener('keydown', markActive, true);
+    try { document.addEventListener('touchstart', markActive, { passive: true } as any); } catch {}
+    return () => {
+      try { window.removeEventListener('scroll', markActive, opts as any); } catch {}
+      document.removeEventListener('mousedown', markActive, true);
+      document.removeEventListener('keydown', markActive, true);
+      try { document.removeEventListener('touchstart', markActive as any, { passive: true } as any); } catch {}
+    };
+  }, [hasUserActivity]);
 
   // ---- Derived
   const computedServiceName = serviceName ?? bookingDetails?.service?.title;
@@ -2395,11 +2415,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const now = Date.now();
     const recent = Number.isFinite(lastSeenMs) && (now - (lastSeenMs || 0)) <= OTHER_ONLINE_WINDOW_MS;
     const isOnline = presence === 'online' || presence === 'away' || recent;
-    const label = isOnline
-      ? 'Online'
-      : (Number.isFinite(lastSeenMs) ? `Last seen ${formatDistanceToNow(new Date(lastSeenMs), { addSuffix: true })}` : '');
-    onPresenceUpdate({ online: isOnline, lastSeenMs: Number.isFinite(lastSeenMs) ? lastSeenMs : null, label });
-  }, [onPresenceUpdate, presenceByUser, lastSeenByUser, otherUserIdForHeader]);
+    const label = (!hasUserActivity)
+      ? ''
+      : (isOnline ? 'Online' : (Number.isFinite(lastSeenMs) ? `Last seen ${formatDistanceToNow(new Date(lastSeenMs), { addSuffix: true })}` : ''));
+    onPresenceUpdate({ online: hasUserActivity && isOnline, lastSeenMs: Number.isFinite(lastSeenMs) ? lastSeenMs : null, label });
+  }, [onPresenceUpdate, presenceByUser, lastSeenByUser, otherUserIdForHeader, hasUserActivity]);
 
   // Fallback: When realtime isn't open, poll and gently merge updates
   useEffect(() => {
@@ -2487,12 +2507,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             const now = Date.now();
             setPresenceByUser((prev) => {
               const next = { ...prev };
-              incoming.forEach((uid) => { if (uid && uid !== myUserId) next[uid] = 'online'; });
+              incoming.forEach((uid: number) => { if (uid && uid !== myUserId) next[uid] = 'online'; });
               return next;
             });
             setLastSeenByUser((prev) => {
               const next = { ...prev };
-              incoming.forEach((uid) => { if (uid && uid !== myUserId) next[uid] = now; });
+              incoming.forEach((uid: number) => { if (uid && uid !== myUserId) next[uid] = now; });
               return next;
             });
           } catch {}
