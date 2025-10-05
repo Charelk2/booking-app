@@ -2410,6 +2410,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   ), [user?.user_type, currentClientId, currentArtistId]);
   useEffect(() => {
     if (!onPresenceUpdate) return;
+    // Suppress presence for Booka system-only moderation/update threads
+    if (isModerationThread) { onPresenceUpdate({ online: false, lastSeenMs: null, label: '' }); return; }
     const presence = presenceByUser[otherUserIdForHeader];
     const lastSeenMs = lastSeenByUser[otherUserIdForHeader];
     const now = Date.now();
@@ -2419,7 +2421,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       ? ''
       : (isOnline ? 'Online' : (Number.isFinite(lastSeenMs) ? `Last seen ${formatDistanceToNow(new Date(lastSeenMs), { addSuffix: true })}` : ''));
     onPresenceUpdate({ online: hasUserActivity && isOnline, lastSeenMs: Number.isFinite(lastSeenMs) ? lastSeenMs : null, label });
-  }, [onPresenceUpdate, presenceByUser, lastSeenByUser, otherUserIdForHeader, hasUserActivity]);
+  }, [onPresenceUpdate, presenceByUser, lastSeenByUser, otherUserIdForHeader, hasUserActivity, isModerationThread]);
 
   // Fallback: When realtime isn't open, poll and gently merge updates
   useEffect(() => {
@@ -5074,8 +5076,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         </div>
       )}
 
-      {/* Composer — hidden on mobile while details panel is open, or entirely when disabled */}
-      {user && !disableComposer && (
+        {/* Composer — hidden on mobile while details panel is open, or entirely when disabled */}
+      {(() => { const composerDisabled = Boolean(disableComposer || isModerationThread); return user && !composerDisabled; })() && (
         <>
           <div
             ref={composerRef}
