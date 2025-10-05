@@ -840,7 +840,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- State
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
-  const { quotesById: quotes, setQuote, ensureQuoteLoaded, ensureQuotesLoaded, resetQuotes } = useQuotes(bookingRequestId);
+  const { quotesById: quotes, setQuote, ensureQuotesLoaded, resetQuotes } = useQuotes(bookingRequestId);
   const [loading, setLoading] = useState(true);
   const [newMessageContent, setNewMessageContent] = useState('');
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
@@ -1576,11 +1576,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }, 700);
   }, [markIncomingAsRead, canMarkReadNow]);
 
-  const hydrateQuotesForMessages = useCallback(async (msgs: ThreadMessage[]) => {
-    const ids = Array.from(new Set(msgs.map((m) => Number(m.quote_id)).filter((qid) => Number.isFinite(qid) && qid > 0)));
-    if (!ids.length) return;
-    await ensureQuotesLoaded(ids);
-  }, [ensureQuotesLoaded]);
+  // Quote hydration is handled synchronously during fetchMessages.
 
   // Always ensure quotes are hydrated whenever the message list changes.
   // This covers edge-cases where messages come from cache/WS buffers or
@@ -1855,9 +1851,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
         scheduleMarkRead(normalized, 'fetch');
 
-        // Already hydrated above; keep this as a no-op safety net
-        void hydrateQuotesForMessages(normalized);
-
         try {
           const newReactions: Record<number, Record<string, number>> = {};
           const newMine: Record<number, Set<string>> = {};
@@ -2039,7 +2032,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
       setMessages(cached);
       scheduleMarkRead(cached, 'cache');
-      void hydrateQuotesForMessages(cached);
       setLoading(false);
       initialLoadedRef.current = true;
       loadedThreadsRef.current.add(bookingRequestId);
@@ -2084,7 +2076,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (messagesRef.current.length === 0) {
           setMessages(normalized);
           scheduleMarkRead(normalized, 'cache');
-          void hydrateQuotesForMessages(normalized);
           setLoading(false);
         }
         initialLoadedRef.current = initialLoadedRef.current || normalized.length > 0;
@@ -2534,8 +2525,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (typeof window !== 'undefined' && localStorage.getItem('CHAT_DEBUG') === '1') {
         try { console.debug('[thread] merged', { topicId, added: normalized.length }); } catch {}
       }
-      void hydrateQuotesForMessages(normalized);
-
       // Debounced read receipt when anchored and new incoming
       const anchored = atBottomRef.current === true;
       const gotIncoming = normalized.some((m) => m.sender_id !== myUserId);
@@ -2560,19 +2549,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (anyInbound) emitThreadsUpdated({ source: 'realtime', threadId: bookingRequestId });
       } catch {}
 
-      // Hydrate quotes if needed
-      for (const m of normalized) {
-        const qid = Number(m.quote_id);
-        const isQuote =
-          qid > 0 &&
-          (normalizeType(m.message_type) === 'QUOTE' ||
-            (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
-        if (isQuote) void ensureQuoteLoaded(qid);
-      }
+      // No extra quote hydration here; fetchMessages handles it synchronously.
     };
     const unsubs = topics.map((t) => subscribe(t, handler));
     return () => { unsubs.forEach((u) => u()); };
-  }, [subscribe, topics, ensureQuoteLoaded, myUserId, bookingRequestId, fetchMessages]);
+  }, [subscribe, topics, myUserId, bookingRequestId, fetchMessages]);
 
   // ---- Gentle polling fallback: if no realtime in ~4s, poll every 2s until we see activity
   useEffect(() => {
