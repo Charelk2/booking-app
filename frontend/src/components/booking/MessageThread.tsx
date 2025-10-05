@@ -2363,6 +2363,26 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     try { (window as any).__threadInfo = () => ({ bookingRequestId, topics }); } catch {}
   }, [bookingRequestId, topics]);
 
+  // Close reaction picker and action menu when clicking anywhere outside them (desktop)
+  useEffect(() => {
+    const onGlobalMouseDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      // Reaction picker: close if click isn't inside desktop/mobile picker
+      if (reactionPickerFor !== null) {
+        const inDesktop = reactionPickerRefDesktop.current?.contains(t) ?? false;
+        const inMobile = reactionPickerRefMobile.current?.contains(t) ?? false;
+        if (!inDesktop && !inMobile) setReactionPickerFor(null);
+      }
+      // Action menu: close if click isn't inside the menu container
+      if (actionMenuFor !== null) {
+        const inside = actionMenuRef.current?.contains(t) ?? false;
+        if (!inside) setActionMenuFor(null);
+      }
+    };
+    document.addEventListener('mousedown', onGlobalMouseDown, true);
+    return () => document.removeEventListener('mousedown', onGlobalMouseDown, true);
+  }, [reactionPickerFor, actionMenuFor]);
+
   // ---- Header presence exporter (2-minute grace window)
   const OTHER_ONLINE_WINDOW_MS = 2 * 60 * 1000;
   const otherUserIdForHeader = useMemo(() => (
