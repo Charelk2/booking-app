@@ -2417,11 +2417,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const now = Date.now();
     const recent = Number.isFinite(lastSeenMs) && (now - (lastSeenMs || 0)) <= OTHER_ONLINE_WINDOW_MS;
     const isOnline = presence === 'online' || presence === 'away' || recent;
-    const label = (!hasUserActivity)
-      ? ''
-      : (isOnline ? 'Online' : (Number.isFinite(lastSeenMs) ? `Last seen ${formatDistanceToNow(new Date(lastSeenMs), { addSuffix: true })}` : ''));
-    onPresenceUpdate({ online: hasUserActivity && isOnline, lastSeenMs: Number.isFinite(lastSeenMs) ? lastSeenMs : null, label });
-  }, [onPresenceUpdate, presenceByUser, lastSeenByUser, otherUserIdForHeader, hasUserActivity, isModerationThread]);
+    const label = isOnline
+      ? 'Online'
+      : (Number.isFinite(lastSeenMs) ? `Last seen ${formatDistanceToNow(new Date(lastSeenMs), { addSuffix: true })}` : '');
+    onPresenceUpdate({ online: isOnline, lastSeenMs: Number.isFinite(lastSeenMs) ? lastSeenMs : null, label });
+  }, [onPresenceUpdate, presenceByUser, lastSeenByUser, otherUserIdForHeader, isModerationThread]);
 
   // Fallback: When realtime isn't open, poll and gently merge updates
   useEffect(() => {
