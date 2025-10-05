@@ -861,12 +861,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
   const [textareaLineHeight, setTextareaLineHeight] = useState(0);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  // Quote loading robustness: track repeated attempts and fallback state
-  const quoteRetryCountsRef = useRef<Map<number, number>>(new Map());
-  const quoteRetryTimerRef = useRef<number | null>(null);
-  const quoteRetryInFlightRef = useRef(false);
-  const MAX_QUOTE_RETRIES = 6;
-  const [failedQuoteIds, setFailedQuoteIds] = useState<Set<number>>(new Set());
   const [showDetailsCard, setShowDetailsCard] = useState(false);
   const [isPortalReady, setIsPortalReady] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<{ status: string | null; amount: number | null; receiptUrl: string | null }>({ status: null, amount: null, receiptUrl: null });
@@ -1333,25 +1327,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   const { isClientView: isClientViewFlag, isProviderView: isProviderViewFlag, isPaid: isPaidFlag } = useBookingView(user, bookingDetails, paymentInfo, bookingConfirmed);
 
-  const retryQuoteNow = useCallback(async (id: number) => {
-    try {
-      setFailedQuoteIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      quoteRetryCountsRef.current.set(id, 0);
-      // Try direct fetch first for immediacy; fall back to hook helper
-      try {
-        const res = await getQuoteV2(id);
-        setQuote(res.data);
-      } catch {
-        await ensureQuoteLoaded(id);
-      }
-    } catch {
-      // ignore; UI will retry via timer
-    }
-  }, [setQuote, ensureQuoteLoaded]);
+  // No manual retry UI; quotes load with messages fetch.
 
   // When the thread is for admin moderation (e.g., listing approved/rejected),
   // do not show booking-request specific UI like the inline quote editor.
@@ -1609,70 +1585,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Always ensure quotes are hydrated whenever the message list changes.
   // This covers edge-cases where messages come from cache/WS buffers or
   // other paths that didn't explicitly call hydrateQuotesForMessages.
-  useEffect(() => {
-    if (!messages || messages.length === 0) return;
-    void hydrateQuotesForMessages(messages);
-  }, [messages, hydrateQuotesForMessages]);
-
-  // Retry loader for missing quotes referenced by messages. This avoids cases
-  // where an early auth/refresh race or a transient failure leaves the quote
-  // skeleton stuck until some unrelated event occurs.
-  const missingQuoteIds = useMemo(() => {
-    try {
-      const ids = messages
-        .map((m) => Number(m.quote_id))
-        .filter((qid) => Number.isFinite(qid) && qid > 0);
-      const uniq = Array.from(new Set(ids));
-      return uniq.filter((id) => !quotes[id] && !failedQuoteIds.has(id));
-    } catch {
-      return [] as number[];
-    }
-  }, [messages, quotes, failedQuoteIds]);
-
-  useEffect(() => {
-    if (missingQuoteIds.length === 0) {
-      if (quoteRetryTimerRef.current) {
-        clearTimeout(quoteRetryTimerRef.current);
-        quoteRetryTimerRef.current = null;
-      }
-      quoteRetryInFlightRef.current = false;
-      return;
-    }
-    if (quoteRetryInFlightRef.current) return;
-    quoteRetryInFlightRef.current = true;
-
-    const attempts = missingQuoteIds.map((id) => quoteRetryCountsRef.current.get(id) || 0);
-    const minAttempt = attempts.length ? Math.min(...attempts) : 0;
-    const delay = Math.min(5000, 600 * Math.pow(1.6, minAttempt)); // ~600ms, 960ms, 1.5s, 2.4s, 3.8s, 6s
-
-    quoteRetryTimerRef.current = window.setTimeout(async () => {
-      try {
-        // Batch first, then individual for anything still missing.
-        await ensureQuotesLoaded(missingQuoteIds);
-      } catch {
-        // ignore; individual fallbacks will still try
-      } finally {
-        // Increment retry counts and mark failures that exceeded max
-        const nextFailed = new Set<number>(failedQuoteIds);
-        for (const id of missingQuoteIds) {
-          const cur = quoteRetryCountsRef.current.get(id) || 0;
-          const nxt = cur + 1;
-          quoteRetryCountsRef.current.set(id, nxt);
-          if (nxt >= MAX_QUOTE_RETRIES) nextFailed.add(id);
-        }
-        setFailedQuoteIds(nextFailed);
-        quoteRetryInFlightRef.current = false;
-      }
-    }, delay) as unknown as number;
-
-    return () => {
-      if (quoteRetryTimerRef.current) {
-        clearTimeout(quoteRetryTimerRef.current);
-        quoteRetryTimerRef.current = null;
-      }
-      quoteRetryInFlightRef.current = false;
-    };
-  }, [missingQuoteIds, ensureQuotesLoaded, failedQuoteIds]);
+  // Keep quote hydration simple: handled synchronously in fetchMessages.
 
   useEffect(() => {
     if (!isActiveThread || myUserId <= 0 || messages.length === 0) return;
@@ -3075,7 +2988,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             if (isQuoteMessage) {
               const quoteData = quotes[quoteId];
               if (!quoteData) {
-                const failed = failedQuoteIds.has(quoteId);
                 return (
                   <div
                     key={msg.id}
@@ -3083,24 +2995,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     className="mb-0.5 w-full"
                     ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                   >
-                    {failed ? (
-                      <div className={`${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'} max-w-[75%]`}> 
-                        <div className={`rounded-2xl border ${isMsgFromSelf ? 'bg-indigo-50 border-indigo-100' : 'bg-white border-gray-200'} px-3 py-3 shadow-sm`}> 
-                          <div className="text-[13px] text-gray-800">Couldn’t load quote.</div>
-                          <div className="mt-1 flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => retryQuoteNow(quoteId)}
-                              className="text-[12px] font-medium text-indigo-700 hover:text-indigo-800"
-                            >
-                              Retry
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <QuoteBubbleSkeleton align={isMsgFromSelf ? 'right' : 'left'} />
-                    )}
+                    <QuoteBubbleSkeleton align={isMsgFromSelf ? 'right' : 'left'} />
                   </div>
                 );
               }
