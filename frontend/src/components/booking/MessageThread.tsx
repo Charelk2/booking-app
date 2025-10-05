@@ -1580,6 +1580,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     await ensureQuotesLoaded(ids);
   }, [ensureQuotesLoaded]);
 
+  // Always ensure quotes are hydrated whenever the message list changes.
+  // This covers edge-cases where messages come from cache/WS buffers or
+  // other paths that didn't explicitly call hydrateQuotesForMessages.
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+    void hydrateQuotesForMessages(messages);
+  }, [messages, hydrateQuotesForMessages]);
+
   useEffect(() => {
     if (!isActiveThread || myUserId <= 0 || messages.length === 0) return;
     scheduleMarkRead(messages, 'hydrate');
