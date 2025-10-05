@@ -2955,7 +2955,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     className="mb-0.5 w-full"
                     ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                   >
-                    <QuoteBubbleSkeleton align={isMsgFromSelf ? 'right' : 'left'} />
+                    <QuoteBubbleSkeleton />
                   </div>
                 );
               }
