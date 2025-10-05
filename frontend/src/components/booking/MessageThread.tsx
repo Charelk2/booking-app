@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { VirtuosoProps } from 'react-virtuoso';
 import { createPortal } from 'react-dom';
-import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
+import { format, isValid, differenceInCalendarDays, startOfDay, formatDistanceToNow } from 'date-fns';
 import data from '@emoji-mart/data';
 import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon, MusicalNoteIcon, PaperClipIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { WordIcon, ExcelIcon, PowerPointIcon, PdfIcon } from '@/components/icons/OfficeIcons';
@@ -1222,6 +1222,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Presence
   const [typingUsers, setTypingUsers] = useState<number[]>([]);
+  // Presence (realtime + fallback)
+  const [presenceByUser, setPresenceByUser] = useState<Record<number, 'online' | 'away' | 'offline'>>({});
+  const [lastSeenByUser, setLastSeenByUser] = useState<Record<number, number>>({});
 
   // ---- Derived
   const computedServiceName = serviceName ?? bookingDetails?.service?.title;
@@ -2438,11 +2441,58 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           setTypingUsers(incoming.filter((id: number) => id !== myUserId));
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setTypingUsers([]), 2000);
+          // Mark presence online for incoming typers
+          try {
+            const now = Date.now();
+            setPresenceByUser((prev) => {
+              const next = { ...prev };
+              incoming.forEach((uid) => { if (uid && uid !== myUserId) next[uid] = 'online'; });
+              return next;
+            });
+            setLastSeenByUser((prev) => {
+              const next = { ...prev };
+              incoming.forEach((uid) => { if (uid && uid !== myUserId) next[uid] = now; });
+              return next;
+            });
+          } catch {}
         }
         lastRealtimeAtRef.current = Date.now();
         return;
       }
-      if (typeStr === 'presence' || typeStr === 'reconnect' || typeStr === 'reconnect_hint' || typeStr === 'ping' || typeStr === 'pong' || typeStr === 'heartbeat') {
+      if (typeStr === 'presence') {
+        try {
+          const updates = (payload?.updates && typeof payload.updates === 'object') ? payload.updates : null;
+          const now = Date.now();
+          if (updates) {
+            setPresenceByUser((prev) => {
+              const next = { ...prev };
+              Object.entries(updates).forEach(([idStr, st]) => {
+                const uid = Number(idStr);
+                const v = typeof st === 'string' ? st.toLowerCase() : '';
+                if (Number.isFinite(uid) && uid > 0 && (v === 'online' || v === 'away' || v === 'offline')) next[uid] = v as any;
+              });
+              return next;
+            });
+            setLastSeenByUser((prev) => {
+              const next = { ...prev };
+              Object.keys(updates).forEach((idStr) => {
+                const uid = Number(idStr);
+                if (Number.isFinite(uid) && uid > 0) next[uid] = now;
+              });
+              return next;
+            });
+          } else {
+            const uid = Number(payload?.user_id);
+            const v = String(payload?.status || '').toLowerCase();
+            if (Number.isFinite(uid) && uid > 0 && v) {
+              setPresenceByUser((prev) => ({ ...prev, [uid]: (v === 'online' || v === 'away' || v === 'offline') ? (v as any) : prev[uid] }));
+              setLastSeenByUser((prev) => ({ ...prev, [uid]: now }));
+            }
+          }
+        } catch {}
+        return;
+      }
+      if (typeStr === 'reconnect' || typeStr === 'reconnect_hint' || typeStr === 'ping' || typeStr === 'pong' || typeStr === 'heartbeat') {
         return;
       }
       if (typeStr === 'read') {
@@ -2788,6 +2838,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return groups;
   }, [visibleMessages, shouldShowTimestampGroup]);
 
+  // Update last-seen map from messages as a fallback presence signal
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+    try {
+      const next: Record<number, number> = {};
+      for (const m of messages) {
+        const t = new Date(m.timestamp).getTime();
+        const uid = Number(m.sender_id);
+        if (!Number.isFinite(uid) || uid <= 0 || !Number.isFinite(t)) continue;
+        if (next[uid] == null || t > next[uid]) next[uid] = t;
+      }
+      if (Object.keys(next).length) {
+        setLastSeenByUser((prev) => ({ ...prev, ...next }));
+      }
+    } catch {}
+  }, [messages]);
+
   // Stable keys for each rendered group – used by Virtuoso to avoid remounts
   const groupIds = useMemo(() => groupedMessages.map((g) => (g.messages[0]?.id ?? Math.random())), [groupedMessages]);
 
@@ -2800,6 +2867,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const firstNonSystem = group.messages.find((m) => normalizeType(m.message_type) !== 'SYSTEM');
     const showHeader = !!firstNonSystem && firstNonSystem.sender_id !== myUserId;
     const __dayLabel = group.showDayDivider ? daySeparatorLabel(new Date(firstMsgInGroup.timestamp)) : null;
+    const otherUserId = (user?.user_type === 'service_provider' ? currentClientId : currentArtistId) || 0;
+    const otherPresence = presenceByUser[otherUserId];
+    const lastSeenMs = lastSeenByUser[otherUserId];
+    const statusLabel = (() => {
+      if (otherPresence === 'online' || otherPresence === 'away') return 'Online';
+      if (Number.isFinite(lastSeenMs)) return `Last seen ${formatDistanceToNow(new Date(lastSeenMs), { addSuffix: true })}`;
+      try {
+        const lastOther = [...messages].reverse().find((m) => m.sender_id === otherUserId);
+        if (lastOther) return `Last seen ${formatDistanceToNow(new Date(lastOther.timestamp), { addSuffix: true })}`;
+      } catch {}
+      return '';
+    })();
+
     const __headerView = showHeader ? (
       <div className="flex items-center mb-1">
         {user?.user_type === 'service_provider'
@@ -2833,9 +2913,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 {artistName?.charAt(0)}
               </div>
             )}
-        <span className="text-xs text-gray-600">
-          {user?.user_type === 'service_provider' ? clientName : artistName}
-        </span>
+        <div className="flex flex-col">
+          <span className="text-xs text-gray-600">
+            {user?.user_type === 'service_provider' ? clientName : artistName}
+          </span>
+          {statusLabel ? (
+            <span className="text-[10px] text-gray-500">{statusLabel}</span>
+          ) : null}
+        </div>
       </div>
     ) : null;
 
