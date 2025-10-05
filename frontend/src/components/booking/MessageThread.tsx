@@ -4052,13 +4052,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       const finalizeMessage = (tempId: number, real: ThreadMessage) => {
         setMessages((prev) => {
-          const prevOptimistic = prev.find((m) => m.id === tempId);
-          const realWithPreview = prevOptimistic?.local_preview_url
-            ? { ...real, local_preview_url: prevOptimistic.local_preview_url }
-            : real;
           const byId = new Map<number, ThreadMessage>();
           for (const m of prev) if (m.id !== tempId) byId.set(m.id, m);
-          byId.set(real.id, realWithPreview);
+          // Do not carry over local_preview_url so the bubble swaps to the
+          // final server URL seamlessly (avoids revoked blob breakage).
+          byId.set(real.id, { ...real, local_preview_url: null });
           const next = Array.from(byId.values()).sort(
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
           );
