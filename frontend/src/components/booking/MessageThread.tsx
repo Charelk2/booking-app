@@ -3404,14 +3404,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
                 {/* Reaction picker (inline, simple and reliable) */}
                 {reactionPickerFor === msg.id && (
-                  <div className="mt-2 flex items-center justify-center">
+                  <div ref={reactionPickerRefDesktop} className="mt-2 flex items-center justify-center">
                     <ReactionBar id={msg.id} />
                   </div>
                 )}
 
-                {/* Hover reaction emoji – outside bubble, vertically centered */}
+                {/* Reaction trigger – always visible for reliability */}
                 <div
-                  className={`hidden md:block absolute top-1/2 -translate-y-1/2 z-20 opacity-0 group-hover:opacity-100 hover:opacity-100 focus-within:opacity-100 pointer-events-auto ${
+                  className={`absolute top-1/2 -translate-y-1/2 z-30 opacity-100 pointer-events-auto ${
                     isMsgFromSelf ? '-left-6' : '-right-6'
                   }`}
                 >
@@ -3448,7 +3448,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
                 {/* Inline action menu (basic fallback that works everywhere) */}
                 {actionMenuFor === msg.id && (
-                  <div className={`mt-2 rounded-md border border-gray-200 bg-white shadow-lg ${isMsgFromSelf ? 'ml-auto' : 'mr-auto'}`} onClick={(e) => e.stopPropagation()}>
+                  <div ref={actionMenuRef} className={`mt-2 rounded-md border border-gray-200 bg-white shadow-lg ${isMsgFromSelf ? 'ml-auto' : 'mr-auto'}`} onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
                       className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
@@ -4006,7 +4006,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const chevronPos = isLikelyOneLine ? 'bottom-4 right-1' : 'top-1 right-1';
 
     return (
-      <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 hover:opacity-100 focus-within:opacity-100 pointer-events-auto transition-opacity`}>
+      <div className={`absolute ${chevronPos} opacity-100 pointer-events-auto z-30`}>
         {/* Chevron menu */}
         <button
           type="button"
