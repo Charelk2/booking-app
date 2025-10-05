@@ -3405,10 +3405,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 {/* Hover actions (desktop): small chevron button to open menu */}
                 <HoverActions msg={msg} isMsgFromSelf={isMsgFromSelf} />
 
-                {/* Reaction picker (inline, simple and reliable) */}
+                {/* Reaction picker: render outside bubble, above it.
+                    For received (left-aligned) bubbles, anchor from the middle to the right.
+                    For sent (right-aligned) bubbles, anchor from the middle to the left. */}
                 {reactionPickerFor === msg.id && (
-                  <div ref={reactionPickerRefDesktop} className="mt-2 flex items-center justify-center">
-                    <ReactionBar id={msg.id} />
+                  <div
+                    ref={reactionPickerRefDesktop}
+                    className={`absolute bottom-full mb-1 z-40 pointer-events-auto ${
+                      isMsgFromSelf ? 'right-1/2' : 'left-1/2'
+                    }`}
+                  >
+                    <div className={`inline-flex ${isMsgFromSelf ? 'justify-end' : 'justify-start'}`}>
+                      <ReactionBar id={msg.id} />
+                    </div>
                   </div>
                 )}
 
@@ -3449,10 +3458,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   </div>
                 )}
 
-                {/* Inline action menu (basic fallback that works everywhere) */}
+                {/* Chevron menu: render outside bubble, above it; mirror direction like reactions */}
                 {actionMenuFor === msg.id && (
-                  <div ref={actionMenuRef} className={`mt-2 rounded-md border border-gray-200 bg-white shadow-lg ${isMsgFromSelf ? 'ml-auto' : 'mr-auto'}`} onClick={(e) => e.stopPropagation()}>
-                    <button
+                  <div
+                    className={`absolute bottom-full mb-1 z-40 pointer-events-auto ${
+                      isMsgFromSelf ? 'right-1/2' : 'left-1/2'
+                    }`}
+                  >
+                    <div
+                      ref={actionMenuRef}
+                      className="rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
                       type="button"
                       className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
                       onClick={() => {
@@ -3469,7 +3487,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     >
                       Copy
                     </button>
-                    <button
+                      <button
                       type="button"
                       className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
                       onClick={() => {
@@ -3480,7 +3498,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     >
                       Reply
                     </button>
-                    <button
+                      <button
                       type="button"
                       className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
                       onClick={() => {
@@ -3490,8 +3508,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     >
                       React
                     </button>
-                    {msg.attachment_url && (
-                      <button
+                      {msg.attachment_url && (
+                        <button
                         type="button"
                         className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
                         onClick={async () => {
@@ -3516,10 +3534,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         }}
                       >
                         Download
-                      </button>
-                    )}
-                    {isMsgFromSelf && (
-                      <button
+                        </button>
+                      )}
+                      {isMsgFromSelf && (
+                        <button
                         type="button"
                         className="block w-full text-left px-3 py-2 text-[12px] text-red-600 hover:bg-red-50"
                         onClick={async () => {
@@ -3538,8 +3556,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         }}
                       >
                         Delete
-                      </button>
-                    )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
