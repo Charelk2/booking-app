@@ -3402,16 +3402,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 {/* Hover actions (desktop): small chevron button to open menu */}
                 <HoverActions msg={msg} isMsgFromSelf={isMsgFromSelf} />
 
-                {/* Reaction picker */}
-                {/* Desktop/Tablet anchored picker (always mounted for instant open) */}
-                <div
-                  ref={reactionPickerRefDesktop}
-                  className={`hidden sm:block absolute -top-10 z-30 ${
-                    isMsgFromSelf ? 'left-1/2 transform -translate-x-full' : 'left-1/2'
-                  } ${reactionPickerFor === msg.id ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-                >
-                  <ReactionBar id={msg.id} />
-                </div>
+                {/* Reaction picker (inline, simple and reliable) */}
+                {reactionPickerFor === msg.id && (
+                  <div className="mt-2 flex items-center justify-center">
+                    <ReactionBar id={msg.id} />
+                  </div>
+                )}
 
                 {/* Hover reaction emoji – outside bubble, vertically centered */}
                 <div
@@ -3447,6 +3443,100 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           </span>
                         ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Inline action menu (basic fallback that works everywhere) */}
+                {actionMenuFor === msg.id && (
+                  <div className={`mt-2 rounded-md border border-gray-200 bg-white shadow-lg ${isMsgFromSelf ? 'ml-auto' : 'mr-auto'}`} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                      onClick={() => {
+                        try {
+                          const parts: string[] = [];
+                          if (msg.content) parts.push(msg.content);
+                          if (msg.attachment_url) parts.push(toApiAttachmentsUrl(msg.attachment_url));
+                          void navigator.clipboard.writeText(parts.join('\n'));
+                        } catch {}
+                        setActionMenuFor(null);
+                        setCopiedFor(msg.id);
+                        setTimeout(() => setCopiedFor((v) => (v === msg.id ? null : v)), 1200);
+                      }}
+                    >
+                      Copy
+                    </button>
+                    <button
+                      type="button"
+                      className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                      onClick={() => {
+                        setReplyTarget(msg);
+                        setReactionPickerFor(null);
+                        setActionMenuFor(null);
+                      }}
+                    >
+                      Reply
+                    </button>
+                    <button
+                      type="button"
+                      className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                      onClick={() => {
+                        setReactionPickerFor(msg.id);
+                        setActionMenuFor(null);
+                      }}
+                    >
+                      React
+                    </button>
+                    {msg.attachment_url && (
+                      <button
+                        type="button"
+                        className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                        onClick={async () => {
+                          try {
+                            const url = toApiAttachmentsUrl(msg.attachment_url!);
+                            const res = await fetch(url, { credentials: 'include' as RequestCredentials });
+                            if (!res.ok) throw new Error(String(res.status));
+                            const blob = await res.blob();
+                            const a = document.createElement('a');
+                            const objectUrl = URL.createObjectURL(blob);
+                            a.href = objectUrl;
+                            a.download = url.split('/').pop() || 'file';
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(objectUrl);
+                          } catch (err) {
+                            try { window.open(toApiAttachmentsUrl(msg.attachment_url!), '_blank', 'noopener,noreferrer'); } catch {}
+                          } finally {
+                            setActionMenuFor(null);
+                          }
+                        }}
+                      >
+                        Download
+                      </button>
+                    )}
+                    {isMsgFromSelf && (
+                      <button
+                        type="button"
+                        className="block w-full text-left px-3 py-2 text-[12px] text-red-600 hover:bg-red-50"
+                        onClick={async () => {
+                          setActionMenuFor(null);
+                          const ok = typeof window !== 'undefined' ? window.confirm('Delete this message?') : true;
+                          if (!ok) return;
+                          const snapshot = messages;
+                          setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                          try {
+                            const bid = bookingDetails?.id || (parsedBookingDetails as any)?.id;
+                            if (bid) await deleteMessageForBookingRequest(bookingRequestId, msg.id);
+                          } catch (e) {
+                            setMessages(snapshot);
+                            alert('Could not delete this message.');
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
