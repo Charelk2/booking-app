@@ -187,17 +187,8 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
             >
-              {/* Top-right close and download actions */}
+              {/* Top-right close action */}
               <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
-                <a
-                  href={embedSrc || src}
-                  download
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded bg-white/90 border border-gray-200 px-2 py-1 text-[12px] text-gray-700 hover:bg-white"
-                >
-                  Download
-                </a>
                 <button
                   type="button"
                   onClick={onClose}

@@ -3165,7 +3165,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           else if (['doc','docx','txt','rtf','ppt','pptx','xls','xlsx','csv','md'].includes(ext)) IconComp = DocumentTextIcon;
                           else IconComp = PaperClipIcon;
                         } catch { IconComp = DocumentTextIcon; }
-                        const isPdf = metaTypeLower.includes('pdf') || (() => { try { const clean = url.split('?')[0]; return (clean.split('.').pop() || '').toLowerCase() === 'pdf'; } catch { return false; } })();
+                        const extLower = (() => { try { const clean = url.split('?')[0]; return (clean.split('.').pop() || '').toLowerCase(); } catch { return ''; } })();
+                        const isPdf = metaTypeLower.includes('pdf') || extLower === 'pdf';
+                        const isOfficeDoc = (
+                          metaTypeLower.includes('msword') ||
+                          metaTypeLower.includes('vnd.openxmlformats-officedocument.wordprocessingml.document') ||
+                          metaTypeLower.includes('vnd.ms-excel') ||
+                          metaTypeLower.includes('vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
+                          metaTypeLower.includes('vnd.ms-powerpoint') ||
+                          metaTypeLower.includes('vnd.openxmlformats-officedocument.presentationml.presentation') ||
+                          metaTypeLower.includes('rtf') ||
+                          metaTypeLower.includes('csv') ||
+                          ['doc','docx','xls','xlsx','ppt','pptx','rtf','csv'].includes(extLower)
+                        );
                         return (
                           <div
                             className={`mb-3 w-full rounded bg-gray-200 text-left text-[12px] text-gray-700 px-2 py-1 ${!isAudio ? 'cursor-pointer' : ''}`}
@@ -3175,7 +3187,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             onClick={!isAudio ? (e) => {
                               e.stopPropagation();
                               const target = toApiAttachmentsUrl(url);
-                              if (isPdf) {
+                              if (isPdf || isOfficeDoc) {
                                 try { window.open(target, '_blank', 'noopener,noreferrer'); } catch {}
                               } else {
                                 setFilePreviewSrc(target);
@@ -3185,7 +3197,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault();
                                 const target = toApiAttachmentsUrl(url);
-                                if (isPdf) {
+                                if (isPdf || isOfficeDoc) {
                                   try { window.open(target, '_blank', 'noopener,noreferrer'); } catch {}
                                 } else {
                                   setFilePreviewSrc(target);
@@ -3198,7 +3210,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               <div className="min-w-0 flex-1">
                                 <div className="line-clamp-2 break-words font-medium">{label}</div>
                                 {sizeLabel && <div className="text-[11px] text-gray-500 mt-0.5">{sizeLabel}</div>}
-                                {isPdf ? <div className="mt-0.5 text-[11px] text-indigo-700">Open PDF</div> : null}
+                                {isPdf || isOfficeDoc ? <div className="mt-0.5 text-[11px] text-indigo-700">Open in new tab</div> : null}
                               </div>
                             </div>
                             {uploadProgressById[msg.id] != null && (
@@ -4898,7 +4910,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   if (imgs.length) addImageFiles(imgs);
                   if (others.length) setAttachmentFile(others[0]);
                 }}
-                accept="image/*,application/pdf,audio/*"
+                accept="image/*,application/pdf,audio/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/csv,application/rtf"
                 multiple
               />
               <label
