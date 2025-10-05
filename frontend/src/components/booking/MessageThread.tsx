@@ -143,7 +143,9 @@ const _underlyingUrlForProxy = (value?: string | null): string | null => {
 
 const isImageAttachment = (url?: string | null) => {
   if (!url) return false;
-  if (/^blob:/i.test(url) || /^data:image\//i.test(url)) return true;
+  // Only treat data URLs with explicit image MIME as images; for blob: URLs,
+  // we rely on attachment_meta.content_type when available.
+  if (/^data:image\//i.test(url)) return true;
   if (/\.(jpe?g|png|gif|webp|avif)(?:\?.*)?$/i.test(url)) return true;
   const proxied = _underlyingUrlForProxy(url);
   return proxied ? /\.(jpe?g|png|gif|webp|avif)(?:\?.*)?$/i.test(proxied) : false;
@@ -155,6 +157,14 @@ const isAudioAttachmentUrl = (url?: string | null) => {
   if (/\.(webm|mp3|m4a|ogg|wav)(?:\?.*)?$/i.test(url)) return true;
   const proxied = _underlyingUrlForProxy(url);
   return proxied ? /\.(webm|mp3|m4a|ogg|wav)(?:\?.*)?$/i.test(proxied) : false;
+};
+
+const isVideoAttachmentUrl = (url?: string | null) => {
+  if (!url) return false;
+  if (/^data:video\//i.test(url)) return true;
+  if (/\.(mp4|mov|webm|mkv|m4v)(?:\?.*)?$/i.test(url)) return true;
+  const proxied = _underlyingUrlForProxy(url);
+  return proxied ? /\.(mp4|mov|webm|mkv|m4v)(?:\?.*)?$/i.test(proxied) : false;
 };
 
 // Use UTC ISO timestamps for API payloads and optimistic messages
@@ -3181,8 +3191,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         const baseUrl = /^(blob:|data:)/i.test(raw) ? raw : toApiAttachmentsUrl(raw);
                         const display = msg.local_preview_url || baseUrl;
 
-                        const isImg = isImageAttachment(display);
-                        const isAud = isAudioAttachmentUrl(display);
+            const metaType = String((msg.attachment_meta as any)?.content_type || '').toLowerCase();
+            const isAud = metaType.startsWith('audio/') || isAudioAttachmentUrl(display);
+            const isVid = metaType.startsWith('video/') || (!isAud && isVideoAttachmentUrl(display));
+            const isImg = metaType.startsWith('image/') || (!isAud && !isVid && isImageAttachment(display));
 
                         if (isImg) {
                           return (
@@ -3251,6 +3263,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 onError={(e) => {
                                   advanceAudioFallback(e.currentTarget, audioFallbacks, raw);
                                 }}
+                              />
+                            </div>
+                          );
+                        }
+
+                        if (isVid) {
+                          const videoSrc = toProxyPath(display);
+                          return (
+                            <div className="mt-1 inline-block w-full md:w-1/2 lg:w-1/2">
+                              <video
+                                className="w-full rounded-xl"
+                                controls
+                                preload="metadata"
+                                playsInline
+                                src={videoSrc}
                               />
                             </div>
                           );
@@ -4690,12 +4717,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         </div>
       )}
 
-      {/* Non-image attachment preview */}
+      {/* Non-image attachment preview (audio/video/files) */}
       {attachmentPreviewUrl && attachmentFile && !attachmentFile.type.startsWith('image/') && (
         <div className={isDetailsPanelOpen ? 'hidden md:flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner' : 'flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner'}>
-          {attachmentFile && (attachmentFile.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg)$/i.test(attachmentFile.name || '')) ? (
+          {attachmentFile && (attachmentFile.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg|wav)$/i.test(attachmentFile.name || '')) ? (
             <>
               <audio className="w-48" controls src={attachmentPreviewUrl} preload="none" />
+              <span className="text-xs text-gray-700 font-medium">{attachmentFile.name} ({formatBytes(attachmentFile.size)})</span>
+            </>
+          ) : attachmentFile && (attachmentFile.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v)$/i.test(attachmentFile.name || '')) ? (
+            <>
+              <video className="w-48 rounded" controls src={attachmentPreviewUrl} preload="metadata" />
               <span className="text-xs text-gray-700 font-medium">{attachmentFile.name} ({formatBytes(attachmentFile.size)})</span>
             </>
           ) : (
