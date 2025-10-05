@@ -2303,8 +2303,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     try { (window as any).__threadInfo = () => ({ bookingRequestId, topics }); } catch {}
   }, [bookingRequestId, topics]);
 
-  // Fallback: When realtime isn't open, poll for updates so read receipts and
-  // reactions still progress without requiring manual refresh.
+  // Fallback: When realtime isn't open, poll for new messages only (delta)
+  // so the UI doesn't thrash/re-render unnecessarily.
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
     const start = () => {
@@ -2312,8 +2312,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       // Light cadence: incremental fetch every 8s while offline/reconnecting
       const tick = () => {
         if (!isActiveThread) return;
-        // Use a full refresh to capture read-status changes on existing messages
-        void fetchMessages({ mode: 'initial', force: true, reason: 'poll' });
+        // Only request deltas; if no new rows, fetchMessages early-returns
+        // without touching component state.
+        void fetchMessages({ mode: 'incremental', force: true, reason: 'poll' });
       };
       tick();
       timer = setInterval(tick, 8000);
@@ -2557,18 +2558,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return () => { unsubs.forEach((u) => u()); };
   }, [subscribe, topics, myUserId, bookingRequestId, fetchMessages]);
 
-  // ---- Gentle polling fallback: if no realtime in ~4s, poll every 2s until we see activity
-  useEffect(() => {
-    if (!isActiveThread) return;
-    lastRealtimeAtRef.current = Date.now();
-    const id = setInterval(() => {
-      const idleMs = Date.now() - lastRealtimeAtRef.current;
-      if (idleMs > 4000) {
-        void fetchMessages({ mode: 'incremental', reason: 'poll' });
-      }
-    }, 2000);
-    return () => clearInterval(id);
-  }, [fetchMessages, isActiveThread]);
+  // Removed aggressive polling; the 8s delta poll (when WS is closed) is enough.
 
   // Also listen to global notifications as a safety net; if a new_message
   // notification arrives, refresh this thread if ids match or if no id is present.
