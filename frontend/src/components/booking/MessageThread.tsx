@@ -2703,20 +2703,98 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         <div className="flex flex-col w-full">
           {__headerView}
           {/* Bubbles */}
-          {group.messages.map((msg, msgIdx) => {
-            const isMsgFromSelf = msg.sender_id === myUserId;
-            const isLastInGroup = msgIdx === group.messages.length - 1;
-
-            const isSystemMsg = isSystemMsgHelper(msg);
-
-            let bubbleShape = 'rounded-xl';
-            if (isSystemMsg) {
-              bubbleShape = 'rounded-lg';
-            } else if (isMsgFromSelf) {
-              bubbleShape = isLastInGroup ? 'rounded-br-none rounded-xl' : 'rounded-xl';
-            } else {
-              bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-xl' : 'rounded-xl';
+          {(() => {
+            // Coalesce consecutive image-only messages into a single album item
+            const items: Array<{ type: 'album'; msgs: ThreadMessage[] } | { type: 'msg'; msg: ThreadMessage }>[] = [] as any;
+            const out: any[] = [];
+            const isImageOnly = (m: ThreadMessage) => {
+              const url = m.attachment_url || '';
+              const img = isImageAttachment(url || undefined);
+              if (!img) return false;
+              const text = String(m.content || '').trim().toLowerCase();
+              if (!text) return true;
+              // Treat common placeholders as image-only
+              return text === '[attachment]' || text === 'attachment' || text === '[image]' || text === 'image';
+            };
+            for (let i = 0; i < group.messages.length; ) {
+              const m = group.messages[i];
+              if (isImageOnly(m)) {
+                const block: ThreadMessage[] = [m];
+                let j = i + 1;
+                while (j < group.messages.length && isImageOnly(group.messages[j])) {
+                  block.push(group.messages[j]);
+                  j++;
+                }
+                if (block.length > 1) {
+                  out.push({ type: 'album', msgs: block });
+                } else {
+                  out.push({ type: 'msg', msg: m });
+                }
+                i = j;
+              } else {
+                out.push({ type: 'msg', msg: m });
+                i++;
+              }
             }
+            return out.map((entry, idx2) => {
+              if (entry.type === 'album') {
+                const msgs = entry.msgs as ThreadMessage[];
+                const first = msgs[0];
+                const isMsgFromSelfAlbum = first.sender_id === myUserId;
+                const bubbleBase = isMsgFromSelfAlbum
+                  ? 'bg-blue-50 text-gray-900 whitespace-pre-wrap break-words'
+                  : 'bg-gray-50 text-gray-900 whitespace-pre-wrap break-words';
+                const bubbleShapeAlbum = isMsgFromSelfAlbum ? 'rounded-br-none rounded-xl' : 'rounded-bl-none rounded-xl';
+                const albumAlignClass = isMsgFromSelfAlbum ? 'ml-auto mr-0' : 'mr-auto ml-0';
+                const urls = msgs.map((mm) => toApiAttachmentsUrl(mm.local_preview_url || mm.attachment_url || ''));
+                return (
+                  <div
+                    key={`album-${first.id}`}
+                    className={`group relative inline-block select-none w-auto max-w-[75%] px-3 py-2 text-[13px] leading-snug ${bubbleBase} ${bubbleShapeAlbum} ${albumAlignClass} mb-2`}
+                  >
+                    <div className="w-full overflow-x-auto flex gap-2 snap-x" style={{ WebkitOverflowScrolling: 'touch' } as any}>
+                      {urls.map((u, k) => (
+                        <button
+                          key={u + k}
+                          type="button"
+                          className="relative flex-shrink-0 snap-center"
+                          onClick={() => openImageModalForUrl(u)}
+                          aria-label="Open image"
+                        >
+                          <img
+                            src={u}
+                            alt={`Image ${k + 1}`}
+                            className="block h-40 w-auto max-w-[70vw] rounded-lg object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => {
+                              const tried = (e.currentTarget as any).dataset.triedAlt;
+                              if (!tried) {
+                                (e.currentTarget as HTMLImageElement).src = altAttachmentPath(u);
+                                (e.currentTarget as any).dataset.triedAlt = '1';
+                              }
+                            }}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+              const msg = (entry as any).msg as ThreadMessage;
+              const msgIdx = group.messages.indexOf(msg);
+              const isMsgFromSelf = msg.sender_id === myUserId;
+              const isLastInGroup = msgIdx === group.messages.length - 1;
+              const isSystemMsg = isSystemMsgHelper(msg);
+
+              let bubbleShape = 'rounded-xl';
+              if (isSystemMsg) {
+                bubbleShape = 'rounded-lg';
+              } else if (isMsgFromSelf) {
+                bubbleShape = isLastInGroup ? 'rounded-br-none rounded-xl' : 'rounded-xl';
+              } else {
+                bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-xl' : 'rounded-xl';
+              }
 
             const quoteId = Number(msg.quote_id);
             const isQuoteMessage =
@@ -2926,11 +3004,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             const reactionMapForMsg = ((reactions[msg.id] || (msg.reactions as any) || {}) as Record<string, number>);
             const hasReactionsForMsg = Object.entries(reactionMapForMsg).some(([, c]) => (Number(c) > 0));
 
-            return (
+              return (
               <div
                 key={msg.id}
                 id={`msg-${msg.id}`}
-                className={`group relative inline-block select-none w-auto max-w-[75%] ${isImageAttachment(msg.attachment_url || undefined) ? 'p-0 bg-transparent rounded-xl' : 'px-3 py-2'} text-[13px] leading-snug ${bubbleClasses} ${isImageAttachment(msg.attachment_url || undefined) ? 'bg-transparent' : ''} ${hasReactionsForMsg ? 'mb-5' : (msgIdx < group.messages.length - 1 ? 'mb-0.5' : '')} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'} ${highlightFor === msg.id ? 'ring-1 ring-indigo-200' : ''}`}
+                className={`group relative inline-block select-none w-auto max-w-[75%] px-3 py-2 text-[13px] leading-snug ${bubbleClasses} ${hasReactionsForMsg ? 'mb-5' : (msgIdx < group.messages.length - 1 ? 'mb-0.5' : '')} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'} ${highlightFor === msg.id ? 'ring-1 ring-indigo-200' : ''}`}
                 ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                 onTouchStart={(e) => startLongPress(msg.id, e)}
                 onTouchMove={moveLongPress}
@@ -2944,7 +3022,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 ) : (
                   <div className="hidden md:block absolute inset-y-0 left-0 right-0 pointer-events-none" aria-hidden="true" />
                 )}
-                <div className={isImageAttachment(msg.attachment_url || undefined) ? '' : 'pr-9 mb-1'}>
+                <div className={'pr-9 mb-1'}>
                   {msg.reply_to_preview && (
                     <button
                       type="button"
@@ -3175,8 +3253,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   </div>
                 )}
               </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </ThreadMessageGroup>
     );
