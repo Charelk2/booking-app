@@ -3655,6 +3655,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   delete el.dataset.fallbackDone;
                                 }}
                                 onError={(e) => {
+                                  // If current src is a local blob preview, avoid flipping immediately;
+                                  // let the local audio stay as the primary source to prevent visible errors on mobile.
+                                  try { if ((e.currentTarget.src || '').startsWith('blob:')) return; } catch {}
                                   advanceAudioFallback(e.currentTarget, audioFallbacks, raw);
                                 }}
                               />
@@ -5310,13 +5313,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     try {
                       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                       // Choose a supported audio mime type for widest compatibility
+                      // Prefer Safari-friendly types first; fall back to webm/ogg when available
                       const candidates = [
-                        'audio/webm;codecs=opus',
-                        'audio/webm',
                         'audio/mp4',
-                        'audio/ogg',
+                        'audio/aac',
                         'audio/mpeg',
                         'audio/wav',
+                        'audio/webm;codecs=opus',
+                        'audio/webm',
+                        'audio/ogg',
                       ];
                       const supported = (candidates as string[]).find((t) => {
                         try { return typeof (window as any).MediaRecorder !== 'undefined' && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(t); } catch { return false; }
