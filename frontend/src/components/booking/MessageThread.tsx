@@ -4287,7 +4287,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         <button
           type="button"
           title="More"
-          className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
+          className="w-4 h-4 rounded-md bg-white border border-gray-200 text-gray-700 flex items-center justify-center hover:bg-gray-50"
           onClick={(e) => {
             e.stopPropagation();
             setReactionPickerFor(null);
