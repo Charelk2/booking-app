@@ -200,7 +200,7 @@ function ChatAudioPlayer({
   initialSrc,
   fallbacks,
   original,
-  compactWidth = 'w-56',
+  compactWidth = 'w-full',
 }: {
   initialSrc: string;
   fallbacks: string[];
@@ -213,6 +213,7 @@ function ChatAudioPlayer({
   const [current, setCurrent] = React.useState<number>(0);
   const [playing, setPlaying] = React.useState<boolean>(false);
   const [errorCount, setErrorCount] = React.useState<number>(0);
+  const [dragging, setDragging] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     const el = audioRef.current;
@@ -274,19 +275,72 @@ function ChatAudioPlayer({
     try { if (el.paused) void el.play(); else el.pause(); } catch {}
   }, []);
 
-  const seek = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const applySeekFromClientX = React.useCallback((clientX: number) => {
     const el = audioRef.current; const bar = progressRef.current;
     if (!el || !bar || duration <= 0) return;
     const rect = bar.getBoundingClientRect();
-    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
     const ratio = rect.width > 0 ? x / rect.width : 0;
     el.currentTime = ratio * duration;
   }, [duration]);
 
+  const onProgressMouseDown = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    setDragging(true);
+    applySeekFromClientX(e.clientX);
+  }, [applySeekFromClientX]);
+
+  React.useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => applySeekFromClientX(e.clientX);
+    const onUp = () => setDragging(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [dragging, applySeekFromClientX]);
+
+  const onTouchStart = React.useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    setDragging(true);
+    const t = e.touches[0];
+    if (t) applySeekFromClientX(t.clientX);
+  }, [applySeekFromClientX]);
+  React.useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (t) applySeekFromClientX(t.clientX);
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onUp);
+    window.addEventListener('touchcancel', onUp);
+    return () => {
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+      window.removeEventListener('touchcancel', onUp);
+    };
+  }, [dragging, applySeekFromClientX]);
+
   const exhausted = errorCount > (fallbacks?.length ?? 0) + 1;
 
+  // tiny waveform stub heights seeded from src
+  const makeHeights = React.useCallback((seed: string, n: number) => {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619) >>> 0;
+    const arr: number[] = [];
+    for (let i = 0; i < n; i++) {
+      h ^= h << 13; h ^= h >>> 17; h ^= h << 5;
+      const v = (h >>> 0) / 0xffffffff;
+      arr.push(0.35 + 0.6 * v);
+    }
+    return arr;
+  }, []);
+  const waveHeights = React.useMemo(() => makeHeights(initialSrc || original || 'seed', 16), [makeHeights, initialSrc, original]);
+
   return (
-    <div className={`mt-1 inline-block ${compactWidth}`}>
+    <div className={`mt-1 block ${compactWidth}`}>
       <audio ref={audioRef} className="hidden" />
       {exhausted ? (
         <div className="text-[12px] text-gray-600">
@@ -302,20 +356,26 @@ function ChatAudioPlayer({
               type="button"
               aria-label={playing ? 'Pause voice note' : 'Play voice note'}
               onClick={toggle}
-              className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white hover:opacity-90 active:scale-95 transition-transform"
+              className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center hover:opacity-90 active:scale-95 transition-transform"
               style={{ backgroundColor: 'currentColor' }}
             >
               {playing ? (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
               )}
             </button>
             <div className="flex-1">
+              <div className="mb-1 h-5 flex items-end gap-[3px] opacity-80" aria-hidden="true">
+                {waveHeights.map((v, i) => (
+                  <div key={i} style={{ height: `${Math.round(8 + 8 * v)}px`, width: '2px', backgroundColor: 'currentColor', opacity: playing ? 0.6 : 0.35 }} className="rounded" />
+                ))}
+              </div>
               <div
                 ref={progressRef}
-                onClick={seek}
-                className="h-1.5 rounded-full bg-black/10 overflow-hidden cursor-pointer"
+                onMouseDown={onProgressMouseDown}
+                onTouchStart={onTouchStart}
+                className="h-1.5 rounded-full bg-black/10 overflow-hidden cursor-pointer touch-none"
                 role="progressbar"
                 aria-valuemin={0}
                 aria-valuemax={Math.max(1, Math.floor(duration))}
@@ -3857,7 +3917,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             ? [initialAudioSrc, ...fallbackChain.filter((c) => c !== initialAudioSrc)]
                             : fallbackChain;
                           return (
-                            <ChatAudioPlayer initialSrc={initialAudioSrc} fallbacks={audioFallbacks} original={raw} compactWidth="w-56" />
+                            <ChatAudioPlayer initialSrc={initialAudioSrc} fallbacks={audioFallbacks} original={raw} compactWidth="w-full" />
                           );
                         }
 
@@ -5395,21 +5455,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               const isVoiceNote = /^voice-note-\d+\./i.test(attachmentFile.name || '');
               return (
                 <>
-                  <audio
-                    className="w-48"
-                    controls
-                    src={attachmentPreviewUrl}
-                    preload="metadata"
-                    onLoadedMetadata={(e) => {
-                      try { setPreviewAudioDuration(e.currentTarget.duration || 0); } catch {}
-                    }}
+                  <ChatAudioPlayer
+                    initialSrc={attachmentPreviewUrl}
+                    fallbacks={[attachmentPreviewUrl]}
+                    original={attachmentPreviewUrl}
+                    compactWidth="w-full"
                   />
-                  {isVoiceNote ? (
-                    <span className="text-xs text-gray-700 font-medium tabular-nums">{formatDuration(previewAudioDuration)}</span>
-                  ) : (
+                  {!isVoiceNote && (
                     <span className="text-xs text-gray-700 font-medium">
                       {attachmentFile.name} ({formatBytes(attachmentFile.size)})
-                      {previewAudioDuration != null ? ` · ${formatDuration(previewAudioDuration)}` : ''}
                     </span>
                   )}
                 </>
