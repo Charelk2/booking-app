@@ -338,6 +338,22 @@ html, body {
   transition: max-width 0.5s ease-in-out, opacity 0.3s ease-in-out 0.1s;
 }
 
+/* Chat audio controls: make the native control panel transparent so the bubble background shows through */
+.chat-audio {
+  background: transparent;
+  border: 0;
+  outline: none;
+  width: 100%;
+  border-radius: 0.75rem; /* match rounded-xl */
+}
+.chat-audio::-webkit-media-controls-panel {
+  background-color: transparent !important;
+}
+.chat-audio::-webkit-media-controls-enclosure {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
 /* When header is expanded from compact (clicked pill), hide the pill */
 #app-header[data-header-state="expanded-from-compact"] .compact-pill-wrapper {
   max-width: 0;
