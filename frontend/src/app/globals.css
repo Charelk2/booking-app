@@ -339,13 +339,7 @@ html, body {
 }
 
 /* Chat audio controls: make the native control panel transparent so the bubble background shows through */
-.chat-audio {
-  display: block;
-  width: 100%;
-  height: 44px !important; /* force visible control height on mobile */
-  min-height: 44px !important;
-  border-radius: 0.75rem; /* rounded-xl */
-}
+/* (reverted) Use native audio control visuals; no custom class needed here. */
 /* Do not force transparent media control panels; keep platform defaults
    to guarantee visibility and contrast on mobile browsers. */
 

@@ -3724,7 +3724,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           return (
                             <div className="mt-1 block w-full min-h-[48px]">
                               <audio
-                                className="w-full chat-audio"
+                                className="w-full"
                                 controls
                                 src={initialAudioSrc}
                                 preload="metadata"
@@ -5287,7 +5287,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               return (
                 <>
                   <audio
-                    className="w-full chat-audio"
+                    className="w-full"
                     controls
                     src={attachmentPreviewUrl}
                     preload="metadata"
