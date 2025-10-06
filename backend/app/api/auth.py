@@ -707,11 +707,39 @@ def refresh_token(
         db.commit()
         raise HTTPException(status_code=401, detail="Session expired")
 
-    if _hash_token(refresh_jwt) != user.refresh_token_hash:
+    provided_hash = _hash_token(refresh_jwt)
+    if provided_hash != user.refresh_token_hash:
+        # Idempotent refresh window: accept a duplicate refresh using the previous token
+        try:
+            client = get_redis_client()
+            # Map from previous hash -> latest refresh token (plaintext) for a short grace window
+            key = f"auth:refresh:prev:{provided_hash}"
+            mapped = client.get(key)
+            if mapped:
+                # Issue a fresh access token and set the current refresh cookie to the latest value
+                access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+                payload = {"access_token": access, "token_type": "bearer", "refresh_token": mapped}
+                resp = JSONResponse(payload)
+                _set_access_cookie(resp, access)
+                # Use DB expiry; if missing, default to configured days
+                exp = user.refresh_token_expires_at or (datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+                _set_refresh_cookie(resp, mapped, exp)
+                return resp
+        except Exception:
+            pass
+        # Outside grace window or no mapping: treat as rotated/expired
         raise HTTPException(status_code=401, detail="Token has been rotated")
 
     # Rotate refresh token
     new_refresh, r_exp = _create_refresh_token(email)
+    # Store a grace mapping from the previous valid hash to the newly rotated token
+    try:
+        prev_hash = provided_hash
+        client = get_redis_client()
+        if isinstance(client, redis.Redis):
+            client.setex(f"auth:refresh:prev:{prev_hash}", 60, new_refresh)
+    except Exception:
+        pass
     _store_refresh_token(db, user, new_refresh, r_exp)
 
     # Issue a fresh access token

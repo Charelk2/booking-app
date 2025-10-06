@@ -1,6 +1,7 @@
 // frontend/src/lib/api.ts
 
 import axios, { AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
+import { ensureFreshAccess } from '@/lib/refreshCoordinator';
 import { setTransportErrorMeta } from '@/lib/transportState';
 import logger from './logger';
 import { format } from 'date-fns';
@@ -189,11 +190,9 @@ api.interceptors.response.use(
         }
         originalRequest._retry = true;
         isRefreshing = true;
-        return api
-          .post('/auth/refresh')
+        return ensureFreshAccess()
           .then(() => {
             // Access cookie is updated by server; proceed to retry
-            // Retry queued requests
             pendingQueue.forEach((cb) => cb());
             pendingQueue = [];
             return api(originalRequest);
