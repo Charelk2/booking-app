@@ -3501,7 +3501,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 ) : (
                   <div className="hidden md:block absolute inset-y-0 left-0 right-0 pointer-events-none" aria-hidden="true" />
                 )}
-                <div className={'pr-9 mb-1'}>
+                <div className={'pr-9 pb-5 mb-1'}>
                   {msg.reply_to_preview && (
                     <button
                       type="button"
@@ -3720,7 +3720,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             ? [initialAudioSrc, ...fallbackChain.filter((c) => c !== initialAudioSrc)]
                             : fallbackChain;
                           return (
-                            <div className="mt-1 block w-full">
+                            <div className="mt-1 block w-full min-h-[48px]">
                               <audio
                                 className="w-full chat-audio"
                                 controls
