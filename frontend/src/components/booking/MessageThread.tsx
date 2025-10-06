@@ -3623,7 +3623,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           );
                           const dataCandidate = fallbackChain.find((c) => /^blob:|^data:/i.test(c));
                           const absoluteCandidate = fallbackChain.find((c) => /^https?:/i.test(c));
-                          const initialAudioSrc = pathCandidate || dataCandidate || absoluteCandidate || toProxyPath(display);
+                          const useLocalFirst = /^blob:|^data:/i.test(display);
+                          const initialAudioSrc = useLocalFirst
+                            ? display
+                            : (pathCandidate || dataCandidate || absoluteCandidate || toProxyPath(display));
                           const audioFallbacks = initialAudioSrc
                             ? [initialAudioSrc, ...fallbackChain.filter((c) => c !== initialAudioSrc)]
                             : fallbackChain;
@@ -4430,10 +4433,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       const finalizeMessage = (tempId: number, real: ThreadMessage) => {
         setMessages((prev) => {
           const byId = new Map<number, ThreadMessage>();
-          for (const m of prev) if (m.id !== tempId) byId.set(m.id, m);
-          // Do not carry over local_preview_url so the bubble swaps to the
-          // final server URL seamlessly (avoids revoked blob breakage).
-          byId.set(real.id, { ...real, local_preview_url: null });
+          let tempLocalPreview: string | null = null;
+          let tempWasAudio = false;
+          for (const m of prev) {
+            if (m.id === tempId) {
+              const ct = String((m.attachment_meta as any)?.content_type || '').toLowerCase();
+              tempWasAudio = ct.startsWith('audio/');
+              tempLocalPreview = (m as any)?.local_preview_url || null;
+              continue;
+            }
+            byId.set(m.id, m);
+          }
+          // Preserve local blob preview for audio so newly-sent voice notes don't briefly error
+          // on mobile while the remote URL becomes available.
+          const carryPreview = tempWasAudio && tempLocalPreview ? tempLocalPreview : null;
+          byId.set(real.id, { ...real, local_preview_url: carryPreview });
           const next = Array.from(byId.values()).sort(
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
           );
@@ -4583,7 +4597,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               const res = await postMessageToBookingRequest(bookingRequestId, payload);
               const real = { ...normalizeMessage(res.data), status: 'sent' as const } as ThreadMessage;
               finalizeMessage(tempId, real);
-              revokeObjectUrlSoon(previewUrl);
+              // Keep audio blob URLs a bit longer as a primary source for freshly
+              // sent voice notes on mobile; remote URLs can take a moment.
+              if (!(file.type || '').toLowerCase().startsWith('audio/')) {
+                revokeObjectUrlSoon(previewUrl);
+              }
             } catch (err) {
               console.error('Failed to send attachment:', err);
               setMessages((prev) => {
