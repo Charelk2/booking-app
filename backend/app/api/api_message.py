@@ -701,6 +701,45 @@ def create_message(
         data,
     )
 
+    # Background: transcode webm voice notes to m4a (AAC) for Apple compatibility
+    try:
+        url = str(message_in.attachment_url or "")
+        meta_ct = None
+        if isinstance(message_in.attachment_meta, dict):
+            meta_ct = str(message_in.attachment_meta.get('content_type') or '').lower()
+        needs_compat = (url.lower().endswith('.webm')) or (meta_ct and meta_ct.startswith('audio/webm'))
+        if needs_compat and url:
+            def _transcode_and_update(mid: int, rid: int, src_url: str) -> None:
+                try:
+                    result = r2utils.transcode_webm_to_m4a(src_url)
+                    if not result:
+                        return
+                    compat_url = result.get('public_url')
+                    from ..database import SessionLocal as _SessionLocal
+                    with _SessionLocal() as s:
+                        m = s.query(models.Message).filter(models.Message.id == mid).first()
+                        if not m:
+                            return
+                        meta = dict(m.attachment_meta or {})
+                        meta['compat_url'] = compat_url
+                        meta['compat_content_type'] = 'audio/mp4'
+                        m.attachment_meta = meta
+                        s.add(m)
+                        s.commit()
+                        s.refresh(m)
+                        payload = schemas.MessageResponse.model_validate(m).model_dump()
+                        try:
+                            import asyncio
+                            loop = asyncio.get_event_loop()
+                            loop.create_task(manager.broadcast(rid, payload))
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            background_tasks.add_task(_transcode_and_update, msg.id, request_id, url)
+    except Exception:
+        pass
+
     # Opportunistic read receipt: when a user sends a message, consider all
     # prior incoming messages as read and broadcast a 'read' event so the
     # counterparty's UI updates immediately even if the reader's tab is not

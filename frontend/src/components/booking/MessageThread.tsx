@@ -3694,6 +3694,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         }
 
                         if (isAud) {
+                          const compat = ((msg.attachment_meta as any) || {}).compat_url as string | undefined;
                           // Avoid rendering <audio> with a local blob while uploading on mobile.
                           // Show a clean uploading row with progress; render actual <audio> after send.
                           const isPending = msg.status === 'sending' || msg.status === 'queued';
@@ -3710,7 +3711,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           }
 
                           // For sent audio, prefer remote/proxied URLs first; do not use local blob as initial src
-                          const fallbackChain = buildAttachmentFallbackChain(raw);
+                          const sourceUrl = compat || raw;
+                          const fallbackChain = buildAttachmentFallbackChain(sourceUrl);
                           const pathCandidate = fallbackChain.find(
                             (c) => typeof c === 'string' && (/^\/(attachments|media)(\/|$)/i.test(c) || /^\/static\/(attachments|media)(\/|$)/i.test(c)),
                           );
