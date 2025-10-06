@@ -5147,11 +5147,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         <div className={isDetailsPanelOpen ? 'hidden md:flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner' : 'flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner'}>
           {/* Add more images button on the left */}
           <input id="image-upload" type="file" accept="image/*" multiple className="hidden" onChange={(e) => addImageFiles(Array.from(e.target.files || []))} />
-          {/* Dedicated camera capture for mobile (iOS/Android) */}
-          <input id="camera-capture" type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => {
-            const files = Array.from(e.target.files || []);
-            if (files.length) addImageFiles(files.slice(0, 1));
-          }} />
           <label htmlFor="image-upload" className="flex-shrink-0 w-10 h-10 rounded-md border border-dashed border-gray-300 bg-white/70 text-gray-600 flex items-center justify-center cursor-pointer hover:bg-white" title="Add images">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -5274,16 +5269,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 </svg>
               </label>
 
-              {/* Mobile camera capture shortcut */}
-              <label
-                htmlFor="camera-capture"
-                aria-label="Take photo"
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer md:hidden"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                  <path d="M9 2a1 1 0 0 0-.894.553L7.382 4H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3h-2.382l-.724-1.447A1 1 0 0 0 14 2H9zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2.5A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5z" />
-                </svg>
-              </label>
 
               <button
                 type="button"
