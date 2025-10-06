@@ -261,8 +261,9 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       const topicCount = subs.current.size;
       if (topicCount > 0) {
         if (mode === 'ws') {
-          const ready = wsRef.current && wsRef.current.readyState === WebSocket.OPEN;
-          if (!ready) {
+          const state = wsRef.current?.readyState;
+          const openOrConnecting = state === WebSocket.OPEN || state === WebSocket.CONNECTING;
+          if (!openOrConnecting) {
             try { console.info('[realtime] opening WS after subscribe (topics:', topicCount, ')'); } catch {}
             if (!wsBase || !wsUrl) openSSE(); else openWS();
           }

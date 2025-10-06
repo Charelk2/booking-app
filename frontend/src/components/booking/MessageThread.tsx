@@ -2511,15 +2511,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- Presence updates via multiplex (v1 envelope)
   useEffect(() => {
     if (!myUserId) return;
-    try { topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [myUserId]: 'online' } })); } catch {}
+    try { publish(primaryTopic, { v: 1, type: 'presence', updates: { [myUserId]: 'online' } }); } catch {}
     const handleVisibility = () =>
-      topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [myUserId]: document.hidden ? 'away' : 'online' } }));
+      publish(primaryTopic, { v: 1, type: 'presence', updates: { [myUserId]: document.hidden ? 'away' : 'online' } });
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      try { topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [myUserId]: 'offline' } })); } catch {}
+      try { publish(primaryTopic, { v: 1, type: 'presence', updates: { [myUserId]: 'offline' } }); } catch {}
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [publish, topics, myUserId]);
+  }, [publish, primaryTopic, myUserId]);
 
   // ---- Typing emission (throttled)
   const lastTypingSentRef = useRef(0);
@@ -2531,16 +2531,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (now - lastTypingSentRef.current < 1000) return; // 1/sec
     lastTypingSentRef.current = now;
     try {
-      topics.forEach((t) => publish(t, {
+      publish(primaryTopic, {
         v: 1,
         type: 'typing',
         user_id: myUserId,
         users: [myUserId],
         payload: { user_id: myUserId },
         data: { user_id: myUserId },
-      }));
+      });
     } catch {}
-  }, [publish, topics, myUserId]);
+  }, [publish, primaryTopic, myUserId]);
 
   // ---- Realtime: subscribe per topic (unwrap v1 envelopes; accept both typing shapes)
   const lastRealtimeAtRef = useRef<number>(0);
