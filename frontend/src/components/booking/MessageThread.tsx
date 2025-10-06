@@ -3616,17 +3616,28 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         }
 
                         if (isAud) {
+                          // Avoid rendering <audio> with a local blob while uploading on mobile.
+                          // Show a clean uploading row with progress; render actual <audio> after send.
+                          const isPending = msg.status === 'sending' || msg.status === 'queued';
+                          if (isPending) {
+                            const pct = uploadProgressById[msg.id];
+                            return (
+                              <div className="mt-1 inline-flex items-center gap-2 text-xs text-gray-600">
+                                <span>Uploading voice note…</span>
+                                <div className="w-28 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                  <div className="h-1 bg-indigo-500" style={{ width: `${Math.max(0, Math.min(100, pct ?? 10))}%` }} />
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // For sent audio, prefer remote/proxied URLs first; do not use local blob as initial src
                           const fallbackChain = buildAttachmentFallbackChain(raw);
-                          // Only consider path-only candidates that map to known mounts we actually serve
                           const pathCandidate = fallbackChain.find(
                             (c) => typeof c === 'string' && (/^\/(attachments|media)(\/|$)/i.test(c) || /^\/static\/(attachments|media)(\/|$)/i.test(c)),
                           );
-                          const dataCandidate = fallbackChain.find((c) => /^blob:|^data:/i.test(c));
                           const absoluteCandidate = fallbackChain.find((c) => /^https?:/i.test(c));
-                          const useLocalFirst = /^blob:|^data:/i.test(display);
-                          const initialAudioSrc = useLocalFirst
-                            ? display
-                            : (pathCandidate || dataCandidate || absoluteCandidate || toProxyPath(display));
+                          const initialAudioSrc = pathCandidate || absoluteCandidate || toProxyPath(baseUrl);
                           const audioFallbacks = initialAudioSrc
                             ? [initialAudioSrc, ...fallbackChain.filter((c) => c !== initialAudioSrc)]
                             : fallbackChain;
@@ -3654,16 +3665,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   delete el.dataset.fallbackDone;
                                 }}
                                 onError={(e) => {
-                                  // Always attempt a fallback; if the local blob fails to decode on a device,
-                                  // progress to the remote/proxied URL rather than leaving the element in error.
                                   advanceAudioFallback(e.currentTarget, audioFallbacks, raw);
                                 }}
                               />
-                              {uploadProgressById[msg.id] != null && (
-                                <div className="mt-1 h-1 bg-gray-200 rounded-full overflow-hidden">
-                                  <div className="h-1 bg-indigo-500" style={{ width: `${uploadProgressById[msg.id]}%` }} />
-                                </div>
-                              )}
                             </div>
                           );
                         }
@@ -4447,9 +4451,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             }
             byId.set(m.id, m);
           }
-          // Preserve local blob preview for audio so newly-sent voice notes don't briefly error
-          // on mobile while the remote URL becomes available.
-          const carryPreview = tempWasAudio && tempLocalPreview ? tempLocalPreview : null;
+          // For audio, do not carry local blob preview into the finalized message.
+          // This avoids rendering a blob that can fail on some devices.
+          const carryPreview = tempWasAudio ? null : (tempLocalPreview || null);
           const merged = { ...real, local_preview_url: carryPreview } as any;
           if (clientKey) merged.client_key = clientKey;
           byId.set(real.id, merged);
