@@ -255,9 +255,26 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       try { wsRef.current.send(JSON.stringify({ v: 1, type: 'subscribe', topic })); } catch {}
     }
     // Ensure SSE tracks current topics even if mode is still 'ws' (best-effort fallback active)
-    if (mode === 'sse' || esRef.current) {
-      refreshSSE();
-    }
+    if (mode === 'sse' || esRef.current) { refreshSSE(); }
+    // If we just added the first topic and the transport isn't open yet, open it now.
+    try {
+      const topicCount = subs.current.size;
+      if (topicCount > 0) {
+        if (mode === 'ws') {
+          const ready = wsRef.current && wsRef.current.readyState === WebSocket.OPEN;
+          if (!ready) {
+            try { console.info('[realtime] opening WS after subscribe (topics:', topicCount, ')'); } catch {}
+            if (!wsBase || !wsUrl) openSSE(); else openWS();
+          }
+        } else {
+          const esOpen = !!esRef.current;
+          if (!esOpen) {
+            try { console.info('[realtime] opening SSE after subscribe (topics:', topicCount, ')'); } catch {}
+            openSSE();
+          }
+        }
+      }
+    } catch {}
     if (DEBUG) try { console.info('[rt] subscribe', topic); } catch {}
     return () => {
       const set2 = subs.current.get(topic);
@@ -271,7 +288,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       if (mode === 'sse' || esRef.current) refreshSSE();
       if (DEBUG) try { console.info('[rt] unsubscribe', topic); } catch {}
     };
-  }, [mode, refreshSSE]);
+  }, [mode, refreshSSE, openWS, openSSE, wsBase, wsUrl]);
 
   const publish = useCallback((topic: string, payload: Record<string, any>) => {
     if (mode !== 'ws') return; // no-op in SSE fallback
