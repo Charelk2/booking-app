@@ -713,6 +713,7 @@ function extractMessagesFromEnvelope(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload.messages)) return payload.messages;
   if ((payload as any).message) return [payload.message];
+  if ((payload as any).last_message) return [payload.last_message];
   if ('id' in (payload || {})) return [payload];
 
   // v1 envelopes (and a few aliases)
@@ -746,6 +747,7 @@ function extractMessagesFromEnvelope(payload: any): any[] {
   if (inner) {
     if (Array.isArray(inner.messages)) return inner.messages;
     if (inner.message) return [inner.message];
+    if (inner.last_message) return [inner.last_message];
     if ('id' in inner) return [inner];
   }
 
@@ -2070,9 +2072,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (detail.source === 'thread' && detail.reason === 'read' && detail.threadId === bookingRequestId) return;
       if (!isActiveThread) return;
       if (activeThreadRef.current !== bookingRequestId) return;
+      // Honor immediate flag from notifications to bypass debounce and render quickly
+      if (detail.immediate) {
+        lastFetchAtRef.current = now;
+        void fetchMessages({ mode: 'incremental', reason: detail.reason || 'threads:updated:immediate' });
+        return;
+      }
       if (now - lastFetchAtRef.current < 800) return; // debounce
       lastFetchAtRef.current = now;
-      void fetchMessages({ mode: 'incremental', reason: 'threads:updated' });
+      void fetchMessages({ mode: 'incremental', reason: detail.reason || 'threads:updated' });
     };
     try { window.addEventListener('threads:updated', onThreadsUpdated as any); } catch {}
     return () => { try { window.removeEventListener('threads:updated', onThreadsUpdated as any); } catch {} };
