@@ -1758,10 +1758,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         const envelope = res.data || { items: [] };
         const rows = Array.isArray((envelope as any).items) ? (envelope as any).items : [];
         if (mode === 'incremental' && rows.length === 0) {
+          // Some backends may ignore after_id or fail to compute deltas; fall back to a small
+          // full fetch so we don't miss recent messages. This ensures the thread stays in sync
+          // with the conversation list even when realtime is unavailable.
           setThreadError(null);
           setLoading(false);
           initialLoadedRef.current = true;
           loadedThreadsRef.current.add(bookingRequestId);
+          try {
+            await getMessagesForBookingRequest(bookingRequestId, { limit: options.limit ?? 100, mode: 'full' as any });
+          } catch {}
+          // Trigger a forced full load via our own function so normalization/merge paths run
+          try { void fetchMessages({ mode: 'initial', force: true, reason: 'delta-empty-fallback', limit: options.limit ?? 100, behavior: 'merge_update' }); } catch {}
           return;
         }
 
