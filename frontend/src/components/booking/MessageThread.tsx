@@ -3632,7 +3632,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             const pct = uploadProgressById[msg.id];
                             return (
                               <div className="mt-1 inline-flex items-center gap-2 text-xs text-gray-600">
-                                <span>Uploading voice note…</span>
+                                <span>Uploading…</span>
                                 <div className="w-28 h-1 bg-gray-200 rounded-full overflow-hidden">
                                   <div className="h-1 bg-indigo-500" style={{ width: `${Math.max(0, Math.min(100, pct ?? 10))}%` }} />
                                 </div>
