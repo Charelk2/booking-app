@@ -106,7 +106,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       attemptsRef.current = 0;
       lastDelayRef.current = null;
       setStatus('open');
-      if (DEBUG) try { console.info('[rt] ws open', { url: wsUrl }); } catch {}
+      try { console.info('[realtime] WS open', { url: wsUrl }); } catch {}
       // Heartbeat
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
       const base = isMobile ? 60 : 30;
@@ -135,11 +135,13 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       } catch {}
     };
     const schedule = (e?: CloseEvent) => {
+      try { console.warn('[realtime] WS closed', { code: e?.code, reason: e?.reason }); } catch {}
       if (e?.code === 4401) {
         // Unauthorized – coordinate refresh with the global refresh coordinator, then reconnect once
         (async () => {
           try {
             const mod = await import('@/lib/refreshCoordinator');
+            try { console.warn('[realtime] WS unauthorized (4401) — coordinating refresh'); } catch {}
             await mod.ensureFreshAccess();
             attemptsRef.current = 0;
             setStatus('reconnecting');
@@ -149,6 +151,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
           // If refresh fails, fall back to SSE to keep realtime limping
           setMode('sse');
           setStatus('connecting');
+          try { console.warn('[realtime] Refresh failed; falling back to SSE'); } catch {}
           openSSE();
         })();
         return;
@@ -160,20 +163,21 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       const delay = raw + jitter;
       lastDelayRef.current = delay;
       setStatus('reconnecting');
-      if (DEBUG) try { console.warn('[rt] ws closed, scheduling reconnect', { code: e?.code, reason: e?.reason, delay }); } catch {}
+      try { console.warn('[realtime] WS closed, scheduling reconnect', { code: e?.code, reason: e?.reason, delay }); } catch {}
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       reconnectTimer.current = setTimeout(() => {
         // Fallback to SSE after 6 failures
         if (attemptsRef.current >= 6) {
           setMode('sse');
           setStatus('connecting');
+          try { console.warn('[realtime] Too many WS failures; switching to SSE'); } catch {}
           openSSE();
         } else {
           openWS();
         }
       }, delay);
     };
-    ws.onerror = () => { try { ws.close(); } catch {} schedule(); };
+    ws.onerror = (err) => { try { console.error('[realtime] WS error', err); } catch {} try { ws.close(); } catch {} schedule(); };
     ws.onclose = schedule;
   }, [wsUrl, deliver]);
 
@@ -188,7 +192,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     esRef.current = es;
     es.onopen = () => {
       setStatus('open');
-      if (DEBUG) try { console.info('[rt] sse open', { url }); } catch {}
+      try { console.info('[realtime] SSE open', { url }); } catch {}
     };
     es.onmessage = (e) => {
       try {
@@ -202,10 +206,10 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
         }
       } catch {}
     };
-    es.onerror = () => {
+    es.onerror = (ev) => {
       setStatus('reconnecting');
       setFailureCount((c) => c + 1);
-      if (DEBUG) try { console.warn('[rt] sse error; retrying'); } catch {}
+      try { console.warn('[realtime] SSE error; retrying', ev); } catch {}
       // simple retry
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       reconnectTimer.current = setTimeout(() => openSSE(), 3000);

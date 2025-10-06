@@ -2472,6 +2472,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (!isActiveThread) return;
         // Use a merge_update on a small full fetch to refresh read flags,
         // while minimizing remounts and network.
+        try { console.warn('[thread] Realtime not open; polling for updates'); } catch {}
         void fetchMessages({ mode: 'initial', force: true, reason: 'poll-read', limit: 100, behavior: 'merge_update' });
       };
       tick();
