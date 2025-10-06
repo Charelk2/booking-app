@@ -1916,11 +1916,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               if (nm.sender_id === myUserId && pendingMine.size) {
                 // Match by content + reply target to identify the optimistic twin
                 let matchId: number | null = null;
-                for (const [tid, opt] of pendingMine.entries()) {
+                pendingMine.forEach((opt, tid) => {
+                  if (matchId != null) return;
                   const sameContent = String(opt.content || '') === String(nm.content || '');
                   const sameReply = (opt.reply_to_message_id || null) === (nm.reply_to_message_id || null);
-                  if (sameContent && sameReply) { matchId = tid; break; }
-                }
+                  if (sameContent && sameReply) { matchId = tid; }
+                });
                 if (matchId != null) {
                   const opt = pendingMine.get(matchId)!;
                   const withKey = { ...nm } as any;
@@ -2810,11 +2811,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           for (const nm of missing) {
             if (nm.sender_id === myUserId && pendingMine.size) {
               let matchId: number | null = null;
-              for (const [tid, opt] of pendingMine.entries()) {
+              pendingMine.forEach((opt, tid) => {
+                if (matchId != null) return;
                 const sameContent = String(opt.content || '') === String(nm.content || '');
                 const sameReply = (opt.reply_to_message_id || null) === (nm.reply_to_message_id || null);
-                if (sameContent && sameReply) { matchId = tid; break; }
-              }
+                if (sameContent && sameReply) { matchId = tid; }
+              });
               if (matchId != null) {
                 const opt = pendingMine.get(matchId)!;
                 const withKey = { ...nm } as any;
@@ -5499,7 +5501,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 type="submit"
                 aria-label="Send message"
                 disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
-                className="flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-9 h-9 md:w-10 md:h-10 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus:ring-brand-dark"
+                className="mb-1.5 flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-9 h-9 md:w-10 md:h-10 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus:ring-brand-dark"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
