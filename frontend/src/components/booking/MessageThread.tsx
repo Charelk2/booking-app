@@ -4166,6 +4166,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     artistAvatarUrl,
     artistName,
     resolveListingViewUrl,
+    quotes,
     // ensure UI responds to local toggles and badges
     reactionPickerFor,
     actionMenuFor,
