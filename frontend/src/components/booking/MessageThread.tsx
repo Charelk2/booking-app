@@ -5217,7 +5217,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               // do not gate on env flag to ensure it’s visible.
               return Boolean(bookingIdForPrep);
             })() && (
-              <div className="px-2 pt-2 border-b border-gray-100 bg-white">
+              <div className="px-1 border-b border-gray-100 bg-white">
                 <EventPrepCard
                   bookingId={(bookingDetails as any)?.id || (Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id) as any)?.booking_id}
                   bookingRequestId={bookingRequestId}
