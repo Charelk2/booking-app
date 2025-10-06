@@ -151,9 +151,9 @@ const isImageAttachment = (url?: string | null) => {
   // Only treat data URLs with explicit image MIME as images; for blob: URLs,
   // we rely on attachment_meta.content_type when available.
   if (/^data:image\//i.test(url)) return true;
-  if (/\.(jpe?g|png|gif|webp|avif)(?:\?.*)?$/i.test(url)) return true;
+  if (/\.(jpe?g|png|gif|webp|avif|heic|heif)(?:\?.*)?$/i.test(url)) return true;
   const proxied = _underlyingUrlForProxy(url);
-  return proxied ? /\.(jpe?g|png|gif|webp|avif)(?:\?.*)?$/i.test(proxied) : false;
+  return proxied ? /\.(jpe?g|png|gif|webp|avif|heic|heif)(?:\?.*)?$/i.test(proxied) : false;
 };
 
 const isAudioAttachmentUrl = (url?: string | null) => {
@@ -296,7 +296,7 @@ const altAttachmentPath = (raw: string): string => {
     if (
       u.host === api.host &&
       u.pathname.startsWith('/attachments/') &&
-      /\.(jpe?g|png|gif|webp|avif)$/i.test(u.pathname)
+      /\.(jpe?g|png|gif|webp|avif|heic|heif)$/i.test(u.pathname)
     ) {
       u.pathname = `/static${u.pathname}`;
       return u.toString();
@@ -305,7 +305,7 @@ const altAttachmentPath = (raw: string): string => {
     // If a third-party absolute URL still contains /attachments/, rewrite to API static for images only
     if (
       u.pathname.includes('/attachments/') &&
-      /\.(jpe?g|png|gif|webp|avif)$/i.test(u.pathname)
+      /\.(jpe?g|png|gif|webp|avif|heic|heif)$/i.test(u.pathname)
     ) {
       return `${api.origin}/static${u.pathname.split('/attachments').pop()}`;
     }
@@ -2845,9 +2845,53 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (!files.length) return;
     const imgs = files.filter((f) => f.type.startsWith('image/'));
     if (!imgs.length) return;
-    setImageFiles((prev) => [...prev, ...imgs]);
-    const urls = imgs.map((f) => URL.createObjectURL(f));
-    setImagePreviewUrls((prev) => [...prev, ...urls]);
+
+    const shouldTranscode = (file: File) => {
+      const ct = (file.type || '').toLowerCase();
+      const name = (file.name || '').toLowerCase();
+      return ct === 'image/heic' || ct === 'image/heif' || /\.(heic|heif)$/i.test(name);
+    };
+
+    const transcodeToJpeg = async (file: File): Promise<File> => {
+      try {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        const loaded: Promise<HTMLImageElement> = new Promise((resolve, reject) => {
+          img.onload = () => resolve(img);
+          img.onerror = (e) => reject(e);
+        });
+        img.crossOrigin = 'anonymous';
+        img.src = url;
+        const el = await loaded;
+        const canvas = document.createElement('canvas');
+        const MAX_W = 4096;
+        const scale = Math.min(1, MAX_W / Math.max(1, el.naturalWidth));
+        canvas.width = Math.max(1, Math.round(el.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(el.naturalHeight * scale));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas not supported');
+        ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
+        const blob: Blob | null = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.9));
+        URL.revokeObjectURL(url);
+        if (!blob) throw new Error('JPEG encode failed');
+        const base = (file.name || 'photo').replace(/\.[^.]+$/, '');
+        return new File([blob], `${base}.jpg`, { type: 'image/jpeg' });
+      } catch {
+        return file; // fallback to original if conversion fails
+      }
+    };
+
+    (async () => {
+      const processed: File[] = [];
+      const urls: string[] = [];
+      for (const f of imgs) {
+        const out = shouldTranscode(f) ? await transcodeToJpeg(f) : f;
+        processed.push(out);
+        try { urls.push(URL.createObjectURL(out)); } catch { urls.push(''); }
+      }
+      setImageFiles((prev) => [...prev, ...processed]);
+      setImagePreviewUrls((prev) => [...prev, ...urls]);
+    })();
   }, []);
   const removeImageAt = useCallback((idx: number) => {
     setImageFiles((prev) => prev.filter((_, i) => i !== idx));
