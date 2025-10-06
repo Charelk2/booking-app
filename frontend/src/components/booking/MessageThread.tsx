@@ -1893,7 +1893,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             return next;
           }
 
-      // merge_update: only add new messages and update flags on existing ones
+          // merge_update: only add new messages and update flags on existing ones
           // Build quick lookup for normalized subset
           const byId = new Map<number, ThreadMessage>();
           for (const m of normalized) byId.set(m.id, m);
@@ -1902,7 +1902,39 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           let out = prev;
           const missing = normalized.filter((m) => !prev.some((p) => p.id === m.id));
           if (missing.length) {
-            out = mergeMessages(out, missing);
+            // Smooth swap: if a new message is mine and matches a pending optimistic one,
+            // carry its client_key and remove the optimistic temp to avoid a flicker.
+            const pendingMine = new Map<number, ThreadMessage>();
+            for (const p of out) {
+              if (p.sender_id === myUserId && (p.status === 'sending' || p.status === 'queued')) {
+                pendingMine.set(p.id, p);
+              }
+            }
+            const toAdd: ThreadMessage[] = [];
+            const usedTemps = new Set<number>();
+            for (const nm of missing) {
+              if (nm.sender_id === myUserId && pendingMine.size) {
+                // Match by content + reply target to identify the optimistic twin
+                let matchId: number | null = null;
+                for (const [tid, opt] of pendingMine.entries()) {
+                  const sameContent = String(opt.content || '') === String(nm.content || '');
+                  const sameReply = (opt.reply_to_message_id || null) === (nm.reply_to_message_id || null);
+                  if (sameContent && sameReply) { matchId = tid; break; }
+                }
+                if (matchId != null) {
+                  const opt = pendingMine.get(matchId)!;
+                  const withKey = { ...nm } as any;
+                  if ((opt as any).client_key) withKey.client_key = (opt as any).client_key;
+                  // Remove the optimistic temp from out and mark as used
+                  out = out.filter((m) => m.id !== matchId);
+                  usedTemps.add(matchId);
+                  toAdd.push(withKey as ThreadMessage);
+                  continue;
+                }
+              }
+              toAdd.push(nm);
+            }
+            out = mergeMessages(out, toAdd);
           }
 
           // 2) Update read/reactions status for overlapping ids without remounting all
@@ -2763,7 +2795,42 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
 
       setMessages((prev) => {
-        const next = mergeMessages(prev, normalized);
+        // Smooth swap on realtime: replace optimistic self messages with the
+        // server copy while preserving client_key to avoid flicker.
+        let out = prev;
+        const missing = normalized.filter((m) => !prev.some((p) => p.id === m.id));
+        if (missing.length) {
+          const pendingMine = new Map<number, ThreadMessage>();
+          for (const p of out) {
+            if (p.sender_id === myUserId && (p.status === 'sending' || p.status === 'queued')) {
+              pendingMine.set(p.id, p);
+            }
+          }
+          const toAdd: ThreadMessage[] = [];
+          for (const nm of missing) {
+            if (nm.sender_id === myUserId && pendingMine.size) {
+              let matchId: number | null = null;
+              for (const [tid, opt] of pendingMine.entries()) {
+                const sameContent = String(opt.content || '') === String(nm.content || '');
+                const sameReply = (opt.reply_to_message_id || null) === (nm.reply_to_message_id || null);
+                if (sameContent && sameReply) { matchId = tid; break; }
+              }
+              if (matchId != null) {
+                const opt = pendingMine.get(matchId)!;
+                const withKey = { ...nm } as any;
+                if ((opt as any).client_key) withKey.client_key = (opt as any).client_key;
+                out = out.filter((m) => m.id !== matchId);
+                toAdd.push(withKey as ThreadMessage);
+                continue;
+              }
+            }
+            toAdd.push(nm);
+          }
+          out = mergeMessages(out, toAdd);
+        } else {
+          out = mergeMessages(out, normalized);
+        }
+        const next = out;
         writeCachedMessages(bookingRequestId, next);
         return next;
       });
