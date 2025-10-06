@@ -195,6 +195,145 @@ const formatDuration = (secs?: number | null) => {
   return `${m}:${s}`;
 };
 
+// Lightweight custom audio UI driven by a hidden <audio>
+function ChatAudioPlayer({
+  initialSrc,
+  fallbacks,
+  original,
+  compactWidth = 'w-56',
+}: {
+  initialSrc: string;
+  fallbacks: string[];
+  original: string;
+  compactWidth?: string;
+}) {
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const progressRef = React.useRef<HTMLDivElement | null>(null);
+  const [duration, setDuration] = React.useState<number>(0);
+  const [current, setCurrent] = React.useState<number>(0);
+  const [playing, setPlaying] = React.useState<boolean>(false);
+  const [errorCount, setErrorCount] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    try {
+      el.src = initialSrc || '';
+      el.preload = 'metadata';
+      el.dataset.fallbackAttempt = '0';
+      el.dataset.fallbackBlobRequested = '0';
+      delete el.dataset.fallbackDone;
+      el.load();
+    } catch {}
+  }, [initialSrc]);
+
+  React.useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    const onLoaded = () => setDuration(Number.isFinite(el.duration) ? el.duration : 0);
+    const onTime = () => setCurrent(el.currentTime || 0);
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    const onEnded = () => setPlaying(false);
+    const onEmptied = () => {
+      if (el.dataset.fallbackBlobUrl) {
+        try { URL.revokeObjectURL(el.dataset.fallbackBlobUrl); } catch {}
+        delete el.dataset.fallbackBlobUrl;
+      }
+      el.dataset.fallbackBlobRequested = '0';
+      el.dataset.fallbackAttempt = '0';
+      delete el.dataset.fallbackDone;
+    };
+    const onError = () => {
+      setErrorCount((c) => c + 1);
+      try { advanceAudioFallback(el, fallbacks, original); } catch {}
+    };
+    el.addEventListener('loadedmetadata', onLoaded);
+    el.addEventListener('timeupdate', onTime);
+    el.addEventListener('play', onPlay);
+    el.addEventListener('pause', onPause);
+    el.addEventListener('ended', onEnded);
+    el.addEventListener('emptied', onEmptied);
+    el.addEventListener('error', onError);
+    return () => {
+      el.removeEventListener('loadedmetadata', onLoaded);
+      el.removeEventListener('timeupdate', onTime);
+      el.removeEventListener('play', onPlay);
+      el.removeEventListener('pause', onPause);
+      el.removeEventListener('ended', onEnded);
+      el.removeEventListener('emptied', onEmptied);
+      el.removeEventListener('error', onError);
+    };
+  }, [fallbacks, original]);
+
+  const pct = duration > 0 ? Math.max(0, Math.min(100, (current / duration) * 100)) : 0;
+
+  const toggle = React.useCallback(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    try { if (el.paused) void el.play(); else el.pause(); } catch {}
+  }, []);
+
+  const seek = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = audioRef.current; const bar = progressRef.current;
+    if (!el || !bar || duration <= 0) return;
+    const rect = bar.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const ratio = rect.width > 0 ? x / rect.width : 0;
+    el.currentTime = ratio * duration;
+  }, [duration]);
+
+  const exhausted = errorCount > (fallbacks?.length ?? 0) + 1;
+
+  return (
+    <div className={`mt-1 inline-block ${compactWidth}`}>
+      <audio ref={audioRef} className="hidden" />
+      {exhausted ? (
+        <div className="text-[12px] text-gray-600">
+          <span>Format not supported on this device.</span>{' '}
+          {original ? (
+            <a className="underline" href={original} target="_blank" rel="noreferrer">Open</a>
+          ) : null}
+        </div>
+      ) : (
+        <div className="select-none">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              aria-label={playing ? 'Pause voice note' : 'Play voice note'}
+              onClick={toggle}
+              className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white hover:opacity-90 active:scale-95 transition-transform"
+              style={{ backgroundColor: 'currentColor' }}
+            >
+              {playing ? (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              )}
+            </button>
+            <div className="flex-1">
+              <div
+                ref={progressRef}
+                onClick={seek}
+                className="h-1.5 rounded-full bg-black/10 overflow-hidden cursor-pointer"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={Math.max(1, Math.floor(duration))}
+                aria-valuenow={Math.floor(current)}
+              >
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: 'currentColor' }} />
+              </div>
+              <div className="mt-1 text-[10px] text-gray-600 tabular-nums">
+                {formatDuration(current)} / {formatDuration(duration)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Map backend status/flags → delivery UI state
 function toDeliveryState(m: ThreadMessage): DeliveryState {
   try {
@@ -3718,33 +3857,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             ? [initialAudioSrc, ...fallbackChain.filter((c) => c !== initialAudioSrc)]
                             : fallbackChain;
                           return (
-                            <div className="mt-1 inline-block">
-                              <audio
-                                className="w-56"
-                                controls
-                                src={initialAudioSrc}
-                                preload="metadata"
-                                onLoadedData={(e) => {
-                                  const el = e.currentTarget;
-                                  el.dataset.fallbackAttempt = '0';
-                                  el.dataset.fallbackBlobRequested = '0';
-                                  delete el.dataset.fallbackDone;
-                                }}
-                                onEmptied={(e) => {
-                                  const el = e.currentTarget;
-                                  if (el.dataset.fallbackBlobUrl) {
-                                    try { URL.revokeObjectURL(el.dataset.fallbackBlobUrl); } catch {}
-                                    delete el.dataset.fallbackBlobUrl;
-                                  }
-                                  el.dataset.fallbackBlobRequested = '0';
-                                  el.dataset.fallbackAttempt = '0';
-                                  delete el.dataset.fallbackDone;
-                                }}
-                                onError={(e) => {
-                                  advanceAudioFallback(e.currentTarget, audioFallbacks, raw);
-                                }}
-                              />
-                            </div>
+                            <ChatAudioPlayer initialSrc={initialAudioSrc} fallbacks={audioFallbacks} original={raw} compactWidth="w-56" />
                           );
                         }
 
