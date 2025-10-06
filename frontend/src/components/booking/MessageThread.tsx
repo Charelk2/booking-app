@@ -1872,7 +1872,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         setMessages((prev) => {
           // Default behavior: replace on initial, merge on incremental
           const defaultReplace = mode === 'initial';
-          const behavior = options.behavior || (defaultReplace ? 'replace' : 'merge_update');
+          // Never replace if we already hold messages (e.g., from WS) — prevents
+          // brief disappearance when a slower REST fetch lags behind realtime.
+          const shouldReplace = defaultReplace && prev.length === 0;
+          const behavior = options.behavior || (shouldReplace ? 'replace' : 'merge_update');
 
           if (behavior === 'replace') {
             const base: ThreadMessage[] = defaultReplace ? [] : prev;
@@ -1881,7 +1884,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             return next;
           }
 
-          // merge_update: only add new messages and update flags on existing ones
+      // merge_update: only add new messages and update flags on existing ones
           // Build quick lookup for normalized subset
           const byId = new Map<number, ThreadMessage>();
           for (const m of normalized) byId.set(m.id, m);
@@ -2809,7 +2812,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           payload?.conversation_id ??
           NaN
         );
-        if (!Number.isFinite(id) || id === bookingRequestId) {
+        // If realtime just delivered something, skip duplicate fetch to prevent flicker
+        const rtRecent = Date.now() - (lastRealtimeAtRef.current || 0) < 1200;
+        if ((!Number.isFinite(id) || id === bookingRequestId) && !rtRecent) {
           try { console.info('[thread] notification → full merge-update', { threadId: bookingRequestId }); } catch {}
           void fetchMessages({ mode: 'initial', force: true, reason: 'notification', limit: 100, behavior: 'merge_update' });
         }
@@ -4404,7 +4409,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 detail: { id: bookingRequestId, content: previewText, ts: real.timestamp, unread: false },
               }),
             );
-            emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
+            // Avoid immediately emitting threads:updated to prevent duplicate preview flashes;
+            // the preview event updates the list instantly and backend broadcasts will follow.
           }
         } catch {}
       };
