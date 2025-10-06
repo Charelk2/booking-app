@@ -2760,10 +2760,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       // No extra quote hydration here; fetchMessages handles it synchronously.
     };
-    if (!hasUserActivity || !myUserId) return () => {};
+    if (!myUserId) return () => {};
     const unsubs = topics.map((t) => subscribe(t, handler));
     return () => { unsubs.forEach((u) => u()); };
-  }, [subscribe, topics, myUserId, bookingRequestId, fetchMessages, hasUserActivity]);
+  }, [subscribe, topics, myUserId, bookingRequestId, fetchMessages]);
 
   // Removed aggressive polling; the 8s delta poll (when WS is closed) is enough.
 
