@@ -2115,11 +2115,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               if (nm.sender_id === myUserId && pendingMine.size) {
                 // Match by content + reply target to identify the optimistic twin
                 let matchId: number | null = null;
-                for (const [tid, opt] of pendingMine.entries()) {
+                pendingMine.forEach((opt, tid) => {
+                  if (matchId != null) return;
                   const sameContent = String(opt.content || '') === String(nm.content || '');
                   const sameReply = (opt.reply_to_message_id || null) === (nm.reply_to_message_id || null);
-                  if (sameContent && sameReply) { matchId = tid; break; }
-                }
+                  if (sameContent && sameReply) { matchId = tid; }
+                });
                 if (matchId != null) {
                   const opt = pendingMine.get(matchId)!;
                   const withKey = { ...nm } as any;
@@ -2993,12 +2994,22 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         return;
       }
 
-      setMessages((prev) => {
-        // Smooth swap on realtime: replace optimistic self messages with the
-        // server copy while preserving client_key to avoid flicker.
-        let out = prev;
-        const missing = normalized.filter((m) => !prev.some((p) => p.id === m.id));
-        if (missing.length) {
+      // Ensure any referenced quotes are hydrated before merging, so the card renders immediately
+      (async () => {
+        try {
+          const quoteIds = Array.from(new Set(normalized
+            .map((m) => Number(m.quote_id))
+            .filter((qid) => Number.isFinite(qid) && qid > 0)));
+          if (quoteIds.length) {
+            await ensureQuotesLoaded(quoteIds);
+          }
+        } catch {}
+        setMessages((prev) => {
+          // Smooth swap on realtime: replace optimistic self messages with the
+          // server copy while preserving client_key to avoid flicker.
+          let out = prev;
+          const missing = normalized.filter((m) => !prev.some((p) => p.id === m.id));
+          if (missing.length) {
           const pendingMine = new Map<number, ThreadMessage>();
           for (const p of out) {
             if (p.sender_id === myUserId && (p.status === 'sending' || p.status === 'queued')) {
@@ -3009,11 +3020,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           for (const nm of missing) {
             if (nm.sender_id === myUserId && pendingMine.size) {
               let matchId: number | null = null;
-              for (const [tid, opt] of pendingMine.entries()) {
+              pendingMine.forEach((opt, tid) => {
+                if (matchId != null) return;
                 const sameContent = String(opt.content || '') === String(nm.content || '');
                 const sameReply = (opt.reply_to_message_id || null) === (nm.reply_to_message_id || null);
-                if (sameContent && sameReply) { matchId = tid; break; }
-              }
+                if (sameContent && sameReply) { matchId = tid; }
+              });
               if (matchId != null) {
                 const opt = pendingMine.get(matchId)!;
                 const withKey = { ...nm } as any;
@@ -3033,6 +3045,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         writeCachedMessages(bookingRequestId, next);
         return next;
       });
+      })();
       lastRealtimeAtRef.current = Date.now();
       if (typeof window !== 'undefined' && localStorage.getItem('CHAT_DEBUG') === '1') {
         try { console.debug('[thread] merged', { topicId, added: normalized.length }); } catch {}
