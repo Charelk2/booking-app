@@ -1024,6 +1024,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const stabilizingRef = useRef(true);
   const stabilizeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fetchInFlightRef = useRef(false);
+  const refetchRequestedRef = useRef<null | FetchMessagesOptions>(null);
   const missingThreadRef = useRef(false);
   const activeThreadRef = useRef<number | null>(null);
   // Buffer for WS messages that arrive before initial REST load completes
@@ -1686,7 +1687,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const fetchMessages = useCallback(
     async (options: FetchMessagesOptions = {}) => {
       if (missingThreadRef.current) return;
-      if (fetchInFlightRef.current) return;
+      if (fetchInFlightRef.current) {
+        // Queue a refetch to run immediately after the current one completes
+        // so notification/immediate events don't get dropped while a poll is running.
+        refetchRequestedRef.current = { ...options };
+        return;
+      }
       if (!options.force && !isActiveThread) return;
       fetchInFlightRef.current = true;
 
@@ -2007,6 +2013,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           stabilizingRef.current = false;
         }, 250);
         fetchInFlightRef.current = false;
+        // Run any queued refetch immediately (debounced by single-flight above)
+        const queued = refetchRequestedRef.current;
+        refetchRequestedRef.current = null;
+        if (queued) {
+          try {
+            const next = { mode: queued.mode ?? 'incremental', force: true, reason: queued.reason ?? 'queued-refetch' } as FetchMessagesOptions;
+            void fetchMessages(next);
+          } catch {}
+        }
       }
     },
     [
@@ -2085,12 +2100,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       // Honor immediate flag from notifications to bypass debounce and render quickly
       if (detail.immediate) {
         lastFetchAtRef.current = now;
-        void fetchMessages({ mode: 'incremental', reason: detail.reason || 'threads:updated:immediate' });
+        void fetchMessages({ mode: 'incremental', force: true, reason: detail.reason || 'threads:updated:immediate' });
         return;
       }
       if (now - lastFetchAtRef.current < 800) return; // debounce
       lastFetchAtRef.current = now;
-      void fetchMessages({ mode: 'incremental', reason: detail.reason || 'threads:updated' });
+      void fetchMessages({ mode: 'incremental', force: true, reason: detail.reason || 'threads:updated' });
     };
     try { window.addEventListener('threads:updated', onThreadsUpdated as any); } catch {}
     return () => { try { window.removeEventListener('threads:updated', onThreadsUpdated as any); } catch {} };
@@ -2794,7 +2809,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         );
         if (!Number.isFinite(id) || id === bookingRequestId) {
           try { console.info('[thread] notification → incremental refresh', { threadId: bookingRequestId }); } catch {}
-          void fetchMessages({ mode: 'incremental', reason: 'notification' });
+          void fetchMessages({ mode: 'incremental', force: true, reason: 'notification' });
         }
       } catch {}
     });
