@@ -3407,7 +3407,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
               return (
               <div
-                key={msg.id}
+                key={(msg as any).client_key || msg.id}
                 id={`msg-${msg.id}`}
                 className={`group relative inline-block select-none w-auto max-w-[75%] px-3 py-2 text-[13px] leading-snug ${bubbleClasses} ${hasReactionsForMsg ? 'mb-5' : (msgIdx < group.messages.length - 1 ? 'mb-0.5' : 'mb-3')} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'} ${highlightFor === msg.id ? 'ring-1 ring-indigo-200' : ''}`}
                 ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
@@ -3637,7 +3637,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 controls
                                 src={initialAudioSrc}
                                 preload="metadata"
-                                crossOrigin="anonymous"
                                 onLoadedData={(e) => {
                                   const el = e.currentTarget;
                                   el.dataset.fallbackAttempt = '0';
@@ -4437,11 +4436,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           const byId = new Map<number, ThreadMessage>();
           let tempLocalPreview: string | null = null;
           let tempWasAudio = false;
+          let clientKey: string | undefined = undefined;
           for (const m of prev) {
             if (m.id === tempId) {
               const ct = String((m.attachment_meta as any)?.content_type || '').toLowerCase();
               tempWasAudio = ct.startsWith('audio/');
               tempLocalPreview = (m as any)?.local_preview_url || null;
+              clientKey = (m as any)?.client_key as string | undefined;
               continue;
             }
             byId.set(m.id, m);
@@ -4449,7 +4450,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           // Preserve local blob preview for audio so newly-sent voice notes don't briefly error
           // on mobile while the remote URL becomes available.
           const carryPreview = tempWasAudio && tempLocalPreview ? tempLocalPreview : null;
-          byId.set(real.id, { ...real, local_preview_url: carryPreview });
+          const merged = { ...real, local_preview_url: carryPreview } as any;
+          if (clientKey) merged.client_key = clientKey;
+          byId.set(real.id, merged);
           const next = Array.from(byId.values()).sort(
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
           );
@@ -4479,8 +4482,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         tempId: number,
         partial: Partial<ThreadMessage>,
       ): ThreadMessage => {
+        const clientKey = `tmp-${tempId}-${Date.now()}`;
         const optimistic: ThreadMessage = {
           id: tempId,
+          // @ts-ignore – internal rendering helper to keep keys stable
+          client_key: clientKey,
           booking_request_id: bookingRequestId,
           sender_id: myUserId,
           sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
@@ -5332,7 +5338,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         const mime = recordedChunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || 'audio/webm';
                         const blob = new Blob(recordedChunksRef.current, { type: mime });
                         if (blob.size === 0) return;
-                        const ext = /mp4/i.test(mime) ? 'm4a' : /mpeg/i.test(mime) ? 'mp3' : /ogg/i.test(mime) ? 'ogg' : /wav/i.test(mime) ? 'wav' : 'webm';
+                        const ext = /mp4/i.test(mime)
+                          ? 'm4a'
+                          : /aac/i.test(mime)
+                          ? 'aac'
+                          : /mpeg/i.test(mime)
+                          ? 'mp3'
+                          : /ogg/i.test(mime)
+                          ? 'ogg'
+                          : /wav/i.test(mime)
+                          ? 'wav'
+                          : 'webm';
                         const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
                         // Do not auto-send. Stage as attachment so user can press Send.
                         setAttachmentFile(file);
