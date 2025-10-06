@@ -223,7 +223,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
   if (!ep) {
     return (
       <section
-        className={summaryOnly ? 'rounded-xl border border-gray-200 bg-green-400 text-gray-900 p-3 cursor-pointer' : 'rounded-2xl shadow border border-gray-200 bg-indigo-50   text-gray-900 p-5 cursor-pointer'}
+        className={summaryOnly ? 'rounded-xl border border-gray-200 bg-green-400 text-gray-900 p-1 cursor-pointer' : 'rounded-2xl shadow border border-gray-200 bg-indigo-50   text-gray-900 p-3 cursor-pointer'}
         aria-label="Event preparation"
         role="button"
         tabIndex={0}

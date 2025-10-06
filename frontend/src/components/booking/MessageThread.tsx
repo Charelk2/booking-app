@@ -4778,7 +4778,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Do not pad by composer height to avoid large jumps while typing.
   const effectiveBottomPadding = `calc(${BOTTOM_GAP_PX}px + env(safe-area-inset-bottom))`;
 
-  const containerClasses = 'relative flex-1 min-h-0 flex flex-col gap-3 bg-white px-3 pt-3 overflow-x-hidden overflow-y-hidden';
+  const containerClasses = 'relative flex-1 min-h-0 flex flex-col gap-3 bg-white px-3 overflow-x-hidden overflow-y-hidden';
 
   // Composer height changes are handled implicitly by Virtuoso layout.
 
