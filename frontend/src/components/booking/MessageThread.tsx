@@ -187,6 +187,14 @@ const formatBytes = (bytes: number) => {
   return `${i === 0 ? Math.round(val) : val.toFixed(1)} ${sizes[i]}`;
 };
 
+const formatDuration = (secs?: number | null) => {
+  if (!Number.isFinite(secs || 0) || (secs || 0) <= 0) return '0:00';
+  const total = Math.floor(secs as number);
+  const m = Math.floor(total / 60);
+  const s = (total % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+};
+
 // Map backend status/flags → delivery UI state
 function toDeliveryState(m: ThreadMessage): DeliveryState {
   try {
@@ -894,6 +902,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [imageModalIndex, setImageModalIndex] = useState<number | null>(null);
   const [filePreviewSrc, setFilePreviewSrc] = useState<string | null>(null);
+  const [previewAudioDuration, setPreviewAudioDuration] = useState<number | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [supplierInviteAction, setSupplierInviteAction] = useState<SupplierInviteActionState>(null);
   const [serviceProviderByServiceId, setServiceProviderByServiceId] = useState<Record<number, number>>({});
@@ -4427,6 +4436,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         setImagePreviewUrls([]);
         setUploadingProgress(0);
         setIsUploadingAttachment(false);
+        setPreviewAudioDuration(null);
         setReplyTarget(null);
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto';
@@ -5201,10 +5211,30 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       {attachmentPreviewUrl && attachmentFile && !attachmentFile.type.startsWith('image/') && (
         <div className={isDetailsPanelOpen ? 'hidden md:flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner' : 'flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner'}>
           {attachmentFile && (attachmentFile.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg|wav)$/i.test(attachmentFile.name || '')) ? (
-            <>
-              <audio className="w-48" controls src={attachmentPreviewUrl} preload="metadata" />
-              <span className="text-xs text-gray-700 font-medium">{attachmentFile.name} ({formatBytes(attachmentFile.size)})</span>
-            </>
+            (() => {
+              const isVoiceNote = /^voice-note-\d+\./i.test(attachmentFile.name || '');
+              return (
+                <>
+                  <audio
+                    className="w-48"
+                    controls
+                    src={attachmentPreviewUrl}
+                    preload="metadata"
+                    onLoadedMetadata={(e) => {
+                      try { setPreviewAudioDuration(e.currentTarget.duration || 0); } catch {}
+                    }}
+                  />
+                  {isVoiceNote ? (
+                    <span className="text-xs text-gray-700 font-medium tabular-nums">{formatDuration(previewAudioDuration)}</span>
+                  ) : (
+                    <span className="text-xs text-gray-700 font-medium">
+                      {attachmentFile.name} ({formatBytes(attachmentFile.size)})
+                      {previewAudioDuration != null ? ` · ${formatDuration(previewAudioDuration)}` : ''}
+                    </span>
+                  )}
+                </>
+              );
+            })()
           ) : attachmentFile && (attachmentFile.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v)$/i.test(attachmentFile.name || '')) ? (
             <>
               <video className="w-48 rounded" controls src={attachmentPreviewUrl} preload="metadata" />
