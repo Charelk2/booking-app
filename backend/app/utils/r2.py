@@ -7,10 +7,7 @@ from typing import Optional, Tuple
 
 import boto3
 from botocore.config import Config
-import tempfile
-import subprocess
-import os as _os
-from urllib.parse import urlparse
+ 
 
 
 def _env(name: str, default: Optional[str] = None) -> Optional[str]:
@@ -159,75 +156,3 @@ def presign_get_for_public_url(public_url: str) -> Optional[str]:
         ExpiresIn=cfg.download_ttl_seconds,
     )
 
-
-def _key_from_url(url: str) -> Optional[str]:
-    """Best-effort extract of R2 object key from either public or S3 endpoint URL."""
-    try:
-        cfg = R2Config()
-        u = urlparse(url)
-        if not u.scheme:
-            return None
-        # Public base
-        base = (cfg.public_base_url or '').rstrip('/')
-        if base and url.startswith(base + '/'):
-            return url[len(base) + 1:]
-        # S3 path-style: https://endpoint/bucket/key
-        if cfg.bucket and u.path:
-            parts = u.path.lstrip('/').split('/', 1)
-            if len(parts) == 2 and parts[0] == cfg.bucket:
-                return parts[1]
-        return None
-    except Exception:
-        return None
-
-
-def transcode_webm_to_m4a(public_or_s3_url: str) -> Optional[dict]:
-    """Transcode a webm voice note to m4a (AAC) and upload to R2.
-
-    Returns dict with keys: { 'key': str, 'public_url': str | None }
-    or None on failure.
-    """
-    cfg = R2Config()
-    if not cfg.is_configured():
-        return None
-    key = _key_from_url(public_or_s3_url)
-    if not key:
-        return None
-    client = _client(cfg)
-    # Download source to temp
-    with tempfile.TemporaryDirectory() as td:
-        src = _os.path.join(td, 'in.webm')
-        dst = _os.path.join(td, 'out.m4a')
-        try:
-            obj = client.get_object(Bucket=cfg.bucket, Key=key)
-            with open(src, 'wb') as f:
-                for chunk in obj['Body'].iter_chunks():
-                    if chunk:
-                        f.write(chunk)
-        except Exception:
-            return None
-        # ffmpeg transcode: webm/opus -> m4a/aac
-        try:
-            subprocess.run(
-                ['ffmpeg', '-y', '-i', src, '-c:a', 'aac', '-b:a', '64k', dst],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except Exception:
-            return None
-        # Upload to compat key alongside original
-        base, ext = _os.path.splitext(key)
-        compat_key = f"{base}.m4a"
-        try:
-            with open(dst, 'rb') as f:
-                client.put_object(
-                    Bucket=cfg.bucket,
-                    Key=compat_key,
-                    Body=f,
-                    ContentType='audio/mp4',
-                )
-        except Exception:
-            return None
-        pub = f"{cfg.public_base_url}/{compat_key}" if cfg.public_base_url else None
-        return {'key': compat_key, 'public_url': pub}

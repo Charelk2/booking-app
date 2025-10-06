@@ -338,10 +338,7 @@ html, body {
   transition: max-width 0.5s ease-in-out, opacity 0.3s ease-in-out 0.1s;
 }
 
-/* Chat audio controls: make the native control panel transparent so the bubble background shows through */
-/* (reverted) Use native audio control visuals; no custom class needed here. */
-/* Do not force transparent media control panels; keep platform defaults
-   to guarantee visibility and contrast on mobile browsers. */
+/* */
 
 /* When header is expanded from compact (clicked pill), hide the pill */
 #app-header[data-header-state="expanded-from-compact"] .compact-pill-wrapper {
