@@ -2769,8 +2769,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // Also listen to global notifications as a safety net; if a new_message
   // notification arrives, refresh this thread if ids match or if no id is present.
+  // Do not gate on user activity — ensure thread stays in sync with the preview.
   useEffect(() => {
-    if (!hasUserActivity || !myUserId) return () => {};
     const unsub = subscribe('notifications', (payload: any) => {
       try {
         const typ = String(payload?.type || '').toLowerCase();
@@ -2785,12 +2785,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           NaN
         );
         if (!Number.isFinite(id) || id === bookingRequestId) {
+          try { console.info('[thread] notification → incremental refresh', { threadId: bookingRequestId }); } catch {}
           void fetchMessages({ mode: 'incremental', reason: 'notification' });
         }
       } catch {}
     });
     return () => { try { unsub(); } catch {} };
-  }, [subscribe, bookingRequestId, fetchMessages, hasUserActivity, myUserId]);
+  }, [subscribe, bookingRequestId, fetchMessages]);
 
   // ---- Attachment preview URL
   useEffect(() => {
