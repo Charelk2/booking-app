@@ -2401,6 +2401,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         firstPaintSentRef.current = true;
       }
       setMessages(cached);
+      // Ensure any quoted cards referenced by cached messages are hydrated so
+      // the quote bubble renders immediately instead of a skeleton.
+      try {
+        const quoteIds = Array.from(new Set(cached
+          .map((m) => Number(m.quote_id))
+          .filter((qid) => Number.isFinite(qid) && qid > 0)));
+        if (quoteIds.length) { void ensureQuotesLoaded(quoteIds); }
+      } catch {}
       scheduleMarkRead(cached, 'cache');
       setLoading(false);
       initialLoadedRef.current = true;
@@ -2445,6 +2453,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         try { _writeThreadCache(bookingRequestId, normalized); } catch {}
         if (messagesRef.current.length === 0) {
           setMessages(normalized);
+          // Hydrate quotes for normalized cached messages (IndexedDB path)
+          try {
+            const quoteIds = Array.from(new Set(normalized
+              .map((m) => Number(m.quote_id))
+              .filter((qid) => Number.isFinite(qid) && qid > 0)));
+            if (quoteIds.length) { void ensureQuotesLoaded(quoteIds); }
+          } catch {}
           scheduleMarkRead(normalized, 'cache');
           setLoading(false);
         }

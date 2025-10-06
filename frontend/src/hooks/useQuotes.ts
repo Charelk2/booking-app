@@ -50,18 +50,46 @@ export function toQuoteV2FromLegacy(legacy: Quote, opts: { clientId?: number } =
 }
 
 export function useQuotes(bookingRequestId: number) {
-  const [quotesById, setQuotesById] = useState<Record<number, QuoteV2>>({});
+  // Global, cross-instance cache so fast thread switches can render quotes immediately
+  // without waiting for network refetch.
+  // Keeps a best-effort in-memory map of QuoteV2 by id.
+  // Note: intentionally module-scoped to persist across hook calls.
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const GLOBAL_QUOTES: Map<number, QuoteV2> = (globalThis as any).__GLOBAL_QUOTES__ || new Map<number, QuoteV2>();
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  if (!(globalThis as any).__GLOBAL_QUOTES__) (globalThis as any).__GLOBAL_QUOTES__ = GLOBAL_QUOTES;
+
+  const [quotesById, setQuotesById] = useState<Record<number, QuoteV2>>(() => {
+    // Seed with any previously known quotes to avoid skeletons on rapid switches
+    try {
+      const entries = Array.from(GLOBAL_QUOTES.entries());
+      return entries.length ? Object.fromEntries(entries.map(([id, q]) => [id, q])) as Record<number, QuoteV2> : {};
+    } catch {
+      return {} as Record<number, QuoteV2>;
+    }
+  });
   const pendingRef = useRef<Set<number>>(new Set());
   const lastTryRef = useRef<Map<number, number>>(new Map());
 
   const setQuote = useCallback((q: QuoteV2) => {
     if (!q || typeof q.id !== 'number') return;
+    try { GLOBAL_QUOTES.set(q.id, q); } catch {}
     setQuotesById((prev) => (prev[q.id] === q ? prev : { ...prev, [q.id]: q }));
   }, []);
 
   const ensureQuoteLoaded = useCallback(async (quoteId: number) => {
     if (!Number.isFinite(quoteId) || quoteId <= 0) return;
     if (quotesById[quoteId]) return;
+    // If present in global cache, hydrate local state immediately
+    try {
+      const hit = GLOBAL_QUOTES.get(quoteId);
+      if (hit) {
+        setQuotesById((prev) => ({ ...prev, [quoteId]: hit }));
+        return;
+      }
+    } catch {}
     if (pendingRef.current.has(quoteId)) return;
     const now = Date.now();
     const last = lastTryRef.current.get(quoteId) || 0;
@@ -70,6 +98,7 @@ export function useQuotes(bookingRequestId: number) {
     lastTryRef.current.set(quoteId, now);
     try {
       const res = await getQuoteV2(quoteId);
+      try { GLOBAL_QUOTES.set(quoteId, res.data); } catch {}
       setQuotesById((prev) => ({ ...prev, [quoteId]: res.data }));
       return;
     } catch {}
@@ -81,6 +110,7 @@ export function useQuotes(bookingRequestId: number) {
       const legacy = arr.find((q: any) => Number(q?.id) === Number(quoteId));
       if (legacy) {
         const adapted = toQuoteV2FromLegacy(legacy as Quote);
+        try { GLOBAL_QUOTES.set(quoteId, adapted); } catch {}
         setQuotesById((prev) => ({ ...prev, [quoteId]: adapted }));
       }
     } catch {}
@@ -98,6 +128,7 @@ export function useQuotes(bookingRequestId: number) {
       const batch = await getQuotesBatch(missing);
       const got = Array.isArray(batch.data) ? batch.data : [];
       if (got.length) {
+        try { got.forEach((q: QuoteV2) => GLOBAL_QUOTES.set(q.id, q)); } catch {}
         setQuotesById((prev) => ({ ...prev, ...Object.fromEntries(got.map((q: QuoteV2) => [q.id, q])) }));
       }
       const received = new Set<number>(got.map((q) => Number(q.id)).filter((n) => Number.isFinite(n)));
