@@ -342,7 +342,8 @@ html, body {
 .chat-audio {
   display: block;
   width: 100%;
-  min-height: 40px; /* ensure controls are visible */
+  height: 44px !important; /* force visible control height on mobile */
+  min-height: 44px !important;
   border-radius: 0.75rem; /* rounded-xl */
 }
 /* Do not force transparent media control panels; keep platform defaults

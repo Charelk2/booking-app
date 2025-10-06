@@ -3718,7 +3718,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             ? [initialAudioSrc, ...fallbackChain.filter((c) => c !== initialAudioSrc)]
                             : fallbackChain;
                           return (
-                            <div className="mt-1 inline-block">
+                            <div className="mt-1 block w-full">
                               <audio
                                 className="w-full chat-audio"
                                 controls
