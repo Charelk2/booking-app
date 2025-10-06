@@ -5498,7 +5498,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <Button
                 type="submit"
                 aria-label="Send message"
-              className="flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-8 h-8 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-9 h-9 md:w-10 md:h-10 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
       >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
