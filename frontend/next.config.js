@@ -164,8 +164,12 @@ const nextConfig = {
     const wsApi = apiBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
     const wsExtra = wsOrigin && wsOrigin !== wsApi ? ` ${wsOrigin}` : '';
     const csp = [
-      // Scripts: allow Google Identity, Maps, Paystack, and Cloudflare Insights beacon
+      // Default policy
+      "default-src 'self'",
+      // Scripts: app + Google Identity/Maps + Paystack + Cloudflare Insights
       "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com",
+      // Cover script elements explicitly (older browsers fallback to script-src, but be explicit)
+      "script-src-elem 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com",
       // XHR/fetch and WebSocket: backend API, R2, Google Identity/Maps, Paystack, and Cloudflare Insights collection
       `connect-src 'self' ${connectApi} ${wsApi}${wsExtra} ${R2_S3_ORIGIN} ${R2_PUBLIC_BASE} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co https://cloudflareinsights.com`,
       // Frames for Google Identity widgets and Paystack's checkout iframe
@@ -176,6 +180,16 @@ const nextConfig = {
       `media-src 'self' data: blob: ${connectApi} ${R2_PUBLIC_BASE} ${R2_S3_ORIGIN}`,
       // Styles: inline + GSI stylesheet; Maps injects inline styles too
       "style-src 'self' 'unsafe-inline' https://accounts.google.com",
+      // Fonts: self + data URIs for inlined fonts when present
+      "font-src 'self' data:",
+      // Workers (if any): allow same-origin + blob
+      "worker-src 'self' blob:",
+      // Lock down other legacy sinks
+      "object-src 'none'",
+      // Restrict base URI
+      "base-uri 'self'",
+      // Frame-ancestors: disallow embedding off-site
+      "frame-ancestors 'self'",
     ].join('; ');
     return [
       {
@@ -185,6 +199,8 @@ const nextConfig = {
           // Keep clickjacking protection via frame-ancestors, but permit Google's frames
           // Note: frame-ancestors is evaluated by the framed page; we permit Google frames via frame-src
           { key: 'Content-Security-Policy', value: csp },
+          // Provide a matching Report-Only policy so report-only scanners don't default to 'none'
+          { key: 'Content-Security-Policy-Report-Only', value: csp },
           // Explicitly allow FedCM in modern browsers
           { key: 'Permissions-Policy', value: 'identity-credentials-get=(self)' },
         ],
