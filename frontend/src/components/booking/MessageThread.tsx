@@ -3655,9 +3655,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   delete el.dataset.fallbackDone;
                                 }}
                                 onError={(e) => {
-                                  // If current src is a local blob preview, avoid flipping immediately;
-                                  // let the local audio stay as the primary source to prevent visible errors on mobile.
-                                  try { if ((e.currentTarget.src || '').startsWith('blob:')) return; } catch {}
+                                  // Always attempt a fallback; if the local blob fails to decode on a device,
+                                  // progress to the remote/proxied URL rather than leaving the element in error.
                                   advanceAudioFallback(e.currentTarget, audioFallbacks, raw);
                                 }}
                               />
