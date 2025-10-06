@@ -2100,12 +2100,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       // Honor immediate flag from notifications to bypass debounce and render quickly
       if (detail.immediate) {
         lastFetchAtRef.current = now;
-        void fetchMessages({ mode: 'incremental', force: true, reason: detail.reason || 'threads:updated:immediate' });
+        try { console.info('[thread] threads:updated immediate → full merge-update'); } catch {}
+        void fetchMessages({ mode: 'initial', force: true, reason: detail.reason || 'threads:updated:immediate', limit: 100, behavior: 'merge_update' });
         return;
       }
       if (now - lastFetchAtRef.current < 800) return; // debounce
       lastFetchAtRef.current = now;
-      void fetchMessages({ mode: 'incremental', force: true, reason: detail.reason || 'threads:updated' });
+      try { console.info('[thread] threads:updated → full merge-update'); } catch {}
+      void fetchMessages({ mode: 'initial', force: true, reason: detail.reason || 'threads:updated', limit: 100, behavior: 'merge_update' });
     };
     try { window.addEventListener('threads:updated', onThreadsUpdated as any); } catch {}
     return () => { try { window.removeEventListener('threads:updated', onThreadsUpdated as any); } catch {} };
@@ -2808,8 +2810,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           NaN
         );
         if (!Number.isFinite(id) || id === bookingRequestId) {
-          try { console.info('[thread] notification → incremental refresh', { threadId: bookingRequestId }); } catch {}
-          void fetchMessages({ mode: 'incremental', force: true, reason: 'notification' });
+          try { console.info('[thread] notification → full merge-update', { threadId: bookingRequestId }); } catch {}
+          void fetchMessages({ mode: 'initial', force: true, reason: 'notification', limit: 100, behavior: 'merge_update' });
         }
       } catch {}
     });
