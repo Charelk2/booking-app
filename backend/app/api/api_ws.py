@@ -11,6 +11,7 @@ import logging
 import os
 import time
 from typing import Any, Dict, List, Set
+from weakref import WeakKeyDictionary
 
 # Custom WebSocket close codes mirroring HTTP status codes
 WS_4401_UNAUTHORIZED = 4401
@@ -31,7 +32,30 @@ router = APIRouter()
 
 
 REDIS_URL = os.getenv("WEBSOCKET_REDIS_URL")
-redis = aioredis.from_url(REDIS_URL) if aioredis and REDIS_URL else None
+
+# Keep one Redis client per running loop to avoid cross-loop issues when code
+# runs under different event loops (e.g., tests using asyncio.run()).
+_loop_redis: "WeakKeyDictionary[asyncio.AbstractEventLoop, Any]" = WeakKeyDictionary()
+
+
+def _get_redis() -> Any | None:
+    if not aioredis or not REDIS_URL:
+        return None
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+    client = _loop_redis.get(loop)
+    if client is None:
+        client = aioredis.from_url(
+            REDIS_URL,
+            health_check_interval=30,
+            retry_on_timeout=True,
+            socket_keepalive=True,
+            socket_timeout=5,
+        )
+        _loop_redis[loop] = client
+    return client
 
 
 async def _safe_publish(channel: str, payload: str) -> None:
@@ -40,23 +64,31 @@ async def _safe_publish(channel: str, payload: str) -> None:
     Avoids bubbling transport errors from background tasks (e.g., Starlette BackgroundTask)
     when the underlying TCP connection has been closed by the event loop or idle timeout.
     """
-    global redis  # allow recreation if needed
-    if not aioredis or not REDIS_URL:
+    client = _get_redis()
+    if not client:
         return
-    if not redis:
-        try:
-            redis = aioredis.from_url(REDIS_URL)
-        except Exception:
-            return
     try:
-        await redis.publish(channel, payload)
+        await client.publish(channel, payload)
         return
     except Exception as exc:
         # Attempt a one-time reconnect and retry
         try:
-            logger.warning("Redis publish failed on %s (%s); recreating client", channel, exc)
-            redis = aioredis.from_url(REDIS_URL)
-            await redis.publish(channel, payload)
+            logger.warning(
+                "Redis publish failed on %s (%s); recreating client", channel, exc
+            )
+            loop = asyncio.get_running_loop()
+            try:
+                old = _loop_redis.pop(loop, None)
+                if old is not None:
+                    try:
+                        await old.close()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            client = _get_redis()
+            if client:
+                await client.publish(channel, payload)
         except Exception:
             # Swallow to keep user requests succeeding; clients will still poll and receive updates
             logger.warning("Redis publish retry failed on %s", channel)
@@ -79,8 +111,10 @@ class ConnectionManager:
         self.presence_tasks: Dict[int, asyncio.Task] = {}
 
     async def _redis_subscribe(self, request_id: int) -> None:
-        assert redis
-        pubsub = redis.pubsub()
+        client = _get_redis()
+        if not client:
+            return
+        pubsub = client.pubsub()
         await pubsub.subscribe(f"ws:{request_id}")
         try:
             async for message in pubsub.listen():
@@ -99,7 +133,7 @@ class ConnectionManager:
         await websocket.accept()
         websocket.last_pong = time.time()
         self.active_connections.setdefault(request_id, []).append(websocket)
-        if redis and request_id not in self.redis_tasks:
+        if aioredis and REDIS_URL and request_id not in self.redis_tasks:
             self.redis_tasks[request_id] = asyncio.create_task(
                 self._redis_subscribe(request_id)
             )
@@ -652,7 +686,8 @@ async def sse(
     Requires Redis for cross-process fanout. Topics are comma-separated and
     include: booking-requests:<id>, notifications
     """
-    if not aioredis or not redis:
+    client = _get_redis()
+    if not aioredis or not client:
         from fastapi import Response
         return Response(status_code=503)
 
@@ -689,7 +724,7 @@ async def sse(
             topic_map[chan] = f"notifications:{user.id}"
 
     async def event_generator():
-        pubsub = redis.pubsub()
+        pubsub = client.pubsub()
         await pubsub.subscribe(*chan_names)
         try:
             # Initial comment to open the stream
