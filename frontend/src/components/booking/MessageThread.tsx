@@ -5659,6 +5659,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             const ext = /mp4/i.test(mime) ? 'm4a' : /aac/i.test(mime) ? 'aac' : /mpeg/i.test(mime) ? 'mp3' : /ogg/i.test(mime) ? 'ogg' : /wav/i.test(mime) ? 'wav' : 'webm';
                             const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
                             setAttachmentFile(file);
+                            try { setAttachmentPreviewUrl(URL.createObjectURL(file)); } catch {}
                             try { setShowEmojiPicker(false); } catch {}
                             try { textareaRef.current?.focus(); } catch {}
                             try { stream.getTracks().forEach((t) => t.stop()); } catch {}

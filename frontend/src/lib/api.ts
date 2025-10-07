@@ -828,9 +828,15 @@ export const uploadMessageAttachment = async (
   // 2) Upload the file directly to R2
   // Use exactly the headers that were included in the signature.
   // If backend didn't sign Content-Type, don't set it here.
-  const signedHeaders = headers && Object.keys(headers).length > 0
+  let signedHeaders = headers && Object.keys(headers).length > 0
     ? headers
     : (file.type ? { 'Content-Type': file.type } : {});
+  // Safari/iOS voice notes often use audio/mp4 or audio/aac.
+  // If the backend did not sign a specific Content-Type header, avoid
+  // setting one for audio to reduce signature/validation mismatches.
+  if ((!headers || Object.keys(headers).length === 0) && typeof file.type === 'string' && file.type.startsWith('audio/')) {
+    signedHeaders = {};
+  }
   await axios.put(put_url, file, {
     headers: signedHeaders,
     withCredentials: false,
