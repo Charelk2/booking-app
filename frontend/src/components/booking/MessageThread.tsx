@@ -2759,6 +2759,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (paymentId) {
           setBookingDetails((prev) => (prev ? { ...prev, payment_id: paymentId as any } : prev));
         }
+        // Ensure quotes are hydrated even on heavy threads where the quote message isn't in view
+        try {
+          const list = await getQuotesForBookingRequest(bookingRequestId);
+          const ids = Array.isArray(list.data) ? list.data.map((q: any) => Number(q?.id)).filter((n: number) => Number.isFinite(n) && n > 0) : [];
+          if (ids.length) {
+            await ensureQuotesLoaded(ids);
+          }
+        } catch {}
         if (mocked) {
           try {
             // Persist a canonical system message so it survives refresh even in mock mode
@@ -2777,7 +2785,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           }
         }
         // Fetch fresh messages so the server-authored (or persisted) system line shows up and persists
-        void fetchMessages({ mode: 'incremental', force: true, reason: 'payment-confirmation' });
+        void fetchMessages({ mode: 'initial', force: true, reason: 'payment-confirmation', limit: 100, behavior: 'merge_update' });
         // Also resolve booking from this thread so Event Prep can render immediately
         void resolveBookingFromRequest();
       }
