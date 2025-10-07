@@ -1854,6 +1854,33 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     };
   }, [composerRef]);
 
+  // When the composer height changes (e.g., multi-line input grows), and the
+  // user is anchored at bottom, keep the latest message fully visible.
+  useEffect(() => {
+    if (!virtuosoRef.current) return;
+    if (atBottomRef.current !== true) return;
+    const idx = Math.max(0, groupedMessages.length - 1);
+    try {
+      // Defer to next frame so layout reflects the new composer size.
+      const raf = typeof window !== 'undefined' ? window.requestAnimationFrame : null;
+      if (raf) {
+        raf(() => {
+          try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {}
+        });
+      } else {
+        virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' });
+      }
+    } catch {}
+  }, [composerHeight, groupedMessages.length]);
+
+  // Also keep bottom anchored when attachment preview rows appear/disappear
+  useEffect(() => {
+    if (!virtuosoRef.current) return;
+    if (atBottomRef.current !== true) return;
+    const idx = Math.max(0, groupedMessages.length - 1);
+    try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {}
+  }, [imagePreviewUrls.length, attachmentPreviewUrl, groupedMessages.length]);
+
   useLayoutEffect(() => {
     const host = virtualizationHostRef.current;
     if (!host) return;
@@ -5626,15 +5653,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
               {/* Right-side mic ↔ send swap */}
               <div className="relative w-9 h-9">
-                {/* Mic (no text/attachments) */}
-                <div
-                  className={
-                    `absolute inset-0 transition-all duration-150 ` +
-                    ((newMessageContent.trim() || attachmentFile || imageFiles.length > 0)
-                      ? 'opacity-0 scale-90 pointer-events-none'
-                      : 'opacity-100 scale-100')
-                  }
-                >
+                {Boolean(newMessageContent.trim() || attachmentFile || imageFiles.length > 0) ? (
+                  <button
+                    type="submit"
+                    aria-label="Send message"
+                    className={[
+                      'absolute inset-0 grid place-items-center rounded-full transition-all duration-150',
+                      'opacity-100 scale-100',
+                      'bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)]',
+                      'disabled:opacity-50 disabled:cursor-not-allowed',
+                    ].join(' ')}
+                    disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                    </svg>
+                  </button>
+                ) : (
                   <button
                     type="button"
                     onClick={async () => {
@@ -5673,30 +5708,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                       }
                     }}
                     aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
-                    className={`w-9 h-9 grid place-items-center rounded-full transition-colors ${isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700'}`}
+                    className={`absolute inset-0 w-9 h-9 grid place-items-center rounded-full transition-colors ${isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700'}`}
                   >
                     {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
                   </button>
-                </div>
-
-                {/* Send (when text or attachments) */}
-                <button
-                  type="submit"
-                  aria-label="Send message"
-                  className={
-                    [
-                      'absolute inset-0 grid place-items-center rounded-full transition-all duration-150',
-                      (newMessageContent.trim() || attachmentFile || imageFiles.length > 0) ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none',
-                      'bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)]',
-                      'disabled:opacity-50 disabled:cursor-not-allowed',
-                    ].join(' ')
-                  }
-                  disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                  </svg>
-                </button>
+                )}
               </div>
             </form>
           </div>
