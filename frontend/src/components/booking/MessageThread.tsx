@@ -2040,13 +2040,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             parsedDetails = parseBookingDetailsFromMessage(msg.content);
             continue;
           }
-          if (
-            initialNotes &&
-            normalizeType(msg.message_type) === 'USER' &&
-            msg.content.trim() === initialNotes.trim()
-          ) {
-            continue;
-          }
+          // Do not suppress the initial notes message; render it like a normal USER line
           normalized.push(msg);
         }
 
