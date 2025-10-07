@@ -767,6 +767,10 @@ export interface MessageListParams {
   after_id?: number;
   /** @deprecated use `after_id` */
   after?: number;
+  /**
+   * Cursor for loading older history. Matches backend `before_id` query param.
+   */
+  before_id?: number;
   since?: string;
   skip?: number;
   fields?: string;
@@ -786,6 +790,13 @@ export const getMessagesForBookingRequest = (
     }
   }
   delete qp.after;
+  const beforeCandidate = params.before_id as number | undefined;
+  if (beforeCandidate != null) {
+    const parsed = typeof beforeCandidate === 'number' ? beforeCandidate : Number(beforeCandidate);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      qp.before_id = parsed;
+    }
+  }
   if (!('mode' in qp) || qp.mode == null) {
     qp.mode = 'full';
   }

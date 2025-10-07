@@ -69,7 +69,9 @@ def get_messages_for_request(
     skip: int = 0,
     limit: int = 100,
     after_id: int | None = None,
+    before_id: int | None = None,
     since: datetime | None = None,
+    newest_first: bool = False,
 ) -> List[models.Message]:
     query = (
         db.query(models.Message)
@@ -97,10 +99,12 @@ def get_messages_for_request(
         )
     if after_id:
         query = query.filter(models.Message.id > after_id)
+    if before_id:
+        query = query.filter(models.Message.id < before_id)
     if since:
         query = query.filter(models.Message.timestamp >= since)
     query = (
-        query.order_by(models.Message.timestamp.asc())
+        query.order_by(models.Message.timestamp.desc() if newest_first else models.Message.timestamp.asc())
         .offset(skip)
         .limit(limit)
     )

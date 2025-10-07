@@ -1223,6 +1223,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const formRef = useRef<HTMLFormElement | null>(null);
   const prevMessageCountRef = useRef(0);
   const initialScrolledRef = useRef(false);
+  const olderInFlightRef = useRef(false);
+  const reachedHistoryStartRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
   const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
@@ -2332,6 +2334,49 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [bookingRequestId, fetchMessages, supplierInviteAction, t],
   );
   useImperativeHandle(ref, () => ({ refreshMessages: fetchMessages }), [fetchMessages]);
+
+  // Fetch older messages when the user scrolls to the very top
+  const fetchOlder = useCallback(async () => {
+    if (olderInFlightRef.current || reachedHistoryStartRef.current) return;
+    const list = messagesRef.current;
+    if (!list || list.length === 0) return;
+    // Find the earliest loaded numeric id
+    let earliestId: number | null = null;
+    for (let i = 0; i < list.length; i += 1) {
+      const id = Number(list[i]?.id);
+      if (Number.isFinite(id) && id > 0) { earliestId = id; break; }
+    }
+    if (!earliestId || earliestId <= 1) return;
+    olderInFlightRef.current = true;
+    try {
+      const res = await getMessagesForBookingRequest(bookingRequestId, { limit: 100, mode: 'lite', before_id: earliestId });
+      const rows = Array.isArray(res.data?.items) ? res.data.items : [];
+      if (!rows.length) { reachedHistoryStartRef.current = true; return; }
+      const older: ThreadMessage[] = [];
+      for (const raw of rows as any[]) {
+        const msg = normalizeMessage(raw);
+        // Skip booking details system summaries from visible stream
+        if (
+          normalizeType(msg.message_type) === 'SYSTEM' &&
+          typeof msg.content === 'string' &&
+          msg.content.startsWith(BOOKING_DETAILS_PREFIX)
+        ) {
+          continue;
+        }
+        older.push(msg);
+      }
+      if (!older.length) return;
+      setMessages((prev) => mergeMessages(older, prev));
+      // If the server returned fewer than we asked, we've reached history start
+      if (!res.data?.has_more || rows.length < 100) {
+        reachedHistoryStartRef.current = true;
+      }
+    } catch (e) {
+      // Non-fatal; allow another attempt later
+    } finally {
+      olderInFlightRef.current = false;
+    }
+  }, [bookingRequestId, setMessages]);
   // When the global inbox emits a threads:updated (via notifications), refresh this thread too.
   useEffect(() => {
     const onThreadsUpdated = (event: Event) => {
@@ -5202,6 +5247,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               followOutput={true}
               initialTopMostItemIndex={groupedMessages.length > 0 ? groupedMessages.length - 1 : 0}
               style={{ height: Math.max(1, virtuosoViewportHeight), width: '100%' }}
+              startReached={() => { void fetchOlder(); }}
               atBottomStateChange={(atBottom: boolean) => {
                 setShowScrollButton(!atBottom);
                 setIsUserScrolledUp(!atBottom);

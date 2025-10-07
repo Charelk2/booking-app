@@ -58,6 +58,10 @@ def read_messages(
         None,
         description="Return only messages with an id greater than this value",
     ),
+    before_id: Optional[int] = Query(
+        None,
+        description="Return only messages with an id less than this value (older history)",
+    ),
     fields: Optional[str] = Query(
         None, description="Comma-separated fields to include in the response"
     ),
@@ -113,6 +117,7 @@ def read_messages(
 
     try:
         query_start = time.perf_counter()
+        newest_first = after_id is None and before_id is None and since is None
         db_messages = crud.crud_message.get_messages_for_request(
             db,
             request_id,
@@ -120,7 +125,9 @@ def read_messages(
             skip=skip,
             limit=query_limit,
             after_id=after_id,
+            before_id=before_id,
             since=since,
+            newest_first=newest_first,
         )
         db_latency_ms = (time.perf_counter() - query_start) * 1000.0
     except Exception as exc:
@@ -155,6 +162,13 @@ def read_messages(
             payload_bytes=0,
         )
         return envelope
+
+    # If we requested newest_first, results are newest→oldest; reverse to oldest→newest
+    if 'newest_first' in locals() and newest_first:
+        try:
+            db_messages = list(reversed(db_messages))
+        except Exception:
+            pass
 
     has_more = False
     if normalized_mode in ("lite", "delta") and len(db_messages) > effective_limit:
@@ -411,6 +425,7 @@ def read_messages(
             "payload_bytes": envelope_dict["payload_bytes"],
             "limit": limit,
             "after_id": after_id,
+            "before_id": before_id,
             "mode": normalized_mode,
             "has_more": has_more,
             "requested_since": since.isoformat() if isinstance(since, datetime) else None,
