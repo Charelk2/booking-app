@@ -471,7 +471,8 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
       if (!file) return;
 
       setAttachmentFile(file);
-      try { await handleSendMessage(new Event("submit") as any); } catch {}
+      // Submit via the form to reuse the standard send flow
+      setTimeout(() => { try { formRef.current?.requestSubmit(); } catch {} }, 0);
     }, [handleSendMessage, isRecording]);
 
     // mic long-press gesture handlers (+ workarounds for iOS long-press callout)
@@ -519,7 +520,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
           "placeholder:text-zinc-600/70 dark:placeholder:text-zinc-300/60",
           "font-medium",
         ].join(" ")}
-        placeholder="Type your message…"
+        placeholder="Type your message..."
         aria-label="New message input"
         disabled={disabled}
       />
@@ -532,15 +533,33 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
           {/* Recording HUD (mobile) */}
           {isRecording && (
             <EdgeGlassBar className="px-4 pt-2 pb-1">
-              <div className="flex items-center gap-3">
-                <span className="text-pink-600 dark:text-pink-400">
-                  <svg width="18" height="18" viewBox="0 0 24 24" className="animate-pulse" aria-hidden="true">
-                    <circle cx="12" cy="12" r="6" fill="currentColor" />
-                  </svg>
-                </span>
-                <span className="text-lg font-semibold tabular-nums">{formatClock(recordMs)}</span>
-                <span className="ml-2 text-zinc-700/90 dark:text-zinc-200/90">slide to cancel</span>
-                <span className="text-zinc-500 ml-auto">←</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-pink-600 dark:text-pink-400">
+                    <svg width="18" height="18" viewBox="0 0 24 24" className="animate-pulse" aria-hidden="true">
+                      <circle cx="12" cy="12" r="6" fill="currentColor" />
+                    </svg>
+                  </span>
+                  <span className="text-lg font-semibold tabular-nums">{formatClock(recordMs)}</span>
+                  <span className="ml-2 text-zinc-700/90 dark:text-zinc-200/90">slide to cancel</span>
+                  <span className="text-zinc-500">←</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-md border border-red-300 bg-white/70 text-red-700 hover:bg-white px-2 py-1 text-[12px]"
+                    onClick={cancelRecording}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md bg-red-600 text-white hover:bg-red-700 px-2 py-1 text-[12px] font-medium"
+                    onClick={finishRecordingAndSend}
+                  >
+                    Stop & Send
+                  </button>
+                </div>
               </div>
             </EdgeGlassBar>
           )}
@@ -549,18 +568,18 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
           <EdgeGlassBar className="px-3 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
             <form ref={formRef} onSubmit={handleSendMessage} className="flex items-end gap-1.5">
               {/* + (upload) */}
-              <input
-                id="file-upload-m"
-                type="file"
-                className="hidden"
-                onChange={(e) => {
-                  const f = (e.target.files && e.target.files[0]) || null;
-                  if (!f) return;
-                  setAttachmentFile(f);
-                }}
-                accept="image/*,application/pdf,audio/*,video/*,text/plain,application/rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              />
-              <label htmlFor="file-upload-m" aria-label="Add attachment" className="cursor-pointer">
+              <label aria-label="Add attachment" className="cursor-pointer">
+                <input
+                  type="file"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const f = (e.target.files && e.target.files[0]) || null;
+                    if (!f) return;
+                    setAttachmentFile(f);
+                    try { (e.target as HTMLInputElement).value = ''; } catch {}
+                  }}
+                  accept="image/*,application/pdf,audio/*,video/*,text/plain,application/rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                />
                 <GlassIconButton>
                   <PlusIcon className="w-5 h-5" />
                 </GlassIconButton>
@@ -625,21 +644,37 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
             </GlassBar>
           )}
 
+          {/* Recording HUD (web) */}
+          {isRecording && (
+            <GlassBar className="px-3 py-2 mb-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-red-600 animate-pulse" aria-hidden />
+                  <span className="text-sm font-semibold tabular-nums">Recording {formatClock(recordMs)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" className="rounded-md border border-red-300 bg-white/70 text-red-700 hover:bg-white px-2 py-1 text-[12px]" onClick={cancelRecording}>Cancel</button>
+                  <button type="button" className="rounded-md bg-red-600 text-white hover:bg-red-700 px-2 py-1 text-[12px] font-medium" onClick={finishRecordingAndSend}>Stop & Send</button>
+                </div>
+              </div>
+            </GlassBar>
+          )}
+
           <GlassBar className="px-2 py-1.5">
             <form ref={formRef} onSubmit={handleSendMessage} className="flex items-end gap-1.5">
               {/* + (upload) */}
-              <input
-                id="file-upload-w"
-                type="file"
-                className="hidden"
-                onChange={(e) => {
-                  const f = (e.target.files && e.target.files[0]) || null;
-                  if (!f) return;
-                  setAttachmentFile(f);
-                }}
-                accept="image/*,application/pdf,audio/*,video/*,text/plain,application/rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              />
-              <label htmlFor="file-upload-w" aria-label="Add attachment" className="cursor-pointer">
+              <label aria-label="Add attachment" className="cursor-pointer">
+                <input
+                  type="file"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const f = (e.target.files && e.target.files[0]) || null;
+                    if (!f) return;
+                    setAttachmentFile(f);
+                    try { (e.target as HTMLInputElement).value = ''; } catch {}
+                  }}
+                  accept="image/*,application/pdf,audio/*,video/*,text/plain,application/rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                />
                 <GlassIconButton>
                   <PlusIcon className="w-5 h-5" />
                 </GlassIconButton>
@@ -656,7 +691,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
               {/* right: mic → send (no long-press on web; click-to-record still works if you want to add it later) */}
               <div className="relative w-9 h-9">
                 <div className={["absolute inset-0 transition-all duration-150", hasText ? "opacity-0 scale-90 pointer-events-none" : "opacity-100 scale-100"].join(" ")}>
-                  <GlassIconButton aria-label="Hold to record (mobile only)" disabled>
+                  <GlassIconButton aria-label="Record voice note" onClick={() => { if (!isRecording) beginRecording(); else finishRecordingAndSend(); }}>
                     <MicrophoneIcon className="w-5 h-5" />
                   </GlassIconButton>
                 </div>
