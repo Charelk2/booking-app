@@ -19,6 +19,7 @@ import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 import { type MessageCreate, type AttachmentMeta } from "@/types";
 import { postMessageToBookingRequest, uploadMessageAttachment } from "@/lib/api";
 
+/* ---------------- Types ---------------- */
 export type ReplyTarget =
   | { id: number; sender_type: "client" | "service_provider"; content: string }
   | null;
@@ -42,7 +43,7 @@ type ChatComposerProps = {
 
 const MAX_TEXTAREA_LINES = 10;
 
-/* ───────── liquid-glass (edge-to-edge bar) ───────── */
+/* ---------------- Liquid Glass (edge-to-edge) ---------------- */
 const NOISE_DATA_URL =
   "url(\"data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>\
@@ -56,19 +57,14 @@ function EdgeGlassBar({
   className = "",
   ...rest
 }: React.HTMLAttributes<HTMLDivElement>) {
-  // edge-to-edge: no rounded, no ring (border), no gradient rim
   const base =
     "relative w-full backdrop-blur-xl backdrop-saturate-150 " +
-    "bg-white/30 dark:bg-zinc-900/35 " +
-    "shadow-[0_-6px_28px_rgba(0,0,0,0.10)]"; // soft lift from content
+    "bg-white/30 dark:bg-zinc-900/35 shadow-[0_-6px_28px_rgba(0,0,0,0.10)]";
   const topSheen =
     "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-6 " +
     "before:bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.55),rgba(255,255,255,0.06)_60%,transparent_75%)] " +
     "before:opacity-70";
-  const noise: React.CSSProperties = {
-    backgroundImage: NOISE_DATA_URL,
-    backgroundSize: "160px 160px",
-  };
+  const noise: React.CSSProperties = { backgroundImage: NOISE_DATA_URL, backgroundSize: "160px 160px" };
   return (
     <div className={`${base} ${topSheen} ${className}`} style={noise} {...rest}>
       <div className="text-zinc-900 dark:text-zinc-50 antialiased">{children}</div>
@@ -78,20 +74,17 @@ function EdgeGlassBar({
 
 function GlassIconButton({
   children,
-  active = false,
   className = "",
   ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean }) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       type="button"
       className={[
         "flex-shrink-0 w-9 h-9 rounded-full grid place-items-center",
         "ring-1 ring-black/10 dark:ring-white/10 backdrop-blur-sm",
-        active
-          ? "bg-zinc-900 text-white hover:bg-zinc-800"
-          : "bg-white/55 dark:bg-white/10 text-zinc-700 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-white/15",
-        "transition-colors",
+        "bg-white/55 dark:bg-white/10 text-zinc-700 dark:text-zinc-200",
+        "hover:bg-white/70 dark:hover:bg-white/15 transition-colors",
         className,
       ].join(" ")}
       {...rest}
@@ -102,7 +95,6 @@ function GlassIconButton({
 }
 
 function InputShell({ children }: { children: React.ReactNode }) {
-  // keep inner control pill glossy/rounded for readability
   return (
     <div
       className={[
@@ -117,12 +109,19 @@ function InputShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ───────── helpers ───────── */
+/* ---------------- helpers ---------------- */
 const isMobileUA = () =>
   typeof navigator !== "undefined" &&
   /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-/* ───────── component ───────── */
+function formatClock(ms: number) {
+  const sec = Math.floor(ms / 1000);
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+/* ---------------- Component ---------------- */
 const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
   function ChatComposer(props, forwardedRef) {
     const {
@@ -148,14 +147,12 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
 
     const [newMessageContent, setNewMessageContent] = useState("");
     const [isSending, setIsSending] = useState(false);
+
+    // web-only emoji (lazy)
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [EmojiPickerComp, setEmojiPickerComp] = useState<any>(null);
     const [onWeb, setOnWeb] = useState(false);
-
-    useEffect(() => {
-      const mobile = isMobileUA();
-      setOnWeb(!mobile);
-    }, []);
+    useEffect(() => { setOnWeb(!isMobileUA()); }, []);
     const openEmoji = async () => {
       if (!onWeb) return;
       if (!EmojiPickerComp) {
@@ -165,11 +162,25 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
       setShowEmojiPicker((p) => !p);
     };
 
+    // attachment (for +) and voice uploads
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
 
-    const [isRecording, setIsRecording] = useState(false);
+    // recorder & gesture state
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const chunksRef = useRef<Blob[]>([]);
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordMs, setRecordMs] = useState(0);
+    const recordStartRef = useRef<number>(0);
+    const tickerRef = useRef<number | null>(null);
+
+    // slide-to-cancel gesture
+    const gestureActiveRef = useRef(false);
+    const startXRef = useRef(0);
+    const canceledRef = useRef(false);
+    const SLIDE_CANCEL_PX = 80;
+
     const uploadAbortRef = useRef<AbortController | null>(null);
     const isSendingRef = useRef(false);
 
@@ -187,6 +198,8 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
       try { if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl); } catch {}
       try { uploadAbortRef.current?.abort(); } catch {}
       try { mediaRecorderRef.current?.stop(); } catch {}
+      try { streamRef.current?.getTracks().forEach(t=>t.stop()); } catch {}
+      if (tickerRef.current) { window.clearInterval(tickerRef.current); tickerRef.current = null; }
     }, [attachmentPreviewUrl]);
 
     const autoResizeTextarea = useCallback(() => {
@@ -229,6 +242,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
       } catch {}
     }, []);
 
+    /* ---------- SEND TEXT / ATTACHMENT ---------- */
     const handleSendMessage = useCallback(async (e: React.FormEvent) => {
       e.preventDefault();
       if (disabled) return;
@@ -299,14 +313,12 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
             content_type: attachmentFile.type || null,
             size: Number.isFinite(attachmentFile.size) ? attachmentFile.size : null,
           };
-          onOptimisticMessage(
-            mkOptimistic(tempId, {
-              content: fallbackContent,
-              attachment_url: attachmentPreviewUrl || null,
-              attachment_meta: optimisticMeta,
-              local_preview_url: attachmentPreviewUrl || null,
-            })
-          );
+          onOptimisticMessage(mkOptimistic(tempId, {
+            content: fallbackContent,
+            attachment_url: attachmentPreviewUrl || null,
+            attachment_meta: optimisticMeta,
+            local_preview_url: attachmentPreviewUrl || null,
+          }));
 
           try {
             const uploadRes = await uploadMessageAttachment(
@@ -358,6 +370,117 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
       resetComposer,
     ]);
 
+    /* ---------- VOICE: long-press, slide-to-cancel, release-to-send ---------- */
+    const beginRecording = useCallback(async () => {
+      if (isRecording || disabled) return;
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        const candidates = [
+          "audio/mp4", "audio/aac", "audio/mpeg",
+          "audio/wav", "audio/webm;codecs=opus", "audio/webm", "audio/ogg",
+        ];
+        const supported =
+          (candidates as string[]).find((t) => {
+            try {
+              return typeof (window as any).MediaRecorder !== "undefined" &&
+                     (window as any).MediaRecorder.isTypeSupported &&
+                     (window as any).MediaRecorder.isTypeSupported(t);
+            } catch { return false; }
+          }) || undefined;
+
+        const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
+        mediaRecorderRef.current = mr;
+        chunksRef.current = [];
+        mr.ondataavailable = (ev) => { if (ev.data.size > 0) chunksRef.current.push(ev.data); };
+        mr.start();
+
+        setIsRecording(true);
+        canceledRef.current = false;
+        recordStartRef.current = Date.now();
+        setRecordMs(0);
+        if (tickerRef.current) window.clearInterval(tickerRef.current);
+        tickerRef.current = window.setInterval(() => setRecordMs(Date.now() - recordStartRef.current), 200);
+      } catch (e) {
+        console.error("Mic permission error", e);
+        onError?.("Microphone permission is required to record voice notes.");
+      }
+    }, [disabled, isRecording, onError]);
+
+    const cancelRecording = useCallback(() => {
+      if (!isRecording) return;
+      canceledRef.current = true;
+      setIsRecording(false);
+      setRecordMs(0);
+      mediaRecorderRef.current?.stop();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      if (tickerRef.current) { window.clearInterval(tickerRef.current); tickerRef.current = null; }
+    }, [isRecording]);
+
+    const finishRecordingAndSend = useCallback(async () => {
+      if (!isRecording) return;
+
+      setIsRecording(false);
+      if (tickerRef.current) { window.clearInterval(tickerRef.current); tickerRef.current = null; }
+
+      const mr = mediaRecorderRef.current;
+      if (!mr) return;
+      // stop returns async data in onstop, so we wrap in a promise
+      const file: File | null = await new Promise((resolve) => {
+        let done = false;
+        mr.onstop = () => {
+          try {
+            streamRef.current?.getTracks().forEach((t) => t.stop());
+          } catch {}
+          const mime = chunksRef.current[0]?.type || mr.mimeType || "audio/webm";
+          const blob = new Blob(chunksRef.current, { type: mime });
+          if (blob.size === 0 || canceledRef.current) return resolve(null);
+          const ext = /mp4/i.test(mime) ? "m4a" : /aac/i.test(mime) ? "aac" : /mpeg/i.test(mime) ? "mp3" : /ogg/i.test(mime) ? "ogg" : /wav/i.test(mime) ? "wav" : "webm";
+          resolve(new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime }));
+          done = true;
+        };
+        try { mr.stop(); } catch {}
+        // fallback timeout in case onstop never fires
+        setTimeout(() => { if (!done) resolve(null); }, 1500);
+      });
+
+      setRecordMs(0);
+      if (!file) return; // canceled or failed
+
+      // directly send as attachment
+      setAttachmentFile(file);
+      // trigger submit path
+      try {
+        await handleSendMessage(new Event("submit") as any);
+      } catch {}
+    }, [handleSendMessage, isRecording]);
+
+    // mic long-press gesture handlers
+    const onMicPointerDown = useCallback((clientX: number) => {
+      gestureActiveRef.current = true;
+      startXRef.current = clientX;
+      canceledRef.current = false;
+      beginRecording();
+    }, [beginRecording]);
+
+    const onMicPointerMove = useCallback((clientX: number) => {
+      if (!gestureActiveRef.current || !isRecording) return;
+      const dx = clientX - startXRef.current; // negative if sliding left
+      if (dx <= -SLIDE_CANCEL_PX && !canceledRef.current) {
+        cancelRecording(); // cancel immediately when past threshold
+      }
+    }, [cancelRecording, isRecording]);
+
+    const onMicPointerUp = useCallback(() => {
+      if (!gestureActiveRef.current) return;
+      gestureActiveRef.current = false;
+      if (!canceledRef.current) {
+        finishRecordingAndSend(); // release→send
+      }
+    }, [finishRecordingAndSend]);
+
+    /* ---------------- UI ---------------- */
     const textarea = (
       <textarea
         ref={textareaRef}
@@ -386,26 +509,23 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
 
     return (
       <div className="w-full fixed left-0 right-0 bottom-0 z-40">
-        {/* reply chip (edge-to-edge, no border) */}
-        {replyTarget && (
-          <EdgeGlassBar className="px-3 py-2">
-            <div className="w-full text-[12px] flex items-center justify-between gap-2">
-              <div className="min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
-                <span className="font-semibold">
-                  Replying to {replyTarget.sender_type === "client" ? "Client" : "You"}:
-                </span>{" "}
-                <span className="italic text-zinc-800/90 dark:text-zinc-200/90">
-                  {replyTarget.content}
-                </span>
-              </div>
-              <GlassIconButton aria-label="Cancel reply" onClick={onCancelReply} className="w-7 h-7">
-                <XMarkIcon className="w-4 h-4" />
-              </GlassIconButton>
+        {/* Recording HUD (appears only while holding) */}
+        {isRecording && (
+          <EdgeGlassBar className="px-4 pt-2 pb-1">
+            <div className="flex items-center gap-3">
+              <span className="text-pink-600 dark:text-pink-400">
+                <svg width="18" height="18" viewBox="0 0 24 24" className="animate-pulse">
+                  <circle cx="12" cy="12" r="6" fill="currentColor" />
+                </svg>
+              </span>
+              <span className="text-lg font-semibold tabular-nums">{formatClock(recordMs)}</span>
+              <span className="ml-2 text-zinc-700/90 dark:text-zinc-200/90">slide to cancel</span>
+              <span className="text-zinc-500 ml-auto">←</span>
             </div>
           </EdgeGlassBar>
         )}
 
-        {/* composer bar (edge-to-edge, no border/radius) */}
+        {/* Composer */}
         <EdgeGlassBar className="px-3 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
           <form ref={formRef} onSubmit={handleSendMessage} className="flex items-end gap-1.5">
             {/* + (upload) */}
@@ -436,56 +556,33 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
               </GlassIconButton>
             )}
 
-            {/* right morph: mic → send */}
+            {/* right side: mic (long-press) → send when text */}
             <div className="relative w-9 h-9">
-              {/* mic */}
-              <div className={["absolute inset-0 transition-all duration-150", hasText ? "opacity-0 scale-90 pointer-events-none" : "opacity-100 scale-100"].join(" ")}>
+              {/* Mic button when no text */}
+              <div
+                className={[
+                  "absolute inset-0 transition-all duration-150",
+                  hasText ? "opacity-0 scale-90 pointer-events-none" : "opacity-100 scale-100",
+                ].join(" ")}
+              >
                 <GlassIconButton
-                  aria-label={isRecording ? "Stop recording" : "Record voice note"}
-                  active={isRecording}
-                  onClick={async () => {
-                    if (isRecording) {
-                      mediaRecorderRef.current?.stop();
-                      setIsRecording(false);
-                      return;
-                    }
-                    try {
-                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                      const candidates = ["audio/mp4","audio/aac","audio/mpeg","audio/wav","audio/webm;codecs=opus","audio/webm","audio/ogg"];
-                      const supported =
-                        (candidates as string[]).find((t) => {
-                          try {
-                            return typeof (window as any).MediaRecorder !== "undefined" &&
-                                   (window as any).MediaRecorder.isTypeSupported &&
-                                   (window as any).MediaRecorder.isTypeSupported(t);
-                          } catch { return false; }
-                        }) || undefined;
-                      const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
-                      mediaRecorderRef.current = mr;
-                      const chunks: Blob[] = [];
-                      mr.ondataavailable = (ev) => { if (ev.data.size > 0) chunks.push(ev.data); };
-                      mr.onstop = () => {
-                        const mime = chunks[0]?.type || mr.mimeType || "audio/webm";
-                        const blob = new Blob(chunks, { type: mime });
-                        if (blob.size === 0) return;
-                        const ext = /mp4/i.test(mime) ? "m4a" : /aac/i.test(mime) ? "aac" : /mpeg/i.test(mime) ? "mp3" : /ogg/i.test(mime) ? "ogg" : /wav/i.test(mime) ? "wav" : "webm";
-                        const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
-                        setAttachmentFile(file);
-                        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-                      };
-                      mr.start();
-                      setIsRecording(true);
-                    } catch (e) {
-                      console.error("Mic permission error", e);
-                      alert("Microphone permission is required to record voice notes.");
-                    }
-                  }}
+                  aria-label="Hold to record voice note"
+                  // Touch
+                  onTouchStart={(e) => onMicPointerDown(e.touches[0].clientX)}
+                  onTouchMove={(e) => onMicPointerMove(e.touches[0].clientX)}
+                  onTouchEnd={onMicPointerUp}
+                  onTouchCancel={cancelRecording}
+                  // Mouse (desktop)
+                  onMouseDown={(e) => onMicPointerDown(e.clientX)}
+                  onMouseMove={(e) => onMicPointerMove(e.clientX)}
+                  onMouseUp={onMicPointerUp}
+                  onMouseLeave={() => { if (gestureActiveRef.current) cancelRecording(); }}
                 >
-                  {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
+                  <MicrophoneIcon className="w-5 h-5" />
                 </GlassIconButton>
               </div>
 
-              {/* send */}
+              {/* Send button when there is text */}
               <button
                 type="submit"
                 aria-label="Send message"
@@ -504,7 +601,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
           </form>
         </EdgeGlassBar>
 
-        {/* emoji picker (web only, lazy) */}
+        {/* Emoji picker popover — web only & lazy */}
         {onWeb && showEmojiPicker && EmojiPickerComp && (
           <div className="fixed left-3 right-3 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50">
             <EmojiPickerComp
