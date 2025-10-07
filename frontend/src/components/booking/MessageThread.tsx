@@ -2023,7 +2023,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               return false;
             }
           });
-          if (hasInquiry && typeof window !== 'undefined') {
+          if (hasInquiry && typeof window !== 'undefined' && !inquiryEmittedRef.current) {
+            inquiryEmittedRef.current = true;
             try { localStorage.setItem(`inquiry-thread-${bookingRequestId}`, '1'); } catch {}
             emitThreadsUpdated({ source: 'thread', threadId: bookingRequestId, immediate: true });
           }
@@ -2701,6 +2702,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- Realtime (multiplex) connection
   // Use cookie-based WS auth for reliability; do not pass stale storage tokens.
   const { subscribe, publish, status: socketStatus, lastReconnectDelay, forceReconnect } = useRealtime(undefined);
+  // Gate for inquiry immediate re-emission to avoid tight fetch loops
+  const inquiryEmittedRef = useRef(false);
   const topics = useMemo(() => [
     `booking-requests:${bookingRequestId}`,
     `threads:${bookingRequestId}`,

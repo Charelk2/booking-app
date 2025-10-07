@@ -106,6 +106,14 @@ class Settings(BaseSettings):
     # Email Dev Mode: include reset links in the API response and logs to ease local testing
     EMAIL_DEV_MODE: bool = True
 
+    # Observability / logging toggles
+    # These are also consumed directly via os.getenv in core/observability.py,
+    # but are declared here so BaseSettings with extra=forbid does not error
+    # when these appear in the shared .env file.
+    LOG_LEVEL: str = "INFO"
+    ENABLE_CONSOLE_TRACING: bool = True
+    OTEL_EXCLUDE_WS: bool = False
+
     # Admin allowlist: explicit emails and/or whole domains
     # Keep as plain strings to avoid JSON-only decoding of lists in BaseSettings.
     # Other modules (e.g., api_admin.py) parse these with os.getenv/splitting.

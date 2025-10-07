@@ -97,8 +97,11 @@ export function DateTimeStep({
               ) : (
                 <div className="mx-auto w-fit booking-wizard-datepicker">
                   <ReactDatePicker
-                    {...field}
+                    // Do not spread field as it includes a ref; Next dynamic wrapper
+                    // (LoadableComponent) cannot receive refs. Pass only the bits we need.
                     selected={currentValue}
+                    name={field.name}
+                    onBlur={field.onBlur}
                     inline
                     locale={enUS}
                     filterDate={filterDate}
