@@ -43,7 +43,7 @@ type ChatComposerProps = {
 
 const MAX_TEXTAREA_LINES = 10;
 
-/* ---------------- Liquid Glass (edge-to-edge) ---------------- */
+/* ---------------- Liquid Glass ---------------- */
 const NOISE_DATA_URL =
   "url(\"data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>\
@@ -57,6 +57,7 @@ function EdgeGlassBar({
   className = "",
   ...rest
 }: React.HTMLAttributes<HTMLDivElement>) {
+  // used on MOBILE (edge-to-edge, fixed)
   const base =
     "relative w-full backdrop-blur-xl backdrop-saturate-150 " +
     "bg-white/30 dark:bg-zinc-900/35 shadow-[0_-6px_28px_rgba(0,0,0,0.10)]";
@@ -67,6 +68,32 @@ function EdgeGlassBar({
   const noise: React.CSSProperties = { backgroundImage: NOISE_DATA_URL, backgroundSize: "160px 160px" };
   return (
     <div className={`${base} ${topSheen} ${className}`} style={noise} {...rest}>
+      <div className="text-zinc-900 dark:text-zinc-50 antialiased">{children}</div>
+    </div>
+  );
+}
+
+function GlassBar({
+  children,
+  className = "",
+  ...rest
+}: React.HTMLAttributes<HTMLDivElement>) {
+  // used on WEB (container-bound, not full width, not fixed)
+  const base =
+    "relative rounded-2xl backdrop-blur-xl backdrop-saturate-150 " +
+    "bg-white/30 dark:bg-zinc-900/35 ring-1 ring-black/10 dark:ring-white/10 " +
+    "shadow-[0_8px_30px_rgba(0,0,0,0.12)]";
+  const gradientRim =
+    "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] " +
+    "before:[background:linear-gradient(140deg,rgba(255,255,255,0.6),rgba(255,255,255,0.18)_40%,rgba(255,255,255,0.45)_75%,rgba(255,255,255,0.15))] " +
+    "before:opacity-55";
+  const topSheen =
+    "after:pointer-events-none after:absolute after:inset-x-1 after:top-1 after:h-5 after:rounded-xl " +
+    "after:bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.55),rgba(255,255,255,0.06)_60%,transparent_75%)] " +
+    "after:opacity-70";
+  const noise: React.CSSProperties = { backgroundImage: NOISE_DATA_URL, backgroundSize: "160px 160px" };
+  return (
+    <div className={`${base} ${gradientRim} ${topSheen} ${className}`} style={noise} {...rest}>
       <div className="text-zinc-900 dark:text-zinc-50 antialiased">{children}</div>
     </div>
   );
@@ -85,7 +112,7 @@ function GlassIconButton({
         "ring-1 ring-black/10 dark:ring-white/10 backdrop-blur-sm",
         "bg-white/55 dark:bg-white/10 text-zinc-700 dark:text-zinc-200",
         "hover:bg-white/70 dark:hover:bg-white/15 transition-colors",
-        className,
+        "select-none", // avoid text selection
       ].join(" ")}
       {...rest}
     >
@@ -148,7 +175,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
     const [newMessageContent, setNewMessageContent] = useState("");
     const [isSending, setIsSending] = useState(false);
 
-    // web-only emoji (lazy)
+    // emoji (web only, lazy)
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [EmojiPickerComp, setEmojiPickerComp] = useState<any>(null);
     const [onWeb, setOnWeb] = useState(false);
@@ -162,7 +189,6 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
       setShowEmojiPicker((p) => !p);
     };
 
-    // attachment (for +) and voice uploads
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
 
@@ -175,7 +201,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
     const recordStartRef = useRef<number>(0);
     const tickerRef = useRef<number | null>(null);
 
-    // slide-to-cancel gesture
+    // slide-to-cancel
     const gestureActiveRef = useRef(false);
     const startXRef = useRef(0);
     const canceledRef = useRef(false);
@@ -426,13 +452,10 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
 
       const mr = mediaRecorderRef.current;
       if (!mr) return;
-      // stop returns async data in onstop, so we wrap in a promise
       const file: File | null = await new Promise((resolve) => {
         let done = false;
         mr.onstop = () => {
-          try {
-            streamRef.current?.getTracks().forEach((t) => t.stop());
-          } catch {}
+          try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
           const mime = chunksRef.current[0]?.type || mr.mimeType || "audio/webm";
           const blob = new Blob(chunksRef.current, { type: mime });
           if (blob.size === 0 || canceledRef.current) return resolve(null);
@@ -441,46 +464,41 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
           done = true;
         };
         try { mr.stop(); } catch {}
-        // fallback timeout in case onstop never fires
         setTimeout(() => { if (!done) resolve(null); }, 1500);
       });
 
       setRecordMs(0);
-      if (!file) return; // canceled or failed
+      if (!file) return;
 
-      // directly send as attachment
       setAttachmentFile(file);
-      // trigger submit path
-      try {
-        await handleSendMessage(new Event("submit") as any);
-      } catch {}
+      try { await handleSendMessage(new Event("submit") as any); } catch {}
     }, [handleSendMessage, isRecording]);
 
-    // mic long-press gesture handlers
-    const onMicPointerDown = useCallback((clientX: number) => {
+    // mic long-press gesture handlers (+ workarounds for iOS long-press callout)
+    const onMicPointerDown = useCallback((clientX: number, ev?: Event) => {
       gestureActiveRef.current = true;
       startXRef.current = clientX;
       canceledRef.current = false;
+      if (ev && "preventDefault" in ev) (ev as any).preventDefault(); // stop long-press callout
       beginRecording();
     }, [beginRecording]);
 
     const onMicPointerMove = useCallback((clientX: number) => {
       if (!gestureActiveRef.current || !isRecording) return;
-      const dx = clientX - startXRef.current; // negative if sliding left
+      const dx = clientX - startXRef.current;
       if (dx <= -SLIDE_CANCEL_PX && !canceledRef.current) {
-        cancelRecording(); // cancel immediately when past threshold
+        cancelRecording();
       }
     }, [cancelRecording, isRecording]);
 
     const onMicPointerUp = useCallback(() => {
       if (!gestureActiveRef.current) return;
       gestureActiveRef.current = false;
-      if (!canceledRef.current) {
-        finishRecordingAndSend(); // release→send
-      }
+      if (!canceledRef.current) finishRecordingAndSend();
     }, [finishRecordingAndSend]);
 
     /* ---------------- UI ---------------- */
+
     const textarea = (
       <textarea
         ref={textareaRef}
@@ -508,115 +526,177 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
     );
 
     return (
-      <div className="w-full fixed left-0 right-0 bottom-0 z-40">
-        {/* Recording HUD (appears only while holding) */}
-        {isRecording && (
-          <EdgeGlassBar className="px-4 pt-2 pb-1">
-            <div className="flex items-center gap-3">
-              <span className="text-pink-600 dark:text-pink-400">
-                <svg width="18" height="18" viewBox="0 0 24 24" className="animate-pulse">
-                  <circle cx="12" cy="12" r="6" fill="currentColor" />
-                </svg>
-              </span>
-              <span className="text-lg font-semibold tabular-nums">{formatClock(recordMs)}</span>
-              <span className="ml-2 text-zinc-700/90 dark:text-zinc-200/90">slide to cancel</span>
-              <span className="text-zinc-500 ml-auto">←</span>
-            </div>
+      <>
+        {/* MOBILE layout: fixed edge-to-edge at bottom */}
+        <div className="sm:hidden fixed inset-x-0 bottom-0 z-40">
+          {/* Recording HUD (mobile) */}
+          {isRecording && (
+            <EdgeGlassBar className="px-4 pt-2 pb-1">
+              <div className="flex items-center gap-3">
+                <span className="text-pink-600 dark:text-pink-400">
+                  <svg width="18" height="18" viewBox="0 0 24 24" className="animate-pulse" aria-hidden="true">
+                    <circle cx="12" cy="12" r="6" fill="currentColor" />
+                  </svg>
+                </span>
+                <span className="text-lg font-semibold tabular-nums">{formatClock(recordMs)}</span>
+                <span className="ml-2 text-zinc-700/90 dark:text-zinc-200/90">slide to cancel</span>
+                <span className="text-zinc-500 ml-auto">←</span>
+              </div>
+            </EdgeGlassBar>
+          )}
+
+          {/* Composer (mobile) */}
+          <EdgeGlassBar className="px-3 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
+            <form ref={formRef} onSubmit={handleSendMessage} className="flex items-end gap-1.5">
+              {/* + (upload) */}
+              <input
+                id="file-upload-m"
+                type="file"
+                className="hidden"
+                onChange={(e) => {
+                  const f = (e.target.files && e.target.files[0]) || null;
+                  if (!f) return;
+                  setAttachmentFile(f);
+                }}
+                accept="image/*,application/pdf,audio/*,video/*,text/plain,application/rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              />
+              <label htmlFor="file-upload-m" aria-label="Add attachment" className="cursor-pointer">
+                <GlassIconButton>
+                  <PlusIcon className="w-5 h-5" />
+                </GlassIconButton>
+              </label>
+
+              {/* input pill */}
+              <InputShell>{textarea}</InputShell>
+
+              {/* right side: mic (long-press) → send when text */}
+              <div className="relative w-9 h-9">
+                {/* Mic (no text) */}
+                <div className={["absolute inset-0 transition-all duration-150", hasText ? "opacity-0 scale-90 pointer-events-none" : "opacity-100 scale-100"].join(" ")}>
+                  <GlassIconButton
+                    aria-label="Hold to record voice note"
+                    draggable={false}
+                    onContextMenu={(e) => e.preventDefault()}
+                    style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", touchAction: "none" as any }}
+                    // Touch
+                    onTouchStart={(e) => onMicPointerDown(e.touches[0].clientX, e.nativeEvent)}
+                    onTouchMove={(e) => onMicPointerMove(e.touches[0].clientX)}
+                    onTouchEnd={onMicPointerUp}
+                    onTouchCancel={cancelRecording}
+                  >
+                    <MicrophoneIcon className="w-5 h-5 pointer-events-none" />
+                  </GlassIconButton>
+                </div>
+
+                {/* Send (has text) */}
+                <button
+                  type="submit"
+                  aria-label="Send message"
+                  className={[
+                    "absolute inset-0 grid place-items-center rounded-full",
+                    "transition-all duration-150",
+                    hasText ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none",
+                    "bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)]",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                  ].join(" ")}
+                  disabled={isSending || disabled}
+                >
+                  <PaperAirplaneIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </form>
           </EdgeGlassBar>
-        )}
+        </div>
 
-        {/* Composer */}
-        <EdgeGlassBar className="px-3 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
-          <form ref={formRef} onSubmit={handleSendMessage} className="flex items-end gap-1.5">
-            {/* + (upload) */}
-            <input
-              id="file-upload"
-              type="file"
-              className="hidden"
-              onChange={(e) => {
-                const f = (e.target.files && e.target.files[0]) || null;
-                if (!f) return;
-                setAttachmentFile(f);
-              }}
-              accept="image/*,application/pdf,audio/*,video/*,text/plain,application/rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            />
-            <label htmlFor="file-upload" aria-label="Add attachment" className="cursor-pointer">
-              <GlassIconButton>
-                <PlusIcon className="w-5 h-5" />
-              </GlassIconButton>
-            </label>
+        {/* WEB layout: container-bound (not fixed, not full width) */}
+        <div className="hidden sm:block">
+          {/* optional reply row */}
+          {replyTarget && (
+            <GlassBar className="px-2 py-1 mb-1">
+              <div className="w-full text-[12px] flex items-center justify-between gap-2">
+                <div className="min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
+                  <span className="font-semibold">Replying to {replyTarget.sender_type === "client" ? "Client" : "You"}:</span>{" "}
+                  <span className="italic text-zinc-800/90 dark:text-zinc-200/90">{replyTarget.content}</span>
+                </div>
+                <button type="button" onClick={onCancelReply} className="w-7 h-7 rounded-full grid place-items-center hover:bg-white/60 dark:hover:bg-white/15">
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </GlassBar>
+          )}
 
-            {/* input pill */}
-            <InputShell>{textarea}</InputShell>
+          <GlassBar className="px-2 py-1.5">
+            <form ref={formRef} onSubmit={handleSendMessage} className="flex items-end gap-1.5">
+              {/* + (upload) */}
+              <input
+                id="file-upload-w"
+                type="file"
+                className="hidden"
+                onChange={(e) => {
+                  const f = (e.target.files && e.target.files[0]) || null;
+                  if (!f) return;
+                  setAttachmentFile(f);
+                }}
+                accept="image/*,application/pdf,audio/*,video/*,text/plain,application/rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              />
+              <label htmlFor="file-upload-w" aria-label="Add attachment" className="cursor-pointer">
+                <GlassIconButton>
+                  <PlusIcon className="w-5 h-5" />
+                </GlassIconButton>
+              </label>
 
-            {/* emoji — web only (lazy) */}
-            {onWeb && (
+              {/* input pill */}
+              <InputShell>{textarea}</InputShell>
+
+              {/* emoji — web only */}
               <GlassIconButton aria-label="Add emoji" onClick={openEmoji}>
                 <FaceSmileIcon className="w-5 h-5" />
               </GlassIconButton>
-            )}
 
-            {/* right side: mic (long-press) → send when text */}
-            <div className="relative w-9 h-9">
-              {/* Mic button when no text */}
-              <div
-                className={[
-                  "absolute inset-0 transition-all duration-150",
-                  hasText ? "opacity-0 scale-90 pointer-events-none" : "opacity-100 scale-100",
-                ].join(" ")}
-              >
-                <GlassIconButton
-                  aria-label="Hold to record voice note"
-                  // Touch
-                  onTouchStart={(e) => onMicPointerDown(e.touches[0].clientX)}
-                  onTouchMove={(e) => onMicPointerMove(e.touches[0].clientX)}
-                  onTouchEnd={onMicPointerUp}
-                  onTouchCancel={cancelRecording}
-                  // Mouse (desktop)
-                  onMouseDown={(e) => onMicPointerDown(e.clientX)}
-                  onMouseMove={(e) => onMicPointerMove(e.clientX)}
-                  onMouseUp={onMicPointerUp}
-                  onMouseLeave={() => { if (gestureActiveRef.current) cancelRecording(); }}
+              {/* right: mic → send (no long-press on web; click-to-record still works if you want to add it later) */}
+              <div className="relative w-9 h-9">
+                <div className={["absolute inset-0 transition-all duration-150", hasText ? "opacity-0 scale-90 pointer-events-none" : "opacity-100 scale-100"].join(" ")}>
+                  <GlassIconButton aria-label="Hold to record (mobile only)" disabled>
+                    <MicrophoneIcon className="w-5 h-5" />
+                  </GlassIconButton>
+                </div>
+                <button
+                  type="submit"
+                  aria-label="Send message"
+                  className={[
+                    "absolute inset-0 grid place-items-center rounded-full",
+                    "transition-all duration-150",
+                    hasText ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none",
+                    "bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)]",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                  ].join(" ")}
+                  disabled={isSending || disabled}
                 >
-                  <MicrophoneIcon className="w-5 h-5" />
-                </GlassIconButton>
+                  <PaperAirplaneIcon className="w-5 h-5" />
+                </button>
               </div>
+            </form>
+          </GlassBar>
 
-              {/* Send button when there is text */}
-              <button
-                type="submit"
-                aria-label="Send message"
-                className={[
-                  "absolute inset-0 grid place-items-center rounded-full",
-                  "transition-all duration-150",
-                  hasText ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none",
-                  "bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)]",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
-                ].join(" ")}
-                disabled={isSending || disabled}
-              >
-                <PaperAirplaneIcon className="w-5 h-5" />
-              </button>
+          {/* emoji popover — web only & lazy */}
+          {onWeb && showEmojiPicker && EmojiPickerComp && (
+            <div className="relative mt-2">
+              <div className="absolute z-50">
+                <EmojiPickerComp
+                  data={data}
+                  onEmojiSelect={(emoji: any) => {
+                    if (emoji?.native) setNewMessageContent((prev) => `${prev}${emoji.native}`);
+                    setShowEmojiPicker(false);
+                    textareaRef.current?.focus();
+                  }}
+                  previewPosition="none"
+                  theme="auto"
+                />
+              </div>
             </div>
-          </form>
-        </EdgeGlassBar>
-
-        {/* Emoji picker popover — web only & lazy */}
-        {onWeb && showEmojiPicker && EmojiPickerComp && (
-          <div className="fixed left-3 right-3 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50">
-            <EmojiPickerComp
-              data={data}
-              onEmojiSelect={(emoji: any) => {
-                if (emoji?.native) setNewMessageContent((prev) => `${prev}${emoji.native}`);
-                setShowEmojiPicker(false);
-                textareaRef.current?.focus();
-              }}
-              previewPosition="none"
-              theme="auto"
-            />
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </>
     );
   }
 );
