@@ -40,6 +40,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const reconnectTimer = useRef<any>(null);
+  const pingTimer = useRef<any>(null);
   const attemptsRef = useRef(0);
   const subs = useRef<Map<string, Set<RealtimeHandler>>>(new Map());
   const pendingSubTopics = useRef<Set<string>>(new Set());
@@ -99,6 +100,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     // Close any existing
     try { wsRef.current?.close(); } catch {}
     wsRef.current = null;
+    if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
     setStatus(attemptsRef.current > 0 ? 'reconnecting' : 'connecting');
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -111,6 +113,14 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
       const base = isMobile ? 60 : 30;
       try { ws.send(JSON.stringify({ v: 1, type: 'heartbeat', interval: base })); } catch {}
+      // Client-side keepalive ping to placate proxies that idle-close quiet sockets
+      try {
+        if (pingTimer.current) { clearInterval(pingTimer.current); pingTimer.current = null; }
+        // Send a small ping every 25s (Cloudflare/edge-friendly); server may ignore
+        pingTimer.current = setInterval(() => {
+          try { ws.send(JSON.stringify({ v: 1, type: 'ping' })); } catch {}
+        }, 25000);
+      } catch {}
       // Subscribe to all active topics
       const topics = Array.from(subs.current.keys());
       for (const t of topics) {
@@ -136,6 +146,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     };
     const schedule = (e?: CloseEvent) => {
       try { console.warn('[realtime] WS closed', { code: e?.code, reason: e?.reason }); } catch {}
+      if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
       if (e?.code === 4401) {
         // Unauthorized – coordinate refresh with the global refresh coordinator, then reconnect once
         (async () => {
@@ -166,8 +177,8 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       try { console.warn('[realtime] WS closed, scheduling reconnect', { code: e?.code, reason: e?.reason, delay }); } catch {}
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       reconnectTimer.current = setTimeout(() => {
-        // Fallback to SSE after 6 failures
-        if (attemptsRef.current >= 6) {
+        // Fallback to SSE after 3 failures (was 6)
+        if (attemptsRef.current >= 3) {
           setMode('sse');
           setStatus('connecting');
           try { console.warn('[realtime] Too many WS failures; switching to SSE'); } catch {}
@@ -236,6 +247,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       try { wsRef.current?.close(); } catch {}
       try { esRef.current?.close(); } catch {}
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, wsUrl, wsToken]);
