@@ -830,9 +830,12 @@ function normalizeSenderType(raw: SenderTypeAny | string | null | undefined): 'c
 }
 function normalizeVisibleTo(raw: VisibleToAny | string | null | undefined): 'client' | 'service_provider' | 'both' {
   if (!raw) return 'both';
-  if (raw === 'both' || raw === 'client' || raw === 'service_provider') return raw;
-  // Legacy 'artist' -> 'service_provider'
-  return 'service_provider';
+  const v = String(raw).toLowerCase();
+  if (v === 'both' || v === 'client' || v === 'service_provider') return v as any;
+  // Legacy alias
+  if (v === 'artist') return 'service_provider';
+  // Unknown values should not hide messages; default to both.
+  return 'both';
 }
 const toNum = (v: any) => {
   const n = Number(v);
@@ -856,8 +859,10 @@ function normalizeMessage(raw: any): ThreadMessage {
     raw.created ||
     new Date().toISOString();
 
+  const idCandidate =
+    raw.id ?? (raw as any).message_id ?? (raw as any).messageId ?? (raw as any).pk ?? null;
   return {
-    id: Number(raw.id),
+    id: Number(idCandidate),
     booking_request_id: brId,
     sender_id: Number(raw.sender_id),
     sender_type: normalizeSenderType(raw.sender_type),
@@ -2198,16 +2203,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       } catch (err) {
         if (isAxiosError(err)) {
           const status = err.response?.status;
-          if (status === 404 || status === 403) {
-            const isForbidden = status === 403;
+          if (status === 404) {
             const hadMessages = (messagesRef.current?.length || 0) > 0;
-            setThreadError(
-              isForbidden
-                ? 'You no longer have access to this conversation.'
-                : 'This conversation is no longer available.',
-            );
+            setThreadError('This conversation is no longer available.');
             setLoading(false);
             if (!hadMessages) {
+              // Only treat 404 as permanently missing. Keep gate open for 403 so
+              // a newly-authenticated user can re-fetch successfully.
               missingThreadRef.current = true;
               setMessages([]);
               loadedThreadsRef.current.delete(bookingRequestId);
@@ -2215,7 +2217,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 source: 'thread',
                 threadId: bookingRequestId,
                 immediate: true,
-                reason: isForbidden ? 'forbidden' : 'missing',
+                reason: 'missing',
               });
               try {
                 window.dispatchEvent(
@@ -2223,6 +2225,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 );
               } catch {}
             }
+            return;
+          }
+          if (status === 403) {
+            // Forbidden can be transient during login flows in dev; do not
+            // permanently block fetches. Surface a soft error and schedule a retry.
+            setThreadError('You no longer have access to this conversation.');
+            setLoading(false);
+            queueRetry('transient');
             return;
           }
           if (isTransientTransportError(err) || isOfflineError(err)) {
@@ -2357,6 +2367,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     try { uploadAbortRef.current?.abort(); } catch {}
     try { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); } catch {}
     try { if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current); } catch {}
+    // Allow re-fetches on switch even if a prior load marked the thread missing
+    missingThreadRef.current = false;
     setActionMenuFor(null);
     setReactionPickerFor(null);
     setReplyTarget(null);
@@ -2364,6 +2376,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     setThreadError(null);
     // Do NOT clear messages/quotes/details/payment; stale-while-revalidate keeps UI stable.
   }, [bookingRequestId]);
+
+  // If auth changes (logout/login), clear any permanent-missing gate and retry
+  // an initial merge-update fetch to repopulate the thread from the server.
+  useEffect(() => {
+    if (!bookingRequestId) return;
+    missingThreadRef.current = false;
+    void fetchMessages({ mode: 'initial', force: true, reason: 'auth-change', limit: 100, behavior: 'merge_update' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, bookingRequestId]);
 
   useEffect(() => {
     const snapshot = getThreadSwitchSnapshot(bookingRequestId);
