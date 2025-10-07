@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import dynamic from "next/dynamic";
+// ❌ removed dynamic import
 import data from "@emoji-mart/data";
 import {
   FaceSmileIcon,
@@ -19,8 +19,6 @@ import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 
 import { type MessageCreate, type AttachmentMeta } from "@/types";
 import { postMessageToBookingRequest, uploadMessageAttachment } from "@/lib/api";
-
-const EmojiPicker = dynamic(() => import("@emoji-mart/react"), { ssr: false });
 
 export type ReplyTarget =
   | { id: number; sender_type: "client" | "service_provider"; content: string }
@@ -45,7 +43,7 @@ type ChatComposerProps = {
 
 const MAX_TEXTAREA_LINES = 10;
 
-/* ───────────── Liquid-glass primitives (match EventPrepCard) ───────────── */
+/* ───────── liquid-glass primitives ───────── */
 const NOISE_DATA_URL =
   "url(\"data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>\
@@ -119,10 +117,15 @@ function InputShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ─────────────────────────── Composer ─────────────────────────── */
+/* ───────── util: mobile detection ───────── */
+const isMobileUA = () =>
+  typeof navigator !== "undefined" &&
+  /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+/* ───────── component ───────── */
 const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
-  function ChatComposer(
-    {
+  function ChatComposer(props, forwardedRef) {
+    const {
       bookingRequestId,
       myUserId,
       userType,
@@ -137,16 +140,31 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
       onEnqueueOffline,
       onError,
       onMessageSent,
-    },
-    forwardedRef
-  ) {
+    } = props;
+
     const formRef = useRef<HTMLFormElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     useImperativeHandle(forwardedRef, () => textareaRef.current as HTMLTextAreaElement);
 
     const [newMessageContent, setNewMessageContent] = useState("");
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [isSending, setIsSending] = useState(false);
+
+    // emoji picker (web only)
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [EmojiPickerComp, setEmojiPickerComp] = useState<any>(null);
+    const [onWeb, setOnWeb] = useState(false);
+    useEffect(() => {
+      const mobile = isMobileUA();
+      setOnWeb(!mobile);
+    }, []);
+    const openEmoji = async () => {
+      if (!onWeb) return; // mobile: do nothing
+      if (!EmojiPickerComp) {
+        const mod = await import("@emoji-mart/react");
+        setEmojiPickerComp(() => mod.default);
+      }
+      setShowEmojiPicker((p) => !p);
+    };
 
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
@@ -157,10 +175,8 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
     const uploadAbortRef = useRef<AbortController | null>(null);
     const isSendingRef = useRef(false);
 
-    /* ——— idle / focus / typed state ——— */
     const hasText = newMessageContent.trim().length > 0;
 
-    /* previews just for single non-image attachment (since we removed gallery UI) */
     useEffect(() => {
       if (attachmentFile) {
         try { setAttachmentPreviewUrl(URL.createObjectURL(attachmentFile)); } catch { setAttachmentPreviewUrl(null); }
@@ -298,7 +314,11 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
             const uploadRes = await uploadMessageAttachment(
               bookingRequestId,
               attachmentFile,
-              undefined,
+              onUploadProgress ? (evt) => {
+                if (!evt.total) return;
+                const pct = Math.round((evt.loaded * 100) / evt.total);
+                onUploadProgress(tempId, pct);
+              } : undefined,
               uploadAbortRef.current?.signal
             );
             const payload: MessageCreate = {
@@ -310,6 +330,8 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
             onFinalizeMessage(tempId, res.data);
           } catch (err: any) {
             onError?.(`Failed to send attachment ${attachmentFile.name || ""}. ${err?.message || ""}`.trim());
+          } finally {
+            onUploadProgress?.(tempId, 0);
           }
         }
 
@@ -332,12 +354,12 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
       onOptimisticMessage,
       onEnqueueOffline,
       onFinalizeMessage,
+      onUploadProgress,
       onError,
       onMessageSent,
       resetComposer,
     ]);
 
-    /* ───────── UI ───────── */
     const textarea = (
       <textarea
         ref={textareaRef}
@@ -366,7 +388,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
 
     return (
       <div className="px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1">
-        {/* Optional reply chip (glass) */}
+        {/* reply chip (optional) */}
         {replyTarget && (
           <GlassBar className="px-2 py-1 mb-1">
             <div className="w-full text-[12px] flex items-center justify-between gap-2">
@@ -381,10 +403,10 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
           </GlassBar>
         )}
 
-        {/* Composer bar */}
+        {/* composer bar */}
         <GlassBar className="px-2 py-1.5">
           <form ref={formRef} onSubmit={handleSendMessage} className="flex items-end gap-1.5">
-            {/* hidden single file input (for +) */}
+            {/* + (upload) */}
             <input
               id="file-upload"
               type="file"
@@ -396,8 +418,6 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
               }}
               accept="image/*,application/pdf,audio/*,video/*,text/plain,application/rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             />
-
-            {/* + button (upload) */}
             <label htmlFor="file-upload" aria-label="Add attachment" className="cursor-pointer">
               <GlassIconButton>
                 <PlusIcon className="w-5 h-5" />
@@ -407,20 +427,17 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
             {/* input pill */}
             <InputShell>{textarea}</InputShell>
 
-            {/* emoji */}
-            <GlassIconButton aria-label="Add emoji" onClick={() => setShowEmojiPicker((p) => !p)}>
-              <FaceSmileIcon className="w-5 h-5" />
-            </GlassIconButton>
+            {/* emoji — web only */}
+            {onWeb && (
+              <GlassIconButton aria-label="Add emoji" onClick={openEmoji}>
+                <FaceSmileIcon className="w-5 h-5" />
+              </GlassIconButton>
+            )}
 
-            {/* right-side morph: mic → send */}
+            {/* right morph: mic → send */}
             <div className="relative w-9 h-9">
-              {/* Mic (shown when no text) */}
-              <div
-                className={[
-                  "absolute inset-0 transition-all duration-150",
-                  hasText ? "opacity-0 scale-90 pointer-events-none" : "opacity-100 scale-100",
-                ].join(" ")}
-              >
+              {/* mic */}
+              <div className={["absolute inset-0 transition-all duration-150", hasText ? "opacity-0 scale-90 pointer-events-none" : "opacity-100 scale-100"].join(" ")}>
                 <GlassIconButton
                   aria-label={isRecording ? "Stop recording" : "Record voice note"}
                   active={isRecording}
@@ -432,26 +449,14 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
                     }
                     try {
                       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                      const candidates = [
-                        "audio/mp4",
-                        "audio/aac",
-                        "audio/mpeg",
-                        "audio/wav",
-                        "audio/webm;codecs=opus",
-                        "audio/webm",
-                        "audio/ogg",
-                      ];
+                      const candidates = ["audio/mp4","audio/aac","audio/mpeg","audio/wav","audio/webm;codecs=opus","audio/webm","audio/ogg"];
                       const supported =
                         (candidates as string[]).find((t) => {
                           try {
-                            return (
-                              typeof (window as any).MediaRecorder !== "undefined" &&
-                              (window as any).MediaRecorder.isTypeSupported &&
-                              (window as any).MediaRecorder.isTypeSupported(t)
-                            );
-                          } catch {
-                            return false;
-                          }
+                            return typeof (window as any).MediaRecorder !== "undefined" &&
+                                   (window as any).MediaRecorder.isTypeSupported &&
+                                   (window as any).MediaRecorder.isTypeSupported(t);
+                          } catch { return false; }
                         }) || undefined;
                       const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
                       mediaRecorderRef.current = mr;
@@ -478,7 +483,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
                 </GlassIconButton>
               </div>
 
-              {/* Send (shown when has text) */}
+              {/* send */}
               <button
                 type="submit"
                 aria-label="Send message"
@@ -486,7 +491,6 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
                   "absolute inset-0 grid place-items-center rounded-full",
                   "transition-all duration-150",
                   hasText ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none",
-                  // WhatsApp-like green
                   "bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)]",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                 ].join(" ")}
@@ -498,10 +502,10 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
           </form>
         </GlassBar>
 
-        {/* Emoji popover */}
-        {showEmojiPicker && (
+        {/* emoji picker popover — web only & lazily loaded */}
+        {onWeb && showEmojiPicker && EmojiPickerComp && (
           <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] left-3 z-50">
-            <EmojiPicker
+            <EmojiPickerComp
               data={data}
               onEmojiSelect={(emoji: any) => {
                 if (emoji?.native) setNewMessageContent((prev) => `${prev}${emoji.native}`);
