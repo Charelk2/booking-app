@@ -1295,6 +1295,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const [imageMenuFor, setImageMenuFor] = useState<number | null>(null);
   const imageMenuRef = useRef<HTMLDivElement | null>(null);
+  // Persisted suppression: once a quote is sent, never show inline quote again for this thread
+  const [quoteSuppressed, setQuoteSuppressed] = useState(false);
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const v = localStorage.getItem(`quote-sent-thread-${bookingRequestId}`);
+        setQuoteSuppressed(Boolean(v));
+      }
+    } catch {}
+  }, [bookingRequestId]);
   // Simple responsive helper (reactive)
   const [isMobile, setIsMobile] = useState(false);
   // No global click-away closers: keep interactions simple and explicit.
@@ -1336,6 +1346,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const longPressStartTimeRef = useRef<number>(0);
   const [copiedFor, setCopiedFor] = useState<number | null>(null);
   const [highlightFor, setHighlightFor] = useState<number | null>(null);
+  // Hydration guard: consider thread hydrated after initial load completes
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    if (!hydrated && initialLoadedRef.current) setHydrated(true);
+  }, [hydrated, loading, messages.length]);
 
   // Smooth-scroll to a message by id and briefly highlight it
   const scrollToMessage = useCallback((mid: number) => {
@@ -1610,6 +1625,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Prefill quote form (SP side)
   const hasSentQuote = useMemo(() => messages.some((m) => Number(m.quote_id) > 0), [messages]);
+  useEffect(() => {
+    if (hasSentQuote) {
+      setQuoteSuppressed(true);
+      try { if (typeof window !== 'undefined') localStorage.setItem(`quote-sent-thread-${bookingRequestId}`, '1'); } catch {}
+    }
+  }, [hasSentQuote, bookingRequestId]);
   useEffect(() => {
     if (!hasInitialBookingRequest) return;
     setBookingRequest(initialBookingRequest);
@@ -4995,6 +5016,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         onMessageSent?.();
         onQuoteSent?.();
         refreshBookingRequest();
+        // Persist suppression: never show inline quote again for this thread
+        try { if (typeof window !== 'undefined') localStorage.setItem(`quote-sent-thread-${bookingRequestId}`, '1'); } catch {}
+        setQuoteSuppressed(true);
       } catch (err) {
         console.error('Failed to send quote:', err);
         setThreadError(`Failed to send quote. ${(err as Error).message || 'Please try again.'}`);
@@ -5191,7 +5215,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           )
         )}
 
-        {!loading && user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !isPersonalizedVideo && !!bookingRequest && !isModerationThread && !isInquiryThread && (
+        {!loading && hydrated && user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !quoteSuppressed && !isPersonalizedVideo && !!bookingRequest && !isModerationThread && !isInquiryThread && (
           <div
             className="max-h-[70vh] overflow-auto overscroll-contain pr-1"
             data-testid="artist-inline-quote"
