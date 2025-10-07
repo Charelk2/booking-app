@@ -1307,6 +1307,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const mobileOverlayOpenedAtRef = useRef<number>(0);
   // Track bottom anchoring from Virtuoso callbacks
   const atBottomRef = useRef<boolean>(true);
+  const latestIndexRef = useRef<number>(0);
 
   // Unified guard for read receipts: active thread, visible tab, anchored to bottom
   const canMarkReadNow = useCallback((): boolean => {
@@ -1725,7 +1726,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const maxH = textareaLineHeight * MAX_TEXTAREA_LINES + padT + bdrT + bdrB;
     const newH = Math.min(ta.scrollHeight, maxH);
     ta.style.height = `${newH}px`;
-    // Do not adjust message list scroll position on composer growth to avoid jitter while typing
+    // Keep the bottom anchored as the textarea grows (up to MAX_TEXTAREA_LINES)
+    try {
+      if (atBottomRef.current === true && virtuosoRef.current) {
+        const idx = latestIndexRef.current;
+        const raf = typeof window !== 'undefined' ? window.requestAnimationFrame : null;
+        if (raf) raf(() => { try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {} });
+        else virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' });
+      }
+    } catch {}
   }, [textareaLineHeight]);
   useEffect(() => { autoResizeTextarea(); }, [newMessageContent, autoResizeTextarea]);
 
@@ -3322,6 +3331,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     });
     return groups;
   }, [visibleMessages, shouldShowTimestampGroup]);
+
+  // Track latest index for scroll anchoring from earlier hooks (e.g., autoResize)
+  useEffect(() => {
+    latestIndexRef.current = Math.max(0, groupedMessages.length - 1);
+  }, [groupedMessages.length]);
 
   // Keep latest message visible when the composer grows or preview rows toggle
   useEffect(() => {
