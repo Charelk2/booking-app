@@ -140,6 +140,12 @@ Message state transitions:
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
+### Inbox Stability & Realtime
+
+The Inbox and chat stack use a single global realtime connection (WS with SSE fallback) and client keepalive to reduce proxy idle closes. Client‑side per‑instance pinning is disabled; transient 5xxs trigger a one‑shot unpinned retry.
+
+See docs/PROJECT_INBOX.md for a concise overview of the Inbox realtime, stability hardening, and composer UX details.
+
 ### Logging & Monitoring
 
 - SQLAlchemy listeners in [`backend/app/utils/status_logger.py`](backend/app/utils/status_logger.py)

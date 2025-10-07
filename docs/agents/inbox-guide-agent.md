@@ -100,6 +100,14 @@ Used by: threads preview endpoint, notifications feed, any “last message” co
 - Message stream: render SYSTEM_INFO as subtle centered separators; hide verbose “booking details” lines from visible stream but parse them for a right/side card.
 - Header badge: subscribe to socket events and refresh via the unified endpoint to keep counts in sync.
 
+### Realtime & Stability
+
+- One connection: a global `RealtimeProvider` owns a single WS/SSE transport for the whole app; features multiplex topics (threads, notifications) over it.
+- Keepalive: client sends lightweight pings every ~25s to prevent idle proxy closes; server heartbeat remains supported.
+- Fallback: after repeated WS failures, transport switches to SSE until a manual or scheduled reconnect.
+- No per‑instance pinning: the client never sends `Fly-Prefer-Instance`. Transient upstream errors (502/503/504/timeout) get a one‑shot retry without pinning.
+- Infra guidance: run ≥2 instances, use rolling deploys and health checks that only pass once the app is fully ready (DB/migrations, image proxy, etc.). Optionally strip instance hints at the edge.
+
 ### Notifications Policy (in-app)
 
 - Notify when human action is expected by the other side (quote sent, quote decision, payment posted, status changed).

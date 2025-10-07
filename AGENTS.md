@@ -95,6 +95,7 @@ For scaling, performance, and production runbooks, see [SCALE.md](SCALE.md).
 * **Frontend:** `MessageThread.tsx` and related components handle sending and displaying messages.
 * **Backend:** `api_message.py` stores messages and `api_ws.py` pushes updates via WebSocket.
 * **Features:** Auto-scroll, mobile-friendly input with an emoji picker, avatars, batched typing indicator, adaptive heartbeats for mobile or background tabs, coalesced presence updates, offline send queue with exponential backoff, and image previews that load only when tapped. Media uploads now stream through the attachment endpoint so images, voice notes, and files post immediately with server-hosted URLs and rich metadata (name, type, size). Optimistic bubbles keep conversations snappy while uploads finish, and failed sends surface clear errors without leaving phantom placeholders.
+* **Realtime stability:** A single global `RealtimeProvider` manages one WS/SSE connection app‑wide with keepalive pings; it falls back to SSE after repeated failures. Client‑side per‑instance pinning (Fly-Prefer-Instance) is disabled and transient 5xxs trigger a one‑shot unpinned retry. Infra guidance: run ≥2 instances, rolling deploys, and correct health checks for zero‑downtime.
 ### 10. Caching Agent
 
 * **Purpose:** Cache heavy artist list responses using Redis.
