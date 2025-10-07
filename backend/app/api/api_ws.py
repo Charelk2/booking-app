@@ -25,6 +25,7 @@ from .dependencies import get_db
 from ..crud import crud_booking_request
 from ..models.user import User
 from .auth import ALGORITHM, SECRET_KEY, get_user_by_email
+from ..database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -362,7 +363,6 @@ async def booking_request_ws(
     token: str | None = Query(None),
     attempt: int = Query(0),
     heartbeat: int = Query(PING_INTERVAL),
-    db: Session = Depends(get_db),
 ):
     """WebSocket endpoint for booking-specific chat rooms."""
 
@@ -385,16 +385,24 @@ async def booking_request_ws(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"leeway": 60})
         email = payload.get("sub")
         if email:
-            user = get_user_by_email(db, email)
+            _db = SessionLocal()
+            try:
+                user = get_user_by_email(_db, email)
+            finally:
+                _db.close()
     except JWTError:
         logger.warning("Rejecting WebSocket for request %s: invalid token", request_id)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
     if not user:
         logger.warning("Rejecting WebSocket for request %s: user not found", request_id)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
-    booking_request = crud_booking_request.get_booking_request(
-        db, request_id=request_id
-    )
+    _db = SessionLocal()
+    try:
+        booking_request = crud_booking_request.get_booking_request(
+            _db, request_id=request_id
+        )
+    finally:
+        _db.close()
     if not booking_request:
         logger.warning(
             "Rejecting WebSocket for request %s: booking request not found", request_id
@@ -521,7 +529,6 @@ async def multiplex_ws(
     token: str | None = Query(None),
     attempt: int = Query(0),
     heartbeat: int = Query(PING_INTERVAL),
-    db: Session = Depends(get_db),
 ):
     """Single WebSocket connection supporting topic subscribe/unsubscribe."""
     user: User | None = None
@@ -540,7 +547,11 @@ async def multiplex_ws(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"leeway": 60})
         email = payload.get("sub")
         if email:
-            user = get_user_by_email(db, email)
+            _db = SessionLocal()
+            try:
+                user = get_user_by_email(_db, email)
+            finally:
+                _db.close()
     except JWTError:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
     if not user:
@@ -608,7 +619,11 @@ async def multiplex_ws(
                         req_id = int(topic.split(":", 1)[1])
                     except Exception:
                         continue
-                    br = crud_booking_request.get_booking_request(db, request_id=req_id)
+                    _db = SessionLocal()
+                    try:
+                        br = crud_booking_request.get_booking_request(_db, request_id=req_id)
+                    finally:
+                        _db.close()
                     if not br or user.id not in [br.client_id, br.artist_id]:
                         continue
                     await multiplex_manager.subscribe(websocket, topic)

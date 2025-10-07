@@ -1579,6 +1579,22 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const { isClientView: isClientViewFlag, isPaid: isPaidFlag } = useBookingView(user, bookingDetails, paymentInfo, bookingConfirmed);
 
   // No manual retry UI; quotes load with messages fetch.
+  // Ensure quotes exist even if their message falls outside the current slice (older than 100)
+  useEffect(() => {
+    const hasVisibleQuote = messages.some((m) => Number(m.quote_id) > 0 || (normalizeType(m.message_type) === 'SYSTEM' && (m as any).action === 'review_quote'));
+    if (hasVisibleQuote) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await getQuotesForBookingRequest(bookingRequestId);
+        const ids = Array.isArray(list.data) ? list.data.map((q: any) => Number(q?.id)).filter((n: number) => Number.isFinite(n) && n > 0) : [];
+        if (!cancelled && ids.length) {
+          await ensureQuotesLoaded(ids);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [bookingRequestId, messages, ensureQuotesLoaded]);
 
   // When the thread is for admin moderation (e.g., listing approved/rejected),
   // do not show booking-request specific UI like the inline quote editor.
@@ -1590,6 +1606,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (content.startsWith('listing approved:') || content.startsWith('listing rejected:')) return true;
     return false;
   }, [messages]);
+
+  // A pinned quote card for payment should render even if its original message is out of the loaded slice.
+  const visibleQuoteIds = useMemo(() => {
+    const s = new Set<number>();
+    messages.forEach((m) => { const id = Number(m.quote_id); if (Number.isFinite(id) && id > 0) s.add(id); });
+    return s;
+  }, [messages]);
+  const pinnedQuote = useMemo(() => {
+    const list = Object.values(quotes || {});
+    // Prefer pending, then accepted (if not paid)
+    const pending = list.find((q: any) => String(q?.status || '').toLowerCase() === 'pending');
+    const accepted = list.find((q: any) => String(q?.status || '').toLowerCase() === 'accepted');
+    const candidate = pending || (!isPaidFlag ? accepted : null);
+    if (!candidate) return null;
+    const id = Number((candidate as any).id);
+    if (!Number.isFinite(id) || id <= 0) return null;
+    if (visibleQuoteIds.has(id)) return null;
+    return candidate as any;
+  }, [quotes, visibleQuoteIds, isPaidFlag]);
 
   // ---- Focus textarea on mount & thread switch
   useEffect(() => { textareaRef.current?.focus(); }, []);
@@ -5603,6 +5638,42 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 : 'block sticky bottom-0 z-[60] bg-white shadow pb-safe flex-shrink-0 relative'
             }
           >
+            {/* Pinned quote (always visible when actionable and missing from current slice) */}
+            {pinnedQuote && (
+              <div className="px-2 pt-2">
+                {(() => {
+                  const q: any = pinnedQuote;
+                  const desc = (q.services?.[0]?.description || 'Quote');
+                  const statusLabel = String(q.status || '').toLowerCase() === 'accepted' ? 'Accepted' : 'Pending';
+                  return (
+                    <MemoQuoteBubble
+                      quoteId={q.id}
+                      description={desc}
+                      price={Number(q.services?.[0]?.price || 0)}
+                      soundFee={Number(q.sound_fee || 0)}
+                      travelFee={Number(q.travel_fee || 0)}
+                      accommodation={q.accommodation || undefined}
+                      discount={(q as any).discount != null ? Number((q as any).discount) : undefined}
+                      subtotal={Number(q.subtotal || 0)}
+                      total={Number(q.total || 0)}
+                      status={statusLabel as any}
+                      expiresAt={q.expires_at || undefined}
+                      isClientView={user?.user_type === 'client'}
+                      isPaid={isPaidFlag}
+                      onAccept={user?.user_type === 'client' && String(q.status || '').toLowerCase() === 'pending' && !isPaidFlag ? (() => { void handleAcceptQuote(q as any); }) : undefined}
+                      onPayNow={() => {
+                        if (user?.user_type !== 'client' || isPaidFlag) return;
+                        if (String(q.status || '').toLowerCase() === 'pending') {
+                          void handleAcceptQuote(q as any);
+                        } else {
+                          setIsPaymentOpen(true);
+                        }
+                      }}
+                    />
+                  );
+                })()}
+              </div>
+            )}
             {/* Event Prep: show as a bottom bar above the composer, always in view */}
             {(() => {
               const accepted = Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id);
