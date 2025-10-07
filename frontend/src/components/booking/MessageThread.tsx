@@ -78,6 +78,7 @@ import { useQuotes } from '@/hooks/useQuotes';
 // Non-virtual scroll helpers no longer needed
 
 import Button from '../ui/Button';
+import { Spinner } from '@/components/ui';
 import { addMessageReaction, removeMessageReaction } from '@/lib/api';
 import QuoteBubble from './QuoteBubble';
 import QuoteBubbleSkeleton from './QuoteBubbleSkeleton';
@@ -1224,6 +1225,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const prevMessageCountRef = useRef(0);
   const initialScrolledRef = useRef(false);
   const olderInFlightRef = useRef(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const reachedHistoryStartRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
@@ -2352,6 +2354,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
     if (!earliestId || earliestId <= 1) return;
     olderInFlightRef.current = true;
+    setLoadingOlder(true);
     try {
       const res = await getMessagesForBookingRequest(bookingRequestId, { limit: 100, mode: 'lite', before_id: earliestId, fields: 'attachment_meta,reply_to_preview' });
       const rows = Array.isArray(res.data?.items) ? res.data.items : [];
@@ -2379,6 +2382,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       // Non-fatal; allow another attempt later
     } finally {
       olderInFlightRef.current = false;
+      setLoadingOlder(false);
     }
   }, [bookingRequestId, setMessages]);
   // When the global inbox emits a threads:updated (via notifications), refresh this thread too.
@@ -5247,6 +5251,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               totalCount={groupedMessages.length}
               computeItemKey={(index) => groupIds[index]}
               itemContent={(index: number) => <div className="w-full">{renderGroupAtIndex(index)}</div>}
+              components={{
+                Header: () => (
+                  loadingOlder ? (
+                    <div className="py-1 flex justify-center" aria-label="Loading earlier messages">
+                      <Spinner size="sm" />
+                    </div>
+                  ) : null
+                ),
+              }}
               // Open at bottom but do not animate scrolling on first render
               followOutput={true}
               initialTopMostItemIndex={groupedMessages.length > 0 ? groupedMessages.length - 1 : 0}
