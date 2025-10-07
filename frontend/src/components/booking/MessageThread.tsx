@@ -5603,70 +5603,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               </button>
 
               {/* Voice note */}
-              <button
-                type="button"
-                onClick={async () => {
-                  if (isRecording) {
-                    // stop
-                    mediaRecorderRef.current?.stop();
-                    setIsRecording(false);
-                  } else {
-                    recordedChunksRef.current = [];
-                    try {
-                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                      // Choose a supported audio mime type for widest compatibility
-                      // Prefer Safari-friendly types first; fall back to webm/ogg when available
-                      const candidates = [
-                        'audio/mp4',
-                        'audio/aac',
-                        'audio/mpeg',
-                        'audio/wav',
-                        'audio/webm;codecs=opus',
-                        'audio/webm',
-                        'audio/ogg',
-                      ];
-                      const supported = (candidates as string[]).find((t) => {
-                        try { return typeof (window as any).MediaRecorder !== 'undefined' && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(t); } catch { return false; }
-                      }) || undefined;
-                      const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
-                      mediaRecorderRef.current = mr;
-                      mr.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
-                      mr.onstop = async () => {
-                        const mime = recordedChunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || 'audio/webm';
-                        const blob = new Blob(recordedChunksRef.current, { type: mime });
-                        if (blob.size === 0) return;
-                        const ext = /mp4/i.test(mime)
-                          ? 'm4a'
-                          : /aac/i.test(mime)
-                          ? 'aac'
-                          : /mpeg/i.test(mime)
-                          ? 'mp3'
-                          : /ogg/i.test(mime)
-                          ? 'ogg'
-                          : /wav/i.test(mime)
-                          ? 'wav'
-                          : 'webm';
-                        const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
-                        // Do not auto-send. Stage as attachment so user can press Send.
-                        setAttachmentFile(file);
-                        try { setShowEmojiPicker(false); } catch {}
-                        try { textareaRef.current?.focus(); } catch {}
-                        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-                      };
-                      mr.start();
-                      setIsRecording(true);
-                    } catch (e) {
-                      console.error('Mic permission error', e);
-                      alert('Microphone permission is required to record voice notes.');
-                    }
-                  }
-                }}
-                aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
-                className={`flex-shrink-0 w-9 h-9 grid place-items-center rounded-full transition-colors ${isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700'}`}
-              >
-                {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
-              </button>
-
               {/* Textarea (16px to avoid iOS zoom) */}
               <div className="flex-1 min-h-[40px] rounded-2xl px-3 py-2 ring-1 ring-black/10 bg-white/55 backdrop-blur-sm">
               <textarea
@@ -5683,24 +5619,84 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 autoFocus
                 rows={1}
                 className="w-full bg-transparent resize-none outline-none text-[15px] leading-6 text-zinc-900 placeholder:text-zinc-600/70 ios-no-zoom font-medium min-h-[36px]"
-                placeholder="Type your message..."
                 aria-label="New message input"
                 disabled={isUploadingAttachment}
               />
               </div>
 
-              {/* Upload progress moved into the message bubble overlay for clarity */}
+              {/* Right-side mic ↔ send swap */}
+              <div className="relative w-9 h-9">
+                {/* Mic (no text/attachments) */}
+                <div
+                  className={
+                    `absolute inset-0 transition-all duration-150 ` +
+                    ((newMessageContent.trim() || attachmentFile || imageFiles.length > 0)
+                      ? 'opacity-0 scale-90 pointer-events-none'
+                      : 'opacity-100 scale-100')
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (isRecording) {
+                        mediaRecorderRef.current?.stop();
+                        setIsRecording(false);
+                      } else {
+                        recordedChunksRef.current = [];
+                        try {
+                          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                          const candidates = ['audio/mp4','audio/aac','audio/mpeg','audio/wav','audio/webm;codecs=opus','audio/webm','audio/ogg'];
+                          const supported = (candidates as string[]).find((t) => {
+                            try { return typeof (window as any).MediaRecorder !== 'undefined' && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(t); } catch { return false; }
+                          }) || undefined;
+                          const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
+                          mediaRecorderRef.current = mr;
+                          mr.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+                          mr.onstop = async () => {
+                            const mime = recordedChunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || 'audio/webm';
+                            const blob = new Blob(recordedChunksRef.current, { type: mime });
+                            if (blob.size === 0) return;
+                            const ext = /mp4/i.test(mime) ? 'm4a' : /aac/i.test(mime) ? 'aac' : /mpeg/i.test(mime) ? 'mp3' : /ogg/i.test(mime) ? 'ogg' : /wav/i.test(mime) ? 'wav' : 'webm';
+                            const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
+                            setAttachmentFile(file);
+                            try { setShowEmojiPicker(false); } catch {}
+                            try { textareaRef.current?.focus(); } catch {}
+                            try { stream.getTracks().forEach((t) => t.stop()); } catch {}
+                          };
+                          mr.start();
+                          setIsRecording(true);
+                        } catch (e) {
+                          console.error('Mic permission error', e);
+                          alert('Microphone permission is required to record voice notes.');
+                        }
+                      }
+                    }}
+                    aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
+                    className={`w-9 h-9 grid place-items-center rounded-full transition-colors ${isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700'}`}
+                  >
+                    {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
+                  </button>
+                </div>
 
-              <Button
-                type="submit"
-                aria-label="Send message"
-                className="flex-shrink-0 rounded-full grid place-items-center w-9 h-9 transition-all bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)] disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                </svg>
-              </Button>
+                {/* Send (when text or attachments) */}
+                <button
+                  type="submit"
+                  aria-label="Send message"
+                  className={
+                    [
+                      'absolute inset-0 grid place-items-center rounded-full transition-all duration-150',
+                      (newMessageContent.trim() || attachmentFile || imageFiles.length > 0) ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none',
+                      'bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)]',
+                      'disabled:opacity-50 disabled:cursor-not-allowed',
+                    ].join(' ')
+                  }
+                  disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
+                </button>
+              </div>
             </form>
           </div>
 
