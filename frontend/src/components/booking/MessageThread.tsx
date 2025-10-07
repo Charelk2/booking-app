@@ -72,7 +72,7 @@ import { emissionPayload, getThreadSwitchSnapshot, trackHydrationEvent } from '@
 
 import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';
-import { useRealtimeContext } from '@/contexts/RealtimeContext';
+import useRealtime from '@/hooks/useRealtime';
 import useBookingView from '@/hooks/useBookingView';
 import { useQuotes } from '@/hooks/useQuotes';
 // Non-virtual scroll helpers no longer needed
@@ -1295,16 +1295,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const [imageMenuFor, setImageMenuFor] = useState<number | null>(null);
   const imageMenuRef = useRef<HTMLDivElement | null>(null);
-  // Persisted suppression: once a quote is sent, never show inline quote again for this thread
-  const [quoteSuppressed, setQuoteSuppressed] = useState(false);
-  useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const v = localStorage.getItem(`quote-sent-thread-${bookingRequestId}`);
-        setQuoteSuppressed(Boolean(v));
-      }
-    } catch {}
-  }, [bookingRequestId]);
   // Simple responsive helper (reactive)
   const [isMobile, setIsMobile] = useState(false);
   // No global click-away closers: keep interactions simple and explicit.
@@ -1317,7 +1307,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const mobileOverlayOpenedAtRef = useRef<number>(0);
   // Track bottom anchoring from Virtuoso callbacks
   const atBottomRef = useRef<boolean>(true);
-  const latestIndexRef = useRef<number>(0);
 
   // Unified guard for read receipts: active thread, visible tab, anchored to bottom
   const canMarkReadNow = useCallback((): boolean => {
@@ -1346,11 +1335,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const longPressStartTimeRef = useRef<number>(0);
   const [copiedFor, setCopiedFor] = useState<number | null>(null);
   const [highlightFor, setHighlightFor] = useState<number | null>(null);
-  // Hydration guard: consider thread hydrated after initial load completes
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    if (!hydrated && initialLoadedRef.current) setHydrated(true);
-  }, [hydrated, loading, messages.length]);
 
   // Smooth-scroll to a message by id and briefly highlight it
   const scrollToMessage = useCallback((mid: number) => {
@@ -1626,12 +1610,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- Prefill quote form (SP side)
   const hasSentQuote = useMemo(() => messages.some((m) => Number(m.quote_id) > 0), [messages]);
   useEffect(() => {
-    if (hasSentQuote) {
-      setQuoteSuppressed(true);
-      try { if (typeof window !== 'undefined') localStorage.setItem(`quote-sent-thread-${bookingRequestId}`, '1'); } catch {}
-    }
-  }, [hasSentQuote, bookingRequestId]);
-  useEffect(() => {
     if (!hasInitialBookingRequest) return;
     setBookingRequest(initialBookingRequest);
     setBookingRequestHydration('success');
@@ -1747,15 +1725,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const maxH = textareaLineHeight * MAX_TEXTAREA_LINES + padT + bdrT + bdrB;
     const newH = Math.min(ta.scrollHeight, maxH);
     ta.style.height = `${newH}px`;
-    // Keep the bottom anchored as the textarea grows (up to MAX_TEXTAREA_LINES)
-    try {
-      if (initialLoadedRef.current && atBottomRef.current === true && virtuosoRef.current && virtuosoViewportHeight > 0) {
-        const idx = latestIndexRef.current;
-        const raf = typeof window !== 'undefined' ? window.requestAnimationFrame : null;
-        if (raf) raf(() => { try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {} });
-        else virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' });
-      }
-    } catch {}
+    // Do not adjust message list scroll position on composer growth to avoid jitter while typing
   }, [textareaLineHeight]);
   useEffect(() => { autoResizeTextarea(); }, [newMessageContent, autoResizeTextarea]);
 
@@ -1883,8 +1853,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       window.removeEventListener('resize', update);
     };
   }, [composerRef]);
-
-  // (moved anchor-on-composer-change effect to after groupedMessages definition)
 
   useLayoutEffect(() => {
     const host = virtualizationHostRef.current;
@@ -2040,7 +2008,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             parsedDetails = parseBookingDetailsFromMessage(msg.content);
             continue;
           }
-          // Do not suppress the initial notes message; render it like a normal USER line
+          if (
+            initialNotes &&
+            normalizeType(msg.message_type) === 'USER' &&
+            msg.content.trim() === initialNotes.trim()
+          ) {
+            continue;
+          }
           normalized.push(msg);
         }
 
@@ -2716,7 +2690,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Realtime (multiplex) connection
   // Use cookie-based WS auth for reliability; do not pass stale storage tokens.
-  const { subscribe, publish, status: socketStatus, lastReconnectDelay, forceReconnect } = useRealtimeContext();
+  const { subscribe, publish, status: socketStatus, lastReconnectDelay, forceReconnect } = useRealtime(undefined);
   const topics = useMemo(() => [
     `booking-requests:${bookingRequestId}`,
     `threads:${bookingRequestId}`,
@@ -3346,34 +3320,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     });
     return groups;
   }, [visibleMessages, shouldShowTimestampGroup]);
-
-  // Track latest index for scroll anchoring from earlier hooks (e.g., autoResize)
-  useEffect(() => {
-    latestIndexRef.current = Math.max(0, groupedMessages.length - 1);
-  }, [groupedMessages.length]);
-
-  // Keep latest message visible when the composer grows or preview rows toggle
-  useEffect(() => {
-    if (!virtuosoRef.current) return;
-    if (atBottomRef.current !== true) return;
-    if (!initialLoadedRef.current) return;
-    if (virtuosoViewportHeight <= 0) return;
-    const idx = Math.max(0, groupedMessages.length - 1);
-    try {
-      const raf = typeof window !== 'undefined' ? window.requestAnimationFrame : null;
-      if (raf) raf(() => { try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {} });
-      else virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' });
-    } catch {}
-  }, [groupedMessages.length, composerHeight]);
-
-  useEffect(() => {
-    if (!virtuosoRef.current) return;
-    if (atBottomRef.current !== true) return;
-    if (!initialLoadedRef.current) return;
-    if (virtuosoViewportHeight <= 0) return;
-    const idx = Math.max(0, groupedMessages.length - 1);
-    try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {}
-  }, [groupedMessages.length, imagePreviewUrls.length, attachmentPreviewUrl]);
 
   // Update last-seen map from messages as a fallback presence signal
   useEffect(() => {
@@ -5010,9 +4956,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         onMessageSent?.();
         onQuoteSent?.();
         refreshBookingRequest();
-        // Persist suppression: never show inline quote again for this thread
-        try { if (typeof window !== 'undefined') localStorage.setItem(`quote-sent-thread-${bookingRequestId}`, '1'); } catch {}
-        setQuoteSuppressed(true);
       } catch (err) {
         console.error('Failed to send quote:', err);
         setThreadError(`Failed to send quote. ${(err as Error).message || 'Please try again.'}`);
@@ -5143,10 +5086,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Keep last message visible by padding the scroll area a tiny amount only.
   // Do not pad by composer height to avoid large jumps while typing.
   const effectiveBottomPadding = `calc(${BOTTOM_GAP_PX}px + env(safe-area-inset-bottom))`;
-  const hasSendable = useMemo(
-    () => newMessageContent.trim().length > 0 || Boolean(attachmentFile) || imageFiles.length > 0,
-    [newMessageContent, attachmentFile, imageFiles.length],
-  );
 
   const containerClasses = 'relative flex-1 min-h-0 flex flex-col gap-3 bg-white px-3 overflow-x-hidden overflow-y-hidden';
 
@@ -5209,7 +5148,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           )
         )}
 
-        {!loading && hydrated && user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !quoteSuppressed && !isPersonalizedVideo && !!bookingRequest && !isModerationThread && !isInquiryThread && (
+        {!loading && user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !isPersonalizedVideo && !!bookingRequest && !isModerationThread && !isInquiryThread && (
           <div
             className="max-h-[70vh] overflow-auto overscroll-contain pr-1"
             data-testid="artist-inline-quote"
@@ -5584,8 +5523,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             data-testid="composer-container"
             className={
               isDetailsPanelOpen
-                ? 'hidden md:block sticky bottom-0 z-[60] pb-safe flex-shrink-0 relative backdrop-blur-xl backdrop-saturate-150 bg-white/30 dark:bg-zinc-900/35 ring-1 ring-black/10 dark:ring-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.12)]'
-                : 'block sticky bottom-0 z-[60] pb-safe flex-shrink-0 relative backdrop-blur-xl backdrop-saturate-150 bg-white/30 dark:bg-zinc-900/35 ring-1 ring-black/10 dark:ring-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.12)]'
+                ? 'hidden md:block sticky bottom-0 z-[60] bg-white shadow pb-safe flex-shrink-0 relative'
+                : 'block sticky bottom-0 z-[60] bg-white shadow pb-safe flex-shrink-0 relative'
             }
           >
             {/* Event Prep: show as a bottom bar above the composer, always in view */}
@@ -5616,7 +5555,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             {/* Reply preview row (full width, single line) */}
             {replyTarget && (
               <div className="px-2 pt-1">
-                <div className="w-full rounded-md px-2 py-1 text-[12px] text-gray-700 flex items-center justify-between ring-1 ring-black/10 bg-white/70 dark:bg-white/10">
+                <div className="w-full rounded-md bg-gray-50 border border-gray-200 px-2 py-1 text-[12px] text-gray-700 flex items-center justify-between">
                   <div className="min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
                     Replying to {replyTarget.sender_type === 'client' ? 'Client' : 'You'}: <span className="italic text-gray-500">{replyTarget.content}</span>
                   </div>
@@ -5646,7 +5585,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <label
                 htmlFor="file-upload"
                 aria-label="Upload attachment"
-                className="flex-shrink-0 w-9 h-9 grid place-items-center rounded-full cursor-pointer ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700 transition-colors"
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -5658,14 +5597,78 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 type="button"
                 onClick={() => setShowEmojiPicker((prev) => !prev)}
                 aria-label="Add emoji"
-                className="flex-shrink-0 w-9 h-9 grid place-items-center rounded-full ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700 transition-colors"
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors"
               >
                 <FaceSmileIcon className="w-5 h-5" />
               </button>
 
               {/* Voice note */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (isRecording) {
+                    // stop
+                    mediaRecorderRef.current?.stop();
+                    setIsRecording(false);
+                  } else {
+                    recordedChunksRef.current = [];
+                    try {
+                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                      // Choose a supported audio mime type for widest compatibility
+                      // Prefer Safari-friendly types first; fall back to webm/ogg when available
+                      const candidates = [
+                        'audio/mp4',
+                        'audio/aac',
+                        'audio/mpeg',
+                        'audio/wav',
+                        'audio/webm;codecs=opus',
+                        'audio/webm',
+                        'audio/ogg',
+                      ];
+                      const supported = (candidates as string[]).find((t) => {
+                        try { return typeof (window as any).MediaRecorder !== 'undefined' && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(t); } catch { return false; }
+                      }) || undefined;
+                      const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
+                      mediaRecorderRef.current = mr;
+                      mr.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+                      mr.onstop = async () => {
+                        const mime = recordedChunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || 'audio/webm';
+                        const blob = new Blob(recordedChunksRef.current, { type: mime });
+                        if (blob.size === 0) return;
+                        const ext = /mp4/i.test(mime)
+                          ? 'm4a'
+                          : /aac/i.test(mime)
+                          ? 'aac'
+                          : /mpeg/i.test(mime)
+                          ? 'mp3'
+                          : /ogg/i.test(mime)
+                          ? 'ogg'
+                          : /wav/i.test(mime)
+                          ? 'wav'
+                          : 'webm';
+                        const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
+                        // Do not auto-send. Stage as attachment so user can press Send.
+                        setAttachmentFile(file);
+                        try { setShowEmojiPicker(false); } catch {}
+                        try { textareaRef.current?.focus(); } catch {}
+                        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
+                      };
+                      mr.start();
+                      setIsRecording(true);
+                    } catch (e) {
+                      console.error('Mic permission error', e);
+                      alert('Microphone permission is required to record voice notes.');
+                    }
+                  }
+                }}
+                aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
+                className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'text-gray-500 hover:bg-gray-100'}`}
+              >
+                {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
+              </button>
+
               {/* Textarea (16px to avoid iOS zoom) */}
-              <div className="flex-1 min-h-[40px] rounded-2xl px-3 py-2 ring-1 ring-black/10 bg-white/55 backdrop-blur-sm focus-within:ring-0">
+              <div className="flex-1">
               <textarea
                 ref={textareaRef}
                 value={newMessageContent}
@@ -5679,88 +5682,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 }}
                 autoFocus
                 rows={1}
-                className="w-full bg-transparent resize-none outline-none focus:outline-none focus:ring-0 focus:border-0 text-[15px] leading-6 text-zinc-900 placeholder:text-zinc-600/70 ios-no-zoom font-medium min-h-[36px]"
+                className="w-full flex-grow rounded-xl px-3 py-1 border border-gray-300 shadow-sm resize-none text-base ios-no-zoom font-medium focus:outline-none min-h-[36px]"
+                placeholder="Type your message..."
                 aria-label="New message input"
                 disabled={isUploadingAttachment}
               />
               </div>
 
-              {/* Right-side mic ↔ send swap */}
-              <div className="relative w-9 h-9">
-                {/* Send (when text or attachments) */}
-                <button
-                  type="submit"
-                  aria-label="Send message"
-                  aria-hidden={!hasSendable}
-                  tabIndex={hasSendable ? 0 : -1}
-                  className={[
-                    'absolute inset-0 grid place-items-center rounded-full transition-all duration-200 ease-out',
-                    hasSendable
-                      ? 'opacity-100 scale-100'
-                      : 'opacity-0 scale-90 pointer-events-none',
-                    'bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)]',
-                    'disabled:opacity-50 disabled:cursor-not-allowed',
-                  ].join(' ')}
-                  disabled={isSending || isUploadingAttachment || !hasSendable}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                  </svg>
-                </button>
+              {/* Upload progress moved into the message bubble overlay for clarity */}
 
-                {/* Mic (no text/attachments) */}
-                <button
-                  type="button"
-                  aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
-                  aria-hidden={hasSendable}
-                  tabIndex={hasSendable ? -1 : 0}
-                  onClick={async () => {
-                    if (hasSendable) return; // safeguard
-                    if (isRecording) {
-                      mediaRecorderRef.current?.stop();
-                      setIsRecording(false);
-                      return;
-                    }
-                    recordedChunksRef.current = [];
-                    try {
-                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                      const candidates = ['audio/mp4','audio/aac','audio/mpeg','audio/wav','audio/webm;codecs=opus','audio/webm','audio/ogg'];
-                      const supported = (candidates as string[]).find((t) => {
-                        try { return typeof (window as any).MediaRecorder !== 'undefined' && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(t); } catch { return false; }
-                      }) || undefined;
-                      const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
-                      mediaRecorderRef.current = mr;
-                      mr.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
-                      mr.onstop = async () => {
-                        const mime = recordedChunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || 'audio/webm';
-                        const blob = new Blob(recordedChunksRef.current, { type: mime });
-                        if (blob.size === 0) return;
-                        const ext = /mp4/i.test(mime) ? 'm4a' : /aac/i.test(mime) ? 'aac' : /mpeg/i.test(mime) ? 'mp3' : /ogg/i.test(mime) ? 'ogg' : /wav/i.test(mime) ? 'wav' : 'webm';
-                        const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
-                        setAttachmentFile(file);
-                        try { setAttachmentPreviewUrl(URL.createObjectURL(file)); } catch {}
-                        try { setShowEmojiPicker(false); } catch {}
-                        try { textareaRef.current?.focus(); } catch {}
-                        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-                      };
-                      mr.start();
-                      setIsRecording(true);
-                    } catch (e) {
-                      console.error('Mic permission error', e);
-                      alert('Microphone permission is required to record voice notes.');
-                    }
-                  }}
-                  className={[
-                    'absolute inset-0 w-9 h-9 grid place-items-center rounded-full transition-all duration-200 ease-out',
-                    (newMessageContent.trim() || attachmentFile || imageFiles.length > 0)
-                      ? 'opacity-0 scale-90 pointer-events-none'
-                      : 'opacity-100 scale-100',
-                    isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'ring-1 ring-black/10 bg-whitE hover:bg-white text-zinc-700',
-                  ].join(' ')}
-                >
-                  {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
-                </button>
-              </div>
+              <Button
+                type="submit"
+                aria-label="Send message"
+                className="flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-8 h-8 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+              </Button>
             </form>
           </div>
 
