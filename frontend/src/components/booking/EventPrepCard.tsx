@@ -150,7 +150,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
   // Minimal summary UI (heading, subtitle, progress, and days)
   return (
     <section
-      className={summaryOnly ? 'rounded-xl border border-gray-200 bg-white text-gray-900 px-3 py-2 cursor-pointer' : 'rounded-2xl shadow border border-gray-200 bg-indigo-50 text-gray-900 p-3 cursor-pointer'}
+      className={summaryOnly ? 'rounded-xl border border-gray-200 bg-indigo-50 text-gray-900 px-3 py-2 cursor-pointer' : 'rounded-2xl shadow border border-gray-200 bg-indigo-50 text-gray-900 p-3 cursor-pointer'}
       aria-label="Event preparation"
       role="button"
       tabIndex={0}
