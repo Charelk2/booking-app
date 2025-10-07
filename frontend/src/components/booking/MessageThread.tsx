@@ -1937,6 +1937,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       } else {
         params.mode = 'full';
       }
+      // Ensure attachments and reply previews render correctly on delta/lite
+      if (params.mode !== 'full') {
+        params.fields = 'attachment_meta,reply_to_preview';
+      }
 
       const metadata = {
         type: 'thread-fetch',
@@ -2349,7 +2353,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (!earliestId || earliestId <= 1) return;
     olderInFlightRef.current = true;
     try {
-      const res = await getMessagesForBookingRequest(bookingRequestId, { limit: 100, mode: 'lite', before_id: earliestId });
+      const res = await getMessagesForBookingRequest(bookingRequestId, { limit: 100, mode: 'lite', before_id: earliestId, fields: 'attachment_meta,reply_to_preview' });
       const rows = Array.isArray(res.data?.items) ? res.data.items : [];
       if (!rows.length) { reachedHistoryStartRef.current = true; return; }
       const older: ThreadMessage[] = [];
