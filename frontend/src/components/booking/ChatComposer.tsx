@@ -7,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-// ❌ removed dynamic import
 import data from "@emoji-mart/data";
 import {
   FaceSmileIcon,
@@ -43,7 +42,7 @@ type ChatComposerProps = {
 
 const MAX_TEXTAREA_LINES = 10;
 
-/* ───────── liquid-glass primitives ───────── */
+/* ───────── liquid-glass (edge-to-edge bar) ───────── */
 const NOISE_DATA_URL =
   "url(\"data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>\
@@ -52,26 +51,26 @@ const NOISE_DATA_URL =
 <feComponentTransfer><feFuncA type='table' tableValues='0 0 0 0.02 0.03'/></feComponentTransfer></filter>\
 <rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
 
-function GlassBar({
+function EdgeGlassBar({
   children,
   className = "",
   ...rest
 }: React.HTMLAttributes<HTMLDivElement>) {
+  // edge-to-edge: no rounded, no ring (border), no gradient rim
   const base =
-    "relative rounded-2xl backdrop-blur-xl backdrop-saturate-150 " +
-    "bg-white/30 dark:bg-zinc-900/35 ring-1 ring-black/10 dark:ring-white/10 " +
-    "shadow-[0_8px_30px_rgba(0,0,0,0.12)]";
-  const gradientRim =
-    "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] " +
-    "before:[background:linear-gradient(140deg,rgba(255,255,255,0.6),rgba(255,255,255,0.18)_40%,rgba(255,255,255,0.45)_75%,rgba(255,255,255,0.15))] " +
-    "before:opacity-55";
+    "relative w-full backdrop-blur-xl backdrop-saturate-150 " +
+    "bg-white/30 dark:bg-zinc-900/35 " +
+    "shadow-[0_-6px_28px_rgba(0,0,0,0.10)]"; // soft lift from content
   const topSheen =
-    "after:pointer-events-none after:absolute after:inset-x-1 after:top-1 after:h-5 after:rounded-xl " +
-    "after:bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.55),rgba(255,255,255,0.06)_60%,transparent_75%)] " +
-    "after:opacity-70";
-  const noise: React.CSSProperties = { backgroundImage: NOISE_DATA_URL, backgroundSize: "160px 160px" };
+    "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-6 " +
+    "before:bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.55),rgba(255,255,255,0.06)_60%,transparent_75%)] " +
+    "before:opacity-70";
+  const noise: React.CSSProperties = {
+    backgroundImage: NOISE_DATA_URL,
+    backgroundSize: "160px 160px",
+  };
   return (
-    <div className={`${base} ${gradientRim} ${topSheen} ${className}`} style={noise} {...rest}>
+    <div className={`${base} ${topSheen} ${className}`} style={noise} {...rest}>
       <div className="text-zinc-900 dark:text-zinc-50 antialiased">{children}</div>
     </div>
   );
@@ -103,11 +102,12 @@ function GlassIconButton({
 }
 
 function InputShell({ children }: { children: React.ReactNode }) {
+  // keep inner control pill glossy/rounded for readability
   return (
     <div
       className={[
-        "flex-1 min-h-[40px] rounded-xl px-3 py-2",
-        "bg-white/45 dark:bg-white/10",
+        "flex-1 min-h-[40px] rounded-2xl px-3 py-2",
+        "bg-white/55 dark:bg-white/10",
         "ring-1 ring-black/10 dark:ring-white/10",
         "backdrop-blur-sm",
       ].join(" ")}
@@ -117,7 +117,7 @@ function InputShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ───────── util: mobile detection ───────── */
+/* ───────── helpers ───────── */
 const isMobileUA = () =>
   typeof navigator !== "undefined" &&
   /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -148,17 +148,16 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
 
     const [newMessageContent, setNewMessageContent] = useState("");
     const [isSending, setIsSending] = useState(false);
-
-    // emoji picker (web only)
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [EmojiPickerComp, setEmojiPickerComp] = useState<any>(null);
     const [onWeb, setOnWeb] = useState(false);
+
     useEffect(() => {
       const mobile = isMobileUA();
       setOnWeb(!mobile);
     }, []);
     const openEmoji = async () => {
-      if (!onWeb) return; // mobile: do nothing
+      if (!onWeb) return;
       if (!EmojiPickerComp) {
         const mod = await import("@emoji-mart/react");
         setEmojiPickerComp(() => mod.default);
@@ -171,7 +170,6 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
 
     const [isRecording, setIsRecording] = useState(false);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const recordedChunksRef = useRef<Blob[]>([]);
     const uploadAbortRef = useRef<AbortController | null>(null);
     const isSendingRef = useRef(false);
 
@@ -387,24 +385,28 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
     );
 
     return (
-      <div className="px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1">
-        {/* reply chip (optional) */}
+      <div className="w-full fixed left-0 right-0 bottom-0 z-40">
+        {/* reply chip (edge-to-edge, no border) */}
         {replyTarget && (
-          <GlassBar className="px-2 py-1 mb-1">
+          <EdgeGlassBar className="px-3 py-2">
             <div className="w-full text-[12px] flex items-center justify-between gap-2">
               <div className="min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
-                <span className="font-semibold">Replying to {replyTarget.sender_type === "client" ? "Client" : "You"}:</span>{" "}
-                <span className="italic text-zinc-800/90 dark:text-zinc-200/90">{replyTarget.content}</span>
+                <span className="font-semibold">
+                  Replying to {replyTarget.sender_type === "client" ? "Client" : "You"}:
+                </span>{" "}
+                <span className="italic text-zinc-800/90 dark:text-zinc-200/90">
+                  {replyTarget.content}
+                </span>
               </div>
               <GlassIconButton aria-label="Cancel reply" onClick={onCancelReply} className="w-7 h-7">
                 <XMarkIcon className="w-4 h-4" />
               </GlassIconButton>
             </div>
-          </GlassBar>
+          </EdgeGlassBar>
         )}
 
-        {/* composer bar */}
-        <GlassBar className="px-2 py-1.5">
+        {/* composer bar (edge-to-edge, no border/radius) */}
+        <EdgeGlassBar className="px-3 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
           <form ref={formRef} onSubmit={handleSendMessage} className="flex items-end gap-1.5">
             {/* + (upload) */}
             <input
@@ -427,7 +429,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
             {/* input pill */}
             <InputShell>{textarea}</InputShell>
 
-            {/* emoji — web only */}
+            {/* emoji — web only (lazy) */}
             {onWeb && (
               <GlassIconButton aria-label="Add emoji" onClick={openEmoji}>
                 <FaceSmileIcon className="w-5 h-5" />
@@ -500,11 +502,11 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
               </button>
             </div>
           </form>
-        </GlassBar>
+        </EdgeGlassBar>
 
-        {/* emoji picker popover — web only & lazily loaded */}
+        {/* emoji picker (web only, lazy) */}
         {onWeb && showEmojiPicker && EmojiPickerComp && (
-          <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] left-3 z-50">
+          <div className="fixed left-3 right-3 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50">
             <EmojiPickerComp
               data={data}
               onEmojiSelect={(emoji: any) => {
