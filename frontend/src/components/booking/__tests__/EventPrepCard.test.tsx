@@ -12,56 +12,31 @@ jest.mock('@/lib/api', () => ({
   __esModule: true,
   getEventPrep: jest.fn(async () => ({
     booking_id: 123,
-    day_of_contact_name: null,
-    day_of_contact_phone: null,
-    venue_address: 'Cape Town, ZA',
-    venue_lat: null,
-    venue_lng: null,
-    loadin_start: null,
-    loadin_end: null,
-    tech_owner: 'venue',
-    stage_power_confirmed: false,
-    accommodation_required: false,
-    notes: '',
     progress_done: 2,
-    progress_total: 6,
-  })),
-  updateEventPrep: jest.fn(async (_id: number, patch: any) => ({
-    booking_id: 123,
-    day_of_contact_name: patch.day_of_contact_name ?? null,
-    day_of_contact_phone: patch.day_of_contact_phone ?? null,
-    venue_address: 'Cape Town, ZA',
-    venue_lat: null,
-    venue_lng: null,
-    loadin_start: patch.loadin_start ?? null,
-    loadin_end: patch.loadin_end ?? null,
-    tech_owner: patch.tech_owner ?? 'venue',
-    stage_power_confirmed: !!patch.stage_power_confirmed,
-    accommodation_required: false,
-    notes: patch.notes ?? '',
-    progress_done: 3,
     progress_total: 6,
   })),
 }));
 
 describe('EventPrepCard', () => {
-  it('renders and saves contact', async () => {
+  it('renders summary with progress and supports click-through', async () => {
+    const onContinue = jest.fn();
     render(
       <EventPrepCard
         bookingId={123}
         bookingRequestId={456}
         canEdit
+        summaryOnly
+        eventDateISO={'2099-01-01T00:00:00.000Z'}
+        onContinuePrep={onContinue}
       /> as any
     );
-    await waitFor(() => expect(screen.getByText(/Prep \d+\/\d+/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Let’s prep your event')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Prep 2\/6/)).toBeInTheDocument());
+    // Days chip present
+    expect(screen.getByText(/In \d+ days/)).toBeInTheDocument();
 
-    const name = screen.getByPlaceholderText('Full name') as HTMLInputElement;
-    const phone = screen.getByPlaceholderText('Mobile') as HTMLInputElement;
-    fireEvent.change(name, { target: { value: 'Mariaan' } });
-    fireEvent.change(phone, { target: { value: '+27 555' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(screen.getByText(/Saved: Mariaan/)).toBeInTheDocument());
+    const card = screen.getByRole('button', { name: /Event preparation/i });
+    fireEvent.click(card);
+    expect(onContinue).toHaveBeenCalledWith(123);
   });
 });
-

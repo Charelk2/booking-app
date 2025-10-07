@@ -18,21 +18,9 @@ jest.mock('@/lib/api', () => ({
   __esModule: true,
   getEventPrep: jest.fn(async () => ({
     booking_id: 123,
-    day_of_contact_name: null,
-    day_of_contact_phone: null,
-    venue_address: 'Cape Town, ZA',
-    venue_lat: null,
-    venue_lng: null,
-    loadin_start: null,
-    loadin_end: null,
-    tech_owner: 'venue',
-    stage_power_confirmed: false,
-    accommodation_required: false,
-    notes: '',
     progress_done: 2,
     progress_total: 6,
   })),
-  updateEventPrep: jest.fn(),
 }));
 
 function dispatchWs(payload: any) {
@@ -47,15 +35,11 @@ describe('EventPrepCard WS integration', () => {
       <EventPrepCard bookingId={123} bookingRequestId={456} canEdit={false} /> as any
     );
 
-    await waitFor(() => expect(screen.getByText(/Prep/)).toBeInTheDocument());
-    // Initially unchecked
-    const power = screen.getByLabelText('Stage power confirmed') as HTMLInputElement;
-    expect(power.checked).toBe(false);
+    await waitFor(() => expect(screen.getByText(/Prep 2\/6/)).toBeInTheDocument());
 
-    // Simulate WS toggle
-    dispatchWs({ type: 'event_prep_updated', payload: { booking_id: 123, stage_power_confirmed: true, progress_done: 3, progress_total: 6 } });
+    // Simulate WS progress update
+    dispatchWs({ type: 'event_prep_updated', payload: { booking_id: 123, progress_done: 3, progress_total: 6 } });
 
-    await waitFor(() => expect((screen.getByLabelText('Stage power confirmed') as HTMLInputElement).checked).toBe(true));
+    await waitFor(() => expect(screen.getByText(/Prep 3\/6/)).toBeInTheDocument());
   });
 });
-
