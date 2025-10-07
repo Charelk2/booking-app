@@ -5523,8 +5523,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             data-testid="composer-container"
             className={
               isDetailsPanelOpen
-                ? 'hidden md:block sticky bottom-0 z-[60] bg-white shadow pb-safe flex-shrink-0 relative'
-                : 'block sticky bottom-0 z-[60] bg-white shadow pb-safe flex-shrink-0 relative'
+                ? 'hidden md:block sticky bottom-0 z-[60] pb-safe flex-shrink-0 relative backdrop-blur-xl backdrop-saturate-150 bg-white/30 dark:bg-zinc-900/35 ring-1 ring-black/10 dark:ring-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.12)]'
+                : 'block sticky bottom-0 z-[60] pb-safe flex-shrink-0 relative backdrop-blur-xl backdrop-saturate-150 bg-white/30 dark:bg-zinc-900/35 ring-1 ring-black/10 dark:ring-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.12)]'
             }
           >
             {/* Event Prep: show as a bottom bar above the composer, always in view */}
@@ -5555,7 +5555,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             {/* Reply preview row (full width, single line) */}
             {replyTarget && (
               <div className="px-2 pt-1">
-                <div className="w-full rounded-md bg-gray-50 border border-gray-200 px-2 py-1 text-[12px] text-gray-700 flex items-center justify-between">
+                <div className="w-full rounded-md px-2 py-1 text-[12px] text-gray-700 flex items-center justify-between ring-1 ring-black/10 bg-white/70 dark:bg-white/10">
                   <div className="min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
                     Replying to {replyTarget.sender_type === 'client' ? 'Client' : 'You'}: <span className="italic text-gray-500">{replyTarget.content}</span>
                   </div>
@@ -5585,7 +5585,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <label
                 htmlFor="file-upload"
                 aria-label="Upload attachment"
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                className="flex-shrink-0 w-9 h-9 grid place-items-center rounded-full cursor-pointer ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -5597,7 +5597,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 type="button"
                 onClick={() => setShowEmojiPicker((prev) => !prev)}
                 aria-label="Add emoji"
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors"
+                className="flex-shrink-0 w-9 h-9 grid place-items-center rounded-full ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700 transition-colors"
               >
                 <FaceSmileIcon className="w-5 h-5" />
               </button>
@@ -5662,13 +5662,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   }
                 }}
                 aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
-                className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'text-gray-500 hover:bg-gray-100'}`}
+                className={`flex-shrink-0 w-9 h-9 grid place-items-center rounded-full transition-colors ${isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700'}`}
               >
                 {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
               </button>
 
               {/* Textarea (16px to avoid iOS zoom) */}
-              <div className="flex-1">
+              <div className="flex-1 min-h-[40px] rounded-2xl px-3 py-2 ring-1 ring-black/10 bg-white/55 backdrop-blur-sm">
               <textarea
                 ref={textareaRef}
                 value={newMessageContent}
@@ -5682,7 +5682,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 }}
                 autoFocus
                 rows={1}
-                className="w-full flex-grow rounded-xl px-3 py-1 border border-gray-300 shadow-sm resize-none text-base ios-no-zoom font-medium focus:outline-none min-h-[36px]"
+                className="w-full bg-transparent resize-none outline-none text-[15px] leading-6 text-zinc-900 placeholder:text-zinc-600/70 ios-no-zoom font-medium min-h-[36px]"
                 placeholder="Type your message..."
                 aria-label="New message input"
                 disabled={isUploadingAttachment}
@@ -5694,7 +5694,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <Button
                 type="submit"
                 aria-label="Send message"
-                className="flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-8 h-8 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-shrink-0 rounded-full grid place-items-center w-9 h-9 transition-all bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)] disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
