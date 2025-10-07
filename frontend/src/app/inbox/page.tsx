@@ -858,7 +858,16 @@ export default function InboxPage() {
         params.delete('booka');
         params.set('requestId', String(id));
       }
-      router.replace(`?${params.toString()}`, { scroll: false });
+      // Avoid replacing the URL if it already matches; this prevents
+      // aborting an in-flight RSC fetch and eliminates noisy "Fetch failed loading" logs in dev.
+      try {
+        const nextSearch = `?${params.toString()}`;
+        if (typeof window === 'undefined' || window.location.search !== nextSearch) {
+          router.replace(nextSearch, { scroll: false });
+        }
+      } catch {
+        router.replace(`?${params.toString()}`, { scroll: false });
+      }
       try {
         sessionStorage.setItem(SEL_KEY, String(id));
         localStorage.setItem(SEL_KEY, JSON.stringify({ id, ts: Date.now() }));
@@ -916,11 +925,18 @@ export default function InboxPage() {
             if (realId && realId !== id && realId !== selectedBookingRequestId) {
               recordThreadSwitchStart(realId, { source: 'system' });
               setSelectedBookingRequestId(realId);
-              // Replace URL
+              // Replace URL (deduped)
               const p = new URLSearchParams(searchParams.toString());
               p.delete('booka');
               p.set('requestId', String(realId));
-              router.replace(`?${p.toString()}`, { scroll: false });
+              try {
+                const nextSearch = `?${p.toString()}`;
+                if (typeof window === 'undefined' || window.location.search !== nextSearch) {
+                  router.replace(nextSearch, { scroll: false });
+                }
+              } catch {
+                router.replace(`?${p.toString()}`, { scroll: false });
+              }
               try {
                 sessionStorage.setItem(SEL_KEY, String(realId));
                 localStorage.setItem(SEL_KEY, JSON.stringify({ id: realId, ts: Date.now() }));

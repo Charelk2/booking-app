@@ -159,17 +159,23 @@ const nextConfig = {
     minimumCacheTTL: 86400, // 1 day
   },
   async headers() {
+    const isDev = process.env.NODE_ENV !== 'production';
     const connectApi = apiBase; // e.g., https://api.booka.co.za
     // Derive WebSocket origins for CSP connect-src (API base + explicit WS base if set)
     const wsApi = apiBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
     const wsExtra = wsOrigin && wsOrigin !== wsApi ? ` ${wsOrigin}` : '';
+    // In development, Next.js React Refresh uses eval/new Function.
+    // Allow 'unsafe-eval' only in dev so HMR works on localhost.
+    const scriptSrcBase = `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`;
+    const scriptSrcElemBase = `script-src-elem 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`;
+
     const csp = [
       // Default policy
       "default-src 'self'",
       // Scripts: app + Google Identity/Maps + Paystack + Cloudflare Insights
-      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com",
+      `${scriptSrcBase} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com https://va.vercel-scripts.com`,
       // Cover script elements explicitly (older browsers fallback to script-src, but be explicit)
-      "script-src-elem 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com",
+      `${scriptSrcElemBase} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com https://va.vercel-scripts.com`,
       // XHR/fetch and WebSocket: backend API, R2, Google Identity/Maps, Paystack, and Cloudflare Insights collection
       `connect-src 'self' ${connectApi} ${wsApi}${wsExtra} ${R2_S3_ORIGIN} ${R2_PUBLIC_BASE} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co https://cloudflareinsights.com`,
       // Frames for Google Identity widgets and Paystack's checkout iframe

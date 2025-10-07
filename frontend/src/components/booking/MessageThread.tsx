@@ -18,7 +18,7 @@ import { isOfflineError, isTransientTransportError, runWithTransport } from '@/l
 import SafeImage from '@/components/ui/SafeImage';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import type { VirtuosoProps } from 'react-virtuoso';
+import { Virtuoso, type VirtuosoProps, type VirtuosoHandle } from 'react-virtuoso';
 import { createPortal } from 'react-dom';
 import { format, isValid, differenceInCalendarDays, startOfDay, formatDistanceToNow } from 'date-fns';
 import data from '@emoji-mart/data';
@@ -91,10 +91,6 @@ import ThreadDayDivider from './ThreadDayDivider';
 import ThreadMessageGroup from './ThreadMessageGroup';
 
 const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
-// Type the dynamic Virtuoso component so TS recognizes its props (totalCount, itemContent, etc.)
-const Virtuoso = dynamic(() => import('react-virtuoso').then((m: any) => m.Virtuoso), { ssr: false }) as unknown as React.ForwardRefExoticComponent<
-  VirtuosoProps<any, any> & React.RefAttributes<any>
->;
 const MemoQuoteBubble = React.memo(QuoteBubble);
 
 type SupplierInviteActionState = {
@@ -1213,7 +1209,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- Refs
   // Removed non-virtual container refs
   const virtualizationHostRef = useRef<HTMLDivElement | null>(null);
-  const virtuosoRef = useRef<any>(null);
+  const virtuosoRef = useRef<VirtuosoHandle | null>(null);
   const [virtuosoViewportHeight, setVirtuosoViewportHeight] = useState(0);
   const distanceFromBottomRef = useRef<number>(0);
   const prevScrollHeightRef = useRef<number>(0);

@@ -505,9 +505,8 @@ def get_inbox_unread(
     etag_value = f'W/"{hashlib.sha1(etag_source.encode()).hexdigest()}"'
 
     if if_none_match and if_none_match.strip() == etag_value:
-        response.status_code = status.HTTP_304_NOT_MODIFIED
-        response.headers["ETag"] = etag_value
-        return None
+        # Return an explicit empty 304 Response to avoid Pydantic validation on None
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag_value})
 
     response.headers["ETag"] = etag_value
     return InboxUnreadResponse(total=total)

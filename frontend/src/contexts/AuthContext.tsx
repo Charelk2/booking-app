@@ -186,6 +186,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.data.mfa_required) {
         return { mfaRequired: true, token: response.data.mfa_token } as const;
       }
+      // Dev-only safety net: if Next.js dev proxy drops Set-Cookie from the
+      // backend response, set non-HttpOnly cookies on the client so subsequent
+      // same-origin requests include them. Production remains HttpOnly only.
+      try {
+        if (process.env.NODE_ENV === 'development') {
+          const a = (response.data as any)?.access_token as string | undefined;
+          const r = (response.data as any)?.refresh_token as string | undefined;
+          const attrs = 'Path=/; SameSite=Lax';
+          if (typeof document !== 'undefined' && a) {
+            document.cookie = `access_token=${a}; ${attrs}`;
+          }
+          if (typeof document !== 'undefined' && r) {
+            document.cookie = `refresh_token=${r}; ${attrs}`;
+          }
+        }
+      } catch {}
       const { user: fallbackUser } = response.data;
       const storage = remember ? localStorage : sessionStorage;
       const altStorage = remember ? sessionStorage : localStorage;
@@ -215,6 +231,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     try {
       const response = await apiVerifyMfa(tokenToVerify, code, trustedDevice, deviceId);
+      // Same dev-only cookie safety net as in login
+      try {
+        if (process.env.NODE_ENV === 'development') {
+          const a = (response.data as any)?.access_token as string | undefined;
+          const r = (response.data as any)?.refresh_token as string | undefined;
+          const attrs = 'Path=/; SameSite=Lax';
+          if (typeof document !== 'undefined' && a) {
+            document.cookie = `access_token=${a}; ${attrs}`;
+          }
+          if (typeof document !== 'undefined' && r) {
+            document.cookie = `refresh_token=${r}; ${attrs}`;
+          }
+        }
+      } catch {}
       const { user: fallbackUser } = response.data;
       const storage = remember ? localStorage : sessionStorage;
       const altStorage = remember ? sessionStorage : localStorage;

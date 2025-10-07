@@ -83,7 +83,7 @@ def get_cached_artist_list(
     key = _make_key(page, limit, category, location, sort, min_price, max_price, fields)
     try:
         data = client.get(key)
-    except redis.exceptions.ConnectionError as exc:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Redis unavailable: %s", exc)
         return None
     if data:
@@ -109,7 +109,7 @@ def cache_artist_list(
     key = _make_key(page, limit, category, location, sort, min_price, max_price, fields)
     try:
         client.setex(key, expire, dumps(data))
-    except redis.exceptions.ConnectionError as exc:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Could not cache artist list: %s", exc)
     return None
 
@@ -120,7 +120,7 @@ def invalidate_artist_list_cache() -> None:
     try:
         for key in client.scan_iter(f"{ARTIST_LIST_KEY_PREFIX}:*"):
             client.delete(key)
-    except redis.exceptions.ConnectionError as exc:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Could not clear artist list cache: %s", exc)
     return None
 
@@ -136,7 +136,7 @@ def cache_bytes(key: str, data: bytes, expire: int) -> None:
     try:
         b64 = base64.b64encode(data).decode("ascii")
         client.setex(key, expire, b64)
-    except redis.exceptions.ConnectionError as exc:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Could not cache bytes: %s", exc)
 
 
@@ -145,7 +145,7 @@ def get_cached_bytes(key: str) -> Optional[bytes]:
     client = get_redis_client()
     try:
         data = client.get(key)
-    except redis.exceptions.ConnectionError as exc:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Redis unavailable: %s", exc)
         return None
     if not data:
@@ -166,7 +166,7 @@ def get_cached_weather(location: str) -> dict | None:
     key = _weather_key(location)
     try:
         data = client.get(key)
-    except redis.exceptions.ConnectionError as exc:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Redis unavailable: %s", exc)
         return None
     if data:
@@ -180,7 +180,7 @@ def cache_weather(data: dict, location: str, expire: int = 1800) -> None:
     ttl = _apply_jitter(expire)
     try:
         client.setex(key, ttl, dumps(data))
-    except redis.exceptions.ConnectionError as exc:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Could not cache weather: %s", exc)
     return None
 
@@ -197,7 +197,7 @@ def get_cached_availability(
     key = _availability_key(artist_id, when)
     try:
         data = client.get(key)
-    except redis.exceptions.ConnectionError as exc:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Redis unavailable: %s", exc)
         return None
     if data:
@@ -216,7 +216,7 @@ def cache_availability(
     ttl = _apply_jitter(expire)
     try:
         client.setex(key, ttl, dumps(data))
-    except redis.exceptions.ConnectionError as exc:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Could not cache availability: %s", exc)
     return None
 
@@ -232,7 +232,7 @@ def invalidate_availability_cache(
                 client.delete(key)
         else:
             client.delete(_availability_key(artist_id, when))
-    except redis.exceptions.ConnectionError as exc:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Could not clear availability cache: %s", exc)
     return None
 
@@ -243,7 +243,7 @@ def close_redis_client() -> None:
     if _redis_client is not None:
         try:
             _redis_client.close()
-        except redis.exceptions.ConnectionError as exc:  # pragma: no cover - best effort
+        except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:  # pragma: no cover - best effort
             logging.warning("Error closing Redis client: %s", exc)
         finally:
             _redis_client = None
