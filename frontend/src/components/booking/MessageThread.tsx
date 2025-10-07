@@ -1854,32 +1854,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     };
   }, [composerRef]);
 
-  // When the composer height changes (e.g., multi-line input grows), and the
-  // user is anchored at bottom, keep the latest message fully visible.
-  useEffect(() => {
-    if (!virtuosoRef.current) return;
-    if (atBottomRef.current !== true) return;
-    const idx = Math.max(0, groupedMessages.length - 1);
-    try {
-      // Defer to next frame so layout reflects the new composer size.
-      const raf = typeof window !== 'undefined' ? window.requestAnimationFrame : null;
-      if (raf) {
-        raf(() => {
-          try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {}
-        });
-      } else {
-        virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' });
-      }
-    } catch {}
-  }, [composerHeight, groupedMessages.length]);
-
-  // Also keep bottom anchored when attachment preview rows appear/disappear
-  useEffect(() => {
-    if (!virtuosoRef.current) return;
-    if (atBottomRef.current !== true) return;
-    const idx = Math.max(0, groupedMessages.length - 1);
-    try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {}
-  }, [imagePreviewUrls.length, attachmentPreviewUrl, groupedMessages.length]);
+  // (moved anchor-on-composer-change effect to after groupedMessages definition)
 
   useLayoutEffect(() => {
     const host = virtualizationHostRef.current;
@@ -3347,6 +3322,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     });
     return groups;
   }, [visibleMessages, shouldShowTimestampGroup]);
+
+  // Keep latest message visible when the composer grows or preview rows toggle
+  useEffect(() => {
+    if (!virtuosoRef.current) return;
+    if (atBottomRef.current !== true) return;
+    const idx = Math.max(0, groupedMessages.length - 1);
+    try {
+      const raf = typeof window !== 'undefined' ? window.requestAnimationFrame : null;
+      if (raf) raf(() => { try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {} });
+      else virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' });
+    } catch {}
+  }, [groupedMessages.length, composerHeight]);
+
+  useEffect(() => {
+    if (!virtuosoRef.current) return;
+    if (atBottomRef.current !== true) return;
+    const idx = Math.max(0, groupedMessages.length - 1);
+    try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {}
+  }, [groupedMessages.length, imagePreviewUrls.length, attachmentPreviewUrl]);
 
   // Update last-seen map from messages as a fallback presence signal
   useEffect(() => {
@@ -5113,6 +5107,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Keep last message visible by padding the scroll area a tiny amount only.
   // Do not pad by composer height to avoid large jumps while typing.
   const effectiveBottomPadding = `calc(${BOTTOM_GAP_PX}px + env(safe-area-inset-bottom))`;
+  const hasSendable = useMemo(
+    () => newMessageContent.trim().length > 0 || Boolean(attachmentFile) || imageFiles.length > 0,
+    [newMessageContent, attachmentFile, imageFiles.length],
+  );
 
   const containerClasses = 'relative flex-1 min-h-0 flex flex-col gap-3 bg-white px-3 overflow-x-hidden overflow-y-hidden';
 
@@ -5631,7 +5629,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
               {/* Voice note */}
               {/* Textarea (16px to avoid iOS zoom) */}
-              <div className="flex-1 min-h-[40px] rounded-2xl px-3 py-2 ring-1 ring-black/10 bg-white/55 backdrop-blur-sm">
+              <div className="flex-1 min-h-[40px] rounded-2xl px-3 py-2 ring-1 ring-black/10 bg-white/55 backdrop-blur-sm focus-within:ring-0">
               <textarea
                 ref={textareaRef}
                 value={newMessageContent}
@@ -5645,7 +5643,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 }}
                 autoFocus
                 rows={1}
-                className="w-full bg-transparent resize-none outline-none text-[15px] leading-6 text-zinc-900 placeholder:text-zinc-600/70 ios-no-zoom font-medium min-h-[36px]"
+                className="w-full bg-transparent resize-none outline-none focus:outline-none focus:ring-0 focus:border-0 text-[15px] leading-6 text-zinc-900 placeholder:text-zinc-600/70 ios-no-zoom font-medium min-h-[36px]"
                 aria-label="New message input"
                 disabled={isUploadingAttachment}
               />
@@ -5653,66 +5651,79 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
               {/* Right-side mic ↔ send swap */}
               <div className="relative w-9 h-9">
-                {Boolean(newMessageContent.trim() || attachmentFile || imageFiles.length > 0) ? (
-                  <button
-                    type="submit"
-                    aria-label="Send message"
-                    className={[
-                      'absolute inset-0 grid place-items-center rounded-full transition-all duration-150',
-                      'opacity-100 scale-100',
-                      'bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)]',
-                      'disabled:opacity-50 disabled:cursor-not-allowed',
-                    ].join(' ')}
-                    disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                    </svg>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (isRecording) {
-                        mediaRecorderRef.current?.stop();
-                        setIsRecording(false);
-                      } else {
-                        recordedChunksRef.current = [];
-                        try {
-                          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                          const candidates = ['audio/mp4','audio/aac','audio/mpeg','audio/wav','audio/webm;codecs=opus','audio/webm','audio/ogg'];
-                          const supported = (candidates as string[]).find((t) => {
-                            try { return typeof (window as any).MediaRecorder !== 'undefined' && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(t); } catch { return false; }
-                          }) || undefined;
-                          const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
-                          mediaRecorderRef.current = mr;
-                          mr.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
-                          mr.onstop = async () => {
-                            const mime = recordedChunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || 'audio/webm';
-                            const blob = new Blob(recordedChunksRef.current, { type: mime });
-                            if (blob.size === 0) return;
-                            const ext = /mp4/i.test(mime) ? 'm4a' : /aac/i.test(mime) ? 'aac' : /mpeg/i.test(mime) ? 'mp3' : /ogg/i.test(mime) ? 'ogg' : /wav/i.test(mime) ? 'wav' : 'webm';
-                            const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
-                            setAttachmentFile(file);
-                            try { setAttachmentPreviewUrl(URL.createObjectURL(file)); } catch {}
-                            try { setShowEmojiPicker(false); } catch {}
-                            try { textareaRef.current?.focus(); } catch {}
-                            try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-                          };
-                          mr.start();
-                          setIsRecording(true);
-                        } catch (e) {
-                          console.error('Mic permission error', e);
-                          alert('Microphone permission is required to record voice notes.');
-                        }
-                      }
-                    }}
-                    aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
-                    className={`absolute inset-0 w-9 h-9 grid place-items-center rounded-full transition-colors ${isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700'}`}
-                  >
-                    {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
-                  </button>
-                )}
+                {/* Send (when text or attachments) */}
+                <button
+                  type="submit"
+                  aria-label="Send message"
+                  aria-hidden={!hasSendable}
+                  tabIndex={hasSendable ? 0 : -1}
+                  className={[
+                    'absolute inset-0 grid place-items-center rounded-full transition-all duration-200 ease-out',
+                    hasSendable
+                      ? 'opacity-100 scale-100'
+                      : 'opacity-0 scale-90 pointer-events-none',
+                    'bg-[#25D366] hover:bg-[#1ec45b] text-white shadow-[0_4px_14px_rgba(0,0,0,0.15)]',
+                    'disabled:opacity-50 disabled:cursor-not-allowed',
+                  ].join(' ')}
+                  disabled={isSending || isUploadingAttachment || !hasSendable}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
+                </button>
+
+                {/* Mic (no text/attachments) */}
+                <button
+                  type="button"
+                  aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
+                  aria-hidden={hasSendable}
+                  tabIndex={hasSendable ? -1 : 0}
+                  onClick={async () => {
+                    if (hasSendable) return; // safeguard
+                    if (isRecording) {
+                      mediaRecorderRef.current?.stop();
+                      setIsRecording(false);
+                      return;
+                    }
+                    recordedChunksRef.current = [];
+                    try {
+                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                      const candidates = ['audio/mp4','audio/aac','audio/mpeg','audio/wav','audio/webm;codecs=opus','audio/webm','audio/ogg'];
+                      const supported = (candidates as string[]).find((t) => {
+                        try { return typeof (window as any).MediaRecorder !== 'undefined' && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(t); } catch { return false; }
+                      }) || undefined;
+                      const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
+                      mediaRecorderRef.current = mr;
+                      mr.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+                      mr.onstop = async () => {
+                        const mime = recordedChunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || 'audio/webm';
+                        const blob = new Blob(recordedChunksRef.current, { type: mime });
+                        if (blob.size === 0) return;
+                        const ext = /mp4/i.test(mime) ? 'm4a' : /aac/i.test(mime) ? 'aac' : /mpeg/i.test(mime) ? 'mp3' : /ogg/i.test(mime) ? 'ogg' : /wav/i.test(mime) ? 'wav' : 'webm';
+                        const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
+                        setAttachmentFile(file);
+                        try { setAttachmentPreviewUrl(URL.createObjectURL(file)); } catch {}
+                        try { setShowEmojiPicker(false); } catch {}
+                        try { textareaRef.current?.focus(); } catch {}
+                        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
+                      };
+                      mr.start();
+                      setIsRecording(true);
+                    } catch (e) {
+                      console.error('Mic permission error', e);
+                      alert('Microphone permission is required to record voice notes.');
+                    }
+                  }}
+                  className={[
+                    'absolute inset-0 w-9 h-9 grid place-items-center rounded-full transition-all duration-200 ease-out',
+                    (newMessageContent.trim() || attachmentFile || imageFiles.length > 0)
+                      ? 'opacity-0 scale-90 pointer-events-none'
+                      : 'opacity-100 scale-100',
+                    isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700',
+                  ].join(' ')}
+                >
+                  {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
+                </button>
               </div>
             </form>
           </div>
