@@ -15,6 +15,7 @@ import {
   PlusIcon,
 } from "@heroicons/react/24/outline";
 import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
+import dynamic from "next/dynamic";
 
 import { type MessageCreate, type AttachmentMeta } from "@/types";
 import { postMessageToBookingRequest, uploadMessageAttachment } from "@/lib/api";
@@ -175,19 +176,12 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
     const [newMessageContent, setNewMessageContent] = useState("");
     const [isSending, setIsSending] = useState(false);
 
-    // emoji (web only, lazy)
+    // emoji (web only, lazy via next/dynamic)
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const [EmojiPickerComp, setEmojiPickerComp] = useState<any>(null);
     const [onWeb, setOnWeb] = useState(false);
     useEffect(() => { setOnWeb(!isMobileUA()); }, []);
-    const openEmoji = async () => {
-      if (!onWeb) return;
-      if (!EmojiPickerComp) {
-        const mod = await import("@emoji-mart/react");
-        setEmojiPickerComp(() => mod.default);
-      }
-      setShowEmojiPicker((p) => !p);
-    };
+    const EmojiPicker = useMemo(() => dynamic(() => import("@emoji-mart/react"), { ssr: false }), []);
+    const openEmoji = async () => { if (!onWeb) return; setShowEmojiPicker((p) => !p); };
 
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
@@ -201,11 +195,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
     const recordStartRef = useRef<number>(0);
     const tickerRef = useRef<number | null>(null);
 
-    // slide-to-cancel
-    const gestureActiveRef = useRef(false);
-    const startXRef = useRef(0);
-    const canceledRef = useRef(false);
-    const SLIDE_CANCEL_PX = 80;
+    // unified click-to-record UX (no slide-to-cancel)
 
     const uploadAbortRef = useRef<AbortController | null>(null);
     const isSendingRef = useRef(false);
@@ -423,7 +413,6 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
         mr.start();
 
         setIsRecording(true);
-        canceledRef.current = false;
         recordStartRef.current = Date.now();
         setRecordMs(0);
         if (tickerRef.current) window.clearInterval(tickerRef.current);
@@ -436,7 +425,6 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
 
     const cancelRecording = useCallback(() => {
       if (!isRecording) return;
-      canceledRef.current = true;
       setIsRecording(false);
       setRecordMs(0);
       mediaRecorderRef.current?.stop();
@@ -458,7 +446,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
           try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
           const mime = chunksRef.current[0]?.type || mr.mimeType || "audio/webm";
           const blob = new Blob(chunksRef.current, { type: mime });
-          if (blob.size === 0 || canceledRef.current) return resolve(null);
+          if (blob.size === 0) return resolve(null);
           const ext = /mp4/i.test(mime) ? "m4a" : /aac/i.test(mime) ? "aac" : /mpeg/i.test(mime) ? "mp3" : /ogg/i.test(mime) ? "ogg" : /wav/i.test(mime) ? "wav" : "webm";
           resolve(new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime }));
           done = true;
@@ -475,28 +463,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
       setTimeout(() => { try { formRef.current?.requestSubmit(); } catch {} }, 0);
     }, [handleSendMessage, isRecording]);
 
-    // mic long-press gesture handlers (+ workarounds for iOS long-press callout)
-    const onMicPointerDown = useCallback((clientX: number, ev?: Event) => {
-      gestureActiveRef.current = true;
-      startXRef.current = clientX;
-      canceledRef.current = false;
-      if (ev && "preventDefault" in ev) (ev as any).preventDefault(); // stop long-press callout
-      beginRecording();
-    }, [beginRecording]);
-
-    const onMicPointerMove = useCallback((clientX: number) => {
-      if (!gestureActiveRef.current || !isRecording) return;
-      const dx = clientX - startXRef.current;
-      if (dx <= -SLIDE_CANCEL_PX && !canceledRef.current) {
-        cancelRecording();
-      }
-    }, [cancelRecording, isRecording]);
-
-    const onMicPointerUp = useCallback(() => {
-      if (!gestureActiveRef.current) return;
-      gestureActiveRef.current = false;
-      if (!canceledRef.current) finishRecordingAndSend();
-    }, [finishRecordingAndSend]);
+    // No long-press/swipe gestures; click mic to start, use HUD to stop/send
 
     /* ---------------- UI ---------------- */
 
@@ -533,32 +500,16 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
           {/* Recording HUD (mobile) */}
           {isRecording && (
             <EdgeGlassBar className="px-4 pt-2 pb-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-pink-600 dark:text-pink-400">
-                    <svg width="18" height="18" viewBox="0 0 24 24" className="animate-pulse" aria-hidden="true">
-                      <circle cx="12" cy="12" r="6" fill="currentColor" />
-                    </svg>
-                  </span>
-                  <span className="text-lg font-semibold tabular-nums">{formatClock(recordMs)}</span>
-                  <span className="ml-2 text-zinc-700/90 dark:text-zinc-200/90">slide to cancel</span>
-                  <span className="text-zinc-500">←</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="rounded-md border border-red-300 bg-white/70 text-red-700 hover:bg-white px-2 py-1 text-[12px]"
-                    onClick={cancelRecording}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-md bg-red-600 text-white hover:bg-red-700 px-2 py-1 text-[12px] font-medium"
-                    onClick={finishRecordingAndSend}
-                  >
-                    Stop & Send
-                  </button>
+              <div className="flex items-center gap-3">
+                <span className="text-pink-600 dark:text-pink-400">
+                  <svg width="18" height="18" viewBox="0 0 24 24" className="animate-pulse" aria-hidden="true">
+                    <circle cx="12" cy="12" r="6" fill="currentColor" />
+                  </svg>
+                </span>
+                <span className="text-lg font-semibold tabular-nums">{formatClock(recordMs)}</span>
+                <div className="ml-auto flex items-center gap-2">
+                  <button type="button" className="rounded-md border border-red-300 bg-white/70 text-red-700 hover:bg-white px-2 py-1 text-[12px]" onClick={cancelRecording}>Cancel</button>
+                  <button type="button" className="rounded-md bg-red-600 text-white hover:bg-red-700 px-2 py-1 text-[12px] font-medium" onClick={finishRecordingAndSend}>Stop & Send</button>
                 </div>
               </div>
             </EdgeGlassBar>
@@ -593,15 +544,10 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
                 {/* Mic (no text) */}
                 <div className={["absolute inset-0 transition-all duration-150", hasText ? "opacity-0 scale-90 pointer-events-none" : "opacity-100 scale-100"].join(" ")}>
                   <GlassIconButton
-                    aria-label="Hold to record voice note"
-                    draggable={false}
+                    aria-label="Record voice note"
+                    onClick={() => { if (!isRecording) beginRecording(); }}
                     onContextMenu={(e) => e.preventDefault()}
-                    style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", touchAction: "none" as any }}
-                    // Touch
-                    onTouchStart={(e) => onMicPointerDown(e.touches[0].clientX, e.nativeEvent)}
-                    onTouchMove={(e) => onMicPointerMove(e.touches[0].clientX)}
-                    onTouchEnd={onMicPointerUp}
-                    onTouchCancel={cancelRecording}
+                    style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
                   >
                     <MicrophoneIcon className="w-5 h-5 pointer-events-none" />
                   </GlassIconButton>
@@ -691,7 +637,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
               {/* right: mic → send (no long-press on web; click-to-record still works if you want to add it later) */}
               <div className="relative w-9 h-9">
                 <div className={["absolute inset-0 transition-all duration-150", hasText ? "opacity-0 scale-90 pointer-events-none" : "opacity-100 scale-100"].join(" ")}>
-                  <GlassIconButton aria-label="Record voice note" onClick={() => { if (!isRecording) beginRecording(); else finishRecordingAndSend(); }}>
+                  <GlassIconButton aria-label="Record voice note" onClick={() => { if (!isRecording) beginRecording(); }}>
                     <MicrophoneIcon className="w-5 h-5" />
                   </GlassIconButton>
                 </div>
@@ -714,10 +660,10 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
           </GlassBar>
 
           {/* emoji popover — web only & lazy */}
-          {onWeb && showEmojiPicker && EmojiPickerComp && (
+          {onWeb && showEmojiPicker && (
             <div className="relative mt-2">
               <div className="absolute z-50">
-                <EmojiPickerComp
+                <EmojiPicker
                   data={data}
                   onEmojiSelect={(emoji: any) => {
                     if (emoji?.native) setNewMessageContent((prev) => `${prev}${emoji.native}`);
