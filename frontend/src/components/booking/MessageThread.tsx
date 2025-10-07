@@ -5761,7 +5761,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     (newMessageContent.trim() || attachmentFile || imageFiles.length > 0)
                       ? 'opacity-0 scale-90 pointer-events-none'
                       : 'opacity-100 scale-100',
-                    isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'ring-1 ring-black/10 bg-white/55 hover:bg-white/70 text-zinc-700',
+                    isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'ring-1 ring-black/10 bg-whitE hover:bg-white text-zinc-700',
                   ].join(' ')}
                 >
                   {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
