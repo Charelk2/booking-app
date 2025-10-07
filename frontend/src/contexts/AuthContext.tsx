@@ -153,7 +153,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try { void import('@/lib/api').then(m => m.logout()); } catch {}
       setUser(null);
       setArtistViewActive(true);
-      void clearThreadCaches({ includeSession: true });
+      // Do not clear cached threads on session expiration; keep offline history
+      // so the Inbox remains visible during transient outages or quick re-logins.
       try {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('user');
@@ -291,7 +292,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { void import('@/lib/api').then(m => m.logout()); } catch {}
     setUser(null);
     setArtistViewActive(true);
-    void clearThreadCaches({ includeSession: true });
+    // Preserve thread caches across logout to keep chat history visible on next login
+    // even if the server is briefly unavailable.
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('artistViewActive');
