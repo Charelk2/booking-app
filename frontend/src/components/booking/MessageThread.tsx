@@ -72,7 +72,7 @@ import { emissionPayload, getThreadSwitchSnapshot, trackHydrationEvent } from '@
 
 import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';
-import useRealtime from '@/hooks/useRealtime';
+import { useRealtimeContext } from '@/contexts/RealtimeContext';
 import useBookingView from '@/hooks/useBookingView';
 import { useQuotes } from '@/hooks/useQuotes';
 // Non-virtual scroll helpers no longer needed
@@ -2722,7 +2722,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Realtime (multiplex) connection
   // Use cookie-based WS auth for reliability; do not pass stale storage tokens.
-  const { subscribe, publish, status: socketStatus, lastReconnectDelay, forceReconnect } = useRealtime(undefined);
+  const { subscribe, publish, status: socketStatus, lastReconnectDelay, forceReconnect } = useRealtimeContext();
   const topics = useMemo(() => [
     `booking-requests:${bookingRequestId}`,
     `threads:${bookingRequestId}`,

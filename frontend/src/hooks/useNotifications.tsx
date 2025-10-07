@@ -11,7 +11,7 @@ import {
 } from 'react';
 import axios, { type AxiosRequestHeaders } from 'axios';
 import toast from 'react-hot-toast';
-import useRealtime from './useRealtime';
+import { useRealtimeContext } from '@/contexts/RealtimeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Notification, UnifiedNotification } from '@/types';
 import { toUnifiedFromNotification } from './notificationUtils';
@@ -102,7 +102,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [fetchNotifications, token]);
 
-  const { subscribe, publish } = useRealtime(token || undefined);
+  const { subscribe, publish } = useRealtimeContext();
 
   useEffect(() => {
     if (!token) return;

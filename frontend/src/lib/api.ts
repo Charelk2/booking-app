@@ -63,33 +63,33 @@ const withApiOrigin = (path: string) => {
 // Allow sending/receiving HttpOnly cookies
 
 // Automatically attach the bearer token (if present) to every request
+// Disable per-instance pinning entirely. Keep variables for backward compatibility,
+// but do not use or set them. Also clear any stored pins on startup.
 let preferredMachineId: string | null = null;
 let preferredMachineIdTs: number | null = null; // epoch ms
+const DISABLE_INSTANCE_PIN = true;
 try {
   if (typeof window !== 'undefined') {
-    const stored = window.sessionStorage.getItem('fly.preferred_instance');
-    if (stored) preferredMachineId = stored;
     try {
-      const tsRaw = window.sessionStorage.getItem('fly.preferred_instance_ts');
-      if (tsRaw) preferredMachineIdTs = Number(tsRaw);
+      window.sessionStorage.removeItem('fly.preferred_instance');
+      window.sessionStorage.removeItem('fly.preferred_instance_ts');
     } catch {}
   }
 } catch {}
 
 const rememberMachineFromResponse = (headers?: Record<string, unknown>) => {
   try {
-    if (!headers) return;
-    const raw = (headers['fly-machine-id'] ?? headers['Fly-Machine-Id']) as string | undefined;
-    if (raw && raw.trim()) {
-      preferredMachineId = raw.trim();
+    if (DISABLE_INSTANCE_PIN) {
+      // Purge any server-provided machine hints
       try {
         if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem('fly.preferred_instance', preferredMachineId);
-          window.sessionStorage.setItem('fly.preferred_instance_ts', String(Date.now()));
+          window.sessionStorage.removeItem('fly.preferred_instance');
+          window.sessionStorage.removeItem('fly.preferred_instance_ts');
         }
       } catch {}
-      preferredMachineIdTs = Date.now();
+      return;
     }
+    if (!headers) return;
   } catch {}
 };
 
@@ -127,14 +127,9 @@ api.interceptors.request.use(
         }
       }
     } catch {}
-    // Only prefer a specific instance when the pin is fresh
-    const PIN_TTL_MS = 2 * 60 * 1000; // 2 minutes
-    const now = Date.now();
-    const pinFresh = preferredMachineId && preferredMachineIdTs && now - preferredMachineIdTs < PIN_TTL_MS;
-    if (pinFresh && config.headers) {
-      try {
-        (config.headers as any)['Fly-Prefer-Instance'] = preferredMachineId;
-      } catch {}
+    // Do not attach per-instance preference headers
+    if (config.headers) {
+      try { delete (config.headers as any)['Fly-Prefer-Instance']; } catch {}
     }
     return config;
   },
@@ -160,13 +155,11 @@ api.interceptors.response.use(
       let message = extractErrorMessage(detail);
       const originalMessage = error.message;
 
-      // If pinned to a specific machine and we hit a transient upstream error,
-      // unpin and retry once immediately.
+      // On transient upstream errors, ensure we are not pinned and retry once immediately.
       const method = (originalRequest?.method || 'get').toLowerCase();
       const transient = status === 502 || status === 503 || status === 504 || (error.code === 'ECONNABORTED');
-      const hadPinHeader = Boolean(originalRequest?.headers && ((originalRequest.headers as any)['Fly-Prefer-Instance']));
       const canUnpinRetry = transient && !((originalRequest as any)?._unpinnedRetry);
-      if (canUnpinRetry && (hadPinHeader || preferredMachineId)) {
+      if (canUnpinRetry) {
         try {
           if (originalRequest?.headers) delete (originalRequest.headers as any)['Fly-Prefer-Instance'];
           (originalRequest as any)._unpinnedRetry = true;

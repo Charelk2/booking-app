@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMessageThreadsPreview, getMessageThreads, getInboxUnread } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ThreadsUpdatedDetail } from '@/lib/threadsEvents';
-import useRealtime from '@/hooks/useRealtime';
+import { useRealtimeContext } from '@/contexts/RealtimeContext';
 
 export default function useUnreadThreadsCount(pollMs = 30000) {
   const [count, setCount] = useState(0);
@@ -90,7 +90,7 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
     let unsub: (() => void) | null = null;
     try {
       if (user) {
-        const { subscribe } = useRealtime(undefined);
+        const { subscribe } = useRealtimeContext();
         unsub = subscribe('notifications', (payload: any) => {
           try {
             const typ = String(payload?.type || '').toLowerCase();
