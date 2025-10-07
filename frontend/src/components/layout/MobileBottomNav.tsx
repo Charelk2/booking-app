@@ -10,8 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import type { User } from '@/types';
 // Import directly from TSX implementation to avoid potential TDZ
-import useNotifications from '@/hooks/useNotifications.tsx';
-import type { UnifiedNotification } from '@/types';
+import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
 import useScrollDirection from '@/hooks/useScrollDirection';
 import clsx from 'clsx';
 
@@ -28,8 +27,7 @@ interface Item {
 
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const pathname = usePathname();
-  const { items } = useNotifications();
-  const notificationItems = items;
+  const { count: unreadThreadsCount } = useUnreadThreadsCount(30000);
   const scrollDir = useScrollDirection();
   const navRef = useRef<HTMLElement>(null);
 
@@ -65,9 +63,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
     },
   ];
 
-  const unreadMessages = notificationItems
-    .filter((i: UnifiedNotification) => i.type === 'message')
-    .reduce((sum, t: UnifiedNotification) => sum + (t.unread_count || 0), 0);
+  const unreadMessages = unreadThreadsCount;
   const badgeCount = unreadMessages > 99 ? '99+' : String(unreadMessages);
 
   return (

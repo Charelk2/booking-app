@@ -503,10 +503,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               <Bars3Icon className={clsx('h-6 w-6', isAuthVariant ? 'text-gray-900' : 'text-white')} />
             </button>
 
-            {/* MOBILE: messages shortcut with non-flicker unread badge */}
-            {!suppressAccountActions && (
-              <HeaderMessagesLinkMobile unread={unreadThreadsCount} variant={headerVariant} />
-            )}
+            {/* MOBILE: messages shortcut removed to avoid duplicate entry; use bottom nav */}
 
             <Link
               href="/"

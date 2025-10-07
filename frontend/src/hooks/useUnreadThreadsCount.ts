@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMessageThreadsPreview, getMessageThreads, getInboxUnread } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ThreadsUpdatedDetail } from '@/lib/threadsEvents';
+import useRealtime from '@/hooks/useRealtime';
 
 export default function useUnreadThreadsCount(pollMs = 30000) {
   const [count, setCount] = useState(0);
@@ -84,6 +85,25 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
     if (typeof window !== 'undefined') {
       window.addEventListener('threads:updated', handleBump as EventListener);
     }
+    // Realtime: listen to notifications topic directly so header/mobile badges
+    // update even when notifications provider isn’t mounted (e.g., homepage).
+    let unsub: (() => void) | null = null;
+    try {
+      if (user) {
+        const { subscribe } = useRealtime(undefined);
+        unsub = subscribe('notifications', (payload: any) => {
+          try {
+            const typ = String(payload?.type || '').toLowerCase();
+            // React to message-related notifications only
+            if (!typ || (!typ.includes('message') && !typ.includes('thread'))) return;
+            const now = Date.now();
+            if (now - lastEventTsRef.current < 1000) return; // light debounce
+            lastEventTsRef.current = now;
+            void refresh();
+          } catch {}
+        });
+      }
+    } catch {}
     if (pollMs > 0) {
       timerRef.current = setInterval(() => void refresh(), pollMs);
       return () => {
@@ -91,12 +111,14 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
         if (typeof window !== 'undefined') {
           window.removeEventListener('threads:updated', handleBump as EventListener);
         }
+        try { unsub?.(); } catch {}
       };
     }
     return () => {
       if (typeof window !== 'undefined') {
         window.removeEventListener('threads:updated', handleBump as EventListener);
       }
+      try { unsub?.(); } catch {}
     };
   }, [refresh, pollMs, user, loading]);
 
