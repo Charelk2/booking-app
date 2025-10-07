@@ -21,11 +21,11 @@ import dynamic from 'next/dynamic';
 import type { VirtuosoProps } from 'react-virtuoso';
 import { createPortal } from 'react-dom';
 import { format, isValid, differenceInCalendarDays, startOfDay, formatDistanceToNow } from 'date-fns';
-import data from '@emoji-mart/data';
-import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon, MusicalNoteIcon, PaperClipIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, MusicalNoteIcon, PaperClipIcon, SparklesIcon, DocumentTextIcon, FaceSmileIcon } from '@heroicons/react/24/outline';
 import { WordIcon, ExcelIcon, PowerPointIcon, PdfIcon } from '@/components/icons/OfficeIcons';
 import { CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
-import { MicrophoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
+// Composer extracted into ChatComposer
+import ChatComposer from './ChatComposer';
 import ReadReceipt, { type DeliveryState } from '@/components/booking/ReadReceipt';
 
 import {
@@ -90,7 +90,7 @@ import ImagePreviewModal from '@/components/ui/ImagePreviewModal';
 import ThreadDayDivider from './ThreadDayDivider';
 import ThreadMessageGroup from './ThreadMessageGroup';
 
-const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
+// Composer (ChatComposer) handles emoji picker internally
 // Type the dynamic Virtuoso component so TS recognizes its props (totalCount, itemContent, etc.)
 const Virtuoso = dynamic(() => import('react-virtuoso').then((m: any) => m.Virtuoso), { ssr: false }) as unknown as React.ForwardRefExoticComponent<
   VirtuosoProps<any, any> & React.RefAttributes<any>
@@ -1595,13 +1595,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // Cleanup on unmount: abort uploads, clear timers, revoke URLs
   useEffect(() => {
     return () => {
-      try { uploadAbortRef.current?.abort(); } catch {}
       try { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); } catch {}
       try { if (readReceiptTimeoutRef.current) clearTimeout(readReceiptTimeoutRef.current); } catch {}
       try { if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current); } catch {}
-      try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
-      try { if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl); } catch {}
-      try { mediaRecorderRef.current?.stop(); } catch {}
     };
   }, []);
 
@@ -1694,51 +1690,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return `${names.join(' and ')} ${verb} typing...`;
   }, [typingUsers, isSystemTyping, currentArtistId, currentClientId, artistName, clientName]);
 
-  // ---- Textarea metrics
-  useEffect(() => {
-    if (textareaRef.current && textareaLineHeight === 0) {
-      const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.visibility = 'hidden';
-      tempDiv.style.height = 'auto';
-      tempDiv.style.width = '200px';
-      const computedStyle = getComputedStyle(textareaRef.current);
-      tempDiv.style.fontFamily = computedStyle.fontFamily;
-      tempDiv.style.fontSize = computedStyle.fontSize;
-      tempDiv.style.lineHeight = computedStyle.lineHeight;
-      tempDiv.innerText = 'M';
-      document.body.appendChild(tempDiv);
-      setTextareaLineHeight(tempDiv.clientHeight);
-      document.body.removeChild(tempDiv);
-    }
-  }, [textareaRef, textareaLineHeight]);
-
-  const autoResizeTextarea = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta || textareaLineHeight === 0) return;
-    ta.style.height = 'auto';
-
-    const style = getComputedStyle(ta);
-    const padT = parseFloat(style.paddingTop);
-    const bdrT = parseFloat(style.borderTopWidth);
-    const bdrB = parseFloat(style.borderBottomWidth);
-    const maxH = textareaLineHeight * MAX_TEXTAREA_LINES + padT + bdrT + bdrB;
-    const newH = Math.min(ta.scrollHeight, maxH);
-    ta.style.height = `${newH}px`;
-    // Do not adjust message list scroll position on composer growth to avoid jitter while typing
-  }, [textareaLineHeight]);
-  useEffect(() => { autoResizeTextarea(); }, [newMessageContent, autoResizeTextarea]);
-
-  // ---- Dismiss emoji picker if clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (showEmojiPicker && emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
-        setShowEmojiPicker(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showEmojiPicker]);
+  // Composer handles textarea sizing and emoji picker internally
 
   const firstUnreadIndex = useMemo(
     () => messages.findIndex((msg) => msg.sender_id !== myUserId && !msg.is_read),
@@ -3138,73 +3090,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   }, [attachmentFile]);
 
   // Image previews for multiple image attachments
-  useEffect(() => {
-    // Revoke stale URLs
-    return () => {
-      try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
-    };
-  }, []);
-  const addImageFiles = useCallback((files: File[]) => {
-    if (!files.length) return;
-    const imgs = files.filter((f) => f.type.startsWith('image/'));
-    if (!imgs.length) return;
-
-    const shouldTranscode = (file: File) => {
-      const ct = (file.type || '').toLowerCase();
-      const name = (file.name || '').toLowerCase();
-      return ct === 'image/heic' || ct === 'image/heif' || /\.(heic|heif)$/i.test(name);
-    };
-
-    const transcodeToJpeg = async (file: File): Promise<File> => {
-      try {
-        const url = URL.createObjectURL(file);
-        const img = new Image();
-        const loaded: Promise<HTMLImageElement> = new Promise((resolve, reject) => {
-          img.onload = () => resolve(img);
-          img.onerror = (e) => reject(e);
-        });
-        img.crossOrigin = 'anonymous';
-        img.src = url;
-        const el = await loaded;
-        const canvas = document.createElement('canvas');
-        const MAX_W = 4096;
-        const scale = Math.min(1, MAX_W / Math.max(1, el.naturalWidth));
-        canvas.width = Math.max(1, Math.round(el.naturalWidth * scale));
-        canvas.height = Math.max(1, Math.round(el.naturalHeight * scale));
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Canvas not supported');
-        ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
-        const blob: Blob | null = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.9));
-        URL.revokeObjectURL(url);
-        if (!blob) throw new Error('JPEG encode failed');
-        const base = (file.name || 'photo').replace(/\.[^.]+$/, '');
-        return new File([blob], `${base}.jpg`, { type: 'image/jpeg' });
-      } catch {
-        return file; // fallback to original if conversion fails
-      }
-    };
-
-    (async () => {
-      const processed: File[] = [];
-      const urls: string[] = [];
-      for (const f of imgs) {
-        const out = shouldTranscode(f) ? await transcodeToJpeg(f) : f;
-        processed.push(out);
-        try { urls.push(URL.createObjectURL(out)); } catch { urls.push(''); }
-      }
-      setImageFiles((prev) => [...prev, ...processed]);
-      setImagePreviewUrls((prev) => [...prev, ...urls]);
-    })();
-  }, []);
-  const removeImageAt = useCallback((idx: number) => {
-    setImageFiles((prev) => prev.filter((_, i) => i !== idx));
-    setImagePreviewUrls((prev) => {
-      const copy = [...prev];
-      const [removed] = copy.splice(idx, 1);
-      try { if (removed) URL.revokeObjectURL(removed); } catch {}
-      return copy;
-    });
-  }, []);
+  // Attachment/image preview logic moved into ChatComposer
 
   // Virtualized path: Virtuoso handles scrolling.
 
@@ -5450,70 +5336,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         document.body
       )}
 
-      {/* Attachment preview — hide on mobile while details panel open */}
-      {/* Image previews row (multiple) */}
-      {imagePreviewUrls.length > 0 && (
-        <div className={isDetailsPanelOpen ? 'hidden md:flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner' : 'flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner'}>
-          {/* Add more images button on the left */}
-          <input id="image-upload" type="file" accept="image/*" multiple className="hidden" onChange={(e) => addImageFiles(Array.from(e.target.files || []))} />
-          <label htmlFor="image-upload" className="flex-shrink-0 w-10 h-10 rounded-md border border-dashed border-gray-300 bg-white/70 text-gray-600 flex items-center justify-center cursor-pointer hover:bg-white" title="Add images">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-          </label>
-          <div className="flex-1 flex flex-wrap items-center justify-center gap-2 overflow-hidden">
-            {imagePreviewUrls.map((u, i) => (
-              <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200 bg-white">
-            <img src={u} alt={`Preview ${i+1}`} className="w-16 h-16 object-cover object-center" />
-                <button type="button" aria-label="Remove image" className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white/90 border border-gray-200 text-gray-700 flex items-center justify-center hover:bg-white" onClick={() => removeImageAt(i)}>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Non-image attachment preview (audio/video/files) */}
-      {attachmentPreviewUrl && attachmentFile && !attachmentFile.type.startsWith('image/') && (
-        <div className={isDetailsPanelOpen ? 'hidden md:flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner' : 'flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner'}>
-          {attachmentFile && (attachmentFile.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg|wav)$/i.test(attachmentFile.name || '')) ? (
-            (() => {
-              const isVoiceNote = /^voice-note-\d+\./i.test(attachmentFile.name || '');
-              return (
-                <>
-                  <ChatAudioPlayer
-                    initialSrc={attachmentPreviewUrl}
-                    fallbacks={[attachmentPreviewUrl]}
-                    original={attachmentPreviewUrl}
-                    compactWidth="w-full"
-                  />
-                  {!isVoiceNote && (
-                    <span className="text-xs text-gray-700 font-medium">
-                      {attachmentFile.name} ({formatBytes(attachmentFile.size)})
-                    </span>
-                  )}
-                </>
-              );
-            })()
-          ) : attachmentFile && (attachmentFile.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v)$/i.test(attachmentFile.name || '')) ? (
-            <>
-              <video className="w-48 rounded" controls src={attachmentPreviewUrl} preload="metadata" />
-              <span className="text-xs text-gray-700 font-medium">{attachmentFile.name} ({formatBytes(attachmentFile.size)})</span>
-            </>
-          ) : (
-            <>
-              {attachmentFile?.type === 'application/pdf' ? (
-                <DocumentIcon className="w-8 h-8 text-red-600" />)
-                : (<DocumentTextIcon className="w-8 h-8 text-gray-600" />)}
-              <span className="text-xs text-gray-700 font-medium">{attachmentFile?.name} ({formatBytes(attachmentFile.size)})</span>
-            </>
-          )}
-          <button type="button" onClick={() => setAttachmentFile(null)} className="text-xs text-red-600 hover:text-red-700 font-medium" aria-label="Remove attachment">Remove</button>
-        </div>
-      )}
+      {/* Attachment preview UI moved into ChatComposer */}
 
         {/* Composer — hidden on mobile while details panel is open, or entirely when disabled */}
       {(() => { const composerDisabled = Boolean(disableComposer || isModerationThread); return user && !composerDisabled; })() && (
@@ -5546,162 +5369,60 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 />
               </div>
             )}
-            {showEmojiPicker && (
-              <div ref={emojiPickerRef} className="absolute bottom-12 left-0 z-50">
-                <EmojiPicker data={data} onEmojiSelect={handleEmojiSelect} previewPosition="none" />
-              </div>
-            )}
-
-            {/* Reply preview row (full width, single line) */}
-            {replyTarget && (
-              <div className="px-2 pt-1">
-                <div className="w-full rounded-md bg-gray-50 border border-gray-200 px-2 py-1 text-[12px] text-gray-700 flex items-center justify-between">
-                  <div className="min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
-                    Replying to {replyTarget.sender_type === 'client' ? 'Client' : 'You'}: <span className="italic text-gray-500">{replyTarget.content}</span>
-                  </div>
-                  <button type="button" className="ml-2 text-gray-500 hover:text-gray-700 flex-shrink-0" onClick={() => setReplyTarget(null)} aria-label="Cancel reply">
-                    <XMarkIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <form ref={formRef} onSubmit={handleSendMessage} className="flex items-center gap-x-1.5 px-2 pt-1.5 pb-1.5">
-              <input
-                id="file-upload"
-                type="file"
-                className="hidden"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  if (!files.length) return;
-                  const imgs = files.filter((f) => f.type.startsWith('image/'));
-                  const others = files.filter((f) => !f.type.startsWith('image/'));
-                  if (imgs.length) addImageFiles(imgs);
-                  if (others.length) setAttachmentFile(others[0]);
-                }}
-                accept="image/*,application/pdf,audio/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/csv,application/rtf"
-                multiple
-              />
-              <label
-                htmlFor="file-upload"
-                aria-label="Upload attachment"
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-              </label>
-
-
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker((prev) => !prev)}
-                aria-label="Add emoji"
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                <FaceSmileIcon className="w-5 h-5" />
-              </button>
-
-              {/* Voice note */}
-              <button
-                type="button"
-                onClick={async () => {
-                  if (isRecording) {
-                    // stop
-                    mediaRecorderRef.current?.stop();
-                    setIsRecording(false);
-                  } else {
-                    recordedChunksRef.current = [];
-                    try {
-                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                      // Choose a supported audio mime type for widest compatibility
-                      // Prefer Safari-friendly types first; fall back to webm/ogg when available
-                      const candidates = [
-                        'audio/mp4',
-                        'audio/aac',
-                        'audio/mpeg',
-                        'audio/wav',
-                        'audio/webm;codecs=opus',
-                        'audio/webm',
-                        'audio/ogg',
-                      ];
-                      const supported = (candidates as string[]).find((t) => {
-                        try { return typeof (window as any).MediaRecorder !== 'undefined' && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(t); } catch { return false; }
-                      }) || undefined;
-                      const mr = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
-                      mediaRecorderRef.current = mr;
-                      mr.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
-                      mr.onstop = async () => {
-                        const mime = recordedChunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || 'audio/webm';
-                        const blob = new Blob(recordedChunksRef.current, { type: mime });
-                        if (blob.size === 0) return;
-                        const ext = /mp4/i.test(mime)
-                          ? 'm4a'
-                          : /aac/i.test(mime)
-                          ? 'aac'
-                          : /mpeg/i.test(mime)
-                          ? 'mp3'
-                          : /ogg/i.test(mime)
-                          ? 'ogg'
-                          : /wav/i.test(mime)
-                          ? 'wav'
-                          : 'webm';
-                        const file = new File([blob], `voice-note-${Date.now()}.${ext}`, { type: mime });
-                        // Do not auto-send. Stage as attachment so user can press Send.
-                        setAttachmentFile(file);
-                        try { setShowEmojiPicker(false); } catch {}
-                        try { textareaRef.current?.focus(); } catch {}
-                        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
-                      };
-                      mr.start();
-                      setIsRecording(true);
-                    } catch (e) {
-                      console.error('Mic permission error', e);
-                      alert('Microphone permission is required to record voice notes.');
+            <ChatComposer
+              ref={textareaRef}
+              bookingRequestId={bookingRequestId}
+              myUserId={myUserId}
+              userType={user?.user_type === 'service_provider' ? 'service_provider' : 'client'}
+              disabled={Boolean(disableComposer || isModerationThread)}
+              replyTarget={replyTarget ? { id: replyTarget.id, sender_type: replyTarget.sender_type, content: replyTarget.content } : null}
+              onCancelReply={() => setReplyTarget(null)}
+              onTyping={emitTyping}
+              onOptimisticMessage={(optimistic: any) => {
+                setMessages((prev) => {
+                  const next = mergeMessages(prev, optimistic);
+                  writeCachedMessages(bookingRequestId, next);
+                  return next;
+                });
+              }}
+              onFinalizeMessage={(tempId: number, realRaw: any) => {
+                const real = { ...normalizeMessage(realRaw), status: 'sent' as const } as ThreadMessage;
+                setMessages((prev) => {
+                  const byId = new Map<number, ThreadMessage>();
+                  let tempLocalPreview: string | null = null;
+                  let tempWasAudio = false;
+                  let clientKey: string | undefined = undefined;
+                  for (const m of prev) {
+                    if (m.id === tempId) {
+                      const ct = String((m.attachment_meta as any)?.content_type || '').toLowerCase();
+                      tempWasAudio = ct.startsWith('audio/');
+                      tempLocalPreview = (m as any)?.local_preview_url || null;
+                      clientKey = (m as any)?.client_key as string | undefined;
+                      continue;
                     }
+                    byId.set(m.id, m);
                   }
-                }}
-                aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
-                className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'text-gray-500 hover:bg-gray-100'}`}
-              >
-                {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
-              </button>
-
-              {/* Textarea (16px to avoid iOS zoom) */}
-              <div className="flex-1">
-              <textarea
-                ref={textareaRef}
-                value={newMessageContent}
-                onChange={(e) => setNewMessageContent(e.target.value)}
-                onInput={autoResizeTextarea}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    formRef.current?.requestSubmit();
+                  const carryPreview = tempWasAudio ? null : (tempLocalPreview || null);
+                  const merged = { ...real, local_preview_url: carryPreview } as any;
+                  if (clientKey) merged.client_key = clientKey;
+                  byId.set(real.id, merged);
+                  const next = Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                  writeCachedMessages(bookingRequestId, next);
+                  return next;
+                });
+                setUploadProgressById((prev) => { const next = { ...prev }; delete next[tempId]; return next; });
+                try {
+                  if (typeof window !== 'undefined') {
+                    const previewText = String(real.content || '').slice(0, 160);
+                    window.dispatchEvent(new CustomEvent('thread:preview', { detail: { id: bookingRequestId, content: previewText, ts: real.timestamp, unread: false } }));
                   }
-                }}
-                autoFocus
-                rows={1}
-                className="w-full flex-grow rounded-xl px-3 py-1 border border-gray-300 shadow-sm resize-none text-base ios-no-zoom font-medium focus:outline-none min-h-[36px]"
-                placeholder="Type your message..."
-                aria-label="New message input"
-                disabled={isUploadingAttachment}
-              />
-              </div>
-
-              {/* Upload progress moved into the message bubble overlay for clarity */}
-
-              <Button
-                type="submit"
-                aria-label="Send message"
-                className="flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-8 h-8 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isSending || isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                </svg>
-              </Button>
-            </form>
+                } catch {}
+              }}
+              onUploadProgress={(tempId: number, pct: number) => setUploadProgressById((prev) => ({ ...prev, [tempId]: pct }))}
+              onEnqueueOffline={({ tempId, payload }) => enqueueMessage({ tempId, payload })}
+              onError={(msg) => setThreadError(msg)}
+              onMessageSent={() => onMessageSent?.()}
+            />
           </div>
 
           {/* Leave Review (hidden on mobile when panel open) */}
