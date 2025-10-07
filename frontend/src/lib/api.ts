@@ -64,10 +64,15 @@ const withApiOrigin = (path: string) => {
 
 // Automatically attach the bearer token (if present) to every request
 let preferredMachineId: string | null = null;
+let preferredMachineIdTs: number | null = null; // epoch ms
 try {
   if (typeof window !== 'undefined') {
     const stored = window.sessionStorage.getItem('fly.preferred_instance');
     if (stored) preferredMachineId = stored;
+    try {
+      const tsRaw = window.sessionStorage.getItem('fly.preferred_instance_ts');
+      if (tsRaw) preferredMachineIdTs = Number(tsRaw);
+    } catch {}
   }
 } catch {}
 
@@ -80,8 +85,10 @@ const rememberMachineFromResponse = (headers?: Record<string, unknown>) => {
       try {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem('fly.preferred_instance', preferredMachineId);
+          window.sessionStorage.setItem('fly.preferred_instance_ts', String(Date.now()));
         }
       } catch {}
+      preferredMachineIdTs = Date.now();
     }
   } catch {}
 };
@@ -120,7 +127,11 @@ api.interceptors.request.use(
         }
       }
     } catch {}
-    if (preferredMachineId && config.headers) {
+    // Only prefer a specific instance when the pin is fresh
+    const PIN_TTL_MS = 2 * 60 * 1000; // 2 minutes
+    const now = Date.now();
+    const pinFresh = preferredMachineId && preferredMachineIdTs && now - preferredMachineIdTs < PIN_TTL_MS;
+    if (pinFresh && config.headers) {
       try {
         (config.headers as any)['Fly-Prefer-Instance'] = preferredMachineId;
       } catch {}
@@ -149,10 +160,31 @@ api.interceptors.response.use(
       let message = extractErrorMessage(detail);
       const originalMessage = error.message;
 
-      // Lightweight retry for idempotent requests on transient upstream errors
+      // If pinned to a specific machine and we hit a transient upstream error,
+      // unpin and retry once immediately.
       const method = (originalRequest?.method || 'get').toLowerCase();
-      const isIdempotent = method === 'get' || method === 'head' || method === 'options';
       const transient = status === 502 || status === 503 || status === 504 || (error.code === 'ECONNABORTED');
+      const hadPinHeader = Boolean(originalRequest?.headers && ((originalRequest.headers as any)['Fly-Prefer-Instance']));
+      const canUnpinRetry = transient && !((originalRequest as any)?._unpinnedRetry);
+      if (canUnpinRetry && (hadPinHeader || preferredMachineId)) {
+        try {
+          if (originalRequest?.headers) delete (originalRequest.headers as any)['Fly-Prefer-Instance'];
+          (originalRequest as any)._unpinnedRetry = true;
+          // Clear stored pin so subsequent requests won't reuse a dead machine
+          preferredMachineId = null;
+          preferredMachineIdTs = null;
+          try {
+            if (typeof window !== 'undefined') {
+              window.sessionStorage.removeItem('fly.preferred_instance');
+              window.sessionStorage.removeItem('fly.preferred_instance_ts');
+            }
+          } catch {}
+        } catch {}
+        return api(originalRequest!);
+      }
+
+      // Lightweight retry for idempotent requests on transient upstream errors
+      const isIdempotent = method === 'get' || method === 'head' || method === 'options';
       const retryCount = (originalRequest as any)?._retryCount || 0;
       if (isIdempotent && transient && retryCount < 2) {
         const backoff = Math.min(1500, 200 * 2 ** retryCount) + Math.floor(Math.random() * 150);

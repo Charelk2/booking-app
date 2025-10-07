@@ -1728,7 +1728,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     ta.style.height = `${newH}px`;
     // Keep the bottom anchored as the textarea grows (up to MAX_TEXTAREA_LINES)
     try {
-      if (atBottomRef.current === true && virtuosoRef.current) {
+      if (initialLoadedRef.current && atBottomRef.current === true && virtuosoRef.current && virtuosoViewportHeight > 0) {
         const idx = latestIndexRef.current;
         const raf = typeof window !== 'undefined' ? window.requestAnimationFrame : null;
         if (raf) raf(() => { try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {} });
@@ -3341,6 +3341,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     if (!virtuosoRef.current) return;
     if (atBottomRef.current !== true) return;
+    if (!initialLoadedRef.current) return;
+    if (virtuosoViewportHeight <= 0) return;
     const idx = Math.max(0, groupedMessages.length - 1);
     try {
       const raf = typeof window !== 'undefined' ? window.requestAnimationFrame : null;
@@ -3352,6 +3354,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     if (!virtuosoRef.current) return;
     if (atBottomRef.current !== true) return;
+    if (!initialLoadedRef.current) return;
+    if (virtuosoViewportHeight <= 0) return;
     const idx = Math.max(0, groupedMessages.length - 1);
     try { virtuosoRef.current?.scrollToIndex?.({ index: idx, align: 'end', behavior: 'auto' }); } catch {}
   }, [groupedMessages.length, imagePreviewUrls.length, attachmentPreviewUrl]);
