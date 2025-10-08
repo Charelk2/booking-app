@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Set, Tuple
 from weakref import WeakKeyDictionary
 
 # Custom WebSocket close codes mirroring HTTP status codes
@@ -37,6 +37,32 @@ REDIS_URL = os.getenv("WEBSOCKET_REDIS_URL")
 # Keep one Redis client per running loop to avoid cross-loop issues when code
 # runs under different event loops (e.g., tests using asyncio.run()).
 _loop_redis: "WeakKeyDictionary[asyncio.AbstractEventLoop, Any]" = WeakKeyDictionary()
+
+# Short-TTL in-memory cache used only during WS handshakes to reduce DB pressure
+# on reconnect bursts. Maps email -> (user_id, expires_at_ms)
+_USER_ID_CACHE: Dict[str, Tuple[int, float]] = {}
+
+def _cache_get_user_id(email: str) -> int | None:
+    try:
+        uid, exp = _USER_ID_CACHE.get(email, (None, 0))  # type: ignore[assignment]
+        if uid is None:
+            return None
+        now_ms = time.time() * 1000.0
+        if exp <= now_ms:
+            try:
+                del _USER_ID_CACHE[email]
+            except Exception:
+                pass
+            return None
+        return int(uid)
+    except Exception:
+        return None
+
+def _cache_set_user_id(email: str, user_id: int, ttl_ms: int = 5000) -> None:
+    try:
+        _USER_ID_CACHE[email] = (int(user_id), (time.time() * 1000.0) + ttl_ms)
+    except Exception:
+        pass
 
 
 def _get_redis() -> Any | None:
@@ -547,11 +573,30 @@ async def multiplex_ws(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"leeway": 60})
         email = payload.get("sub")
         if email:
-            _db = SessionLocal()
-            try:
-                user = get_user_by_email(_db, email)
-            finally:
-                _db.close()
+            cached = _cache_get_user_id(str(email))
+            if cached is not None:
+                # Create a lightweight user-like object exposing only id
+                class _UserLite:
+                    def __init__(self, id_: int) -> None:
+                        self.id = id_
+
+                user = _UserLite(cached)  # type: ignore[assignment]
+            else:
+                _db = SessionLocal()
+                try:
+                    try:
+                        rec = get_user_by_email(_db, email)
+                    except Exception:
+                        # Close gracefully with 1011 instead of bubbling handshake error
+                        raise WebSocketException(
+                            code=ws_status.WS_1011_INTERNAL_ERROR,
+                            reason="db_unavailable",
+                        )
+                    if rec:
+                        user = rec
+                        _cache_set_user_id(str(email), int(rec.id))
+                finally:
+                    _db.close()
     except JWTError:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
     if not user:

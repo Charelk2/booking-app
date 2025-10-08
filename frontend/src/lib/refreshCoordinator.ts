@@ -58,24 +58,30 @@ if (bc) bc.onmessage = onMessage;
 
 async function leaderRefresh(): Promise<boolean> {
   // Use fetch to avoid axios interceptors recursion.
-  try {
-    const res = await fetch('/auth/refresh', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (res.ok) return true;
-    // Soft-path: if rotated or transient, retry once shortly
-    await new Promise((r) => setTimeout(r, 200));
-    const res2 = await fetch('/auth/refresh', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return res2.ok;
-  } catch {
-    return false;
-  }
+  const attempt = async () => {
+    try {
+      const res = await fetch('/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+  // First try
+  let ok = await attempt();
+  if (ok) return true;
+  // Jittered short backoff (100–300ms)
+  const j1 = 100 + Math.floor(Math.random() * 200);
+  await new Promise((r) => setTimeout(r, j1));
+  ok = await attempt();
+  if (ok) return true;
+  // Optional second retry under 1s total
+  const j2 = 150 + Math.floor(Math.random() * 250);
+  await new Promise((r) => setTimeout(r, j2));
+  return attempt();
 }
 
 export async function ensureFreshAccess(): Promise<void> {
@@ -110,4 +116,3 @@ export async function ensureFreshAccess(): Promise<void> {
   inflight = false;
   if (!ok) throw new Error('refresh failed');
 }
-

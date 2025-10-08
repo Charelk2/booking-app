@@ -1,0 +1,19 @@
+-- pgloader template for SQLite -> Postgres (schema owned by Alembic)
+-- Placeholders:
+--   {{SQLITE_PATH}} : absolute path to SQLite .db file
+--   {{PG_DSN}}      : postgresql://user:pass@127.0.0.1:5432/dbname
+
+LOAD DATABASE
+     FROM sqlite:///{{SQLITE_PATH}}
+     INTO postgresql://{{PG_DSN}}
+
+ WITH data only, batch rows = 1000, workers = 4, on error stop
+
+ SET work_mem to '128MB', maintenance_work_mem to '256MB'
+
+ BEFORE LOAD DO
+ $$
+   -- Defer constraints to avoid FK ordering edge cases during bulk load
+   SET CONSTRAINTS ALL DEFERRED;
+ $$;
+

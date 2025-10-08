@@ -41,6 +41,20 @@ target_metadata = Base.metadata # Point Alembic to your app's metadata
 # ... etc.
 
 
+def _apply_url_override_from_env() -> None:
+    """Override sqlalchemy.url if DB_URL/SQLALCHEMY_DATABASE_URL is set in env.
+
+    Precedence: DB_URL -> SQLALCHEMY_DATABASE_URL -> alembic.ini default.
+    """
+    try:
+        env_url = os.getenv("DB_URL") or os.getenv("SQLALCHEMY_DATABASE_URL")
+        if env_url:
+            config.set_main_option("sqlalchemy.url", env_url)
+    except Exception:
+        # Never break migrations on env reading issues
+        pass
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -53,6 +67,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
+    _apply_url_override_from_env()
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -72,6 +87,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    _apply_url_override_from_env()
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

@@ -15,6 +15,11 @@ import {
   getServiceProviderProfileMe,
 } from '@/lib/api';
 import { clearThreadCaches } from '@/lib/threadCache';
+import { ensureFreshAccess } from '@/lib/refreshCoordinator';
+import { getTransportStateSnapshot, runWithTransport } from '@/lib/transportState';
+
+// Guard to prevent double init in React Strict Mode (dev)
+let __authDidInit = false;
 
 interface AuthContextType {
   user: User | null;
@@ -82,6 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Cookie-only sessions: no token in URL handling
+    if (__authDidInit) {
+      // StrictMode double-invoke guard in dev
+      setLoading(false);
+      return;
+    }
+    __authDidInit = true;
 
     let storedUser: string | null = null;
     let storagePreference: 'local' | 'session' = 'local';
@@ -116,33 +127,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    (async () => {
+    const doBootstrap = async () => {
+      if (!storedUser) {
+        // Anonymous boot: do not call /auth/me
+        setLoading(false);
+        return;
+      }
       try {
-        const userData = await fetchCurrentUserWithArtist({ skipRefresh: !storedUser });
-        setUser(userData);
+        const tryFetchOnce = async (skipRefresh: boolean) => fetchCurrentUserWithArtist({ skipRefresh });
+        let userData: User | null = null;
         try {
-          const serialized = JSON.stringify(userData);
-          if (storagePreference === 'session') {
-            sessionStorage.setItem('user', serialized);
-            localStorage.removeItem('user');
+          userData = await tryFetchOnce(!storedUser);
+        } catch (e: any) {
+          const status = (e?.response?.status ?? e?.status) as number | undefined;
+          if (status === 401 && storedUser) {
+            try {
+              await ensureFreshAccess();
+              userData = await tryFetchOnce(true /* skip interceptor */);
+            } catch (e2) {
+              // One-time refresh failed: expire session cleanly
+              try {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new Event('app:session-expired'));
+                }
+              } catch {}
+              return;
+            }
           } else {
-            localStorage.setItem('user', serialized);
-            sessionStorage.removeItem('user');
+            // Anonymous bootstrap failing is fine; clear any bogus stored state
+            if (!storedUser) {
+              try {
+                localStorage.removeItem('user');
+                sessionStorage.removeItem('user');
+              } catch {}
+            }
+            return;
           }
-        } catch (e) {
-          console.error('Failed to persist user payload:', e);
         }
-      } catch (err) {
-        if (!storedUser) {
+
+        if (userData) {
+          setUser(userData);
           try {
-            localStorage.removeItem('user');
-            sessionStorage.removeItem('user');
-          } catch {}
+            const serialized = JSON.stringify(userData);
+            if (storagePreference === 'session') {
+              sessionStorage.setItem('user', serialized);
+              localStorage.removeItem('user');
+            } else {
+              localStorage.setItem('user', serialized);
+              sessionStorage.removeItem('user');
+            }
+          } catch (e) {
+            console.error('Failed to persist user payload:', e);
+          }
         }
       } finally {
         setLoading(false);
       }
-    })();
+    };
+
+    const ts = getTransportStateSnapshot();
+    if (storedUser && ts && ts.online === false) {
+      // Defer /auth/me until back online; run immediately on reconnect
+      runWithTransport('auth.me.bootstrap', doBootstrap, {
+        initialDelayMs: 0,
+        jitterMs: 150,
+        maxAttempts: 1,
+      });
+      setLoading(false);
+    } else {
+      void doBootstrap();
+    }
   }, []);
 
   // Global handler for session expiration broadcasts from the API layer

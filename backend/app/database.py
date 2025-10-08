@@ -11,13 +11,35 @@ else:
 
 is_sqlite = SQLALCHEMY_DATABASE_URL.startswith("sqlite")
 
+# Configure engine with optional env-driven pool sizing for non-SQLite.
+# Defaults are conservative and safe for most environments; tune via envs
+# when running behind Cloud SQL Proxy / PgBouncer.
+pool_kwargs = {
+    # Avoid stale idle connections causing first-hit failures after inactivity
+    "pool_pre_ping": True,
+}
+if is_sqlite:
+    # SQLite uses a per-process connection; pass connect_args and avoid pool sizing
+    connect_args = {"check_same_thread": False, "timeout": 15}
+else:
+    connect_args = {}
+    try:
+        pool_size = int(os.getenv("DB_POOL_SIZE") or 5)
+        max_overflow = int(os.getenv("DB_MAX_OVERFLOW") or 10)
+        pool_recycle = int(os.getenv("DB_POOL_RECYCLE") or 300)
+        pool_kwargs.update({
+            "pool_size": pool_size,
+            "max_overflow": max_overflow,
+            "pool_recycle": pool_recycle,
+        })
+    except Exception:
+        # Fall back to defaults if env parsing fails
+        pool_kwargs.update({"pool_recycle": 300})
+
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False, "timeout": 15} if is_sqlite else {},
-    # Avoid stale idle connections causing first-hit failures after inactivity
-    pool_pre_ping=True,
-    # Recycle connections periodically to play well with proxies like pgbouncer/LB
-    pool_recycle=300,
+    connect_args=connect_args,
+    **pool_kwargs,
 )
 
 # Apply SQLite pragmas on every connection to reduce lock contention.
