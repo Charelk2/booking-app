@@ -23,6 +23,15 @@ from ..api.api_sound_outreach import kickoff_sound_outreach
 logger = logging.getLogger(__name__)
 
 
+def _status_val(v):
+    """Return a comparable string status for QuoteStatusV2 or raw strings.
+
+    Accepts either an Enum member or a plain string from the database; returns
+    the lowercase enum value consistently for comparisons.
+    """
+    return getattr(v, "value", v)
+
+
 def calculate_totals(quote_in: schemas.QuoteV2Create) -> tuple[Decimal, Decimal]:
     subtotal = sum(item.price for item in quote_in.services)
     subtotal += quote_in.sound_fee + quote_in.travel_fee
@@ -61,7 +70,7 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
         subtotal=subtotal,
         discount=quote_in.discount,
         total=total,
-        status=models.QuoteStatusV2.PENDING,
+        status=models.QuoteStatusV2.PENDING.value,
         expires_at=quote_in.expires_at,
     )
     db.add(db_quote)
@@ -101,7 +110,7 @@ def accept_quote(
     db_quote = get_quote(db, quote_id)
     if not db_quote:
         raise ValueError("Quote not found")
-    if db_quote.status != models.QuoteStatusV2.PENDING:
+    if _status_val(db_quote.status) != models.QuoteStatusV2.PENDING.value:
         raise ValueError("Quote cannot be accepted")
 
     booking_request = db_quote.booking_request
@@ -191,20 +200,20 @@ def accept_quote(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
-    db_quote.status = models.QuoteStatusV2.ACCEPTED
+    db_quote.status = models.QuoteStatusV2.ACCEPTED.value
 
     # Optionally reject other pending quotes for the same request
     others = (
         db.query(models.QuoteV2)
         .filter(
             models.QuoteV2.booking_request_id == db_quote.booking_request_id,
-            models.QuoteV2.status == models.QuoteStatusV2.PENDING,
+            models.QuoteV2.status == models.QuoteStatusV2.PENDING.value,
             models.QuoteV2.id != db_quote.id,
         )
         .all()
     )
     for o in others:
-        o.status = models.QuoteStatusV2.REJECTED
+        o.status = models.QuoteStatusV2.REJECTED.value
 
     booking = models.BookingSimple(
         quote_id=db_quote.id,
@@ -282,10 +291,10 @@ def decline_quote(db: Session, quote_id: int) -> models.QuoteV2:
     db_quote = get_quote(db, quote_id)
     if not db_quote:
         raise ValueError("Quote not found")
-    if db_quote.status != models.QuoteStatusV2.PENDING:
+    if _status_val(db_quote.status) != models.QuoteStatusV2.PENDING.value:
         raise ValueError("Quote cannot be declined")
 
-    db_quote.status = models.QuoteStatusV2.REJECTED
+    db_quote.status = models.QuoteStatusV2.REJECTED.value
     db.commit()
     db.refresh(db_quote)
 
@@ -307,14 +316,14 @@ def expire_pending_quotes(db: Session) -> list[models.QuoteV2]:
     expired = (
         db.query(models.QuoteV2)
         .filter(
-            models.QuoteV2.status == models.QuoteStatusV2.PENDING,
+            models.QuoteV2.status == models.QuoteStatusV2.PENDING.value,
             models.QuoteV2.expires_at != None,
             models.QuoteV2.expires_at < now,
         )
         .all()
     )
     for q in expired:
-        q.status = models.QuoteStatusV2.EXPIRED
+        q.status = models.QuoteStatusV2.EXPIRED.value
     if expired:
         db.commit()
         for q in expired:

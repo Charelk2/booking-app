@@ -43,6 +43,7 @@ def _sqlite_rebuild_referencing_tables(conn) -> None:
 def upgrade() -> None:
     bind = op.get_bind()
     dialect = bind.dialect.name
+    insp = sa.inspect(bind)
 
     if dialect == 'sqlite':
         # If legacy table exists, rename it; else, nothing to do.
@@ -75,8 +76,28 @@ def upgrade() -> None:
                     """
                 ))
     else:
-        # Postgres/MySQL: simple rename; FKs update automatically on Postgres
-        op.rename_table('artist_profiles', 'service_provider_profiles')
+        # Postgres/MySQL path: be tolerant of fresh DBs where artist_profiles never existed
+        tables = set(insp.get_table_names())
+        if 'artist_profiles' in tables:
+            op.rename_table('artist_profiles', 'service_provider_profiles')
+        elif 'service_provider_profiles' not in tables:
+            # Create a minimal service_provider_profiles table so dependent FKs can resolve
+            op.create_table(
+                'service_provider_profiles',
+                sa.Column('user_id', sa.Integer(), primary_key=True),
+                sa.Column('business_name', sa.String(), nullable=True),
+                sa.Column('custom_subtitle', sa.String(), nullable=True),
+                sa.Column('description', sa.Text(), nullable=True),
+                sa.Column('location', sa.String(), nullable=True),
+                sa.Column('hourly_rate', sa.Numeric(10, 2), nullable=True),
+                sa.Column('portfolio_urls', sa.JSON(), nullable=True),
+                sa.Column('portfolio_image_urls', sa.JSON(), nullable=True),
+                sa.Column('specialties', sa.JSON(), nullable=True),
+                sa.Column('profile_picture_url', sa.String(), nullable=True),
+                sa.Column('cover_photo_url', sa.String(), nullable=True),
+                sa.Column('price_visible', sa.Boolean(), nullable=False, server_default=sa.text('TRUE')),
+                sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+            )
 
 
 def downgrade() -> None:
@@ -91,4 +112,3 @@ def downgrade() -> None:
             bind.execute(sa.text("PRAGMA foreign_keys=ON"))
     else:
         op.rename_table('service_provider_profiles', 'artist_profiles')
-

@@ -80,7 +80,10 @@ def get_threads_preview(
     for br in brs:
         last_m = getattr(br, "_last_message", None)
         preview_message = getattr(br, "_preview_message", last_m)
+        # Defensive fallback in case legacy rows lack timestamps
         last_ts = getattr(br, "last_message_timestamp", None) or br.created_at
+        if last_ts is None:
+            last_ts = datetime.utcnow()
         last_actor = "system"
         if last_m:
             if last_m.message_type == models.MessageType.SYSTEM:
@@ -183,6 +186,8 @@ def get_threads_index(
     for br in brs:
         last_m = getattr(br, "_last_message", None)
         last_ts = getattr(br, "last_message_timestamp", None) or br.created_at
+        if last_ts is None:
+            last_ts = datetime.utcnow()
         preview_key = getattr(br, "_preview_key", None)
         preview_args = getattr(br, "_preview_args", None) or {}
 

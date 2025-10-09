@@ -107,6 +107,18 @@ def read_quote(quote_id: int, db: Session = Depends(get_db)):
             {"quote_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    # Defensive: coalesce timestamps for legacy rows
+    try:
+        from datetime import datetime as _dt
+        if not getattr(quote, "created_at", None):
+            quote.created_at = getattr(quote, "updated_at", None) or _dt.utcnow()
+        if not getattr(quote, "updated_at", None):
+            quote.updated_at = quote.created_at
+        db.add(quote)
+        db.commit()
+        db.refresh(quote)
+    except Exception:
+        pass
     return quote
 
 
@@ -118,6 +130,18 @@ def accept_quote(
 ):
     try:
         booking = crud_quote_v2.accept_quote(db, quote_id, service_id=service_id)
+        # Defensive: coalesce timestamps for response
+        try:
+            from datetime import datetime as _dt
+            if not getattr(booking, "created_at", None):
+                booking.created_at = getattr(booking, "updated_at", None) or _dt.utcnow()
+            if not getattr(booking, "updated_at", None):
+                booking.updated_at = booking.created_at
+            db.add(booking)
+            db.commit()
+            db.refresh(booking)
+        except Exception:
+            pass
         logger.info("Quote %s accepted creating booking %s", quote_id, booking.id)
         return booking
     except ValueError as exc:
@@ -151,6 +175,18 @@ def accept_quote(
 def decline_quote(quote_id: int, db: Session = Depends(get_db)):
     try:
         quote = crud_quote_v2.decline_quote(db, quote_id)
+        # Defensive: coalesce timestamps for legacy rows
+        try:
+            from datetime import datetime as _dt
+            if not getattr(quote, "created_at", None):
+                quote.created_at = getattr(quote, "updated_at", None) or _dt.utcnow()
+            if not getattr(quote, "updated_at", None):
+                quote.updated_at = quote.created_at
+            db.add(quote)
+            db.commit()
+            db.refresh(quote)
+        except Exception:
+            pass
         logger.info("Quote %s declined", quote_id)
         return quote
     except ValueError as exc:

@@ -32,6 +32,18 @@ def read_invoice(
             {"invoice_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    # Defensive: ensure timestamps for response validation
+    try:
+        from datetime import datetime as _dt
+        if not getattr(invoice, "created_at", None):
+            invoice.created_at = getattr(invoice, "updated_at", None) or _dt.utcnow()
+        if not getattr(invoice, "updated_at", None):
+            invoice.updated_at = invoice.created_at
+        db.add(invoice)
+        db.commit()
+        db.refresh(invoice)
+    except Exception:
+        pass
     return schemas.InvoiceRead.model_validate(invoice)
 
 
@@ -52,6 +64,17 @@ def mark_invoice_paid(
             status.HTTP_404_NOT_FOUND,
         )
     updated = crud.crud_invoice.mark_paid(db, invoice, mark.payment_method, mark.notes)
+    try:
+        from datetime import datetime as _dt
+        if not getattr(updated, "created_at", None):
+            updated.created_at = getattr(updated, "updated_at", None) or _dt.utcnow()
+        if not getattr(updated, "updated_at", None):
+            updated.updated_at = updated.created_at
+        db.add(updated)
+        db.commit()
+        db.refresh(updated)
+    except Exception:
+        pass
     return schemas.InvoiceRead.model_validate(updated)
 
 

@@ -49,6 +49,44 @@ export function toQuoteV2FromLegacy(legacy: Quote, opts: { clientId?: number } =
   } as QuoteV2;
 }
 
+function getGlobalQuotesMap(): Map<number, QuoteV2> {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const m: Map<number, QuoteV2> = (globalThis as any).__GLOBAL_QUOTES__ || new Map<number, QuoteV2>();
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  if (!(globalThis as any).__GLOBAL_QUOTES__) (globalThis as any).__GLOBAL_QUOTES__ = m;
+  return m;
+}
+
+/** Seed the global quotes cache with known quotes (batch prefetch helper). */
+export function seedGlobalQuotes(quotes: QuoteV2[]) {
+  try {
+    const MAP = getGlobalQuotesMap();
+    quotes.forEach((q) => { if (q && typeof q.id === 'number') MAP.set(q.id, q); });
+  } catch {}
+}
+
+/** Prefetch quotes by ids, normalizing legacy shapes to QuoteV2, and seed global cache. */
+export async function prefetchQuotesByIds(ids: number[]) {
+  const want = Array.from(new Set(ids.filter((n) => Number.isFinite(n) && n > 0))) as number[];
+  if (!want.length) return;
+  try {
+    const MAP = getGlobalQuotesMap();
+    const missing = want.filter((id) => !MAP.has(id));
+    if (!missing.length) return;
+    const batch = await getQuotesBatch(missing);
+    const got = Array.isArray(batch.data) ? (batch.data as any[]) : [];
+    const normalized: QuoteV2[] = got.map((q: any) => {
+      if (q && Array.isArray(q.services)) return q as QuoteV2; // already v2ish
+      try { return toQuoteV2FromLegacy(q as Quote); } catch { return q as QuoteV2; }
+    });
+    seedGlobalQuotes(normalized);
+  } catch {
+    // ignore — prefetch is best-effort
+  }
+}
+
 export function useQuotes(bookingRequestId: number) {
   // Global, cross-instance cache so fast thread switches can render quotes immediately
   // without waiting for network refetch.
@@ -56,10 +94,7 @@ export function useQuotes(bookingRequestId: number) {
   // Note: intentionally module-scoped to persist across hook calls.
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
-  const GLOBAL_QUOTES: Map<number, QuoteV2> = (globalThis as any).__GLOBAL_QUOTES__ || new Map<number, QuoteV2>();
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  if (!(globalThis as any).__GLOBAL_QUOTES__) (globalThis as any).__GLOBAL_QUOTES__ = GLOBAL_QUOTES;
+  const GLOBAL_QUOTES = getGlobalQuotesMap();
 
   const [quotesById, setQuotesById] = useState<Record<number, QuoteV2>>(() => {
     // Seed with any previously known quotes to avoid skeletons on rapid switches
@@ -126,12 +161,18 @@ export function useQuotes(bookingRequestId: number) {
     // Try batch first
     try {
       const batch = await getQuotesBatch(missing);
-      const got = Array.isArray(batch.data) ? batch.data : [];
-      if (got.length) {
-        try { got.forEach((q: QuoteV2) => GLOBAL_QUOTES.set(q.id, q)); } catch {}
-        setQuotesById((prev) => ({ ...prev, ...Object.fromEntries(got.map((q: QuoteV2) => [q.id, q])) }));
+      const got = Array.isArray(batch.data) ? (batch.data as any[]) : [];
+      // Normalize: backend /quotes batch may return legacy Quote rows. Convert
+      // any non-V2 shapes to QuoteV2 so the UI renders immediately.
+      const normalized: QuoteV2[] = got.map((q: any) => {
+        if (q && Array.isArray(q.services)) return q as QuoteV2; // already v2-ish
+        try { return toQuoteV2FromLegacy(q as Quote); } catch { return q as QuoteV2; }
+      });
+      if (normalized.length) {
+        try { normalized.forEach((q: QuoteV2) => GLOBAL_QUOTES.set(q.id, q)); } catch {}
+        setQuotesById((prev) => ({ ...prev, ...Object.fromEntries(normalized.map((q: QuoteV2) => [q.id, q])) }));
       }
-      const received = new Set<number>(got.map((q) => Number(q.id)).filter((n) => Number.isFinite(n)));
+      const received = new Set<number>(normalized.map((q) => Number(q.id)).filter((n) => Number.isFinite(n)));
       const still = missing.filter((id) => !received.has(id));
       // Individual fallback and legacy conversion
       await Promise.all(still.map((id) => ensureQuoteLoaded(id)));

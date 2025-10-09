@@ -21,46 +21,54 @@ def upgrade() -> None:
     bind = op.get_bind()
     insp = sa.inspect(bind)
 
-    # 1) messages.system_key + constraints/indexes (guarded)
+    # 1) messages.system_key + constraints/indexes (guarded, idempotent)
     if 'messages' in insp.get_table_names():
         cols = {c['name'] for c in insp.get_columns('messages')}
         if 'system_key' not in cols:
             op.add_column('messages', sa.Column('system_key', sa.String(), nullable=True))
         # Simple index on system_key
-        try:
+        existing_msg_indexes = {idx['name'] for idx in insp.get_indexes('messages')}
+        if 'ix_messages_system_key' not in existing_msg_indexes and op.f('ix_messages_system_key') not in existing_msg_indexes:
             op.create_index('ix_messages_system_key', 'messages', ['system_key'])
-        except Exception:
-            pass
         # Composite indexes only if requisite columns exist
         if {'booking_request_id', 'timestamp'}.issubset(cols):
-            try:
+            if 'ix_messages_request_time' not in existing_msg_indexes and op.f('ix_messages_request_time') not in existing_msg_indexes:
                 op.create_index('ix_messages_request_time', 'messages', ['booking_request_id', 'timestamp'])
-            except Exception:
-                pass
         if {'booking_request_id', 'message_type', 'timestamp'}.issubset(cols):
-            try:
+            if 'ix_messages_request_type_time' not in existing_msg_indexes and op.f('ix_messages_request_type_time') not in existing_msg_indexes:
                 op.create_index('ix_messages_request_type_time', 'messages', ['booking_request_id', 'message_type', 'timestamp'])
-            except Exception:
-                pass
         # Unique constraint for dedupe only if booking_request_id exists
         if 'booking_request_id' in cols:
+            # Check existing constraints to avoid duplicate creation
+            existing_constraints = []
             try:
+                res = bind.exec_driver_sql(
+                    """
+                    SELECT conname FROM pg_constraint c
+                    JOIN pg_class t ON t.oid = c.conrelid
+                    JOIN pg_namespace n ON n.oid = t.relnamespace
+                    WHERE t.relname = 'messages' AND n.nspname = current_schema()
+                    """
+                )
+                existing_constraints = [r[0] for r in res.fetchall()]
+            except Exception:
+                existing_constraints = []
+            if 'uq_messages_request_system_key' not in existing_constraints:
                 op.create_unique_constraint('uq_messages_request_system_key', 'messages', ['booking_request_id', 'system_key'])
+        # Backfill system_key for booking details summary messages (only if 'content' column exists)
+        if 'content' in cols:
+            try:
+                op.execute(
+                    """
+                    UPDATE messages
+                    SET system_key = 'booking_details_v1'
+                    WHERE (message_type = 'SYSTEM' OR upper(message_type) = 'SYSTEM')
+                      AND system_key IS NULL
+                      AND content LIKE 'Booking details:%'
+                    """
+                )
             except Exception:
                 pass
-        # Backfill system_key for booking details summary messages
-        try:
-            op.execute(
-                """
-                UPDATE messages
-                SET system_key = 'booking_details_v1'
-                WHERE (message_type = 'SYSTEM' OR upper(message_type) = 'SYSTEM')
-                  AND system_key IS NULL
-                  AND content LIKE 'Booking details:%'
-                """
-            )
-        except Exception:
-            pass
         # Dedupe only when booking_request_id exists
         if 'booking_request_id' in cols:
             try:
@@ -80,14 +88,13 @@ def upgrade() -> None:
 
     # 2) notifications composite index for thread grouping
     if 'notifications' in insp.get_table_names():
-        try:
+        existing_notif_indexes = {idx['name'] for idx in insp.get_indexes('notifications')}
+        if 'ix_notifications_user_type_read_time' not in existing_notif_indexes and op.f('ix_notifications_user_type_read_time') not in existing_notif_indexes:
             op.create_index(
                 'ix_notifications_user_type_read_time',
                 'notifications',
                 ['user_id', 'type', 'is_read', 'timestamp']
             )
-        except Exception:
-            pass
 
     # 3) user refresh token/session hardening
     if 'users' in insp.get_table_names():

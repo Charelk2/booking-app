@@ -198,6 +198,17 @@ def read_my_bookings(
             booking.booking_request_id = booking_request_id
         bookings.append(booking)
 
+    # Defensive: ensure timestamps present on legacy rows
+    try:
+        from datetime import datetime as _dt
+        for b in bookings:
+            if not getattr(b, "created_at", None):
+                b.created_at = getattr(b, "updated_at", None) or _dt.utcnow()
+            if not getattr(b, "updated_at", None):
+                b.updated_at = b.created_at
+        db.commit()
+    except Exception:
+        pass
     return bookings
 
 
@@ -221,6 +232,16 @@ def read_artist_bookings(
         .order_by(Booking.start_time.desc())
         .all()
     )
+    try:
+        from datetime import datetime as _dt
+        for b in bookings:
+            if not getattr(b, "created_at", None):
+                b.created_at = getattr(b, "updated_at", None) or _dt.utcnow()
+            if not getattr(b, "updated_at", None):
+                b.updated_at = b.created_at
+        db.commit()
+    except Exception:
+        pass
     return bookings
 
 

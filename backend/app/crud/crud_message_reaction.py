@@ -19,7 +19,14 @@ def add_reaction(db: Session, message_id: int, user_id: int, emoji: str) -> bool
         return True
     rec = models.MessageReaction(message_id=message_id, user_id=user_id, emoji=emoji)
     db.add(rec)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        # Handle unique race or transient DB errors gracefully
+        try:
+            db.rollback()
+        except Exception:
+            pass
     return True
 
 

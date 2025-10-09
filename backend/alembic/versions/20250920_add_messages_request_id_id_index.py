@@ -25,14 +25,18 @@ def upgrade() -> None:
     insp = sa.inspect(bind)
     if TABLE_NAME not in insp.get_table_names():
         return
-    existing = {idx['name'] for idx in insp.get_indexes(TABLE_NAME)}
-    if INDEX_NAME in existing:
-        return
+    # Only create the index if the requisite columns exist
     try:
-        op.create_index(INDEX_NAME, TABLE_NAME, ['booking_request_id', 'id'])
+        cols = {c['name'] for c in insp.get_columns(TABLE_NAME)}
     except Exception:
-        # best-effort — continue even if the index already exists or creation is unsupported
-        pass
+        cols = set()
+    required = {'booking_request_id', 'id'}
+    if not required.issubset(cols):
+        return
+    existing = {idx['name'] for idx in insp.get_indexes(TABLE_NAME)}
+    if INDEX_NAME in existing or op.f(INDEX_NAME) in existing:
+        return
+    op.create_index(INDEX_NAME, TABLE_NAME, ['booking_request_id', 'id'])
 
 
 def downgrade() -> None:
@@ -41,9 +45,6 @@ def downgrade() -> None:
     if TABLE_NAME not in insp.get_table_names():
         return
     existing = {idx['name'] for idx in insp.get_indexes(TABLE_NAME)}
-    if INDEX_NAME not in existing:
+    if INDEX_NAME not in existing and op.f(INDEX_NAME) not in existing:
         return
-    try:
-        op.drop_index(INDEX_NAME, table_name=TABLE_NAME)
-    except Exception:
-        pass
+    op.drop_index(INDEX_NAME, table_name=TABLE_NAME)

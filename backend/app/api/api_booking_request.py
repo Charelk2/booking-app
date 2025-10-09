@@ -160,6 +160,17 @@ def create_booking_request(
     )
     db.commit()
     db.refresh(new_request)
+    # Ensure timestamps present for response validation in legacy DBs lacking defaults
+    if getattr(new_request, "created_at", None) is None:
+        new_request.created_at = datetime.utcnow()
+    if getattr(new_request, "updated_at", None) is None:
+        new_request.updated_at = new_request.created_at
+    try:
+        db.add(new_request)
+        db.commit()
+        db.refresh(new_request)
+    except Exception:
+        db.rollback()
     # Store the initial notes on the booking request but avoid posting them as
     # a separate chat message. The details system message posted later contains
     # these notes, so creating a text message here would duplicate the content.
@@ -235,7 +246,13 @@ def read_my_client_booking_requests(
         limit=limit,
     )
     for req in requests:
+        # Defensive: ensure timestamps present for response validation
+        if getattr(req, "created_at", None) is None:
+            req.created_at = datetime.utcnow()
+        if getattr(req, "updated_at", None) is None:
+            req.updated_at = req.created_at
         for q in req.quotes:
+            # Avoid recursive payloads
             q.booking_request = None
     return requests
 
@@ -263,6 +280,10 @@ def read_my_artist_booking_requests(
         limit=limit,
     )
     for req in requests:
+        if getattr(req, "created_at", None) is None:
+            req.created_at = datetime.utcnow()
+        if getattr(req, "updated_at", None) is None:
+            req.updated_at = req.created_at
         for q in req.quotes:
             q.booking_request = None
     return requests
@@ -348,6 +369,11 @@ def read_booking_request(
         content = preview_label_for_message(last_msg, thread_state=state, sender_display=sender_display)
         setattr(db_request, "last_message_content", content)
         setattr(db_request, "last_message_timestamp", last_msg.timestamp)
+    # Defensive: ensure timestamps present for response validation
+    if getattr(db_request, "created_at", None) is None:
+        db_request.created_at = datetime.utcnow()
+    if getattr(db_request, "updated_at", None) is None:
+        db_request.updated_at = db_request.created_at
     return db_request
 
 

@@ -1,3 +1,4 @@
+import os
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
@@ -11,7 +12,14 @@ def add_column_if_missing(engine: Engine, table: str, column: str, ddl: str) -> 
     column_names = [col["name"] for col in inspector.get_columns(table)]
     if column not in column_names:
         with engine.connect() as conn:
-            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+            # Normalize cross‑DB type names (e.g., DATETIME -> TIMESTAMP on Postgres)
+            normalized = ddl
+            if engine.dialect.name == "postgresql":
+                normalized = (
+                    normalized.replace(" DATETIME", " TIMESTAMP")
+                    .replace(" datetime", " timestamp")
+                )
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {normalized}"))
             conn.commit()
 
 
@@ -139,6 +147,126 @@ def ensure_service_type_column(engine: Engine) -> None:
     )
 
 
+def ensure_service_core_columns(engine: Engine) -> None:
+    """Ensure essential columns exist on the ``services`` table.
+
+    Some deployments started with a minimal ``services`` table (only ``id``),
+    which breaks joins/filters after migrating to Postgres. This adds the core
+    columns used across the app without requiring full Alembic history.
+
+    Columns ensured (SQLite/Postgres safe):
+    - artist_id INTEGER (FK not enforced here for portability)
+    - title VARCHAR NOT NULL DEFAULT ''
+    - description TEXT
+    - price NUMERIC(10,2) NOT NULL DEFAULT 0
+    - duration_minutes INTEGER NOT NULL DEFAULT 0
+    """
+
+    add_column_if_missing(
+        engine,
+        "services",
+        "artist_id",
+        "artist_id INTEGER",
+    )
+    add_column_if_missing(
+        engine,
+        "services",
+        "title",
+        "title VARCHAR NOT NULL DEFAULT ''",
+    )
+    add_column_if_missing(
+        engine,
+        "services",
+        "description",
+        "description TEXT",
+    )
+    add_column_if_missing(
+        engine,
+        "services",
+        "price",
+        "price NUMERIC(10, 2) NOT NULL DEFAULT 0",
+    )
+    add_column_if_missing(
+        engine,
+        "services",
+        "duration_minutes",
+        "duration_minutes INTEGER NOT NULL DEFAULT 0",
+    )
+
+
+def ensure_timestamp_columns(engine: Engine, table: str) -> None:
+    """Ensure created_at and updated_at timestamp columns exist on a table.
+
+    Uses DATETIME (normalized to TIMESTAMP on Postgres) and leaves them nullable
+    to avoid backfilling requirements on existing rows.
+    """
+    add_column_if_missing(engine, table, "created_at", "created_at DATETIME")
+    add_column_if_missing(engine, table, "updated_at", "updated_at DATETIME")
+
+
+def ensure_timestamp_defaults(engine: Engine, table: str) -> None:
+    """Ensure created_at/updated_at have DB defaults for new rows.
+
+    - On Postgres: ALTER COLUMN ... SET DEFAULT NOW()
+    - On SQLite/others: no-op (SQLite cannot alter column defaults easily without a table rewrite)
+    """
+    try:
+        inspector = inspect(engine)
+        if table not in inspector.get_table_names():
+            return
+        if engine.dialect.name != "postgresql":
+            # Best-effort: skip for dialects that don't support ALTER COLUMN ... SET DEFAULT
+            return
+        cols = {c["name"].lower() for c in inspector.get_columns(table)}
+        with engine.connect() as conn:
+            changed = False
+            if "created_at" in cols:
+                try:
+                    conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN created_at SET DEFAULT NOW()"))
+                    changed = True
+                except Exception:
+                    pass
+            if "updated_at" in cols:
+                try:
+                    conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN updated_at SET DEFAULT NOW()"))
+                    changed = True
+                except Exception:
+                    pass
+            if changed:
+                try:
+                    conn.commit()
+                except Exception:
+                    pass
+    except Exception:
+        # Never block startup on default-setting
+        pass
+
+
+def ensure_enum_values(engine: Engine, enum_name: str, values: list[str]) -> None:
+    """Ensure a Postgres ENUM type has at least the given values.
+
+    On SQLite or other dialects, this is a no-op. Values are added idempotently
+    using "ADD VALUE IF NOT EXISTS".
+    """
+    try:
+        if engine.dialect.name != "postgresql":
+            return
+        with engine.connect() as conn:
+            for v in values:
+                try:
+                    conn.execute(text(f"ALTER TYPE {enum_name} ADD VALUE IF NOT EXISTS :val"), {"val": v})
+                except Exception:
+                    # Some Postgres versions don't support parameterizing ADD VALUE
+                    try:
+                        conn.execute(text(f"ALTER TYPE {enum_name} ADD VALUE IF NOT EXISTS '{v}'"))
+                    except Exception:
+                        pass
+            conn.commit()
+    except Exception:
+        # Best-effort; don't block startup on enum ensure
+        pass
+
+
 def ensure_service_status_column(engine: Engine) -> None:
     """Ensure moderation status column exists on services.
 
@@ -155,31 +283,34 @@ def ensure_service_status_column(engine: Engine) -> None:
 def ensure_ledger_tables(engine: Engine) -> None:
     """Create lightweight ledger table if absent (SQLAlchemy metadata won't add to existing DB without migrations)."""
     inspector = inspect(engine)
-    if "ledger_entries" in inspector.get_table_names():
-        return
-    with engine.connect() as conn:
-        conn.execute(text(
+    if "ledger_entries" not in inspector.get_table_names():
+        with engine.connect() as conn:
+            sql = """
+                CREATE TABLE IF NOT EXISTS ledger_entries (
+                  id INTEGER PRIMARY KEY,
+                  booking_id INTEGER,
+                  type VARCHAR NOT NULL,
+                  amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+                  currency VARCHAR(3) NOT NULL DEFAULT 'ZAR',
+                  meta JSON,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
             """
-            CREATE TABLE IF NOT EXISTS ledger_entries (
-              id INTEGER PRIMARY KEY,
-              booking_id INTEGER,
-              type VARCHAR NOT NULL,
-              amount NUMERIC(10,2) NOT NULL DEFAULT 0,
-              currency VARCHAR(3) NOT NULL DEFAULT 'ZAR',
-              meta JSON,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        ))
-        conn.commit()
+            if engine.dialect.name == "postgresql":
+                # Use identity for Postgres
+                sql = sql.replace("id INTEGER PRIMARY KEY", "id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY")
+                sql = sql.replace(" DATETIME", " TIMESTAMP")
+            conn.execute(text(sql))
+            conn.commit()
+    # Ensure autoincrement semantics for existing Postgres tables
+    ensure_identity_pk(engine, "ledger_entries", "id")
 
 
 def ensure_payout_tables(engine: Engine) -> None:
     inspector = inspect(engine)
     if "payouts" not in inspector.get_table_names():
         with engine.connect() as conn:
-            conn.execute(text(
-                """
+            sql = """
                 CREATE TABLE IF NOT EXISTS payouts (
                   id INTEGER PRIMARY KEY,
                   provider_id INTEGER,
@@ -189,39 +320,44 @@ def ensure_payout_tables(engine: Engine) -> None:
                   batch_id VARCHAR,
                   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
-                """
-            ))
+            """
+            if engine.dialect.name == "postgresql":
+                sql = sql.replace("id INTEGER PRIMARY KEY", "id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY")
+                sql = sql.replace(" DATETIME", " TIMESTAMP")
+            conn.execute(text(sql))
             conn.commit()
+    ensure_identity_pk(engine, "payouts", "id")
 
 
 def ensure_dispute_table(engine: Engine) -> None:
     inspector = inspect(engine)
-    if "disputes" in inspector.get_table_names():
-        return
-    with engine.connect() as conn:
-        conn.execute(text(
+    if "disputes" not in inspector.get_table_names():
+        with engine.connect() as conn:
+            sql = """
+                CREATE TABLE IF NOT EXISTS disputes (
+                  id INTEGER PRIMARY KEY,
+                  booking_id INTEGER NOT NULL,
+                  status VARCHAR NOT NULL DEFAULT 'open',
+                  reason VARCHAR,
+                  assigned_admin_id INTEGER,
+                  due_at DATETIME,
+                  notes JSON,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
             """
-            CREATE TABLE IF NOT EXISTS disputes (
-              id INTEGER PRIMARY KEY,
-              booking_id INTEGER NOT NULL,
-              status VARCHAR NOT NULL DEFAULT 'open',
-              reason VARCHAR,
-              assigned_admin_id INTEGER,
-              due_at DATETIME,
-              notes JSON,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        ))
-        conn.commit()
+            if engine.dialect.name == "postgresql":
+                sql = sql.replace("id INTEGER PRIMARY KEY", "id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY")
+                sql = sql.replace(" DATETIME", " TIMESTAMP")
+            conn.execute(text(sql))
+            conn.commit()
+    ensure_identity_pk(engine, "disputes", "id")
 
 
 def ensure_email_sms_event_tables(engine: Engine) -> None:
     inspector = inspect(engine)
     with engine.connect() as conn:
         if "email_events" not in inspector.get_table_names():
-            conn.execute(text(
-                """
+            sql_email = """
                 CREATE TABLE IF NOT EXISTS email_events (
                   id INTEGER PRIMARY KEY,
                   message_id VARCHAR,
@@ -233,11 +369,13 @@ def ensure_email_sms_event_tables(engine: Engine) -> None:
                   payload JSON,
                   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
-                """
-            ))
+            """
+            if engine.dialect.name == "postgresql":
+                sql_email = sql_email.replace("id INTEGER PRIMARY KEY", "id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY")
+                sql_email = sql_email.replace(" DATETIME", " TIMESTAMP")
+            conn.execute(text(sql_email))
         if "sms_events" not in inspector.get_table_names():
-            conn.execute(text(
-                """
+            sql_sms = """
                 CREATE TABLE IF NOT EXISTS sms_events (
                   id INTEGER PRIMARY KEY,
                   sid VARCHAR,
@@ -248,51 +386,61 @@ def ensure_email_sms_event_tables(engine: Engine) -> None:
                   payload JSON,
                   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
-                """
-            ))
+            """
+            if engine.dialect.name == "postgresql":
+                sql_sms = sql_sms.replace("id INTEGER PRIMARY KEY", "id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY")
+                sql_sms = sql_sms.replace(" DATETIME", " TIMESTAMP")
+            conn.execute(text(sql_sms))
         conn.commit()
+    # Ensure identity on existing tables
+    ensure_identity_pk(engine, "email_events", "id")
+    ensure_identity_pk(engine, "sms_events", "id")
 
 
 def ensure_audit_events_table(engine: Engine) -> None:
     inspector = inspect(engine)
-    if "audit_events" in inspector.get_table_names():
-        return
-    with engine.connect() as conn:
-        conn.execute(text(
+    if "audit_events" not in inspector.get_table_names():
+        with engine.connect() as conn:
+            sql = """
+                CREATE TABLE IF NOT EXISTS audit_events (
+                  id INTEGER PRIMARY KEY,
+                  actor_admin_id INTEGER NOT NULL,
+                  entity VARCHAR NOT NULL,
+                  entity_id VARCHAR NOT NULL,
+                  action VARCHAR NOT NULL,
+                  before JSON,
+                  after JSON,
+                  at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
             """
-            CREATE TABLE IF NOT EXISTS audit_events (
-              id INTEGER PRIMARY KEY,
-              actor_admin_id INTEGER NOT NULL,
-              entity VARCHAR NOT NULL,
-              entity_id VARCHAR NOT NULL,
-              action VARCHAR NOT NULL,
-              before JSON,
-              after JSON,
-              at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        ))
-        conn.commit()
+            if engine.dialect.name == "postgresql":
+                sql = sql.replace("id INTEGER PRIMARY KEY", "id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY")
+                sql = sql.replace(" DATETIME", " TIMESTAMP")
+            conn.execute(text(sql))
+            conn.commit()
+    ensure_identity_pk(engine, "audit_events", "id")
 
 
 def ensure_service_moderation_logs(engine: Engine) -> None:
     inspector = inspect(engine)
-    if "service_moderation_logs" in inspector.get_table_names():
-        return
-    with engine.connect() as conn:
-        conn.execute(text(
+    if "service_moderation_logs" not in inspector.get_table_names():
+        with engine.connect() as conn:
+            sql = """
+                CREATE TABLE IF NOT EXISTS service_moderation_logs (
+                  id INTEGER PRIMARY KEY,
+                  service_id INTEGER NOT NULL,
+                  admin_id INTEGER NOT NULL,
+                  action VARCHAR NOT NULL,
+                  reason VARCHAR,
+                  at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
             """
-            CREATE TABLE IF NOT EXISTS service_moderation_logs (
-              id INTEGER PRIMARY KEY,
-              service_id INTEGER NOT NULL,
-              admin_id INTEGER NOT NULL,
-              action VARCHAR NOT NULL,
-              reason VARCHAR,
-              at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        ))
-        conn.commit()
+            if engine.dialect.name == "postgresql":
+                sql = sql.replace("id INTEGER PRIMARY KEY", "id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY")
+                sql = sql.replace(" DATETIME", " TIMESTAMP")
+            conn.execute(text(sql))
+            conn.commit()
+    ensure_identity_pk(engine, "service_moderation_logs", "id")
 
 
 def ensure_performance_indexes(engine: Engine) -> None:
@@ -333,6 +481,63 @@ def ensure_performance_indexes(engine: Engine) -> None:
             conn.commit()
         except Exception:
             conn.rollback()
+
+
+def ensure_message_system_key_index(engine: Engine) -> None:
+    """Ensure an index exists on messages.system_key for ILIKE/starts-with filters.
+
+    On Postgres, also create a functional lower(system_key) index to aid case-insensitive lookups.
+    """
+    inspector = inspect(engine)
+    if "messages" not in inspector.get_table_names():
+        return
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_messages_system_key ON messages(system_key)"))
+            if engine.dialect.name == "postgresql":
+                # Functional index for case-insensitive queries
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_messages_system_key_lower ON messages (lower(system_key))"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+
+def ensure_identity_pk(engine: Engine, table: str, column: str = "id") -> None:
+    """On Postgres, ensure the given table.column autogenerates values.
+
+    Converts an existing INTEGER PK without default to IDENTITY; falls back to a sequence if needed.
+    No-op on non-Postgres.
+    """
+    try:
+        if engine.dialect.name != "postgresql":
+            return
+        inspector = inspect(engine)
+        if table not in inspector.get_table_names():
+            return
+        with engine.begin() as conn:
+            row = conn.execute(
+                text(
+                    "SELECT column_default FROM information_schema.columns "
+                    "WHERE table_name=:t AND column_name=:c"
+                ),
+                {"t": table, "c": column},
+            ).fetchone()
+            default_expr = row[0] if row else None
+            if not default_expr:
+                try:
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE {table} ALTER COLUMN {column} ADD GENERATED BY DEFAULT AS IDENTITY"
+                        )
+                    )
+                except Exception:
+                    # Fallback: attach a sequence default
+                    seq = f"{table}_{column}_seq"
+                    conn.execute(text(f"DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = '{seq}') THEN CREATE SEQUENCE {seq}; END IF; END $$;"))
+                    conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {column} SET DEFAULT nextval('{seq}')"))
+    except Exception:
+        # Best-effort; never block startup
+        pass
 
 
 def ensure_message_type_column(engine: Engine) -> None:
@@ -525,26 +730,70 @@ def ensure_message_reactions_table(engine: Engine) -> None:
       - INDEX on (message_id)
     """
     inspector = inspect(engine)
-    if "message_reactions" in inspector.get_table_names():
-        return
-    ddl = (
-        "CREATE TABLE IF NOT EXISTS message_reactions ("
-        "id INTEGER PRIMARY KEY,"
-        "message_id INTEGER NOT NULL,"
-        "user_id INTEGER NOT NULL,"
-        "emoji VARCHAR NOT NULL,"
-        "created_at DATETIME,"
-        "updated_at DATETIME,"
-        "UNIQUE(message_id, user_id, emoji)"
-        ")"
-    )
-    with engine.begin() as conn:
-        conn.execute(text(ddl))
-        # Best-effort index creation
-        try:
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_msg_reaction_message ON message_reactions(message_id)"))
-        except Exception:
-            pass
+    tables = inspector.get_table_names()
+    is_pg = engine.dialect.name == "postgresql"
+    if "message_reactions" not in tables:
+        # Create table with proper autoincrement semantics per-dialect
+        if is_pg:
+            ddl = (
+                "CREATE TABLE IF NOT EXISTS message_reactions ("
+                "id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,"
+                "message_id INTEGER NOT NULL,"
+                "user_id INTEGER NOT NULL,"
+                "emoji VARCHAR NOT NULL,"
+                "created_at TIMESTAMP,"
+                "updated_at TIMESTAMP,"
+                "UNIQUE(message_id, user_id, emoji)"
+                ")"
+            )
+        else:
+            ddl = (
+                "CREATE TABLE IF NOT EXISTS message_reactions ("
+                "id INTEGER PRIMARY KEY,"
+                "message_id INTEGER NOT NULL,"
+                "user_id INTEGER NOT NULL,"
+                "emoji VARCHAR NOT NULL,"
+                "created_at DATETIME,"
+                "updated_at DATETIME,"
+                "UNIQUE(message_id, user_id, emoji)"
+                ")"
+            )
+        if is_pg:
+            ddl = ddl.replace(" DATETIME", " TIMESTAMP")
+        with engine.begin() as conn:
+            conn.execute(text(ddl))
+            try:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_msg_reaction_message ON message_reactions(message_id)"))
+            except Exception:
+                pass
+    else:
+        # Table exists; on Postgres ensure id is identity/autoincrement for inserts
+        if is_pg:
+            try:
+                with engine.begin() as conn:
+                    row = conn.execute(
+                        text(
+                            "SELECT column_default FROM information_schema.columns "
+                            "WHERE table_name='message_reactions' AND column_name='id'"
+                        )
+                    ).fetchone()
+                    default_expr = row[0] if row else None
+                    if not default_expr:
+                        # Attempt to convert existing id column to identity
+                        try:
+                            conn.execute(
+                                text(
+                                    "ALTER TABLE message_reactions "
+                                    "ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY"
+                                )
+                            )
+                        except Exception:
+                            # Fallback: attach a sequence default
+                            conn.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'message_reactions_id_seq') THEN CREATE SEQUENCE message_reactions_id_seq; END IF; END $$;"))
+                            conn.execute(text("ALTER TABLE message_reactions ALTER COLUMN id SET DEFAULT nextval('message_reactions_id_seq')"))
+            except Exception:
+                # Best-effort; do not block startup
+                pass
 
 
 def ensure_booka_system_user(engine: Engine) -> None:
@@ -731,6 +980,32 @@ def ensure_service_travel_columns(engine: Engine) -> None:
 
 def ensure_booking_simple_columns(engine: Engine) -> None:
     """Add missing columns on ``bookings_simple``."""
+
+    # Core linkage columns used throughout the app
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "quote_id",
+        "quote_id INTEGER",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "artist_id",
+        "artist_id INTEGER",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "client_id",
+        "client_id INTEGER",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "confirmed",
+        "confirmed BOOLEAN NOT NULL DEFAULT TRUE",
+    )
 
     add_column_if_missing(
         engine,

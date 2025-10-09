@@ -103,6 +103,10 @@ from .db_utils import (
     ensure_service_travel_columns,
     ensure_service_type_column,
     ensure_service_status_column,
+    ensure_service_core_columns,
+    ensure_timestamp_columns,
+    ensure_timestamp_defaults,
+    ensure_enum_values,
     ensure_service_managed_markup_column,
     ensure_ledger_tables,
     ensure_payout_tables,
@@ -116,6 +120,7 @@ from .db_utils import (
     ensure_service_provider_contact_columns,
     ensure_service_provider_onboarding_columns,
     ensure_performance_indexes,
+    ensure_message_system_key_index,
     seed_service_categories,
     ensure_service_moderation_logs,
 )
@@ -171,6 +176,9 @@ except Exception as _exc:
     logger.warning("Blank message cleanup skipped: %s", _exc)
 ensure_request_attachment_column(engine)
 ensure_service_type_column(engine)
+ensure_service_core_columns(engine)
+ensure_timestamp_columns(engine, "services")
+ensure_timestamp_defaults(engine, "services")
 ensure_display_order_column(engine)
 ensure_notification_link_column(engine)
 ensure_custom_subtitle_column(engine)
@@ -184,7 +192,23 @@ ensure_service_status_column(engine)
 ensure_mfa_columns(engine)
 ensure_refresh_token_columns(engine)
 ensure_booking_simple_columns(engine)
+ensure_timestamp_columns(engine, "bookings_simple")
+ensure_timestamp_defaults(engine, "bookings_simple")
+ensure_timestamp_columns(engine, "bookings")
+ensure_timestamp_defaults(engine, "bookings")
 ensure_calendar_account_email_column(engine)
+ensure_timestamp_columns(engine, "calendar_accounts")
+ensure_timestamp_defaults(engine, "calendar_accounts")
+ensure_timestamp_columns(engine, "service_provider_profiles")
+ensure_timestamp_defaults(engine, "service_provider_profiles")
+ensure_timestamp_columns(engine, "notifications")
+ensure_timestamp_defaults(engine, "notifications")
+ensure_timestamp_defaults(engine, "users")
+ensure_timestamp_defaults(engine, "admin_users")
+ensure_timestamp_defaults(engine, "booking_requests")
+ensure_timestamp_defaults(engine, "quotes")
+ensure_timestamp_defaults(engine, "quotes_v2")
+ensure_timestamp_defaults(engine, "invoices")
 ensure_user_profile_picture_column(engine)
 ensure_booking_request_travel_columns(engine)
 ensure_sound_outreach_columns(engine)
@@ -198,6 +222,23 @@ seed_service_categories(engine)
 ensure_service_provider_contact_columns(engine)
 ensure_service_provider_onboarding_columns(engine)
 ensure_performance_indexes(engine)
+ensure_message_system_key_index(engine)
+try:
+    # Ensure key enums contain all labels in Postgres
+    from .models.booking_status import BookingStatus
+    from .models.notification import NotificationType
+    from .models.calendar_account import CalendarProvider
+    from .models.quote_v2 import QuoteStatusV2
+    from .models.request_quote import QuoteStatus as QuoteStatusLegacy
+    from .models.invoice import InvoiceStatus
+    ensure_enum_values(engine, "bookingstatus", [s.value for s in BookingStatus])
+    ensure_enum_values(engine, "notificationtype", [s.value for s in NotificationType])
+    ensure_enum_values(engine, "calendarprovider", [s.value for s in CalendarProvider])
+    ensure_enum_values(engine, "quotestatusv2", [s.value for s in QuoteStatusV2])
+    ensure_enum_values(engine, "quotestatus", [s.value for s in QuoteStatusLegacy])
+    ensure_enum_values(engine, "invoicestatus", [s.value for s in InvoiceStatus])
+except Exception as _exc:
+    logger.warning("Enum ensure skipped: %s", _exc)
 ensure_ledger_tables(engine)
 ensure_payout_tables(engine)
 ensure_dispute_table(engine)
@@ -700,7 +741,7 @@ def process_quote_expiration(db):
     expiring = (
         db.query(models.QuoteV2)
         .filter(
-            models.QuoteV2.status == models.QuoteStatusV2.PENDING,
+            models.QuoteV2.status == models.QuoteStatusV2.PENDING.value,
             models.QuoteV2.expires_at != None,
             models.QuoteV2.expires_at > now,
             models.QuoteV2.expires_at <= soon,

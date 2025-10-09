@@ -281,12 +281,12 @@ export default function QuotePeek(props: QuotePeekProps) {
     return Math.round((Number(derivedSubtotal) + Number(fallbackVat)) * 100) / 100;
   }, [hasExplicitTaxes, total, derivedSubtotal, fallbackVat]);
 
-  // Fetch peek reviews (best effort)
+  // Fetch reviews lazily when the details modal opens (best effort)
   const [peekReviews, setPeekReviews] = useState<Review[]>([]);
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!providerId) return;
+      if (!providerId || !open) return;
       try {
         const res = await getServiceProviderReviews(providerId);
         if (!cancelled) setPeekReviews((res.data || []).slice(0, 2));
@@ -294,7 +294,7 @@ export default function QuotePeek(props: QuotePeekProps) {
     }
     load();
     return () => { cancelled = true; };
-  }, [providerId]);
+  }, [providerId, open]);
 
   const demoReviews = useMemo<Review[]>(() => {
     const name = (providerName || '').toLowerCase();

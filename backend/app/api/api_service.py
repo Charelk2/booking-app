@@ -6,6 +6,7 @@ from sqlalchemy import func
 from typing import List
 
 from ..database import get_db
+from datetime import datetime
 
 # Import the actual ServiceProviderProfile model by name
 from ..models.service_provider_profile import ServiceProviderProfile
@@ -36,6 +37,13 @@ def list_services(db: Session = Depends(get_db)):
         .order_by(Service.display_order)
         .all()
     )
+    # Coalesce legacy null timestamps for response validation
+    now = datetime.utcnow()
+    for s in services:
+        if getattr(s, "created_at", None) is None:
+            s.created_at = now
+        if getattr(s, "updated_at", None) is None:
+            s.updated_at = s.created_at or now
     return services
 
 
@@ -152,6 +160,12 @@ def list_my_services(db: Session = Depends(get_db), current_artist=Depends(get_c
         .order_by(Service.display_order)
         .all()
     )
+    now = datetime.utcnow()
+    for s in services:
+        if getattr(s, "created_at", None) is None:
+            s.created_at = now
+        if getattr(s, "updated_at", None) is None:
+            s.updated_at = s.created_at or now
     return services
 
 
@@ -185,6 +199,12 @@ def read_services_by_artist(artist_user_id: int, db: Session = Depends(get_db)):
         .order_by(Service.display_order)
         .all()
     )
+    now = datetime.utcnow()
+    for s in services:
+        if getattr(s, "created_at", None) is None:
+            s.created_at = now
+        if getattr(s, "updated_at", None) is None:
+            s.updated_at = s.created_at or now
     return services
 
 
@@ -224,6 +244,18 @@ def read_service(service_id: int, db: Session = Depends(get_db)):
         setattr(service, "has_pricebook", bool(has_pb))
     except Exception:
         setattr(service, "has_pricebook", False)
+    # Defensive: ensure timestamps present for response validation
+    try:
+        now = datetime.utcnow()
+        if getattr(service, "created_at", None) is None:
+            service.created_at = now
+        if getattr(service, "updated_at", None) is None:
+            service.updated_at = service.created_at or now
+        db.add(service)
+        db.commit()
+        db.refresh(service)
+    except Exception:
+        pass
     return service
 
 

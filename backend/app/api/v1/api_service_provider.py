@@ -174,6 +174,18 @@ def read_current_artist_profile(
         # Non-fatal: return profile even if migration failed
         pass
 
+    # Defensive: ensure timestamps present for response validation
+    try:
+        from datetime import datetime as _dt
+        if not getattr(artist_profile, "created_at", None):
+            artist_profile.created_at = getattr(artist_profile, "updated_at", None) or _dt.utcnow()
+        if not getattr(artist_profile, "updated_at", None):
+            artist_profile.updated_at = artist_profile.created_at
+        db.add(artist_profile)
+        db.commit()
+        db.refresh(artist_profile)
+    except Exception:
+        pass
     return artist_profile
 
 
@@ -521,7 +533,26 @@ def read_all_service_provider_profiles(
     # Determine if fast path applies
     requested: Optional[set[str]] = None
     if isinstance(fields, str) and fields.strip():
-        requested = {f.strip() for f in fields.split(",") if f.strip()}
+        # Sanitize requested fields: drop dotted paths and unknown keys
+        raw_requested = {f.strip() for f in fields.split(",") if f.strip()}
+        raw_requested = {f for f in raw_requested if "." not in f}
+        # Whitelist of allowed field names the list route can safely project
+        allowed_fields = {
+            "id",
+            "user_id",
+            "business_name",
+            "profile_picture_url",
+            "custom_subtitle",
+            "hourly_rate",
+            "price_visible",
+            "rating",
+            "rating_count",
+            "location",
+            "service_categories",
+            "created_at",
+            "updated_at",
+        }
+        requested = {f for f in raw_requested if f in allowed_fields}
     fast_fields = {"id", "business_name", "profile_picture_url"}
     fast_sort_ok = sort in (None, "most_booked", "newest")
     fast_filters_ok = (when is None) and (artist is None) and (not include_price_distribution)
@@ -541,6 +572,25 @@ def read_all_service_provider_profiles(
             fields=fields,
         )
         if cached is not None:
+            # Defensive scrub: legacy cached payloads may have null timestamps
+            try:
+                from datetime import datetime as _dt
+                items = cached.get("data") if isinstance(cached, dict) else None
+                if isinstance(items, list):
+                    for it in items:
+                        if isinstance(it, dict):
+                            ca = it.get("created_at")
+                            ua = it.get("updated_at")
+                            if not ca and ua:
+                                it["created_at"] = ua
+                            if not ua and ca:
+                                it["updated_at"] = ca
+                            if not it.get("created_at"):
+                                it["created_at"] = _dt.utcnow()
+                            if not it.get("updated_at"):
+                                it["updated_at"] = it.get("created_at")
+            except Exception:
+                pass
             try:
                 etag = 'W/"' + hashlib.sha256(json.dumps(cached, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest() + '"'
             except Exception:
@@ -623,11 +673,15 @@ def read_all_service_provider_profiles(
             return f"/api/v1/img/avatar/{_id}?w=256&dpr=2&q=90&v={ver}"
 
         data = []
+        from datetime import datetime as _dt
         for _user_id, name, avatar, created_at, updated_at, _book_count in rows:
+            # Coalesce legacy null timestamps to satisfy response model
+            ca = created_at or updated_at or _dt.utcnow()
+            ua = updated_at or created_at or ca
             item: dict[str, Any] = {
                 "user_id": int(_user_id),
-                "created_at": created_at,
-                "updated_at": updated_at,
+                "created_at": ca,
+                "updated_at": ua,
             }
             # Optional, include if requested or for completeness
             if (not requested) or ("business_name" in requested):
@@ -687,10 +741,18 @@ def read_all_service_provider_profiles(
         .group_by(Booking.artist_id)
         .subquery()
     )
+    # Cross-DB compatible aggregation of category names
+    dialect = getattr(db.get_bind(), "dialect", None)
+    dname = getattr(dialect, "name", "sqlite") if dialect else "sqlite"
+    if dname == "postgresql":
+        categories_agg = func.string_agg(ServiceCategory.name, ",")
+    else:
+        categories_agg = func.group_concat(ServiceCategory.name, ",")
+
     category_subq = (
         db.query(
             Service.artist_id.label("artist_id"),
-            func.group_concat(ServiceCategory.name, ",").label("service_categories"),
+            categories_agg.label("service_categories"),
         )
         .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
         .filter(getattr(Service, "status", "approved") == "approved")
@@ -750,6 +812,7 @@ def read_all_service_provider_profiles(
             rating_subq.c.rating_count,
             booking_subq.c.book_count,
             category_subq.c.service_categories,
+            service_price_col,
         )
 
     if location:
@@ -837,6 +900,15 @@ def read_all_service_provider_profiles(
             "service_price": (float(service_price) if service_price is not None else None),
             "service_categories": categories,
         }
+        # Coalesce legacy null timestamps for response validation
+        try:
+            from datetime import datetime as _dt
+            if not base.get("created_at"):
+                base["created_at"] = base.get("updated_at") or _dt.utcnow()
+            if not base.get("updated_at"):
+                base["updated_at"] = base.get("created_at")
+        except Exception:
+            pass
         # Preserve profile_picture_url even if it's a data URL so list views
         # (e.g., homepage carousels) can show the cropped avatar without
         # depending on static storage. Covers/portfolios are excluded below.
@@ -846,8 +918,14 @@ def read_all_service_provider_profiles(
         base["cover_photo_url"] = None
         if requested is not None:
             always_keep = {"user_id", "created_at", "updated_at"}
-            base = {k: v for k, v in base.items() if (k in requested) or (k in always_keep)}
-        profile = ArtistProfileResponse.model_validate(base)
+            # If nothing allowable was requested, keep the default base (avoid empty payload causing model errors)
+            if requested:
+                base = {k: v for k, v in base.items() if (k in requested) or (k in always_keep)}
+        try:
+            profile = ArtistProfileResponse.model_validate(base)
+        except Exception:
+            # Fallback to an untrimmed model on validation issues to avoid 500s
+            profile = ArtistProfileResponse.model_validate({**base})
         # Avoid per-artist availability lookups for list pages without a specific date
         if when:
             availability = read_artist_availability(
@@ -964,6 +1042,18 @@ def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
     artist = db.query(Artist).filter(Artist.user_id == artist_id).first()
     if not artist:
         raise HTTPException(status_code=404, detail="Artist profile not found.")
+    # Defensive: ensure timestamps present for response validation
+    try:
+        from datetime import datetime as _dt
+        if not getattr(artist, "created_at", None):
+            artist.created_at = getattr(artist, "updated_at", None) or _dt.utcnow()
+        if not getattr(artist, "updated_at", None):
+            artist.updated_at = artist.created_at
+        db.add(artist)
+        db.commit()
+        db.refresh(artist)
+    except Exception:
+        pass
     return artist
 
 

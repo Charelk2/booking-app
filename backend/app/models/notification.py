@@ -1,9 +1,10 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
 
 from .base import BaseModel
+from .types import CaseInsensitiveEnum
 
 class NotificationType(str, enum.Enum):
     NEW_MESSAGE = "new_message"
@@ -21,7 +22,7 @@ class Notification(BaseModel):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    type = Column(Enum(NotificationType), nullable=False)
+    type = Column(CaseInsensitiveEnum(NotificationType, name="notificationtype"), nullable=False)
     message = Column(String, nullable=False)
     link = Column(String, nullable=False)
     is_read = Column(Boolean, default=False)

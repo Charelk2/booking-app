@@ -42,6 +42,8 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const reconnectTimer = useRef<any>(null);
   const pingTimer = useRef<any>(null);
   const attemptsRef = useRef(0);
+  // Track how long a connection stayed open; treat sub‑5s uptimes as failures
+  const openedAtRef = useRef<number | null>(null);
   const subs = useRef<Map<string, Set<RealtimeHandler>>>(new Map());
   const pendingSubTopics = useRef<Set<string>>(new Set());
   const [wsToken, setWsToken] = useState<string | null>(token ?? null);
@@ -105,7 +107,10 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     ws.onopen = () => {
-      attemptsRef.current = 0;
+      // Mark open time; do not reset attempts immediately — only after a
+      // stable open (see onclose schedule below). This prevents infinite
+      // open→close flapping from forever avoiding SSE fallback.
+      openedAtRef.current = Date.now();
       lastDelayRef.current = null;
       setStatus('open');
       try { console.info('[realtime] WS open', { url: wsUrl }); } catch {}
@@ -147,6 +152,17 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     const schedule = (e?: CloseEvent) => {
       try { console.warn('[realtime] WS closed', { code: e?.code, reason: e?.reason }); } catch {}
       if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
+      // If the socket closed soon after opening, count it as a failure toward
+      // SSE fallback. Only consider an open "stable" if it lived >= 10s.
+      const uptimeMs = openedAtRef.current ? (Date.now() - openedAtRef.current) : 0;
+      if (uptimeMs >= 10000) {
+        // Stable connection — reset failure streak
+        attemptsRef.current = 0;
+      } else {
+        // Flap: increase failure streak so we can switch to SSE quickly
+        attemptsRef.current += 1;
+      }
+      openedAtRef.current = null;
       if (e?.code === 4401) {
         // Unauthorized – coordinate refresh with the global refresh coordinator, then reconnect once
         (async () => {
@@ -167,7 +183,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
         })();
         return;
       }
-      attemptsRef.current += 1;
+      // If not already incremented above (stable close), ensure counters reflect a failure
       setFailureCount((c) => c + 1);
       const raw = Math.min(30000, 1000 * 2 ** (attemptsRef.current - 1));
       const jitter = Math.floor(Math.random() * 300);
@@ -177,7 +193,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       try { console.warn('[realtime] WS closed, scheduling reconnect', { code: e?.code, reason: e?.reason, delay }); } catch {}
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       reconnectTimer.current = setTimeout(() => {
-        // Fallback to SSE after 3 failures (was 6)
+        // Fallback to SSE after 3 short‑lived failures or closes
         if (attemptsRef.current >= 3) {
           setMode('sse');
           setStatus('connecting');

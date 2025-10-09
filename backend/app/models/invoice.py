@@ -24,7 +24,16 @@ class Invoice(BaseModel):
     issue_date = Column(Date, nullable=False)
     due_date = Column(Date, nullable=True)
     amount_due = Column(Numeric(10, 2), nullable=False)
-    status = Column(SQLAlchemyEnum(InvoiceStatus), nullable=False, default=InvoiceStatus.UNPAID)
+    # Persist lowercase values to match existing Postgres enum definitions
+    status = Column(
+        SQLAlchemyEnum(
+            InvoiceStatus,
+            name="invoicestatus",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        default=InvoiceStatus.UNPAID,
+    )
     payment_method = Column(String, nullable=True)
     notes = Column(String, nullable=True)
     pdf_url = Column(String, nullable=True)

@@ -15,7 +15,10 @@ import sqlalchemy as sa
 revision: str = '01dc14acc6a1'
 down_revision: Union[str, None] = 'c8f4f76b2a6b'
 branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+# Ensure prerequisites exist before creating reviews
+# - services table: 60101124c3b1_add_media_url_to_services
+# - bookings table: b7c1d2e3f4a5_create_bookings_table_if_missing
+depends_on: Union[str, Sequence[str], None] = ('60101124c3b1', 'b7c1d2e3f4a5')
 
 
 def upgrade() -> None:
@@ -31,7 +34,8 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['booking_id'], ['bookings.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['service_id'], ['services.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['artist_id'], ['artist_profiles.user_id'], ondelete='CASCADE'),
+        # Keep DB-level FK minimal and compatible across rename; app enforces SPP presence
+        sa.ForeignKeyConstraint(['artist_id'], ['users.id'], ondelete='CASCADE'),
     )
 
 

@@ -38,7 +38,16 @@ class QuoteV2(BaseModel):
     subtotal = Column(Numeric(10, 2), nullable=False)
     discount = Column(Numeric(10, 2), nullable=True)
     total = Column(Numeric(10, 2), nullable=False)
-    status = Column(SQLAlchemyEnum(QuoteStatusV2), nullable=False, default=QuoteStatusV2.PENDING)
+    # Persist lowercase values to match existing Postgres enum definitions
+    status = Column(
+        SQLAlchemyEnum(
+            QuoteStatusV2,
+            name="quotestatusv2",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        default=QuoteStatusV2.PENDING,
+    )
     expires_at = Column(DateTime, nullable=True)
 
     booking_request = relationship("BookingRequest")

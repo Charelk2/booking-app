@@ -4,6 +4,7 @@ import sys # Added to handle potential path issues
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy import text as _sa_text
 
 from alembic import context
 
@@ -41,18 +42,11 @@ target_metadata = Base.metadata # Point Alembic to your app's metadata
 # ... etc.
 
 
-def _apply_url_override_from_env() -> None:
-    """Override sqlalchemy.url if DB_URL/SQLALCHEMY_DATABASE_URL is set in env.
-
-    Precedence: DB_URL -> SQLALCHEMY_DATABASE_URL -> alembic.ini default.
-    """
+def _env_db_url() -> str | None:
     try:
-        env_url = os.getenv("DB_URL") or os.getenv("SQLALCHEMY_DATABASE_URL")
-        if env_url:
-            config.set_main_option("sqlalchemy.url", env_url)
+        return os.getenv("DB_URL") or os.getenv("SQLALCHEMY_DATABASE_URL")
     except Exception:
-        # Never break migrations on env reading issues
-        pass
+        return None
 
 
 def run_migrations_offline() -> None:
@@ -67,8 +61,8 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    _apply_url_override_from_env()
-    url = config.get_main_option("sqlalchemy.url")
+    env_url = _env_db_url()
+    url = env_url or config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -87,14 +81,34 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    _apply_url_override_from_env()
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    # Build config section dictionary and override sqlalchemy.url if env present
+    section = config.get_section(config.config_ini_section, {}) or {}
+    env_url = _env_db_url()
+    if env_url:
+        section["sqlalchemy.url"] = env_url
+    connectable = engine_from_config(section, prefix="sqlalchemy.", poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
+        # Pre-flight: ensure alembic_version.version_num can hold long revision ids
+        try:
+            rv = connection.execute(
+                _sa_text(
+                    """
+                    SELECT character_maximum_length
+                    FROM information_schema.columns
+                    WHERE table_name = 'alembic_version'
+                      AND column_name = 'version_num'
+                      AND table_schema = current_schema()
+                    """
+                )
+            ).scalar()
+            if rv is not None and rv < 64:
+                connection.execute(
+                    _sa_text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255)")
+                )
+        except Exception:
+            # Table may not exist yet on brand-new DB; ignore
+            pass
         context.configure(
             connection=connection, target_metadata=target_metadata
         )

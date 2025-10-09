@@ -187,6 +187,18 @@ def read_quote(
             {"quote_id": "Forbidden"},
             status.HTTP_403_FORBIDDEN,
         )
+    # Defensive: ensure timestamps present for response validation
+    try:
+        from datetime import datetime as _dt
+        if not getattr(db_quote, "created_at", None):
+            db_quote.created_at = getattr(db_quote, "updated_at", None) or _dt.utcnow()
+        if not getattr(db_quote, "updated_at", None):
+            db_quote.updated_at = db_quote.created_at
+        db.add(db_quote)
+        db.commit()
+        db.refresh(db_quote)
+    except Exception:
+        pass
     db_quote.booking_request = None
     return db_quote
 
@@ -234,6 +246,18 @@ def read_quotes_for_booking_request(
     quotes = crud.crud_quote.get_quotes_by_booking_request(
         db, booking_request_id=request_id
     )
+    # Defensive: ensure timestamps present for response validation
+    try:
+        from datetime import datetime as _dt
+        for q in quotes:
+            if not getattr(q, "created_at", None):
+                q.created_at = getattr(q, "updated_at", None) or _dt.utcnow()
+            if not getattr(q, "updated_at", None):
+                q.updated_at = q.created_at
+            db.add(q)
+        db.commit()
+    except Exception:
+        pass
     for q in quotes:
         q.booking_request = None
     return quotes

@@ -9,7 +9,6 @@ import { EventPrep } from "@/types";
 import { getEventPrep } from "@/lib/api";
 import useWebSocket from "@/hooks/useWebSocket";
 import { useAuth } from "@/contexts/AuthContext";
-import EventPrepSkeleton from "./EventPrepSkeleton";
 
 // ───────────────────────────────────────────────────────────────────────────────
 // In-memory cache for instant thread switching
@@ -215,10 +214,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
     }
   }, [ep, eventDateISO]);
 
-  // Loading
-  if (initializing) {
-    return <EventPrepSkeleton summaryOnly={summaryOnly} />;
-  }
+  // No skeleton — render a minimal CTA instantly; data hydrates in the background
 
   // CTA when no prep record exists
   if (!ep) {

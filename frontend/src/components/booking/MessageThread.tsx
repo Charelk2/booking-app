@@ -81,12 +81,10 @@ import Button from '../ui/Button';
 import { Spinner } from '@/components/ui';
 import { addMessageReaction, removeMessageReaction } from '@/lib/api';
 import QuoteBubble from './QuoteBubble';
-import QuoteBubbleSkeleton from './QuoteBubbleSkeleton';
 import InlineQuoteForm from './InlineQuoteForm';
 import BookingSummaryCard from './BookingSummaryCard';
 import BookingSummarySkeleton from './BookingSummarySkeleton';
 import { t } from '@/lib/i18n';
-import EventPrepCard from './EventPrepCard';
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal';
 import ThreadDayDivider from './ThreadDayDivider';
 import ThreadMessageGroup from './ThreadMessageGroup';
@@ -129,6 +127,8 @@ const MIN_SCROLL_OFFSET = 24;
 const BOTTOM_GAP_PX = 8;
 // Virtualized list renders full dataset efficiently
 const MAX_TEXTAREA_LINES = 10;
+// Paging thresholds
+const INITIAL_PAGE_SIZE = 100; // first page size; only show top spinner when we likely have more
 // Robust type guards that also recognize our same‑origin proxy
 const _underlyingUrlForProxy = (value?: string | null): string | null => {
   if (!value) return null;
@@ -1557,6 +1557,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     } as any;
   }, [clientName, parsedBookingDetails, bookingRequest, bookingDetails]);
 
+  // Precompute Google Maps query URL once; reuse across quote bubbles
+  const computedQuoteMapUrl = useMemo(() => {
+    try {
+      const tb: any = (bookingRequest as any)?.travel_breakdown || {};
+      const name = (parsedBookingDetails as any)?.location_name || tb.venue_name || tb.place_name || tb.location_name || '';
+      const addr = (parsedBookingDetails as any)?.location || tb.address || tb.event_city || tb.event_town || (bookingRequest as any)?.service?.service_provider?.location || '';
+      const q = [name, addr].filter(Boolean).join(', ');
+      return q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : undefined;
+    } catch {
+      return undefined as any;
+    }
+  }, [bookingRequest, parsedBookingDetails]);
+
   const bookingSummaryReady = useMemo(
     () =>
       Boolean(
@@ -1578,23 +1591,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   const { isClientView: isClientViewFlag, isPaid: isPaidFlag } = useBookingView(user, bookingDetails, paymentInfo, bookingConfirmed);
 
-  // No manual retry UI; quotes load with messages fetch.
-  // Ensure quotes exist even if their message falls outside the current slice (older than 100)
-  useEffect(() => {
-    const hasVisibleQuote = messages.some((m) => Number(m.quote_id) > 0 || (normalizeType(m.message_type) === 'SYSTEM' && (m as any).action === 'review_quote'));
-    if (hasVisibleQuote) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const list = await getQuotesForBookingRequest(bookingRequestId);
-        const ids = Array.isArray(list.data) ? list.data.map((q: any) => Number(q?.id)).filter((n: number) => Number.isFinite(n) && n > 0) : [];
-        if (!cancelled && ids.length) {
-          await ensureQuotesLoaded(ids);
-        }
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, [bookingRequestId, messages, ensureQuotesLoaded]);
+  // Quotes load with the message fetch pipeline; no per-component fetching here.
 
   // When the thread is for admin moderation (e.g., listing approved/rejected),
   // do not show booking-request specific UI like the inline quote editor.
@@ -1607,24 +1604,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return false;
   }, [messages]);
 
-  // A pinned quote card for payment should render even if its original message is out of the loaded slice.
-  const visibleQuoteIds = useMemo(() => {
-    const s = new Set<number>();
-    messages.forEach((m) => { const id = Number(m.quote_id); if (Number.isFinite(id) && id > 0) s.add(id); });
-    return s;
-  }, [messages]);
-  const pinnedQuote = useMemo(() => {
-    const list = Object.values(quotes || {});
-    // Prefer pending, then accepted (if not paid)
-    const pending = list.find((q: any) => String(q?.status || '').toLowerCase() === 'pending');
-    const accepted = list.find((q: any) => String(q?.status || '').toLowerCase() === 'accepted');
-    const candidate = pending || (!isPaidFlag ? accepted : null);
-    if (!candidate) return null;
-    const id = Number((candidate as any).id);
-    if (!Number.isFinite(id) || id <= 0) return null;
-    if (visibleQuoteIds.has(id)) return null;
-    return candidate as any;
-  }, [quotes, visibleQuoteIds, isPaidFlag]);
+  // Pinned quote preview removed — show quotes only inline in the thread
 
   // ---- Focus textarea on mount & thread switch
   useEffect(() => { textareaRef.current?.focus(); }, []);
@@ -1974,9 +1954,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       } else {
         params.mode = 'full';
       }
-      // Ensure attachments and reply previews render correctly on delta/lite
+      // Ensure attachments, reply previews, and quote ids render correctly on delta/lite
       if (params.mode !== 'full') {
-        params.fields = 'attachment_meta,reply_to_preview';
+        params.fields = 'attachment_meta,reply_to_preview,quote_id';
       }
 
       const metadata = {
@@ -2111,7 +2091,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             .map((m) => Number(m.quote_id))
             .filter((qid) => Number.isFinite(qid) && qid > 0)));
           if (quoteIds.length) {
-            await ensureQuotesLoaded(quoteIds);
+            void ensureQuotesLoaded(quoteIds);
           }
         } catch {}
 
@@ -2327,7 +2307,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     lastActivityRef.current = Date.now();
     if (!hasUserActivity) setHasUserActivity(true);
     // Small merge-update fetch to refresh last-seen immediately on mount
-    void fetchMessages({ mode: 'initial', force: true, reason: 'activity-mount', limit: 100, behavior: 'merge_update' });
+    // Prefer incremental if we already have a cursor (e.g., warm cache)
+    const cursor = Number(lastMessageIdRef.current[bookingRequestId]);
+    const hasCursor = Number.isFinite(cursor) && cursor > 0 && (messagesRef.current.length > 0);
+    void fetchMessages({ mode: hasCursor ? 'incremental' : 'initial', force: true, reason: 'activity-mount', limit: hasCursor ? 50 : 80, behavior: 'merge_update' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2335,7 +2318,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     // On thread switch, consider as activity and refresh presence/last-seen snapshot
     lastActivityRef.current = Date.now();
     if (!hasUserActivity) setHasUserActivity(true);
-    void fetchMessages({ mode: 'initial', force: true, reason: 'activity-thread-switch', limit: 100, behavior: 'merge_update' });
+    const cursor = Number(lastMessageIdRef.current[bookingRequestId]);
+    const hasCursor = Number.isFinite(cursor) && cursor > 0 && (messagesRef.current.length > 0);
+    void fetchMessages({ mode: hasCursor ? 'incremental' : 'initial', force: true, reason: 'activity-thread-switch', limit: hasCursor ? 50 : 80, behavior: 'merge_update' });
   }, [bookingRequestId, hasUserActivity, fetchMessages]);
 
   // Consider tab becoming visible as user activity (e.g., navigating back to inbox)
@@ -2344,12 +2329,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (document.visibilityState === 'visible') {
         lastActivityRef.current = Date.now();
         if (!hasUserActivity) setHasUserActivity(true);
-        void fetchMessages({ mode: 'initial', force: true, reason: 'activity-visible', limit: 100, behavior: 'merge_update' });
+        const cursor = Number(lastMessageIdRef.current[bookingRequestId]);
+        const hasCursor = Number.isFinite(cursor) && cursor > 0 && (messagesRef.current.length > 0);
+        void fetchMessages({ mode: hasCursor ? 'incremental' : 'initial', force: true, reason: 'activity-visible', limit: hasCursor ? 40 : 80, behavior: 'merge_update' });
       }
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [hasUserActivity, fetchMessages]);
+  }, [hasUserActivity, fetchMessages, bookingRequestId]);
 
   const respondToSupplierInvite = useCallback(
     async (msgId: number, decision: 'accept' | 'decline', program: string) => {
@@ -2432,14 +2419,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       // Honor immediate flag from notifications to bypass debounce and render quickly
       if (detail.immediate) {
         lastFetchAtRef.current = now;
-        try { console.info('[thread] threads:updated immediate → full merge-update'); } catch {}
-        void fetchMessages({ mode: 'initial', force: true, reason: detail.reason || 'threads:updated:immediate', limit: 100, behavior: 'merge_update' });
+        const cursor = Number(lastMessageIdRef.current[bookingRequestId]);
+        const hasCursor = Number.isFinite(cursor) && cursor > 0 && (messagesRef.current.length > 0);
+        try { console.info('[thread] threads:updated immediate →', hasCursor ? 'delta merge-update' : 'full merge-update'); } catch {}
+        void fetchMessages({ mode: hasCursor ? 'incremental' : 'initial', force: true, reason: detail.reason || 'threads:updated:immediate', limit: hasCursor ? 50 : 80, behavior: 'merge_update' });
         return;
       }
       if (now - lastFetchAtRef.current < 800) return; // debounce
       lastFetchAtRef.current = now;
-      try { console.info('[thread] threads:updated → full merge-update'); } catch {}
-      void fetchMessages({ mode: 'initial', force: true, reason: detail.reason || 'threads:updated', limit: 100, behavior: 'merge_update' });
+      const cursor = Number(lastMessageIdRef.current[bookingRequestId]);
+      const hasCursor = Number.isFinite(cursor) && cursor > 0 && (messagesRef.current.length > 0);
+      try { console.info('[thread] threads:updated →', hasCursor ? 'delta merge-update' : 'full merge-update'); } catch {}
+      void fetchMessages({ mode: hasCursor ? 'incremental' : 'initial', force: true, reason: detail.reason || 'threads:updated', limit: hasCursor ? 50 : 80, behavior: 'merge_update' });
     };
     try { window.addEventListener('threads:updated', onThreadsUpdated as any); } catch {}
     return () => { try { window.removeEventListener('threads:updated', onThreadsUpdated as any); } catch {} };
@@ -2471,7 +2462,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     if (!bookingRequestId) return;
     missingThreadRef.current = false;
-    void fetchMessages({ mode: 'initial', force: true, reason: 'auth-change', limit: 100, behavior: 'merge_update' });
+    const cursor = Number(lastMessageIdRef.current[bookingRequestId]);
+    const hasCursor = Number.isFinite(cursor) && cursor > 0 && (messagesRef.current.length > 0);
+    void fetchMessages({ mode: hasCursor ? 'incremental' : 'initial', force: true, reason: 'auth-change', limit: hasCursor ? 50 : 80, behavior: 'merge_update' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, bookingRequestId]);
 
@@ -2764,7 +2757,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           const list = await getQuotesForBookingRequest(bookingRequestId);
           const ids = Array.isArray(list.data) ? list.data.map((q: any) => Number(q?.id)).filter((n: number) => Number.isFinite(n) && n > 0) : [];
           if (ids.length) {
-            await ensureQuotesLoaded(ids);
+            void ensureQuotesLoaded(ids);
           }
         } catch {}
         if (mocked) {
@@ -2868,7 +2861,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         try { console.warn('[thread] Realtime not open; polling for updates'); } catch {}
         void fetchMessages({ mode: 'initial', force: true, reason: 'poll-read', limit: 100, behavior: 'merge_update' });
       };
-      tick();
+      // Do not run an immediate tick — frequent WS flaps can otherwise create
+      // a burst of immediate fetches. Keep a steady interval instead.
       timer = setInterval(tick, 8000);
     };
     const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
@@ -3125,7 +3119,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             .map((m) => Number(m.quote_id))
             .filter((qid) => Number.isFinite(qid) && qid > 0)));
           if (quoteIds.length) {
-            await ensureQuotesLoaded(quoteIds);
+            void ensureQuotesLoaded(quoteIds);
           }
         } catch {}
         setMessages((prev) => {
@@ -3227,8 +3221,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         // If realtime just delivered something, skip duplicate fetch to prevent flicker
         const rtRecent = Date.now() - (lastRealtimeAtRef.current || 0) < 1200;
         if ((!Number.isFinite(id) || id === bookingRequestId) && !rtRecent) {
-          try { console.info('[thread] notification → full merge-update', { threadId: bookingRequestId }); } catch {}
-          void fetchMessages({ mode: 'initial', force: true, reason: 'notification', limit: 100, behavior: 'merge_update' });
+          const cursor = Number(lastMessageIdRef.current[bookingRequestId]);
+          const hasCursor = Number.isFinite(cursor) && cursor > 0 && (messagesRef.current.length > 0);
+          try { console.info('[thread] notification →', hasCursor ? 'delta merge-update' : 'full merge-update', { threadId: bookingRequestId }); } catch {}
+          void fetchMessages({ mode: hasCursor ? 'incremental' : 'initial', force: true, reason: 'notification', limit: hasCursor ? 50 : 80, behavior: 'merge_update' });
         }
       } catch {}
     });
@@ -3686,6 +3682,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             if (isQuoteMessage) {
               const quoteData = quotes[quoteId];
               if (!quoteData) {
+                // Super-basic placeholder: render a compact quote line without skeletons/spinners
                 return (
                   <div
                     key={msg.id}
@@ -3693,7 +3690,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     className="mb-0.5 w-full"
                     ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                   >
-                    <QuoteBubbleSkeleton />
+                    <div className={`rounded-xl px-3 py-2 text-sm ${isMsgFromSelf ? 'bg-blue-50 text-gray-900' : 'bg-gray-50 text-gray-900'}`}
+                         aria-label="Quote pending details">
+                      <div className="font-semibold">Quote</div>
+                      <div className="text-[12px] text-gray-600">Loading quote details…</div>
+                    </div>
                   </div>
                 );
               }
@@ -3720,8 +3721,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
                   <MemoQuoteBubble
                     quoteId={quoteId}
-                    description={quoteData.services[0]?.description || ''}
-                    price={Number(quoteData.services[0]?.price || 0)}
+                    description={quoteData.services?.[0]?.description || ''}
+                    price={Number(quoteData.services?.[0]?.price || 0)}
                     soundFee={Number(quoteData.sound_fee)}
                     travelFee={Number(quoteData.travel_fee)}
                     accommodation={quoteData.accommodation || undefined}
@@ -3749,13 +3750,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     providerRating={bookingDetails?.service?.service_provider?.rating as any}
                     providerRatingCount={bookingDetails?.service?.service_provider?.rating_count as any}
                     providerVerified={true}
-                    mapUrl={(() => {
-                      const tb: any = (bookingRequest as any)?.travel_breakdown || {};
-                      const name = (parsedBookingDetails as any)?.location_name || tb.venue_name || tb.place_name || tb.location_name || '';
-                      const addr = (parsedBookingDetails as any)?.location || tb.address || tb.event_city || tb.event_town || (bookingRequest as any)?.service?.service_provider?.location || '';
-                      const q = [name, addr].filter(Boolean).join(', ');
-                      return (q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : undefined) as any;
-                    })()}
+                    mapUrl={computedQuoteMapUrl as any}
                     includes={(() => {
                       const arr: string[] = [];
                       if (Number(quoteData.sound_fee) > 0) arr.push('Sound equipment');
@@ -5295,19 +5290,27 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               computeItemKey={(index) => groupIds[index]}
               itemContent={(index: number) => <div className="w-full">{renderGroupAtIndex(index)}</div>}
               components={{
-                Header: () => (
-                  loadingOlder ? (
+                Header: () => {
+                  const hasEnoughToPage = groupedMessages.length >= INITIAL_PAGE_SIZE;
+                  const hasMore = !reachedHistoryStartRef.current;
+                  const show = loadingOlder && hasEnoughToPage && hasMore;
+                  return show ? (
                     <div className="py-1 flex justify-center" aria-label="Loading earlier messages">
                       <Spinner size="sm" />
                     </div>
-                  ) : null
-                ),
+                  ) : null;
+                },
               }}
               // Open at bottom but do not animate scrolling on first render
               followOutput={true}
               initialTopMostItemIndex={groupedMessages.length > 0 ? groupedMessages.length - 1 : 0}
               style={{ height: Math.max(1, virtuosoViewportHeight), width: '100%' }}
-              startReached={() => { void fetchOlder(); }}
+              startReached={() => {
+                // Only fetch older when we have at least one full page loaded
+                if (groupedMessages.length >= INITIAL_PAGE_SIZE && !reachedHistoryStartRef.current) {
+                  void fetchOlder();
+                }
+              }}
               atBottomStateChange={(atBottom: boolean) => {
                 setShowScrollButton(!atBottom);
                 setIsUserScrolledUp(!atBottom);
@@ -5646,59 +5649,42 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 : 'block sticky bottom-0 z-[60] bg-white shadow pb-safe flex-shrink-0 relative'
             }
           >
-            {/* Pinned quote (always visible when actionable and missing from current slice) */}
-            {pinnedQuote && (
-              <div className="px-2 pt-2">
-                {(() => {
-                  const q: any = pinnedQuote;
-                  const desc = (q.services?.[0]?.description || 'Quote');
-                  const statusLabel = String(q.status || '').toLowerCase() === 'accepted' ? 'Accepted' : 'Pending';
-                  return (
-                    <MemoQuoteBubble
-                      quoteId={q.id}
-                      description={desc}
-                      price={Number(q.services?.[0]?.price || 0)}
-                      soundFee={Number(q.sound_fee || 0)}
-                      travelFee={Number(q.travel_fee || 0)}
-                      accommodation={q.accommodation || undefined}
-                      discount={(q as any).discount != null ? Number((q as any).discount) : undefined}
-                      subtotal={Number(q.subtotal || 0)}
-                      total={Number(q.total || 0)}
-                      status={statusLabel as any}
-                      expiresAt={q.expires_at || undefined}
-                      isClientView={user?.user_type === 'client'}
-                      isPaid={isPaidFlag}
-                      onAccept={user?.user_type === 'client' && String(q.status || '').toLowerCase() === 'pending' && !isPaidFlag ? (() => { void handleAcceptQuote(q as any); }) : undefined}
-                      onPayNow={() => {
-                        if (user?.user_type !== 'client' || isPaidFlag) return;
-                        if (String(q.status || '').toLowerCase() === 'pending') {
-                          void handleAcceptQuote(q as any);
-                        } else {
-                          setIsPaymentOpen(true);
-                        }
-                      }}
-                    />
-                  );
-                })()}
-              </div>
-            )}
+            {/* Pinned quote preview in composer removed per request */}
             {/* Event Prep: show as a bottom bar above the composer, always in view */}
             {(() => {
-              const accepted = Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id);
+              const accepted = Object.values(quotes)
+                .find((q: any) => q?.booking_request_id === bookingRequestId && q?.status === 'accepted' && q?.booking_id);
               const bookingIdForPrep = (bookingDetails as any)?.id || (accepted as any)?.booking_id || null;
-              // Show Event Prep whenever a booking exists (accepted quote created a booking),
-              // do not gate on env flag to ensure it’s visible.
-              return Boolean(bookingIdForPrep);
+              return bookingIdForPrep || null;
             })() && (
               <div className="px-1 border-b border-gray-100 bg-white">
-                <EventPrepCard
-                  bookingId={(bookingDetails as any)?.id || (Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id) as any)?.booking_id}
-                  bookingRequestId={bookingRequestId}
-                  eventDateISO={(bookingDetails as any)?.start_time || (parsedBookingDetails as any)?.date}
-                  canEdit={Boolean(user)}
-                  onContinuePrep={(id) => router.push(`/dashboard/events/${id}`)}
-                  summaryOnly
-                />
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    const accepted = Object.values(quotes)
+                      .find((q: any) => q?.booking_request_id === bookingRequestId && q?.status === 'accepted' && q?.booking_id);
+                    const bid = (bookingDetails as any)?.id || (accepted as any)?.booking_id;
+                    if (bid) router.push(`/dashboard/events/${bid}`);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      const accepted = Object.values(quotes)
+                        .find((q: any) => q?.booking_request_id === bookingRequestId && q?.status === 'accepted' && q?.booking_id);
+                      const bid = (bookingDetails as any)?.id || (accepted as any)?.booking_id;
+                      if (bid) router.push(`/dashboard/events/${bid}`);
+                    }
+                  }}
+                  className="cursor-pointer rounded-2xl border border-gray-200 bg-white px-3 py-2"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[12px] font-semibold text-gray-700">Let’s prep your event</div>
+                      <div className="text-[11px] text-gray-600">A quick checklist to keep the day smooth.</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
             {showEmojiPicker && (

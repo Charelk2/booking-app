@@ -11,7 +11,8 @@ import sqlalchemy as sa
 revision: str = '05c00e13a615'
 down_revision: Union[str, None] = '80a1b6c7d8a9'
 branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+# Ensure quotes_v2 exists before creating invoices with FK to quotes_v2
+depends_on: Union[str, Sequence[str], None] = ('b0a1c2d3e4f5',)
 
 
 def upgrade() -> None:

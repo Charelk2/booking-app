@@ -727,7 +727,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                               {({ active }) => (
                                 <button
                                   type="button"
-                                  onClick={() => setShowBecomeProvider(true)}
+                                  onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                                   className={clsx(
                                     'group flex w-full items-center px-4 py-2 text-sm',
                                     'text-black',

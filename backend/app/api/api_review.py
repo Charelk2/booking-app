@@ -73,6 +73,18 @@ def create_review_for_booking(
     db.add(db_review)
     db.commit()
     db.refresh(db_review)
+    # Defensive: ensure timestamps present
+    try:
+        from datetime import datetime as _dt
+        if not getattr(db_review, "created_at", None):
+            db_review.created_at = getattr(db_review, "updated_at", None) or _dt.utcnow()
+        if not getattr(db_review, "updated_at", None):
+            db_review.updated_at = db_review.created_at
+        db.add(db_review)
+        db.commit()
+        db.refresh(db_review)
+    except Exception:
+        pass
     return db_review
 
 
@@ -88,6 +100,18 @@ def get_review(booking_id: int, db: Session = Depends(get_db)) -> Any:
             {"booking_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    # Coalesce timestamps on legacy rows
+    try:
+        from datetime import datetime as _dt
+        if not getattr(review, "created_at", None):
+            review.created_at = getattr(review, "updated_at", None) or _dt.utcnow()
+        if not getattr(review, "updated_at", None):
+            review.updated_at = review.created_at
+        db.add(review)
+        db.commit()
+        db.refresh(review)
+    except Exception:
+        pass
     return review
 
 
@@ -117,6 +141,17 @@ def list_reviews_for_service_provider(service_provider_id: int, db: Session = De
         .order_by(Review.created_at.desc())
         .all()
     )
+    # Coalesce timestamps on legacy rows
+    try:
+        from datetime import datetime as _dt
+        for r in reviews:
+            if not getattr(r, "created_at", None):
+                r.created_at = getattr(r, "updated_at", None) or _dt.utcnow()
+            if not getattr(r, "updated_at", None):
+                r.updated_at = r.created_at
+        db.commit()
+    except Exception:
+        pass
     return reviews
 
 
@@ -142,6 +177,17 @@ def list_reviews_for_service(service_id: int, db: Session = Depends(get_db)) -> 
         .order_by(Review.created_at.desc())
         .all()
     )
+    # Coalesce timestamps on legacy rows
+    try:
+        from datetime import datetime as _dt
+        for r in reviews:
+            if not getattr(r, "created_at", None):
+                r.created_at = getattr(r, "updated_at", None) or _dt.utcnow()
+            if not getattr(r, "updated_at", None):
+                r.updated_at = r.created_at
+        db.commit()
+    except Exception:
+        pass
     return reviews
 
 

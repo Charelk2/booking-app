@@ -18,36 +18,36 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Add indexes for common booking queries (guarded for SQLite/missing tables)."""
+    """Add indexes for common booking queries without aborting transactions.
+
+    Guard against missing tables and pre-existing indexes by introspecting
+    current state before creating.
+    """
     bind = op.get_bind()
     insp = sa.inspect(bind)
     tables = set(insp.get_table_names())
 
-    if 'bookings' in tables:
+    def ensure_index(table: str, name: str, columns: list[str]):
+        if table not in tables:
+            return
         try:
-            op.create_index(op.f('ix_bookings_artist_id'), 'bookings', ['artist_id'])
+            existing = {idx['name'] for idx in insp.get_indexes(table)}
         except Exception:
-            pass
-        try:
-            op.create_index(op.f('ix_bookings_status'), 'bookings', ['status'])
-        except Exception:
-            pass
-        try:
-            op.create_index(op.f('ix_bookings_start_time'), 'bookings', ['start_time'])
-        except Exception:
-            pass
+            existing = set()
+        if name in existing or op.f(name) in existing:
+            return
+        op.create_index(op.f(name), table, columns)
 
-    if 'booking_requests' in tables:
-        for idx_name, col in [
-            ('ix_booking_requests_artist_id', 'artist_id'),
-            ('ix_booking_requests_status', 'status'),
-            ('ix_booking_requests_proposed_datetime_1', 'proposed_datetime_1'),
-            ('ix_booking_requests_proposed_datetime_2', 'proposed_datetime_2'),
-        ]:
-            try:
-                op.create_index(op.f(idx_name), 'booking_requests', [col])
-            except Exception:
-                pass
+    # bookings indexes
+    ensure_index('bookings', 'ix_bookings_artist_id', ['artist_id'])
+    ensure_index('bookings', 'ix_bookings_status', ['status'])
+    ensure_index('bookings', 'ix_bookings_start_time', ['start_time'])
+
+    # booking_requests indexes
+    ensure_index('booking_requests', 'ix_booking_requests_artist_id', ['artist_id'])
+    ensure_index('booking_requests', 'ix_booking_requests_status', ['status'])
+    ensure_index('booking_requests', 'ix_booking_requests_proposed_datetime_1', ['proposed_datetime_1'])
+    ensure_index('booking_requests', 'ix_booking_requests_proposed_datetime_2', ['proposed_datetime_2'])
 
 
 def downgrade() -> None:

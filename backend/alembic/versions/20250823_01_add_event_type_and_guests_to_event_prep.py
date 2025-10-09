@@ -23,6 +23,8 @@ def upgrade() -> None:
 
     if not insp.has_table('event_preps'):
         # Create the event_preps table if it doesn't exist (fresh databases)
+        is_sqlite = bind.dialect.name == 'sqlite'
+        bool_false = sa.text('0') if is_sqlite else sa.text('FALSE')
         op.create_table(
             'event_preps',
             sa.Column('id', sa.Integer(), primary_key=True),
@@ -40,8 +42,8 @@ def upgrade() -> None:
             sa.Column('performance_start_time', sa.Time(), nullable=True),
             sa.Column('performance_end_time', sa.Time(), nullable=True),
             sa.Column('tech_owner', sa.String(), nullable=False, server_default=sa.text("'venue'")),
-            sa.Column('stage_power_confirmed', sa.Boolean(), nullable=False, server_default=sa.text('0')),
-            sa.Column('accommodation_required', sa.Boolean(), nullable=False, server_default=sa.text('0')),
+            sa.Column('stage_power_confirmed', sa.Boolean(), nullable=False, server_default=bool_false),
+            sa.Column('accommodation_required', sa.Boolean(), nullable=False, server_default=bool_false),
             sa.Column('accommodation_address', sa.String(), nullable=True),
             sa.Column('accommodation_contact', sa.String(), nullable=True),
             sa.Column('accommodation_notes', sa.String(), nullable=True),

@@ -10,15 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { emitThreadsUpdated, type ThreadsUpdatedDetail } from '@/lib/threadsEvents';
 import { Spinner } from '@/components/ui';
 import ConversationList from '@/components/inbox/ConversationList';
-import dynamic from 'next/dynamic';
-const MessageThreadWrapper = dynamic(() => import('@/components/inbox/MessageThreadWrapper'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
-      <Spinner />
-    </div>
-  ),
-});
+import MessageThreadWrapper from '@/components/inbox/MessageThreadWrapper';
 import ReviewFormModal from '@/components/review/ReviewFormModal';
 import {
   getThreadsIndex,
@@ -40,7 +32,8 @@ import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
-import { writeThreadCache } from '@/lib/threadCache';
+import { writeThreadCache, readThreadCache } from '@/lib/threadCache';
+import { prefetchQuotesByIds } from '@/hooks/useQuotes';
 import {
   initThreadPrefetcher,
   resetThreadPrefetcher,
@@ -70,6 +63,14 @@ export default function InboxPage() {
   const [showList, setShowList] = useState(true);
   const [query, setQuery] = useState('');
   const [listHeight, setListHeight] = useState<number>(0);
+  // Track last manual row click to avoid URL-sync overriding immediate selection
+  const manualSelectAtRef = useRef<number>(0);
+  // Coalesce URL updates and ignore stale scheduled replaces
+  const urlReplaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // While current time is less than this, skip URL-sync effect
+  const suppressUrlSyncUntilRef = useRef<number>(0);
+  // Mirror of currently selected id for validating scheduled callbacks
+  const selectedIdRef = useRef<number | null>(null);
   // Ensure we only attempt to create a Booka thread once per mount
   const ensureTriedRef = useRef(false);
   // Debounce focus/visibility-triggered refreshes
@@ -84,6 +85,7 @@ export default function InboxPage() {
 
   useEffect(() => {
     if (selectedBookingRequestId === null) return;
+    selectedIdRef.current = selectedBookingRequestId;
     setHydratedThreadIds((prev) => {
       const next = [
         selectedBookingRequestId,
@@ -109,18 +111,7 @@ export default function InboxPage() {
     }
   }, [authLoading, user]);
 
-  // Preload the chat thread chunk after mount to avoid first-open lag
-  useEffect(() => {
-    if (authLoading || !user) return; // wait for auth before fetching anything
-    try {
-      const schedule = (fn: () => void) => {
-        const ric = (window as any)?.requestIdleCallback as ((cb: () => void, opts?: any) => void) | undefined;
-        if (typeof ric === 'function') ric(fn, { timeout: 800 });
-        else setTimeout(fn, 200);
-      };
-      schedule(() => { void import('@/components/inbox/MessageThreadWrapper'); });
-    } catch {}
-  }, []);
+  // No dynamic preload needed when statically importing the thread wrapper
 
   // Fast session cache for instant render on return navigations
   const CACHE_KEY = useMemo(() => {
@@ -727,6 +718,11 @@ export default function InboxPage() {
   // Select conversation based on URL param after requests load; if none, restore persisted selection
   useEffect(() => {
     if (!allBookingRequests.length) return;
+    // If the user just clicked a row, do not let the URL effect override that selection
+    const justManuallySelected = Date.now() - (manualSelectAtRef.current || 0) < 5000;
+    if (justManuallySelected) return;
+    // Also ignore URL changes we just applied programmatically
+    if (Date.now() < suppressUrlSyncUntilRef.current) return;
     const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < BREAKPOINT_MD;
     // On mobile, we still restore the selected thread so the thread pane can open when needed
     const urlId = Number(searchParams.get('requestId'));
@@ -813,6 +809,11 @@ export default function InboxPage() {
     try {
       const res = await getMessagesForBookingRequest(id, { limit, mode: 'lite' });
       writeThreadCache(id, res.data.items);
+      try {
+        const items = Array.isArray((res.data as any)?.items) ? (res.data as any).items : [];
+        const ids = Array.from(new Set(items.map((m: any) => Number(m?.quote_id)).filter((n: number) => Number.isFinite(n) && n > 0)));
+        if (ids.length) await prefetchQuotesByIds(ids);
+      } catch {}
     } catch {}
   }, []);
 
@@ -829,6 +830,7 @@ export default function InboxPage() {
   const handleSelect = useCallback(
     (id: number) => {
       if (!id) return;
+      manualSelectAtRef.current = Date.now();
       let previousUnread = 0;
       let selectedNow: any = null;
       try {
@@ -858,16 +860,54 @@ export default function InboxPage() {
         params.delete('booka');
         params.set('requestId', String(id));
       }
-      // Avoid replacing the URL if it already matches; this prevents
-      // aborting an in-flight RSC fetch and eliminates noisy "Fetch failed loading" logs in dev.
+      // Coalesce URL updates; cancel any older scheduled replace and validate against current selection
       try {
         const nextSearch = `?${params.toString()}`;
         if (typeof window === 'undefined' || window.location.search !== nextSearch) {
-          router.replace(nextSearch, { scroll: false });
+          if (urlReplaceTimerRef.current) {
+            clearTimeout(urlReplaceTimerRef.current);
+            urlReplaceTimerRef.current = null;
+          }
+          const scheduledId = id;
+          urlReplaceTimerRef.current = setTimeout(() => {
+            if (selectedIdRef.current !== scheduledId) return;
+            suppressUrlSyncUntilRef.current = Date.now() + 4000;
+            try { router.replace(nextSearch, { scroll: false }); } catch {}
+          }, 0);
         }
       } catch {
-        router.replace(`?${params.toString()}`, { scroll: false });
+        if (urlReplaceTimerRef.current) {
+          clearTimeout(urlReplaceTimerRef.current);
+          urlReplaceTimerRef.current = null;
+        }
+        const scheduledId = id;
+        urlReplaceTimerRef.current = setTimeout(() => {
+          if (selectedIdRef.current !== scheduledId) return;
+          suppressUrlSyncUntilRef.current = Date.now() + 4000;
+          try { router.replace(`?${params.toString()}`, { scroll: false }); } catch {}
+        }, 0);
       }
+
+      // Prime quote cache immediately for this thread so quote bubbles render complete
+      try {
+        const cached = readThreadCache(id) as any[] | null;
+        if (Array.isArray(cached) && cached.length) {
+          const ids = Array.from(new Set(cached.map((m: any) => Number(m?.quote_id)).filter((n: number) => Number.isFinite(n) && n > 0)));
+          if (ids.length) void prefetchQuotesByIds(ids);
+        } else {
+          // Lightweight background fetch to extract recent quote ids if cache is cold
+          setTimeout(() => {
+            (async () => {
+              try {
+                const res = await getMessagesForBookingRequest(id, { limit: 60, mode: 'lite' });
+                const items = Array.isArray((res.data as any)?.items) ? (res.data as any).items : [];
+                const ids = Array.from(new Set(items.map((m: any) => Number(m?.quote_id)).filter((n: number) => Number.isFinite(n) && n > 0)));
+                if (ids.length) void prefetchQuotesByIds(ids);
+              } catch {}
+            })();
+          }, 0);
+        }
+      } catch {}
       try {
         sessionStorage.setItem(SEL_KEY, String(id));
         localStorage.setItem(SEL_KEY, JSON.stringify({ id, ts: Date.now() }));
@@ -932,10 +972,28 @@ export default function InboxPage() {
               try {
                 const nextSearch = `?${p.toString()}`;
                 if (typeof window === 'undefined' || window.location.search !== nextSearch) {
-                  router.replace(nextSearch, { scroll: false });
+                  if (urlReplaceTimerRef.current) {
+                    clearTimeout(urlReplaceTimerRef.current);
+                    urlReplaceTimerRef.current = null;
+                  }
+                  const scheduledId = realId;
+                  urlReplaceTimerRef.current = setTimeout(() => {
+                    if (selectedIdRef.current !== scheduledId) return;
+                    suppressUrlSyncUntilRef.current = Date.now() + 4000;
+                    try { router.replace(nextSearch, { scroll: false }); } catch {}
+                  }, 0);
                 }
               } catch {
-                router.replace(`?${p.toString()}`, { scroll: false });
+                if (urlReplaceTimerRef.current) {
+                  clearTimeout(urlReplaceTimerRef.current);
+                  urlReplaceTimerRef.current = null;
+                }
+                const scheduledId = realId;
+                urlReplaceTimerRef.current = setTimeout(() => {
+                  if (selectedIdRef.current !== scheduledId) return;
+                  suppressUrlSyncUntilRef.current = Date.now() + 4000;
+                  try { router.replace(`?${p.toString()}`, { scroll: false }); } catch {}
+                }, 0);
               }
               try {
                 sessionStorage.setItem(SEL_KEY, String(realId));

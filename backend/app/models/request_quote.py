@@ -5,6 +5,7 @@ import enum
 
 from ..database import Base # Assuming Base is in database.py
 from .booking_status import BookingStatus
+from .types import CaseInsensitiveEnum
 
 class QuoteStatus(str, enum.Enum):
     PENDING_CLIENT_ACTION = "pending_client_action"
@@ -31,7 +32,13 @@ class BookingRequest(Base):
     travel_cost = Column(Numeric(10, 2), nullable=True)
     travel_breakdown = Column(JSON, nullable=True)
     
-    status = Column(SQLAlchemyEnum(BookingStatus), nullable=False, default=BookingStatus.PENDING_QUOTE, index=True)
+    # Use a case-insensitive enum bound to the shared Postgres type 'bookingstatus'
+    status = Column(
+        CaseInsensitiveEnum(BookingStatus, name="bookingstatus"),
+        nullable=False,
+        default=BookingStatus.PENDING_QUOTE,
+        index=True,
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -54,7 +61,11 @@ class Quote(Base):
     currency = Column(String(3), nullable=False, default="ZAR") # e.g., ZAR, EUR
     valid_until = Column(DateTime, nullable=True) # Quote expiry date
 
-    status = Column(SQLAlchemyEnum(QuoteStatus), nullable=False, default=QuoteStatus.PENDING_CLIENT_ACTION)
+    status = Column(
+        SQLAlchemyEnum(QuoteStatus, values_callable=lambda enum: [e.value for e in enum]),
+        nullable=False,
+        default=QuoteStatus.PENDING_CLIENT_ACTION,
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -53,13 +53,19 @@ def upgrade() -> None:
     )
     op.execute("UPDATE messages SET message_type='USER' WHERE message_type='text'")
     op.execute("UPDATE messages SET message_type=upper(message_type)")
+    # Drop any existing TEXT default to allow type change
+    try:
+        op.alter_column("messages", "message_type", server_default=None)
+    except Exception:
+        pass
+    # Convert TEXT -> ENUM with explicit USING clause
     op.alter_column(
         "messages",
         "message_type",
         existing_type=sa.String(),
         type_=message_enum,
         existing_nullable=False,
-        server_default="USER",
+        postgresql_using="message_type::messagetype",
     )
     op.alter_column("messages", "message_type", server_default=None)
     op.alter_column("messages", "visible_to", server_default=None)

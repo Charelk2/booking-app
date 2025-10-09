@@ -480,7 +480,14 @@ async def booking_request_ws(
 
     try:
         while True:
-            text = await websocket.receive_text()
+            try:
+                text = await websocket.receive_text()
+            except RuntimeError as exc:
+                # Starlette may raise this if the socket closed before accept/receive
+                # or if the client disconnects during handshake. Treat as clean close.
+                if "WebSocket is not connected" in str(exc):
+                    break
+                raise
             try:
                 data = json.loads(text)
             except json.JSONDecodeError:
@@ -609,7 +616,7 @@ async def multiplex_ws(
     try:
         await websocket.send_json({"v": 1, "type": "reconnect_hint", "delay": reconnect_delay})
     except Exception:
-        await websocket.close()
+        # Client disconnected during handshake; do not attempt to send a close frame again.
         return
 
     async def ping_loop() -> None:
@@ -635,7 +642,12 @@ async def multiplex_ws(
 
     try:
         while True:
-            text = await websocket.receive_text()
+            try:
+                text = await websocket.receive_text()
+            except RuntimeError as exc:
+                if "WebSocket is not connected" in str(exc):
+                    break
+                raise
             try:
                 data = json.loads(text)
             except json.JSONDecodeError:
