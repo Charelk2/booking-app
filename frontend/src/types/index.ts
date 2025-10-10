@@ -250,6 +250,10 @@ export interface BookingRequest {
   service?: Service;
   quotes?: Quote[];
   accepted_quote_id?: number | null;
+
+  /** Optional UI-only fields used for stable first paint */
+  counterparty_label?: string;
+  counterparty_avatar_url?: string | null;
 }
 
 // If you need to handle Quotes (e.g. when the service provider replies):

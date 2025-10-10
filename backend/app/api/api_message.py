@@ -72,6 +72,10 @@ def read_messages(
         None,
         description="ISO datetime: include messages with timestamp >= since; primarily used with mode=delta",
     ),
+    include_quotes: bool = Query(
+        False,
+        description="When true, include lightweight quote summaries keyed by quote_id to eliminate a follow-up fetch on first paint.",
+    ),
 ):
     booking_request = crud.crud_booking_request.get_booking_request(
         db, request_id=request_id
@@ -403,6 +407,89 @@ def read_messages(
         "db_latency_ms": round(db_latency_ms, 2),
         "payload_bytes": 0,
     }
+
+    # Optionally attach quote summaries for any quote messages in this page
+    if include_quotes:
+        try:
+            quote_ids = sorted({int(m.get("quote_id")) for m in result if m.get("quote_id")})
+        except Exception:
+            quote_ids = []
+        if quote_ids:
+            summaries: dict[int, dict] = {}
+            try:
+                v2_rows = (
+                    db.query(models.QuoteV2)
+                    .filter(models.QuoteV2.id.in_(quote_ids))
+                    .all()
+                )
+                for q in v2_rows:
+                    try:
+                        services = []
+                        if isinstance(q.services, list):
+                            for s in q.services:
+                                d = (s or {}).get("description") if isinstance(s, dict) else None
+                                p = (s or {}).get("price") if isinstance(s, dict) else None
+                                if d is not None and p is not None:
+                                    services.append({"description": d, "price": float(p)})
+                        summaries[int(q.id)] = {
+                            "id": int(q.id),
+                            "booking_request_id": int(q.booking_request_id),
+                            "status": str(q.status.value if hasattr(q.status, "value") else q.status),
+                            "total": float(q.total),
+                            "subtotal": float(q.subtotal) if getattr(q, "subtotal", None) is not None else float(q.total),
+                            "sound_fee": float(q.sound_fee) if getattr(q, "sound_fee", None) is not None else 0.0,
+                            "travel_fee": float(q.travel_fee) if getattr(q, "travel_fee", None) is not None else 0.0,
+                            "discount": float(q.discount) if getattr(q, "discount", None) is not None else 0.0,
+                            "expires_at": q.expires_at.isoformat() if getattr(q, "expires_at", None) else None,
+                            "services": services,
+                            "updated_at": q.updated_at.isoformat() if getattr(q, "updated_at", None) else None,
+                        }
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+            # Fill any gaps from legacy quotes table best-effort
+            try:
+                missing = [qid for qid in quote_ids if qid not in summaries]
+                if missing:
+                    legacy_rows = (
+                        db.query(models.Quote)
+                        .filter(models.Quote.id.in_(missing))
+                        .all()
+                    )
+                    for lq in legacy_rows:
+                        try:
+                            total = float(lq.price or 0)
+                            services = [{"description": (lq.quote_details or "Performance"), "price": total}]
+                            # Map legacy statuses to v2-ish statuses
+                            raw = str(lq.status.value if hasattr(lq.status, "value") else lq.status).lower()
+                            if "accept" in raw:
+                                status_label = "accepted"
+                            elif "reject" in raw or "declin" in raw:
+                                status_label = "rejected"
+                            elif "expire" in raw:
+                                status_label = "expired"
+                            else:
+                                status_label = "pending"
+                            summaries[int(lq.id)] = {
+                                "id": int(lq.id),
+                                "booking_request_id": int(lq.booking_request_id),
+                                "status": status_label,
+                                "total": total,
+                                "subtotal": total,
+                                "sound_fee": 0.0,
+                                "travel_fee": 0.0,
+                                "discount": 0.0,
+                                "expires_at": lq.valid_until.isoformat() if getattr(lq, "valid_until", None) else None,
+                                "services": services,
+                                "updated_at": lq.updated_at.isoformat() if getattr(lq, "updated_at", None) else None,
+                            }
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+            if summaries:
+                envelope_dict["quotes"] = summaries
 
     payload_probe = {
         **envelope_dict,

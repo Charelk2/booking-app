@@ -756,6 +756,8 @@ export interface MessageListResponseEnvelope {
   total_latency_ms: number;
   db_latency_ms: number;
   payload_bytes: number;
+  /** Optional lightweight quote summaries keyed by quote_id */
+  quotes?: Record<number, QuoteV2> | Record<number, any>;
 }
 
 export interface MessageListParams {
@@ -799,6 +801,11 @@ export const getMessagesForBookingRequest = (
   }
   if (!('mode' in qp) || qp.mode == null) {
     qp.mode = 'full';
+  }
+  // Hint the backend to include quote summaries so the first paint has
+  // everything needed to render quote bubbles without a secondary fetch.
+  if (qp.mode !== 'delta') {
+    (qp as any).include_quotes = true;
   }
   return api.get<MessageListResponseEnvelope>(
     `${API_V1}/booking-requests/${bookingRequestId}/messages`,

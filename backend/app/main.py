@@ -70,6 +70,8 @@ from .core.config import settings, FRONTEND_ORIGINS
 from .core.observability import setup_logging, setup_tracer
 from .crud import crud_quote_v2
 from .database import Base, SessionLocal, engine
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from .db_utils import (
     ensure_attachment_url_column,
     ensure_attachment_meta_column,
@@ -770,11 +772,26 @@ async def expire_quotes_loop() -> None:
     """
     while True:
         await asyncio.sleep(3600)
-        try:
-            with SessionLocal() as db:
-                process_quote_expiration(db)
-        except Exception as exc:  # pragma: no cover - log and alert then continue
-            alert_scheduler_failure(exc)
+        # Retry with backoff on transient DB failures
+        delay = 5
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                with SessionLocal() as db:
+                    process_quote_expiration(db)
+                break
+            except OperationalError as exc:  # pragma: no cover - transient DB outage
+                alert_scheduler_failure(exc)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 2, 60)
+                    continue
+                else:
+                    # Give up for this cycle; try again next tick
+                    break
+            except Exception as exc:  # pragma: no cover - log and continue
+                alert_scheduler_failure(exc)
+                break
 
 
 async def ops_maintenance_loop() -> None:
@@ -782,16 +799,50 @@ async def ops_maintenance_loop() -> None:
     while True:
         # Run every 30 minutes for timely nudges/reminders without being noisy
         await asyncio.sleep(1800)
+        delay = 5
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                with SessionLocal() as db:
+                    summary = run_maintenance(db)
+                    logger.info("Maintenance summary: %s", summary)
+                break
+            except OperationalError as exc:  # pragma: no cover - transient DB outage
+                alert_scheduler_failure(exc)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 2, 60)
+                    continue
+                else:
+                    # Give up for this cycle; try again next tick
+                    break
+            except Exception as exc:  # pragma: no cover - continue running
+                alert_scheduler_failure(exc)
+                break
+
+
+async def _wait_for_db_ready(max_wait_seconds: int = 30, interval_seconds: float = 1.0) -> None:
+    """Best-effort wait until the database is reachable before launching schedulers.
+
+    Does not raise if the DB stays unavailable beyond ``max_wait_seconds``;
+    background loops also have their own backoff.
+    """
+    elapsed = 0.0
+    while elapsed < max_wait_seconds:
         try:
-            with SessionLocal() as db:
-                summary = run_maintenance(db)
-                logger.info("Maintenance summary: %s", summary)
-        except Exception as exc:  # pragma: no cover - continue running
-            alert_scheduler_failure(exc)
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return
+        except Exception:
+            await asyncio.sleep(interval_seconds)
+            elapsed += interval_seconds
+    logger.warning("DB readiness check timed out; starting tasks with backoff enabled")
 
 @app.on_event("startup")
 async def start_background_tasks() -> None:
     """Launch background maintenance tasks."""
+    # Ensure DB is reachable before starting periodic schedulers
+    await _wait_for_db_ready()
     asyncio.create_task(expire_quotes_loop())
     asyncio.create_task(ops_maintenance_loop())
 

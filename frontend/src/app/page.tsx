@@ -4,11 +4,7 @@ import MainLayout from '@/components/layout/MainLayout'
 import ArtistsSection from '@/components/home/ArtistsSection'
 import dynamic from 'next/dynamic'
 const GoogleOneTap = dynamic(() => import('@/components/auth/GoogleOneTap'), { ssr: false });
-
-const CategoriesCarousel = dynamic(
-  () => import('@/components/home/CategoriesCarousel'),
-  { ssr: false },
-)
+import CategoriesCarouselServer from '@/components/home/CategoriesCarouselServer';
 
 async function fetchInitial(category: string, limit = 12) {
   // Use absolute API base on the server to avoid relying on Next.js rewrites
@@ -57,7 +53,7 @@ export default async function HomePage() {
     <MainLayout>
       {/* Surface Google One Tap on the homepage for logged-out users */}
       <GoogleOneTap />
-      <CategoriesCarousel />
+      <CategoriesCarouselServer />
       <ArtistsSection
         title="Musicians"
         query={{ category: 'musician', sort: 'most_booked' }}

@@ -200,13 +200,17 @@ export default function QuotePeek(props: QuotePeekProps) {
   const showDiscount = typeof discount === 'number' && (discount ?? 0) > 0;
   const showAccom    = (accommodation ?? '').trim().length > 0;
 
+  const safeNum = (v: any): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
   const derivedSubtotal =
-    typeof subtotal === 'number'
-      ? subtotal
-      : [showPrice ? price! : 0, showTravel ? travelFee! : 0, showSound ? soundFee! : 0, showDiscount ? -discount! : 0]
-        .reduce((a, b) => a + b, 0);
+    subtotal != null && Number.isFinite(Number(subtotal))
+      ? Number(subtotal)
+      : [showPrice ? safeNum(price) : 0, showTravel ? safeNum(travelFee) : 0, showSound ? safeNum(soundFee) : 0, showDiscount ? -safeNum(discount) : 0]
+          .reduce((a, b) => a + b, 0);
 
-  const money = (v?: number) => formatCurrency(Number(v ?? 0));
+  const money = (v?: number) => formatCurrency(safeNum(v));
   const canDecide = isPending && !isExpired;
 
   // Human labels for date and location
@@ -277,8 +281,9 @@ export default function QuotePeek(props: QuotePeekProps) {
   }, [hasExplicitTaxes, showPrice, price, showTravel, travelFee, showSound, soundFee, showDiscount, discount]);
 
   const displayTotal = useMemo(() => {
-    if (hasExplicitTaxes) return Number(total);
-    return Math.round((Number(derivedSubtotal) + Number(fallbackVat)) * 100) / 100;
+    if (hasExplicitTaxes) return safeNum(total);
+    const sum = safeNum(derivedSubtotal) + safeNum(fallbackVat);
+    return Math.round(sum * 100) / 100;
   }, [hasExplicitTaxes, total, derivedSubtotal, fallbackVat]);
 
   // Fetch reviews lazily when the details modal opens (best effort)

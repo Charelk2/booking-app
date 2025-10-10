@@ -44,6 +44,7 @@ import {
 } from '@/lib/threadPrefetcher';
 import type { PrefetchCandidate } from '@/lib/threadPrefetcher';
 import { recordThreadSwitchStart } from '@/lib/inboxTelemetry';
+import { counterpartyLabel } from '@/lib/names';
 import OfflineBanner from '@/components/inbox/OfflineBanner';
 // Telemetry flags removed; keep code minimal
 
@@ -224,14 +225,18 @@ export default function InboxPage() {
           const pitems = (prev?.data?.items || []) as any[];
           if (pitems.length) {
             const isArtist = user?.user_type === 'service_provider';
-            const mapped: BookingRequest[] = pitems.map((it: any) => ({
+            const mapped: BookingRequest[] = pitems.map((it: any) => {
+              const isBooka = (it.counterparty_name || (it.counterparty?.name)) === 'Booka';
+              const rawPreview = (it.last_message_preview || it.last_message_snippet || '');
+              const preview = isBooka && /\bnew\s+booking\s+request\b/i.test(String(rawPreview)) ? 'Booka update' : rawPreview;
+              return ({
               id: Number(it.thread_id || it.booking_request_id || it.id),
               client_id: 0 as any,
               service_provider_id: 0 as any,
               status: (it.state as any) || 'pending_quote',
               created_at: it.last_ts || it.last_message_at,
               updated_at: it.last_ts || it.last_message_at,
-              last_message_content: (it.last_message_preview || it.last_message_snippet || ''),
+              last_message_content: preview,
               last_message_timestamp: it.last_ts || it.last_message_at,
               is_unread_by_current_user: Number((it.unread_count || 0)) > 0 as any,
               unread_count: Number(it.unread_count || 0) as any,
@@ -245,12 +250,13 @@ export default function InboxPage() {
               service_id: undefined,
               service: undefined,
               artist: undefined as any,
-              artist_profile: (!isArtist ? ({ business_name: (it.counterparty_name || (it.counterparty?.name) || ''), profile_picture_url: (it.counterparty_avatar_url || (it.counterparty?.avatar_url) || undefined) } as any) : undefined),
-              client: (isArtist ? ({ first_name: (it.counterparty_name || (it.counterparty?.name) || ''), profile_picture_url: (it.counterparty_avatar_url || (it.counterparty?.avatar_url) || undefined) } as any) : undefined),
+              counterparty_label: (it.counterparty_name || (it.counterparty?.name) || ''),
+              counterparty_avatar_url: (it.counterparty_avatar_url || (it.counterparty?.avatar_url) || undefined),
               accepted_quote_id: null,
               sound_required: undefined as any,
               ...(((it.counterparty_name || (it.counterparty?.name)) === 'Booka') ? { is_booka_synthetic: true } : {}),
-            } as any));
+            } as any);
+            });
             mapped.sort((a, b) => new Date(String((b as any).last_message_timestamp || b.updated_at || b.created_at)).getTime() -
                                     new Date(String((a as any).last_message_timestamp || a.updated_at || a.created_at)).getTime());
             setAllBookingRequests(mapped);
@@ -266,14 +272,18 @@ export default function InboxPage() {
       // If index returned items, use them now for instant list
       if (items.length) {
       const isArtist = user?.user_type === 'service_provider';
-      const mapped: BookingRequest[] = items.map((it: any) => ({
+      const mapped: BookingRequest[] = items.map((it: any) => {
+        const isBooka = (it.counterparty_name || (it.counterparty?.name)) === 'Booka';
+        const rawSnippet = it.last_message_snippet;
+        const snippet = isBooka && /\bnew\s+booking\s+request\b/i.test(String(rawSnippet)) ? 'Booka update' : rawSnippet;
+        return ({
         id: Number(it.thread_id || it.booking_request_id || it.id),
         client_id: 0 as any,
         service_provider_id: 0 as any,
         status: (it.state as any) || 'pending_quote',
         created_at: it.last_message_at,
         updated_at: it.last_message_at,
-        last_message_content: it.last_message_snippet,
+        last_message_content: snippet,
         last_message_timestamp: it.last_message_at,
         is_unread_by_current_user: (it.unread_count || 0) > 0 as any,
         unread_count: Number(it.unread_count || 0) as any,
@@ -287,13 +297,14 @@ export default function InboxPage() {
         service_id: undefined,
         service: undefined,
         artist: undefined as any,
-        artist_profile: (!isArtist ? ({ business_name: (it.counterparty_name || (it.counterparty?.name) || ''), profile_picture_url: (it.counterparty_avatar_url || (it.counterparty?.avatar_url) || undefined) } as any) : undefined),
-        client: (isArtist ? ({ first_name: (it.counterparty_name || (it.counterparty?.name) || ''), profile_picture_url: (it.counterparty_avatar_url || (it.counterparty?.avatar_url) || undefined) } as any) : undefined),
+        counterparty_label: (it.counterparty_name || (it.counterparty?.name) || ''),
+        counterparty_avatar_url: (it.counterparty_avatar_url || (it.counterparty?.avatar_url) || undefined),
         accepted_quote_id: null,
         sound_required: undefined as any,
         ...(it.counterparty_name === 'Booka' ? { is_booka_synthetic: true } : {}),
         ...(it.state ? { thread_state: it.state } : {}),
-      } as any));
+      } as any);
+      });
       // Sort newest to oldest by last activity
       mapped.sort((a, b) => new Date(String((b as any).last_message_timestamp || b.updated_at || b.created_at)).getTime() -
                               new Date(String((a as any).last_message_timestamp || a.updated_at || a.created_at)).getTime());
@@ -353,14 +364,15 @@ export default function InboxPage() {
             const id = (it as any).thread_id as number;
             const r = byId.get(id);
             if (!r) continue;
-            const text = String(it.last_message_preview || '');
+            let text = String(it.last_message_preview || '');
             const isBooka = String((it as any).counterparty?.name || '') === 'Booka' || /^(\s*listing\s+approved:|\s*listing\s+rejected:)/i.test(text);
+            if (isBooka && /\bnew\s+booking\s+request\b/i.test(text)) text = 'Booka update';
             // Always capture thread state from preview for row logic (e.g., hide INQUIRY once requested)
             (r as any).thread_state = (it as any).state || null;
             // Optionally mirror unread count for accuracy
             (r as any).unread_count = (it as any).unread_count ?? (r as any).unread_count;
             if (isBooka) {
-              (r as any).last_message_content = it.last_message_preview;
+              (r as any).last_message_content = text;
               (r as any).last_message_timestamp = it.last_ts;
               (r as any).is_booka_synthetic = true; // hint for Booka display
             }
@@ -787,9 +799,7 @@ export default function InboxPage() {
     const q = query.trim().toLowerCase();
     if (!q) return allBookingRequests;
     return allBookingRequests.filter((r) => {
-      const name = (user?.user_type === 'service_provider'
-        ? r.client?.first_name
-        : r.artist_profile?.business_name || r.artist?.first_name || '')
+      const name = counterpartyLabel(r as any, user ?? undefined, (r as any)?.counterparty_label || '')
         .toString()
         .toLowerCase();
       const preview = (r.last_message_content || r.service?.title || r.message || '')

@@ -1,4 +1,4 @@
-from typing import Optional, Any, List, Literal
+from typing import Optional, Any, List, Literal, Dict
 from datetime import datetime
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -92,5 +92,8 @@ class MessageListResponse(BaseModel):
     total_latency_ms: float
     db_latency_ms: float
     payload_bytes: int
+    # Optional lightweight quote summaries keyed by quote_id to avoid an extra
+    # roundtrip on initial thread load. Present only when the caller requests it.
+    quotes: Optional[Dict[int, dict]] = None
 
     model_config = {"from_attributes": True}

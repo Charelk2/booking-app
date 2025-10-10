@@ -32,6 +32,7 @@ import {
   getFullImageUrl,
 } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
+import { counterpartyLabel } from '@/lib/names';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
 import { isSystemMessage as isSystemMsgHelper, systemLabel } from '@/lib/systemMessages';
 // Telemetry & flags removed in Batch 1 clean revamp
@@ -74,7 +75,7 @@ import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import { useRealtimeContext } from '@/contexts/RealtimeContext';
 import useBookingView from '@/hooks/useBookingView';
-import { useQuotes } from '@/hooks/useQuotes';
+import { useQuotes, seedGlobalQuotes } from '@/hooks/useQuotes';
 // Non-virtual scroll helpers no longer needed
 
 import Button from '../ui/Button';
@@ -1601,8 +1602,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const content = String((firstSystem as any)?.content || '').toLowerCase();
     if (key.startsWith('listing_approved_v1') || key.startsWith('listing_rejected_v1')) return true;
     if (content.startsWith('listing approved:') || content.startsWith('listing rejected:')) return true;
+    // Treat Booka system-only threads as moderation-style (no composer/quotes)
+    try {
+      const label = counterpartyLabel(initialBookingRequest as any, user ?? undefined, (initialBookingRequest as any)?.counterparty_label || '');
+      if (String(label).trim() === 'Booka') return true;
+      if ((initialBookingRequest as any)?.is_booka_synthetic) return true;
+    } catch {}
     return false;
-  }, [messages]);
+  }, [messages, initialBookingRequest, user]);
 
   // Pinned quote preview removed — show quotes only inline in the thread
 
@@ -1989,6 +1996,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       try {
         const res = await getMessagesForBookingRequest(bookingRequestId, params);
+        try {
+          const qmap = (res.data as any)?.quotes as Record<number, any> | undefined;
+          if (qmap && typeof qmap === 'object') {
+            const arr = Object.values(qmap).filter(Boolean) as any[];
+            if (arr.length) seedGlobalQuotes(arr as any);
+          }
+        } catch {}
         if (!options.force && activeThreadRef.current !== bookingRequestId) {
           return;
         }
@@ -2084,8 +2098,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
         }
 
-        // Basic, synchronous quote hydration: fetch any referenced quotes
-        // before updating messages so the quote card renders immediately.
+        // Basic, synchronous quote hydration: ensure any referenced quotes are
+        // available ASAP. The response may include summaries; the hook will
+        // avoid re-fetching when already cached.
         try {
           const quoteIds = Array.from(new Set(normalized
             .map((m) => Number(m.quote_id))

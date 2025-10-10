@@ -9,6 +9,7 @@ import { getMessagesForBookingRequest } from '@/lib/api';
 import { hasThreadCacheAsync, writeThreadCache } from '@/lib/threadCache';
 import React from 'react';
 import { t } from '@/lib/i18n';
+import { counterpartyLabel, counterpartyAvatar } from '@/lib/names';
 
 // Module-scope helpers so memoized Row can use them
 function formatThreadTime(iso: string | null | undefined): string {
@@ -242,24 +243,10 @@ function buildPrecomputed(
   const out: Record<number, PreRow> = {};
   const q = (qLower || '').trim();
   for (const req of items) {
-    const rawOtherName = (() => {
-      if (isArtist) return req.client?.first_name || 'Client';
-      const artistProfile = req.artist_profile;
-      const artist = req.artist;
-      if (!artistProfile && !artist) return 'Service Provider';
-      return (
-        artistProfile?.business_name ||
-        artist?.business_name ||
-        artist?.user?.first_name ||
-        artist?.first_name ||
-        'Service Provider'
-      );
-    })();
-    const name = String(rawOtherName || '');
+    const fallback = (req as any)?.counterparty_label as string | undefined;
+    const name = counterpartyLabel(req, currentUser, fallback) || '';
     const nameLower = name.toLowerCase();
-    const avatar = isArtist
-      ? req.client?.profile_picture_url
-      : req.artist_profile?.profile_picture_url || req.artist?.profile_picture_url;
+    const avatar = counterpartyAvatar(req, currentUser, (req as any)?.counterparty_avatar_url ?? null);
     const date = (req.last_message_timestamp || req.updated_at || req.created_at) as string;
     const isUnread = (() => {
       const v = (req as any).is_unread_by_current_user;
@@ -299,7 +286,15 @@ function buildPrecomputed(
       ) {
         return isArtist ? 'You sent a quote' : `${otherName} sent a quote`;
       }
-      return (req.last_message_content ?? req.service?.title ?? (req as any).message ?? 'New Request') as string;
+      let text = (req.last_message_content ?? req.service?.title ?? (req as any).message ?? 'New Request') as string;
+      // Booka never creates a "New Booking Request" — normalize misleading previews
+      try {
+        const booka = Boolean((req as any).is_booka_synthetic) || counterpartyLabel(req as any, currentUser, (req as any)?.counterparty_label || '') === 'Booka';
+        if (booka && /\bnew\s+booking\s+request\b/i.test(String(text))) {
+          text = 'Booka update';
+        }
+      } catch {}
+      return text;
     })();
     const previewLower = String(preview || '').toLowerCase();
     const previewNormalized = previewLower.replace(/\s+/g, ' ').trim();
@@ -315,16 +310,13 @@ function buildPrecomputed(
       return match ? match[1].trim() : null;
     })();
     const showInquiry = (() => {
+      // Only show for true inquiry-started threads (artist profile message flow),
+      // never on Booka/system previews, supplier invites, or when the thread is clearly in another state.
       if (showEvent || showVideo || isQuote || isBookaModeration || isSupplierInvite) return false;
-      const threadState = String(((req as any).thread_state ?? '') || '').toLowerCase();
-      const status = (req.status || '').toString().toLowerCase();
-      const hasBookingDetails = Boolean((req as any).proposed_datetime_1 || (req as any).proposed_datetime_2 || (req as any).travel_breakdown);
-      const hasQuotes = Boolean((req as any).accepted_quote_id) || (Array.isArray((req as any).quotes) && (req as any).quotes.length > 0) || threadState === 'quoted';
       if ((req as any).has_inquiry_card === true) return true;
-      try { if (typeof window !== 'undefined' && localStorage.getItem(`inquiry-thread-${req.id}`)) return true; } catch {}
-      if (hasBookingDetails || hasQuotes || status.includes('pending_quote')) return false;
-      if (threadState === 'inquiry' || threadState === 'requested') return true;
-      if (previewLower.includes('new booking request')) return true;
+      try {
+        if (typeof window !== 'undefined' && localStorage.getItem(`inquiry-thread-${req.id}`)) return true;
+      } catch {}
       return false;
     })();
     const rawUnread = Number((req as any).unread_count || 0);

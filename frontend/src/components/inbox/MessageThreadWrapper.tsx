@@ -16,6 +16,7 @@ import usePaymentModal from '@/hooks/usePaymentModal';
 import BookingSummarySkeleton from '../booking/BookingSummarySkeleton';
 
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { counterpartyLabel, counterpartyAvatar } from '@/lib/names';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -132,7 +133,8 @@ export default function MessageThreadWrapper({
   const isBookaModeration = (() => {
     const text = (bookingRequest?.last_message_content || '').toString();
     const synthetic = Boolean((bookingRequest as any)?.is_booka_synthetic);
-    return synthetic || /^\s*listing\s+(approved|rejected)\s*:/i.test(text);
+    const label = (bookingRequest as any)?.counterparty_label || '';
+    return synthetic || label === 'Booka' || /^\s*listing\s+(approved|rejected)\s*:/i.test(text);
   })();
 
   return (
@@ -147,9 +149,9 @@ export default function MessageThreadWrapper({
                 B
               </div>
             ) : isUserArtist ? (
-              bookingRequest.client?.profile_picture_url ? (
+              (bookingRequest.client?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ? (
                 <SafeImage
-                  src={bookingRequest.client.profile_picture_url}
+                  src={(bookingRequest.client?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) as string}
                   alt="Client avatar"
                   width={40}
                   height={40}
@@ -159,10 +161,10 @@ export default function MessageThreadWrapper({
                 />
               ) : (
                 <div className="h-10 w-10 rounded-full bg-black flex items-center justify-center text-base font-medium text-white">
-                  {bookingRequest.client?.first_name?.charAt(0) || 'U'}
+                  {(counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'U') || 'U').charAt(0)}
                 </div>
               )
-            ) : bookingRequest.artist_profile?.profile_picture_url ? (
+            ) : (bookingRequest.artist_profile?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ? (
               <Link
                 href={`/service-providers/${
                   (bookingRequest as any).service_provider_id ||
@@ -178,7 +180,7 @@ export default function MessageThreadWrapper({
                 className="flex-shrink-0"
               >
                 <SafeImage
-                  src={bookingRequest.artist_profile.profile_picture_url}
+                  src={(bookingRequest.artist_profile?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) as string}
                   alt="Service Provider avatar"
                   width={40}
                   height={40}
@@ -189,9 +191,7 @@ export default function MessageThreadWrapper({
               </Link>
             ) : (
               <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-base font-medium text-gray-600">
-                {(bookingRequest.artist_profile?.business_name ||
-                  bookingRequest.artist?.first_name ||
-                  'U').charAt(0)}
+                {(counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'U') || 'U').charAt(0)}
               </div>
             )
           ) : (
@@ -202,11 +202,9 @@ export default function MessageThreadWrapper({
           <div className="flex flex-col">
             <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
               {bookingRequest
-                ? isBookaModeration
-                  ? 'Booka'
-                  : (isUserArtist
-                      ? bookingRequest.client?.first_name || 'User'
-                      : bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'User')
+                ? (isBookaModeration
+                    ? 'Booka'
+                    : counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'User') || 'User')
                 : 'Messages'}
             </span>
             {presenceHeader && !isBookaModeration ? (
@@ -249,10 +247,18 @@ export default function MessageThreadWrapper({
             initialBookingRequest={bookingRequest}
             isActive={isActive}
             serviceId={bookingRequest?.service_id ?? undefined}
-            clientName={bookingRequest?.client?.first_name}
-            artistName={bookingRequest?.artist_profile?.business_name || bookingRequest?.artist?.first_name}
-            artistAvatarUrl={bookingRequest?.artist_profile?.profile_picture_url ?? null}
-            clientAvatarUrl={bookingRequest?.client?.profile_picture_url ?? null}
+            clientName={isUserArtist
+              ? (counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'Client') || 'Client')
+              : (user?.first_name ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` : 'Client')}
+            artistName={!isUserArtist
+              ? (counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'Service Provider') || 'Service Provider')
+              : (bookingRequest?.artist_profile?.business_name || (bookingRequest as any)?.artist?.business_name || (bookingRequest as any)?.artist?.first_name || 'Service Provider')}
+            artistAvatarUrl={!isUserArtist
+              ? ((bookingRequest?.artist_profile?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ?? null)
+              : (bookingRequest?.artist_profile?.profile_picture_url ?? null)}
+            clientAvatarUrl={isUserArtist
+              ? ((bookingRequest?.client?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ?? null)
+              : (bookingRequest?.client?.profile_picture_url ?? null)}
             serviceName={bookingRequest?.service?.title}
             initialNotes={bookingRequest?.message ?? null}
             artistCancellationPolicy={bookingRequest?.artist_profile?.cancellation_policy ?? null}
