@@ -230,6 +230,13 @@ export default function QuotePeek(props: QuotePeekProps) {
     return '';
   }, [eventDetails?.locationName, eventDetails?.locationAddress, mapUrl]);
 
+  // Stick to the first non-empty location label to avoid hydration flicker
+  const [stableLocation, setStableLocation] = useState<string>('');
+  useEffect(() => {
+    const next = (locationLabel || '').trim();
+    if (next && next !== stableLocation) setStableLocation(next);
+  }, [locationLabel, stableLocation]);
+
   // For peek: a friendlier location “name”
   const peekLocationName = useMemo(() => {
     if ((eventDetails?.locationName || '').trim()) return (eventDetails!.locationName || '').trim();
@@ -263,8 +270,8 @@ export default function QuotePeek(props: QuotePeekProps) {
     const nm = (peekLocationName || '').trim();
     const addr = addressOnlyLabel;
     if (nm) return addr ? `${nm} - ${addr}` : nm;
-    return locationLabel;
-  }, [peekLocationName, addressOnlyLabel, locationLabel]);
+    return stableLocation || locationLabel;
+  }, [peekLocationName, addressOnlyLabel, stableLocation, locationLabel]);
 
   // Taxes & “displayTotal”
   const hasExplicitTaxes = useMemo(() => {
@@ -372,10 +379,10 @@ export default function QuotePeek(props: QuotePeekProps) {
                     <span>{requestedDateLabel}</span>
                   </span>
                 )}
-                {(peekLocationName || locationLabel) && (
+                {(peekLocationName || stableLocation || locationLabel) && (
                   <span className="inline-flex items-center gap-1">
                     <MapPinIcon className="h-3.5 w-3.5 text-gray-500" />
-                    <span className="truncate max-w-[60vw] sm:max-w-[360px]">{peekLocationName || locationLabel}</span>
+                    <span className="truncate max-w-[60vw] sm:max-w-[360px]">{peekLocationName || stableLocation || locationLabel}</span>
                   </span>
                 )}
               </div>

@@ -239,6 +239,10 @@ function buildPrecomputed(
   currentUser?: User | null,
   qLower?: string,
 ): Record<number, PreRow> {
+  // Sticky flags to avoid chips flickering off after new data arrives.
+  // We only turn flags on; we don't turn them off within the session.
+  const STICKY: Map<number, { showEvent?: boolean; showVideo?: boolean; isQuote?: boolean; showInquiry?: boolean }> = (globalThis as any).__INBOX_STICKY__ || new Map();
+  if (!(globalThis as any).__INBOX_STICKY__) (globalThis as any).__INBOX_STICKY__ = STICKY;
   const isArtist = currentUser?.user_type === 'service_provider';
   const out: Record<number, PreRow> = {};
   const q = (qLower || '').trim();
@@ -263,13 +267,13 @@ function buildPrecomputed(
       try { if (typeof window !== 'undefined') localFlag = !!localStorage.getItem(`booking-confirmed-${req.id}`); } catch {}
       return paidMsg || confirmed || hasAcceptedQuote || localFlag;
     })();
-    const showVideo = (() => {
+    let showVideo = (() => {
       if (isPersonalizedVideo) return true;
       try { if (typeof window !== 'undefined' && localStorage.getItem(`vo-order-for-thread-${req.id}`)) return true; } catch {}
       return false;
     })();
-    const showEvent = !showVideo && paidOrConfirmed;
-    const isQuote = (() => {
+    let showEvent = !showVideo && paidOrConfirmed;
+    let isQuote = (() => {
       const threadState = String(((req as any).thread_state ?? '') || '').toLowerCase();
       if (threadState === 'quoted') return true;
       const hasAcceptedQuote = (req.accepted_quote_id as unknown as number) ? true : false;
@@ -309,7 +313,7 @@ function buildPrecomputed(
       const match = preview.match(/preferred sound supplier for\s+(.+?)(?:\.|$)/i);
       return match ? match[1].trim() : null;
     })();
-    const showInquiry = (() => {
+    let showInquiry = (() => {
       // Only show for true inquiry-started threads (artist profile message flow),
       // never on Booka/system previews, supplier invites, or when the thread is clearly in another state.
       if (showEvent || showVideo || isQuote || isBookaModeration || isSupplierInvite) return false;
@@ -319,6 +323,19 @@ function buildPrecomputed(
       } catch {}
       return false;
     })();
+
+    // Apply sticky OR — once true, keep true for this session
+    const s = STICKY.get(req.id) || {};
+    if (s.showEvent) showEvent = true;
+    if (s.showVideo) showVideo = true;
+    if (s.isQuote) isQuote = true;
+    if (s.showInquiry) showInquiry = true;
+    STICKY.set(req.id, {
+      showEvent: showEvent || s.showEvent || false,
+      showVideo: showVideo || s.showVideo || false,
+      isQuote: isQuote || s.isQuote || false,
+      showInquiry: showInquiry || s.showInquiry || false,
+    });
     const rawUnread = Number((req as any).unread_count || 0);
     const unreadCount = rawUnread > 0 ? rawUnread : (isUnread ? 1 : 0);
 

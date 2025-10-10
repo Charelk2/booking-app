@@ -1472,12 +1472,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const computedServiceName = serviceName ?? bookingDetails?.service?.title;
   const serviceTypeFromThread = bookingRequest?.service?.service_type || bookingDetails?.service?.service_type || '';
   const isPersonalizedVideo = String(serviceTypeFromThread).toLowerCase() === 'personalized video'.toLowerCase();
-  const currentClientId =
-    propClientId ||
-    bookingDetails?.client_id ||
-    messages.find((m) => m.sender_type === 'client')?.sender_id ||
-    0;
-  const currentArtistId = propArtistId || bookingDetails?.artist_id || myUserId;
+  const currentClientId = (() => {
+    const fromProp = propClientId;
+    const fromDetails = (bookingDetails as any)?.client_id;
+    const fromThread = (bookingRequest as any)?.client_id || (bookingRequest as any)?.client?.id;
+    const fromMsgs = messages.find((m) => m.sender_type === 'client')?.sender_id;
+    return Number(fromProp || fromDetails || fromThread || fromMsgs || 0) || 0;
+  })();
+  const currentArtistId = (() => {
+    const fromProp = propArtistId;
+    const fromDetails = (bookingDetails as any)?.artist_id;
+    const fromThread = (bookingRequest as any)?.artist_id || (bookingRequest as any)?.artist?.id;
+    const fromMsgs = messages.find((m) => m.sender_type === 'artist')?.sender_id;
+    return Number(fromProp || fromDetails || fromThread || fromMsgs || 0) || 0;
+  })();
 
   const [baseFee, setBaseFee] = useState(initialBaseFee ?? 0);
   const [travelFee, setTravelFee] = useState(initialTravelCost ?? 0);
@@ -1712,14 +1720,36 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Typing indicator label
   const typingIndicator = useMemo(() => {
-    const names = typingUsers.map((id) =>
-      id === currentArtistId ? artistName : id === currentClientId ? clientName : 'Participant',
-    );
+    const resolveNameForUser = (uid: number): string => {
+      if (uid === currentArtistId) return artistName || 'Service Provider';
+      if (uid === currentClientId) return clientName || 'Client';
+      // Try to resolve from thread/booking request relations
+      try {
+        const br: any = bookingRequest || initialBookingRequest || {};
+        const artistUserId = br.artist_id || br.artist?.id || br.service_provider_id || br.service?.artist_id || br.artist_profile?.user_id;
+        if (uid === Number(artistUserId || 0)) {
+          const biz = br.artist_profile?.business_name || br.artist?.business_name;
+          const first = br.artist?.first_name || br.service_provider?.user?.first_name;
+          const last = br.artist?.last_name || br.service_provider?.user?.last_name;
+          return (biz || [first, last].filter(Boolean).join(' ') || 'Service Provider').toString();
+        }
+        const clientUserId = br.client_id || br.client?.id;
+        if (uid === Number(clientUserId || 0)) {
+          const first = br.client?.first_name;
+          const last = br.client?.last_name;
+          return ([first, last].filter(Boolean).join(' ') || 'Client').toString();
+        }
+      } catch {}
+      return 'Someone';
+    };
+
+    const names = typingUsers.map((id) => resolveNameForUser(id));
     if (isSystemTyping) names.push('System');
     if (names.length === 0) return null;
-    const verb = names.length > 1 ? 'are' : 'is';
-    return `${names.join(' and ')} ${verb} typing...`;
-  }, [typingUsers, isSystemTyping, currentArtistId, currentClientId, artistName, clientName]);
+    const unique = Array.from(new Set(names.filter(Boolean)));
+    const verb = unique.length > 1 ? 'are' : 'is';
+    return `${unique.join(' and ')} ${verb} typing...`;
+  }, [typingUsers, isSystemTyping, currentArtistId, currentClientId, artistName, clientName, bookingRequest, initialBookingRequest]);
 
   // ---- Textarea metrics
   useEffect(() => {
@@ -2856,11 +2886,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const lastSeenMs = lastSeenByUser[otherUserIdForHeader];
     const now = Date.now();
     const recent = Number.isFinite(lastSeenMs) && (now - (lastSeenMs || 0)) <= OTHER_ONLINE_WINDOW_MS;
-    const isOnline = presence === 'online' || presence === 'away' || recent;
-    const label = isOnline
+    // UI shows only two states: Online or Last seen ...
+    // Treat 'away' as online, and consider very recent activity as online.
+    const online = presence === 'online' || presence === 'away' || recent;
+    const label = online
       ? 'Online'
-      : (Number.isFinite(lastSeenMs) ? `Last seen ${formatDistanceToNow(new Date(lastSeenMs), { addSuffix: true })}` : '');
-    onPresenceUpdate({ online: isOnline, lastSeenMs: Number.isFinite(lastSeenMs) ? lastSeenMs : null, label });
+      : (Number.isFinite(lastSeenMs)
+          ? `Last seen ${formatDistanceToNow(new Date(lastSeenMs!), { addSuffix: true })}`
+          : 'Last seen recently');
+    onPresenceUpdate({ online, lastSeenMs: Number.isFinite(lastSeenMs) ? lastSeenMs : null, label });
   }, [onPresenceUpdate, presenceByUser, lastSeenByUser, otherUserIdForHeader, isModerationThread]);
 
   // Fallback: When realtime isn't open, poll and gently merge updates
@@ -3460,6 +3494,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // Stable keys for each rendered group – used by Virtuoso to avoid remounts
   const groupIds = useMemo(() => groupedMessages.map((g) => (g.messages[0]?.id ?? Math.random())), [groupedMessages]);
+
+  // Always keep the latest message in view when new content arrives (send/receive)
+  const prevGroupCountRef = useRef<number>(0);
+  useEffect(() => {
+    try {
+      if (groupedMessages.length > prevGroupCountRef.current && atBottomRef.current === true) {
+        virtuosoRef.current?.scrollToIndex?.({
+          index: Math.max(0, groupedMessages.length - 1),
+          align: 'end',
+          behavior: 'smooth',
+        });
+      }
+    } catch {}
+    prevGroupCountRef.current = groupedMessages.length;
+  }, [groupedMessages.length]);
 
   // Render a single group by index; used by Virtuoso item renderer
   const renderGroupAtIndex = useCallback((idx: number) => {
@@ -5176,6 +5225,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // Collapsible state for Event Prep card
   const [eventPrepCollapsed, setEventPrepCollapsed] = useState(true);
+  // Sticky flag: once we detect an event prep target, keep CTA visible this session
+  const [hasEventPrep, setHasEventPrep] = useState(false);
+  useEffect(() => {
+    try {
+      const accepted = Object.values(quotes)
+        .find((q: any) => q?.booking_request_id === bookingRequestId && q?.status === 'accepted' && q?.booking_id);
+      const bid = (bookingDetails as any)?.id || (accepted as any)?.booking_id || null;
+      if (bid && !hasEventPrep) setHasEventPrep(true);
+    } catch {}
+  }, [quotes, bookingDetails?.id, bookingRequestId, hasEventPrep]);
 
   // ---- Request a new quote (client)
   const handleRequestNewQuote = useCallback(async () => {
@@ -5315,6 +5374,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     </div>
                   ) : null;
                 },
+              }}
+              rangeChanged={(range) => {
+                // Preload older when the user nears the top to avoid a hard stop
+                try {
+                  const nearTop = (range.startIndex ?? 0) <= 2;
+                  if (nearTop && !olderInFlightRef.current && !reachedHistoryStartRef.current) {
+                    void fetchOlder();
+                  }
+                } catch {}
               }}
               // Open at bottom but do not animate scrolling on first render
               followOutput={true}
@@ -5666,12 +5734,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           >
             {/* Pinned quote preview in composer removed per request */}
             {/* Event Prep: show as a bottom bar above the composer, always in view */}
-            {(() => {
-              const accepted = Object.values(quotes)
-                .find((q: any) => q?.booking_request_id === bookingRequestId && q?.status === 'accepted' && q?.booking_id);
-              const bookingIdForPrep = (bookingDetails as any)?.id || (accepted as any)?.booking_id || null;
-              return bookingIdForPrep || null;
-            })() && (
+            {hasEventPrep && (
               <div className="px-1 border-b border-gray-100 bg-white">
                 <div
                   role="button"
