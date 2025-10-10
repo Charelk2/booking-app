@@ -4927,6 +4927,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             // the preview event updates the list instantly and backend broadcasts will follow.
           }
         } catch {}
+        // After sending, force scroll to bottom so the new message is in view
+        try {
+          virtuosoRef.current?.scrollToIndex?.({ index: Math.max(0, groupedMessages.length - 1), align: 'end', behavior: 'smooth' });
+        } catch {}
       };
 
       const createOptimisticMessage = (
