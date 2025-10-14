@@ -2,7 +2,7 @@
 
 import axios, { AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
 import { ensureFreshAccess } from '@/lib/refreshCoordinator';
-import { setTransportErrorMeta } from '@/lib/transportState';
+import { setTransportErrorMeta, runWithTransport } from '@/lib/transportState';
 import logger from './logger';
 import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
@@ -223,15 +223,25 @@ api.interceptors.response.use(
             return api(originalRequest);
           })
           .catch((refreshErr) => {
-            // Refresh failed: treat as session expired. Clean up client state,
-            // notify the app, and let the caller handle navigation if needed.
+            // Refresh failed. If we're offline, treat this as transient and
+            // defer refresh until connectivity returns, avoiding a forced logout.
+            // When back online, a queued refresh will run once.
             pendingQueue = [];
+            const offline = typeof window !== 'undefined' ? window.navigator.onLine === false : false;
+            if (offline) {
+              try {
+                runWithTransport('auth.refresh.deferred', async () => {
+                  await ensureFreshAccess();
+                }, { initialDelayMs: 0, jitterMs: 150, maxAttempts: 1, immediateOnReconnect: true });
+              } catch {}
+              return Promise.reject(refreshErr);
+            }
+            // Online: treat as session expired. Clean up client state and
+            // notify the app so it can redirect to login.
             try {
               if (typeof window !== 'undefined') {
                 localStorage.removeItem('user');
                 sessionStorage.removeItem('user');
-                // Broadcast a global event so AuthContext (or others) can respond
-                // by logging out and redirecting to the login page.
                 window.dispatchEvent(new Event('app:session-expired'));
               }
             } catch {}
