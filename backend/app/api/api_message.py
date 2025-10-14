@@ -7,10 +7,14 @@ from fastapi import (
     BackgroundTasks,
     Query,
     Path,
+    Response,
+    Header,
 )
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional, Literal
 from datetime import datetime, timezone
+import hashlib
 import logging
 import time
 
@@ -50,6 +54,7 @@ os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 )
 def read_messages(
     request_id: int,
+    response: Response,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
     skip: int = Query(0, ge=0),
@@ -76,6 +81,7 @@ def read_messages(
         False,
         description="When true, include lightweight quote summaries keyed by quote_id to eliminate a follow-up fetch on first paint.",
     ),
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
 ):
     booking_request = crud.crud_booking_request.get_booking_request(
         db, request_id=request_id
@@ -110,6 +116,30 @@ def read_messages(
     if normalized_mode == "delta" and after_id is None and since is None:
         # Delta without a cursor degrades to lite to avoid returning duplicate history
         normalized_mode = "lite"
+
+    # Conditional GET (ETag) for initial, cursor-less reads
+    is_cursorless = (after_id is None) and (before_id is None) and (since is None)
+    try:
+        agg = (
+            db.query(func.max(models.Message.id), func.max(models.Message.timestamp))
+            .filter(models.Message.booking_request_id == request_id)
+            .filter(models.Message.visible_to.in_([models.VisibleTo.BOTH, viewer]))
+            .one()
+        )
+        max_id, max_ts = agg
+        marker = (max_ts.isoformat() if isinstance(max_ts, datetime) else str(max_ts or "0"))
+        etag_src = f"{request_id}:{int(max_id or 0)}:{marker}:{viewer.name}"
+        etag_val = f'W/"{hashlib.sha1(etag_src.encode()).hexdigest()}"'
+        response.headers["ETag"] = etag_val
+        response.headers["Cache-Control"] = "private, max-age=15"
+        if is_cursorless and if_none_match and if_none_match.strip() == etag_val:
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+                "ETag": etag_val,
+                "Cache-Control": "private, max-age=15",
+            })
+    except Exception:
+        # Do not fail the request on ETag computation errors
+        pass
 
     effective_limit = int(limit)
     query_limit = effective_limit

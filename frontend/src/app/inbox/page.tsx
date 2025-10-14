@@ -487,8 +487,12 @@ export default function InboxPage() {
               .slice(0, 6);
             const results = await Promise.allSettled(
               sample.map(async (r) => {
-                const res = await getMessagesForBookingRequest(r.id, { limit: 40, mode: 'lite' });
-                const { items: msgs } = res.data;
+                // Prefer cached thread messages to avoid duplicate network fetches
+                let msgs = readThreadCache(r.id) || [];
+                if (!Array.isArray(msgs) || msgs.length === 0) {
+                  const res = await getMessagesForBookingRequest(r.id, { limit: 40, mode: 'lite' });
+                  msgs = res.data.items || [];
+                }
                 // Detect Booka moderation update based on the last message
                 const last = msgs[msgs.length - 1];
                 let moderation: { id: number; text: string; ts: string } | null = null;
@@ -1136,6 +1140,20 @@ export default function InboxPage() {
             id="conversation-list-wrapper"
             className="w-full px-4 md:w-1/4 lg:w-1/4 border-gray-100 flex-shrink-0 h-full min-h-0 flex flex-col overflow-hidden border-gray-100"
           >
+            {/* If a requestId is present in the URL but not found, show a gentle in-app notice instead of a global 404 */}
+            {(() => {
+              try {
+                const rid = Number(searchParams.get('requestId') || '');
+                if (rid && !allBookingRequests.some((r) => r.id === rid)) {
+                  return (
+                    <div className="mt-3 mb-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-amber-800 text-sm">
+                      That conversation isn’t available.
+                    </div>
+                  );
+                }
+              } catch {}
+              return null;
+            })()}
             <div className="p-3 sticky top-0 z-10 bg-white space-y-2 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h1 className="text-xl font-semibold">Messages</h1>

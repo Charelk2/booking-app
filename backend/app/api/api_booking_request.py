@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, status, UploadFile, File
+from fastapi import APIRouter, Depends, status, UploadFile, File, Response, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 import logging
 
 from .. import crud, models, schemas
@@ -24,6 +24,7 @@ from ..utils.redis_cache import invalidate_availability_cache
 import os
 import uuid
 import shutil
+import hashlib
 
 # Prefix is added when this router is included in `app/main.py`.
 router = APIRouter(
@@ -235,6 +236,8 @@ def read_my_client_booking_requests(
     current_user: models.User = Depends(
         get_current_active_client
     ),  # Changed to active client
+    response: Response = None,
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
 ):
     """
     Retrieve booking requests made by the current client.
@@ -254,6 +257,28 @@ def read_my_client_booking_requests(
         for q in req.quotes:
             # Avoid recursive payloads
             q.booking_request = None
+    # ETag: based on count and max(last_message_timestamp)
+    try:
+        max_ts = None
+        for r in requests:
+            try:
+                ts = getattr(r, "last_message_timestamp", None) or getattr(r, "updated_at", None) or getattr(r, "created_at", None)
+                if ts and (max_ts is None or ts > max_ts):
+                    max_ts = ts
+            except Exception:
+                continue
+        marker = (max_ts.isoformat() if isinstance(max_ts, datetime) else str(max_ts or "0"))
+        etag_src = f"{current_user.id}:{marker}:{len(requests)}:me_client"
+        etag_val = f'W/"{hashlib.sha1(etag_src.encode()).hexdigest()}"'
+        response.headers["ETag"] = etag_val
+        response.headers["Cache-Control"] = "private, max-age=15"
+        if if_none_match and if_none_match.strip() == etag_val:
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+                "ETag": etag_val,
+                "Cache-Control": "private, max-age=15",
+            })
+    except Exception:
+        pass
     return requests
 
 
@@ -269,6 +294,8 @@ def read_my_artist_booking_requests(
     current_artist: models.User = Depends(
         get_current_service_provider
     ),  # Artist specific endpoint
+    response: Response = None,
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
 ):
     """
     Retrieve booking requests made to the current artist.
@@ -286,6 +313,27 @@ def read_my_artist_booking_requests(
             req.updated_at = req.created_at
         for q in req.quotes:
             q.booking_request = None
+    try:
+        max_ts = None
+        for r in requests:
+            try:
+                ts = getattr(r, "last_message_timestamp", None) or getattr(r, "updated_at", None) or getattr(r, "created_at", None)
+                if ts and (max_ts is None or ts > max_ts):
+                    max_ts = ts
+            except Exception:
+                continue
+        marker = (max_ts.isoformat() if isinstance(max_ts, datetime) else str(max_ts or "0"))
+        etag_src = f"{current_artist.id}:{marker}:{len(requests)}:me_artist"
+        etag_val = f'W/"{hashlib.sha1(etag_src.encode()).hexdigest()}"'
+        response.headers["ETag"] = etag_val
+        response.headers["Cache-Control"] = "private, max-age=15"
+        if if_none_match and if_none_match.strip() == etag_val:
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+                "ETag": etag_val,
+                "Cache-Control": "private, max-age=15",
+            })
+    except Exception:
+        pass
     return requests
 
 

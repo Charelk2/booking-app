@@ -48,6 +48,8 @@ def get_threads_preview(
     cursor: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    response: Response = None,
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
 ):
     """Return atomic thread previews with unread counts.
 
@@ -148,6 +150,28 @@ def get_threads_preview(
         )
 
     items.sort(key=lambda i: i.last_ts, reverse=True)
+
+    # Conditional GET (ETag) based on max last_ts and count
+    try:
+        max_ts = None
+        if items:
+            try:
+                max_ts = max(it.last_ts for it in items if it.last_ts)
+            except Exception:
+                max_ts = None
+        marker = (max_ts.isoformat() if isinstance(max_ts, datetime) else str(max_ts or "0"))
+        etag_src = f"{current_user.id}:{marker}:{len(items)}:preview"
+        etag_val = f'W/"{hashlib.sha1(etag_src.encode()).hexdigest()}"'
+        response.headers["ETag"] = etag_val
+        response.headers["Cache-Control"] = "private, max-age=15"
+        if if_none_match and if_none_match.strip() == etag_val:
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+                "ETag": etag_val,
+                "Cache-Control": "private, max-age=15",
+            })
+    except Exception:
+        pass
+
     return ThreadPreviewResponse(items=items, next_cursor=None)
 
 
@@ -158,6 +182,8 @@ def get_threads_index(
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    response: Response = None,
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
 ):
     """Return a unified threads index for the Inbox list.
 
@@ -242,6 +268,28 @@ def get_threads_index(
         )
 
     items.sort(key=lambda i: i.last_message_at, reverse=True)
+
+    # Conditional GET (ETag) based on max last_message_at and count
+    try:
+        max_ts = None
+        if items:
+            try:
+                max_ts = max(it.last_message_at for it in items if it.last_message_at)
+            except Exception:
+                max_ts = None
+        marker = (max_ts.isoformat() if isinstance(max_ts, datetime) else str(max_ts or "0"))
+        etag_src = f"{current_user.id}:{marker}:{len(items)}:threads"
+        etag_val = f'W/"{hashlib.sha1(etag_src.encode()).hexdigest()}"'
+        response.headers["ETag"] = etag_val
+        response.headers["Cache-Control"] = "private, max-age=15"
+        if if_none_match and if_none_match.strip() == etag_val:
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+                "ETag": etag_val,
+                "Cache-Control": "private, max-age=15",
+            })
+    except Exception:
+        pass
+
     return ThreadsIndexResponse(items=items, next_cursor=None)
 
 

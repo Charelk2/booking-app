@@ -1,6 +1,6 @@
 // frontend/src/lib/api.ts
 
-import axios, { AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
+import axios, { AxiosProgressEvent, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import { ensureFreshAccess } from '@/lib/refreshCoordinator';
 import { setTransportErrorMeta, runWithTransport } from '@/lib/transportState';
 import logger from './logger';
@@ -336,6 +336,37 @@ api.interceptors.response.use(
     );
   },
 );
+
+// ─── Lightweight GET coalescer (dedupe identical in-flight requests) ──────────
+type CoalesceKey = string;
+const pendingGets = new Map<CoalesceKey, Promise<AxiosResponse<any>>>();
+
+function stableStringify(obj: any): string {
+  if (obj == null) return '';
+  if (typeof obj !== 'object') return String(obj);
+  if (Array.isArray(obj)) return `[${obj.map((v) => stableStringify(v)).join(',')}]`;
+  const keys = Object.keys(obj).sort();
+  return `{${keys.map((k) => `${k}:${stableStringify((obj as any)[k])}`).join(',')}}`;
+}
+
+function buildGetKey(url: string, config?: AxiosRequestConfig): CoalesceKey {
+  const u = url || '';
+  const p = config?.params ? stableStringify(config.params) : '';
+  const v = config?.validateStatus ? 'v1' : 'v0';
+  // Headers generally do not change GET identity for our use cases; omit for stability.
+  return `GET ${u} ${p} ${v}`;
+}
+
+function coalescedGet<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  const key = buildGetKey(url, config);
+  const existing = pendingGets.get(key) as Promise<AxiosResponse<T>> | undefined;
+  if (existing) return existing;
+  const p = api.get<T>(url, config) as Promise<AxiosResponse<T>>;
+  pendingGets.set(key, p as Promise<AxiosResponse<any>>);
+  const cleanup = () => { try { pendingGets.delete(key); } catch {} };
+  p.then(cleanup, cleanup);
+  return p;
+}
 
 // ─── AUTH (no /api/v1 prefix) ───────────────────────────────────────────────────
 
@@ -679,11 +710,11 @@ export const createBookingRequest = (data: BookingRequestCreate) =>
 
 // Optionally, if you want to get a list of booking requests (e.g., for a client dashboard):
 export const getMyBookingRequests = () =>
-  api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/client`);
+  coalescedGet<BookingRequest[]>(`${API_V1}/booking-requests/me/client`);
 
 // If the artist needs to fetch requests addressed to them:
 export const getBookingRequestsForArtist = () =>
-  api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/artist`);
+  coalescedGet<BookingRequest[]>(`${API_V1}/booking-requests/me/artist`);
 
 export const getDashboardStats = () =>
   api.get<{
@@ -817,7 +848,7 @@ export const getMessagesForBookingRequest = (
   if (qp.mode !== 'delta') {
     (qp as any).include_quotes = true;
   }
-  return api.get<MessageListResponseEnvelope>(
+  return coalescedGet<MessageListResponseEnvelope>(
     `${API_V1}/booking-requests/${bookingRequestId}/messages`,
     { params: qp }
   );
@@ -1125,7 +1156,7 @@ export const markAllNotificationsRead = () =>
   api.put(`${API_NOTIFICATIONS}/notifications/read-all`);
 
 export const getMessageThreads = () =>
-  api.get<ThreadNotification[]>(
+  coalescedGet<ThreadNotification[]>(
     `${API_NOTIFICATIONS}/notifications/message-threads`,
   );
 
@@ -1141,7 +1172,7 @@ export interface ThreadPreviewResponse {
 }
 
 export const getMessageThreadsPreview = (role?: 'artist' | 'client', limit = 50) =>
-  api.get<ThreadPreviewResponse>(
+  coalescedGet<ThreadPreviewResponse>(
     `${API_V1}/message-threads/preview`,
     { params: { role, limit } }
   );
@@ -1169,14 +1200,14 @@ export interface ThreadsIndexResponse {
   next_cursor?: string | null;
 }
 export const getThreadsIndex = (role?: 'artist' | 'client', limit = 50) =>
-  api.get<ThreadsIndexResponse>(
+  coalescedGet<ThreadsIndexResponse>(
     `${API_V1}/threads`,
     { params: { role, limit } }
   );
 
 // ─── INBOX UNREAD TOTAL (tiny endpoint with optional ETag) ────────────────
 export const getInboxUnread = (etag?: string) =>
-  api.get<{ total: number }>(
+  coalescedGet<{ total: number }>(
     withApiOrigin(`${API_V1}/inbox/unread`),
     {
       headers: etag ? { 'If-None-Match': etag } : undefined,
