@@ -14,12 +14,22 @@ import {
   getCurrentUser,
   getServiceProviderProfileMe,
 } from '@/lib/api';
-import { clearThreadCaches } from '@/lib/threadCache';
+import { clearThreadCaches } from '@/lib/chat/threadCache';
 import { ensureFreshAccess } from '@/lib/refreshCoordinator';
 import { getTransportStateSnapshot, runWithTransport } from '@/lib/transportState';
 
 // Guard to prevent double init in React Strict Mode (dev)
 let __authDidInit = false;
+
+export type RegisterPayload = {
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone_number: string;
+  password: string;
+  marketing_opt_in?: boolean;
+  user_type: 'client' | 'service_provider';
+};
 
 interface AuthContextType {
   user: User | null;
@@ -33,14 +43,13 @@ interface AuthContextType {
   verifyMfa: (
     token: string,
     code: string,
-    remember?: boolean,
     trustedDevice?: boolean,
     deviceId?: string,
   ) => Promise<void>;
   confirmMfa: (code: string) => Promise<void>;
   generateRecoveryCodes: () => Promise<string[]>;
   disableMfa: (code: string) => Promise<void>;
-  register: (data: Partial<User>) => Promise<void>;
+  register: (data: RegisterPayload) => Promise<void>;
   logout: () => void;
   refreshUser?: () => Promise<void>;
   artistViewActive: boolean;
@@ -279,7 +288,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyMfa = async (
     tokenToVerify: string,
     code: string,
-    remember = true,
     trustedDevice?: boolean,
     deviceId?: string,
   ) => {
@@ -300,8 +308,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch {}
       const { user: fallbackUser } = response.data;
-      const storage = remember ? localStorage : sessionStorage;
-      const altStorage = remember ? sessionStorage : localStorage;
+      // Default to persistent storage for MFA completion
+      const storage = localStorage;
+      const altStorage = sessionStorage;
 
       try {
         const userData = await fetchCurrentUserWithArtist();
@@ -358,12 +367,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const register = async (data: Partial<User> & { password?: string }) => {
+  const register = async (data: RegisterPayload) => {
     try {
       await apiRegister(data);
-      if (data.email && data.password) {
-        await login(data.email, data.password);
-      }
+      await login(data.email, data.password);
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;

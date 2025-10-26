@@ -24,8 +24,8 @@ if is_sqlite:
 else:
     connect_args = {}
     try:
-        pool_size = int(os.getenv("DB_POOL_SIZE") or 5)
-        max_overflow = int(os.getenv("DB_MAX_OVERFLOW") or 10)
+        pool_size = int(os.getenv("DB_POOL_SIZE") or 10)
+        max_overflow = int(os.getenv("DB_MAX_OVERFLOW") or 20)
         pool_recycle = int(os.getenv("DB_POOL_RECYCLE") or 300)
         pool_kwargs.update({
             "pool_size": pool_size,

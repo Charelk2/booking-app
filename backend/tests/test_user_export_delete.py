@@ -119,9 +119,8 @@ def create_data(Session):
         artist_id=artist.id,
         client_id=client.id,
         confirmed=True,
-        payment_status='deposit_paid',
-        deposit_amount=Decimal('50'),
-        deposit_paid=True,
+        payment_status='paid',
+        charged_total_amount=Decimal('100'),
     )
     db.add(simple)
     db.commit()
@@ -180,4 +179,3 @@ def test_delete_me_requires_password_and_sends_email(monkeypatch):
     assert db.query(User).filter(User.id == user.id).first() is None
     assert called['email'] == 'client@test.com'
     db.close()
-

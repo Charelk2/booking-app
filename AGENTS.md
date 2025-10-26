@@ -4,6 +4,10 @@ For setup instructions see [README.md](README.md).
 
 For scaling, performance, and production runbooks, see [SCALE.md](SCALE.md).
 
+For a step‑by‑step “payment‑fast” chat and realtime guide (how to wire
+client_request_id, delivered acks, attachment init/finalize, fast broadcast,
+and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.md).
+
 ---
 
 ## Agents Overview
@@ -16,19 +20,19 @@ For scaling, performance, and production runbooks, see [SCALE.md](SCALE.md).
 
 | **Provider Matching** | Selects sound and accommodation providers | `backend/app/crud/crud_service.py`<br>`backend/app/api/api_service.py` | During booking and quote steps |
 | **Travel & Accommodation** | Calculates travel distance, lodging costs, and now weather forecasts | `backend/app/services/booking_quote.py`<br>`backend/app/api/api_weather.py` | When estimating travel or lodging expenses |
-| **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote.py`<br>`frontend/src/components/booking/MessageThread.tsx` | After all booking info is entered |
+| **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote.py`<br>`frontend/src/components/chat/MessageThread.tsx` | After all booking info is entered |
 | **Quote Preview** | Shows an estimated total during the review step | `frontend/src/components/booking/wizard/Steps.tsx` | Right before submitting a booking request |
 | **Review** | Manages star ratings and comments for completed bookings | `backend/app/api/api_review.py`<br>`frontend/src/app/service-providers/[id]/page.tsx` | After a booking is marked completed |
 | **Payment** | Handles full upfront payments via `/api/v1/payments` | `backend/app/api/api_payment.py` | After quote acceptance |
 | **Notification** | Sends emails, chat alerts, and booking status updates | `backend/app/api/api_notification.py`<br>`backend/app/utils/notifications.py`<br>`frontend/hooks/useNotifications.ts` | On status changes, messages, actions |
-| **Chat** | Manages client–artist chat and WebSocket updates; queues offline messages and retries with exponential backoff, batches typing indicators, lengthens heartbeats on mobile or hidden tabs, coalesces presence updates, and defers image previews until opened | `backend/app/api/api_message.py`<br>`backend/app/api/api_ws.py`<br>`frontend/src/components/booking/MessageThread.tsx` | Always on for active bookings |
+| **Chat** | Manages client–artist chat and WebSocket updates; queues offline messages and retries with exponential backoff, batches typing indicators, lengthens heartbeats on mobile or hidden tabs, coalesces presence updates, and defers image previews until opened | `backend/app/api/api_message.py`<br>`backend/app/api/api_ws.py`<br>`frontend/src/components/chat/MessageThread.tsx` | Always on for active bookings |
 | **Caching** | Caches artist lists using Redis | `backend/app/utils/redis_cache.py`<br>`backend/app/api/v1/api_service_provider.py` | On artist list requests |
 | **Personalized Video** | Automates Q&A for custom video requests | `frontend/src/components/booking/PersonalizedVideoFlow.tsx`<br>`frontend/src/lib/videoFlow.ts` | When `service_type` is Personalized Video |
 | **Availability** | Checks artist/service availability in real time | `backend/app/api/v1/api_service_provider.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | On date selection and booking start |
 | **Form State** | Maintains booking progress across steps | `frontend/src/components/booking/BookingWizard.tsx`<br>`frontend/src/components/booking/wizard/Steps.tsx`<br>`frontend/src/contexts/BookingContext.tsx` | Throughout the user session |
 | **Validation** | Validates user input and business logic | `frontend/src/components/booking/BookingWizard.tsx`<br>`backend/app/schemas/` | At every form step and backend endpoint |
 | **Calendar Sync** | Imports Google Calendar events and merges them into `read_artist_availability` | `backend/app/api/api_calendar.py`<br>`backend/app/services/calendar_service.py`<br>`frontend/src/app/dashboard/profile/edit/page.tsx` | When artists connect or disconnect Google Calendar |
-| **Inbox Guide** | Normalizes system messages for thread previews, emits thread notifications on new requests (flagged), and guides users via lightweight CTAs in the chat | `backend/app/crud/crud_booking_request.py`<br>`backend/app/api/api_booking_request.py`<br>`backend/app/utils/messages.py`<br>`backend/app/utils/notifications.py`<br>`frontend/src/components/booking/MessageThread.tsx` | On booking creation and key booking/chat events |
+| **Inbox Guide** | Normalizes system messages for thread previews, emits thread notifications on new requests (flagged), and guides users via lightweight CTAs in the chat | `backend/app/crud/crud_booking_request.py`<br>`backend/app/api/api_booking_request.py`<br>`backend/app/utils/messages.py`<br>`backend/app/utils/notifications.py`<br>`frontend/src/components/chat/MessageThread.tsx` | On booking creation and key booking/chat events |
 
 ---
 
@@ -50,13 +54,13 @@ For scaling, performance, and production runbooks, see [SCALE.md](SCALE.md).
 ### 3. Travel & Accommodation Agent
 
 * **Purpose:** Calculates travel distance and optional lodging costs so quotes stay accurate. The agent also retrieves 3-day weather forecasts for trip planning. `calculateTravelMode()` geocodes any South African town to find the closest airport and compares flight costs with driving.
-* **Frontend:** Travel and accommodation fees are estimated within booking flows like `frontend/src/components/booking/BookingWizard.tsx` and `frontend/src/components/booking/MessageThread.tsx`; the standalone quote calculator page has been removed.
+* **Frontend:** Travel and accommodation fees are estimated within booking flows like `frontend/src/components/booking/BookingWizard.tsx` and `frontend/src/components/chat/MessageThread.tsx`; the standalone quote calculator page has been removed.
 * **Backend:** `booking_quote.py` exposes helpers used by the quote API. `/api/v1/travel-forecast` lives in `api_weather.py` and fetches forecast data from `wttr.in`.
 
 ### 4. Quote Generator
 
 * **Purpose:** Calculates and presents full, itemized quote: performance fee, provider, travel, accommodation, service fees.
-* **Frontend:** Quote forms in `MessageThread.tsx` show running totals.
+* **Frontend:** Quote forms in `components/chat/MessageThread.tsx` show running totals.
 * **Backend:** `api_quote.py` aggregates, formats, and returns structured JSON to frontend.
 
 ### 5. Quote Preview Agent
@@ -92,10 +96,11 @@ For scaling, performance, and production runbooks, see [SCALE.md](SCALE.md).
 ### 9. Chat Agent
 
 * **Purpose:** Delivers real-time or async chat, manages unread notifications, logs chat history.
-* **Frontend:** `MessageThread.tsx` and related components handle sending and displaying messages.
+* **Frontend:** `components/chat/MessageThread.tsx` and related components handle sending and displaying messages.
 * **Backend:** `api_message.py` stores messages and `api_ws.py` pushes updates via WebSocket.
 * **Features:** Auto-scroll, mobile-friendly input with an emoji picker, avatars, batched typing indicator, adaptive heartbeats for mobile or background tabs, coalesced presence updates, offline send queue with exponential backoff, and image previews that load only when tapped. Media uploads now stream through the attachment endpoint so images, voice notes, and files post immediately with server-hosted URLs and rich metadata (name, type, size). Optimistic bubbles keep conversations snappy while uploads finish, and failed sends surface clear errors without leaving phantom placeholders.
 * **Realtime stability:** A single global `RealtimeProvider` manages one WS/SSE connection app‑wide with keepalive pings; it falls back to SSE after repeated failures. Client‑side per‑instance pinning (Fly-Prefer-Instance) is disabled and transient 5xxs trigger a one‑shot unpinned retry. Infra guidance: run ≥2 instances, rolling deploys, and correct health checks for zero‑downtime.
+* **Implementation notes:** Chat is fully hook‑driven (no imperative `MessageThread` ref/handle). Virtualized list adapters share a minimal, typed contract and derive `computeItemKey` from the item index (internally mapping to stable message group keys) to avoid signature drift between adapters.
 ### 10. Caching Agent
 
 * **Purpose:** Cache heavy artist list responses using Redis.
@@ -136,7 +141,7 @@ For scaling, performance, and production runbooks, see [SCALE.md](SCALE.md).
   - Optionally emit a `new_message` notification whenever a booking is created so unread thread counts increment immediately (flag: `EMIT_NEW_MESSAGE_FOR_NEW_REQUEST=1`).
   - Keep system messages deduped with `system_key` (e.g., `booking_details_v1`).
   - Avoid noisy notifications for automated prompts (booking details, personalized video Q&A), while still rendering the messages inline.
-* **Frontend:** `MessageThread.tsx` renders system messages as centered gray lines; suppresses details summaries from the visible stream but parses them for the details card.
+* **Frontend:** `components/chat/MessageThread.tsx` renders system messages as centered gray lines; suppresses details summaries from the visible stream but parses them for the details card.
 * **Backend:**
   - `crud_booking_request.get_booking_requests_with_last_message()` rewrites `last_message_content` to “New Booking Request” when the latest message is a details summary.
   - `api_booking_request.create_booking_request()` creates the initial system line to the artist and, when flagged, also emits a `new_message` notification so thread unread counts update.

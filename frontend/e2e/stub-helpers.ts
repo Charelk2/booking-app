@@ -53,7 +53,7 @@ export async function stubNotifications(page: Page) {
       body: JSON.stringify([
         {
           id: 1,
-          type: 'deposit_due',
+          type: 'new_booking',
           timestamp: new Date().toISOString(),
           is_read: false,
           content: 'Deposit payment due for booking #5',
@@ -71,7 +71,7 @@ export async function stubBooking(page: Page, bookingId = 5) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: bookingId,
-        deposit_amount: 50,
+        // deposit removed
         payment_status: 'pending',
         booking_request_id: 42,
       }),

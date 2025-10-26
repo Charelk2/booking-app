@@ -61,7 +61,6 @@ function BookingList({
             title={`${b.service.title} - ${b.service.artist.business_name}`}
             date={format(new Date(b.start_time), "MMM d, yyyy h:mm a")}
             status={formatStatus(b.status)}
-            deposit={undefined}
             price={formatCurrency(Number(b.total_price))}
             actions={actions}
           >
@@ -281,7 +280,7 @@ export default function ClientBookingsPage() {
             <BookingList
               items={upcoming}
               onReview={handleOpenReview}
-              onPayDeposit={handleOpenPayment}
+              onPayNow={handleOpenPayment}
             />
           )}
         </section>
@@ -293,7 +292,7 @@ export default function ClientBookingsPage() {
             <BookingList
               items={past}
               onReview={handleOpenReview}
-              onPayDeposit={handleOpenPayment}
+              onPayNow={handleOpenPayment}
             />
           )}
         </section>

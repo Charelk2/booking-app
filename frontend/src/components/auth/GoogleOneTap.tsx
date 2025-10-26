@@ -1,13 +1,9 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import api, { getCurrentUser } from '@/lib/api';
+import { useGoogleOneTap } from '@/hooks/useGoogleOneTap';
 
-declare global {
-  interface Window { google?: any }
-}
-
-const GSI_SRC = 'https://accounts.google.com/gsi/client';
 const TRUSTED_DEVICE_KEY = 'booka.trusted_device_id';
 
 type Props = {
@@ -22,107 +18,61 @@ export default function GoogleOneTap({ next, enabled = true }: Props) {
     return next || window.location.pathname + window.location.search || '/dashboard';
   }, [next]);
 
-  useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
-
-    const loadGsi = () => new Promise<void>((resolve, reject) => {
-      if (document.getElementById('gsi-script')) return resolve();
-      const s = document.createElement('script');
-      s.id = 'gsi-script';
-      s.src = GSI_SRC;
-      s.async = true;
-      s.defer = true;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error('Failed to load Google script'));
-      document.head.appendChild(s);
-    });
-
-    const handleGsiCredential = async (response: { credential?: string }) => {
+  const handleGsiCredential = useCallback(async (response: { credential?: string }) => {
+    try {
+      if (!response?.credential) return;
+      let did = '';
       try {
-        if (!response?.credential) return;
-        let did = '';
-        try {
-          did = localStorage.getItem(TRUSTED_DEVICE_KEY) || '';
-          if (!did) {
-            const id = crypto.getRandomValues(new Uint32Array(4)).join('-');
-            localStorage.setItem(TRUSTED_DEVICE_KEY, id);
-            did = id;
-          }
-        } catch {}
-        await api.post('/auth/google/onetap', { credential: response.credential, next: nextPath, deviceId: did });
-        // Populate client state before navigation so AuthContext detects the session
-        try {
-          const me = await getCurrentUser();
-          const user = me.data;
-          try { localStorage.setItem('user', JSON.stringify(user)); } catch {}
-        } catch {}
-        if (typeof window !== 'undefined') window.location.replace(nextPath);
-      } catch (e) {
-        // Silent fail; One Tap should be non-blocking
-        // eslint-disable-next-line no-console
-        console.warn('One Tap sign-in failed', e);
-      }
-    };
-
-    const init = async () => {
-      try {
-        if (!clientId) return;
-        // Suppress when already logged in (cookie session + cached user)
-        try {
-          if (typeof window !== 'undefined') {
-            const stored = localStorage.getItem('user') || sessionStorage.getItem('user');
-            if (stored) return; // user already signed in
-          }
-        } catch {}
-        await loadGsi();
-        if (cancelled || !window.google?.accounts?.id) return;
-
-        const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
-        const isLocal = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
-        const envPref = (process.env.NEXT_PUBLIC_GSI_USE_FEDCM || '').toLowerCase();
-        const envAllowsFedCM = !['0','false','no','off'].includes(envPref);
-        const fedcmPreferred = isSecure && !isLocal && envAllowsFedCM;
-
-        const initAndPrompt = (useFed: boolean) => {
-          window.google!.accounts.id.initialize({
-            client_id: clientId,
-            callback: handleGsiCredential,
-            auto_select: true,
-            cancel_on_tap_outside: false,
-            use_fedcm_for_prompt: useFed,
-            context: 'signin',
-            itp_support: true,
-          });
-          window.google!.accounts.id.prompt((notification: any) => {
-            try {
-              const displayed = notification.isDisplayed?.();
-              const skipped = notification.isSkippedMoment?.();
-              const dismissed = notification.isDismissedMoment?.();
-              if (useFed && (!displayed || skipped || dismissed)) {
-                window.google!.accounts.id.cancel();
-                initAndPrompt(false);
-              }
-            } catch {}
-          });
-        };
-
-        initAndPrompt(fedcmPreferred);
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.warn('GSI init failed', e);
-      }
-    };
-
-    void init();
-    return () => {
-      cancelled = true;
-      try {
-        window.google?.accounts.id.cancel();
-        window.google?.accounts.id.disableAutoSelect();
+        did = localStorage.getItem(TRUSTED_DEVICE_KEY) || '';
+        if (!did) {
+          const id = crypto.getRandomValues(new Uint32Array(4)).join('-');
+          localStorage.setItem(TRUSTED_DEVICE_KEY, id);
+          did = id;
+        }
       } catch {}
-    };
-  }, [clientId, nextPath, enabled]);
+      await api.post('/auth/google/onetap', { credential: response.credential, next: nextPath, deviceId: did });
+      // Fill user cache eagerly so the app sees the session before navigation
+      try {
+        const me = await getCurrentUser();
+        const user = me.data;
+        try { localStorage.setItem('user', JSON.stringify(user)); } catch {}
+      } catch {}
+      if (typeof window !== 'undefined') window.location.replace(nextPath);
+    } catch (e) {
+      // Silent fail; One Tap should be non-blocking
+      // eslint-disable-next-line no-console
+      console.warn('One Tap sign-in failed', e);
+    }
+  }, [nextPath]);
+
+  // Enable only when:
+  // - prop enabled is true
+  // - client id present
+  // - no existing stored user
+  const allowOneTap = useMemo(() => {
+    if (!enabled) return false;
+    if (!clientId) return false;
+    try {
+      const stored = typeof window !== 'undefined' && (localStorage.getItem('user') || sessionStorage.getItem('user'));
+      if (stored) return false;
+    } catch {}
+    return true;
+  }, [enabled, clientId]);
+
+  // FedCM preference mirrors previous logic: only on HTTPS, not localhost, env allows
+  const useFedCm = useMemo(() => {
+    try {
+      const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+      const isLocal = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+      const envPref = (process.env.NEXT_PUBLIC_GSI_USE_FEDCM || '').toLowerCase();
+      const envAllows = !['0', 'false', 'no', 'off'].includes(envPref);
+      return isSecure && !isLocal && envAllows;
+    } catch {
+      return true;
+    }
+  }, []);
+
+  useGoogleOneTap({ clientId: allowOneTap ? clientId : undefined, onCredential: handleGsiCredential, context: 'signin', useFedCm });
 
   return null;
 }

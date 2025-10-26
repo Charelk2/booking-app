@@ -1,6 +1,7 @@
 'use client';
 import { useState, useCallback } from 'react';
 import PaymentModal from '@/components/booking/PaymentModal';
+import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
 import { createPayment } from '@/lib/api';
 
 export interface PaymentSuccess {
@@ -11,7 +12,7 @@ export interface PaymentSuccess {
   mocked?: boolean;
 }
 
-interface OpenArgs { bookingRequestId: number; amount: number }
+interface OpenArgs { bookingRequestId: number; amount: number; providerName?: string; serviceName?: string }
 
 export default function usePaymentModal(
   onSuccess: (res: PaymentSuccess) => void,
@@ -32,13 +33,20 @@ export default function usePaymentModal(
       open={open}
       bookingRequestId={args.bookingRequestId}
       amount={args.amount}
+      providerName={args.providerName}
+      serviceName={args.serviceName}
       onClose={() => setOpen(false)}
       onSuccess={(result) => {
         setOpen(false);
+        try {
+          if (args?.bookingRequestId) {
+            emitThreadsUpdated({ threadId: args.bookingRequestId, reason: 'payment', source: 'client', immediate: true }, { immediate: true, force: true });
+          }
+        } catch {}
         onSuccess(result);
       }}
       onError={(msg) => {
-        setOpen(false);
+        // Keep modal open so the user can see the error and retry
         onError(msg);
       }}
     />

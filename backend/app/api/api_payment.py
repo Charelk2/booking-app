@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Request, Query, Header
+from fastapi import APIRouter, Depends, status, Request, Query, Header, BackgroundTasks
 from fastapi.responses import FileResponse
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
@@ -10,8 +10,12 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 import httpx
 import uuid
+import time
 
 from .. import crud
+from .. import schemas, models
+from ..crud import crud_quote_v2
+from ..crud import crud_message
 from ..models import (
     User,
     BookingSimple,
@@ -27,10 +31,12 @@ from .dependencies import get_db, get_current_active_client, get_current_service
 from ..core.config import settings
 from ..utils import error_response
 from ..utils.notifications import notify_user_new_message
+from ..utils.outbox import enqueue_outbox
 import hmac
 import hashlib
 import json
 from sqlalchemy import text
+from ..utils.metrics import incr as metrics_incr, timing_ms as metrics_timing
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +53,60 @@ class PaymentCreate(BaseModel):
     full: Optional[bool] = False
 
 
+# ————————————————————————————————————————————————————————————————
+# Helpers
+
+def _message_to_envelope(db: Session, msg: models.Message) -> dict:
+    """Serialize a Message to the same envelope shape used by api_message.
+
+    Ensures avatar_url parity so the UI renders identically across sources.
+    """
+    try:
+        data = schemas.MessageResponse.model_validate(msg).model_dump()
+    except Exception:
+        # Best-effort fallback if schema validation fails
+        data = {
+            "id": int(getattr(msg, "id", 0) or 0),
+            "booking_request_id": int(getattr(msg, "booking_request_id", 0) or 0),
+            "sender_id": int(getattr(msg, "sender_id", 0) or 0),
+            "sender_type": getattr(msg, "sender_type", None),
+            "content": getattr(msg, "content", "") or "",
+            "message_type": getattr(msg, "message_type", None),
+            "visible_to": getattr(msg, "visible_to", None),
+            "quote_id": getattr(msg, "quote_id", None),
+            "attachment_url": getattr(msg, "attachment_url", None),
+            "attachment_meta": getattr(msg, "attachment_meta", None),
+            "timestamp": getattr(msg, "timestamp", None),
+        }
+    # Avatar URL enrichment (parity with api_message)
+    try:
+        sender = msg.sender
+        avatar_url = None
+        if sender:
+            if sender.user_type == models.UserType.SERVICE_PROVIDER:
+                profile = sender.artist_profile
+                if profile and profile.profile_picture_url:
+                    avatar_url = profile.profile_picture_url
+            elif sender.profile_picture_url:
+                avatar_url = sender.profile_picture_url
+        data["avatar_url"] = avatar_url
+    except Exception:
+        data.setdefault("avatar_url", None)
+    return data
+
+try:
+    # Import the WebSocket manager to broadcast new messages to thread topics
+    from .api_ws import manager as ws_manager  # type: ignore
+except Exception:  # pragma: no cover - fallback when ws module unavailable
+    ws_manager = None  # type: ignore
+
+
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_payment(
     payment_in: PaymentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_client),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     logger.info(
         "Process payment for request %s amount %s full=%s",
@@ -59,6 +114,7 @@ def create_payment(
         payment_in.amount,
         payment_in.full,
     )
+    t_start_direct = time.perf_counter()
 
     booking = (
         db.query(BookingSimple)
@@ -67,14 +123,63 @@ def create_payment(
         .first()
     )
     if not booking:
-        logger.warning(
-            "Booking not found for request %s", payment_in.booking_request_id
+        # Accept-and-create on first payment attempt so clients can pay immediately after a quote is sent.
+        # Find the most recent quote for this request (prefer PENDING, fallback to ACCEPTED if already accepted elsewhere).
+        candidate = (
+            db.query(QuoteV2)
+            .filter(QuoteV2.booking_request_id == payment_in.booking_request_id)
+            .order_by(QuoteV2.id.desc())
+            .first()
         )
-        raise error_response(
-            "Booking not found",
-            {"booking_request_id": "not_found"},
-            status.HTTP_404_NOT_FOUND,
-        )
+        if candidate is not None:
+            status_val = getattr(candidate.status, "value", candidate.status)
+            # Block paying expired quotes (and those past expiry unless already accepted)
+            try:
+                now = datetime.utcnow()
+                is_expired_state = str(status_val).lower() == "expired"
+                is_time_expired = bool(getattr(candidate, "expires_at", None)) and getattr(candidate, "expires_at") < now
+                is_accepted_state = str(status_val).lower() == "accepted"
+                if is_expired_state or (is_time_expired and not is_accepted_state):
+                    raise error_response(
+                        "Quote has expired. Please request a new quote.",
+                        {"quote": "expired"},
+                        status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    )
+            except Exception as _exc:
+                # If we raised a structured error, let it bubble. Otherwise continue.
+                if hasattr(_exc, "status_code"):
+                    raise
+            # Enforce payment = acceptance: if pending, accept now or return 422 with a helpful error
+            if str(status_val).lower() == "pending":
+                try:
+                    crud_quote_v2.accept_quote(db, candidate.id)
+                except Exception as exc:
+                    logger.error(
+                        "Quote acceptance failed pre-payment for request %s: %s",
+                        payment_in.booking_request_id,
+                        exc,
+                        exc_info=True,
+                    )
+                    raise error_response(
+                        "Cannot accept quote before payment",
+                        {"quote": "acceptance_failed", "hint": "Ensure event date/time and required details are set"},
+                        status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    )
+            # Re-query booking after acceptance or if already accepted
+            booking = (
+                db.query(BookingSimple)
+                .filter(BookingSimple.quote_id == candidate.id)
+                .first()
+            )
+        if not booking:
+            logger.warning(
+                "Booking not found for request %s", payment_in.booking_request_id
+            )
+            raise error_response(
+                "Booking not found",
+                {"booking_request_id": "not_found"},
+                status.HTTP_404_NOT_FOUND,
+            )
 
     if booking.client_id != current_user.id:
         logger.warning(
@@ -88,10 +193,53 @@ def create_payment(
             status.HTTP_403_FORBIDDEN,
         )
 
-    if booking.deposit_paid:
+    # Enforce payment = acceptance for the resolved booking's quote.
+    try:
+        qv2_for_booking = None
+        if getattr(booking, "quote_id", None):
+            qv2_for_booking = db.query(QuoteV2).filter(QuoteV2.id == booking.quote_id).first()
+        if qv2_for_booking is not None:
+            status_val = getattr(qv2_for_booking.status, "value", qv2_for_booking.status)
+            # Block paying expired quotes (and those past expiry unless already accepted)
+            try:
+                now = datetime.utcnow()
+                is_expired_state = str(status_val).lower() == "expired"
+                is_time_expired = bool(getattr(qv2_for_booking, "expires_at", None)) and getattr(qv2_for_booking, "expires_at") < now
+                is_accepted_state = str(status_val).lower() == "accepted"
+                if is_expired_state or (is_time_expired and not is_accepted_state):
+                    raise error_response(
+                        "Quote has expired. Please request a new quote.",
+                        {"quote": "expired"},
+                        status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    )
+            except Exception:
+                # structured error will bubble; otherwise fall through
+                pass
+            if str(status_val).lower() == "pending":
+                try:
+                    crud_quote_v2.accept_quote(db, int(qv2_for_booking.id))
+                except Exception as exc:
+                    logger.error(
+                        "Quote acceptance failed pre-payment for booking %s (quote %s): %s",
+                        booking.id,
+                        qv2_for_booking.id,
+                        exc,
+                        exc_info=True,
+                    )
+                    raise error_response(
+                        "Cannot accept quote before payment",
+                        {"quote": "acceptance_failed", "hint": "Ensure event date/time and required details are set"},
+                        status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    )
+    except Exception:
+        # Do not block on unexpected reflection errors; the gateway pre-init checks below will still run
+        pass
+
+    # Prevent duplicate payments once fully paid
+    if (str(booking.payment_status or "").lower() == "paid") or (getattr(booking, "charged_total_amount", 0) or 0) > 0:
         logger.warning("Duplicate payment attempt for booking %s", booking.id)
         raise error_response(
-            "Deposit already paid",
+            "Payment already completed",
             {"payment": "duplicate"},
             status.HTTP_400_BAD_REQUEST,
         )
@@ -179,7 +327,6 @@ def create_payment(
             )
 
     # Mark fully paid, regardless of request payload
-    booking.deposit_paid = True
     booking.payment_status = "paid"
     booking.payment_id = charge.get("id")
     booking.charged_total_amount = charge_amount
@@ -209,7 +356,7 @@ def create_payment(
                 f" Receipt: /api/v1/payments/{booking.payment_id}/receipt"
                 if booking.payment_id else ""
             )
-            crud.crud_message.create_message(
+            msg_sys = crud.crud_message.create_message(
                 db=db,
                 booking_request_id=br.id,
                 sender_id=booking.artist_id,
@@ -221,13 +368,79 @@ def create_payment(
                 system_key="payment_received",
             )
             db.commit()
+            # Provider-targeted mirror to create an unread bump for the provider's inbox
+            try:
+                crud.crud_message.create_message(
+                    db=db,
+                    booking_request_id=br.id,
+                    sender_id=booking.client_id,
+                    sender_type=SenderType.CLIENT,
+                    content=f"Payment received. Your booking is confirmed and the date is secured.{receipt_suffix}",
+                    message_type=MessageType.SYSTEM,
+                    visible_to=VisibleTo.ARTIST,
+                    action=None,
+                    system_key="payment_received_artist",
+                )
+                db.commit()
+            except Exception:
+                pass
+            # Broadcast this system message to the thread via WS/SSE (best effort)
+            try:
+                if ws_manager:
+                    env = _message_to_envelope(db, msg_sys)
+                    background_tasks.add_task(ws_manager.broadcast, int(br.id), env)
+                    logger.info(
+                        "payment_broadcast_scheduled: request_id=%s msg_id=%s",
+                        int(br.id), int(getattr(msg_sys, "id", 0) or 0),
+                    )
+                # Reliable realtime via outbox as a fallback/cross-process path
+                try:
+                    env = _message_to_envelope(db, msg_sys)
+                    enqueue_outbox(db, topic=f"booking-requests:{int(br.id)}", payload=env)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            # Retract any stale "Quote expired." system line for this thread (post-payment)
+            try:
+                last_exp = (
+                    db.query(models.Message)
+                    .filter(
+                        models.Message.booking_request_id == br.id,
+                        models.Message.message_type == MessageType.SYSTEM,
+                        models.Message.content == "Quote expired.",
+                    )
+                    .order_by(models.Message.id.desc())
+                    .first()
+                )
+                if last_exp:
+                    crud_message.delete_message(db, int(last_exp.id))
+                    db.commit()
+                    try:
+                        if ws_manager:
+                            background_tasks.add_task(
+                                ws_manager.broadcast,
+                                int(br.id),
+                                {"v": 1, "type": "message_deleted", "id": int(last_exp.id)},
+                            )
+                        enqueue_outbox(
+                            db,
+                            topic=f"booking-requests:{int(br.id)}",
+                            payload={"v": 1, "type": "message_deleted", "id": int(last_exp.id)},
+                        )
+                    except Exception:
+                        pass
+            except Exception:
+                pass
             # Notify both parties about the payment system message
             try:
                 artist = db.query(User).filter(User.id == booking.artist_id).first()
                 client = db.query(User).filter(User.id == booking.client_id).first()
                 if artist and client:
+                    # Client sees bell (sender = artist)
                     notify_user_new_message(db, client, artist, br.id, "Payment received", MessageType.SYSTEM)
-                    notify_user_new_message(db, artist, artist, br.id, "Payment received", MessageType.SYSTEM)
+                    # Provider sees bell (sender = client)
+                    notify_user_new_message(db, artist, client, br.id, "Payment received", MessageType.SYSTEM)
             except Exception:
                 pass
         except Exception as exc:  # pragma: no cover — non-fatal
@@ -261,6 +474,13 @@ def create_payment(
         db.commit()
     except Exception:
         db.rollback()
+    # Metrics (best-effort)
+    try:
+        dt = (time.perf_counter() - t_start_direct) * 1000.0
+        metrics_timing("payment.direct_success_ms", dt, tags={"source": "direct"})
+        metrics_incr("payment.direct_success_total", tags={"source": "direct"})
+    except Exception:
+        pass
     return {"status": "ok", "payment_id": charge.get("id")}
 
 
@@ -269,6 +489,7 @@ def paystack_verify(
     reference: str = Query(..., min_length=4),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_client),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     if not settings.PAYSTACK_SECRET_KEY:
         raise error_response("Paystack not configured", {}, status.HTTP_400_BAD_REQUEST)
@@ -276,6 +497,7 @@ def paystack_verify(
         "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
         "Content-Type": "application/json",
     }
+    t_start_verify = time.perf_counter()
     try:
         with httpx.Client(timeout=10.0) as client:
             r = client.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
@@ -299,9 +521,7 @@ def paystack_verify(
         raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
 
     # Mark paid and propagate changes (same as create_payment success path)
-    simple.deposit_paid = True
     simple.payment_status = "paid"
-    simple.deposit_amount = amount
     simple.payment_id = reference
     simple.charged_total_amount = amount
     simple.confirmed = True
@@ -312,6 +532,20 @@ def paystack_verify(
         if br.status != BookingStatus.REQUEST_CONFIRMED:
             br.status = BookingStatus.REQUEST_CONFIRMED
     formal_booking = db.query(Booking).filter(Booking.quote_id == simple.quote_id).first()
+    # Enforce payment = acceptance: ensure a formal Booking exists. If quote is still pending, accept now (idempotent).
+    try:
+        if formal_booking is None and getattr(simple, "quote_id", None):
+            qv2 = db.query(QuoteV2).filter(QuoteV2.id == simple.quote_id).first()
+            if qv2 is not None:
+                status_val = getattr(qv2.status, "value", qv2.status)
+                if str(status_val).lower() == "pending":
+                    try:
+                        crud_quote_v2.accept_quote(db, int(qv2.id))
+                        formal_booking = db.query(Booking).filter(Booking.quote_id == qv2.id).first()
+                    except Exception as exc:
+                        logger.error("Quote accept during verify failed for quote %s: %s", qv2.id, exc, exc_info=True)
+    except Exception:
+        pass
     if formal_booking and formal_booking.status != BookingStatus.CONFIRMED:
         formal_booking.status = BookingStatus.CONFIRMED
 
@@ -321,7 +555,7 @@ def paystack_verify(
     if br:
         try:
             receipt_suffix = f" Receipt: /api/v1/payments/{simple.payment_id}/receipt" if simple.payment_id else ""
-            crud.crud_message.create_message(
+            msg_sys = crud.crud_message.create_message(
                 db=db,
                 booking_request_id=br.id,
                 sender_id=simple.artist_id,
@@ -333,6 +567,78 @@ def paystack_verify(
                 system_key="payment_received",
             )
             db.commit()
+            # Provider-targeted mirror for unread bump
+            try:
+                crud.crud_message.create_message(
+                    db=db,
+                    booking_request_id=br.id,
+                    sender_id=simple.client_id,
+                    sender_type=SenderType.CLIENT,
+                    content=f"Payment received — order #{simple.payment_id}.",
+                    message_type=MessageType.SYSTEM,
+                    visible_to=VisibleTo.ARTIST,
+                    action=None,
+                    system_key="payment_received_artist",
+                )
+                db.commit()
+            except Exception:
+                pass
+            try:
+                if ws_manager:
+                    env = _message_to_envelope(db, msg_sys)
+                    background_tasks.add_task(ws_manager.broadcast, int(br.id), env)
+                    logger.info(
+                        "payment_broadcast_scheduled: request_id=%s msg_id=%s",
+                        int(br.id), int(getattr(msg_sys, "id", 0) or 0),
+                    )
+                # Also enqueue outbox for reliable cross-process delivery
+                try:
+                    env = _message_to_envelope(db, msg_sys)
+                    enqueue_outbox(db, topic=f"booking-requests:{int(br.id)}", payload=env)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            # Retract any stale "Quote expired." system line for this thread (post-payment)
+            try:
+                last_exp = (
+                    db.query(models.Message)
+                    .filter(
+                        models.Message.booking_request_id == br.id,
+                        models.Message.message_type == MessageType.SYSTEM,
+                        models.Message.content == "Quote expired.",
+                    )
+                    .order_by(models.Message.id.desc())
+                    .first()
+                )
+                if last_exp:
+                    crud_message.delete_message(db, int(last_exp.id))
+                    db.commit()
+                    try:
+                        if ws_manager:
+                            background_tasks.add_task(
+                                ws_manager.broadcast,
+                                int(br.id),
+                                {"v": 1, "type": "message_deleted", "id": int(last_exp.id)},
+                            )
+                        enqueue_outbox(
+                            db,
+                            topic=f"booking-requests:{int(br.id)}",
+                            payload={"v": 1, "type": "message_deleted", "id": int(last_exp.id)},
+                        )
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            # Notify both parties about the payment system message
+            try:
+                artist = db.query(User).filter(User.id == simple.artist_id).first()
+                client = db.query(User).filter(User.id == simple.client_id).first()
+                if artist and client:
+                    notify_user_new_message(db, client, artist, br.id, "Payment received", MessageType.SYSTEM)
+                    notify_user_new_message(db, artist, client, br.id, "Payment received", MessageType.SYSTEM)
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -342,6 +648,13 @@ def paystack_verify(
         db.commit()
     except Exception:
         db.rollback()
+    # Metrics (best-effort)
+    try:
+        dt = (time.perf_counter() - t_start_verify) * 1000.0
+        metrics_timing("payment.verify_ms", dt, tags={"source": "verify"})
+        metrics_incr("payment.verify_success_total", tags={"source": "verify"})
+    except Exception:
+        pass
     return {"status": "ok", "payment_id": simple.payment_id}
 
 
@@ -359,7 +672,7 @@ def download_receipt(payment_id: str, request: Request, db: Session = Depends(ge
     ]
     if bs:
         try:
-            amt = bs.charged_total_amount or bs.deposit_amount or Decimal("0")
+            amt = bs.charged_total_amount or Decimal("0")
             lines.append(f"Amount: {amt} ZAR")
         except Exception:
             pass
@@ -386,6 +699,7 @@ async def paystack_webhook(
         return Response(status_code=status.HTTP_200_OK)
 
     raw = await request.body()
+    t_start_webhook = time.perf_counter()
     try:
         expected = hmac.new(
             key=settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
@@ -394,6 +708,10 @@ async def paystack_webhook(
         ).hexdigest()
         if not x_paystack_signature or x_paystack_signature != expected:
             logger.warning("Paystack webhook signature mismatch")
+            try:
+                metrics_incr("paystack.webhook_signature_mismatch_total")
+            except Exception:
+                pass
             return Response(status_code=status.HTTP_400_BAD_REQUEST)
     except Exception as exc:
         logger.error("Webhook signature verification failed: %s", exc)
@@ -424,13 +742,11 @@ async def paystack_webhook(
         return Response(status_code=status.HTTP_200_OK)
 
     # Idempotency
-    if simple.deposit_paid:
+    if (str(simple.payment_status or "").lower() == "paid") or (getattr(simple, "charged_total_amount", 0) or 0) > 0:
         return Response(status_code=status.HTTP_200_OK)
 
     # Mark paid and propagate (same as manual verify path)
-    simple.deposit_paid = True
     simple.payment_status = "paid"
-    simple.deposit_amount = amount
     simple.charged_total_amount = amount
     simple.confirmed = True
 
@@ -449,7 +765,7 @@ async def paystack_webhook(
     if br:
         try:
             receipt_suffix = f" Receipt: /api/v1/payments/{simple.payment_id}/receipt" if simple.payment_id else ""
-            crud.crud_message.create_message(
+            msg_sys = crud.crud_message.create_message(
                 db=db,
                 booking_request_id=br.id,
                 sender_id=simple.artist_id,
@@ -461,6 +777,63 @@ async def paystack_webhook(
                 system_key="payment_received",
             )
             db.commit()
+            try:
+                if ws_manager:
+                    env = _message_to_envelope(db, msg_sys)
+                    t0 = datetime.utcnow()
+                    await ws_manager.broadcast(int(br.id), env)
+                    t1 = datetime.utcnow()
+                    ms = (t1 - t0).total_seconds() * 1000.0
+                    logger.info(
+                        "payment_broadcast_done: request_id=%s msg_id=%s latency_ms=%.1f",
+                        int(br.id), int(getattr(msg_sys, "id", 0) or 0), ms,
+                    )
+                # Enqueue outbox for reliable cross-process delivery
+                try:
+                    env = _message_to_envelope(db, msg_sys)
+                    enqueue_outbox(db, topic=f"booking-requests:{int(br.id)}", payload=env)
+                except Exception:
+                    pass
+            except Exception as exc:
+                logger.warning("payment_broadcast_failed: request_id=%s err=%s", int(getattr(br, 'id', 0) or 0), exc)
+        except Exception:
+            pass
+        # Notify both parties (bell notifications)
+        try:
+            artist = db.query(User).filter(User.id == simple.artist_id).first()
+            client = db.query(User).filter(User.id == simple.client_id).first()
+            if artist and client:
+                notify_user_new_message(db, client, artist, br.id, "Payment received", MessageType.SYSTEM)
+                notify_user_new_message(db, artist, client, br.id, "Payment received", MessageType.SYSTEM)
+        except Exception:
+            pass
+        # Retract any stale "Quote expired." system line for this thread (post-payment)
+        try:
+            last_exp = (
+                db.query(models.Message)
+                .filter(
+                    models.Message.booking_request_id == br.id,
+                    models.Message.message_type == MessageType.SYSTEM,
+                    models.Message.content == "Quote expired.",
+                )
+                .order_by(models.Message.id.desc())
+                .first()
+            )
+            if last_exp:
+                crud_message.delete_message(db, int(last_exp.id))
+                db.commit()
+                try:
+                    if ws_manager:
+                        await ws_manager.broadcast(
+                            int(br.id), {"v": 1, "type": "message_deleted", "id": int(last_exp.id)}
+                        )
+                    enqueue_outbox(
+                        db,
+                        topic=f"booking-requests:{int(br.id)}",
+                        payload={"v": 1, "type": "message_deleted", "id": int(last_exp.id)},
+                    )
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -470,6 +843,13 @@ async def paystack_webhook(
         db.commit()
     except Exception:
         db.rollback()
+    # Metrics (best-effort)
+    try:
+        dt = (time.perf_counter() - t_start_webhook) * 1000.0
+        metrics_timing("payment.webhook_ms", dt, tags={"source": "webhook"})
+        metrics_incr("payment.webhook_success_total", tags={"source": "webhook"})
+    except Exception:
+        pass
     return Response(status_code=status.HTTP_200_OK)
 
 
@@ -615,7 +995,7 @@ def get_payment_receipt(payment_id: str, db: Session = Depends(get_db)):
         if bs:
             booking_id = bs.id
             try:
-                amount = float(bs.charged_total_amount or bs.deposit_amount or 0)
+                amount = float(bs.charged_total_amount or 0)
             except Exception:
                 amount = None
             if bs.client:

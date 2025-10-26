@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import MessageThread, { MessageThreadHandle } from './MessageThread';
+import MessageThread from '@/components/chat/MessageThread';
 import { getMessagesForBookingRequest, postMessageToBookingRequest } from '@/lib/api';
 import { computeVideoProgress, videoQuestions } from '@/lib/videoFlow';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,7 +19,6 @@ interface Props {
  */
 export default function PersonalizedVideoFlow({ bookingRequestId, clientName, artistName, artistAvatarUrl }: Props) {
   const { user } = useAuth();
-  const threadRef = useRef<MessageThreadHandle>(null);
   const [progress, setProgress] = useState(0);
   // Controls the typing indicator while the system prepares the next question
   const [systemTyping, setSystemTyping] = useState(false);
@@ -34,20 +33,22 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
       setSystemTyping(true);
       // brief delay so the typing indicator is visible before the message appears
       await new Promise((r) => setTimeout(r, 1000));
+      const cid = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+        ? (crypto as any).randomUUID()
+        : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
       await postMessageToBookingRequest(bookingRequestId, {
         content: text,
         // Align with backend's uppercase message types.
         message_type: 'SYSTEM',
-      });
+      }, { clientRequestId: cid });
       setSystemTyping(false);
-      threadRef.current?.refreshMessages();
     },
     [bookingRequestId],
   );
 
   const refreshFlow = useCallback(async () => {
     try {
-      const res = await getMessagesForBookingRequest(bookingRequestId, { mode: 'lite', limit: 80 });
+      const res = await getMessagesForBookingRequest(bookingRequestId, { mode: 'lite', limit: 500 });
       const msgs = res.data.items;
       const progressCount = computeVideoProgress(msgs);
       setProgress(progressCount);
@@ -104,9 +105,7 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
         </>
       )}
       <MessageThread
-        ref={threadRef}
         bookingRequestId={bookingRequestId}
-        onMessageSent={refreshFlow}
         clientName={clientName}
         artistName={artistName}
         artistAvatarUrl={artistAvatarUrl}

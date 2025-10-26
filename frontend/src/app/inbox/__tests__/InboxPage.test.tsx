@@ -17,7 +17,7 @@ jest.mock('@/components/review/ReviewFormModal', () => {
   Mock.displayName = 'MockReviewFormModal';
   return { __esModule: true, default: Mock };
 });
-jest.mock('@/components/inbox/MessageThreadWrapper', () => {
+jest.mock('@/components/chat/MessageThreadWrapper', () => {
   const Mock = () => <div />;
   Mock.displayName = 'MockMessageThreadWrapper';
   return { __esModule: true, default: Mock };

@@ -7,6 +7,7 @@ from sqlalchemy import pool
 from sqlalchemy import text as _sa_text
 
 from alembic import context
+import re
 
 # Ensure the app directory is in the Python path
 # This assumes env.py is in alembic/ and app/ is one level up and then down into app/
@@ -63,12 +64,30 @@ def run_migrations_offline() -> None:
     """
     env_url = _env_db_url()
     url = env_url or config.get_main_option("sqlalchemy.url")
-    context.configure(
+    try:
+        # Best-effort masking of password in logs
+        masked = re.sub(r"(postgres(?:ql)?\+?[^:]*://[^:/]+:)([^@]+)(@)", r"\1****\3", url)
+        print(f"[alembic] Using DB URL (offline): {masked}")
+    except Exception:
+        pass
+    # Gate schema usage for SQLite (no schemas there)
+    is_sqlite = False
+    try:
+        is_sqlite = str(url or "").strip().lower().startswith("sqlite")
+    except Exception:
+        is_sqlite = False
+
+    configure_kwargs = dict(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table="alembic_version",
     )
+    if not is_sqlite:
+        configure_kwargs["version_table_schema"] = "public"
+
+    context.configure(**configure_kwargs)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -89,6 +108,14 @@ def run_migrations_online() -> None:
     connectable = engine_from_config(section, prefix="sqlalchemy.", poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
+        try:
+            # Emit connection diagnostics to help troubleshoot mismatched DBs
+            db = connection.exec_driver_sql("select current_database()").scalar()
+            sch = connection.exec_driver_sql("select current_schema()").scalar()
+            sp = connection.exec_driver_sql("show search_path").scalar()
+            print(f"[alembic] Connected to DB='{db}', schema='{sch}', search_path='{sp}'")
+        except Exception:
+            pass
         # Pre-flight: ensure alembic_version.version_num can hold long revision ids
         try:
             rv = connection.execute(
@@ -109,9 +136,22 @@ def run_migrations_online() -> None:
         except Exception:
             # Table may not exist yet on brand-new DB; ignore
             pass
-        context.configure(
-            connection=connection, target_metadata=target_metadata
+        # Gate schema usage for SQLite (no schemas there)
+        is_sqlite = False
+        try:
+            is_sqlite = (getattr(connection, "dialect", None) and getattr(connection.dialect, "name", "").lower() == "sqlite")
+        except Exception:
+            is_sqlite = False
+
+        kwargs = dict(
+            connection=connection,
+            target_metadata=target_metadata,
+            version_table="alembic_version",
         )
+        if not is_sqlite:
+            kwargs["version_table_schema"] = "public"
+
+        context.configure(**kwargs)
 
         with context.begin_transaction():
             context.run_migrations()

@@ -5690,29 +5690,7 @@
             "format": "date-time",
             "title": "Updated At"
           },
-          "deposit_due_by": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Deposit Due By"
-          },
-          "deposit_amount": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Deposit Amount"
-          },
+          
           "payment_status": {
             "anyOf": [
               {
@@ -5724,17 +5702,7 @@
             ],
             "title": "Payment Status"
           },
-          "deposit_paid": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Deposit Paid"
-          },
+          
           "booking_request_id": {
             "anyOf": [
               {
@@ -5852,33 +5820,7 @@
             ],
             "title": "Payment Id"
           },
-          "deposit_amount": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Deposit Amount"
-          },
-          "deposit_due_by": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Deposit Due By"
-          },
-          "deposit_paid": {
-            "type": "boolean",
-            "title": "Deposit Paid"
-          },
+          
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -5898,7 +5840,7 @@
           "client_id",
           "confirmed",
           "payment_status",
-          "deposit_paid",
+          
           "created_at",
           "updated_at"
         ],
@@ -6430,7 +6372,7 @@
           "quote_expired",
           "quote_expiring",
           "new_booking",
-          "deposit_due",
+          
           "review_request"
         ],
         "title": "NotificationType"

@@ -103,11 +103,8 @@ def test_create_and_accept_quote():
     assert booking.artist_id == artist.id
     assert booking.client_id == client.id
     assert booking.confirmed is True
-    assert booking.payment_status == "deposit_paid"
-    assert booking.deposit_amount == quote.total * Decimal("0.5")
-
-    assert before + timedelta(days=7) <= booking.deposit_due_by <= after + timedelta(days=7)
-    assert booking.deposit_paid is True
+    # Full-upfront flow: booking is pending until paid
+    assert booking.payment_status == "pending"
 
     db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
     assert db_booking is not None

@@ -85,7 +85,6 @@ export default function ServiceProviderCard({
     >
       <Link href={href} className="block group relative">
         <div className="relative h-48 w-full overflow-hidden rounded-t-2xl bg-gray-100">
-          {!imgLoaded && <div className="absolute inset-0 animate-pulse bg-gray-200" />}
           {imageUrl ? (
             <SafeImage
               src={imageUrl}
@@ -102,7 +101,7 @@ export default function ServiceProviderCard({
             />
           ) : (
             <SafeImage
-              src={'/static/default-avatar.svg'}
+              src={'/default-avatar.svg'}
               alt={name}
               width={512}
               height={512}

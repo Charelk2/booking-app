@@ -19,6 +19,7 @@ from ..utils import error_response
 from .crud_booking import create_booking_from_quote_v2
 from . import crud_invoice, crud_message
 from ..api.api_sound_outreach import kickoff_sound_outreach
+from ..utils.outbox import enqueue_outbox
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +33,25 @@ def _status_val(v):
     return getattr(v, "value", v)
 
 
+VAT_RATE = Decimal("0.15")
+
+
 def calculate_totals(quote_in: schemas.QuoteV2Create) -> tuple[Decimal, Decimal]:
+    """Calculate subtotal (pre‑VAT) and total (VAT‑inclusive).
+
+    - Subtotal: sum of service items + sound + travel, before discount and VAT.
+    - Discount: applied to the subtotal before VAT.
+    - VAT: 15% applied to (subtotal - discount).
+    - Total: (subtotal - discount) + VAT.
+    """
     subtotal = sum(item.price for item in quote_in.services)
     subtotal += quote_in.sound_fee + quote_in.travel_fee
-    total = subtotal - (quote_in.discount or Decimal("0"))
+    discount = quote_in.discount or Decimal("0")
+    pre_vat = subtotal - discount
+    if pre_vat < Decimal("0"):
+        pre_vat = Decimal("0")
+    vat_amount = (pre_vat * VAT_RATE)
+    total = pre_vat + vat_amount
     return subtotal, total
 
 
@@ -77,6 +93,26 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
     booking_request.status = models.BookingStatus.QUOTE_PROVIDED
     db.commit()
     db.refresh(db_quote)
+    # Create a pending booking shell so client can pay immediately.
+    try:
+        existing = (
+            db.query(models.BookingSimple)
+            .filter(models.BookingSimple.quote_id == db_quote.id)
+            .first()
+        )
+        if existing is None:
+            bs = models.BookingSimple(
+                quote_id=db_quote.id,
+                artist_id=db_quote.artist_id,
+                client_id=db_quote.client_id,
+                confirmed=False,
+                payment_status="pending",
+            )
+            db.add(bs)
+            db.commit()
+            db.refresh(bs)
+    except Exception as exc:  # best-effort; quote creation must not fail
+        logger.warning("Failed to create pending booking shell for quote %s: %s", db_quote.id, exc)
     return db_quote
 
 
@@ -215,18 +251,20 @@ def accept_quote(
     for o in others:
         o.status = models.QuoteStatusV2.REJECTED.value
 
-    booking = models.BookingSimple(
-        quote_id=db_quote.id,
-        artist_id=db_quote.artist_id,
-        client_id=db_quote.client_id,
-        confirmed=True,
-        # No charge is triggered yet; payment will be collected later
-        payment_status="pending",
-        deposit_amount=db_quote.total * Decimal("0.5"),
-        deposit_due_by=datetime.utcnow() + timedelta(days=7),
-        deposit_paid=False,
+    booking = (
+        db.query(models.BookingSimple)
+        .filter(models.BookingSimple.quote_id == db_quote.id)
+        .first()
     )
-    db.add(booking)
+    if booking is None:
+        booking = models.BookingSimple(
+            quote_id=db_quote.id,
+            artist_id=db_quote.artist_id,
+            client_id=db_quote.client_id,
+            confirmed=True,
+            payment_status="pending",
+        )
+        db.add(booking)
 
     # Create the full booking record and persist both tables
     db_booking = None
@@ -298,7 +336,7 @@ def decline_quote(db: Session, quote_id: int) -> models.QuoteV2:
     db.commit()
     db.refresh(db_quote)
 
-    crud_message.create_message(
+    msg = crud_message.create_message(
         db=db,
         booking_request_id=db_quote.booking_request_id,
         sender_id=db_quote.client_id,
@@ -306,6 +344,28 @@ def decline_quote(db: Session, quote_id: int) -> models.QuoteV2:
         content="Quote declined.",
         message_type=models.MessageType.SYSTEM,
     )
+    # Best-effort realtime broadcast for immediate UI update
+    try:
+        from ..api.api_ws import manager as ws_manager  # type: ignore
+        try:
+            from .. import schemas
+            env = schemas.MessageResponse.model_validate(msg).model_dump()
+        except Exception:
+            env = {"id": int(getattr(msg, "id", 0) or 0), "booking_request_id": int(db_quote.booking_request_id)}
+        import asyncio
+        loop = asyncio.get_event_loop()
+        if loop and loop.is_running():
+            loop.create_task(ws_manager.broadcast(int(db_quote.booking_request_id), env))
+    except Exception:
+        pass
+
+    # Enqueue outbox for reliable fanout across processes
+    try:
+        from .. import schemas
+        env_decline = schemas.MessageResponse.model_validate(msg).model_dump()
+        enqueue_outbox(db, topic=f"booking-requests:{int(db_quote.booking_request_id)}", payload=env_decline)
+    except Exception:
+        pass
 
     return db_quote
 
@@ -313,7 +373,7 @@ def decline_quote(db: Session, quote_id: int) -> models.QuoteV2:
 def expire_pending_quotes(db: Session) -> list[models.QuoteV2]:
     """Mark all pending quotes past their expiry as expired and post messages."""
     now = datetime.utcnow()
-    expired = (
+    candidates = (
         db.query(models.QuoteV2)
         .filter(
             models.QuoteV2.status == models.QuoteStatusV2.PENDING.value,
@@ -322,13 +382,31 @@ def expire_pending_quotes(db: Session) -> list[models.QuoteV2]:
         )
         .all()
     )
-    for q in expired:
+    # Skip quotes that already have a fully paid lightweight booking linked
+    expired: list[models.QuoteV2] = []
+    for q in candidates:
+        try:
+            paid = (
+                db.query(models.BookingSimple)
+                .filter(
+                    models.BookingSimple.quote_id == q.id,
+                    models.BookingSimple.payment_status == "paid",
+                )
+                .first()
+            )
+            if paid:
+                # Do not mark as expired or emit a system message for paid quotes
+                continue
+        except Exception:
+            # Best-effort: if the check fails, fall back to expiring the quote
+            pass
         q.status = models.QuoteStatusV2.EXPIRED.value
+        expired.append(q)
     if expired:
         db.commit()
         for q in expired:
             db.refresh(q)
-            crud_message.create_message(
+            msg2 = crud_message.create_message(
                 db=db,
                 booking_request_id=q.booking_request_id,
                 sender_id=q.artist_id,
@@ -336,4 +414,24 @@ def expire_pending_quotes(db: Session) -> list[models.QuoteV2]:
                 content="Quote expired.",
                 message_type=models.MessageType.SYSTEM,
             )
+            try:
+                from ..api.api_ws import manager as ws_manager  # type: ignore
+                try:
+                    from .. import schemas
+                    env2 = schemas.MessageResponse.model_validate(msg2).model_dump()
+                except Exception:
+                    env2 = {"id": int(getattr(msg2, "id", 0) or 0), "booking_request_id": int(q.booking_request_id)}
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if loop and loop.is_running():
+                    loop.create_task(ws_manager.broadcast(int(q.booking_request_id), env2))
+            except Exception:
+                pass
+            # Also enqueue outbox for cross-process reliable fanout
+            try:
+                from .. import schemas
+                env_for_outbox = schemas.MessageResponse.model_validate(msg2).model_dump()
+                enqueue_outbox(db, topic=f"booking-requests:{int(q.booking_request_id)}", payload=env_for_outbox)
+            except Exception:
+                pass
     return expired

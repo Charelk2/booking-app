@@ -8,9 +8,13 @@ import os
 from .. import models, schemas
 from ..utils import error_response
 from ..utils.notifications import notify_user_new_message
-from ..crud import crud_quote_v2, crud_message
+from ..crud import crud_quote_v2
+from ..utils.outbox import enqueue_outbox
+from .. import crud
 from .dependencies import get_db, get_current_user
-from ..services import quote_pdf
+from .api_ws import manager
+from ..schemas import message as message_schemas
+import asyncio
 
 router = APIRouter(tags=["QuotesV2"])
 logger = logging.getLogger(__name__)
@@ -30,7 +34,7 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
             quote.id,
             quote.booking_request_id,
         )
-        crud_message.create_message(
+        msg_quote = crud.crud_message.create_message(
             db=db,
             booking_request_id=quote.booking_request_id,
             sender_id=quote.artist_id,
@@ -42,8 +46,12 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
         )
         # Provide additional context and notify the client that the quote is
         # ready to review. The system message keeps both parties in sync.
-        detail_content = f"Quote sent with total {quote.total}"
-        crud_message.create_message(
+        try:
+            formatted_total = f"R {float(quote.total):,.2f}"
+        except Exception:
+            formatted_total = str(quote.total)
+        detail_content = f"Quote sent with total {formatted_total}"
+        msg_sys = crud.crud_message.create_message(
             db=db,
             booking_request_id=quote.booking_request_id,
             sender_id=quote.artist_id,
@@ -52,6 +60,39 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
             message_type=models.MessageType.SYSTEM,
             attachment_url=None,
         )
+        # Broadcast both the QUOTE message and the SYSTEM line to the thread so
+        # active MessageThread views update immediately without a manual refresh.
+        try:
+            def _payload(m: any) -> dict:
+                try:
+                    return message_schemas.MessageResponse.model_validate(m).model_dump()
+                except Exception:
+                    # Minimal fallback
+                    return {
+                        "id": int(getattr(m, "id", 0) or 0),
+                        "booking_request_id": int(getattr(m, "booking_request_id", quote.booking_request_id)),
+                        "sender_id": int(getattr(m, "sender_id", quote.artist_id)),
+                        "sender_type": str(getattr(m, "sender_type", models.SenderType.ARTIST)),
+                        "message_type": str(getattr(m, "message_type", models.MessageType.USER)),
+                        "content": str(getattr(m, "content", "") or ""),
+                        "quote_id": int(getattr(m, "quote_id", 0) or 0) or None,
+                        "timestamp": getattr(m, "timestamp", None) or getattr(m, "created_at", None) or None,
+                    }
+
+            br_id = int(quote.booking_request_id)
+            for m in (msg_quote, msg_sys):
+                payload = _payload(m)
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(manager.broadcast(br_id, payload))
+                except RuntimeError:
+                    try:
+                        asyncio.run(manager.broadcast(br_id, payload))
+                    except Exception:
+                        pass
+        except Exception:
+            # Best-effort only; thread will still pick up changes on next poll
+            pass
         booking_request = (
             db.query(models.BookingRequest)
             .filter(models.BookingRequest.id == quote.booking_request_id)
@@ -188,6 +229,28 @@ def decline_quote(quote_id: int, db: Session = Depends(get_db)):
         except Exception:
             pass
         logger.info("Quote %s declined", quote_id)
+        # Reliable realtime: enqueue outbox with the newly created system message
+        try:
+            br_id = int(getattr(quote, "booking_request_id", 0) or 0)
+            if br_id:
+                # Fetch the most recent "Quote declined." system message for this thread
+                from .. import models
+                last = (
+                    db.query(models.Message)
+                    .filter(
+                        models.Message.booking_request_id == br_id,
+                        models.Message.message_type == models.MessageType.SYSTEM,
+                        models.Message.content == "Quote declined.",
+                    )
+                    .order_by(models.Message.id.desc())
+                    .first()
+                )
+                if last:
+                    payload = message_schemas.MessageResponse.model_validate(last).model_dump()
+                    enqueue_outbox(db, topic=f"booking-requests:{br_id}", payload=payload)
+        except Exception:
+            # best-effort only; thread will still update on next fetch
+            pass
         return quote
     except ValueError as exc:
         quote = crud_quote_v2.get_quote(db, quote_id)
@@ -231,6 +294,8 @@ def get_quote_pdf(
             {"quote_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    # Lazy import to avoid heavy deps during OpenAPI generation
+    from ..services import quote_pdf  # type: ignore
     pdf_bytes = quote_pdf.generate_pdf(quote)
     filename = f"quote_{quote.id}.pdf"
     path = os.path.join(QUOTE_DIR, filename)

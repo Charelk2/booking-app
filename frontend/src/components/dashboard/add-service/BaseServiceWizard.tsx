@@ -16,6 +16,7 @@ import {
   createService as apiCreateService,
   updateService as apiUpdateService,
   uploadImage as apiUploadImage,
+  presignServiceMedia,
 } from "@/lib/api";
 import type { Service } from "@/types";
 
@@ -179,13 +180,22 @@ export default function BaseServiceWizard<T extends FieldValues>({
       }
       let mediaUrl: string | null = existingMediaUrl;
       if (mediaFiles[0]) {
-        // Upload the first selected image and use the returned URL (avoid base64 in payloads)
+        // Prefer R2 presign → PUT → store key; fallback to legacy upload endpoint
         try {
-          const uploaded = await apiUploadImage(mediaFiles[0]);
-          mediaUrl = uploaded?.url || null;
+          const f = mediaFiles[0];
+          const presign = await presignServiceMedia(f);
+          if (presign.put_url) {
+            await fetch(presign.put_url, { method: 'PUT', headers: presign.headers || {}, body: f });
+          }
+          mediaUrl = (presign.key || presign.public_url || null) as string | null;
         } catch (e) {
-          console.error('Image upload failed:', e);
-          throw new Error('Failed to upload image. Please try again.');
+          try {
+            const uploaded = await apiUploadImage(mediaFiles[0]);
+            mediaUrl = uploaded?.url || null;
+          } catch (e2) {
+            console.error('Image upload failed:', e2);
+            throw new Error('Failed to upload image. Please try again.');
+          }
         }
       }
       const payload: Partial<Service> = toPayload(data, mediaUrl);

@@ -199,8 +199,6 @@ def test_booking_simple_columns():
     assert "location" in column_names
     assert "payment_status" in column_names
     assert "payment_id" in column_names
-    assert "deposit_amount" in column_names
-    assert "deposit_paid" in column_names
 
 
 def test_mfa_columns():
@@ -245,4 +243,3 @@ def test_message_expires_at_column():
     inspector = inspect(engine)
     cols = [c["name"] for c in inspector.get_columns("messages")]
     assert "expires_at" in cols
-

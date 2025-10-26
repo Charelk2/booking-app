@@ -37,10 +37,7 @@ class BookingResponse(BookingBase):
     total_price: Annotated[Decimal, Field()]
     created_at: datetime
     updated_at: datetime
-    deposit_due_by: Optional[datetime] = None
-    deposit_amount: Optional[Decimal] = None
     payment_status: Optional[str] = None
-    deposit_paid: Optional[bool] = None
     booking_request_id: Optional[int] = None
 
     # Include nested details for frontend dashboard
@@ -55,4 +52,3 @@ class BookingResponse(BookingBase):
     model_config = {
         "from_attributes": True
     } 
-

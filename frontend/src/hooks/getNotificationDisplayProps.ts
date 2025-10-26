@@ -64,22 +64,10 @@ export default function getNotificationDisplayProps(
     status = 'reminder';
     title = 'Review Request';
     subtitle = content.length > 30 ? `${content.slice(0, 30)}...` : content;
-  } else if (/deposit.*due/i.test(content)) {
-    status = 'due';
-    let rest = content;
-    const pref = rest.match(/^booking confirmed\s*[–-]\s*/i);
-    if (pref) rest = rest.slice(pref[0].length).trim();
-    const m = rest.match(/deposit\s+(?:of\s*)?R?([\d.,]+)\s*due(?:\s*by\s*(\d{4}-\d{2}-\d{2}))?/i);
-    if (m) {
-      const [, amt, by] = m;
-      const parts = [`R${amt}`];
-      if (by) parts.push(`due by ${by}`);
-      title = 'Deposit Due';
-      subtitle = parts.join(' ');
-    } else {
-      title = 'Deposit Due';
-      subtitle = content.length > 30 ? `${content.slice(0, 30)}...` : content;
-    }
+  } else if (/booking confirmed/i.test(content) || unified.type === 'new_booking') {
+    status = 'reminder';
+    title = 'Booking Confirmed';
+    subtitle = content.length > 30 ? `${content.slice(0, 30)}...` : content;
   } else if (unified.type === 'quote_accepted' || /quote accepted/i.test(content)) {
     status = 'confirmed';
     const who = unified.sender_name || unified.name || content.match(/Quote accepted by (.+)/i)?.[1] || '';

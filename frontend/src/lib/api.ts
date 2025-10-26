@@ -1,6 +1,6 @@
 // frontend/src/lib/api.ts
 
-import axios, { AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
+import axios, { AxiosProgressEvent, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
 import { ensureFreshAccess } from '@/lib/refreshCoordinator';
 import { setTransportErrorMeta, runWithTransport } from '@/lib/transportState';
 import logger from './logger';
@@ -141,6 +141,14 @@ let isRefreshing = false;
 let pendingQueue: Array<() => void> = [];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Allow strong typing of our ad-hoc retry flags while keeping standard config fields
+type RetryableRequest = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+  _retryCount?: number;
+  _skipRefresh?: boolean;
+  _unpinnedRetry?: boolean;
+};
+
 api.interceptors.response.use(
   (response) => {
     rememberMachineFromResponse(response?.headers as any);
@@ -149,19 +157,20 @@ api.interceptors.response.use(
   (error) => {
     if (axios.isAxiosError(error)) {
       rememberMachineFromResponse(error.response?.headers as any);
-      const originalRequest = error.config;
+      const originalRequest = (error.config || {}) as RetryableRequest;
+      const req = originalRequest as any; // permissive accessor for url/method/headers
       const status = error.response?.status;
       const detail = error.response?.data?.detail;
       let message = extractErrorMessage(detail);
       const originalMessage = error.message;
 
       // On transient upstream errors, ensure we are not pinned and retry once immediately.
-      const method = (originalRequest?.method || 'get').toLowerCase();
+      const method = (req?.method || 'get').toLowerCase();
       const transient = status === 502 || status === 503 || status === 504 || (error.code === 'ECONNABORTED');
       const canUnpinRetry = transient && !((originalRequest as any)?._unpinnedRetry);
       if (canUnpinRetry) {
         try {
-          if (originalRequest?.headers) delete (originalRequest.headers as any)['Fly-Prefer-Instance'];
+          if (req?.headers) delete (req.headers as any)['Fly-Prefer-Instance'];
           (originalRequest as any)._unpinnedRetry = true;
           // Clear stored pin so subsequent requests won't reuse a dead machine
           preferredMachineId = null;
@@ -178,15 +187,15 @@ api.interceptors.response.use(
 
       // Lightweight retry for idempotent requests on transient upstream errors
       const isIdempotent = method === 'get' || method === 'head' || method === 'options';
-      const retryCount = (originalRequest as any)?._retryCount || 0;
+      const retryCount = originalRequest?._retryCount || 0;
       if (isIdempotent && transient && retryCount < 2) {
         const backoff = Math.min(1500, 200 * 2 ** retryCount) + Math.floor(Math.random() * 150);
-        (originalRequest as any)._retryCount = retryCount + 1;
+        originalRequest._retryCount = retryCount + 1;
         return sleep(backoff).then(() => api(originalRequest!));
       }
 
       // Attempt silent refresh once on 401, then retry original request
-      const rawUrl = typeof originalRequest?.url === 'string' ? originalRequest.url : '';
+      const rawUrl = typeof req?.url === 'string' ? req.url : '';
       let normalizedPath = rawUrl;
       try {
         if (/^https?:\/\//i.test(rawUrl)) {
@@ -274,7 +283,7 @@ api.interceptors.response.use(
         // eslint-disable-next-line no-console
         console.error('API error', {
           status,
-          url: originalRequest?.url,
+          url: req?.url,
           detail,
         });
       }
@@ -514,7 +523,7 @@ export const prefetchServiceProviders = async (params: Parameters<typeof getServ
 };
 
 export const getServiceProvider = async (userId: number) => {
-  const res = await api.get<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/${userId}`);
+  const res = await api.get<ServiceProviderProfile>(withApiOrigin(`${API_V1}/service-provider-profiles/${userId}`));
   return { ...res, data: normalizeServiceProviderProfile(res.data) };
 };
 
@@ -572,6 +581,52 @@ export const updateMyServiceProviderPortfolioImageOrder = (urls: string[]) =>
     portfolio_image_urls: urls,
   });
 
+// Presign direct R2 avatar upload for current user (Option A)
+export const presignMyAvatar = (args: { filename?: string; content_type?: string }) =>
+  api.post<{
+    key: string;
+    put_url: string | null;
+    get_url: string | null;
+    public_url: string | null;
+    headers: Record<string, string>;
+    upload_expires_in: number;
+    download_expires_in: number;
+  }>(`${API_V1}/service-provider-profiles/me/avatar/presign`, args);
+
+// Presign cover photo upload
+export const presignMyCoverPhoto = (args: { filename?: string; content_type?: string }) =>
+  api.post<{
+    key: string;
+    put_url: string | null;
+    public_url: string | null;
+    headers: Record<string, string>;
+    upload_expires_in: number;
+  }>(`${API_V1}/service-provider-profiles/me/cover-photo/presign`, args);
+
+// Presign a single portfolio image upload
+export const presignMyPortfolioImage = (args: { filename?: string; content_type?: string }) =>
+  api.post<{
+    key: string;
+    put_url: string | null;
+    public_url: string | null;
+    headers: Record<string, string>;
+    upload_expires_in: number;
+  }>(`${API_V1}/service-provider-profiles/me/portfolio-images/presign`, args);
+
+// Presign service media upload for Add Service wizard
+export const presignServiceMedia = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post<{
+    key: string;
+    put_url: string | null;
+    public_url: string | null;
+    headers: Record<string, string>;
+    upload_expires_in: number;
+  }>(`${API_V1}/services/media/presign`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  return res.data;
+};
+
 // Generic image upload used by service wizard to avoid base64 payloads
 export const uploadImage = async (file: File): Promise<{ url: string }> => {
   const formData = new FormData();
@@ -587,7 +642,7 @@ export const uploadImage = async (file: File): Promise<{ url: string }> => {
 // “services by service provider” is GET /api/v1/services/artist/{artist_user_id}
 export const getServiceProviderServices = (serviceProviderUserId: number | string) => {
   const id = Number(serviceProviderUserId);
-  return api.get<Service[]>(`${API_V1}/services/artist/${id}`);
+  return api.get<Service[]>(withApiOrigin(`${API_V1}/services/artist/${id}`));
 };
 
 export const getAllServices = () =>
@@ -618,15 +673,15 @@ export const createBooking = (data: Partial<Booking>) =>
 
 // client’s bookings: GET /api/v1/bookings/my-bookings
 export const getMyClientBookings = (params: { status?: string } = {}) =>
-  api.get<Booking[]>(`${API_V1}/bookings/my-bookings`, { params });
+  getDeduped<Booking[]>(`${API_V1}/bookings/my-bookings`, params);
 
 // artist’s bookings: GET /api/v1/bookings/artist-bookings
 export const getMyArtistBookings = () =>
-  api.get<Booking[]>(`${API_V1}/bookings/artist-bookings`);
+  getDeduped<Booking[]>(`${API_V1}/bookings/artist-bookings`);
 
 // read a single booking: GET /api/v1/bookings/{bookingId}
 export const getBookingDetails = (bookingId: number) =>
-  api.get<Booking>(`${API_V1}/bookings/${bookingId}`);
+  getDeduped<Booking>(`${API_V1}/bookings/${bookingId}`);
 
 // update status: PATCH /api/v1/bookings/{booking_id}/status
 export const updateBookingStatus = (id: number, status: Booking['status']) =>
@@ -642,6 +697,10 @@ export const downloadQuotePdf = (id: number) =>
   api.get<Blob>(`${API_V1}/quotes/${id}/pdf`, {
     responseType: 'blob',
   });
+
+// Resolve a booking id for a given booking request (works for v2/legacy quotes)
+export const getBookingIdForRequest = (bookingRequestId: number) =>
+  getDeduped<{ booking_id: number | null }>(`${API_V1}/booking-requests/${bookingRequestId}/booking-id`);
 
 // ─── REVIEWS ───────────────────────────────────────────────────────────────────
 
@@ -665,9 +724,7 @@ export const getServiceReviews = (serviceId: number) =>
 
 // list reviews for a service provider: GET /api/v1/reviews/service-provider-profiles/{service_provider_id}/reviews
 export const getServiceProviderReviews = (serviceProviderUserId: number) =>
-  api.get<Review[]>(
-    `${API_V1}/reviews/service-provider-profiles/${serviceProviderUserId}/reviews`
-  );
+  api.get<Review[]>(withApiOrigin(`${API_V1}/reviews/service-provider-profiles/${serviceProviderUserId}/reviews`));
 
 // ─── BOOKING REQUESTS & QUOTES ─────────────────────────────────────────────────
 
@@ -678,8 +735,8 @@ export const createBookingRequest = (data: BookingRequestCreate) =>
   api.post<BookingRequest>(`${API_V1}/booking-requests/`, data);
 
 // Optionally, if you want to get a list of booking requests (e.g., for a client dashboard):
-export const getMyBookingRequests = () =>
-  api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/client`);
+export const getMyBookingRequests = (params?: { lite?: boolean }) =>
+  api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/client`, { params });
 
 // If the artist needs to fetch requests addressed to them:
 export const getBookingRequestsForArtist = () =>
@@ -718,15 +775,13 @@ export const createQuoteForRequest = (
 
 // Optionally, fetch all quotes for a given booking request:
 export const getQuotesForBookingRequest = (bookingRequestId: number) =>
-  api.get<Quote[]>(
-    `${API_V1}/booking-requests/${bookingRequestId}/quotes`
-  );
+  getDeduped<Quote[]>(`${API_V1}/booking-requests/${bookingRequestId}/quotes`);
 
 export const createQuoteV2 = (data: QuoteV2Create) =>
   api.post<QuoteV2>(`${API_V1}/quotes`, data);
 
 export const getQuoteV2 = (quoteId: number) =>
-  api.get<QuoteV2>(`${API_V1}/quotes/${quoteId}`);
+  getDeduped<QuoteV2>(`${API_V1}/quotes/${quoteId}`);
 
 export const acceptQuoteV2 = (quoteId: number, serviceId?: number) => {
   const url = serviceId
@@ -787,6 +842,8 @@ export interface MessageListParams {
   skip?: number;
   fields?: string;
   mode?: 'full' | 'lite' | 'delta';
+  // Optional: comma-separated ids the client already has, so server can omit them
+  known_quote_ids?: string | number[];
 }
 
 export const getMessagesForBookingRequest = (
@@ -812,25 +869,56 @@ export const getMessagesForBookingRequest = (
   if (!('mode' in qp) || qp.mode == null) {
     qp.mode = 'full';
   }
-  // Hint the backend to include quote summaries so the first paint has
-  // everything needed to render quote bubbles without a secondary fetch.
-  if (qp.mode !== 'delta') {
-    (qp as any).include_quotes = true;
+  // Always ask backend to include quote summaries so quote bubbles can render without a secondary fetch.
+  (qp as any).include_quotes = true;
+  // Normalize known_quote_ids param (array → csv string)
+  if (Array.isArray(params.known_quote_ids)) {
+    (qp as any).known_quote_ids = (params.known_quote_ids as number[])
+      .filter((n) => Number.isFinite(n) && n > 0)
+      .join(',');
   }
-  return api.get<MessageListResponseEnvelope>(
+  return getDeduped<MessageListResponseEnvelope>(
     `${API_V1}/booking-requests/${bookingRequestId}/messages`,
-    { params: qp }
+    qp as any,
   );
 };
 
+// Batch messages by thread ids (breadth-first warmup)
+export interface MessagesBatchEnvelope {
+  mode: 'full' | 'lite' | 'delta';
+  threads: Record<number, Message[]>;
+  payload_bytes: number;
+  quotes?: Record<number, QuoteV2> | Record<number, any>;
+}
+
+export const getMessagesBatch = (
+  ids: number[],
+  per = 20,
+  mode: 'lite' | 'full' = 'lite',
+  etag?: string,
+) =>
+  getDeduped<MessagesBatchEnvelope>(
+    `${API_V1}/booking-requests/messages-batch`,
+    { ids: ids.join(','), per, mode, include_quotes: true },
+    etag ? { 'If-None-Match': etag } : undefined,
+    (s) => (s >= 200 && s < 300) || s === 304,
+  );
+
 export const postMessageToBookingRequest = (
   bookingRequestId: number,
-  data: MessageCreate
-) =>
-  api.post<Message>(
+  data: MessageCreate,
+  opts?: { idempotencyKey?: string; clientRequestId?: string }
+) => {
+  const headers: Record<string, string> = {};
+  if (opts?.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
+  if (opts?.clientRequestId) headers['X-Client-Request-Id'] = opts.clientRequestId;
+  const config = Object.keys(headers).length ? { headers } : undefined;
+  return api.post<Message>(
     `${API_V1}/booking-requests/${bookingRequestId}/messages`,
-    data
+    data,
+    config,
   );
+};
 
 // Attempt to delete a message. If the backend doesn't support it, callers should handle errors gracefully.
 export const deleteMessageForBookingRequest = (
@@ -852,61 +940,104 @@ export const uploadMessageAttachment = async (
   if (!file || file.size === 0) {
     return Promise.reject(new Error('Attachment file is required'));
   }
-  // 1) Ask backend for a presigned PUT to R2
-  const kind = file.type.startsWith('audio/')
-    ? 'voice'
-    : file.type.startsWith('video/')
-    ? 'video'
-    : file.type.startsWith('image/')
-    ? 'image'
-    : 'file';
-  const presign = await api.post<{
-    key: string;
-    put_url: string;
-    get_url?: string;
-    public_url?: string;
-    headers?: Record<string, string>;
-    upload_expires_in: number;
-    download_expires_in: number;
-  }>(`${API_V1}/booking-requests/${bookingRequestId}/attachments/presign`, {
-    kind,
-    filename: file.name || undefined,
-    content_type: file.type || undefined,
-    size: Number.isFinite(file.size) ? file.size : undefined,
-  });
+  // Direct-to-R2 path; if presign fails, fallback to backend form upload below
+  // 1) Try presigned R2 upload
+  try {
+    const kind = file.type.startsWith('audio/')
+      ? 'voice'
+      : file.type.startsWith('video/')
+      ? 'video'
+      : file.type.startsWith('image/')
+      ? 'image'
+      : 'file';
 
-  const { put_url, public_url, get_url, headers } = presign.data || {};
-  if (!put_url) throw new Error('Failed to prepare upload');
+    const presign = await api.post<{
+      key: string;
+      put_url: string;
+      get_url?: string;
+      public_url?: string;
+      headers?: Record<string, string>;
+      upload_expires_in: number;
+      download_expires_in: number;
+    }>(`${API_V1}/booking-requests/${bookingRequestId}/attachments/presign`, {
+      kind,
+      filename: file.name || undefined,
+      content_type: file.type || undefined,
+      size: Number.isFinite(file.size) ? file.size : undefined,
+    });
 
-  // 2) Upload the file directly to R2
-  // Use exactly the headers that were included in the signature.
-  // If backend didn't sign Content-Type, don't set it here.
-  let signedHeaders = headers && Object.keys(headers).length > 0
-    ? headers
-    : (file.type ? { 'Content-Type': file.type } : {});
-  // Safari/iOS voice notes often use audio/mp4 or audio/aac.
-  // If the backend did not sign a specific Content-Type header, avoid
-  // setting one for audio to reduce signature/validation mismatches.
-  if ((!headers || Object.keys(headers).length === 0) && typeof file.type === 'string' && file.type.startsWith('audio/')) {
-    signedHeaders = {};
+    const { put_url, public_url, get_url, headers } = presign.data || {};
+    if (!put_url) throw new Error('Failed to prepare upload');
+
+    // 2) Upload direct to R2 with signed headers
+    let signedHeaders = headers && Object.keys(headers).length > 0
+      ? headers
+      : (file.type ? { 'Content-Type': file.type } : {});
+    // For audio, avoid Content-Type if not explicitly signed (iOS Safari quirk)
+    if ((!headers || Object.keys(headers).length === 0) && typeof file.type === 'string' && file.type.startsWith('audio/')) {
+      signedHeaders = {};
+    }
+    await axios.put(put_url, file, {
+      headers: signedHeaders,
+      withCredentials: false,
+      onUploadProgress,
+      signal,
+    });
+
+    const url = (public_url || get_url || '').toString();
+    if (!url) throw new Error('Upload completed but no URL was returned');
+    const metadata: AttachmentMeta = {
+      original_filename: file.name || null,
+      content_type: file.type || null,
+      size: Number.isFinite(file.size) ? file.size : null,
+    };
+    return { data: { url, metadata } } as { data: { url: string; metadata?: AttachmentMeta } };
+  } catch (e: any) {
+    // 2b) Fallback for local/dev: upload via backend form endpoint
+    // This path is useful when R2 is not configured and the API returns 500 on presign.
+    const form = new FormData();
+    form.append('file', file);
+    const res = await api.post<{ url: string; metadata?: AttachmentMeta }>(
+      `${API_V1}/booking-requests/${bookingRequestId}/attachments`,
+      form,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress,
+        signal,
+      },
+    );
+    // API returns a relative URL (e.g., /static/attachments/..). Keep as-is; backend serves it.
+    return { data: { url: res.data.url, metadata: res.data.metadata } } as { data: { url: string; metadata?: AttachmentMeta } };
   }
-  await axios.put(put_url, file, {
-    headers: signedHeaders,
-    withCredentials: false,
-    onUploadProgress,
-    signal,
-  });
-
-  // 3) Return canonical URL (public custom domain) for DB storage
-  const url = (public_url || get_url || '').toString();
-  if (!url) throw new Error('Upload completed but no URL was returned');
-  const metadata: AttachmentMeta = {
-    original_filename: file.name || null,
-    content_type: file.type || null,
-    size: Number.isFinite(file.size) ? file.size : null,
-  };
-  return { data: { url, metadata } } as { data: { url: string; metadata?: AttachmentMeta } };
 };
+
+// New: Init → Finalize attachment message flow
+export const initAttachmentMessage = (
+  bookingRequestId: number,
+  body: { kind?: string; filename?: string; content_type?: string; size?: number },
+) => api.post<{ message: Message; presign: { key: string; put_url?: string; get_url?: string; public_url?: string; headers?: Record<string, string>; upload_expires_in?: number; download_expires_in?: number } }>(
+  `${API_V1}/booking-requests/${bookingRequestId}/messages/attachments/init`,
+  body,
+);
+
+export const finalizeAttachmentMessage = (
+  bookingRequestId: number,
+  messageId: number,
+  url: string,
+  metadata?: AttachmentMeta,
+) => api.post<Message>(
+  `${API_V1}/booking-requests/${bookingRequestId}/messages/${messageId}/attachments/finalize`,
+  { url, metadata },
+);
+
+// Delivered signal (ephemeral): flips sender bubbles to 'delivered'
+export const putDeliveredUpTo = (
+  bookingRequestId: number,
+  upToId: number,
+) => api.put<{ ok: boolean }>(
+  `${API_V1}/booking-requests/${bookingRequestId}/messages/delivered`,
+  { up_to_id: upToId },
+);
 
 export const addMessageReaction = (
   bookingRequestId: number,
@@ -1134,6 +1265,9 @@ export const markThreadRead = (bookingRequestId: number) =>
     `${API_NOTIFICATIONS}/notifications/message-threads/${bookingRequestId}/read`,
   );
 
+export const markThreadMessagesRead = (bookingRequestId: number) =>
+  api.put(`${API_V1}/booking-requests/${bookingRequestId}/messages/read`);
+
 // ─── MESSAGE THREADS PREVIEW (atomic previews + unread counts) ─────────────
 export interface ThreadPreviewResponse {
   items: ThreadPreview[];
@@ -1168,25 +1302,48 @@ export interface ThreadsIndexResponse {
   items: ThreadsIndexItem[];
   next_cursor?: string | null;
 }
-export const getThreadsIndex = (role?: 'artist' | 'client', limit = 50) =>
-  api.get<ThreadsIndexResponse>(
+export const getThreadsIndex = (
+  role?: 'artist' | 'client',
+  limit = 50,
+  etag?: string,
+) =>
+  getDeduped<ThreadsIndexResponse>(
     `${API_V1}/threads`,
-    { params: { role, limit } }
+    { role, limit },
+    etag ? { 'If-None-Match': etag } : undefined,
+    (s) => (s >= 200 && s < 300) || s === 304,
   );
 
 // ─── INBOX UNREAD TOTAL (tiny endpoint with optional ETag) ────────────────
 export const getInboxUnread = (etag?: string) =>
-  api.get<{ total: number }>(
+  getDeduped<{ total: number }>(
     withApiOrigin(`${API_V1}/inbox/unread`),
-    {
-      headers: etag ? { 'If-None-Match': etag } : undefined,
-      validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
-    }
+    {},
+    etag ? { 'If-None-Match': etag } : undefined,
+    (s) => (s >= 200 && s < 300) || s === 304,
   );
+
+// ─── LIGHTWEIGHT SINGLE-FLIGHT FOR COMMON GETs ─────────────────────────────
+const inflight = new Map<string, Promise<any>>();
+const keyFor = (url: string, params?: Record<string, any>) => {
+  const p = params ? Object.entries(params).sort(([a],[b]) => a.localeCompare(b)) : [];
+  return `${url}?${p.map(([k,v]) => `${k}=${String(v)}`).join('&')}`;
+};
+function getDeduped<T>(url: string, params?: Record<string, any>, headers?: Record<string, string>, validateStatus?: (s: number) => boolean) {
+  const key = keyFor(url, params);
+  const existing = inflight.get(key);
+  if (existing) return existing as Promise<{ data: T }>;
+  const prom = api.get<T>(url, { params, headers, validateStatus }).finally(() => {
+    // small delay to coalesce fast duplicates
+    setTimeout(() => inflight.delete(key), 100);
+  });
+  inflight.set(key, prom as unknown as Promise<any>);
+  return prom as Promise<{ data: T }>;
+}
 
 // ─── QUOTES BATCH ──────────────────────────────────────────────────────────
 export const getQuotesBatch = (ids: number[]) =>
-  api.get<QuoteV2[]>(`${API_V1}/quotes`, { params: { ids: ids.join(',') } });
+  getDeduped<QuoteV2[]>(`${API_V1}/quotes`, { ids: ids.join(',') });
 
 // Start a message-only thread to contact an artist, without needing a full booking request
 export const startMessageThread = (payload: {
@@ -1218,7 +1375,7 @@ export const deleteMyAccount = (password: string) =>
 
 // ─── EVENT PREP ───────────────────────────────────────────────────────────────
 export async function getEventPrep(bookingId: number) {
-  const res = await api.get<EventPrep>(`${API_V1}/bookings/${bookingId}/event-prep`);
+  const res = await getDeduped<EventPrep>(`${API_V1}/bookings/${bookingId}/event-prep`);
   return res.data;
 }
 

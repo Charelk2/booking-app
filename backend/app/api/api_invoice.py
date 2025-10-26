@@ -7,7 +7,6 @@ import logging
 from .. import models, schemas, crud
 from ..database import get_db
 from .dependencies import get_current_user
-from ..services import invoice_pdf
 from ..utils import error_response
 
 router = APIRouter(tags=["invoices"])
@@ -93,6 +92,8 @@ def get_invoice_pdf(
             {"invoice_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    # Lazy import to avoid heavy deps during OpenAPI generation
+    from ..services import invoice_pdf  # type: ignore
     pdf_bytes = invoice_pdf.generate_pdf(invoice)
     filename = f"invoice_{invoice.id}.pdf"
     path = os.path.join(INVOICE_DIR, filename)

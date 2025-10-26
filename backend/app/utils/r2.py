@@ -5,8 +5,14 @@ import uuid
 import datetime as dt
 from typing import Optional, Tuple
 
-import boto3
-from botocore.config import Config
+try:  # optional for OpenAPI/minimal envs
+    import boto3  # type: ignore
+    from botocore.config import Config  # type: ignore
+    _HAS_BOTO3 = True
+except Exception:  # pragma: no cover - optional dependency path
+    boto3 = None  # type: ignore
+    Config = None  # type: ignore
+    _HAS_BOTO3 = False
  
 
 
@@ -26,7 +32,12 @@ class R2Config:
             f"https://{self.account_id}.r2.cloudflarestorage.com" if self.account_id else None
         )
         # Public custom domain used to reference objects (no signature)
-        self.public_base_url = (_env("R2_PUBLIC_BASE_URL") or "").rstrip("/")
+        # If not explicitly provided, fall back to the path-style base using
+        # the S3 endpoint plus the bucket (e.g., https://<acct>.r2.cloudflarestorage.com/<bucket>)
+        _public = (_env("R2_PUBLIC_BASE_URL") or "").rstrip("/")
+        if not _public and self.endpoint_url and self.bucket:
+            _public = f"{self.endpoint_url.rstrip('/')}/{self.bucket}"
+        self.public_base_url = _public
         # TTLs
         self.upload_ttl_seconds = int(_env("R2_PRESIGN_UPLOAD_TTL", "3600") or 3600)  # 1h
         # Keep download TTL short for playback URLs (default 30 minutes).
@@ -46,6 +57,8 @@ def _client(cfg: R2Config):
     - path-style addressing (virtual-hosted style is not supported the same way)
     - endpoint_url MUST match the host you will call (eu vs non-eu)
     """
+    if not _HAS_BOTO3:
+        raise RuntimeError("boto3 not available for R2 client")
     return boto3.client(
         "s3",
         aws_access_key_id=cfg.access_key_id,
@@ -156,3 +169,122 @@ def presign_get_for_public_url(public_url: str) -> Optional[str]:
         ExpiresIn=cfg.download_ttl_seconds,
     )
 
+
+def _build_avatar_key(user_id: int, filename: Optional[str], content_type: Optional[str]) -> str:
+    now = dt.datetime.utcnow()
+    y = now.strftime("%Y")
+    m = now.strftime("%m")
+    uid = uuid.uuid4().hex
+    ext = guess_extension(filename, content_type)
+    return f"avatars/{int(user_id)}/{y}/{m}/{uid}{ext}"
+
+
+def presign_put_avatar(user_id: int, filename: Optional[str], content_type: Optional[str]) -> dict:
+    """Presign a direct R2 upload URL for a user's avatar.
+
+    Returns a dict with the same shape as ``presign_put``.
+    Key format: avatars/{user_id}/{yyyy}/{mm}/{uuid}{ext}
+    """
+    cfg = R2Config()
+    if not cfg.is_configured():
+        raise RuntimeError("R2 is not configured")
+    key = _build_avatar_key(user_id, filename, content_type)
+    client = _client(cfg)
+    params = {
+        "Bucket": cfg.bucket,
+        "Key": key,
+    }
+    if content_type:
+        params["ContentType"] = content_type
+    put_url = client.generate_presigned_url(
+        ClientMethod="put_object",
+        Params=params,
+        ExpiresIn=cfg.upload_ttl_seconds,
+    )
+    # No need for GET presign for avatars; prefer the stable public URL
+    public_url = f"{cfg.public_base_url}/{key}" if cfg.public_base_url else None
+    return {
+        "key": key,
+        "put_url": put_url,
+        "get_url": None,
+        "public_url": public_url,
+        "headers": {k: v for k, v in ([("Content-Type", content_type)] if content_type else [])},
+        "upload_expires_in": cfg.upload_ttl_seconds,
+        "download_expires_in": cfg.download_ttl_seconds,
+    }
+
+
+def _build_user_scoped_key(prefix: str, user_id: int, filename: Optional[str], content_type: Optional[str]) -> str:
+    now = dt.datetime.utcnow()
+    y = now.strftime("%Y")
+    m = now.strftime("%m")
+    uid = uuid.uuid4().hex
+    ext = guess_extension(filename, content_type)
+    p = prefix.strip('/').lower()
+    return f"{p}/{int(user_id)}/{y}/{m}/{uid}{ext}"
+
+
+def presign_put_cover(user_id: int, filename: Optional[str], content_type: Optional[str]) -> dict:
+    cfg = R2Config()
+    if not cfg.is_configured():
+        raise RuntimeError("R2 is not configured")
+    key = _build_user_scoped_key('cover_photos', user_id, filename, content_type)
+    client = _client(cfg)
+    params = {"Bucket": cfg.bucket, "Key": key}
+    if content_type:
+        params["ContentType"] = content_type
+    put_url = client.generate_presigned_url("put_object", Params=params, ExpiresIn=cfg.upload_ttl_seconds)
+    public_url = f"{cfg.public_base_url}/{key}" if cfg.public_base_url else None
+    return {
+        "key": key,
+        "put_url": put_url,
+        "get_url": None,
+        "public_url": public_url,
+        "headers": {k: v for k, v in ([("Content-Type", content_type)] if content_type else [])},
+        "upload_expires_in": cfg.upload_ttl_seconds,
+        "download_expires_in": cfg.download_ttl_seconds,
+    }
+
+
+def presign_put_portfolio(user_id: int, filename: Optional[str], content_type: Optional[str]) -> dict:
+    cfg = R2Config()
+    if not cfg.is_configured():
+        raise RuntimeError("R2 is not configured")
+    key = _build_user_scoped_key('portfolio_images', user_id, filename, content_type)
+    client = _client(cfg)
+    params = {"Bucket": cfg.bucket, "Key": key}
+    if content_type:
+        params["ContentType"] = content_type
+    put_url = client.generate_presigned_url("put_object", Params=params, ExpiresIn=cfg.upload_ttl_seconds)
+    public_url = f"{cfg.public_base_url}/{key}" if cfg.public_base_url else None
+    return {
+        "key": key,
+        "put_url": put_url,
+        "get_url": None,
+        "public_url": public_url,
+        "headers": {k: v for k, v in ([("Content-Type", content_type)] if content_type else [])},
+        "upload_expires_in": cfg.upload_ttl_seconds,
+        "download_expires_in": cfg.download_ttl_seconds,
+    }
+
+
+def presign_put_service_media(user_id: int, filename: Optional[str], content_type: Optional[str]) -> dict:
+    cfg = R2Config()
+    if not cfg.is_configured():
+        raise RuntimeError("R2 is not configured")
+    key = _build_user_scoped_key('media', user_id, filename, content_type)
+    client = _client(cfg)
+    params = {"Bucket": cfg.bucket, "Key": key}
+    if content_type:
+        params["ContentType"] = content_type
+    put_url = client.generate_presigned_url("put_object", Params=params, ExpiresIn=cfg.upload_ttl_seconds)
+    public_url = f"{cfg.public_base_url}/{key}" if cfg.public_base_url else None
+    return {
+        "key": key,
+        "put_url": put_url,
+        "get_url": None,
+        "public_url": public_url,
+        "headers": {k: v for k, v in ([("Content-Type", content_type)] if content_type else [])},
+        "upload_expires_in": cfg.upload_ttl_seconds,
+        "download_expires_in": cfg.download_ttl_seconds,
+    }

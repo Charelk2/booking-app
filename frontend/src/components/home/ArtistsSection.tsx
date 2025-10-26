@@ -71,7 +71,7 @@ export default function ArtistsSection({
           setShouldFetch(true);
           observer?.disconnect();
         }
-      }, { root: null, rootMargin: '200px', threshold: 0.01 });
+      }, { root: null, rootMargin: '0px', threshold: 0.3 });
       observer.observe(el);
     } catch {
       // Older browsers: fetch after a small delay to avoid burst
@@ -187,7 +187,6 @@ export default function ArtistsSection({
                   imageUrl={
                     getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) || undefined
                   }
-                  unoptimizedImage
                   price={
                     a.hourly_rate && a.price_visible ? Number(a.hourly_rate) : undefined
                   }

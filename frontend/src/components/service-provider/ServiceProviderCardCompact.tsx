@@ -60,9 +60,6 @@ export default function ServiceProviderCardCompact({
       {...props}
     >
       <div className="relative aspect-[4/4] rounded-xl bg-gray-100 overflow-hidden">
-        {!loaded && (
-          <div className="absolute inset-0 animate-pulse bg-gray-200" />
-        )}
         {imageUrl ? (
           <SafeImage
             src={imageUrl}
@@ -77,7 +74,7 @@ export default function ServiceProviderCardCompact({
           />
         ) : (
           <SafeImage
-            src={getFullImageUrl('/static/default-avatar.svg') as string}
+            src={'/default-avatar.svg'}
             alt={name}
             fill
             sizes={`(max-width:${BREAKPOINT_MD}px) 0vw, 33vw`}

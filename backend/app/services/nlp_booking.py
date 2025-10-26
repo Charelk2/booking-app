@@ -9,9 +9,20 @@ from typing import List
 import re
 import difflib
 
-import dateparser
-import spacy
-from spacy.matcher import PhraseMatcher
+try:
+    import dateparser  # type: ignore
+except Exception:  # pragma: no cover - optional
+    class _DP:
+        @staticmethod
+        def parse(_):
+            return None
+    dateparser = _DP()  # type: ignore
+try:
+    import spacy  # type: ignore
+    from spacy.matcher import PhraseMatcher  # type: ignore
+except Exception:  # pragma: no cover - optional
+    spacy = None  # type: ignore
+    PhraseMatcher = None  # type: ignore
 
 from ..schemas.nlp import ParsedBookingDetails
 
@@ -55,7 +66,7 @@ LOCATION_FALLBACK_RE = re.compile(
 )
 
 
-def _ensure_model() -> spacy.language.Language:
+def _ensure_model():
     """Return the loaded spaCy model or raise :class:`NLPModelError`."""
 
     if _NLP is None:
@@ -147,4 +158,3 @@ def extract_booking_details(text: str) -> ParsedBookingDetails:
             result.event_type = _EVENT_LOOKUP.get(event_text)
 
     return result
-

@@ -157,12 +157,11 @@ export default function BookingDetailsPage() {
         open={showPayment}
         onClose={() => setShowPayment(false)}
         bookingRequestId={booking.booking_request_id as number}
-        depositAmount={booking.deposit_amount ?? undefined}
-        depositDueBy={booking.deposit_due_by ?? undefined}
+        amount={Number(booking.total_price || 0)}
         onSuccess={({ paymentId }) => {
           setBooking({
             ...booking,
-            payment_status: "deposit_paid",
+            payment_status: "paid",
             payment_id: paymentId ?? booking.payment_id,
           });
           setShowPayment(false);

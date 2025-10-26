@@ -3,14 +3,14 @@ from sqlalchemy.orm import Session
 
 from .dependencies import get_db
 from ..schemas.service_category import ServiceCategoryResponse
-from ..crud import crud_service_category
+from .. import crud
 
 router = APIRouter()
 
 
 @router.get("/", response_model=list[ServiceCategoryResponse])
 def list_service_categories(response: Response, db: Session = Depends(get_db)):
-    categories = crud_service_category.get_categories(db)
+    categories = crud.crud_service_category.get_categories(db)
     # Defensive: coalesce timestamps for legacy rows
     try:
         from datetime import datetime as _dt

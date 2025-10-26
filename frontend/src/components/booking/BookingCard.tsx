@@ -13,7 +13,6 @@ export interface BookingCardProps {
   title: string;
   date: string;
   status: string;
-  deposit?: string;
   price: string;
   actions: BookingCardAction[];
   children?: React.ReactNode;
@@ -23,7 +22,6 @@ export default function BookingCard({
   title,
   date,
   status,
-  deposit,
   price,
   actions,
   children,
@@ -49,7 +47,7 @@ export default function BookingCard({
         <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${statusClass}`}>
           {status}
         </span>
-        {deposit && <span className="text-sm text-gray-500">{deposit}</span>}
+        {/* deposit flow removed: always full payment */}
       </div>
       {children}
       <div className="mt-4 flex flex-wrap items-center space-x-2">
@@ -69,4 +67,3 @@ export default function BookingCard({
     </div>
   );
 }
-

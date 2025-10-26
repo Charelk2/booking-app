@@ -505,7 +505,10 @@ export function UpdateRequestModal({
       // keep existing API function name used in your codebase
       const res = await updateBookingRequestArtist(request.id, { status });
       if (note.trim()) {
-        await postMessageToBookingRequest(request.id, { content: note.trim() });
+        const cid = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+          ? (crypto as any).randomUUID()
+          : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
+        await postMessageToBookingRequest(request.id, { content: note.trim() }, { clientRequestId: cid });
       }
       onUpdated(res.data);
       onClose();

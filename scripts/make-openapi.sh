@@ -9,7 +9,7 @@ if [ -d "venv" ]; then
   # shellcheck source=/dev/null
   source venv/bin/activate
 fi
-python - <<'PY' "$OUTPUT"
+DISABLE_SESSIONS=1 ALLOW_OPENAPI_NO_MFA=1 OPENAPI_MINIMAL=1 python - <<'PY' "$OUTPUT"
 from pathlib import Path
 from main import app
 import json, sys

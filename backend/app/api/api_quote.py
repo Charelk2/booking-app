@@ -21,7 +21,6 @@ from ..schemas.request_quote import (
     QuoteCalculationParams as CalcParams,
     QuoteCalculationResponse as CalcResponse,
 )
-from ..crud import crud_service
 from decimal import Decimal
 from decimal import Decimal
 from ..utils import error_response
@@ -94,7 +93,7 @@ def create_quote_for_request(
         new_quote = crud.crud_quote.create_quote(
             db=db, quote=quote_in, artist_id=current_artist.id
         )
-        crud.crud_message.create_message(
+        msg_quote = crud.crud_message.create_message(
             db=db,
             booking_request_id=request_id,
             sender_id=current_artist.id,
@@ -108,7 +107,7 @@ def create_quote_for_request(
         # is visible only to the client and includes an expiration timestamp so
         # the frontend can display a countdown.
         expires_at = datetime.utcnow() + timedelta(days=7)
-        crud.crud_message.create_message(
+        msg_sys = crud.crud_message.create_message(
             db=db,
             booking_request_id=request_id,
             sender_id=current_artist.id,
@@ -121,6 +120,28 @@ def create_quote_for_request(
             attachment_url=None,
             expires_at=expires_at,
         )
+        # Best-effort realtime broadcast so the thread updates immediately
+        try:
+            from .api_ws import manager as ws_manager  # type: ignore
+            try:
+                env1 = schemas.MessageResponse.model_validate(msg_quote).model_dump()
+            except Exception:
+                env1 = {"id": int(getattr(msg_quote, "id", 0) or 0), "booking_request_id": int(request_id)}
+            try:
+                env2 = schemas.MessageResponse.model_validate(msg_sys).model_dump()
+            except Exception:
+                env2 = {"id": int(getattr(msg_sys, "id", 0) or 0), "booking_request_id": int(request_id)}
+            # Fire-and-forget (no await in sync route)
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if loop and loop.is_running():
+                    loop.create_task(ws_manager.broadcast(int(request_id), env1))
+                    loop.create_task(ws_manager.broadcast(int(request_id), env2))
+            except Exception:
+                pass
+        except Exception:
+            pass
         client = (
             db.query(models.User)
             .filter(models.User.id == db_booking_request.client_id)
@@ -277,7 +298,7 @@ def calculate_quote_endpoint(
     Uses the same calculation helpers as booking flows so the UI can prefill
     inline quotes with travel- and sound-aware pricing.
     """
-    svc = crud_service.service.get_service(db, body.service_id)
+    svc = crud.service.get_service(db, body.service_id)
     if not svc:
         raise error_response(
             "Service not found",

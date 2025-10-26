@@ -133,6 +133,12 @@ const processQueue = () => {
   });
 };
 
+// Public helper to nudge queued tasks without waiting for window 'online'.
+// Used when realtime (WS) becomes healthy/open to flush sends immediately.
+export const flushTransportQueue = () => {
+  try { processQueue(); } catch {}
+};
+
 const executeTask = (id: string) => {
   const task = taskQueue.get(id);
   if (!task) return;
@@ -414,11 +420,10 @@ export const getPendingTransportTasks = () => Array.from(taskQueue.keys());
 export const setTransportErrorMeta = (error: unknown, meta: Partial<TransportErrorMeta>) => {
   if (!error) return;
   const existing = ((error as any).__bookaMeta || {}) as TransportErrorMeta;
-  (error as any).__bookaMeta = {
-    isNetworkError: false,
-    isOffline: false,
-    isTransient: false,
-    ...existing,
-    ...meta,
-  };
+  // Use Object.assign to avoid duplicate-property warnings in strict TS settings
+  (error as any).__bookaMeta = Object.assign(
+    { isNetworkError: false, isOffline: false, isTransient: false },
+    existing || {},
+    meta || {},
+  );
 };

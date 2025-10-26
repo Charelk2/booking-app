@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 
 from .dependencies import get_current_user
 from ..database import get_db
+from ..utils import r2 as r2utils
+from .dependencies import get_current_user
+from ..models import user as models
+from ..schemas.storage import PresignOut
 
 
 router = APIRouter()
@@ -63,3 +67,30 @@ async def upload_image(
 
     url = f"/static/portfolio_images/{unique_name}"
     return {"url": url}
+
+
+@router.post("/services/media/presign")
+async def presign_service_media(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),  # noqa: F401
+    current_user=Depends(get_current_user),
+):
+    """Presign a direct R2 upload for service media images. Returns a PresignOut."""
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+    ct = (file.content_type or "").lower()
+    if not ct.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image uploads are allowed")
+    try:
+        info = r2utils.presign_put_service_media(current_user.id, file.filename, file.content_type)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Presign failed: {exc}")
+    return PresignOut(
+        key=info.get("key") or "",
+        put_url=info.get("put_url") or None,
+        get_url=info.get("get_url") or None,
+        public_url=info.get("public_url") or None,
+        headers=info.get("headers") or {},
+        upload_expires_in=int(info.get("upload_expires_in") or 0),
+        download_expires_in=int(info.get("download_expires_in") or 0),
+    )

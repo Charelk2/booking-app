@@ -5,7 +5,7 @@ import { act } from "react";
 import { format } from "date-fns";
 import BookingDetailsPage from "../[id]/page";
 import { getBookingDetails, downloadBookingIcs } from "@/lib/api";
-import { formatDepositReminder } from "@/lib/utils";
+ 
 import { useParams, useSearchParams } from "next/navigation";
 
 jest.mock("@/lib/api");
@@ -54,8 +54,7 @@ describe("BookingDetailsPage", () => {
         status: "confirmed",
         total_price: 100,
         notes: "",
-        deposit_amount: 50,
-        deposit_due_by: new Date("2024-01-08").toISOString(),
+        
         payment_status: "pending",
         service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
@@ -72,12 +71,10 @@ describe("BookingDetailsPage", () => {
 
     expect(getBookingDetails).toHaveBeenCalledWith(1);
     expect(div.textContent).toContain("Gig - Artist");
-    expect(div.textContent).toContain(
-      formatDepositReminder(50, new Date("2024-01-08")),
-    );
+    // Deposit banner removed; pending shows generic payment state
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
     expect(artistLink?.getAttribute("href")).toBe("/service-providers/2");
-    const pay = div.querySelector('[data-testid="pay-deposit-button"]');
+    const pay = div.querySelector('[data-testid="pay-now-button"]');
     expect(pay).not.toBeNull();
 
     act(() => {
@@ -99,9 +96,7 @@ describe("BookingDetailsPage", () => {
         status: "confirmed",
         total_price: 100,
         notes: "",
-        deposit_amount: 50,
-        deposit_due_by: new Date("2024-01-08").toISOString(),
-        payment_status: "deposit_paid",
+        payment_status: "paid",
         payment_id: "pay_123",
         service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
@@ -139,8 +134,7 @@ describe("BookingDetailsPage", () => {
         status: "confirmed",
         total_price: 100,
         notes: "",
-        deposit_amount: 50,
-        deposit_due_by: new Date("2024-01-08").toISOString(),
+        
         payment_status: "pending",
         service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
@@ -174,9 +168,7 @@ describe("BookingDetailsPage", () => {
         status: "confirmed",
         total_price: 100,
         notes: "",
-        deposit_amount: 50,
-        deposit_due_by: new Date("2024-01-08").toISOString(),
-        payment_status: "deposit_paid",
+        payment_status: "paid",
         service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
         booking_request_id: 7,
@@ -220,8 +212,7 @@ describe("BookingDetailsPage", () => {
         status: "confirmed",
         total_price: 100,
         notes: "",
-        deposit_amount: 50,
-        deposit_due_by: new Date("2024-01-08").toISOString(),
+        
         payment_status: "pending",
         service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
@@ -237,10 +228,7 @@ describe("BookingDetailsPage", () => {
     await flushPromises();
 
     const modalHeading = div.querySelector("h2");
-    expect(modalHeading?.textContent).toContain("Pay Deposit");
-    expect(modalHeading?.textContent).toContain(
-      format(new Date("2024-01-08"), "PPP"),
-    );
+    expect(modalHeading?.textContent).toContain("Pay Now");
 
     act(() => {
       root.unmount();

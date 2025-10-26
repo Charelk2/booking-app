@@ -38,6 +38,7 @@ import {
   FaceSmileIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 
@@ -199,15 +200,9 @@ function HeaderMessagesLink({ unread }: { unread: number }) {
 
 // Placeholder to attach any global styles or preloading if needed later
 HeaderMessagesLink.Definition = function Definition() {
-  const router = useRouter();
-  useEffect(() => {
-    const idle = (cb: () => void) => (
-      'requestIdleCallback' in window
-        ? (window as any).requestIdleCallback(cb)
-        : setTimeout(cb, 300)
-    );
-    idle(() => router.prefetch?.('/inbox'));
-  }, [router]);
+  // Removed idle prefetch of "/inbox" to avoid pulling the Inbox route
+  // bundle into the very first paint. We still prefetch on hover/focus via
+  // the HeaderMessagesLink anchors above.
   return null;
 };
 
@@ -272,7 +267,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   ref,
 ) {
   const { user, logout, artistViewActive, toggleArtistView } = useAuth();
-  const { count: unreadThreadsCount } = useUnreadThreadsCount(45000);
+  const { count: unreadThreadsCount } = useUnreadThreadsCount();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -481,7 +476,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   );
 
   const brandLinkClasses = clsx(
-    'text-4xl font-bold tracking-tight no-underline hover:no-underline',
+    'font-bold tracking-tight no-underline hover:no-underline',
     isAuthVariant
       ? 'text-gray-900 hover:text-gray-900 focus-visible:ring-black/20'
       : 'text-white hover:text-white focus-visible:ring-white/50',
@@ -517,13 +512,25 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
             <Link
               href="/"
-              className={brandLinkClasses}
+              className={clsx(brandLinkClasses, 'flex items-center gap-3')}
               aria-label="Booka home"
               prefetch
               onMouseEnter={() => router.prefetch?.('/')}
               onFocus={() => router.prefetch?.('/')}
             >
-              Booka
+              {(() => {
+                const src = process.env.NEXT_PUBLIC_BRAND_LOGO_URL || '';
+                return (
+                  <span className="inline-flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-md bg-white">
+                    {src ? (
+                      <Image src={src} alt="Brand logo" width={30} height={30} priority className="h-5 w-auto sm:h-6 md:h-7" />
+                    ) : (
+                      <span className="text-black font-black text-xl sm:text-2xl md:text-3xl leading-none">B</span>
+                    )}
+                  </span>
+                );
+              })()}
+              <span className="text-xl sm:text-2xl md:text-3xl">Booka</span>
             </Link>
 
             {/* MOBILE: search pill (light surface → black text) */}
@@ -638,7 +645,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 {user.user_type === 'service_provider' && (
                   <button
                     onClick={toggleArtistView}
-                    className="px-3 py-2 text-sm rounded-lg font-bold hover:bg-gray-900 text-white"
+                    className="px-3 py-2 text-sm rounded-lg font-bold bg-black text-white border border-white hover:bg-gray-900"
                   >
                     {artistViewActive ? 'Switch to Booking' : 'Switch to Hosting'}
                   </button>

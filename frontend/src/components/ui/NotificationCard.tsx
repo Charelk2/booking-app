@@ -65,7 +65,7 @@ export default function NotificationCard({
   // Always display an image avatar; fall back to a generic placeholder when
   // the sender has not uploaded a profile picture. This ensures notifications
   // consistently show a profile photo rather than initials.
-  const avatarSrc = avatarUrl || '/static/default-avatar.svg';
+  const avatarSrc = avatarUrl || '/default-avatar.svg';
 
   return (
     <div

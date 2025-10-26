@@ -53,7 +53,7 @@ export const getFullImageUrl = (
       let base = apiBaseOrigin() || '';
       base = base.replace(/\/+$/, '');
       base = base.replace(/\/api(?:\/v\d+)?$/, '');
-      return `${base}/static/default-avatar.svg`;
+      return `/default-avatar.svg`;
     } catch {
       return sanitized;
     }
@@ -61,6 +61,25 @@ export const getFullImageUrl = (
 
   // Normalize known upload directories to their direct mounts (not /static)
   const stripLeading = sanitized.replace(/^\/+/, '');
+  // Special-case avatars: prefer R2 public base when configured
+  if (stripLeading.startsWith('avatars/')) {
+    const r2 = (process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+    if (r2) return `${r2}/${stripLeading}`;
+    // Fallback to static mount if no R2 base is configured
+    let base = apiBaseOrigin() || '';
+    base = base.replace(/\/+$/, '');
+    base = base.replace(/\/api(?:\/v\d+)?$/, '');
+    return `${base}/static/${stripLeading}`;
+  }
+  // Special-case cover/portfolio/media: prefer R2 public base when configured
+  if (stripLeading.startsWith('cover_photos/') || stripLeading.startsWith('portfolio_images/') || stripLeading.startsWith('media/')) {
+    const r2 = (process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+    if (r2) return `${r2}/${stripLeading}`;
+    let base = apiBaseOrigin() || '';
+    base = base.replace(/\/+$/, '');
+    base = base.replace(/\/api(?:\/v\d+)?$/, '');
+    return `${base}/static/${stripLeading}`;
+  }
   // Allow API image proxy paths to pass through without /static
   if (stripLeading.startsWith('api/')) {
     let base = apiBaseOrigin() || '';
@@ -415,7 +434,6 @@ export const STATUS_LABELS: Record<string, string> = {
   confirmed: 'Confirmed',
   completed: 'Completed',
   cancelled: 'Cancelled',
-  deposit_paid: 'Deposit Paid',
   paid: 'Paid',
 };
 
@@ -430,26 +448,7 @@ const capitalize = (word: string): string =>
 export const formatStatus = (status: string): string =>
   STATUS_LABELS[status] || status.split('_').map(capitalize).join(' ');
 
-export const formatDepositReminder = (
-  amount?: number,
-  dueDate?: string | Date,
-): string => {
-  const parts: string[] = [];
-  const formattedAmount =
-    amount !== undefined ? formatCurrency(Number(amount)) : undefined;
-  if (formattedAmount) {
-    parts.push(`Deposit ${formattedAmount}`);
-  } else {
-    parts.push('Deposit');
-  }
-  if (dueDate) {
-    const d = typeof dueDate === 'string' ? new Date(dueDate) : dueDate;
-    parts.push(`due by ${format(d, 'MMM d, yyyy')}`);
-  } else {
-    parts.push('due');
-  }
-  return parts.join(' ');
-};
+// Deposits removed — no deposit reminder formatting
 
 /**
  * Generate a human-readable quote number like "Quote #2025-1234".

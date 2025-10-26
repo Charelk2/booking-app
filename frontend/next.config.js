@@ -212,6 +212,20 @@ const nextConfig = {
         ],
       },
       {
+        // Immutable caching for public static images (favicon, default avatar)
+        source: '/:file(favicon|default-avatar).svg',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        // Immutable caching for category icons served from /public/categories
+        source: '/categories/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
         source: '/static/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },

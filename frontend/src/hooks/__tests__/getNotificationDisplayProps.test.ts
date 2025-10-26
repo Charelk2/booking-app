@@ -27,20 +27,19 @@ describe('getNotificationDisplayProps', () => {
     expect(assignSpy).toHaveBeenCalledWith('/booking-requests/1');
   });
 
-  it('maps deposit due unified notification', () => {
+  it('maps booking confirmation unified notification', () => {
     const n: UnifiedNotification = {
-      type: 'deposit_due',
+      type: 'new_booking',
       timestamp: '2025-01-02T00:00:00Z',
       is_read: false,
-      content: 'Deposit R50 due by 2025-01-10',
-      link: '/dashboard/client/bookings/5?pay=1',
+      content: 'New booking #5',
+      link: '/dashboard/client/bookings/5',
     } as UnifiedNotification;
     const props = getNotificationDisplayProps(n);
-    expect(props.type).toBe('due');
-    expect(props.from).toBe('Deposit Due');
-    expect(props.subtitle).toContain('R50');
+    expect(props.type).toBe('reminder');
+    expect(props.from).toBe('Booking Confirmed');
     props.onClick();
-    expect(assignSpy).toHaveBeenCalledWith('/dashboard/client/bookings/5?pay=1');
+    expect(assignSpy).toHaveBeenCalledWith('/dashboard/client/bookings/5');
   });
 
   it('builds booking request display props', () => {

@@ -17,7 +17,7 @@ from ..api.auth import get_user_by_email
 from ..utils.auth import verify_password, normalize_email
 from ..utils.redis_cache import invalidate_artist_list_cache
 from ..utils.notifications import notify_listing_moderation, notify_user_new_message
-from ..crud import crud_message
+from .. import crud
 from .. import models
 from ..api.auth import create_access_token, get_current_user
 
@@ -409,8 +409,7 @@ def list_clients(
                 db.query(func.count(BookingSimple.id))
                 .filter(BookingSimple.client_id == u.id)
                 .filter(
-                    (BookingSimple.deposit_paid == True)  # noqa: E712
-                    | (func.lower(BookingSimple.payment_status).in_(["paid", "deposit_paid"]))
+                    (func.lower(BookingSimple.payment_status) == "paid")
                     | ((BookingSimple.charged_total_amount.isnot(None)) & (BookingSimple.charged_total_amount > 0))
                 )
                 .scalar()
@@ -467,8 +466,7 @@ def get_client(
         db.query(func.count(BookingSimple.id))
         .filter(BookingSimple.client_id == u.id)
         .filter(
-            (BookingSimple.deposit_paid == True)  # noqa: E712
-            | (func.lower(BookingSimple.payment_status).in_(["paid", "deposit_paid"]))
+            (func.lower(BookingSimple.payment_status) == "paid")
             | ((BookingSimple.charged_total_amount.isnot(None)) & (BookingSimple.charged_total_amount > 0))
         )
         .scalar()
@@ -529,8 +527,7 @@ def export_clients_csv(
                 db.query(func.count(BookingSimple.id))
                 .filter(BookingSimple.client_id == u.id)
                 .filter(
-                    (BookingSimple.deposit_paid == True)  # noqa: E712
-                    | (func.lower(BookingSimple.payment_status).in_(["paid", "deposit_paid"]))
+                    (func.lower(BookingSimple.payment_status) == "paid")
                     | ((BookingSimple.charged_total_amount.isnot(None)) & (BookingSimple.charged_total_amount > 0))
                 )
                 .scalar()
@@ -821,7 +818,7 @@ def message_provider(user_id: int, payload: Dict[str, Any], current: Tuple[User,
     if not br:
         raise HTTPException(status_code=400, detail="Could not open a support thread")
 
-    msg = crud_message.create_message(
+    msg = crud.crud_message.create_message(
         db,
         booking_request_id=br.id,
         sender_id=system_user.id if system_user else br.artist_id,
@@ -1211,7 +1208,7 @@ def reply_conversation(thread_id: int, payload: Dict[str, Any], current: Tuple[U
         db.add(system_user)
         db.commit()
         db.refresh(system_user)
-    msg = crud_message.create_message(
+    msg = crud.crud_message.create_message(
         db,
         booking_request_id=thread_id,
         sender_id=system_user.id,
@@ -1397,7 +1394,7 @@ def approve_listing(listing_id: int, _: Tuple[User, AdminUser] = Depends(require
                 f"View listing: /services/{s.id}\n"
                 f"Need help? Contact support at support@booka.co.za."
             )
-            m = crud_message.create_message(
+            m = crud.crud_message.create_message(
                 db,
                 booking_request_id=br.id,
                 sender_id=(system_user.id if system_user else br.artist_id),
@@ -1500,7 +1497,7 @@ def reject_listing(listing_id: int, payload: Dict[str, Any], _: Tuple[User, Admi
                 f"View listing: /dashboard/artist?tab=services\n"
                 f"Need help? Contact support at support@booka.co.za."
             )
-            m = crud_message.create_message(
+            m = crud.crud_message.create_message(
                 db,
                 booking_request_id=br.id,
                 sender_id=(system_user.id if system_user else br.artist_id),
@@ -1599,7 +1596,7 @@ def bulk_approve(payload: Dict[str, Any], _: Tuple[User, AdminUser] = Depends(re
                         f"View listing: /services/{s.id}\n"
                         f"Need help? Contact support at support@booka.co.za."
                     )
-                    m = crud_message.create_message(
+                    m = crud.crud_message.create_message(
                         db,
                         booking_request_id=br.id,
                         sender_id=(system_user.id if system_user else br.artist_id),
@@ -1706,7 +1703,7 @@ def bulk_reject(payload: Dict[str, Any], _: Tuple[User, AdminUser] = Depends(req
                         f"View listing: /dashboard/artist?tab=services\n"
                         f"Need help? Contact support at support@booka.co.za."
                     )
-                    m = crud_message.create_message(
+                    m = crud.crud_message.create_message(
                         db,
                         booking_request_id=br.id,
                         sender_id=(system_user.id if system_user else br.artist_id),

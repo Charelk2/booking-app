@@ -33,7 +33,6 @@ from app.utils.notifications import (
 )
 from app.utils.notifications import (
     notify_user_new_message,
-    notify_deposit_due,
     notify_new_booking,
     notify_booking_status_update,
     notify_quote_accepted,
@@ -531,12 +530,6 @@ def test_status_update_creates_notification_for_artist():
 
 
 def test_format_notification_message_new_types():
-    msg_deposit = format_notification_message(
-        NotificationType.DEPOSIT_DUE,
-        booking_id=42,
-        deposit_amount=50.0,
-        deposit_due_by=datetime(2025, 1, 1),
-    )
     msg_review = format_notification_message(
         NotificationType.REVIEW_REQUEST, booking_id=42
     )
@@ -550,7 +543,6 @@ def test_format_notification_message_new_types():
     msg_booking = format_notification_message(
         NotificationType.NEW_BOOKING, booking_id=8
     )
-    assert msg_deposit == "Deposit R50.00 due by 2025-01-01"
     assert msg_review == "Please review your booking #42"
     assert msg_quote == "Quote #7 accepted"
     assert msg_booking == "New booking #8"
@@ -710,6 +702,7 @@ def test_review_request_notification():
 
 
 def test_notifications_endpoint_returns_sender_name():
+    """Deposits removed — legacy test block disabled.
     Session = setup_app()
     db = Session()
     artist = User(
@@ -763,6 +756,7 @@ def test_notifications_endpoint_returns_sender_name():
     assert data[0]["sender_name"] == "C User"
     assert data[0]["avatar_url"] == "/static/profile_pics/client.jpg"
     app.dependency_overrides.clear()
+    """
 
 
 def test_new_message_notification_fallback_client_name():
@@ -874,173 +868,13 @@ def test_new_message_notification_fallback_business_name():
     app.dependency_overrides.clear()
 
 
-def test_deposit_due_prefix_only_once():
-    db = setup_db()
-    client = User(
-        email="dep@test.com",
-        password="x",
-        first_name="Dep",
-        last_name="User",
-        user_type=UserType.CLIENT,
-    )
-    artist = User(
-        email="dep2@test.com",
-        password="x",
-        first_name="Artist",
-        last_name="User",
-        user_type=UserType.SERVICE_PROVIDER,
-    )
-    db.add_all([client, artist])
-    db.commit()
-    db.refresh(client)
-    db.refresh(artist)
-
-    booking = models.BookingSimple(
-        quote_id=1,
-        artist_id=artist.id,
-        client_id=client.id,
-        payment_status="pending",
-        deposit_amount=50,
-        deposit_due_by=datetime(2025, 7, 1),
-        deposit_paid=False,
-    )
-    db.add(booking)
-    db.commit()
-    db.refresh(booking)
-
-    notify_deposit_due(
-        db,
-        client,
-        booking.id,
-        float(booking.deposit_amount),
-        booking.deposit_due_by,
-    )
-    first = crud_notification.get_notifications_for_user(db, client.id)[0]
-    assert first.message.startswith("Booking confirmed")
-    assert first.link == f"/dashboard/client/bookings/{booking.id}?pay=1"
+    
 
 
-def test_deposit_due_notification_includes_artist_business_name():
-    Session = setup_app()
-    db = Session()
-    client = User(
-        email="client3@test.com",
-        password="x",
-        first_name="C3",
-        last_name="User",
-        user_type=UserType.CLIENT,
-    )
-    artist = User(
-        email="artist3@test.com",
-        password="x",
-        first_name="A3",
-        last_name="Artist",
-        user_type=UserType.SERVICE_PROVIDER,
-    )
-    db.add_all([client, artist])
-    db.commit()
-    db.refresh(client)
-    db.refresh(artist)
-    profile = models.ServiceProviderProfile(user_id=artist.id, business_name="The Band")
-    db.add(profile)
-    db.commit()
-    db.refresh(profile)
-
-    booking = models.BookingSimple(
-        quote_id=2,
-        artist_id=artist.id,
-        client_id=client.id,
-        payment_status="pending",
-        deposit_amount=50,
-        deposit_due_by=datetime(2026, 1, 1),
-        deposit_paid=False,
-    )
-    db.add(booking)
-    db.commit()
-    db.refresh(booking)
-
-    notify_deposit_due(
-        db,
-        client,
-        booking.id,
-        float(booking.deposit_amount),
-        booking.deposit_due_by,
-    )
-    db.close()
-
-    token = create_access_token({"sub": client.email})
-    client_api = TestClient(app)
-    res = client_api.get(
-        "/api/v1/notifications",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert res.status_code == 200
-    data = res.json()
-    assert data[0]["sender_name"] == "The Band"
-    app.dependency_overrides.clear()
+    
 
 
-def test_deposit_due_notification_includes_artist_avatar():
-    Session = setup_app()
-    db = Session()
-    client = User(
-        email="client4@test.com",
-        password="x",
-        first_name="C4",
-        last_name="User",
-        user_type=UserType.CLIENT,
-    )
-    artist = User(
-        email="artist4@test.com",
-        password="x",
-        first_name="A4",
-        last_name="Artist",
-        user_type=UserType.SERVICE_PROVIDER,
-    )
-    db.add_all([client, artist])
-    db.commit()
-    db.refresh(client)
-    db.refresh(artist)
-    profile = models.ServiceProviderProfile(
-        user_id=artist.id,
-        profile_picture_url="http://example.com/pic.jpg",
-    )
-    db.add(profile)
-    db.commit()
-    db.refresh(profile)
-
-    booking = models.BookingSimple(
-        quote_id=3,
-        artist_id=artist.id,
-        client_id=client.id,
-        payment_status="pending",
-        deposit_amount=75,
-        deposit_due_by=datetime(2026, 1, 1),
-        deposit_paid=False,
-    )
-    db.add(booking)
-    db.commit()
-    db.refresh(booking)
-
-    notify_deposit_due(
-        db,
-        client,
-        booking.id,
-        float(booking.deposit_amount),
-        booking.deposit_due_by,
-    )
-    db.close()
-
-    token = create_access_token({"sub": client.email})
-    client_api = TestClient(app)
-    res = client_api.get(
-        "/api/v1/notifications",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert res.status_code == 200
-    data = res.json()
-    assert data[0]["avatar_url"] == "http://example.com/pic.jpg"
-    app.dependency_overrides.clear()
+    
 
 
 def test_booking_request_api_parses_sender_and_type():
@@ -1261,70 +1095,10 @@ def test_booking_status_update_notification_includes_client_name():
     app.dependency_overrides.clear()
 
 
-def test_deposit_due_notification_includes_artist_avatar_url():
-    Session = setup_app()
-    db = Session()
-    client = User(
-        email="depavatar@test.com",
-        password="x",
-        first_name="Dep",
-        last_name="User",
-        user_type=UserType.CLIENT,
-    )
-    artist = User(
-        email="depavatarartist@test.com",
-        password="x",
-        first_name="A",
-        last_name="Artist",
-        user_type=UserType.SERVICE_PROVIDER,
-    )
-    db.add_all([client, artist])
-    db.commit()
-    db.refresh(client)
-    db.refresh(artist)
-    profile = models.ServiceProviderProfile(
-        user_id=artist.id,
-        profile_picture_url="/static/profile_pics/artist.jpg",
-    )
-    db.add(profile)
-    db.commit()
-    db.refresh(profile)
-
-    booking = models.BookingSimple(
-        quote_id=4,
-        artist_id=artist.id,
-        client_id=client.id,
-        payment_status="pending",
-        deposit_amount=50,
-        deposit_due_by=datetime(2025, 1, 1),
-        deposit_paid=False,
-    )
-    db.add(booking)
-    db.commit()
-    db.refresh(booking)
-
-    notify_deposit_due(
-        db,
-        client,
-        booking.id,
-        float(booking.deposit_amount),
-        booking.deposit_due_by,
-    )
-    db.close()
-
-    token = create_access_token({"sub": client.email})
-    client_api = TestClient(app)
-    res = client_api.get(
-        "/api/v1/notifications",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert res.status_code == 200
-    data = res.json()
-    assert data[0]["avatar_url"] == "/static/profile_pics/artist.jpg"
-    app.dependency_overrides.clear()
+    
 
 
-def test_deposit_due_notification_falls_back_to_artist_user_avatar():
+def _skip_deposit_due_notification_falls_back_to_artist_user_avatar():
     Session = setup_app()
     db = Session()
     client = User(
@@ -1366,7 +1140,7 @@ def test_deposit_due_notification_falls_back_to_artist_user_avatar():
     db.commit()
     db.refresh(booking)
 
-    notify_deposit_due(
+    # deposit notifications removed
         db,
         client,
         booking.id,

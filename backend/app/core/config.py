@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     # (e.g., repo root or backend/) always resolves the same DB file.
     BASE_DIR: ClassVar[Path] = Path(__file__).resolve().parents[2]
     SQLALCHEMY_DATABASE_URL: str = f"sqlite:///{BASE_DIR / 'booking.db'}"
+    # Optional duplicate for Alembic / external tooling convenience. When set
+    # in .env, this field prevents extra=forbid validation errors. The app
+    # continues to use SQLALCHEMY_DATABASE_URL; Alembic prefers DB_URL.
+    DB_URL: str | None = None
 
     # Redis connection URL for caching
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -102,6 +106,10 @@ class Settings(BaseSettings):
     FEATURE_EVENT_PREP: bool = False
     # Frontend env passthrough to avoid validation errors when extra is forbid
     NEXT_PUBLIC_FEATURE_EVENT_PREP: str = ""
+    # Accept Paystack-related frontend toggles so shared .env does not break backend settings
+    NEXT_PUBLIC_USE_PAYSTACK: str = ""
+    NEXT_PUBLIC_FAKE_PAYMENTS: str = ""
+    NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: str = ""
 
     # Email Dev Mode: include reset links in the API response and logs to ease local testing
     EMAIL_DEV_MODE: bool = True
@@ -132,6 +140,8 @@ class Settings(BaseSettings):
     # Presign TTLs (seconds)
     R2_PRESIGN_UPLOAD_TTL: int = 3600  # 1h
     R2_PRESIGN_DOWNLOAD_TTL: int = 604800  # 7d
+
+    # (Attachment proxy settings removed; not used)
 
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:

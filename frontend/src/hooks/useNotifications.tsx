@@ -11,12 +11,29 @@ import {
 } from 'react';
 import axios, { type AxiosRequestHeaders } from 'axios';
 import toast from 'react-hot-toast';
-import { useRealtimeContext } from '@/contexts/RealtimeContext';
+import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Notification, UnifiedNotification } from '@/types';
 import { toUnifiedFromNotification } from './notificationUtils';
 import { authAwareMessage } from '@/lib/utils';
-import { emitThreadsUpdated } from '@/lib/threadsEvents';
+import { threadStore } from '@/lib/chat/threadStore';
+import { readThreadCache, writeThreadCache } from '@/lib/chat/threadCache';
+import { requestThreadPrefetch, kickThreadPrefetcher } from '@/lib/chat/threadPrefetcher';
+import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
+
+function extractThreadId(notif: Notification): number | null {
+  const direct = (notif as any).booking_request_id ?? (notif as any).thread_id;
+  if (Number.isFinite(direct)) return Number(direct);
+  if (notif.link) {
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+      const url = new URL(notif.link, origin);
+      const id = url.searchParams.get('requestId') || url.searchParams.get('threadId');
+      if (id && Number.isFinite(Number(id))) return Number(id);
+    } catch {}
+  }
+  return null;
+}
 
 // Use the root API URL and include the /api prefix on each request so
 // paths match the FastAPI router mounted with prefix="/api".
@@ -113,7 +130,64 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         const newNotif: Notification = { ...(data as Notification), is_read: false };
         setNotifications((prev) => [newNotif, ...prev]);
         setUnreadCount((c) => c + 1);
-        emitThreadsUpdated({ source: 'notifications', threadId: newNotif.booking_request_id, immediate: true });
+        const threadId = extractThreadId(newNotif);
+        if (threadId) {
+          const isActive = threadStore.getActiveThreadId() === threadId;
+          const prev = threadStore.getThread(threadId);
+          if (isActive) {
+            threadStore.applyRead(threadId, prev?.last_message_id ?? null);
+          }
+          const nextUnread = isActive ? 0 : (Number(prev?.unread_count || 0) + 1);
+          threadStore.upsert({
+            id: threadId,
+            unread_count: nextUnread,
+            is_unread_by_current_user: nextUnread > 0,
+            last_message_content: newNotif.message,
+            last_message_timestamp: newNotif.timestamp,
+            counterparty_label: newNotif.sender_name || prev?.counterparty_label || undefined,
+          } as any);
+
+          // Proactively warm the thread so opening it shows the new message immediately.
+          try {
+            requestThreadPrefetch(threadId, 360, 'realtime', true);
+            kickThreadPrefetcher();
+          } catch {}
+          try {
+            emitThreadsUpdated({ threadId, source: 'realtime', immediate: true }, { immediate: true, force: true });
+          } catch {}
+
+          // Best-effort synthetic stub in cache (overwritten by the subsequent fetch)
+          try {
+            const base = (readThreadCache(threadId) || []) as any[];
+            const text = String(newNotif.message || '');
+            const low = text.trim().toLowerCase();
+            const isSystem = (
+              low.startsWith('booking details:') ||
+              low.startsWith('payment received') ||
+              low.startsWith('booking confirmed') ||
+              low.startsWith('listing approved:') ||
+              low.startsWith('listing rejected:')
+            );
+            const stub = {
+              id: -Date.now(),
+              booking_request_id: threadId,
+              sender_id: 0,
+              sender_type: 'client',
+              content: text,
+              message_type: isSystem ? 'SYSTEM' : 'USER',
+              visible_to: 'both',
+              is_read: isActive,
+              timestamp: newNotif.timestamp,
+              avatar_url: null,
+            } as any;
+            writeThreadCache(threadId, [...base, stub]);
+          } catch {}
+          if (!isActive && typeof window !== 'undefined') {
+            try {
+              window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { delta: 1, threadId } }));
+            } catch {}
+          }
+        }
       } catch (e) {
         console.error('Failed to handle notification message', e);
       }

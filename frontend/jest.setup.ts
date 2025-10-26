@@ -31,6 +31,7 @@ jest.mock('next/navigation', () => ({
   usePathname: mockUsePathname,
   useParams: mockUseParams,
   useSearchParams: mockUseSearchParams,
+  redirect: jest.fn(),
 }));
 
 // Simplified <Link> component for tests
@@ -143,4 +144,3 @@ Object.defineProperty(window, 'location', {
   value: { ...window.location, assign: jest.fn() },
   writable: true,
 });
-

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushTransportQueue } from '@/lib/transportState';
 
 type Mode = 'ws' | 'sse';
 type Status = 'connecting' | 'open' | 'reconnecting' | 'closed';
@@ -45,6 +46,8 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   // Track how long a connection stayed open; treat sub‑5s uptimes as failures
   const openedAtRef = useRef<number | null>(null);
   const subs = useRef<Map<string, Set<RealtimeHandler>>>(new Map());
+  // Outbox for best-effort publishes while socket is not open or when in SSE fallback
+  const outboxRef = useRef<Array<{ topic: string; payload: any }>>([]);
   const pendingSubTopics = useRef<Set<string>>(new Set());
   const [wsToken, setWsToken] = useState<string | null>(token ?? null);
   const [refreshAttempted, setRefreshAttempted] = useState(false);
@@ -113,7 +116,17 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       openedAtRef.current = Date.now();
       lastDelayRef.current = null;
       setStatus('open');
+      // Flush queued HTTP tasks (message sends, etc.) when WS is healthy
+      try { flushTransportQueue(); } catch {}
       try { console.info('[realtime] WS open', { url: wsUrl }); } catch {}
+      // Flush any pending publishes
+      try {
+        const q = outboxRef.current;
+        outboxRef.current = [];
+        for (const item of q) {
+          try { ws.send(JSON.stringify({ v: 1, topic: item.topic, ...item.payload })); } catch {}
+        }
+      } catch {}
       // Heartbeat
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
       const base = isMobile ? 60 : 30;
@@ -320,10 +333,16 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   }, [mode, refreshSSE, openWS, openSSE, wsBase, wsUrl]);
 
   const publish = useCallback((topic: string, payload: Record<string, any>) => {
-    if (mode !== 'ws') return; // no-op in SSE fallback
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    try { wsRef.current.send(JSON.stringify({ v: 1, topic, ...payload })); } catch {}
-  }, [mode]);
+    // If WS is open, send immediately
+    if (mode === 'ws' && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try { wsRef.current.send(JSON.stringify({ v: 1, topic, ...payload })); } catch {}
+      return;
+    }
+    // Otherwise, queue and attempt to open WS so the event eventually goes out.
+    try { outboxRef.current.push({ topic, payload }); } catch {}
+    // Try to open WS if possible; else SSE will keep receiving while we retry
+    if (wsUrl) openWS();
+  }, [mode, openWS, wsUrl]);
 
   const forceReconnect = useCallback(() => {
     if (mode === 'ws') {
@@ -333,6 +352,25 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       openSSE();
     }
   }, [mode, openWS, openSSE]);
+
+  // Adjust heartbeat interval when tab visibility changes (match legacy behavior)
+  useEffect(() => {
+    const onVisibility = () => {
+      try {
+        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+        const base = isMobile ? 60 : 30;
+        const interval = document.hidden ? base * 2 : base;
+        const ws = wsRef.current;
+        if (mode === 'ws' && ws && ws.readyState === WebSocket.OPEN) {
+          try { ws.send(JSON.stringify({ v: 1, type: 'heartbeat', interval })); } catch {}
+        }
+      } catch {}
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      try { if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility); } catch {}
+    };
+  }, [mode]);
 
   // Debug helpers (DevTools)
   useEffect(() => {

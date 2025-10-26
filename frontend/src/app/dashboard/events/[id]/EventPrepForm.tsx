@@ -39,7 +39,7 @@ import {
   deleteEventPrepAttachment,
 } from "@/lib/api";
 import { getMessagesForBookingRequest } from "@/lib/api";
-import { parseBookingDetailsFromMessage } from "@/lib/bookingDetails";
+import { parseBookingDetailsFromMessage } from "@/lib/chat/bookingDetails";
 import { BOOKING_DETAILS_PREFIX } from "@/lib/constants";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -843,7 +843,7 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
     // Try parse from booking thread system booking-details message
     const brId = booking.booking_request_id;
     if (brId) {
-      getMessagesForBookingRequest(brId, { mode: 'lite', limit: 60 }).then((res) => {
+      getMessagesForBookingRequest(brId, { mode: 'lite', limit: 500 }).then((res) => {
         const msgs = res.data.items as any[];
         const sys = msgs.find((m) => {
           if (String(m.message_type).toUpperCase() !== 'SYSTEM' || typeof m.content !== 'string') return false;

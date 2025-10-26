@@ -250,10 +250,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         setRequestId(id);
       }
       if (action === 'submit' && id && message) {
+        const cid = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+          ? (crypto as any).randomUUID()
+          : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
         await postMessageToBookingRequest(id, {
           content: message,
           message_type: 'SYSTEM',
-        });
+        }, { clientRequestId: cid });
         toast.success('Queued booking request submitted.');
       } else if (action === 'draft') {
         toast.success('Queued draft saved.');
@@ -1267,11 +1270,14 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       // Fire-and-forget posting of the details system line; do not block navigation
       (async () => {
         try {
+          const cid = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+            ? (crypto as any).randomUUID()
+            : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
           await postMessageToBookingRequest(id, {
             content: message,
             // Backend expects uppercase message types.
             message_type: 'SYSTEM',
-          });
+          }, { clientRequestId: cid });
         } catch (err) {
           console.warn('Failed to post details message for request', id, err);
         }

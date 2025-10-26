@@ -97,3 +97,19 @@ class MessageListResponse(BaseModel):
     quotes: Optional[Dict[int, dict]] = None
 
     model_config = {"from_attributes": True}
+
+
+class MessagesBatchResponse(BaseModel):
+    """Batch payload for fetching recent messages for multiple threads.
+
+    Threads are keyed by booking_request_id and each item is a MessageResponse.
+    The server typically returns items in chronological order (oldest→newest).
+    """
+
+    mode: Literal["full", "lite", "delta"]
+    threads: Dict[int, List[MessageResponse]]
+    payload_bytes: int
+    # Optional lightweight quote summaries keyed by quote_id
+    quotes: Optional[Dict[int, dict]] = None
+
+    model_config = {"from_attributes": True}

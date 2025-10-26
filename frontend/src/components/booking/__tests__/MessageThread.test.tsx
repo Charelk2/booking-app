@@ -69,7 +69,7 @@ describe('MessageThread quote actions', () => {
       },
     });
     (api.acceptQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 1 } });
-    (api.getBookingDetails as jest.Mock).mockResolvedValue({ data: { id: 99, deposit_amount: 50 } });
+    (api.getBookingDetails as jest.Mock).mockResolvedValue({ data: { id: 99, total_price: 100 } });
 
     const container = document.createElement('div');
     const root = createRoot(container);

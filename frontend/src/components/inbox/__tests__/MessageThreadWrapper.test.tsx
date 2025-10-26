@@ -1,7 +1,7 @@
 import React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import MessageThreadWrapper from '../MessageThreadWrapper';
+import MessageThreadWrapper from '@/components/chat/MessageThreadWrapper';
 import * as api from '@/lib/api';
 import { useRouter } from '@/tests/mocks/next-navigation';
 import type { BookingRequest, ServiceProviderProfile } from '@/types';
@@ -14,7 +14,7 @@ jest.mock('../BookingDetailsPanel', () => {
   return { __esModule: true, default: Mock };
 });
 
-jest.mock('@/components/booking/MessageThread', () => {
+jest.mock('@/components/chat/MessageThread', () => {
   const Mock = jest.fn(() => <div />);
   Mock.displayName = 'MockMessageThread';
   return { __esModule: true, default: Mock };

@@ -18,6 +18,7 @@ import {
   connectGoogleCalendar,
   disconnectGoogleCalendar,
 } from '@/lib/api';
+import { presignMyAvatar } from '@/lib/api';
 import { getFullImageUrl, normalizeAssetPathForStorage } from '@/lib/utils';
 import { Spinner, ImagePreviewModal } from '@/components/ui';
 import SavedPill from '@/components/ui/SavedPill';
@@ -636,11 +637,24 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
         return;
       }
 
-      const response = await uploadMyServiceProviderProfilePicture(croppedImageFile);
-      const newRelativeUrl = response.data.profile_picture_url || '';
-      setProfilePictureUrlInput(newRelativeUrl);
-      setImagePreviewUrl(getFullImageUrl(newRelativeUrl));
-      setProfile((prev) => ({ ...prev, profile_picture_url: newRelativeUrl }));
+      // Try direct R2 upload (Option A) with safe fallback to legacy endpoint
+      let finalUrl = '';
+      try {
+        const presign = await presignMyAvatar({ filename: croppedImageFile.name, content_type: croppedImageFile.type || 'image/jpeg' });
+        const { put_url, headers, key, public_url } = presign.data as any;
+        if (put_url) {
+          await fetch(put_url, { method: 'PUT', headers: headers || {}, body: croppedImageFile });
+        }
+        await updateMyServiceProviderProfile({ profile_picture_url: key || public_url || undefined });
+        finalUrl = public_url || (key ? `${(process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL || 'https://media.booka.co.za').replace(/\/+$/, '')}/${key}` : '');
+      } catch (e) {
+        // Fallback: legacy multipart upload that stores a data URL
+        const response = await uploadMyServiceProviderProfilePicture(croppedImageFile);
+        finalUrl = response.data.profile_picture_url || '';
+      }
+      setProfilePictureUrlInput(finalUrl);
+      setImagePreviewUrl(getFullImageUrl(finalUrl));
+      setProfile((prev) => ({ ...prev, profile_picture_url: finalUrl }));
       await refreshUser?.();
       setSuccessMessage('Profile picture uploaded successfully!');
       setShowCropper(false);
@@ -689,8 +703,18 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
       );
       if (!cropped) throw new Error('Failed to crop cover');
       mediaHint.startSaving();
-      const response = await uploadMyServiceProviderCoverPhoto(cropped);
-      const newRelativeCoverUrl = response.data.cover_photo_url || '';
+      // Prefer R2 presign → PUT → PATCH with key; fallback to legacy endpoint
+      let newRelativeCoverUrl = '';
+      try {
+        const presign = await presignMyCoverPhoto({ filename: 'cover.jpg', content_type: 'image/jpeg' });
+        const { put_url, headers, key, public_url } = presign.data as any;
+        if (put_url) await fetch(put_url, { method: 'PUT', headers: headers || {}, body: cropped });
+        await updateMyServiceProviderProfile({ cover_photo_url: key || public_url || undefined } as any);
+        newRelativeCoverUrl = key || public_url || '';
+      } catch (e) {
+        const response = await uploadMyServiceProviderCoverPhoto(cropped);
+        newRelativeCoverUrl = response.data.cover_photo_url || '';
+      }
       setCoverPhotoUrl(getFullImageUrl(newRelativeCoverUrl));
       setProfile((prev) => ({ ...prev, cover_photo_url: newRelativeCoverUrl || undefined }));
       setCoverPhotoSuccessMessage('Cover photo updated');
@@ -715,10 +739,26 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
     mediaHint.startSaving();
     try {
       const fileArray = Array.from(files);
-      const response = await uploadMyServiceProviderPortfolioImages(fileArray);
-      const urls = (response.data.portfolio_image_urls || []).map(normalizeAssetPathForStorage);
-      setPortfolioImages(urls);
-      setProfile((prev) => ({ ...prev, portfolio_image_urls: urls }));
+      // Try presign for each file; fallback to legacy endpoint on failure
+      try {
+        const newKeys: string[] = [];
+        for (const f of fileArray) {
+          const presign = await presignMyPortfolioImage({ filename: f.name, content_type: f.type || 'image/jpeg' });
+          const { put_url, headers, key, public_url } = presign.data as any;
+          if (put_url) await fetch(put_url, { method: 'PUT', headers: headers || {}, body: f });
+          newKeys.push(String(key || public_url || '').trim());
+        }
+        const canonNew = newKeys.filter(Boolean);
+        const updated = [...(portfolioImages || []), ...canonNew];
+        setPortfolioImages(updated);
+        setProfile((prev) => ({ ...prev, portfolio_image_urls: updated } as any));
+        await updateMyServiceProviderPortfolioImageOrder(updated.map(normalizeAssetPathForStorage));
+      } catch (e) {
+        const response = await uploadMyServiceProviderPortfolioImages(fileArray);
+        const urls = (response.data.portfolio_image_urls || []).map(normalizeAssetPathForStorage);
+        setPortfolioImages(urls);
+        setProfile((prev) => ({ ...prev, portfolio_image_urls: urls }));
+      }
       mediaHint.doneSaving();
     } catch (err) {
       console.error('Failed to upload portfolio images:', err);

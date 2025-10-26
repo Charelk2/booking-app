@@ -27,7 +27,8 @@ export function toQuoteV2FromLegacy(legacy: Quote, opts: { clientId?: number } =
   const travel_fee = 0;
   const discount = undefined as unknown as number | undefined; // optional downstream
   const subtotal = services.reduce((sum, s) => sum + Number(s.price || 0), 0);
-  const total = subtotal; // legacy had a single price; taxes/fees handled elsewhere
+  // Include 15% VAT for legacy quotes to align with v2 totals
+  const total = Math.round(subtotal * 1.15 * 100) / 100;
   return {
     id: legacy.id,
     booking_request_id: legacy.booking_request_id,

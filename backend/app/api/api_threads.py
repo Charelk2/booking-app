@@ -11,7 +11,7 @@ from ..schemas.threads import (
 from ..schemas.threads_index import ThreadsIndexItem, ThreadsIndexResponse
 from .dependencies import get_db, get_current_user, get_current_active_client
 from .. import schemas
-from ..crud import crud_booking_request, crud_notification, crud_message
+from .. import crud
 from ..utils.messages import preview_label_for_message
 import re
 import json
@@ -41,11 +41,13 @@ def _state_from_status(status: "models.BookingStatus") -> str:
     return "requested"
 
 
-@router.get("/message-threads/preview", response_model=ThreadPreviewResponse)
+@router.get("/message-threads/preview", response_model=ThreadPreviewResponse, responses={304: {"description": "Not Modified"}})
 def get_threads_preview(
+    response: Response,
     role: Optional[str] = Query(None, regex="^(artist|client)$"),
     limit: int = Query(50, ge=1, le=200),
     cursor: Optional[str] = None,
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -63,7 +65,7 @@ def get_threads_preview(
         is_artist = True
 
     # Get booking requests with last message content/timestamp
-    brs = crud_booking_request.get_booking_requests_with_last_message(
+    brs = crud.crud_booking_request.get_booking_requests_with_last_message(
         db,
         artist_id=current_user.id if is_artist else None,
         client_id=current_user.id if not is_artist else None,
@@ -74,7 +76,7 @@ def get_threads_preview(
 
     # Map unread counts using messages table for a single source of truth
     thread_ids = [int(br.id) for br in brs if getattr(br, 'id', None) is not None]
-    unread_by_id = crud_message.get_unread_counts_for_user_threads(db, current_user.id, thread_ids=thread_ids)
+    unread_by_id = crud.crud_message.get_unread_counts_for_user_threads(db, current_user.id, thread_ids=thread_ids)
 
     items: List[ThreadPreviewItem] = []
     for br in brs:
@@ -148,14 +150,36 @@ def get_threads_preview(
         )
 
     items.sort(key=lambda i: i.last_ts, reverse=True)
+
+    # Lightweight ETag based on user + last_ts + unread counters
+    etag = None
+    try:
+        marker = items[0].last_ts.isoformat() if items else "0"
+        unread_sum = sum(int(it.unread_count or 0) for it in items)
+        src = f"prev:{current_user.id}:{marker}:{unread_sum}:{len(items)}"
+        import hashlib
+        etag = f'W/"{hashlib.sha1(src.encode()).hexdigest()}"'
+    except Exception:
+        etag = None
+
+    if etag and if_none_match and if_none_match.strip() == etag:
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag})
+    if etag:
+        try:
+            response.headers["ETag"] = etag
+            response.headers["Cache-Control"] = "no-cache"
+        except Exception:
+            pass
     return ThreadPreviewResponse(items=items, next_cursor=None)
 
 
 # Unified threads index: server-side merged list with preview and unread
-@router.get("/threads", response_model=ThreadsIndexResponse)
+@router.get("/threads", response_model=ThreadsIndexResponse, responses={304: {"description": "Not Modified"}})
 def get_threads_index(
+    response: Response,
     role: Optional[str] = Query(None, regex="^(artist|client)$"),
     limit: int = Query(50, ge=1, le=200),
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -170,7 +194,7 @@ def get_threads_index(
     elif role == "artist":
         is_artist = True
 
-    brs = crud_booking_request.get_booking_requests_with_last_message(
+    brs = crud.crud_booking_request.get_booking_requests_with_last_message(
         db,
         artist_id=current_user.id if is_artist else None,
         client_id=current_user.id if not is_artist else None,
@@ -180,7 +204,7 @@ def get_threads_index(
     )
     # Map unread counts using messages table
     thread_ids = [int(br.id) for br in brs if getattr(br, 'id', None) is not None]
-    unread_by_id = crud_message.get_unread_counts_for_user_threads(db, current_user.id, thread_ids=thread_ids)
+    unread_by_id = crud.crud_message.get_unread_counts_for_user_threads(db, current_user.id, thread_ids=thread_ids)
 
     items: List[ThreadsIndexItem] = []
     for br in brs:
@@ -242,6 +266,26 @@ def get_threads_index(
         )
 
     items.sort(key=lambda i: i.last_message_at, reverse=True)
+
+    etag = None
+    try:
+        marker = items[0].last_message_at.isoformat() if items else "0"
+        unread_sum = sum(int(it.unread_count or 0) for it in items)
+        src = f"idx:{current_user.id}:{marker}:{unread_sum}:{len(items)}"
+        import hashlib
+        etag = f'W/"{hashlib.sha1(src.encode()).hexdigest()}"'
+    except Exception:
+        etag = None
+
+    if etag and if_none_match and if_none_match.strip() == etag:
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag})
+    if etag:
+        try:
+            response.headers["ETag"] = etag
+            response.headers["Cache-Control"] = "no-cache"
+        except Exception:
+            pass
+
     return ThreadsIndexResponse(items=items, next_cursor=None)
 
 
@@ -315,7 +359,6 @@ def ensure_booka_thread(
         return {"booking_request_id": br.id}
 
     # Post system message if not already present
-    from ..crud import crud_message
     key = f"listing_approved_v1:{s.id}" if s.status == "approved" else f"listing_rejected_v1:{s.id}"
     exists = (
         db.query(models.Message)
@@ -339,7 +382,7 @@ def ensure_booka_thread(
                 f"Need help? Contact support at support@booka.co.za."
             )
         try:
-            crud_message.create_message(
+            crud.crud_message.create_message(
                 db,
                 booking_request_id=br.id,
                 sender_id=(system_user.id if system_user else current_user.id),
@@ -428,7 +471,7 @@ def start_message_thread(
         proposed_datetime_1=proposed_dt,
         status=models.BookingStatus.PENDING_QUOTE,
     )
-    br = crud_booking_request.create_booking_request(db=db, booking_request=req_in, client_id=current_user.id)
+    br = crud.crud_booking_request.create_booking_request(db=db, booking_request=req_in, client_id=current_user.id)
     db.commit()
     db.refresh(br)
 
@@ -457,7 +500,7 @@ def start_message_thread(
 
     # 1) Inquiry card first so the preview can prefer the user's text below
     try:
-        crud_message.create_message(
+        crud.crud_message.create_message(
             db,
             booking_request_id=br.id,
             sender_id=current_user.id,
@@ -474,7 +517,7 @@ def start_message_thread(
     # 2) First user message (if provided)
     if payload.message and payload.message.strip():
         try:
-            crud_message.create_message(
+            crud.crud_message.create_message(
                 db,
                 booking_request_id=br.id,
                 sender_id=current_user.id,
@@ -504,7 +547,7 @@ def get_inbox_unread(
     """Return total unread message notifications with lightweight ETag support."""
 
     # Total unread based on messages table (other-party messages only)
-    total, latest_ts = crud_message.get_unread_message_totals_for_user(db, current_user.id)
+    total, latest_ts = crud.crud_message.get_unread_message_totals_for_user(db, current_user.id)
     marker = latest_ts.isoformat(timespec="seconds") if latest_ts else "0"
     etag_source = f"{current_user.id}:{total}:{marker}"
     etag_value = f'W/"{hashlib.sha1(etag_source.encode()).hexdigest()}"'

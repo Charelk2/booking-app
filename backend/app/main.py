@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Iterable
 
 from fastapi import FastAPI, Request, status
+from sqlalchemy.exc import TimeoutError as SA_TimeoutError
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +16,12 @@ from fastapi.responses import FileResponse, JSONResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 from routes import distance
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.sessions import SessionMiddleware
+try:
+    from starlette.middleware.sessions import SessionMiddleware  # type: ignore
+    _HAS_SESSIONS = True
+except Exception:  # pragma: no cover - optional for tooling environments
+    SessionMiddleware = None  # type: ignore
+    _HAS_SESSIONS = False
 try:  # Optional: older Starlette may not include ProxyHeadersMiddleware
     from starlette.middleware.proxy_headers import ProxyHeadersMiddleware  # type: ignore
     _HAS_PROXY_HEADERS = True
@@ -29,13 +35,9 @@ from . import models
 from .api import (
     api_booking,
     api_booking_request,
-    api_calendar,
-    api_flight,
-    api_invoice,
     api_message,
     api_notification,
     api_threads,
-    api_oauth,
     api_payment,
     api_quote,
     api_quote_template,
@@ -55,7 +57,6 @@ from .api import (
     api_ws,
     auth,
     api_magic,
-    api_webauthn,
     api_admin,
     api_webhooks_events,
     api_uploads,
@@ -65,7 +66,6 @@ from .api import (
 
 # The “service-provider-profiles” router lives under app/api/v1/
 from .api.v1 import api_service_provider as api_service_provider_profiles
-from .api.v1.api_images import img_router
 from .core.config import settings, FRONTEND_ORIGINS
 from .core.observability import setup_logging, setup_tracer
 from .crud import crud_quote_v2
@@ -78,6 +78,7 @@ from .db_utils import (
     ensure_booking_event_city_column,
     ensure_booking_request_travel_columns,
     ensure_booking_simple_columns,
+    remove_deposit_columns_from_booking_simple,
     ensure_booking_artist_deadline_column,
     ensure_calendar_account_email_column,
     ensure_currency_column,
@@ -152,6 +153,14 @@ from .utils.redis_cache import get_cached_artist_list
 setup_logging()
 logger = logging.getLogger(__name__)
 
+# Optionally enable tracemalloc for richer allocation tracebacks on RuntimeWarning hints
+try:
+    import tracemalloc  # type: ignore
+    tracemalloc.start(25)
+    logger.info("Tracemalloc started (25 frames)")
+except Exception as _exc:  # pragma: no cover
+    logger.warning("Tracemalloc start failed: %s", _exc)
+
 # Register SQLAlchemy listeners that log status transitions
 register_status_listeners()
 
@@ -194,6 +203,7 @@ ensure_service_status_column(engine)
 ensure_mfa_columns(engine)
 ensure_refresh_token_columns(engine)
 ensure_booking_simple_columns(engine)
+remove_deposit_columns_from_booking_simple(engine)
 ensure_timestamp_columns(engine, "bookings_simple")
 ensure_timestamp_defaults(engine, "bookings_simple")
 ensure_timestamp_columns(engine, "bookings")
@@ -274,7 +284,8 @@ try:
 except Exception as _exc:
     logger.warning("Default admin bootstrap skipped: %s", _exc)
 
-app = FastAPI(title="Artist Booking API", default_response_class=ORJSONResponse)
+_DEFAULT_RESPONSE = JSONResponse if os.getenv("OPENAPI_MINIMAL", "0") == "1" else ORJSONResponse
+app = FastAPI(title="Artist Booking API", default_response_class=_DEFAULT_RESPONSE)
 setup_tracer(app)
 
 
@@ -453,7 +464,9 @@ except Exception:
 cookie_domain = auth.get_cookie_domain()
 if cookie_domain:
     session_kwargs["domain"] = cookie_domain
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY, **session_kwargs)
+# Allow disabling sessions when generating OpenAPI or running in minimal tooling
+if _HAS_SESSIONS and os.getenv("DISABLE_SESSIONS", "0") != "1":
+    app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY, **session_kwargs)
 # Honor X-Forwarded-* headers from the reverse proxy so url_for() builds
 # correct HTTPS callback URLs for OAuth (e.g., Google). This prevents
 # redirect_uri mismatches in production behind TLS terminators.
@@ -474,6 +487,12 @@ async def catch_exceptions(request: Request, call_next):
         )
         response = JSONResponse(
             status_code=exc.status_code, content={"detail": exc.detail}
+        )
+    except SA_TimeoutError as exc:  # DB pool timeout -> 503 to reduce retry storms
+        logger.error("DB timeout at %s: %s", request.url.path, str(exc))
+        response = JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"detail": "Database busy, please retry"},
         )
     except Exception as exc:  # pragma: no cover - generic handler
         logger.exception("Unhandled error: %s", exc)
@@ -533,9 +552,22 @@ api_prefix = settings.API_V1_STR  # usually something like "/api/v1"
 # ─── AUTH ROUTES (no version prefix) ────────────────────────────────────────────────
 # Clients will POST to /auth/register and /auth/login
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(api_oauth.router, prefix="/auth", tags=["auth"])
-app.include_router(api_magic.router, prefix="/auth", tags=["auth"])
-app.include_router(api_webauthn.router, prefix="/auth", tags=["auth"])
+if os.getenv("OPENAPI_MINIMAL", "0") != "1":
+    try:
+        from .api import api_oauth as _api_oauth  # type: ignore
+        app.include_router(_api_oauth.router, prefix="/auth", tags=["auth"])
+    except Exception:
+        pass
+    try:
+        from .api import api_magic as _api_magic  # type: ignore
+        app.include_router(_api_magic.router, prefix="/auth", tags=["auth"])
+    except Exception:
+        pass
+    try:
+        from .api import api_webauthn as _api_webauthn  # type: ignore
+        app.include_router(_api_webauthn.router, prefix="/auth", tags=["auth"])
+    except Exception:
+        pass
 app.include_router(api_admin.router, prefix="", tags=["admin"])
 app.include_router(api_webhooks_events.router, prefix="", tags=["webhooks"])
 
@@ -548,7 +580,12 @@ app.include_router(
 )
 
 # Lightweight image proxy routes (e.g., avatar thumbs)
-app.include_router(img_router, prefix=f"{api_prefix}")
+if os.getenv("OPENAPI_MINIMAL", "0") != "1":
+    try:
+        from .api.v1.api_images import img_router as _img_router  # type: ignore
+        app.include_router(_img_router, prefix=f"{api_prefix}")
+    except Exception:
+        pass
 app.include_router(api_attachments.router, prefix=f"{api_prefix}")
 
 
@@ -660,11 +697,16 @@ app.include_router(
 )
 
 # ─── CALENDAR ROUTES (under /api/v1/google-calendar) ─────────────────────────
-app.include_router(
-    api_calendar.router,
-    prefix=f"{api_prefix}",
-    tags=["google-calendar"],
-)
+# Guard import so environments without Google libs don’t crash app startup.
+try:
+    from .api import api_calendar as _api_calendar  # type: ignore
+    app.include_router(
+        _api_calendar.router,
+        prefix=f"{api_prefix}",
+        tags=["google-calendar"],
+    )
+except Exception as _exc:  # pragma: no cover — optional feature
+    logger.warning("Calendar routes disabled: %s", _exc)
 
 # ─── COMPAT (legacy path aliases) ─────────────────────────────────────────────
 app.include_router(
@@ -681,11 +723,16 @@ app.include_router(
 )
 
 # ─── INVOICE ROUTES (under /api/v1/invoices) ───────────────────────────
-app.include_router(
-    api_invoice.router,
-    prefix=f"{api_prefix}/invoices",
-    tags=["invoices"],
-)
+if os.getenv("OPENAPI_MINIMAL", "0") != "1":
+    try:
+        from .api import api_invoice  # type: ignore
+        app.include_router(
+            api_invoice.router,
+            prefix=f"{api_prefix}/invoices",
+            tags=["invoices"],
+        )
+    except Exception:
+        pass
 
 # ─── USER ROUTES (under /api/v1/users) ─────────────────────────────────────
 app.include_router(
@@ -709,11 +756,16 @@ app.include_router(
 )
 
 # ─── FLIGHT ROUTES (under /api/v1) ───────────────────────────────────────────
-app.include_router(
-    api_flight.router,
-    prefix=f"{api_prefix}",
-    tags=["flights"],
-)
+if os.getenv("OPENAPI_MINIMAL", "0") != "1":
+    try:
+        from .api import api_flight  # type: ignore
+        app.include_router(
+            api_flight.router,
+            prefix=f"{api_prefix}",
+            tags=["flights"],
+        )
+    except Exception:
+        pass
 
 # ─── DISTANCE ROUTES (under /api/v1) ─────────────────────────────────────────
 app.include_router(

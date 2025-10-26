@@ -66,7 +66,7 @@ const FAQS: Faq[] = [
     id: 'payments-when',
     category: 'payments',
     q: 'When do I pay?',
-    a: 'After you accept a quote, you can pay a deposit or the full amount depending on provider settings. We’ll send reminders for any outstanding deposit before the event.',
+    a: 'After you accept a quote, you pay the full amount to confirm the booking. No deposits are required.',
   },
   {
     id: 'payment-methods',

@@ -2,7 +2,12 @@ import asyncio
 import logging
 from email.message import EmailMessage
 
-import aiosmtplib
+try:  # optional for tooling environments
+    import aiosmtplib  # type: ignore
+    _HAS_SMTP = True
+except Exception:  # pragma: no cover - optional
+    aiosmtplib = None  # type: ignore
+    _HAS_SMTP = False
 
 from ..core.config import settings
 
@@ -16,6 +21,8 @@ SMTP_FROM = settings.SMTP_FROM
 
 
 async def _send_async(msg: EmailMessage) -> None:
+    if not _HAS_SMTP:
+        raise RuntimeError("SMTP client not available")
     await aiosmtplib.send(
         msg,
         hostname=SMTP_HOST,
@@ -38,4 +45,3 @@ def send_email(recipient: str, subject: str, body: str) -> None:
         logger.info("Sent email to %s", recipient)
     except Exception as exc:  # pragma: no cover - network issues
         logger.error("Failed to send email to %s: %s", recipient, exc)
-

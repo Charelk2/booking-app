@@ -17,6 +17,8 @@ export interface ServiceProviderProfile {
   id: number;
   user_id: number;
   business_name: string;
+  /** Optional primary role or headline, e.g. 'DJ' */
+  primary_role?: string | null;
   custom_subtitle?: string | null;
   description?: string | null;
   location?: string | null;
@@ -26,6 +28,15 @@ export interface ServiceProviderProfile {
   portfolio_urls?: string[] | null;
   portfolio_image_urls?: string[] | null;
   specialties?: string[] | null;
+  /** Spoken languages (optional; not always provided by backend) */
+  languages?: string[] | null;
+  /** Operational flags often shown as chips */
+  owns_pa?: boolean | null;
+  insured?: boolean | null;
+  verified?: boolean | null;
+  /** Engagement metrics */
+  bookings_count?: number | null;
+  avg_response_minutes?: number | null;
   /** Optional cancellation policy text configured by the service provider */
   cancellation_policy?: string | null;
   /** Whether the provider has completed onboarding */
@@ -34,6 +45,8 @@ export interface ServiceProviderProfile {
   profile_complete?: boolean;
   /** Average star rating calculated from reviews */
   rating?: number;
+  /** Optional average rating field variant in some responses */
+  rating_avg?: number | null;
   /** Number of reviews contributing to the rating */
   rating_count?: number;
   /** Whether the service provider has no active bookings on the chosen date */
@@ -146,11 +159,7 @@ export interface Booking {
   total_price: number;
   notes: string;
 
-  /** Amount paid as a deposit toward this booking */
-  deposit_amount?: number | null;
-  /** Date when the deposit is due */
-  deposit_due_by?: string | null;
-  /** Current payment status, e.g. 'pending', 'deposit_paid', 'paid' */
+  /** Current payment status, e.g. 'pending', 'paid' */
   payment_status?: string;
   /** ID from the payment gateway used to fetch receipts */
   payment_id?: string | null;
@@ -354,9 +363,6 @@ export interface BookingSimple {
   location?: string | null;
   payment_status: string;
   payment_id?: string | null;
-  deposit_amount?: number | null;
-  deposit_due_by?: string | null;
-  deposit_paid: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -383,6 +389,8 @@ export interface Message {
   quote_id?: number | null;
   attachment_url?: string | null;
   attachment_meta?: AttachmentMeta | null;
+  reactions?: Record<string, number> | null;
+  my_reactions?: string[] | null;
 
   /** Canonical visibility values */
   visible_to?: 'service_provider' | 'client' | 'both';
@@ -463,7 +471,6 @@ export interface Notification {
     | 'booking_status_updated'
     | 'quote_accepted'
     | 'new_booking'
-    | 'deposit_due'
     | 'review_request'
     | 'message_thread_notification';
   message: string;

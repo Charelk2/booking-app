@@ -3,21 +3,22 @@
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Response, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.params import Query as QueryParam
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, or_
 from collections import defaultdict
 from datetime import datetime, timedelta, date
 import logging
 import hashlib
 import json
-import re
-import shutil
 from pathlib import Path
 import base64
 from typing import List, Optional, Tuple, Dict, Any
-import os
-import base64
 from pydantic import BaseModel
+from io import BytesIO
+try:  # optional for schema generation
+    from PIL import Image  # type: ignore
+except Exception:  # pragma: no cover - optional
+    Image = None  # type: ignore
 
 from app.utils.redis_cache import (
     get_cached_artist_list,
@@ -44,6 +45,8 @@ from app.schemas.artist import (
 )
 from app.utils.profile import is_artist_profile_complete
 from app.api.auth import get_current_user
+from app.utils import r2 as r2utils
+from app.schemas.storage import PresignOut
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +282,14 @@ async def upload_artist_profile_picture_me(
     try:
         # Store as data URL in DB to survive redeploys (same approach as service.media_url)
         content = await file.read()
+        # Validate that the uploaded bytes are a decodable image
+        try:
+            img = Image.open(BytesIO(content))
+            img.verify()
+        except Exception as img_err:
+            logger.info("Invalid image uploaded for profile picture by user %s: %s", current_user.id, img_err)
+            raise HTTPException(status_code=400, detail="Invalid image file.")
+
         b64 = base64.b64encode(content).decode("ascii")
         mime = file.content_type or "image/jpeg"
         data_url = f"data:{mime};base64,{b64}"
@@ -300,17 +311,12 @@ async def upload_artist_profile_picture_me(
 
         return artist_profile
 
-    except Exception as e:
-        if "file_path" in locals() and file_path.exists():
-            try:
-                file_path.unlink()
-            except OSError as cleanup_err:
-                logger.warning(
-                    "Error cleaning up profile picture %s: %s", file_path, cleanup_err
-                )
-        raise HTTPException(
-            status_code=500, detail=f"Could not upload profile picture: {e}"
-        )
+    except HTTPException:
+        # Pass through validation errors
+        raise
+    except Exception:
+        logger.exception("Error processing profile picture upload for user %s", current_user.id)
+        raise HTTPException(status_code=500, detail="Could not upload profile picture.")
 
     finally:
         await file.close()
@@ -344,6 +350,14 @@ async def upload_artist_cover_photo_me(
     try:
         # Store as data URL to persist across redeploys
         content = await file.read()
+        # Validate that the uploaded bytes are a decodable image
+        try:
+            img = Image.open(BytesIO(content))
+            img.verify()
+        except Exception as img_err:
+            logger.info("Invalid image uploaded for cover photo by user %s: %s", current_user.id, img_err)
+            raise HTTPException(status_code=400, detail="Invalid image file.")
+
         b64 = base64.b64encode(content).decode("ascii")
         mime = file.content_type or "image/jpeg"
         data_url = f"data:{mime};base64,{b64}"
@@ -365,17 +379,12 @@ async def upload_artist_cover_photo_me(
 
         return artist_profile
 
-    except Exception as e:
-        if "file_path" in locals() and file_path.exists():
-            try:
-                file_path.unlink()
-            except OSError as cleanup_err:
-                logger.warning(
-                    "Error cleaning up cover photo %s: %s", file_path, cleanup_err
-                )
-        raise HTTPException(
-            status_code=500, detail=f"Could not upload cover photo: {e}"
-        )
+    except HTTPException:
+        # Pass through validation errors
+        raise
+    except Exception:
+        logger.exception("Error processing cover photo upload for user %s", current_user.id)
+        raise HTTPException(status_code=500, detail="Could not upload cover photo.")
 
     finally:
         await file.close()
@@ -407,6 +416,13 @@ async def upload_artist_portfolio_images_me(
                     detail=f"Invalid image type. Allowed: {ALLOWED_PORTFOLIO_IMAGE_TYPES}",
                 )
             content = await up.read()
+            # Validate each image before storing
+            try:
+                img = Image.open(BytesIO(content))
+                img.verify()
+            except Exception as img_err:
+                logger.info("Invalid portfolio image uploaded by user %s: %s", current_user.id, img_err)
+                raise HTTPException(status_code=400, detail="Invalid image file.")
             b64 = base64.b64encode(content).decode("ascii")
             mime = up.content_type or "image/jpeg"
             data_url = f"data:{mime};base64,{b64}"
@@ -417,10 +433,12 @@ async def upload_artist_portfolio_images_me(
         db.commit()
         db.refresh(artist_profile)
         return artist_profile
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Could not upload portfolio image: {e}"
-        )
+    except HTTPException:
+        # Pass through validation errors
+        raise
+    except Exception:
+        logger.exception("Error processing portfolio image upload for user %s", current_user.id)
+        raise HTTPException(status_code=500, detail="Could not upload portfolio image.")
     finally:
         for up in files:
             await up.close()
@@ -579,6 +597,9 @@ def read_all_service_provider_profiles(
                 if isinstance(items, list):
                     for it in items:
                         if isinstance(it, dict):
+                            # Ensure user_id is present for response validation; derive from id if needed
+                            if it.get("user_id") is None and isinstance(it.get("id"), int):
+                                it["user_id"] = int(it["id"])  # id mirrors user_id in schema
                             ca = it.get("created_at")
                             ua = it.get("updated_at")
                             if not ca and ua:
@@ -666,11 +687,34 @@ def read_all_service_provider_profiles(
         rows = query.offset((page - 1) * limit).limit(limit).all()
 
         def tiny_avatar_url(_id: int, src: Optional[str], v) -> Optional[str]:
+            """Return a public absolute URL suitable for Next.js image optimizer.
+
+            Option A: Prefer direct Cloudflare R2 public URLs when available.
+            - If `src` is already an absolute URL (http/https), return as-is.
+            - If `src` looks like an object key or relative path, join with
+              R2_PUBLIC_BASE_URL so the frontend can load it directly.
+            - If missing, return None so the UI can show a default/fallback.
+            """
             if not src:
                 return None
-            ver = int(v.timestamp()) if v else 0
-            # High-quality default for homepage cards: ~224px box → 2x density
-            return f"/api/v1/img/avatar/{_id}?w=256&dpr=2&q=90&v={ver}"
+            s = str(src).strip()
+            if not s:
+                return None
+            # Absolute URL already — trust it
+            if s.lower().startswith("http://") or s.lower().startswith("https://"):
+                return s
+            # Otherwise, build from public base
+            try:
+                from app.core.config import settings  # lazy import to avoid cycles
+                base = (getattr(settings, 'R2_PUBLIC_BASE_URL', '') or '').strip().rstrip('/')
+            except Exception:
+                base = ''
+            if not base:
+                # As a last resort, return None so frontend falls back to default avatar
+                return None
+            # Normalize to '{base}/{object_key_or_relative_path}'
+            rel = s.lstrip('/')
+            return f"{base}/{rel}"
 
         data = []
         from datetime import datetime as _dt
@@ -900,6 +944,11 @@ def read_all_service_provider_profiles(
             "service_price": (float(service_price) if service_price is not None else None),
             "service_categories": categories,
         }
+        # Ensure user_id is present explicitly for response validation
+        try:
+            base["user_id"] = int(getattr(artist, "user_id"))
+        except Exception:
+            pass
         # Coalesce legacy null timestamps for response validation
         try:
             from datetime import datetime as _dt
@@ -974,8 +1023,12 @@ def read_all_service_provider_profiles(
 
     if cacheable:
         try:
+            # Include user_id explicitly so cached payloads validate on response_model
             payload_for_cache = {
-                "data": [profile.model_dump() for profile in profiles],
+                "data": [
+                    ({**p.model_dump(), "user_id": int(getattr(p, "user_id", 0) or 0)} if hasattr(p, "user_id") else p.model_dump())
+                    for p in profiles
+                ],
                 "total": total_count,
                 "price_distribution": price_distribution_data,
             }
@@ -998,12 +1051,49 @@ def read_all_service_provider_profiles(
             fields=fields,
         )
 
-    # Replace potentially large inline avatars with tiny proxy URLs
+    # Prefer direct, cacheable public URLs for avatars (Option A)
+    # - If the stored value is an absolute URL (e.g., Cloudflare R2), keep as-is.
+    # - If it's a relative storage path (e.g., profile_pics/...), expose it via /static so Next/Image can optimize.
+    # - If it's a data: URL, keep it (UI will mark as unoptimized), or callers may trim via fields.
+    # This replaces the previous proxy rewrite to /api/v1/img/avatar/... and is easy to revert if needed.
     try:
+        from urllib.parse import urlparse
+        from app.core.config import settings as _settings  # lazy import
+
+        r2_base = (getattr(_settings, 'R2_PUBLIC_BASE_URL', '') or '').strip().rstrip('/')
+
+        def _public_avatar_url(src: Optional[str]) -> Optional[str]:
+            if not src:
+                return None
+            s = str(src).strip()
+            if not s:
+                return None
+            lower = s.lower()
+            # Absolute URL already (R2/public/CDN/etc.)
+            if lower.startswith('http://') or lower.startswith('https://'):
+                return s
+            # Data/blob previews: keep as-is so UI can display without a round-trip
+            if lower.startswith('data:') or lower.startswith('blob:'):
+                return s
+            # If it looks like an object key (no scheme/host), prefer R2 public base when configured
+            if r2_base and not s.startswith('/') and not s.startswith('static/'):
+                return f"{r2_base}/{s}"
+            # Otherwise normalize to /static mounts so Next can fetch via backend
+            # Allow existing /api/ image proxies to pass through unchanged
+            if s.startswith('/api/'):
+                return s
+            # Strip leading slashes and coerce known mounts under /static
+            rel = s.lstrip('/')
+            if rel.startswith(('profile_pics/', 'cover_photos/', 'portfolio_images/', 'attachments/', 'media/')):
+                return f"/static/{rel}"
+            # If already under /static, keep it
+            if s.startswith('/static/'):
+                return s
+            # Fallback: expose as /static/<path>
+            return f"/static/{rel}"
+
         for p in profiles:
-            if p.profile_picture_url:
-                ver = int(p.updated_at.timestamp()) if p.updated_at else 0
-                p.profile_picture_url = f"/api/v1/img/avatar/{p.user_id}?w=256&dpr=2&q=90&v={ver}"
+            p.profile_picture_url = _public_avatar_url(p.profile_picture_url)
     except Exception:
         pass
 
@@ -1031,6 +1121,105 @@ def read_all_service_provider_profiles(
         "total": total_count,
         "price_distribution": price_distribution_data,
     }
+
+
+class AvatarPresignIn(BaseModel):
+    filename: Optional[str] = None
+    content_type: Optional[str] = None
+
+
+@router.post(
+    "/me/avatar/presign",
+    response_model=PresignOut,
+    summary="Presign an R2 PUT for the current user's avatar",
+)
+def presign_avatar_me(
+    payload: AvatarPresignIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return a short-lived PUT URL and public URL for uploading an avatar directly to R2.
+
+    Store the returned ``key`` (preferred) or the ``public_url`` on your profile via
+    PUT /api/v1/service-provider-profiles/me { profile_picture_url: key }.
+    """
+    # Ensure artist profile exists (align with other /me routes)
+    artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
+    if not artist_profile:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
+    try:
+        info = r2utils.presign_put_avatar(current_user.id, payload.filename, payload.content_type)
+    except Exception as exc:
+        logger.exception("Failed to presign avatar upload: %s", exc)
+        raise HTTPException(status_code=500, detail="Avatar presign failed.")
+    # Map to PresignOut schema
+    return PresignOut(
+        key=info.get("key") or "",
+        put_url=info.get("put_url") or None,
+        get_url=info.get("get_url") or None,
+        public_url=info.get("public_url") or None,
+        headers=info.get("headers") or {},
+        upload_expires_in=int(info.get("upload_expires_in") or 0),
+        download_expires_in=int(info.get("download_expires_in") or 0),
+    )
+
+
+@router.post(
+    "/me/cover-photo/presign",
+    response_model=PresignOut,
+    summary="Presign an R2 PUT for the current user's cover photo",
+)
+def presign_cover_me(
+    payload: AvatarPresignIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
+    if not artist_profile:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
+    try:
+        info = r2utils.presign_put_cover(current_user.id, payload.filename, payload.content_type)
+    except Exception as exc:
+        logger.exception("Failed to presign cover upload: %s", exc)
+        raise HTTPException(status_code=500, detail="Cover presign failed.")
+    return PresignOut(
+        key=info.get("key") or "",
+        put_url=info.get("put_url") or None,
+        get_url=info.get("get_url") or None,
+        public_url=info.get("public_url") or None,
+        headers=info.get("headers") or {},
+        upload_expires_in=int(info.get("upload_expires_in") or 0),
+        download_expires_in=int(info.get("download_expires_in") or 0),
+    )
+
+
+@router.post(
+    "/me/portfolio-images/presign",
+    response_model=PresignOut,
+    summary="Presign an R2 PUT for a portfolio image",
+)
+def presign_portfolio_image_me(
+    payload: AvatarPresignIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
+    if not artist_profile:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
+    try:
+        info = r2utils.presign_put_portfolio(current_user.id, payload.filename, payload.content_type)
+    except Exception as exc:
+        logger.exception("Failed to presign portfolio upload: %s", exc)
+        raise HTTPException(status_code=500, detail="Portfolio presign failed.")
+    return PresignOut(
+        key=info.get("key") or "",
+        put_url=info.get("put_url") or None,
+        get_url=info.get("get_url") or None,
+        public_url=info.get("public_url") or None,
+        headers=info.get("headers") or {},
+        upload_expires_in=int(info.get("upload_expires_in") or 0),
+        download_expires_in=int(info.get("download_expires_in") or 0),
+    )
 
 
 @router.get(

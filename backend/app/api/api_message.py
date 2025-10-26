@@ -7,6 +7,9 @@ from fastapi import (
     BackgroundTasks,
     Query,
     Path,
+    Request,
+    Response,
+    Header,
 )
 from sqlalchemy.orm import Session
 from typing import List, Optional, Literal
@@ -21,21 +24,75 @@ from ..utils.notifications import (
     notify_user_new_message,
     notify_user_new_booking_request,
     VIDEO_FLOW_READY_MESSAGE,
+    notify_quote_requested,
 )
 from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..utils import error_response
 from ..utils import r2 as r2utils
 from .api_ws import manager
+from ..utils.metrics import incr as metrics_incr
 import os
 import mimetypes
 import uuid
 import shutil
 from pydantic import BaseModel
-import orjson
+try:  # optional for tooling environments
+    import orjson  # type: ignore
+except Exception:  # pragma: no cover - fallback to stdlib json
+    import json as orjson  # type: ignore
+from ..utils.outbox import enqueue_outbox
 
 router = APIRouter(tags=["messages"])
 
 logger = logging.getLogger(__name__)
+
+# In-memory idempotency cache for message create
+_IDEMPOTENCY_CACHE: dict[str, tuple[int, float]] = {}
+_IDEMPOTENCY_TTL_MS = 60_000  # 60 seconds
+
+def _idemp_cache_key(request_id: int, sender_id: int, key: Optional[str]) -> Optional[str]:
+    if not key:
+        return None
+    try:
+        k = key.strip()
+        if not k:
+            return None
+        return f"{int(request_id)}:{int(sender_id)}:{k}"
+    except Exception:
+        return None
+
+def _idemp_cache_get(k: Optional[str]) -> Optional[int]:
+    if not k:
+        return None
+    try:
+        rec = _IDEMPOTENCY_CACHE.get(k)
+        if not rec:
+            return None
+        msg_id, exp = rec
+        now_ms = time.time() * 1000.0
+        if exp <= now_ms:
+            try:
+                _IDEMPOTENCY_CACHE.pop(k, None)
+            except Exception:
+                pass
+            return None
+        return int(msg_id)
+    except Exception:
+        return None
+
+def _idemp_cache_put(k: Optional[str], message_id: int) -> None:
+    if not k:
+        return
+    try:
+        # opportunistic cleanup to bound size
+        if len(_IDEMPOTENCY_CACHE) > 1000:
+            now_ms = time.time() * 1000.0
+            stale = [kk for kk, (_, exp) in _IDEMPOTENCY_CACHE.items() if exp <= now_ms]
+            for kk in stale[:200]:
+                _IDEMPOTENCY_CACHE.pop(kk, None)
+        _IDEMPOTENCY_CACHE[k] = (int(message_id), (time.time() * 1000.0) + _IDEMPOTENCY_TTL_MS)
+    except Exception:
+        pass
 
 DEFAULT_ATTACHMENTS_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "static", "attachments")
@@ -53,7 +110,7 @@ def read_messages(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
+    limit: int = Query(500, ge=1, le=5000),
     after_id: Optional[int] = Query(
         None,
         description="Return only messages with an id greater than this value",
@@ -76,6 +133,12 @@ def read_messages(
         False,
         description="When true, include lightweight quote summaries keyed by quote_id to eliminate a follow-up fetch on first paint.",
     ),
+    known_quote_ids: Optional[str] = Query(
+        None,
+        description="Comma-separated list of quote IDs already known to the client; server will omit these from the quotes map to reduce payload.",
+    ),
+    request: Request = None,
+    response: Response = None,
 ):
     booking_request = crud.crud_booking_request.get_booking_request(
         db, request_id=request_id
@@ -111,10 +174,9 @@ def read_messages(
         # Delta without a cursor degrades to lite to avoid returning duplicate history
         normalized_mode = "lite"
 
+    # Always over-fetch by 1 so we can compute has_more uniformly across modes
     effective_limit = int(limit)
-    query_limit = effective_limit
-    if normalized_mode in ("lite", "delta"):
-        query_limit = effective_limit + 1
+    query_limit = effective_limit + 1
 
     request_start = time.perf_counter()
     db_latency_ms: float = 0.0
@@ -175,7 +237,7 @@ def read_messages(
             pass
 
     has_more = False
-    if normalized_mode in ("lite", "delta") and len(db_messages) > effective_limit:
+    if len(db_messages) > effective_limit:
         has_more = True
         db_messages = db_messages[:effective_limit]
 
@@ -226,9 +288,13 @@ def read_messages(
         include.update(base_for_fields)
         include.update(extras)
 
-    include_reactions = normalized_mode != "lite"
-    if include and not ("reactions" in include or "my_reactions" in include):
-        include_reactions = False
+    # Reactions inclusion rules:
+    # - In non-"lite" modes, include by default unless the caller restricts fields and omits them
+    # - In "lite" mode, include only when explicitly requested via fields
+    if include is not None:
+        include_reactions = ("reactions" in include) or ("my_reactions" in include)
+    else:
+        include_reactions = normalized_mode != "lite"
     include_reply_preview = normalized_mode == "full"
     if include and "reply_to_preview" in include:
         include_reply_preview = True
@@ -286,7 +352,15 @@ def read_messages(
             return None
 
     # Helper: transform attachment_url to a signed GET if it's an R2 public URL
-    def _maybe_sign_attachment_url(val: Optional[str]) -> Optional[str]:
+    # Skip signing for images so browsers can cache on a stable public URL.
+    def _maybe_sign_attachment_url(val: Optional[str], meta: Optional[dict]) -> Optional[str]:
+        # Do not sign images (keep stable URL for caching)
+        try:
+            ct = (meta or {}).get("content_type")
+            if isinstance(ct, str) and ct.lower().startswith("image/"):
+                return val
+        except Exception:
+            pass
         try:
             if val:
                 signed = r2utils.presign_get_for_public_url(val)
@@ -311,9 +385,13 @@ def read_messages(
         data = schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
 
-        # Sign attachment URL on the fly when pointing at private R2
+        # Sign attachment URL on the fly when pointing at private R2.
+        # For images, keep the original (public) URL to maximize cache hits.
         if data.get("attachment_url"):
-            data["attachment_url"] = _maybe_sign_attachment_url(str(data.get("attachment_url") or ""))
+            data["attachment_url"] = _maybe_sign_attachment_url(
+                str(data.get("attachment_url") or ""),
+                data.get("attachment_meta") if include_attachment_meta else None,
+            )
 
         if include_attachment_meta:
             if data.get("attachment_meta"):
@@ -414,12 +492,26 @@ def read_messages(
             quote_ids = sorted({int(m.get("quote_id")) for m in result if m.get("quote_id")})
         except Exception:
             quote_ids = []
-        if quote_ids:
-            summaries: dict[int, dict] = {}
+        # Drop any quotes the client says it already has to avoid resending
+        already_have: set[int] = set()
+        try:
+            if known_quote_ids:
+                already_have = {
+                    int(x)
+                    for x in str(known_quote_ids).split(",")
+                    if x.strip().isdigit()
+                }
+        except Exception:
+            already_have = set()
+
+        missing_ids: List[int] = [qid for qid in quote_ids if qid not in already_have]
+
+        summaries: dict[int, dict] = {}
+        if missing_ids:
             try:
                 v2_rows = (
                     db.query(models.QuoteV2)
-                    .filter(models.QuoteV2.id.in_(quote_ids))
+                    .filter(models.QuoteV2.id.in_(missing_ids))
                     .all()
                 )
                 for q in v2_rows:
@@ -450,7 +542,7 @@ def read_messages(
                 pass
             # Fill any gaps from legacy quotes table best-effort
             try:
-                missing = [qid for qid in quote_ids if qid not in summaries]
+                missing = [qid for qid in missing_ids if qid not in summaries]
                 if missing:
                     legacy_rows = (
                         db.query(models.Quote)
@@ -488,8 +580,8 @@ def read_messages(
                             continue
             except Exception:
                 pass
-            if summaries:
-                envelope_dict["quotes"] = summaries
+        # Always include a quotes object when requested to avoid null wiping on clients
+        envelope_dict["quotes"] = summaries if summaries else {}
 
     payload_probe = {
         **envelope_dict,
@@ -520,7 +612,311 @@ def read_messages(
         },
     )
 
+    # Conditional caching: weak ETag + short private cache
+    try:
+        quotes_obj = envelope_dict.get("quotes") if include_quotes else None
+        quotes_count = 0
+        if isinstance(quotes_obj, dict):
+            try:
+                quotes_count = len(quotes_obj)
+            except Exception:
+                quotes_count = 0
+        last_id_marker = 0
+        last_ts_marker = ""
+        try:
+            if result:
+                last_row = result[-1]
+                last_id = last_row.get("id")
+                if isinstance(last_id, int):
+                    last_id_marker = last_id
+                ts_val = last_row.get("timestamp")
+                last_ts_marker = ts_val.isoformat() if isinstance(ts_val, datetime) else str(ts_val or "")
+        except Exception:
+            pass
+        import hashlib
+        src = f"msg:{int(request_id)}:{normalized_mode}:{int(after_id) if after_id is not None else 'none'}:{int(before_id) if before_id is not None else 'none'}:{str(since) if since else ''}:{last_id_marker}:{last_ts_marker}:{len(result)}:{quotes_count}"
+        etag = f'W/"{hashlib.sha1(src.encode()).hexdigest()}"'
+        inm = None
+        try:
+            if request is not None:
+                inm = request.headers.get("if-none-match") or request.headers.get("If-None-Match")
+        except Exception:
+            inm = None
+        cache_control = "private, max-age=30, stale-while-revalidate=120"
+        if inm and etag and inm.strip() == etag:
+            # Short-circuit with 304 Not Modified
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag, "Cache-Control": cache_control})
+        if response is not None and etag:
+            try:
+                response.headers["ETag"] = etag
+                response.headers["Cache-Control"] = cache_control
+            except Exception:
+                pass
+    except Exception:
+        # Do not fail the request if ETag computation fails
+        pass
+
     return schemas.MessageListResponse(**envelope_dict)
+
+
+@router.get(
+    "/booking-requests/messages-batch",
+    response_model=schemas.MessagesBatchResponse,
+    responses={304: {"description": "Not Modified"}},
+)
+def read_messages_batch(
+    ids: str = Query(..., description="Comma-separated booking_request ids"),
+    per: int = Query(20, ge=1, le=500, description="Messages per thread"),
+    mode: Literal["full", "lite"] = Query("lite"),
+    include_quotes: bool = Query(False),
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return the latest ``per`` messages for multiple threads in one response.
+
+    - Filters to threads where the current user is a participant
+    - Applies visibility (VisibleTo) rules per thread
+    - Returns items oldest→newest per thread for consistent hydration
+    - Adds a weak ETag across all requested threads to allow 304s
+    """
+
+    # Parse and bound ids
+    try:
+        raw = [s.strip() for s in str(ids or "").split(",") if s.strip()]
+        thread_ids: list[int] = [int(x) for x in raw if x.isdigit()]
+    except Exception:
+        thread_ids = []
+    if not thread_ids:
+        return schemas.MessagesBatchResponse(mode=mode, threads={}, payload_bytes=0)
+    # Reasonable upper bound to avoid excessive fanout
+    if len(thread_ids) > 200:
+        thread_ids = thread_ids[:200]
+
+    # Pre-authorize threads; derive viewer role per thread for visibility filtering
+    br_rows = (
+        db.query(models.BookingRequest)
+        .filter(models.BookingRequest.id.in_(thread_ids))
+        .all()
+    )
+    allowed_ids: list[int] = []
+    viewer_by_id: dict[int, models.VisibleTo] = {}
+    for br in br_rows:
+        try:
+            if current_user.id in [br.client_id, br.artist_id]:
+                allowed_ids.append(int(br.id))
+                viewer_by_id[int(br.id)] = (
+                    models.VisibleTo.CLIENT
+                    if current_user.id == br.client_id
+                    else models.VisibleTo.ARTIST
+                )
+        except Exception:
+            continue
+    if not allowed_ids:
+        return schemas.MessagesBatchResponse(mode=mode, threads={}, payload_bytes=0)
+
+    # Fetch recent messages per request (newest first in groups)
+    grouped = crud.crud_message.get_recent_messages_for_requests(
+        db,
+        allowed_ids,
+        per_request=per,
+    )
+
+    # Serialize and filter by visibility; return oldest→newest for each list
+    threads_out: dict[int, list[dict]] = {}
+    quote_ids: set[int] = set()
+
+    def _scrub_avatar(val: Optional[str]) -> Optional[str]:
+        try:
+            if isinstance(val, str) and val.startswith("data:") and len(val) > 1000:
+                return "/static/default-avatar.svg"
+        except Exception:
+            pass
+        return val
+
+    def _scrub_attachment_meta(val: Optional[dict]) -> Optional[dict]:
+        if not isinstance(val, dict):
+            return val
+        try:
+            cleaned = {
+                key: value
+                for key, value in val.items()
+                if key not in {
+                    "data_url",
+                    "dataUrl",
+                    "preview",
+                    "preview_base64",
+                    "previewBase64",
+                    "preview_data_url",
+                }
+            }
+            thumb = cleaned.get("thumbnail")
+            if isinstance(thumb, str) and thumb.startswith("data:") and len(thumb) > 200:
+                cleaned.pop("thumbnail", None)
+            return cleaned or None
+        except Exception:
+            return None
+
+    for req_id, items in grouped.items():
+        viewer = viewer_by_id.get(int(req_id))
+        serial: list[dict] = []
+        for m in (items or [])[::-1]:  # items are newest→oldest; reverse to oldest→newest
+            try:
+                if viewer and m.visible_to not in [models.VisibleTo.BOTH, viewer]:
+                    continue
+                row = schemas.MessageResponse.model_validate(m).model_dump()
+                # Optional avatar derivation (best-effort)
+                avatar_url = None
+                try:
+                    sender = getattr(m, "sender", None)
+                    if sender:
+                        if sender.user_type == models.UserType.SERVICE_PROVIDER:
+                            profile = getattr(sender, "artist_profile", None)
+                            if profile and getattr(profile, "profile_picture_url", None):
+                                avatar_url = profile.profile_picture_url
+                        elif getattr(sender, "profile_picture_url", None):
+                            avatar_url = sender.profile_picture_url
+                except Exception:
+                    avatar_url = None
+                if avatar_url:
+                    row["avatar_url"] = _scrub_avatar(avatar_url)
+                # Trim heavy attachment previews
+                if row.get("attachment_meta"):
+                    row["attachment_meta"] = _scrub_attachment_meta(row.get("attachment_meta"))
+                if row.get("quote_id"):
+                    try:
+                        qid = int(row.get("quote_id"))
+                        if qid > 0:
+                            quote_ids.add(qid)
+                    except Exception:
+                        pass
+                serial.append(row)
+            except Exception:
+                continue
+        threads_out[int(req_id)] = serial
+
+    # Compute a weak ETag across threads for short-circuiting
+    try:
+        import hashlib
+        parts: list[str] = []
+        for tid in sorted(threads_out.keys()):
+            lst = threads_out[tid]
+            if not lst:
+                parts.append(f"{tid}:0:0:0")
+                continue
+            last = lst[-1]
+            lid = int(last.get("id")) if isinstance(last.get("id"), int) else 0
+            lts = last.get("timestamp")
+            lts_s = lts.isoformat() if isinstance(lts, datetime) else str(lts or "")
+            parts.append(f"{tid}:{lid}:{lts_s}:{len(lst)}")
+        src = f"mb:{current_user.id}:{per}:{'|'.join(parts)}"
+        etag = f'W/"{hashlib.sha1(src.encode()).hexdigest()}"'
+    except Exception:
+        etag = None
+
+    if etag and if_none_match and if_none_match.strip() == etag:
+        from fastapi import Response as FastAPIResponse
+        return FastAPIResponse(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag})
+
+    # Optionally include quotes summaries across all threads
+    quotes_map: dict[int, dict] = {}
+    if include_quotes and quote_ids:
+        try:
+            v2_rows = (
+                db.query(models.QuoteV2)
+                .filter(models.QuoteV2.id.in_(list(quote_ids)))
+                .all()
+            )
+            for q in v2_rows:
+                try:
+                    services = []
+                    if isinstance(q.services, list):
+                        for s in q.services:
+                            d = (s or {}).get("description") if isinstance(s, dict) else None
+                            p = (s or {}).get("price") if isinstance(s, dict) else None
+                            if d is not None and p is not None:
+                                services.append({"description": d, "price": float(p)})
+                    quotes_map[int(q.id)] = {
+                        "id": int(q.id),
+                        "booking_request_id": int(q.booking_request_id),
+                        "status": str(q.status.value if hasattr(q.status, "value") else q.status),
+                        "total": float(q.total),
+                        "subtotal": float(q.subtotal) if getattr(q, "subtotal", None) is not None else float(q.total),
+                        "sound_fee": float(q.sound_fee) if getattr(q, "sound_fee", None) is not None else 0.0,
+                        "travel_fee": float(q.travel_fee) if getattr(q, "travel_fee", None) is not None else 0.0,
+                        "discount": float(q.discount) if getattr(q, "discount", None) is not None else 0.0,
+                        "expires_at": q.expires_at.isoformat() if getattr(q, "expires_at", None) else None,
+                        "services": services,
+                        "updated_at": q.updated_at.isoformat() if getattr(q, "updated_at", None) else None,
+                    }
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        # Fill gaps from legacy quotes, best-effort
+        try:
+            missing = [qid for qid in list(quote_ids) if qid not in quotes_map]
+            if missing:
+                legacy_rows = (
+                    db.query(models.Quote)
+                    .filter(models.Quote.id.in_(missing))
+                    .all()
+                )
+                for lq in legacy_rows:
+                    try:
+                        total = float(lq.price or 0)
+                        services = [{"description": (lq.quote_details or "Performance"), "price": total}]
+                        raw = str(lq.status.value if hasattr(lq.status, "value") else lq.status).lower()
+                        if "accept" in raw:
+                            status_label = "accepted"
+                        elif "reject" in raw or "declin" in raw:
+                            status_label = "rejected"
+                        elif "expire" in raw:
+                            status_label = "expired"
+                        else:
+                            status_label = "pending"
+                        quotes_map[int(lq.id)] = {
+                            "id": int(lq.id),
+                            "booking_request_id": int(lq.booking_request_id),
+                            "status": status_label,
+                            "total": total,
+                            "subtotal": total,
+                            "sound_fee": 0.0,
+                            "travel_fee": 0.0,
+                            "discount": 0.0,
+                            "expires_at": lq.valid_until.isoformat() if getattr(lq, "valid_until", None) else None,
+                            "services": services,
+                            "updated_at": lq.updated_at.isoformat() if getattr(lq, "updated_at", None) else None,
+                        }
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+    envelope = {
+        "mode": mode,
+        "threads": threads_out,
+        "payload_bytes": 0,
+    }
+    if include_quotes:
+        envelope["quotes"] = quotes_map
+
+    # payload byte size probe
+    try:
+        envelope["payload_bytes"] = len(orjson.dumps(envelope))
+    except Exception:
+        envelope["payload_bytes"] = 0
+
+    # Cache headers
+    headers = {}
+    if etag:
+        headers["ETag"] = etag
+        headers["Cache-Control"] = "private, max-age=30, stale-while-revalidate=120"
+    try:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=envelope, headers=headers)
+    except Exception:
+        return envelope
 
 
 @router.put("/booking-requests/{request_id}/messages/read")
@@ -568,6 +964,52 @@ async def mark_messages_read(
     return {"updated": updated}
 
 
+class DeliveredIn(BaseModel):
+    up_to_id: int
+
+
+@router.put("/booking-requests/{request_id}/messages/delivered")
+async def mark_messages_delivered(
+    request_id: int,
+    payload: DeliveredIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Signal that the current user has received messages up to the given id.
+
+    This is an ephemeral hint to flip sender bubbles to 'delivered'. It does not
+    persist any DB state; it only broadcasts an event on the thread topic.
+    """
+    booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    if not booking_request:
+        raise error_response(
+            "Booking request not found",
+            {"request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
+        raise error_response(
+            "Not authorized to modify messages",
+            {},
+            status.HTTP_403_FORBIDDEN,
+        )
+    up_to_id = int(getattr(payload, 'up_to_id', 0) or 0)
+    if up_to_id <= 0:
+        return {"ok": True}
+    try:
+        await manager.broadcast(
+            request_id,
+            {"v": 1, "type": "delivered", "up_to_id": up_to_id, "user_id": int(current_user.id)},
+        )
+    except Exception:
+        logger.exception("Failed to broadcast delivered signal", extra={"request_id": request_id, "user_id": current_user.id})
+    try:
+        metrics_incr("message.delivered_signal_total")
+    except Exception:
+        pass
+    return {"ok": True}
+
+
 @router.post(
     "/booking-requests/{request_id}/messages", response_model=schemas.MessageResponse
 )
@@ -577,6 +1019,7 @@ def create_message(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
     background_tasks: BackgroundTasks = BackgroundTasks(),
+    request: Request = None,
 ):
     booking_request = crud.crud_booking_request.get_booking_request(
         db, request_id=request_id
@@ -627,6 +1070,50 @@ def create_message(
     ):
         sys_key = "booking_details_v1"
 
+    # Special handling: client requests a new quote → per-day idempotency + provider notification
+    is_quote_request = False
+    try:
+        if message_in.message_type == models.MessageType.SYSTEM:
+            raw = (message_in.content or "").strip().lower()
+            key = str(message_in.system_key or "").lower()
+            is_quote_request = (raw == "new quote requested") or ("quote_requested" in key)
+    except Exception:
+        is_quote_request = False
+
+    # Enforce one request per day per thread: if a message exists with today's key, return it directly
+    todays_key = None
+    if is_quote_request:
+        try:
+            from datetime import datetime as _dt
+            todays_key = f"quote_requested_{_dt.now().strftime('%Y%m%d')}"
+            existing = (
+                db.query(models.Message)
+                .filter(
+                    models.Message.booking_request_id == request_id,
+                    models.Message.system_key == todays_key,
+                )
+                .order_by(models.Message.id.desc())
+                .first()
+            )
+            if existing:
+                data = schemas.MessageResponse.model_validate(existing).model_dump()
+                # Ensure avatar_url included (parity w/normal path)
+                sender = existing.sender
+                avatar_url = None
+                if sender:
+                    if sender.user_type == models.UserType.SERVICE_PROVIDER:
+                        profile = sender.artist_profile
+                        if profile and profile.profile_picture_url:
+                            avatar_url = profile.profile_picture_url
+                    elif sender.profile_picture_url:
+                        avatar_url = sender.profile_picture_url
+                data["avatar_url"] = avatar_url
+                return data
+        except Exception:
+            pass
+        # Set a server-side system key for persistence to guarantee idempotency
+        sys_key = todays_key or sys_key
+
     # Validate reply target if provided
     if message_in.reply_to_message_id:
         parent = (
@@ -641,7 +1128,7 @@ def create_message(
                 status.HTTP_404_NOT_FOUND,
             )
 
-    # Best-effort idempotency: suppress accidental rapid duplicates
+    # Best-effort idempotency: suppress accidental rapid duplicates (payload match)
     try:
         last = (
             db.query(models.Message)
@@ -699,6 +1186,47 @@ def create_message(
         # Defensive: do not block message creation if the pre-check fails
         pass
 
+    # Optional Idempotency-Key header: return previously created message by key
+    try:
+        id_key = _idemp_cache_key(request_id, current_user.id, request.headers.get("Idempotency-Key") if request else None)
+    except Exception:
+        id_key = None
+    # Optional client correlation id: echoed to the WS envelope/response only; not persisted
+    try:
+        client_req_id = None
+        if request is not None:
+            raw_cid = request.headers.get("X-Client-Request-Id") or request.headers.get("x-client-request-id")
+            if raw_cid:
+                raw_cid = str(raw_cid).strip()
+                if raw_cid:
+                    # Keep it modest; envelopes are transient
+                    client_req_id = raw_cid[:128]
+    except Exception:
+        client_req_id = None
+    if id_key:
+        msg_id = _idemp_cache_get(id_key)
+        if msg_id:
+            existing = db.query(models.Message).filter(models.Message.id == msg_id).first()
+            if existing:
+                data = schemas.MessageResponse.model_validate(existing).model_dump()
+                sender = existing.sender
+                avatar_url = None
+                if sender:
+                    if sender.user_type == models.UserType.SERVICE_PROVIDER:
+                        profile = sender.artist_profile
+                        if profile and profile.profile_picture_url:
+                            avatar_url = profile.profile_picture_url
+                    elif sender.profile_picture_url:
+                        avatar_url = sender.profile_picture_url
+                data["avatar_url"] = avatar_url
+                # Echo the client correlation id (response only; response_model will strip unknown keys safely)
+                if client_req_id:
+                    try:
+                        data["client_request_id"] = client_req_id
+                    except Exception:
+                        pass
+                return data
+
     msg = crud.crud_message.create_message(
         db,
         booking_request_id=request_id,
@@ -711,7 +1239,7 @@ def create_message(
         attachment_url=message_in.attachment_url,
         attachment_meta=message_in.attachment_meta,
         action=message_in.action,
-        system_key=message_in.system_key or sys_key,
+        system_key=(sys_key or message_in.system_key),
         expires_at=message_in.expires_at,
     )
     # Set reply reference if provided
@@ -761,14 +1289,24 @@ def create_message(
                 )
         # suppress message notifications during flow
     elif other_user:
-        notify_user_new_message(
-            db,
-            other_user,
-            current_user,
-            request_id,
-            message_in.content,
-            message_in.message_type,
-        )
+        # For "New quote requested", notify the provider explicitly and skip the generic new-message notify to the client
+        if is_quote_request:
+            try:
+                provider = db.query(models.User).filter(models.User.id == booking_request.artist_id).first()
+                if provider:
+                    notify_quote_requested(db, provider, request_id)
+            except Exception:
+                pass
+        else:
+            notify_user_new_message(
+                db,
+                other_user,
+                current_user,
+                request_id,
+                message_in.content,
+                message_in.message_type,
+                message_id=int(getattr(msg, "id", 0)) or None,
+            )
 
     avatar_url = None
     sender = msg.sender  # sender should exist, but guard against missing relation
@@ -797,11 +1335,41 @@ def create_message(
         if parent:
             data["reply_to_message_id"] = parent.id
             data["reply_to_preview"] = parent.content[:160]
-    background_tasks.add_task(
-        manager.broadcast,
-        request_id,
-        data,
-    )
+    # Include transient client correlation id in the envelope (not persisted)
+    if client_req_id:
+        try:
+            data["client_request_id"] = client_req_id
+        except Exception:
+            pass
+    # Broadcast new message to thread ASAP (best-effort). Prefer in-band scheduling
+    # over BackgroundTasks so the echo can reach clients before the HTTP response
+    # fully completes, reducing perceived latency. Commit has already occurred.
+    try:
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            loop.create_task(manager.broadcast(request_id, data))
+        except RuntimeError:
+            # Fallback in environments without a running loop context
+            asyncio.run(manager.broadcast(request_id, data))
+    except Exception:
+        # As a last resort, fall back to background task to avoid dropping the event
+        try:
+            background_tasks.add_task(manager.broadcast, request_id, data)
+        except Exception:
+            pass
+    # Optional reliable fanout for attachments/system messages
+    try:
+        if data.get("attachment_url") or str(data.get("message_type") or "").upper() == "SYSTEM":
+            from ..utils.outbox import enqueue_outbox
+            enqueue_outbox(db, topic=f"booking-requests:{int(request_id)}", payload=data)
+    except Exception:
+        pass
+    # Metrics (best-effort)
+    try:
+        metrics_incr("message.create_success_total")
+    except Exception:
+        pass
     # Opportunistic read receipt: when a user sends a message, consider all
     # prior incoming messages as read and broadcast a 'read' event so the
     # counterparty's UI updates immediately even if the reader's tab is not
@@ -818,6 +1386,12 @@ def create_message(
             request_id,
             {"v": 1, "type": "read", "up_to_id": int(last_unread), "user_id": int(current_user.id)},
         )
+    # Record idempotency mapping for the newly created message
+    try:
+        if id_key:
+            _idemp_cache_put(id_key, int(msg.id))
+    except Exception:
+        pass
     return data
 
 
@@ -830,6 +1404,7 @@ def delete_message(
     message_id: int = Path(..., description="Message id"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """Delete a single message in a thread.
 
@@ -891,7 +1466,11 @@ def delete_message(
     # Broadcast a minimal deletion event to the thread so other participants
     # can update their UI immediately.
     try:
-        manager.broadcast(request_id, {"v": 1, "type": "message_deleted", "id": message_id})
+        background_tasks.add_task(
+            manager.broadcast,
+            request_id,
+            {"v": 1, "type": "message_deleted", "id": message_id},
+        )
     except Exception:
         # Best-effort only; deletion is already persisted.
         pass
@@ -961,6 +1540,7 @@ def add_reaction(
     payload: ReactionIn,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
     if not booking_request:
@@ -974,7 +1554,7 @@ def add_reaction(
     # Broadcast minimal reaction update
     try:
         data = {"v": 1, "type": "reaction_added", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
-        manager.broadcast(request_id, data)
+        background_tasks.add_task(manager.broadcast, request_id, data)
     except Exception:
         pass
     return
@@ -990,6 +1570,7 @@ def remove_reaction(
     payload: ReactionIn,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
     if not booking_request:
@@ -1002,7 +1583,7 @@ def remove_reaction(
     crud.crud_message_reaction.remove_reaction(db, message_id, current_user.id, payload.emoji)
     try:
         data = {"v": 1, "type": "reaction_removed", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
-        manager.broadcast(request_id, data)
+        background_tasks.add_task(manager.broadcast, request_id, data)
     except Exception:
         pass
     return
@@ -1045,3 +1626,166 @@ def presign_attachment(
         upload_expires_in=int(info.get("upload_expires_in") or 0),
         download_expires_in=int(info.get("download_expires_in") or 0),
     )
+
+
+class AttachmentInitIn(BaseModel):
+    kind: str | None = None
+    filename: str | None = None
+    content_type: str | None = None
+    size: int | None = None
+
+
+@router.post(
+    "/booking-requests/{request_id}/messages/attachments/init",
+    status_code=status.HTTP_200_OK,
+)
+def init_attachment_message(
+    request_id: int,
+    payload: AttachmentInitIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+):
+    booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    if not booking_request:
+        raise error_response("Booking request not found", {"request_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
+        raise error_response("Not authorized to start attachment", {}, status.HTTP_403_FORBIDDEN)
+
+    sender_type = (
+        models.SenderType.CLIENT if current_user.id == booking_request.client_id else models.SenderType.ARTIST
+    )
+    # Create placeholder message (no URL/meta yet)
+    msg = crud.crud_message.create_message(
+        db,
+        booking_request_id=request_id,
+        sender_id=current_user.id,
+        sender_type=sender_type,
+        content=payload.filename or "[attachment]",
+        message_type=models.MessageType.USER,
+        visible_to=models.VisibleTo.BOTH,
+        quote_id=None,
+        attachment_url=None,
+        attachment_meta=None,
+        action=None,
+        system_key=None,
+        expires_at=None,
+    )
+    db.refresh(msg)
+
+    # Serialize envelope (align with create_message)
+    data = schemas.MessageResponse.model_validate(msg).model_dump()
+    avatar_url = None
+    sender = msg.sender
+    if sender:
+        if sender.user_type == models.UserType.SERVICE_PROVIDER:
+            profile = sender.artist_profile
+            if profile and profile.profile_picture_url:
+                avatar_url = profile.profile_picture_url
+        elif sender.profile_picture_url:
+            avatar_url = sender.profile_picture_url
+    data["avatar_url"] = avatar_url
+
+    # Presign direct upload
+    try:
+        info = r2utils.presign_put(
+            kind=(payload.kind or "file"),
+            booking_id=request_id,
+            filename=payload.filename,
+            content_type=payload.content_type,
+        )
+    except Exception as exc:
+        logger.exception("Failed to presign init attachment: %s", exc)
+        # If presign fails, we still return the message so client may fallback
+        info = {"key": "", "put_url": None, "headers": {}, "public_url": None, "get_url": None, "upload_expires_in": 0, "download_expires_in": 0}
+
+    # Best-effort broadcast placeholder and enqueue outbox
+    try:
+        background_tasks.add_task(manager.broadcast, request_id, data)
+        try:
+            enqueue_outbox(db, topic=f"booking-requests:{int(request_id)}", payload=data)
+        except Exception:
+            pass
+    except Exception:
+        pass
+    try:
+        metrics_incr("message.attachment_init_total")
+    except Exception:
+        pass
+    return {"message": data, "presign": info}
+
+
+class AttachmentFinalizeIn(BaseModel):
+    url: str
+    metadata: dict | None = None
+
+
+@router.post(
+    "/booking-requests/{request_id}/messages/{message_id}/attachments/finalize",
+    status_code=status.HTTP_200_OK,
+)
+def finalize_attachment_message(
+    request_id: int,
+    message_id: int,
+    payload: AttachmentFinalizeIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+):
+    booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    if not booking_request:
+        raise error_response("Booking request not found", {"request_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
+        raise error_response("Not authorized to finalize attachment", {}, status.HTTP_403_FORBIDDEN)
+
+    msg = db.query(models.Message).filter(models.Message.id == message_id).first()
+    if not msg or msg.booking_request_id != request_id:
+        raise error_response("Message not found", {"message_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    # Only the original sender may finalize
+    if msg.sender_id != current_user.id:
+        raise error_response("You can only finalize your own message", {}, status.HTTP_403_FORBIDDEN)
+
+    # Persist URL and metadata
+    try:
+        msg.attachment_url = payload.url
+        if isinstance(payload.metadata, dict):
+            msg.attachment_meta = payload.metadata
+        db.add(msg)
+        db.commit()
+        db.refresh(msg)
+    except Exception as exc:
+        logger.exception("Finalize attachment failed: %s", exc)
+        raise error_response("Finalize failed", {"attachment": "persist_failed"}, status.HTTP_400_BAD_REQUEST)
+
+    # Serialize envelope with potential public read URL transformation
+    data = schemas.MessageResponse.model_validate(msg).model_dump()
+    avatar_url = None
+    sender = msg.sender
+    if sender:
+        if sender.user_type == models.UserType.SERVICE_PROVIDER:
+            profile = sender.artist_profile
+            if profile and profile.profile_picture_url:
+                avatar_url = profile.profile_picture_url
+        elif sender.profile_picture_url:
+            avatar_url = sender.profile_picture_url
+    data["avatar_url"] = avatar_url
+    if data.get("attachment_url"):
+        try:
+            data["attachment_url"] = r2utils.presign_get_for_public_url(str(data.get("attachment_url") or "")) or data["attachment_url"]
+        except Exception:
+            pass
+
+    # Broadcast update and enqueue outbox
+    try:
+        background_tasks.add_task(manager.broadcast, request_id, data)
+        try:
+            enqueue_outbox(db, topic=f"booking-requests:{int(request_id)}", payload=data)
+        except Exception:
+            pass
+    except Exception:
+        pass
+    try:
+        metrics_incr("message.attachment_finalize_total")
+    except Exception:
+        pass
+    return data

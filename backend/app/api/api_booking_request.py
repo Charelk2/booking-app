@@ -95,6 +95,38 @@ async def get_parsed_booking(task_id: str):
         )
 
 
+@router.get("/{request_id}/booking-id", summary="Resolve booking id for a booking request")
+def get_booking_id_for_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Return the Booking.id associated with a given booking request, if any.
+
+    This is a lightweight resolver that avoids downloading full booking lists
+    on the client just to discover a single id. It checks both v2 and legacy
+    quote linkages that may have created a Booking.
+    """
+    # Try v2 quotes: bookings.quote_id matches quotes_v2.id
+    booking = (
+        db.query(models.Booking.id)
+        .join(models.QuoteV2, models.Booking.quote_id == models.QuoteV2.id)
+        .filter(models.QuoteV2.booking_request_id == request_id)
+        .order_by(models.Booking.id.desc())
+        .first()
+    )
+    if booking is None:
+        # Fallback to legacy quotes table
+        booking = (
+            db.query(models.Booking.id)
+            .join(models.Quote, models.Booking.quote_id == models.Quote.id)
+            .filter(models.Quote.booking_request_id == request_id)
+            .order_by(models.Booking.id.desc())
+            .first()
+        )
+    return {"booking_id": (booking[0] if booking else None)}
+
+
 @router.post(
     "/", response_model=schemas.BookingRequestResponse, response_model_exclude_none=True
 )
@@ -231,6 +263,7 @@ def create_booking_request(
 def read_my_client_booking_requests(
     skip: int = 0,
     limit: int = 100,
+    lite: bool = False,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(
         get_current_active_client
@@ -244,6 +277,7 @@ def read_my_client_booking_requests(
         client_id=current_user.id,
         skip=skip,
         limit=limit,
+        include_relationships=not lite,
     )
     for req in requests:
         # Defensive: ensure timestamps present for response validation
@@ -251,9 +285,10 @@ def read_my_client_booking_requests(
             req.created_at = datetime.utcnow()
         if getattr(req, "updated_at", None) is None:
             req.updated_at = req.created_at
-        for q in req.quotes:
-            # Avoid recursive payloads
-            q.booking_request = None
+        if not lite:
+            for q in req.quotes:
+                # Avoid recursive payloads
+                q.booking_request = None
     return requests
 
 

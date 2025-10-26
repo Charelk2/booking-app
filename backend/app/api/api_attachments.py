@@ -51,11 +51,21 @@ def _allowed_content_type(ct: str | None) -> bool:
 
 
 def _has_required_presign_params(u: str) -> bool:
+    """Allow either presigned URLs (X-Amz-*) or public object URLs on allowed hosts.
+
+    For public objects (no query or benign query), we still require host allowlist
+    via `_allowed_host` upstream.
+    """
     try:
-        # Basic presigned URL sanity checks without fetching headers
-        if "X-Amz-Algorithm=" not in u or "X-Amz-Signature=" not in u:
-            return False
-        return True
+        if "X-Amz-Algorithm=" in u and "X-Amz-Signature=" in u:
+            return True
+        # Permit non-presigned URLs (public objects) as long as the host is allowed.
+        from urllib.parse import urlparse
+        parsed = urlparse(u)
+        # If there is no query string, consider it a stable public object URL
+        if (parsed.query or "").strip() == "":
+            return True
+        return False
     except Exception:
         return False
 

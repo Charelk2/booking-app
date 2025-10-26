@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 import AuthInput from '@/components/auth/AuthInput';
 import { useAuth } from '@/contexts/AuthContext';
 import api, { getApiOrigin, getEmailStatus, requestMagicLink } from '@/lib/api';
+import { useGoogleOneTap } from '@/hooks/useGoogleOneTap';
 
 type Phase = 'email' | 'existing' | 'signup' | 'mfa';
 
@@ -29,24 +30,7 @@ type SignupForm = {
 };
 type MfaForm = { code: string; trustedDevice?: boolean };
 
-type GoogleIdentity = {
-  accounts?: {
-    id?: {
-      initialize: (...args: unknown[]) => void;
-      prompt: (...args: unknown[]) => void;
-      cancel: () => void;
-      disableAutoSelect: () => void;
-    };
-  };
-};
 
-declare global {
-  interface Window {
-    google?: GoogleIdentity;
-  }
-}
-
-const GSI_SRC = 'https://accounts.google.com/gsi/client';
 const TRUSTED_DEVICE_KEY = 'booka.trusted_device_id';
 
 export default function AuthPage() {
@@ -166,14 +150,7 @@ export default function AuthPage() {
 
   // Google One Tap
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  const loadScript = (id: string, src: string) => new Promise<void>((resolve, reject) => {
-    if (document.getElementById(id)) return resolve();
-    const s = document.createElement('script');
-    s.id = id; s.src = src; s.async = true; s.defer = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error(`Failed to load ${src}`));
-    document.head.appendChild(s);
-  });
+  // Script loader via shared utility
 
   const handleGsiCredential = useCallback(
     async (response: { credential?: string }) => {
@@ -204,34 +181,7 @@ export default function AuthPage() {
     [nextPath, refreshUser, router, trustedDeviceId, role],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        if (!googleClientId) return;
-        await loadScript('gsi-script', GSI_SRC);
-        if (cancelled || !window.google?.accounts?.id) return;
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: handleGsiCredential,
-          auto_select: true,
-          cancel_on_tap_outside: false,
-          use_fedcm_for_prompt: true,
-          context: 'signin',
-        });
-        window.google.accounts.id.prompt();
-      } catch (e) {
-        console.warn('GSI init failed.');
-      }
-    })();
-    return () => {
-      cancelled = true;
-      try {
-        window.google?.accounts?.id?.cancel?.();
-        window.google?.accounts?.id?.disableAutoSelect?.();
-      } catch {}
-    };
-  }, [googleClientId, handleGsiCredential]);
+  useGoogleOneTap({ clientId: googleClientId, onCredential: handleGsiCredential, context: 'signin', useFedCm: true });
 
   // Phase init: only affects initial screen; still flows via email gate
   useEffect(() => {
@@ -323,7 +273,7 @@ export default function AuthPage() {
     if (!mfaToken) return;
     try {
       clearError();
-      await verifyMfa(mfaToken, code, trustedDevice, trustedDevice ? trustedDeviceId : undefined);
+      await verifyMfa(mfaToken, code, trustedDevice);
       await onAuthSuccess();
     } catch {
       showError('Invalid verification code.');
@@ -346,7 +296,7 @@ export default function AuthPage() {
         password: data.password,
         marketing_opt_in: !!data.marketing_opt_in,
         // Explicitly default to 'client' to match backend default and keep role pick out of signup.
-        user_type: 'client' as any,
+        user_type: 'client' as const,
       });
       await onAuthSuccess(true);
     } catch (e: any) {

@@ -29,7 +29,7 @@ function ensureStaticPath(pathname: string): string {
   if (strip.startsWith('api/')) return `/${strip}`;
   const mStatic = strip.match(/^static\/(.+)$/i);
   if (mStatic) return `/static/${mStatic[1]}`;
-  const mDirect = strip.match(/^(profile_pics|cover_photos|portfolio_images|attachments|media)\/(.+)$/i);
+  const mDirect = strip.match(/^(profile_pics|cover_photos|portfolio_images|attachments|media|avatars)\/(.+)$/i);
   if (mDirect) return `/static/${mDirect[1]}/${mDirect[2]}`;
   return pathname.startsWith('/static/') ? pathname : `/static/${strip}`;
 }
@@ -47,6 +47,7 @@ export function toCanonicalImageUrl(input?: string | null): string | null {
   if (/^(data:|blob:)/i.test(v)) return v;
 
   const origin = apiBaseOrigin();
+  const r2Public = (process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
 
   try {
     const u = new URL(v);
@@ -56,6 +57,19 @@ export function toCanonicalImageUrl(input?: string | null): string | null {
       // If path begins with /api/, keep as-is so it hits the backend route
       if (u.pathname.startsWith('/api/')) {
         return `${u.pathname}${u.search}`;
+      }
+      // Special-case mounts under our first-party hosts: prefer direct R2 when configured
+      if (/^\/avatars\//i.test(u.pathname) && r2Public) {
+        return `${r2Public}${u.pathname}${u.search}`;
+      }
+      if (/^\/static\/avatars\//i.test(u.pathname) && r2Public) {
+        return `${r2Public}${u.pathname.replace(/^\/static/, '')}${u.search}`;
+      }
+      if (/^\/(cover_photos|portfolio_images|media)\//i.test(u.pathname) && r2Public) {
+        return `${r2Public}${u.pathname}${u.search}`;
+      }
+      if (/^\/static\/(cover_photos|portfolio_images|media)\//i.test(u.pathname) && r2Public) {
+        return `${r2Public}${u.pathname.replace(/^\/static/, '')}${u.search}`;
       }
       const normalized = ensureStaticPath(u.pathname);
       const finalPath = preserveExtension(normalized);
@@ -70,6 +84,19 @@ export function toCanonicalImageUrl(input?: string | null): string | null {
   } catch {
     // Relative path: allow /api/* passthrough, else coerce to /static
     const raw = v.startsWith('/') ? v : `/${v}`;
+    // Prefer R2 public base for avatars keys
+    if (/^\/avatars\//i.test(raw) && r2Public) {
+      return `${r2Public}${raw}`;
+    }
+    if (/^\/static\/avatars\//i.test(raw) && r2Public) {
+      return `${r2Public}${raw.replace(/^\/static/, '')}`;
+    }
+    if (/^\/(cover_photos|portfolio_images|media)\//i.test(raw) && r2Public) {
+      return `${r2Public}${raw}`;
+    }
+    if (/^\/static\/(cover_photos|portfolio_images|media)\//i.test(raw) && r2Public) {
+      return `${r2Public}${raw.replace(/^\/static/, '')}`;
+    }
     if (/^\/api\//i.test(raw)) return raw;
     const normalized = ensureStaticPath(raw);
     const finalPath = preserveExtension(normalized);

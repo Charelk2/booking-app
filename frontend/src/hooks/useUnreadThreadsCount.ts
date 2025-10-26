@@ -1,129 +1,149 @@
-'use client';
-
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { getMessageThreadsPreview, getMessageThreads, getInboxUnread } from '@/lib/api';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import type { ThreadsUpdatedDetail } from '@/lib/threadsEvents';
-import { useRealtimeContext } from '@/contexts/RealtimeContext';
+import { threadStore } from '@/lib/chat/threadStore';
+import { getThreadsIndex } from '@/lib/api';
 
-export default function useUnreadThreadsCount(pollMs = 30000) {
-  const [count, setCount] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+function computeTotalUnread() {
+  return threadStore.getTotalUnread();
+}
+
+export default function useUnreadThreadsCount() {
   const { user, loading } = useAuth();
-  const etagRef = useRef<string | undefined>(undefined);
-  const refreshingRef = useRef(false);
-  const rerunRef = useRef(false);
-  const lastEventTsRef = useRef(0);
+  const [count, setCount] = useState(() => computeTotalUnread());
+  const fetchedRef = useRef(false);
+  const SNAPSHOT_KEY = 'threads.index.snapshot';
 
-  const refresh = useCallback(async () => {
+  // Seed from snapshot synchronously to avoid 0→N flicker after refresh
+  useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+    try {
+      const raw = sessionStorage.getItem(SNAPSHOT_KEY);
+      if (!raw) return;
+      const payload = JSON.parse(raw) as { role?: string; ts?: number; items?: Array<{ id: number; unread_count: number; last_message_snippet?: string; last_message_at?: string }> };
+      if (!payload || !Array.isArray(payload.items)) return;
+      // If we already have threads in memory, skip snapshot seed
+      if (threadStore.getThreads().length > 0) return;
+      for (const it of payload.items) {
+        const id = Number(it.id || 0);
+        if (!Number.isFinite(id) || id <= 0) continue;
+        threadStore.upsert({
+          id,
+          unread_count: Number(it.unread_count || 0) || 0,
+          last_message_content: it.last_message_snippet || '',
+          last_message_timestamp: it.last_message_at || null,
+        } as any);
+      }
+      setCount(computeTotalUnread());
+    } catch {}
+  }, [user, loading]);
+
+  const hydrateThreads = useCallback(async () => {
+    if (!user || loading) return;
+    if (threadStore.getThreads().length > 0 || fetchedRef.current) return;
+    fetchedRef.current = true;
+    try {
+      const role = user.user_type === 'service_provider' ? 'artist' : 'client';
+      const res = await getThreadsIndex(role, 100);
+      const items = res.data?.items || [];
+      for (const item of items) {
+        const id = Number(item.booking_request_id || item.thread_id || 0);
+        if (!Number.isFinite(id) || id <= 0) continue;
+        threadStore.upsert({
+          id,
+          unread_count: Number(item.unread_count || 0) || 0,
+          is_unread_by_current_user: Number(item.unread_count || 0) > 0,
+          last_message_content: item.last_message_snippet,
+          last_message_timestamp: item.last_message_at,
+          counterparty_label: item.counterparty_name,
+          updated_at: item.last_message_at,
+          created_at: item.last_message_at,
+        } as any);
+      }
+      // Persist a compact snapshot for next load (avoid 0→N flicker)
+      try {
+        const snapshot = {
+          role: role,
+          ts: Date.now(),
+          items: items.map((it: any) => ({
+            id: Number(it.booking_request_id || it.thread_id || 0) || 0,
+            unread_count: Number(it.unread_count || 0) || 0,
+            last_message_snippet: String(it.last_message_snippet || ''),
+            last_message_at: it.last_message_at,
+          })),
+        };
+        sessionStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
+      } catch {}
+    } catch {
+      // best-effort; keep silent to avoid spamming header
+    } finally {
+      setCount(computeTotalUnread());
+    }
+  }, [user, loading]);
+
+  useEffect(() => {
+    const unsubscribe = threadStore.subscribe(() => {
+      setCount(computeTotalUnread());
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     if (loading) return;
     if (!user) {
       setCount(0);
+      fetchedRef.current = false;
       return;
     }
-    if (refreshingRef.current) {
-      rerunRef.current = true;
-      return;
-    }
-    refreshingRef.current = true;
-    try {
-      // Prefer tiny unread endpoint with ETag; fall back to previews if missing
+    void hydrateThreads();
+  }, [hydrateThreads, user, loading]);
+
+  // Low-cost periodic reconciliation using /threads (ETag is handled inside getDeduped)
+  useEffect(() => {
+    if (!user || loading) return;
+    let timer: any = null;
+    let stopped = false;
+    const role = user.user_type === 'service_provider' ? 'artist' : 'client';
+    const tick = async () => {
       try {
-        const res = await getInboxUnread(etagRef.current);
-        if (res.status === 200 && typeof res.data?.total === 'number') {
-          const et = (res.headers as any)?.etag as string | undefined;
-          if (et) etagRef.current = et;
-          setCount(res.data.total);
-          return;
+        const res = await getThreadsIndex(role, 100);
+        const items = res.data?.items || [];
+        for (const it of items) {
+          const id = Number(it.booking_request_id || it.thread_id || 0);
+          if (!Number.isFinite(id) || id <= 0) continue;
+          threadStore.upsert({
+            id,
+            unread_count: Number(it.unread_count || 0) || 0,
+            last_message_content: it.last_message_snippet,
+            last_message_timestamp: it.last_message_at,
+          } as any);
         }
-        if (res.status === 304) {
-          return; // unchanged
-        }
-      } catch {}
-
-      const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
-      const preview = await getMessageThreadsPreview(role as any);
-      const items = preview.data?.items || [];
-      let total = items.reduce((acc, it) => acc + (Number(it.unread_count || 0) || 0), 0);
-      if (total === 0) {
+        // Update snapshot so reloads are instant
         try {
-          const t = await getMessageThreads();
-          const arr = (t.data || []) as any[];
-          total = arr.reduce((acc, th) => acc + (Number((th as any).unread_count || 0) || 0), 0);
+          const snapshot = {
+            role: role,
+            ts: Date.now(),
+            items: items.map((it: any) => ({
+              id: Number(it.booking_request_id || it.thread_id || 0) || 0,
+              unread_count: Number(it.unread_count || 0) || 0,
+              last_message_snippet: String(it.last_message_snippet || ''),
+              last_message_at: it.last_message_at,
+            })),
+          };
+          sessionStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
         } catch {}
+        setCount(computeTotalUnread());
+      } catch {
+        // best-effort; keep silent
+      } finally {
+        if (!stopped) timer = setTimeout(tick, 30000);
       }
-      setCount(total);
-    } catch (err) {
-      // best-effort; avoid console noise in header
-    }
-    finally {
-      refreshingRef.current = false;
-      if (rerunRef.current) {
-        rerunRef.current = false;
-        void refresh();
-      }
-    }
-  }, [loading, user]);
+    };
+    timer = setTimeout(tick, 10000); // slight delay after mount to avoid racing initial hydrate
+    return () => { stopped = true; if (timer) try { clearTimeout(timer); } catch {} };
+  }, [user, loading]);
 
   useEffect(() => {
-    if (!user || loading) {
-      setCount(0);
-      if (timerRef.current) clearInterval(timerRef.current);
-      return; // Do not start timers when logged out
-    }
-    void refresh();
-    const handleBump = (event: Event) => {
-      const detail = (event as CustomEvent<ThreadsUpdatedDetail>).detail;
-      if (detail?.source && detail.reason === 'read' && (detail.source === 'thread' || detail.source === 'inbox')) {
-        return;
-      }
-      const now = Date.now();
-      if (!detail?.immediate && now - lastEventTsRef.current < 1500) return;
-      lastEventTsRef.current = detail?.immediate ? 0 : now;
-      void refresh();
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('threads:updated', handleBump as EventListener);
-    }
-    // Realtime: listen to notifications topic directly so header/mobile badges
-    // update even when notifications provider isn’t mounted (e.g., homepage).
-    let unsub: (() => void) | null = null;
-    try {
-      if (user) {
-        const { subscribe } = useRealtimeContext();
-        unsub = subscribe('notifications', (payload: any) => {
-          try {
-            const typ = String(payload?.type || '').toLowerCase();
-            // React to message-related notifications only
-            if (!typ || (!typ.includes('message') && !typ.includes('thread'))) return;
-            const now = Date.now();
-            if (now - lastEventTsRef.current < 1000) return; // light debounce
-            lastEventTsRef.current = now;
-            void refresh();
-          } catch {}
-        });
-      }
-    } catch {}
-    if (pollMs > 0) {
-      timerRef.current = setInterval(() => void refresh(), pollMs);
-      return () => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        if (typeof window !== 'undefined') {
-          window.removeEventListener('threads:updated', handleBump as EventListener);
-        }
-        try { unsub?.(); } catch {}
-      };
-    }
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('threads:updated', handleBump as EventListener);
-      }
-      try { unsub?.(); } catch {}
-    };
-  }, [refresh, pollMs, user, loading]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ total?: number; delta?: number }>).detail || {};
       if (typeof detail.total === 'number') {
@@ -134,22 +154,44 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
         setCount((prev) => Math.max(0, prev + detail.delta));
       }
     };
-    window.addEventListener('inbox:unread', handler as EventListener);
-    const onStorage = (e: StorageEvent) => {
-      try {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('inbox:unread', handler as EventListener);
+      const onStorage = (e: StorageEvent) => {
         if (!e.key) return;
-        // Any thread last-seen update from another tab triggers a refresh
         if (e.key.startsWith('thread:last_seen:')) {
-          void refresh();
+          setCount(computeTotalUnread());
+          return;
         }
-      } catch {}
-    };
-    window.addEventListener('storage', onStorage as EventListener);
-    return () => {
-      window.removeEventListener('inbox:unread', handler as EventListener);
-      window.removeEventListener('storage', onStorage as EventListener);
-    };
+        if (e.key === SNAPSHOT_KEY) {
+          // Another tab updated snapshot; refresh count from store (or load snapshot if empty)
+          try {
+            if (threadStore.getThreads().length === 0 && e.newValue) {
+              const payload = JSON.parse(e.newValue) as any;
+              if (payload && Array.isArray(payload.items)) {
+                for (const it of payload.items) {
+                  const id = Number(it.id || 0);
+                  if (!Number.isFinite(id) || id <= 0) continue;
+                  threadStore.upsert({
+                    id,
+                    unread_count: Number(it.unread_count || 0) || 0,
+                    last_message_content: String(it.last_message_snippet || ''),
+                    last_message_timestamp: it.last_message_at || null,
+                  } as any);
+                }
+              }
+            }
+          } catch {}
+          setCount(computeTotalUnread());
+        }
+      };
+      window.addEventListener('storage', onStorage as EventListener);
+      return () => {
+        window.removeEventListener('inbox:unread', handler as EventListener);
+        window.removeEventListener('storage', onStorage as EventListener);
+      };
+    }
+    return () => {};
   }, []);
 
-  return { count, refresh };
+  return useMemo(() => ({ count }), [count]);
 }

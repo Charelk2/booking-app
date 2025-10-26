@@ -140,6 +140,11 @@ Message state transitions:
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
+Speed and realtime playbook: how chat and payments achieve “payment‑fast” UX
+(WS echo via client_request_id, attachments init→finalize, delivered acks,
+fast broadcast + outbox fallback, cache hygiene) — see
+[docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.md).
+
 ### Inbox Stability & Realtime
 
 The Inbox and chat stack use a single global realtime connection (WS with SSE fallback) and client keepalive to reduce proxy idle closes. Client‑side per‑instance pinning is disabled; transient 5xxs trigger a one‑shot unpinned retry.

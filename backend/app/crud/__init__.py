@@ -20,6 +20,10 @@ from .crud_quote_template import (
 from . import crud_message
 from . import crud_message_reaction
 from . import crud_notification
+from . import crud_event_prep
+from . import crud_sound
+from . import crud_service_category
+from . import crud_booking_request
 
 # For a cleaner import, you could define __all__ or group them
 # For now, direct import is fine for usage like `crud.user.get` 

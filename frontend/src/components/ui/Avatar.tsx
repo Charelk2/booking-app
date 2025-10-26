@@ -47,7 +47,7 @@ export default function Avatar({
         icon
       ) : (
         <SafeImage
-          src={'/static/default-avatar.svg'}
+          src={'/default-avatar.svg'}
           alt={alt}
           width={size}
           height={size}

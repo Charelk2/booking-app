@@ -252,7 +252,7 @@ export default function BookinWizardPersonilsedVideo({
         })();
       },
       onClose: function () {
-        Toast.info('Payment window closed');
+        Toast('Payment window closed');
       },
     });
     handler.openIframe();
@@ -627,7 +627,7 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
           })();
         },
         onClose: function () {
-          Toast.info('Payment window closed');
+          Toast('Payment window closed');
         },
       });
       handler.openIframe();

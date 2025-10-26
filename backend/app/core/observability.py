@@ -14,14 +14,23 @@ from __future__ import annotations
 import logging
 import os
 
-from pythonjsonlogger import jsonlogger
+try:  # optional dependency for structured logs
+    from pythonjsonlogger import jsonlogger  # type: ignore
+    _HAS_JSONLOGGER = True
+except Exception:  # pragma: no cover
+    jsonlogger = None  # type: ignore
+    _HAS_JSONLOGGER = False
 from .config import settings
-from opentelemetry import trace
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
+try:  # optional tracing setup
+    from opentelemetry import trace  # type: ignore
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor  # type: ignore
+    from opentelemetry.sdk.resources import Resource  # type: ignore
+    from opentelemetry.sdk.trace import TracerProvider  # type: ignore
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter  # type: ignore
+    from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased  # type: ignore
+    _HAS_OTEL = True
+except Exception:  # pragma: no cover
+    _HAS_OTEL = False
 
 
 def _parse_bool(value: str | bool | None, default: bool) -> bool:
@@ -35,7 +44,10 @@ def _parse_bool(value: str | bool | None, default: bool) -> bool:
 def setup_logging() -> None:
     """Configure structured JSON logging."""
     handler = logging.StreamHandler()
-    formatter = jsonlogger.JsonFormatter("%(levelname)s %(name)s %(message)s")
+    if _HAS_JSONLOGGER and jsonlogger is not None:
+        formatter = jsonlogger.JsonFormatter("%(levelname)s %(name)s %(message)s")  # type: ignore[attr-defined]
+    else:
+        formatter = logging.Formatter("%(levelname)s %(name)s %(message)s")
     handler.setFormatter(formatter)
     root = logging.getLogger()
     root.handlers = [handler]
@@ -62,6 +74,8 @@ def setup_logging() -> None:
 
 def setup_tracer(app) -> None:
     """Attach an OpenTelemetry tracer to the FastAPI app."""
+    if not _HAS_OTEL:
+        return
     resource = Resource(attributes={"service.name": "booking-api"})
 
     # Sampling ratio (0.0 – 1.0). Defaults to 1.0 to preserve previous behavior,

@@ -1,10 +1,22 @@
 # backend/app/api/v1/api_booking.py
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, BackgroundTasks, Body
 from sqlalchemy.orm import Session, selectinload
 from fastapi.responses import Response
-from ics import Calendar, Event
+try:
+    from ics import Calendar, Event  # type: ignore
+except Exception:  # pragma: no cover - optional for tooling environments
+    class Calendar:  # minimal stub for schema generation
+        def __init__(self) -> None:
+            self.events = set()
+        def serialize(self) -> str:
+            return ""
+    class Event:  # minimal stub
+        def __init__(self) -> None:
+            self.name = None
+            self.begin = None
+            self.end = None
 from typing import List, Any
 from decimal import Decimal
 
@@ -25,17 +37,23 @@ from .dependencies import (
 )
 from ..utils.redis_cache import invalidate_availability_cache
 from ..schemas.event_prep import EventPrepResponse, EventPrepPatch
-from ..crud import crud_event_prep
 from .api_ws import manager
 from ..models.message import MessageType, SenderType, VisibleTo
 from ..utils import error_response
 from .api_sound_outreach import kickoff_sound_outreach
 from pydantic import BaseModel
+from .. import crud
 
 router = APIRouter(tags=["bookings"])
 logger = logging.getLogger(__name__)
 # ‣ Note: no prefix here.  main.py already does:
 #     app.include_router(router, prefix="/api/v1/bookings", …)
+
+
+class ArtistAcceptPayload(BaseModel):
+    requires_sound: bool | None = None
+    sound_mode: str | None = None  # 'supplier' | 'provided_by_artist' | 'client_provided' | 'managed_by_artist'
+    event_city: str | None = None
 
 @router.post("/", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 def create_booking(
@@ -133,10 +151,7 @@ def read_my_bookings(
     query = (
         db.query(
             Booking,
-            BookingSimple.deposit_due_by,
-            BookingSimple.deposit_amount,
             BookingSimple.payment_status,
-            BookingSimple.deposit_paid,
             QuoteV2.booking_request_id,
         )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
@@ -177,23 +192,10 @@ def read_my_bookings(
     bookings: List[Booking] = []
     for (
         booking,
-        deposit_due,
-        deposit_amount,
         payment_status,
-        deposit_paid,
         booking_request_id,
     ) in rows:
-        has_simple = deposit_paid is not None
-
-        booking.deposit_due_by = deposit_due if has_simple else None
-        booking.payment_status = payment_status if has_simple else None
-        booking.deposit_paid = deposit_paid if has_simple else None
-
-        if deposit_amount is None:
-            booking.deposit_amount = Decimal("0")
-        else:
-            booking.deposit_amount = deposit_amount
-
+        booking.payment_status = payment_status
         if booking_request_id is not None:
             booking.booking_request_id = booking_request_id
         bookings.append(booking)
@@ -334,10 +336,7 @@ def read_booking_details(
     booking_row = (
         db.query(
             Booking,
-            BookingSimple.deposit_due_by,
-            BookingSimple.deposit_amount,
             BookingSimple.payment_status,
-            BookingSimple.deposit_paid,
             QuoteV2.booking_request_id,
         )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
@@ -363,10 +362,7 @@ def read_booking_details(
 
     (
         booking,
-        deposit_due,
-        deposit_amount,
         payment_status,
-        deposit_paid,
         booking_request_id,
     ) = booking_row
 
@@ -383,16 +379,7 @@ def read_booking_details(
             detail="You do not have permission to view this booking.",
         )
 
-    has_simple = deposit_paid is not None
-
-    booking.deposit_due_by = deposit_due if has_simple else None
-    booking.payment_status = payment_status if has_simple else None
-    booking.deposit_paid = deposit_paid if has_simple else None
-
-    if deposit_amount is None:
-        booking.deposit_amount = Decimal("0")
-    else:
-        booking.deposit_amount = deposit_amount
+    booking.payment_status = payment_status
 
     if booking_request_id is not None:
         booking.booking_request_id = booking_request_id
@@ -412,11 +399,11 @@ def _ensure_participant_or_404(db: Session, booking_id: int, user: User) -> Book
 
 
 def _find_booking_request_id(db: Session, booking_id: int) -> int | None:
-    return crud_event_prep._resolve_booking_request_id(db, booking_id)  # reuse internal helper
+    return crud.crud_event_prep._resolve_booking_request_id(db, booking_id)  # reuse internal helper
 
 
 def _as_response(db: Session, ep: models.EventPrep) -> EventPrepResponse:
-    done, total = crud_event_prep.compute_progress(db, ep.booking_id, ep)
+    done, total = crud.crud_event_prep.compute_progress(db, ep.booking_id, ep)
     return EventPrepResponse(
         booking_id=ep.booking_id,
         day_of_contact_name=ep.day_of_contact_name,
@@ -465,14 +452,14 @@ def get_event_prep(
     try:
         booking = _ensure_participant_or_404(db, booking_id, current_user)
         # Idempotent bootstrap: create seed record if missing
-        ep = crud_event_prep.get_by_booking_id(db, booking.id) or crud_event_prep.seed_for_booking(db, booking)
+        ep = crud.crud_event_prep.get_by_booking_id(db, booking.id) or crud.crud_event_prep.seed_for_booking(db, booking)
         return _as_response(db, ep)
     except OperationalError as exc:
         # Gracefully recover if tables are missing on a fresh environment
         if "no such table: event_preps" in str(exc).lower():
             _ensure_event_prep_tables()
             booking = _ensure_participant_or_404(db, booking_id, current_user)
-            ep = crud_event_prep.get_by_booking_id(db, booking.id) or crud_event_prep.seed_for_booking(db, booking)
+            ep = crud.crud_event_prep.get_by_booking_id(db, booking.id) or crud.crud_event_prep.seed_for_booking(db, booking)
             return _as_response(db, ep)
         raise
 
@@ -496,7 +483,7 @@ def patch_event_prep(
             raise
     # Idempotency support (24h window)
     key = request.headers.get("Idempotency-Key")
-    is_dup, existing = crud_event_prep.idempotency_check(
+    is_dup, existing = crud.crud_event_prep.idempotency_check(
         db,
         booking.id,
         key,
@@ -505,7 +492,7 @@ def patch_event_prep(
     if is_dup and existing:
         return _as_response(db, existing)
 
-    ep = crud_event_prep.upsert(
+    ep = crud.crud_event_prep.upsert(
         db,
         booking.id,
         patch.model_dump(exclude_unset=True),
@@ -543,8 +530,7 @@ def patch_event_prep(
             else:
                 sys_key = "event_prep_updated"
 
-            from ..crud import crud_message
-            crud_message.create_message(
+            crud.crud_message.create_message(
                 db=db,
                 booking_request_id=br_id,
                 sender_id=booking.artist_id,
@@ -586,7 +572,7 @@ def complete_event_prep_task(
 ):
     booking = _ensure_participant_or_404(db, booking_id, current_user)
     key = request.headers.get("Idempotency-Key")
-    is_dup, existing = crud_event_prep.idempotency_check(db, booking.id, key, str(body))
+    is_dup, existing = crud.crud_event_prep.idempotency_check(db, booking.id, key, str(body))
     if is_dup and existing:
         return _as_response(db, existing)
 
@@ -634,13 +620,12 @@ def complete_event_prep_task(
         patch["parking_access_notes"] = value
         content = "Parking & access notes updated"
 
-    ep = crud_event_prep.upsert(db, booking.id, patch, updated_by_user_id=current_user.id)
+    ep = crud.crud_event_prep.upsert(db, booking.id, patch, updated_by_user_id=current_user.id)
 
     br_id = _find_booking_request_id(db, booking.id)
     try:
         if br_id is not None:
-            from ..crud import crud_message
-            crud_message.create_message(
+            crud.crud_message.create_message(
                 db=db,
                 booking_request_id=br_id,
                 sender_id=booking.artist_id,
@@ -683,7 +668,7 @@ def list_event_prep_attachments(
     current_user: User = Depends(get_current_user),
 ):
     booking = _ensure_participant_or_404(db, booking_id, current_user)
-    ep = crud_event_prep.get_by_booking_id(db, booking.id) or crud_event_prep.seed_for_booking(db, booking)
+    ep = crud.crud_event_prep.get_by_booking_id(db, booking.id) or crud.crud_event_prep.seed_for_booking(db, booking)
     rows = (
         db.query(models.EventPrepAttachment)
         .filter(models.EventPrepAttachment.event_prep_id == ep.id)
@@ -699,9 +684,10 @@ def add_event_prep_attachment(
     body: EventPrepAttachmentIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     booking = _ensure_participant_or_404(db, booking_id, current_user)
-    ep = crud_event_prep.get_by_booking_id(db, booking.id) or crud_event_prep.seed_for_booking(db, booking)
+    ep = crud.crud_event_prep.get_by_booking_id(db, booking.id) or crud.crud_event_prep.seed_for_booking(db, booking)
     att = models.EventPrepAttachment(event_prep_id=ep.id, file_url=body.url)
     db.add(att)
     db.commit()
@@ -710,7 +696,11 @@ def add_event_prep_attachment(
     try:
         br_id = _find_booking_request_id(db, booking.id)
         if br_id is not None:
-            manager.broadcast(br_id, {"type": "event_prep_updated", "payload": _as_response(db, ep).model_dump()})
+            background_tasks.add_task(
+                manager.broadcast,
+                br_id,
+                {"type": "event_prep_updated", "payload": _as_response(db, ep).model_dump()},
+            )
     except Exception:
         pass
     return {"id": att.id, "file_url": att.file_url, "created_at": att.created_at}
@@ -766,6 +756,7 @@ def artist_accept_booking(
     sound_mode: str | None = None,  # 'supplier' (default) | 'provided_by_artist' | 'client_provided' | 'managed_by_artist'
     event_city: str | None = None,
     current_artist: User = Depends(get_current_service_provider),
+    payload: ArtistAcceptPayload | None = Body(None),
 ):
     """Artist accepts a booking and optionally starts sound outreach.
 
@@ -785,12 +776,25 @@ def artist_accept_booking(
             status.HTTP_404_NOT_FOUND,
         )
 
+    # Merge optional body payload (backward-compatible with existing query params)
+    try:
+        if payload is not None:
+            if getattr(payload, "requires_sound", None) is not None:
+                requires_sound = payload.requires_sound
+            if getattr(payload, "sound_mode", None) is not None:
+                sound_mode = payload.sound_mode
+            if not event_city and getattr(payload, "event_city", None):
+                event_city = payload.event_city
+    except Exception:
+        # Non-fatal; fall back to query params only
+        pass
+
     # Resolve requires_sound and sound_mode from the associated request if not provided
     if requires_sound is None:
         # Join via QuoteV2 linkage exposed in GET /bookings
         row = (
             db.query(Booking, QuoteV2.booking_request_id)
-            .outerjoin(BookingSimple, BookingSimple.quote_id == QuoteV2.id)
+            .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
             .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
             .filter(Booking.id == booking_id)
             .first()
@@ -870,17 +874,21 @@ def artist_accept_booking(
         if qv2:
             br_id = qv2.booking_request_id
         if br_id:
-            crud.crud_message.create_message(
-                db=db,
-                booking_request_id=br_id,
-                sender_id=current_artist.id,
-                sender_type=models.SenderType.ARTIST,
-                content=(
-                    "Artist confirmed — your date is locked." if not sound_mode or sound_mode == "client_provided" else "Artist confirmed — sound provided by artist."
-                ),
-                message_type=models.MessageType.SYSTEM,
-                visible_to=models.VisibleTo.CLIENT,
-            )
+            try:
+                crud.crud_message.create_message(
+                    db=db,
+                    booking_request_id=br_id,
+                    sender_id=current_artist.id,
+                    sender_type=models.SenderType.ARTIST,
+                    content=(
+                        "Artist confirmed — your date is locked." if not sound_mode or sound_mode == "client_provided" else "Artist confirmed — sound provided by artist."
+                    ),
+                    message_type=models.MessageType.SYSTEM,
+                    visible_to=models.VisibleTo.CLIENT,
+                )
+                db.commit()
+            except Exception:
+                logger.error("Failed to create timeline message for booking acceptance (confirmed/no-sound)", exc_info=True)
         return (
             db.query(Booking)
             .options(
@@ -900,7 +908,7 @@ def artist_accept_booking(
             {"event_city": "required"},
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    res = kickoff_sound_outreach(
+    kickoff_sound_outreach(
         booking_id,
         event_city=city,
         request_timeout_hours=24,
@@ -929,15 +937,19 @@ def artist_accept_booking(
     if qv2:
         br_id = qv2.booking_request_id
     if br_id:
-        crud.crud_message.create_message(
-            db=db,
-            booking_request_id=br_id,
-            sender_id=current_artist.id,
-            sender_type=models.SenderType.ARTIST,
-            content="Artist confirmed — we’re confirming sound now.",
-            message_type=models.MessageType.SYSTEM,
-            visible_to=models.VisibleTo.CLIENT,
-        )
+        try:
+            crud.crud_message.create_message(
+                db=db,
+                booking_request_id=br_id,
+                sender_id=current_artist.id,
+                sender_type=models.SenderType.ARTIST,
+                content="Artist confirmed — we’re confirming sound now.",
+                message_type=models.MessageType.SYSTEM,
+                visible_to=models.VisibleTo.CLIENT,
+            )
+            db.commit()
+        except Exception:
+            logger.error("Failed to create timeline message for booking acceptance (pending-sound)", exc_info=True)
     # Return updated booking state
     return (
         db.query(Booking)

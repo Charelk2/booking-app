@@ -5,7 +5,6 @@ import base64
 import hashlib
 from PIL import Image, ImageOps
 from pathlib import Path
-import os
 
 from app.database import get_db
 from app.models.service_provider_profile import ServiceProviderProfile as Artist
@@ -88,7 +87,13 @@ def avatar_thumb(
         }
         return Response(content=cached, headers=headers)
 
-    img = Image.open(BytesIO(raw)).convert("RGB")
+    try:
+        img = Image.open(BytesIO(raw))
+        img = img.convert("RGB")
+    except Exception:
+        # Malformed or unsupported image data
+        raise HTTPException(status_code=400, detail="Avatar unreadable")
+
     # Fit and center-crop to an exact square for crispness
     target = int(max(16, min(1024, int(round(w * dpr)))))
     img = ImageOps.fit(img, (target, target), method=Image.LANCZOS, centering=(0.5, 0.5))

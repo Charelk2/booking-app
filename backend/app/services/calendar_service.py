@@ -1,16 +1,31 @@
-"""Helpers for Google Calendar OAuth and event sync."""
+"""Helpers for Google Calendar OAuth and event sync.
+
+Guards heavy Google imports so OpenAPI generation can run without optional deps.
+"""
 
 from datetime import datetime
 from typing import List, Optional
 import logging
 
 from fastapi import HTTPException
-from google_auth_oauthlib.flow import Flow
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google.auth.exceptions import RefreshError
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+import os
+from typing import TYPE_CHECKING, Any
+
+try:  # optional in minimal environments
+    from google_auth_oauthlib.flow import Flow  # type: ignore
+    from google.auth.transport.requests import Request  # type: ignore
+    from google.oauth2.credentials import Credentials  # type: ignore
+    from google.auth.exceptions import RefreshError  # type: ignore
+    from googleapiclient.discovery import build  # type: ignore
+    from googleapiclient.errors import HttpError  # type: ignore
+    _HAS_GOOGLE = True
+except Exception:  # pragma: no cover - allow schema gen without deps
+    Flow = Any  # type: ignore
+    Request = Any  # type: ignore
+    Credentials = Any  # type: ignore
+    RefreshError = Exception  # type: ignore
+    HttpError = Exception  # type: ignore
+    _HAS_GOOGLE = False
 from sqlalchemy.orm import Session
 
 from app.auth.utils import new_oauth_state
@@ -43,7 +58,9 @@ def require_credentials() -> None:
     _require_credentials()
 
 
-def _flow(redirect_uri: str, flow_cls: type[Flow] = Flow) -> Flow:
+def _flow(redirect_uri: str, flow_cls: type[Flow] | Any = Flow) -> Any:
+    if not _HAS_GOOGLE:
+        raise HTTPException(503, "Google Calendar not available")
     return flow_cls.from_client_config(
         {
             "web": {
@@ -87,6 +104,8 @@ def _pop_calendar_state(state: str) -> Optional[int]:
 
 def get_auth_url(user_id: int, redirect_uri: str) -> str:
     """Return the Google OAuth authorization URL for the user."""
+    if not _HAS_GOOGLE:
+        raise HTTPException(503, "Google Calendar not available")
     require_credentials()
     flow = _flow(redirect_uri)
 
@@ -120,6 +139,8 @@ def resolve_calendar_state(state: str) -> Optional[int]:
 
 def exchange_code(user_id: int, code: str, redirect_uri: str, db: Session) -> None:
     """Exchange OAuth code for tokens and store them."""
+    if not _HAS_GOOGLE:
+        raise HTTPException(503, "Google Calendar not available")
     require_credentials()
     flow = _flow(redirect_uri)
     flow.fetch_token(code=code)
@@ -157,6 +178,9 @@ def exchange_code(user_id: int, code: str, redirect_uri: str, db: Session) -> No
 
 def fetch_events(user_id: int, start: datetime, end: datetime, db: Session) -> List[datetime]:
     """Return start times of events from the user's Google Calendar."""
+    if not _HAS_GOOGLE:
+        logger.warning("Google Calendar libs missing; skipping fetch")
+        return []
     if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
         logger.warning("Google Calendar credentials not configured; skipping fetch")
         return []

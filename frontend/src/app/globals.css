@@ -76,6 +76,9 @@ html, body {
   --color-foreground-rgb: 17 24 39;
   --shadow-sm: 0 6px 20px rgb(var(--color-foreground-rgb) / 8%);
   --shadow-md: 0 8px 24px rgb(var(--color-foreground-rgb) / 15%);
+
+  /* Sticky offset for service provider desktop rails (below dynamic header) */
+  --sp-sticky-top: calc(var(--app-header-height, 64px) + 16px);
 }
 
 @layer base {
@@ -98,6 +101,8 @@ html, body {
     font-size: 16px !important;
     line-height: 1.5;
     margin: 0;
+    /* Keep layout stable when only one column gains a scrollbar */
+    scrollbar-gutter: stable both-edges;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -127,6 +132,13 @@ html, body {
 }
 
 @layer components {
+  /* Virtuoso scroller: contain overscroll and disable default smooth to prevent compounding with API smooth */
+  [data-virtuoso-scroll-container="true"],
+  [data-virtuoso-scroller="true"],
+  [data-virtuoso-scroller] {
+    overscroll-behavior: contain;
+    scroll-behavior: auto; /* We opt into smooth per scrollToIndex behavior */
+  }
   .hero-gradient {
     @apply bg-gradient-to-br from-indigo-50 to-indigo-100;
   }

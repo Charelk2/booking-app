@@ -1031,18 +1031,6 @@ def ensure_booking_simple_columns(engine: Engine) -> None:
         "payment_id",
         "payment_id VARCHAR",
     )
-    add_column_if_missing(
-        engine, "bookings_simple", "deposit_amount", "deposit_amount NUMERIC(10, 2)"
-    )
-    add_column_if_missing(
-        engine, "bookings_simple", "deposit_due_by", "deposit_due_by DATETIME"
-    )
-    add_column_if_missing(
-        engine,
-        "bookings_simple",
-        "deposit_paid",
-        "deposit_paid BOOLEAN NOT NULL DEFAULT FALSE",
-    )
     # Authorization hold fields for one-flow booking
     add_column_if_missing(
         engine,
@@ -1086,6 +1074,42 @@ def ensure_booking_simple_columns(engine: Engine) -> None:
         "charged_total_amount",
         "charged_total_amount NUMERIC(10, 2)",
     )
+
+
+def remove_deposit_columns_from_booking_simple(engine: Engine) -> None:
+    """Drop legacy deposit columns from bookings_simple if they exist.
+
+    Older schemas included deposit_amount, deposit_due_by, and deposit_paid.
+    The application no longer uses deposits; these columns can cause NOT NULL
+    constraint failures on insert if left behind. Safely drop them.
+    """
+    try:
+        inspector = inspect(engine)
+        if "bookings_simple" not in inspector.get_table_names():
+            return
+        cols = {c["name"].lower() for c in inspector.get_columns("bookings_simple")}
+        to_drop = [
+            c for c in ("deposit_amount", "deposit_due_by", "deposit_paid") if c in cols
+        ]
+        if not to_drop:
+            return
+        with engine.connect() as conn:
+            for c in to_drop:
+                try:
+                    conn.execute(text(f"ALTER TABLE bookings_simple DROP COLUMN IF EXISTS {c}"))
+                except Exception:
+                    # As a fallback, attempt to relax NOT NULL to avoid runtime errors
+                    try:
+                        conn.execute(text(f"ALTER TABLE bookings_simple ALTER COLUMN {c} DROP NOT NULL"))
+                    except Exception:
+                        pass
+            try:
+                conn.commit()
+            except Exception:
+                pass
+    except Exception:
+        # Never block startup on cleanup
+        pass
 
 
 def ensure_mfa_columns(engine: Engine) -> None:

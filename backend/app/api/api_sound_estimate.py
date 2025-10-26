@@ -6,8 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from .. import models
-from ..crud import crud_service
+from .. import models, crud
 from ..utils import error_response
 
 
@@ -55,7 +54,7 @@ def _to_num(val, default=0) -> float:
 
 @router.post("/services/{service_id}/sound-estimate", response_model=SoundEstimateOut)
 def sound_estimate(service_id: int, body: SoundEstimateIn, db: Session = Depends(get_db)):
-    svc = crud_service.service.get_service(db, service_id)
+    svc = crud.service.get_service(db, service_id)
     if not svc:
         raise error_response(
             "Service not found",
@@ -193,4 +192,3 @@ def sound_estimate(service_id: int, body: SoundEstimateIn, db: Session = Depends
         total=total.quantize(Decimal("0.01")),
         items=[{"key": it["key"], "label": it["label"], "amount": Decimal(str(it["amount"]))} for it in items],
     )
-

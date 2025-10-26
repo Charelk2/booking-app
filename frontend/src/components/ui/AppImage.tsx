@@ -10,7 +10,7 @@ type Props = Omit<ImageProps, 'src' | 'alt'> & {
 };
 
 export default function AppImage({ src, alt = '', ...rest }: Props) {
-  const url = toCanonicalImageUrl(src) || '/static/default-avatar.svg';
+  const url = toCanonicalImageUrl(src) || '/default-avatar.svg';
   // Respect explicit unoptimized flag when provided; otherwise default to
   // optimizing network images and skipping data/blob previews.
   const explicit = (rest as any)?.unoptimized;

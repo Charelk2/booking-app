@@ -72,6 +72,8 @@ def preview_label_for_message(
             return "Payment received"
         if "booking is confirmed" in lower or lower.startswith("booking confirmed"):
             return "Booking confirmed"
+        if lower.startswith("new quote requested"):
+            return "New quote requested"
 
         # Fallback snippet
         snippet = text.replace("\n", " ")

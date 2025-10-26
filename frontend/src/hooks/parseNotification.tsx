@@ -2,7 +2,6 @@ import {
   ChatBubbleLeftRightIcon,
   CalendarDaysIcon,
   CheckCircleIcon,
-  CurrencyDollarIcon,
   BellAlertIcon,
 } from '@heroicons/react/24/outline';
 import type { Notification } from '@/types';
@@ -55,12 +54,6 @@ export default function parseNotification(n: Notification): ParsedNotification {
         title: 'Booking updated',
         subtitle: truncate(n.message),
       };
-    case 'deposit_due':
-      return {
-        icon: <CurrencyDollarIcon className="w-5 h-5 text-indigo-600" />,
-        title: 'Deposit Due',
-        subtitle: truncate(n.message),
-      };
     case 'quote_accepted':
       return {
         icon: <CheckCircleIcon className="w-5 h-5 text-indigo-600" />,
@@ -91,4 +84,3 @@ export default function parseNotification(n: Notification): ParsedNotification {
       };
   }
 }
-

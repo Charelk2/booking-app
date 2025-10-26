@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import os
 import uuid
 from typing import List, Optional
+from pydantic import BaseModel
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
@@ -11,16 +12,23 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from .dependencies import get_current_service_provider, get_current_user
-from ..crud import crud_sound, crud_service, crud_booking_request, crud_message
+from .. import crud
 from ..models.sound_outreach import OutreachStatus
 from ..models.service import Service, ServiceType
 from ..utils import error_response
 from ..utils.notifications import (
     notify_service_request,
     notify_service_nudge,
+    notify_user_new_booking_request,
 )
 
 router = APIRouter(tags=["sound-outreach"])
+
+
+class SoundRetryIn(BaseModel):
+    """Payload for retrying sound outreach (JSON body)."""
+
+    event_city: str | None = None
 
 
 def _preferred_suppliers_for_city(
@@ -107,7 +115,7 @@ def kickoff_sound_outreach(
     ranked: list[int] = []
     candidates = []
     for sid in preferred_ids:
-        ssvc = crud_service.service.get_service(db, sid)
+        ssvc = crud.service.get_service(db, sid)
         if not ssvc:
             continue
         pb = (
@@ -142,7 +150,7 @@ def kickoff_sound_outreach(
         return {"status": "no_candidates"}
 
     # Don’t duplicate if active request exists
-    active = crud_sound.sound_orchestrator.get_active_outreach_for_booking(db, booking.id)
+    active = crud.crud_sound.sound_orchestrator.get_active_outreach_for_booking(db, booking.id)
     if active:
         return {"status": "already_in_progress"}
 
@@ -153,7 +161,7 @@ def kickoff_sound_outreach(
     # Create rows
     created: List[models.sound_outreach.SoundOutreachRequest] = []  # type: ignore[attr-defined]
     for sid in ranked[:3]:
-        supplier_service = crud_service.service.get_service(db, sid)
+        supplier_service = crud.service.get_service(db, sid)
         if not supplier_service:
             continue
         public_name: Optional[str] = None
@@ -168,7 +176,7 @@ def kickoff_sound_outreach(
             )
             public_name = artist_profile.business_name if artist_profile and artist_profile.business_name else supplier_service.title
 
-        row = crud_sound.sound_orchestrator.create_outbound(
+        row = crud.crud_sound.sound_orchestrator.create_outbound(
             db,
             booking_id=booking.id,
             supplier_service_id=sid,
@@ -177,7 +185,7 @@ def kickoff_sound_outreach(
         )
         # Create a supplier-facing booking request thread so they can ask questions and send a quote
         try:
-            supplier_request = crud_booking_request.create_booking_request(
+            supplier_request = crud.crud_booking_request.create_booking_request(
                 db,
                 booking_request=schemas.BookingRequestCreate(
                     artist_id=supplier_service.artist_id,
@@ -191,7 +199,7 @@ def kickoff_sound_outreach(
                 client_id=current_artist.id,
             )
             # Post a system message with a clear CTA
-            crud_message.create_message(
+            crud.crud_message.create_message(
                 db,
                 booking_request_id=supplier_request.id,
                 sender_id=current_artist.id,
@@ -218,6 +226,33 @@ def kickoff_sound_outreach(
         try:
             lock_url = f"/supplier/respond?booking_id={booking.id}&service_id={sid}&token={row.lock_token}"
             notify_service_request(supplier_service, booking, expires_at, lock_url)  # type: ignore[arg-type]
+            # Also persist a notification so offline suppliers see it in their inbox
+            try:
+                supplier_user = db.query(models.User).filter(models.User.id == supplier_service.artist_id).first()
+                # Sender display: prefer current artist profile business name if available
+                sender_display = None
+                try:
+                    artist_profile = (
+                        db.query(models.ServiceProviderProfile)
+                        .filter(models.ServiceProviderProfile.user_id == current_artist.id)
+                        .first()
+                    )
+                    if artist_profile and artist_profile.business_name:
+                        sender_display = artist_profile.business_name
+                    else:
+                        sender_display = f"{current_artist.first_name} {current_artist.last_name}"
+                except Exception:
+                    sender_display = f"{current_artist.first_name} {current_artist.last_name}"
+                if supplier_user:
+                    notify_user_new_booking_request(
+                        db,
+                        user=supplier_user,
+                        request_id=int(row.supplier_booking_request_id or 0) or supplier_request.id,
+                        sender_name=sender_display or "Artist",
+                        booking_type="Sound Service",
+                    )
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -250,7 +285,7 @@ def list_sound_outreach(booking_id: int, db: Session = Depends(get_db), current_
         raise error_response("Booking not found", {"booking_id": "not_found"}, status.HTTP_404_NOT_FOUND)
     if current_user.id not in (booking.artist_id, booking.client_id):
         raise error_response("Forbidden", {"booking_id": "forbidden"}, status.HTTP_403_FORBIDDEN)
-    rows = crud_sound.sound_orchestrator.get_all_outreach_for_booking(db, booking_id)
+    rows = crud.crud_sound.sound_orchestrator.get_all_outreach_for_booking(db, booking_id)
     return [
         {
             "id": r.id,
@@ -285,7 +320,7 @@ def retry_outreach(
     if booking.artist_id != current_artist.id:
         raise error_response("Forbidden", {"booking_id": "forbidden"}, status.HTTP_403_FORBIDDEN)
 
-    rows = crud_sound.sound_orchestrator.get_all_outreach_for_booking(db, booking_id)
+    rows = crud.crud_sound.sound_orchestrator.get_all_outreach_for_booking(db, booking_id)
     if any(r.status == OutreachStatus.ACCEPTED for r in rows):
         return {"status": "already_accepted"}
     if any(r.status == OutreachStatus.SENT for r in rows):
@@ -319,7 +354,7 @@ def retry_outreach(
     expires_at = datetime.utcnow() + timedelta(hours=24)
     created = []
     for sid in remaining[:3]:
-        supplier_service = crud_service.service.get_service(db, sid)
+        supplier_service = crud.service.get_service(db, sid)
         if not supplier_service:
             continue
         public_name = None
@@ -332,7 +367,7 @@ def retry_outreach(
                 .first()
             )
             public_name = artist_profile.business_name if artist_profile and artist_profile.business_name else supplier_service.title
-        row = crud_sound.sound_orchestrator.create_outbound(
+        row = crud.crud_sound.sound_orchestrator.create_outbound(
             db,
             booking_id=booking.id,
             supplier_service_id=sid,
@@ -344,15 +379,6 @@ def retry_outreach(
     db.add(booking)
     db.commit()
     return {"status": "restarted", "count": len(created)}
-
-
-from pydantic import BaseModel
-
-
-class SoundRetryIn(BaseModel):
-    """Payload for retrying sound outreach."""
-
-    event_city: str | None = None
 
 
 class SupplierRespondIn(BaseModel):
@@ -409,11 +435,11 @@ def supplier_respond(
 
     # Expire if token timed out
     if row.expires_at and datetime.utcnow() > row.expires_at:
-        crud_sound.sound_orchestrator.mark_expired(db, row)
+        crud.crud_sound.sound_orchestrator.mark_expired(db, row)
         return {"status": "expired"}
 
     if body.action.upper() == "DECLINE":
-        crud_sound.sound_orchestrator.mark_declined(db, row)
+        crud.crud_sound.sound_orchestrator.mark_declined(db, row)
         # Sequential flow will continue when artist calls outreach again; for now we record only
         return {"status": "declined"}
 
@@ -425,9 +451,9 @@ def supplier_respond(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
         # Accept and firm up
-        winner = crud_sound.sound_orchestrator.accept_winner(db, row, body.price)
+        winner = crud.crud_sound.sound_orchestrator.accept_winner(db, row, body.price)
 
-        # Flip booking to confirmed and notify deposit flow owner
+        # Flip booking to confirmed and notify client/artist via system lines
         booking.status = models.BookingStatus.CONFIRMED
         db.add(booking)
         db.commit()
@@ -606,9 +632,9 @@ def toggle_sound(
 
     if not body.requires_sound:
         # Expire any active outreach
-        rows = crud_sound.sound_orchestrator.get_active_outreach_for_booking(db, booking_id)
+        rows = crud.crud_sound.sound_orchestrator.get_active_outreach_for_booking(db, booking_id)
         for r in rows:
-            crud_sound.sound_orchestrator.mark_expired(db, r)
+            crud.crud_sound.sound_orchestrator.mark_expired(db, r)
         if booking.status == models.BookingStatus.PENDING_SOUND:
             booking.status = models.BookingStatus.CONFIRMED
             db.add(booking)

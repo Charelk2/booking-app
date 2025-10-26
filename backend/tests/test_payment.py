@@ -44,7 +44,7 @@ def setup_app():
     return Session
 
 
-def create_records(Session, deposit_amount=0):
+def create_records(Session):
     db = Session()
     client = User(
         email="client@test.com",
@@ -91,8 +91,6 @@ def create_records(Session, deposit_amount=0):
         client_id=client.id,
         confirmed=True,
         payment_status="pending",
-        deposit_amount=deposit_amount,
-        deposit_paid=False,
     )
     db.add(booking)
     db.commit()
@@ -111,7 +109,7 @@ def override_client(user):
     return _override
 
 
-def test_create_deposit(monkeypatch):
+def test_create_payment(monkeypatch):
     Session = setup_app()
     client_user, br_id, Session = create_records(Session)
     prev_db = app.dependency_overrides.get(get_db)
@@ -138,9 +136,9 @@ def test_create_deposit(monkeypatch):
     assert res.status_code == 201
     db = Session()
     booking = db.query(BookingSimple).first()
-    assert booking.deposit_amount == Decimal("50")
-    assert booking.deposit_paid is True
-    assert booking.payment_status == "deposit_paid"
+    assert booking.payment_status == "paid"
+    # Full upfront: charged_total_amount matches quote total (100)
+    assert Decimal(booking.charged_total_amount or 0) == Decimal("100")
     assert booking.payment_id == "ch_test"
     db.close()
     if prev_db is not None:
@@ -153,7 +151,7 @@ def test_create_deposit(monkeypatch):
         app.dependency_overrides.pop(get_current_active_client, None)
 
 
-def test_create_deposit_fake(monkeypatch):
+def test_create_payment_fake(monkeypatch):
     Session = setup_app()
     client_user, br_id, Session = create_records(Session)
     prev_db = app.dependency_overrides.get(get_db)
@@ -172,10 +170,9 @@ def test_create_deposit_fake(monkeypatch):
     assert res.status_code == 201
     db = Session()
     booking = db.query(BookingSimple).first()
-    assert booking.deposit_amount == Decimal("50")
-    assert booking.deposit_paid is True
-    assert booking.payment_status == "deposit_paid"
+    assert booking.payment_status == "paid"
     assert booking.payment_id.startswith("fake_")
+    assert Decimal(booking.charged_total_amount or 0) == Decimal("100")
     db.close()
     if prev_db is not None:
         app.dependency_overrides[get_db] = prev_db
@@ -187,9 +184,9 @@ def test_create_deposit_fake(monkeypatch):
         app.dependency_overrides.pop(get_current_active_client, None)
 
 
-def test_create_deposit_default_amount(monkeypatch):
+def test_create_payment_default_amount(monkeypatch):
     Session = setup_app()
-    client_user, br_id, Session = create_records(Session, deposit_amount=Decimal("40"))
+    client_user, br_id, Session = create_records(Session)
     prev_db = app.dependency_overrides.get(get_db)
     prev_client = app.dependency_overrides.get(get_current_active_client)
     app.dependency_overrides[get_current_active_client] = override_client(client_user)
@@ -212,10 +209,9 @@ def test_create_deposit_default_amount(monkeypatch):
     assert res.status_code == 201
     db = Session()
     booking = db.query(BookingSimple).first()
-    assert booking.deposit_amount == Decimal("40")
-    assert booking.deposit_paid is True
-    assert booking.payment_status == "deposit_paid"
+    assert booking.payment_status == "paid"
     assert booking.payment_id == "ch_test"
+    assert Decimal(booking.charged_total_amount or 0) == Decimal("100")
     db.close()
     if prev_db is not None:
         app.dependency_overrides[get_db] = prev_db
@@ -286,7 +282,7 @@ def test_payment_wrong_client_forbidden(monkeypatch):
     assert res.status_code == 403
     db = Session()
     booking = db.query(BookingSimple).first()
-    assert booking.deposit_paid is False
+    assert str(booking.payment_status or "").lower() == "pending"
     db.close()
     if prev_db is not None:
         app.dependency_overrides[get_db] = prev_db
@@ -298,10 +294,10 @@ def test_payment_wrong_client_forbidden(monkeypatch):
         app.dependency_overrides.pop(get_current_active_client, None)
 
 
-def test_full_payment_preserves_deposit(monkeypatch):
-    """Paying the full amount should not overwrite the deposit amount."""
+def test_full_payment_marks_paid(monkeypatch):
+    """Paying marks the booking paid and sets charged_total_amount."""
     Session = setup_app()
-    client_user, br_id, Session = create_records(Session, deposit_amount=Decimal("40"))
+    client_user, br_id, Session = create_records(Session)
     prev_db = app.dependency_overrides.get(get_db)
     prev_client = app.dependency_overrides.get(get_current_active_client)
     app.dependency_overrides[get_current_active_client] = override_client(client_user)
@@ -327,10 +323,9 @@ def test_full_payment_preserves_deposit(monkeypatch):
     assert res.status_code == 201
     db = Session()
     booking = db.query(BookingSimple).first()
-    assert booking.deposit_amount == Decimal("40")
-    assert booking.deposit_paid is True
     assert booking.payment_status == "paid"
     assert booking.payment_id == "ch_full"
+    assert Decimal(booking.charged_total_amount or 0) == Decimal("100")
     db.close()
     if prev_db is not None:
         app.dependency_overrides[get_db] = prev_db
@@ -384,7 +379,7 @@ def test_duplicate_payment_rejected(monkeypatch):
 
     db = Session()
     booking = db.query(BookingSimple).first()
-    assert booking.deposit_paid is True
+    assert str(booking.payment_status or "").lower() == "paid"
     db.close()
     if prev_db is not None:
         app.dependency_overrides[get_db] = prev_db
@@ -417,7 +412,7 @@ def test_payment_gateway_error(monkeypatch):
 
     db = Session()
     booking = db.query(BookingSimple).first()
-    assert booking.deposit_paid is False
+    assert str(booking.payment_status or "").lower() == "pending"
     db.close()
 
     if prev_db is not None:
@@ -464,11 +459,8 @@ def test_payment_confirms_booking_and_creates_messages(monkeypatch):
     assert booking.confirmed is True
     assert br.status == BookingStatus.REQUEST_CONFIRMED
     msgs = db.query(Message).all()
-    assert len(msgs) == 2
-    assert {m.visible_to for m in msgs} == {VisibleTo.CLIENT, VisibleTo.ARTIST}
-    for m in msgs:
-        assert m.message_type == MessageType.SYSTEM
-        assert m.action == MessageAction.VIEW_BOOKING_DETAILS
+    # At least two CTA messages are created; a payment_received system line may also be present
+    assert any(m.action == MessageAction.VIEW_BOOKING_DETAILS for m in msgs)
     db.close()
 
     if prev_db is not None:

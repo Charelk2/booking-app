@@ -214,6 +214,15 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
     }
   }, [ep, eventDateISO]);
 
+  // Click handler for header/button: prefer onContinuePrep, fallback to router
+  const handleHeaderClick = (e?: React.MouseEvent) => {
+    try { e?.stopPropagation?.(); } catch {}
+    try {
+      if (onContinuePrep) onContinuePrep(bookingId);
+      else router.push(`/dashboard/events/${bookingId}`);
+    } catch {}
+  };
+
   // No skeleton — render a minimal CTA instantly; data hydrates in the background
 
   // CTA when no prep record exists
@@ -246,15 +255,23 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
         >
           <div>
             {summaryOnly ? (
-              <Link
-                href={`/dashboard/events/${bookingId}`}
-                onClick={(e) => e.stopPropagation()}
-                className="no-underline"
-              >
-                <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-                  Let’s prep your event
-                </h3>
-              </Link>
+              bookingId > 0 ? (
+                <Link
+                  href={`/dashboard/events/${bookingId}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="no-underline"
+                >
+                  <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
+                    Let’s prep your event
+                  </h3>
+                </Link>
+              ) : (
+                <button type="button" onClick={handleHeaderClick} className="no-underline">
+                  <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
+                    Let’s prep your event
+                  </h3>
+                </button>
+              )
             ) : (
               <h3 className="text-lg font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
                 Let’s prep your event
@@ -280,7 +297,6 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
     );
   }
 
-  // Summary UI
   return (
     <GlassCard
       role="button"
@@ -309,15 +325,23 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
       >
         <div>
           {summaryOnly ? (
-            <Link
-              href={`/dashboard/events/${bookingId}`}
-              onClick={(e) => e.stopPropagation()}
-              className="no-underline"
-            >
-              <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-                Let’s prep your event
-              </h3>
-            </Link>
+            bookingId > 0 ? (
+              <Link
+                href={`/dashboard/events/${bookingId}`}
+                onClick={(e) => e.stopPropagation()}
+                className="no-underline"
+              >
+                <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
+                  Let’s prep your event
+                </h3>
+              </Link>
+            ) : (
+              <button type="button" onClick={handleHeaderClick} className="no-underline">
+                <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
+                  Let’s prep your event
+                </h3>
+              </button>
+            )
           ) : (
             <h3 className="text-lg font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
               Let’s prep your event

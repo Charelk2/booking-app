@@ -14,7 +14,6 @@ class NotificationType(str, enum.Enum):
     QUOTE_EXPIRED = "quote_expired"
     QUOTE_EXPIRING = "quote_expiring"
     NEW_BOOKING = "new_booking"
-    DEPOSIT_DUE = "deposit_due"
     REVIEW_REQUEST = "review_request"
 
 class Notification(BaseModel):

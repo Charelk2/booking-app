@@ -30,7 +30,7 @@ describe("ClientBookingsPage", () => {
     jest.clearAllMocks();
   });
 
-  it("renders upcoming and past bookings with deposit info", async () => {
+  it("renders upcoming and past bookings", async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
     (useAuth as jest.Mock).mockReturnValue({
       user: {
@@ -53,9 +53,7 @@ describe("ClientBookingsPage", () => {
             status: "confirmed",
             total_price: 100,
             notes: "",
-            deposit_amount: 50,
-            deposit_due_by: new Date("2024-01-08").toISOString(),
-            payment_status: "deposit_paid",
+            payment_status: "paid",
             payment_id: "pay_upcoming",
             service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
@@ -74,7 +72,6 @@ describe("ClientBookingsPage", () => {
             status: "completed",
             total_price: 200,
             notes: "",
-            deposit_amount: 100,
             payment_status: "paid",
             service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
@@ -96,9 +93,7 @@ describe("ClientBookingsPage", () => {
     expect(div.textContent).toContain("Upcoming Bookings");
     expect(div.textContent).toContain("Past Bookings");
     expect(div.textContent).toContain("Gig - Artist");
-    expect(div.textContent).toContain("Deposit:");
-    expect(div.textContent).toContain("Deposit Paid");
-    expect(div.textContent).not.toContain("Deposit due by");
+    // No deposit copy; shows statuses and receipt link
     expect(div.textContent).toContain("Requested");
     expect(div.textContent).toContain("Completed");
     const link = div.querySelector('a[data-booking-id="1"]');
@@ -139,8 +134,7 @@ describe("ClientBookingsPage", () => {
             status: "completed",
             total_price: 100,
             notes: "",
-            deposit_amount: 50,
-            payment_status: "deposit_paid",
+            payment_status: "paid",
             service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
           },
@@ -163,7 +157,7 @@ describe("ClientBookingsPage", () => {
     div.remove();
   });
 
-  it("opens payment modal with deposit amount when clicking pay button", async () => {
+  it("opens payment modal with total amount when clicking pay button", async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
     (useAuth as jest.Mock).mockReturnValue({
       user: {
@@ -186,7 +180,6 @@ describe("ClientBookingsPage", () => {
             status: "confirmed",
             total_price: 120,
             notes: "",
-            deposit_amount: 60,
             payment_status: "pending",
             service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
@@ -205,7 +198,7 @@ describe("ClientBookingsPage", () => {
         status: "confirmed",
         total_price: 120,
         notes: "",
-        deposit_amount: 80,
+        total_price: 120,
         payment_status: "pending",
         service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 1 },
@@ -223,7 +216,7 @@ describe("ClientBookingsPage", () => {
     await flushPromises();
 
     const payBtn = div.querySelector(
-      '[data-testid="pay-deposit-button"]',
+      '[data-testid="pay-now-button"]',
     ) as HTMLButtonElement;
     expect(payBtn).not.toBeNull();
 
@@ -234,7 +227,7 @@ describe("ClientBookingsPage", () => {
 
     expect(getBookingDetails).toHaveBeenCalledWith(5);
     const input = div.querySelector('input[type="text"]') as HTMLInputElement;
-    expect(input.value).toBe(formatCurrency(80));
+    expect(input.value).toBe(formatCurrency(120));
 
     act(() => {
       root.unmount();
@@ -265,8 +258,7 @@ describe("ClientBookingsPage", () => {
             status: "confirmed",
             total_price: 150,
             notes: "",
-            deposit_amount: 50,
-            payment_status: "deposit_paid",
+            payment_status: "paid",
             service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
             booking_request_id: 12,
@@ -296,7 +288,7 @@ describe("ClientBookingsPage", () => {
     div.remove();
   });
 
-  it("shows alert when there are pending deposits", async () => {
+  it("shows alert when there are pending payments", async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
     (useAuth as jest.Mock).mockReturnValue({
       user: {
@@ -319,7 +311,6 @@ describe("ClientBookingsPage", () => {
             status: "confirmed",
             total_price: 100,
             notes: "",
-            deposit_amount: 50,
             payment_status: "pending",
             service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },

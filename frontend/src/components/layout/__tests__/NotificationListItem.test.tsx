@@ -48,43 +48,21 @@ describe('NotificationListItem', () => {
     expect(parsed.subtitle).toBe('New message from Alice: Hi');
   });
 
-  it('parses deposit due notifications', () => {
+  it('parses new booking notifications', () => {
     const n: UnifiedNotification = {
-      type: 'deposit_due',
+      type: 'new_booking',
       timestamp: new Date().toISOString(),
       is_read: false,
-      content: 'Deposit R200 due by 2025-12-31',
+      content: 'New booking #5',
     } as UnifiedNotification;
     const parsed = parseItem(n);
-    expect(parsed.title).toBe('Deposit Due');
-    expect(parsed.icon).toBe('💰');
-    expect(parsed.status).toBe('due');
+    expect(parsed.title).toBe('Booking Confirmed');
+    expect(parsed.status).toBe('reminder');
   });
 
-  it('extracts amount and due date from deposit reminder', () => {
-    const n: UnifiedNotification = {
-      type: 'deposit_due',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      content: 'Deposit R50.00 due by 2025-01-01',
-    } as UnifiedNotification;
-    const parsed = parseItem(n);
-    expect(parsed.subtitle).toBe('R50.00 due by Jan 1, 2025');
-    expect(parsed.icon).toBe('💰');
-    expect(parsed.status).toBe('due');
-  });
+  // deposit reminders removed
 
-  it('parses celebratory deposit due messages', () => {
-    const n: UnifiedNotification = {
-      type: 'deposit_due',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      content: 'Booking confirmed – Deposit R75 due by 2025-07-01',
-    } as UnifiedNotification;
-    const parsed = parseItem(n);
-    expect(parsed.subtitle).toBe('Booking confirmed');
-    expect(parsed.metadata).toBe('R75 due by Jul 1, 2025');
-  });
+  // deposit reminders removed
 
 
   it('parses review request notifications', () => {
@@ -120,16 +98,7 @@ describe('NotificationListItem', () => {
     expect(span?.getAttribute('title')).toBe('Review Request');
   });
 
-  it('handles missing content gracefully', () => {
-    const n: UnifiedNotification = {
-      type: 'deposit_due',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-    } as UnifiedNotification;
-    const parsed = parseItem(n);
-    expect(parsed.title).toBe('Deposit Due');
-    expect(parsed.subtitle).toBe('');
-  });
+  // deposit due removed
 
   it('parses new booking request with sender and service', () => {
     const n: UnifiedNotification = {
@@ -187,17 +156,7 @@ describe('NotificationListItem', () => {
     expect(parsed.status).toBe('reminder');
   });
 
-  it('uses initials fallback for deposit due', () => {
-    const n: UnifiedNotification = {
-      type: 'deposit_due',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      content: 'Deposit R100 due by 2025-06-30',
-      sender_name: 'John Doe',
-    } as UnifiedNotification;
-    const parsed = parseItem(n);
-    expect(parsed.initials).toBe('JD');
-  });
+  // deposit due removed
 
   it('includes initials for unknown notification types', () => {
     const n: UnifiedNotification = {
@@ -258,75 +217,11 @@ describe('NotificationListItem', () => {
     expect(img?.getAttribute('src')).toContain('avatar.jpg');
   });
 
-  it('renders a profile image for due status', () => {
-    const n: UnifiedNotification = {
-      type: 'deposit_due',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      content: 'Deposit R50 due by 2025-06-30',
-      avatar_url: '/static/avatar.jpg',
-    } as UnifiedNotification;
+  // deposit due removed
 
-    act(() => {
-      root.render(
-        React.createElement(NotificationListItem, {
-          n,
-          onClick: () => {},
-        }),
-      );
-    });
+  // deposit due removed
 
-    const img = container.querySelector('img');
-    expect(img?.getAttribute('src')).toContain('avatar.jpg');
-  });
-
-  it('prefers profile picture over avatar url', () => {
-    const n: UnifiedNotification = {
-      type: 'deposit_due',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      content: 'Deposit R60 due by 2025-06-30',
-      profile_picture_url: '/static/profile.jpg',
-      avatar_url: '/static/avatar.jpg',
-    } as UnifiedNotification;
-
-    const parsed = parseItem(n);
-    expect(parsed.avatarUrl).toBe('/static/profile.jpg');
-
-    act(() => {
-      root.render(
-        React.createElement(NotificationListItem, {
-          n,
-          onClick: () => {},
-        }),
-      );
-    });
-
-    const img = container.querySelector('img');
-    expect(img?.getAttribute('src')).toContain('profile.jpg');
-  });
-
-  it('falls back to a default avatar when no avatar URL is provided', () => {
-    const n: UnifiedNotification = {
-      type: 'deposit_due',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      content: 'Deposit R75 due by 2025-06-30',
-    } as UnifiedNotification;
-
-    act(() => {
-      root.render(
-        React.createElement(NotificationListItem, {
-          n,
-          onClick: () => {},
-        }),
-      );
-    });
-
-    const img = container.querySelector('img');
-    expect(img?.getAttribute('src')).toContain('default-avatar.svg');
-    expect(container.textContent).not.toContain('💰');
-  });
+  // deposit due removed
 
   it('passes avatarUrl to Avatar component', () => {
     const n: UnifiedNotification = {

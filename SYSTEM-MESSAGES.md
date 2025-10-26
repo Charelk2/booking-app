@@ -51,13 +51,12 @@ Helper: `backend/app/utils/messages.py::preview_label_for_message`
 Labeling helper: `frontend/src/lib/systemMessages.ts`
 - `isSystemMessage(m)`: true if `message_type==='SYSTEM'` or has `system_key`.
 - `systemLabel(m)`: maps known keys to short labels; fallback = `content` or `"Update"`.
-  - Known keys: `booking_details_v1`, `event_prep_*`, `quote_accepted`, `quote_declined`, `quote_expiring`, `quote_expired`, `deposit_due`, `booking_confirmed`.
+  - Known keys: `booking_details_v1`, `event_prep_*`, `quote_accepted`, `quote_declined`, `quote_expiring`, `quote_expired`, `booking_confirmed`.
 
 Central renderer: `frontend/src/components/booking/MessageThread.tsx` (function `renderSystemLine`) governs:
 - Centered gray separators for generic `SYSTEM` lines.
 - CTA extraction:
   - Receipt download: detects `system_key==='payment_received'` or any label containing “receipt”; adds a `Download receipt` link resolved from `bookingDetails.payment_id` or a URL parsed from the message content.
-  - Deposit due: shows a `Pay now` button if a payable quote exists and payment isn’t complete.
 - Event reminders:
   - Normalizes copy to `Event in {n} days: {date}. Add to calendar: {url}. If not done yet, please finalise event prep.` (if a calendar link can be built) or a no‑link variant.
 - Suppression:

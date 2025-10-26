@@ -11,7 +11,12 @@ import os
 import logging
 import enum
 import re
-from twilio.rest import Client
+try:  # optional dependency
+    from twilio.rest import Client  # type: ignore
+    _HAS_TWILIO = True
+except Exception:  # pragma: no cover - optional for tooling
+    Client = None  # type: ignore
+    _HAS_TWILIO = False
 from . import background_worker
 
 TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -60,25 +65,7 @@ def format_notification_message(
         return f"Quote #{kwargs.get('quote_id')} expiring soon"
     if ntype == NotificationType.NEW_BOOKING:
         return f"New booking #{kwargs.get('booking_id')}"
-    if ntype == NotificationType.DEPOSIT_DUE:
-        amount = kwargs.get("deposit_amount")
-        due_by = kwargs.get("deposit_due_by")
-        msg = "Deposit"
-        if amount is not None:
-            try:
-                amt_str = f"R{float(amount):.2f}"
-            except Exception:  # pragma: no cover - formatting should not fail
-                amt_str = f"R{amount}"
-            msg += f" {amt_str}"
-        if due_by is not None:
-            try:
-                date_str = due_by.strftime("%Y-%m-%d")
-                msg += f" due by {date_str}"
-            except Exception:
-                msg += " due"
-        else:
-            msg += " due"
-        return msg
+    # Deposits removed – no special formatting
     if ntype == NotificationType.REVIEW_REQUEST:
         return f"Please review your booking #{kwargs.get('booking_id')}"
     return str(kwargs.get("content", ""))
@@ -116,7 +103,7 @@ def _resolve_sender_avatar(
             # Prefer the artist's profile picture from their profile, but fall
             # back to the user record's ``profile_picture_url`` when the
             # profile lacks one. This ensures notifications like booking
-            # confirmed or deposit due can always display the artist's avatar
+            # confirmed notifications should display the artist's avatar
             # to clients.
             avatar = None
             if profile and profile.profile_picture_url:
@@ -215,10 +202,7 @@ def _build_response(db: Session, n: models.Notification) -> NotificationResponse
                 n.link,
                 exc,
             )
-    elif n.type in [
-        models.NotificationType.DEPOSIT_DUE,
-        models.NotificationType.NEW_BOOKING,
-    ]:
+    elif n.type in [models.NotificationType.NEW_BOOKING]:
         try:
             match = re.search(r"/bookings/(\d+)", n.link)
             if match:
@@ -380,7 +364,7 @@ def _build_response(db: Session, n: models.Notification) -> NotificationResponse
 def _send_sms(phone: Optional[str], message: str) -> None:
     """Send an SMS notification in the background with retries."""
 
-    if not phone or not TWILIO_SID or not TWILIO_TOKEN or not TWILIO_FROM:
+    if (not phone) or (not TWILIO_SID) or (not TWILIO_TOKEN) or (not TWILIO_FROM) or (not _HAS_TWILIO):
         return
 
     def _task():
@@ -441,6 +425,8 @@ def notify_user_new_message(
     booking_request_id: int,
     content: str,
     message_type: "models.MessageType",
+    *,
+    message_id: int | None = None,
 ) -> None:
     """Create a notification for a new message."""
     if message_type == models.MessageType.SYSTEM:
@@ -486,75 +472,17 @@ def notify_user_new_message(
         link,
         sender_name=sender_name,
         avatar_url=avatar_url,
+        # Realtime enrichment for clients to build precise, dedupable stubs
+        booking_request_id=booking_request_id,
+        sender_id=int(sender.id) if getattr(sender, "id", None) else None,
+        message_type=(message_type.value if hasattr(message_type, "value") else str(message_type)),
+        message_id=int(message_id) if message_id is not None else None,
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
 
 
-def notify_deposit_due(
-    db: Session,
-    user: Optional[User],
-    booking_id: int,
-    deposit_amount: Optional[float] = None,
-    deposit_due_by: Optional["datetime"] = None,
-) -> None:
-    """Notify a user that a deposit payment is due for a booking."""
-    if user is None:
-        logger.error(
-            "Failed to send deposit due notification: user missing for booking %s",
-            booking_id,
-        )
-        return
-
-    booking = (
-        db.query(models.BookingSimple)
-        .filter(models.BookingSimple.id == booking_id)
-        .first()
-    )
-    if booking is None:
-        logger.error(
-            "Failed to send deposit due notification: booking %s missing",
-            booking_id,
-        )
-        return
-
-    # Resolve the opposite party so the frontend can display the correct
-    # avatar and sender name. Clients should see the artist's avatar while
-    # artists (if ever notified) would see the client's details.
-    sender_name, avatar_url = _resolve_sender_avatar(
-        db, user.id, booking.client_id, booking.artist_id
-    )
-
-    prefix = ""
-    if not booking.deposit_paid:
-        from ..crud import crud_notification
-
-        existing = crud_notification.get_notifications_for_user(db, user.id)
-        has_prior = any(
-            n.type == NotificationType.DEPOSIT_DUE
-            and f"/dashboard/client/bookings/{booking_id}" in n.link
-            for n in existing
-        )
-        if not has_prior:
-            prefix = "Booking confirmed – "
-
-    message = prefix + format_notification_message(
-        NotificationType.DEPOSIT_DUE,
-        booking_id=booking_id,
-        deposit_amount=deposit_amount,
-        deposit_due_by=deposit_due_by,
-    )
-    _create_and_broadcast(
-        db,
-        user.id,
-        NotificationType.DEPOSIT_DUE,
-        message,
-        f"/dashboard/client/bookings/{booking_id}?pay=1",
-        sender_name=sender_name,
-        avatar_url=avatar_url,
-    )
-    logger.info("Notify %s: %s", user.email, message)
-    _send_sms(user.phone_number, message)
+## Deposits removed — no deposit reminder notifications
 
 
 def notify_user_new_booking_request(
@@ -697,6 +625,32 @@ def notify_quote_expired(
     _send_sms(user.phone_number, message)
 
 
+def notify_quote_requested(
+    db: Session,
+    user: User,
+    booking_request_id: int,
+) -> None:
+    """Notify a provider that a client requested a new quote in this thread.
+
+    Uses NEW_MESSAGE type for compatibility with existing clients. The
+    notification builder will enrich sender/avatar based on the thread link.
+    """
+    message = format_notification_message(
+        NotificationType.NEW_MESSAGE,
+        content="New quote requested",
+    )
+    _create_and_broadcast(
+        db,
+        user.id,
+        NotificationType.NEW_MESSAGE,
+        message,
+        f"/booking-requests/{booking_request_id}",
+        request_id=booking_request_id,
+    )
+    logger.info("Notify %s: %s", user.email, message)
+    _send_sms(user.phone_number, message)
+
+
 def notify_new_booking(db: Session, user: Optional[User], booking_id: int) -> None:
     """Notify a user of a new booking.
 
@@ -805,19 +759,17 @@ except Exception:  # pragma: no cover - fallback for circular import during test
     notifications_manager = _DummyManager()
 
 
-def _safe_broadcast(payload: dict) -> None:
-    """Fire-and-forget broadcast that works with or without a running loop.
+def _safe_broadcast_to_user(user_id: int, payload: dict) -> None:
+    """Best-effort broadcast of a notification payload to a specific user.
 
-    - If a running event loop exists, schedule via ``create_task``.
-    - If no loop is running (e.g., during sync test calls), run the coroutine
-      to completion in a temporary loop to avoid RuntimeError.
+    Works with or without a running event loop. Falls back gracefully on errors.
     """
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(notifications_manager.broadcast(payload))
+        loop.create_task(notifications_manager.broadcast(int(user_id), payload))
     except RuntimeError:
         try:
-            asyncio.run(notifications_manager.broadcast(payload))
+            asyncio.run(notifications_manager.broadcast(int(user_id), payload))
         except Exception as exc:  # pragma: no cover - best effort only
             logger.warning("broadcast fallback failed: %s", exc)
 
@@ -832,10 +784,10 @@ def notify_service_request(service: "models.Service", booking: "models.Booking",
     try:
         supplier_id = service.artist_id
         message = f"New sound request for booking {booking.id}. Respond: {lock_url}"
-        _safe_broadcast(
+        _safe_broadcast_to_user(
+            supplier_id,
             {
                 "type": "service_request",
-                "supplier_id": supplier_id,
                 "booking_id": booking.id,
                 "expires_at": expires_at.isoformat() if expires_at else None,
                 "lock_url": lock_url,
@@ -852,10 +804,10 @@ def notify_service_nudge(service: "models.Service", booking: "models.Booking") -
     try:
         supplier_id = service.artist_id
         message = f"Reminder: pending sound request for booking {booking.id}"
-        _safe_broadcast(
+        _safe_broadcast_to_user(
+            supplier_id,
             {
                 "type": "service_nudge",
-                "supplier_id": supplier_id,
                 "booking_id": booking.id,
                 "service_id": service.id,
             }

@@ -91,23 +91,22 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
     // Suppress immediate autocomplete reopen/fetch after a selection
     const suppressAutocompleteRef = useRef(false);
 
-    // Load Google Places API once
-    useEffect(() => {
-      let mounted = true;
-      (async () => {
-        const places = await loadPlaces();
-        if (!mounted || !places) return;
+    // Lazily initialize Google Places API on user intent (focus/typing)
+    const initStartedRef = useRef(false);
+    const ensurePlacesReady = async () => {
+      if (isPlacesReady || initStartedRef.current) return;
+      initStartedRef.current = true;
+      const places = await loadPlaces();
+      if (!places) { initStartedRef.current = false; return; }
+      try {
         autocompleteServiceRef.current = new places.AutocompleteService();
-        placesServiceRef.current = new places.PlacesService(
-          document.createElement("div")
-        );
+        placesServiceRef.current = new places.PlacesService(document.createElement("div"));
         sessionTokenRef.current = new places.AutocompleteSessionToken();
         setIsPlacesReady(true);
-      })();
-      return () => {
-        mounted = false;
-      };
-    }, []);
+      } finally {
+        // keep initStartedRef true to avoid retrigger loops even if Places fails
+      }
+    };
 
     // Get user geolocation once (soft optional)
     useEffect(() => {
@@ -250,6 +249,8 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
 
     // Input change
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      // Kick off Places load on first keystroke to keep UX snappy
+      void ensurePlacesReady();
       onValueChange(e.target.value);
       setDropdownVisible(true);
       setHighlightedIndex(-1);
@@ -394,6 +395,8 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           onKeyDown={handleKeyDown}
           onFocus={(e) => {
             setFocused(true);
+            // Initialize Places on first focus
+            void ensurePlacesReady();
             // Keep current behavior: open dropdown if we have content…
             if (predictions.length > 0) {
               setDropdownVisible(true);

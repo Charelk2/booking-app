@@ -1,18 +1,13 @@
 import { test, expect } from '@playwright/test';
-import {
-  setupDepositStubs,
-  stubRegister,
-  stubServiceProvider,
-} from './stub-helpers';
+import { stubRegister, stubServiceProvider } from './stub-helpers';
 
-test.describe('Signup to deposit flow', () => {
+test.describe('Signup to booking flow', () => {
   test.beforeEach(async ({ page }) => {
-    await setupDepositStubs(page);
     await stubRegister(page);
     await stubServiceProvider(page);
   });
 
-  test('completes signup, requests quote, and pays deposit', async ({ page }) => {
+  test('completes signup, requests quote, and pays', async ({ page }) => {
     await page.goto('/register');
     await page.getByLabel('Email address').fill('new@test.com');
     await page.getByLabel('First name').fill('New');
@@ -48,7 +43,8 @@ test.describe('Signup to deposit flow', () => {
 
     await page.goto('/dashboard/client/bookings');
     responsePromise = page.waitForResponse('**/api/v1/payments');
-    await page.getByTestId('pay-deposit-button').first().click();
+    // Pay in booking details page (button id updated in UI)
+    await page.getByTestId('pay-now-button').first().click();
     response = await responsePromise;
     expect(response.status()).toBe(200);
     await expect(page.getByRole('dialog')).not.toBeVisible();

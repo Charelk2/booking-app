@@ -27,7 +27,7 @@ interface Item {
 
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const pathname = usePathname();
-  const { count: unreadThreadsCount } = useUnreadThreadsCount(30000);
+  const { count: unreadThreadsCount } = useUnreadThreadsCount();
   const scrollDir = useScrollDirection();
   const navRef = useRef<HTMLElement>(null);
 

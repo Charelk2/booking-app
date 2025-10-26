@@ -24,9 +24,6 @@ class BookingSimple(BaseModel):
     location = Column(String, nullable=True)
     payment_status = Column(String, nullable=False, default="pending")
     payment_id = Column(String, nullable=True)
-    deposit_amount = Column(Numeric(10, 2), nullable=True, default=0)
-    deposit_due_by = Column(DateTime, nullable=True)
-    deposit_paid = Column(Boolean, nullable=False, default=False)
     # Track total amount charged (for full-charge flows) to support later reconciliation
     charged_total_amount = Column(Numeric(10, 2), nullable=True)
     # Authorization holds (simulated) for artist and sound portions

@@ -78,7 +78,7 @@ def compute_progress(db: Session, booking_id: int, ep: models.EventPrep) -> Tupl
     # 5) Stage power
     if bool(ep.stage_power_confirmed):
         done += 1
-    # 6) Payment / balance acknowledged
+    # 6) Payment acknowledged (full-upfront)
     paid = False
     # Derive from BookingSimple if linked via QuoteV2
     br_id = _resolve_booking_request_id(db, booking_id)
@@ -89,7 +89,7 @@ def compute_progress(db: Session, booking_id: int, ep: models.EventPrep) -> Tupl
             .filter(models.QuoteV2.booking_request_id == br_id)
             .first()
         )
-        if bs and (bs.deposit_paid or (bs.payment_status or "").lower() in {"paid", "deposit_paid"} or (bs.charged_total_amount or 0) > 0):
+        if bs and ((bs.payment_status or "").lower() == "paid" or (bs.charged_total_amount or 0) > 0):
             paid = True
     # Also treat confirmed/completed bookings as acknowledged
     booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()

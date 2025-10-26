@@ -22,10 +22,11 @@ except Exception:  # pragma: no cover - redis is optional
     aioredis = None
 
 from .dependencies import get_db
-from ..crud import crud_booking_request
+from .. import crud
 from ..models.user import User
 from .auth import ALGORITHM, SECRET_KEY, get_user_by_email
 from ..database import SessionLocal
+from ..utils.metrics import incr as metrics_incr, timing_ms as metrics_timing
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,41 @@ def _cache_get_user_id(email: str) -> int | None:
 def _cache_set_user_id(email: str, user_id: int, ttl_ms: int = 5000) -> None:
     try:
         _USER_ID_CACHE[email] = (int(user_id), (time.time() * 1000.0) + ttl_ms)
+    except Exception:
+        pass
+
+
+# ————————————————————————————————————————————————————————————————
+# Presence registry (authoritative per-process; optional Redis mirroring)
+# We intentionally keep this minimal: a simple connection counter per user
+# and a current status. This powers subscribe-time presence snapshots so late
+# subscribers get a consistent view.
+_presence_counts: Dict[int, int] = {}
+_presence_status: Dict[int, str] = {}
+
+def _presence_is_online(user_id: int) -> bool:
+    try:
+        return int(_presence_counts.get(int(user_id), 0)) > 0 or (_presence_status.get(int(user_id)) == "online")
+    except Exception:
+        return False
+
+def _presence_mark_online(user_id: int) -> None:
+    try:
+        uid = int(user_id)
+        _presence_counts[uid] = int(_presence_counts.get(uid, 0)) + 1
+        _presence_status[uid] = "online"
+    except Exception:
+        pass
+
+def _presence_mark_offline(user_id: int) -> None:
+    try:
+        uid = int(user_id)
+        cnt = int(_presence_counts.get(uid, 0)) - 1
+        if cnt <= 0:
+            _presence_counts[uid] = 0
+            _presence_status[uid] = "offline"
+        else:
+            _presence_counts[uid] = cnt
     except Exception:
         pass
 
@@ -122,7 +158,7 @@ async def _safe_publish(channel: str, payload: str) -> None:
             return
 
 PING_INTERVAL = 30
-PONG_TIMEOUT = 10
+PONG_TIMEOUT = 20
 SEND_TIMEOUT = 1
 
 
@@ -178,9 +214,18 @@ class ConnectionManager:
     async def broadcast(
         self, request_id: int, message: Any, publish: bool = True
     ) -> None:
+        start = None
+        try:
+            start = asyncio.get_running_loop().time()
+        except Exception:
+            start = None
         payload = jsonable_encoder(message)
+        error = False
         if publish:
-            await _safe_publish(f"ws:{request_id}", json.dumps(payload))
+            try:
+                await _safe_publish(f"ws:{request_id}", json.dumps(payload))
+            except Exception:
+                error = True
         # Fan out to multiplex topic subscribers in this process
         try:
             await multiplex_manager.broadcast_topic(
@@ -189,7 +234,7 @@ class ConnectionManager:
                 publish=publish,
             )
         except Exception:
-            pass
+            error = True
         for ws in list(self.active_connections.get(request_id, [])):
             try:
                 await asyncio.wait_for(ws.send_json(payload), timeout=SEND_TIMEOUT)
@@ -204,6 +249,7 @@ class ConnectionManager:
                     )
                 finally:
                     self.disconnect(request_id, ws)
+                error = True
             except Exception:
                 # Client likely disconnected abruptly; drop silently to avoid noisy traces
                 try:
@@ -211,6 +257,17 @@ class ConnectionManager:
                 except Exception:
                     pass
                 self.disconnect(request_id, ws)
+                error = True
+        # Metrics (best-effort, non-blocking)
+        try:
+            metrics_incr("broadcast.count", tags={"topic": "booking_requests"})
+            if start is not None:
+                dt = (asyncio.get_running_loop().time() - start) * 1000.0
+                metrics_timing("broadcast.ms", dt, tags={"topic": "booking_requests"})
+            if error:
+                metrics_incr("broadcast.error_total", tags={"topic": "booking_requests"})
+        except Exception:
+            pass
 
     async def add_typing(self, request_id: int, user_id: int) -> None:
         buf = self.typing_buffers.setdefault(request_id, set())
@@ -424,7 +481,7 @@ async def booking_request_ws(
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
     _db = SessionLocal()
     try:
-        booking_request = crud_booking_request.get_booking_request(
+        booking_request = crud.crud_booking_request.get_booking_request(
             _db, request_id=request_id
         )
     finally:
@@ -444,6 +501,11 @@ async def booking_request_ws(
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Unauthorized")
 
     await manager.connect(request_id, websocket)
+    # Emit online presence for this user in this booking room (batched)
+    try:
+        await manager.add_presence(request_id, int(user.id), "online")
+    except Exception:
+        pass
     reconnect_delay = min(2**attempt, 30)
     websocket.ping_interval = max(heartbeat, PING_INTERVAL)
     # Best effort hint; ignore if client closed immediately during mount/unmount
@@ -553,6 +615,11 @@ async def booking_request_ws(
         pass
     finally:
         ping_task.cancel()
+        # Emit offline presence when the socket closes for this room
+        try:
+            await manager.add_presence(request_id, int(user.id), "offline")
+        except Exception:
+            pass
         manager.disconnect(request_id, websocket)
 
 
@@ -619,6 +686,40 @@ async def multiplex_ws(
         # Client disconnected during handshake; do not attempt to send a close frame again.
         return
 
+    # Connection-based presence: mark this user online and fan out to their threads
+    try:
+        _presence_mark_online(int(user.id))
+    except Exception:
+        pass
+    # Connection-based presence: mark this user online for all of their threads
+    user_request_ids: Set[int] = set()
+    try:
+        _db = SessionLocal()
+        try:
+            # Limit to a sane number to avoid excessive fanout on very large accounts
+            client_reqs = crud.get_booking_requests_by_client(_db, client_id=int(user.id), skip=0, limit=100)
+            artist_reqs = crud.get_booking_requests_by_artist(_db, artist_id=int(user.id), skip=0, limit=100)
+            for br in client_reqs:
+                try:
+                    user_request_ids.add(int(br.id))
+                except Exception:
+                    pass
+            for br in artist_reqs:
+                try:
+                    user_request_ids.add(int(br.id))
+                except Exception:
+                    pass
+        finally:
+            _db.close()
+        # Best effort presence fanout (batched per room)
+        for req_id in list(user_request_ids):
+            try:
+                await manager.add_presence(req_id, int(user.id), "online")
+            except Exception:
+                pass
+    except Exception:
+        user_request_ids = set()
+
     async def ping_loop() -> None:
         while True:
             await asyncio.sleep(websocket.ping_interval)
@@ -678,12 +779,25 @@ async def multiplex_ws(
                         continue
                     _db = SessionLocal()
                     try:
-                        br = crud_booking_request.get_booking_request(_db, request_id=req_id)
+                        br = crud.crud_booking_request.get_booking_request(_db, request_id=req_id)
                     finally:
                         _db.close()
                     if not br or user.id not in [br.client_id, br.artist_id]:
                         continue
                     await multiplex_manager.subscribe(websocket, topic)
+                    # Emit a presence snapshot for both participants so late subscribers see current status
+                    try:
+                        updates = {
+                            str(int(br.client_id)): "online" if _presence_is_online(int(br.client_id)) else "offline",
+                            str(int(br.artist_id)): "online" if _presence_is_online(int(br.artist_id)) else "offline",
+                        }
+                        await multiplex_manager.broadcast_topic(
+                            topic,
+                            {"v": 1, "type": "presence", "updates": updates, "topic": topic},
+                            publish=False,
+                        )
+                    except Exception:
+                        pass
                 continue
             if t == "unsubscribe":
                 topic = str(data.get("topic") or "").strip()
@@ -693,6 +807,16 @@ async def multiplex_ws(
                     await multiplex_manager.unsubscribe(websocket, f"notifications:{user.id}")
                 elif topic.startswith("booking-requests:"):
                     await multiplex_manager.unsubscribe(websocket, topic)
+                    # Best-effort: mark user offline for this topic on unsubscribe
+                    try:
+                        req_id = int(topic.split(":", 1)[1])
+                    except Exception:
+                        req_id = None
+                    if isinstance(req_id, int):
+                        try:
+                            await manager.add_presence(req_id, int(user.id), "offline")
+                        except Exception:
+                            pass
                 continue
             # Scoped events must specify topic
             topic = str(data.get("topic") or "").strip()
@@ -751,7 +875,6 @@ async def multiplex_ws(
 async def sse(
     token: str | None = Query(None),
     topics: str = Query(""),
-    db: Session = Depends(get_db),
 ):
     """Server-Sent Events endpoint for receive-only fallback.
 
@@ -773,7 +896,21 @@ async def sse(
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             email = payload.get("sub")
             if email:
-                user = get_user_by_email(db, email)
+                cached_id = _cache_get_user_id(str(email))
+                if cached_id is not None:
+                    class _UserLite:
+                        def __init__(self, id_: int) -> None:
+                            self.id = id_
+                    user = _UserLite(int(cached_id))  # type: ignore[assignment]
+                else:
+                    _db = SessionLocal()
+                    try:
+                        rec = get_user_by_email(_db, email)
+                        if rec:
+                            user = rec
+                            _cache_set_user_id(str(email), int(rec.id))
+                    finally:
+                        _db.close()
         except JWTError:
             user = None
     # Best-effort auth for notifications topic; booking topics still public stream of room events
@@ -795,10 +932,42 @@ async def sse(
             chan_names.append(chan)
             topic_map[chan] = f"notifications:{user.id}"
 
+    # Connection-based presence for SSE fallback: fan out user's online/offline to their threads
+    user_request_ids: Set[int] = set()
+    try:
+        if user:
+            _db = SessionLocal()
+            try:
+                # Keep connect-time fanout bounded to reduce DB pressure
+                client_reqs = crud.get_booking_requests_by_client(_db, client_id=int(user.id), skip=0, limit=100)
+                artist_reqs = crud.get_booking_requests_by_artist(_db, artist_id=int(user.id), skip=0, limit=100)
+                for br in client_reqs:
+                    try: user_request_ids.add(int(br.id))
+                    except Exception: pass
+                for br in artist_reqs:
+                    try: user_request_ids.add(int(br.id))
+                    except Exception: pass
+            finally:
+                _db.close()
+    except Exception:
+        user_request_ids = set()
+
     async def event_generator():
         pubsub = client.pubsub()
         await pubsub.subscribe(*chan_names)
         try:
+            # Mark user online in presence registry and for threads when SSE is established
+            if user and user_request_ids:
+                try:
+                    _presence_mark_online(int(user.id))
+                except Exception:
+                    pass
+                try:
+                    for req_id in list(user_request_ids):
+                        try: await manager.add_presence(int(req_id), int(user.id), "online")
+                        except Exception: pass
+                except Exception:
+                    pass
             # Initial comment to open the stream
             yield b":ok\n\n"
             async for message in pubsub.listen():
@@ -820,6 +989,17 @@ async def sse(
                 chunk = ("data: " + json.dumps(data) + "\n\n").encode()
                 yield chunk
         finally:
+            # Mark user offline in registry and for threads when SSE closes
+            try:
+                if user:
+                    try: _presence_mark_offline(int(user.id))
+                    except Exception: pass
+                    if user_request_ids:
+                        for req_id in list(user_request_ids):
+                            try: await manager.add_presence(int(req_id), int(user.id), "offline")
+                            except Exception: pass
+            except Exception:
+                pass
             try:
                 await pubsub.unsubscribe(*chan_names)
                 await pubsub.close()
@@ -844,7 +1024,6 @@ async def notifications_ws(
     token: str | None = Query(None),
     attempt: int = Query(0),
     heartbeat: int = Query(PING_INTERVAL),
-    db: Session = Depends(get_db),
 ):
     """WebSocket endpoint pushing real-time notifications to a user."""
 
@@ -865,7 +1044,21 @@ async def notifications_ws(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"leeway": 60})
         email = payload.get("sub")
         if email:
-            user = get_user_by_email(db, email)
+            cached = _cache_get_user_id(str(email))
+            if cached is not None:
+                class _UserLite:
+                    def __init__(self, id_: int) -> None:
+                        self.id = id_
+                user = _UserLite(int(cached))  # type: ignore[assignment]
+            else:
+                _db = SessionLocal()
+                try:
+                    rec = get_user_by_email(_db, email)
+                    if rec:
+                        user = rec
+                        _cache_set_user_id(str(email), int(rec.id))
+                finally:
+                    _db.close()
     except JWTError:
         logger.warning("Rejecting notifications WebSocket: invalid token")
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
@@ -926,4 +1119,10 @@ async def notifications_ws(
         pass
     finally:
         ping_task.cancel()
+        # Mark user offline on global disconnect
+        try:
+            _presence_mark_offline(int(user.id))
+        except Exception:
+            pass
+        # For notifications WS, presence updates are handled by thread sockets.
         notifications_manager.disconnect(user.id, websocket)

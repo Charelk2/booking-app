@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from .. import models
 from ..crud import crud_message
 from ..utils.notifications import (
-    notify_deposit_due,
     notify_user_new_message,
     notify_service_nudge,
 )
@@ -64,12 +63,7 @@ def _post_system(
         pass
 
 
-def handle_deposit_due_reminders(db: Session) -> int:
-    """No-op: deposits removed; all clients pay full upfront.
-
-    Kept for backward compatibility with the maintenance loop.
-    """
-    return 0
+# Deposits removed: no deposit reminders
 
 
 def handle_sound_outreach_nudges_and_expiry(db: Session) -> dict:
@@ -288,11 +282,10 @@ def handle_pre_event_reminders(db: Session) -> int:
 
 def run_maintenance(db: Session) -> dict:
     """Run all operational maintenance tasks once and return a summary."""
-    deposit = handle_deposit_due_reminders(db)
     so = handle_sound_outreach_nudges_and_expiry(db)
     pre = handle_pre_event_reminders(db)
     artist_timeouts = handle_artist_accept_timeouts(db)
-    return {"deposit_reminders": deposit, **so, "pre_event_messages": pre, **artist_timeouts}
+    return {**so, "pre_event_messages": pre, **artist_timeouts}
 
 
 def handle_artist_accept_timeouts(db: Session) -> dict:

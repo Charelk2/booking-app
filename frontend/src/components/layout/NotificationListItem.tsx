@@ -94,34 +94,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     return { ...base, title: 'Review Request', subtitle: trimmed, icon: '🔔', status: 'reminder' };
   }
 
-  if (/deposit.*due/i.test(content)) {
-    let rest = content;
-    let celebration: string | undefined;
-    const pref = rest.match(/^booking confirmed\s*[–-]\s*/i);
-    if (pref) {
-      celebration = 'Booking confirmed';
-      rest = rest.slice(pref[0].length).trim();
-    }
-    const m = rest.match(
-      /deposit\s+(?:of\s*)?R?([\d.,]+)\s*due(?:\s*by\s*(\d{4}-\d{2}-\d{2}))?/i
-    );
-    if (m) {
-      const [, amt, by] = m;
-      const parts = [`R${amt}`];
-      if (by) parts.push(`due by ${formatDate(new Date(by))}`);
-      if (celebration) {
-        return {
-          ...base,
-          title: 'Deposit Due',
-          subtitle: celebration,
-          metadata: parts.join(' '),
-          icon: '💰',
-          status: 'due',
-        };
-      }
-      return { ...base, title: 'Deposit Due', subtitle: parts.join(' '), icon: '💰', status: 'due' };
-    }
-  }
+  // deposit reminders removed
 
   if (/new booking/i.test(content)) {
     const trimmed = content.length > 30 ? `${content.slice(0, 30)}...` : content;
@@ -164,9 +137,9 @@ export default function NotificationListItem({
   const p = parseItem(n);
   // Always display a photo: use the profile picture when available and fall
   // back to the default placeholder image when it's missing. This ensures
-  // booking confirmed and deposit due alerts show the artist's avatar for
-  // clients, while other notifications still render a consistent image.
-  const avatarSrc = p.avatarUrl || '/static/default-avatar.svg';
+  // booking confirmed alerts show the artist's avatar for clients, while other
+  // notifications still render a consistent image.
+  const avatarSrc = p.avatarUrl || '/default-avatar.svg';
 
   return (
     <div
