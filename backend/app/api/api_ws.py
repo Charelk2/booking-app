@@ -33,7 +33,30 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-REDIS_URL = os.getenv("WEBSOCKET_REDIS_URL")
+REDIS_URL_RAW = os.getenv("WEBSOCKET_REDIS_URL", "").strip()
+
+def _normalize_ws_redis_url(raw: str) -> tuple[str | None, bool]:
+    """Normalize and validate WEBSOCKET_REDIS_URL.
+
+    Returns (url_or_none, enabled_flag). Treat common "disabled" sentinels and
+    empty values as disabled. Accept only redis://, rediss://, or unix:// schemes.
+    Translate redis+tls:// to rediss:// for convenience.
+    """
+    if not raw:
+        return (None, False)
+    low = raw.lower().strip()
+    if low in {"none", "disabled", "false", "0"}:
+        return (None, False)
+    # Support redis+tls:// style by mapping to rediss://
+    if low.startswith("redis+tls://"):
+        return ("rediss://" + raw.split("://", 1)[1], True)
+    if low.startswith("redis://") or low.startswith("rediss://") or low.startswith("unix://"):
+        return (raw, True)
+    # Any other scheme is considered invalid -> disabled
+    logger.warning("Ignoring invalid WEBSOCKET_REDIS_URL scheme: %s", raw)
+    return (None, False)
+
+REDIS_URL, _REDIS_ENABLED = _normalize_ws_redis_url(REDIS_URL_RAW)
 
 # Keep one Redis client per running loop to avoid cross-loop issues when code
 # runs under different event loops (e.g., tests using asyncio.run()).
@@ -102,7 +125,7 @@ def _presence_mark_offline(user_id: int) -> None:
 
 
 def _get_redis() -> Any | None:
-    if not aioredis or not REDIS_URL:
+    if not aioredis or not _REDIS_ENABLED or not REDIS_URL:
         return None
     try:
         loop = asyncio.get_running_loop()
@@ -110,14 +133,19 @@ def _get_redis() -> Any | None:
         return None
     client = _loop_redis.get(loop)
     if client is None:
-        client = aioredis.from_url(
-            REDIS_URL,
-            health_check_interval=30,
-            retry_on_timeout=True,
-            socket_keepalive=True,
-            socket_timeout=5,
-            socket_connect_timeout=2,
-        )
+        try:
+            client = aioredis.from_url(
+                REDIS_URL,
+                health_check_interval=30,
+                retry_on_timeout=True,
+                socket_keepalive=True,
+                socket_timeout=5,
+                socket_connect_timeout=2,
+            )
+        except Exception as exc:
+            # Treat bad URLs or connection errors as disabled to avoid noisy 500s
+            logger.warning("WS Redis client creation failed; disabling Redis: %s", exc)
+            return None
         _loop_redis[loop] = client
     return client
 
@@ -217,7 +245,7 @@ class ConnectionManager:
         await websocket.accept()
         websocket.last_pong = time.time()
         self.active_connections.setdefault(request_id, []).append(websocket)
-        if aioredis and REDIS_URL and request_id not in self.redis_tasks:
+        if aioredis and _REDIS_ENABLED and request_id not in self.redis_tasks:
             self.redis_tasks[request_id] = asyncio.create_task(
                 self._redis_subscribe(request_id)
             )

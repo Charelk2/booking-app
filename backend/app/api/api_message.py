@@ -110,7 +110,7 @@ def read_messages(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
     skip: int = Query(0, ge=0),
-    limit: int = Query(500, ge=1, le=5000),
+    limit: int = Query(200, ge=1, le=5000),
     after_id: Optional[int] = Query(
         None,
         description="Return only messages with an id greater than this value",
