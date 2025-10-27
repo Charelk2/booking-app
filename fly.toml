@@ -43,7 +43,7 @@ primary_region = "jnb"  # Johannesburg (fallback to ams if not available)
     grace_period = "60s"
     interval = "10s"
     method = "get"
-    timeout = "5s"
+    timeout = "10s"
     path = "/healthz"
 
 # Persist SQLite DB and attachments on a volume named "data".

@@ -159,7 +159,8 @@ async def _safe_publish(channel: str, payload: str) -> None:
             return
 
 PING_INTERVAL = 30
-PONG_TIMEOUT = 20
+# Must exceed PING_INTERVAL with headroom to avoid premature 1011 closes
+PONG_TIMEOUT = 45
 SEND_TIMEOUT = 1
 
 
@@ -179,19 +180,38 @@ class ConnectionManager:
         if not client:
             return
         pubsub = client.pubsub()
-        await pubsub.subscribe(f"ws:{request_id}")
+        channel = f"ws:{request_id}"
+        await pubsub.subscribe(channel)
         try:
-            async for message in pubsub.listen():
-                if message.get("type") != "message":
+            # Poll Redis with a short timeout to avoid blocking the event loop
+            # and allow cancellation when the room goes empty.
+            while True:
+                try:
+                    msg = await pubsub.get_message(
+                        ignore_subscribe_messages=True, timeout=1.0
+                    )
+                except Exception:
+                    msg = None
+                if not msg:
+                    # No message in this tick; yield to loop
+                    await asyncio.sleep(0)
+                    continue
+                if msg.get("type") != "message":
                     continue
                 try:
-                    data = json.loads(message["data"])
+                    data = json.loads(msg.get("data"))
                 except Exception:
                     continue
                 await self.broadcast(request_id, data, publish=False)
         finally:  # pragma: no cover - network cleanup
-            await pubsub.unsubscribe(f"ws:{request_id}")
-            await pubsub.close()
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.close()
+            except Exception:
+                pass
 
     async def connect(self, request_id: int, websocket: WebSocket) -> None:
         await websocket.accept()
