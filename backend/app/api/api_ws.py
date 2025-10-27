@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+from urllib.parse import urlparse
 import time
 from typing import Any, Dict, List, Set, Tuple
 from weakref import WeakKeyDictionary
@@ -51,6 +52,15 @@ def _normalize_ws_redis_url(raw: str) -> tuple[str | None, bool]:
     if low.startswith("redis+tls://"):
         return ("rediss://" + raw.split("://", 1)[1], True)
     if low.startswith("redis://") or low.startswith("rediss://") or low.startswith("unix://"):
+        # On Fly (production), never allow localhost/127.* Redis URLs — treat as disabled
+        try:
+            u = urlparse(raw)
+            host = (u.hostname or "").lower()
+            if os.getenv("FLY_APP_NAME") and host in {"localhost", "127.0.0.1"}:
+                logger.warning("Disabling WS Redis: localhost URL in production: %s", raw)
+                return (None, False)
+        except Exception:
+            pass
         return (raw, True)
     # Any other scheme is considered invalid -> disabled
     logger.warning("Ignoring invalid WEBSOCKET_REDIS_URL scheme: %s", raw)

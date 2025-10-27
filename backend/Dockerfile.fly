@@ -17,6 +17,8 @@ RUN pip install --upgrade pip && pip install -r /app/requirements.txt
 
 # Copy backend source
 COPY backend /app
+## Do not ship development dotenv into runtime image
+RUN rm -f /app/.env /app/.env.* || true
 
 # Expose the app port
 EXPOSE 8000

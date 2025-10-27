@@ -63,8 +63,15 @@ except ModuleNotFoundError as exc:
 
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env
-load_dotenv()
+# Load .env only in local/dev. In production (e.g., Fly) this causes
+# surprises by re-introducing values shipped in the image. Opt-in via
+# LOAD_BACKEND_DOTENV=1 and avoid loading when FLY_APP_NAME is present.
+try:
+    if os.getenv("LOAD_BACKEND_DOTENV", "0") == "1" and not os.getenv("FLY_APP_NAME"):
+        load_dotenv()
+except Exception:
+    # Never fail startup due to dotenv
+    pass
 
 router = APIRouter(tags=["auth"])
 

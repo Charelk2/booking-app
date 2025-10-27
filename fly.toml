@@ -35,15 +35,15 @@ primary_region = "jnb"  # Johannesburg (fallback to ams if not available)
 
   [http_service.concurrency]
     type = "connections"
-    soft_limit = 50
-    hard_limit = 100
+    soft_limit = 200
+    hard_limit = 400
 
   # Health check against FastAPI health endpoint
   [[http_service.checks]]
     grace_period = "60s"
     interval = "10s"
     method = "get"
-    timeout = "10s"
+    timeout = "15s"
     path = "/healthz"
 
 # Persist SQLite DB and attachments on a volume named "data".
