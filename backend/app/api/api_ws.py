@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, Request
 from fastapi.encoders import jsonable_encoder
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -894,6 +894,7 @@ async def multiplex_ws(
 
 @router.get("/sse")
 async def sse(
+    request: Request,
     token: str | None = Query(None),
     topics: str = Query(""),
 ):
@@ -915,9 +916,11 @@ async def sse(
 
     user: User | None = None
     if not token:
-        # Try cookie auth (if front-end runs on same site)
-        # Note: cannot access cookies directly here without request; keep as token for now
-        pass
+        # Try cookie auth (same-site EventSource with credentials includes cookies)
+        try:
+            token = request.cookies.get("access_token")
+        except Exception:
+            token = None
     if token:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

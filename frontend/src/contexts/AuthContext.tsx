@@ -265,6 +265,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch {}
+      // Keep a volatile in-memory token for realtime (WS query param) to avoid relying solely on cookies
+      try {
+        const a = (response.data as any)?.access_token as string | undefined;
+        if (a) setToken(a);
+      } catch {}
       const { user: fallbackUser } = response.data;
       const storage = remember ? localStorage : sessionStorage;
       const altStorage = remember ? sessionStorage : localStorage;
@@ -306,6 +311,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             document.cookie = `refresh_token=${r}; ${attrs}`;
           }
         }
+      } catch {}
+      // Volatile in-memory token for realtime WS
+      try {
+        const a = (response.data as any)?.access_token as string | undefined;
+        if (a) setToken(a);
       } catch {}
       const { user: fallbackUser } = response.data;
       // Default to persistent storage for MFA completion
@@ -381,6 +391,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Also invalidate server-side session
     try { void import('@/lib/api').then(m => m.logout()); } catch {}
     setUser(null);
+    setToken(null);
     setArtistViewActive(true);
     void clearThreadCaches({ includeSession: true });
     localStorage.removeItem('user');
@@ -395,7 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        token: null,
+        token,
         loading,
         login,
         verifyMfa,
