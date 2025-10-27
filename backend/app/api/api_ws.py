@@ -979,26 +979,45 @@ async def sse(
                         except Exception: pass
                 except Exception:
                     pass
-            # Initial comment to open the stream
+            # Initial comment to open the stream quickly across intermediaries
             yield b":ok\n\n"
-            async for message in pubsub.listen():
-                if message.get("type") != "message":
-                    continue
-                chan = message.get("channel")
-                if isinstance(chan, bytes):
-                    chan = chan.decode()
-                raw = message.get("data")
+
+            last_heartbeat = time.monotonic()
+            heartbeat_every = 25.0
+            while True:
+                msg = None
                 try:
-                    data = json.loads(raw)
+                    # Non-blocking poll for messages; ignore subscribe events
+                    msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
                 except Exception:
-                    data = {"payload": raw.decode() if isinstance(raw, bytes) else str(raw)}
-                # Ensure topic present for client routing
-                topic = topic_map.get(chan, None)
-                if topic and isinstance(data, dict):
-                    data.setdefault("v", 1)
-                    data.setdefault("topic", topic)
-                chunk = ("data: " + json.dumps(data) + "\n\n").encode()
-                yield chunk
+                    # Brief backoff on timeouts or transient connection issues
+                    await asyncio.sleep(0.2)
+                if msg and msg.get("type") == "message":
+                    chan = msg.get("channel")
+                    if isinstance(chan, bytes):
+                        chan = chan.decode()
+                    raw = msg.get("data")
+                    try:
+                        data = json.loads(raw)
+                    except Exception:
+                        data = {"payload": raw.decode() if isinstance(raw, bytes) else str(raw)}
+                    # Ensure topic present for client routing
+                    topic = topic_map.get(chan, None)
+                    if topic and isinstance(data, dict):
+                        data.setdefault("v", 1)
+                        data.setdefault("topic", topic)
+                    chunk = ("data: " + json.dumps(data) + "\n\n").encode()
+                    yield chunk
+
+                # Heartbeat to keep long-lived connections healthy across proxies
+                now = time.monotonic()
+                if (now - last_heartbeat) >= heartbeat_every:
+                    try:
+                        yield b":heartbeat\n\n"
+                    except Exception:
+                        # If the client closed, the StreamingResponse will finalize
+                        break
+                    last_heartbeat = now
         finally:
             # Mark user offline in registry and for threads when SSE closes
             try:

@@ -388,6 +388,13 @@ def login(
     resp = JSONResponse(payload)
     _set_access_cookie(resp, access_token)
     _set_refresh_cookie(resp, refresh_token, r_exp)
+    # Prevent any intermediary from caching or normalizing this Set-Cookie response
+    try:
+        resp.headers["Cache-Control"] = "no-store"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Vary"] = "Origin, Accept-Encoding"
+    except Exception:
+        pass
     return resp
 
 
@@ -504,6 +511,13 @@ def verify_mfa(data: MFAVerify, db: Session = Depends(get_db)):
             samesite="Lax",
             path="/",
         )
+    # Prevent caching of Set-Cookie-bearing responses
+    try:
+        resp.headers["Cache-Control"] = "no-store"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Vary"] = "Origin, Accept-Encoding"
+    except Exception:
+        pass
     return resp
 
 
@@ -765,6 +779,12 @@ def refresh_token(
     resp = JSONResponse(payload)
     _set_access_cookie(resp, access)
     _set_refresh_cookie(resp, new_refresh, r_exp)
+    try:
+        resp.headers["Cache-Control"] = "no-store"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Vary"] = "Origin, Accept-Encoding"
+    except Exception:
+        pass
     return resp
 
 
@@ -779,6 +799,12 @@ def logout(
     db.commit()
     resp = JSONResponse({"message": "logged out"})
     _clear_auth_cookies(resp)
+    try:
+        resp.headers["Cache-Control"] = "no-store"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Vary"] = "Origin, Accept-Encoding"
+    except Exception:
+        pass
     return resp
 
 

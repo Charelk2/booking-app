@@ -24,7 +24,14 @@ def _build_client() -> Any:
     if not aioredis or not url or not url.lower().startswith(("redis://", "rediss://")):
         return _AsyncNullRedis()
     try:
-        return aioredis.from_url(url, decode_responses=True, socket_connect_timeout=2, socket_timeout=5)
+        return aioredis.from_url(
+            url,
+            decode_responses=True,
+            socket_connect_timeout=2,
+            socket_timeout=5,
+            health_check_interval=30,
+            retry_on_timeout=True,
+        )
     except Exception:
         return _AsyncNullRedis()
 

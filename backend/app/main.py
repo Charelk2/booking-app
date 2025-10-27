@@ -124,6 +124,7 @@ from .db_utils import (
     ensure_service_provider_onboarding_columns,
     ensure_performance_indexes,
     ensure_message_system_key_index,
+    ensure_message_core_indexes,
     seed_service_categories,
     ensure_service_moderation_logs,
 )
@@ -235,6 +236,7 @@ ensure_service_provider_contact_columns(engine)
 ensure_service_provider_onboarding_columns(engine)
 ensure_performance_indexes(engine)
 ensure_message_system_key_index(engine)
+ensure_message_core_indexes(engine)
 try:
     # Ensure key enums contain all labels in Postgres
     from .models.booking_status import BookingStatus

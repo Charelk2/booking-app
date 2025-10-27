@@ -40,7 +40,7 @@ primary_region = "jnb"  # Johannesburg (fallback to ams if not available)
 
   # Health check against FastAPI health endpoint
   [[http_service.checks]]
-    grace_period = "30s"
+    grace_period = "60s"
     interval = "10s"
     method = "get"
     timeout = "5s"

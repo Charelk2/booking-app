@@ -212,6 +212,14 @@ const nextConfig = {
         ],
       },
       {
+        // Auth endpoints must never be cached; ensure Set-Cookie passes through unchanged
+        source: '/auth/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store' },
+          { key: 'Pragma', value: 'no-cache' },
+        ],
+      },
+      {
         // Immutable caching for public static images (favicon, default avatar)
         source: '/:file(favicon|default-avatar).svg',
         headers: [

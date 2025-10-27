@@ -502,6 +502,37 @@ def ensure_message_system_key_index(engine: Engine) -> None:
             conn.rollback()
 
 
+def ensure_message_core_indexes(engine: Engine) -> None:
+    """Ensure helpful composite indexes exist on messages for hot queries.
+
+    Adds the following when missing:
+    - ix_messages_request_time(booking_request_id, timestamp)
+    - ix_messages_request_id_id(booking_request_id, id)
+    """
+    try:
+        inspector = inspect(engine)
+        if "messages" not in inspector.get_table_names():
+            return
+        # Collect existing index names safely
+        existing = set()
+        try:
+            existing = {idx.get("name") for idx in inspector.get_indexes("messages") if isinstance(idx, dict)}
+        except Exception:
+            existing = set()
+        with engine.connect() as conn:
+            try:
+                if "ix_messages_request_time" not in existing:
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_messages_request_time ON messages(booking_request_id, timestamp)"))
+                if "ix_messages_request_id_id" not in existing:
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_messages_request_id_id ON messages(booking_request_id, id)"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+    except Exception:
+        # Best-effort; never block startup
+        pass
+
+
 def ensure_identity_pk(engine: Engine, table: str, column: str = "id") -> None:
     """On Postgres, ensure the given table.column autogenerates values.
 
