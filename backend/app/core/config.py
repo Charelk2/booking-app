@@ -305,9 +305,19 @@ COOKIE_DOMAIN = _cookie_domain()
 
 
 def _redis_url() -> str:
+    """Resolve the Redis URL.
+
+    Rules:
+    - If REDIS_URL env is set and non-empty, use it.
+    - If running on Fly (FLY_APP_NAME present) and no REDIS_URL secret is set,
+      return empty string to disable Redis by default (avoid localhost fallbacks).
+    - Otherwise fall back to Settings default (useful for local dev).
+    """
     env_url = os.getenv("REDIS_URL")
     if env_url:
         return env_url
+    if os.getenv("FLY_APP_NAME"):
+        return ""
     return getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
 
 

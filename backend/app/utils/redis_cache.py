@@ -6,6 +6,7 @@ from datetime import date
 from typing import List, Optional, Any
 
 import redis
+import os
 
 from app.core.config import settings
 from .json_utils import dumps
@@ -13,10 +14,42 @@ from .json_utils import dumps
 _redis_client: Optional[redis.Redis] = None
 
 
+class _NullRedis:
+    """No-op Redis client used when Redis is disabled or unavailable.
+
+    Methods mirror the minimal surface used in this codebase so callers can
+    proceed without needing try/except around get_redis_client().
+    """
+
+    def get(self, key: str):
+        return None
+
+    def setex(self, key: str, expire: int, value: str):
+        return None
+
+    def scan_iter(self, pattern: str):
+        return iter(())
+
+    def delete(self, key: str):
+        return 0
+
+    def close(self):
+        return None
+
+
 def get_redis_client() -> redis.Redis:
     global _redis_client
     if _redis_client is None:
-        _redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        url = (getattr(settings, "REDIS_URL", "") or "").strip()
+        # Allow disabling via empty/none/disabled/false
+        if not url or url.lower() in {"none", "disabled", "false", "0"}:
+            _redis_client = _NullRedis()  # type: ignore[assignment]
+            return _redis_client
+        try:
+            _redis_client = redis.from_url(url, decode_responses=True)
+        except Exception:
+            # Fall back to no-op client if creation fails
+            _redis_client = _NullRedis()  # type: ignore[assignment]
     return _redis_client
 
 

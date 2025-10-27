@@ -116,6 +116,7 @@ def _get_redis() -> Any | None:
             retry_on_timeout=True,
             socket_keepalive=True,
             socket_timeout=5,
+            socket_connect_timeout=2,
         )
         _loop_redis[loop] = client
     return client
@@ -885,6 +886,12 @@ async def sse(
     if not aioredis or not client:
         from fastapi import Response
         return Response(status_code=503)
+    # Fail fast if Redis is not reachable to avoid long hangs/timeouts
+    try:
+        await asyncio.wait_for(client.ping(), timeout=2)
+    except Exception:
+        from fastapi import Response
+        return Response(status_code=503)
 
     user: User | None = None
     if not token:
@@ -954,7 +961,11 @@ async def sse(
 
     async def event_generator():
         pubsub = client.pubsub()
-        await pubsub.subscribe(*chan_names)
+        try:
+            await asyncio.wait_for(pubsub.subscribe(*chan_names), timeout=3)
+        except Exception:
+            # If subscribe fails quickly (e.g., Redis unreachable), end stream
+            return
         try:
             # Mark user online in presence registry and for threads when SSE is established
             if user and user_request_ids:
