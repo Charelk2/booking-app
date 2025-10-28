@@ -897,6 +897,12 @@ async def start_background_tasks() -> None:
     """Launch background maintenance tasks."""
     # Ensure DB is reachable before starting periodic schedulers
     await _wait_for_db_ready()
+    # Start WebSocket Redis bus consumer (cross-instance fanout)
+    try:
+        from app.api import api_ws as _api_ws
+        await _api_ws.ensure_ws_bus_started()
+    except Exception:
+        pass
     asyncio.create_task(expire_quotes_loop())
     asyncio.create_task(ops_maintenance_loop())
 

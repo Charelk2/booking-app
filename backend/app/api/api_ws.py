@@ -12,6 +12,11 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from starlette import status as ws_status
 from starlette.exceptions import WebSocketException
 from jose import JWTError, jwt
+from app.realtime.bus import (
+    bus_enabled as _bus_enabled,
+    publish_topic as _bus_publish,
+    start_pattern_consumer as _bus_start_consumer,
+)
 
 # --- App-local imports you already have ---
 from ..database import SessionLocal
@@ -33,13 +38,12 @@ WS_4401_UNAUTHORIZED = 4401      # custom close code mirroring HTTP 401
 
 ENABLE_NOISE = os.getenv("ENABLE_NOISE", "0") in {"1", "true", "yes"}
 
-# Optional dependency: python-noise
+# Optional dependency: python-noise (disabled by default)
+_HAS_NOISE = False
 try:
     if ENABLE_NOISE:
         from noise.connection import NoiseConnection, Keypair  # type: ignore
         _HAS_NOISE = True
-    else:
-        _HAS_NOISE = False
 except Exception:
     _HAS_NOISE = False
 
@@ -73,6 +77,10 @@ class Envelope:
         if self.payload is not None:
             data["payload"] = self.payload
         return json.dumps(data, separators=(",", ":"))
+
+
+# Unique instance identifier for bus loop prevention
+INSTANCE_ID = os.getenv("INSTANCE_ID", "inst-" + os.urandom(4).hex())
 
 
 class NoiseWS:
@@ -290,7 +298,7 @@ class TopicMux:
             await self.unsubscribe(conn, t)
         self.socket_topics.pop(conn, None)
 
-    async def broadcast_topic(self, topic: str, env: Envelope) -> None:
+    async def broadcast_topic(self, topic: str, env: Envelope, publish: bool = True) -> None:
         # Always include topic in the outgoing envelope
         if env.topic is None:
             env.topic = topic
@@ -300,6 +308,14 @@ class TopicMux:
             except Exception:
                 # Client likely gone
                 await self.disconnect(conn)
+        # Cross-instance fanout via Redis bus
+        if publish and _bus_enabled():
+            try:
+                data = json.loads(env.to_json())
+                data["origin"] = INSTANCE_ID
+                await _bus_publish(topic, data)
+            except Exception:
+                pass
 
 
 mux = TopicMux()
@@ -323,12 +339,21 @@ class ChatRoom:
             if not conns:
                 del self.room_sockets[request_id]
 
-    async def broadcast(self, request_id: int, env: Envelope) -> None:
+    async def broadcast(self, request_id: int, env: Envelope, publish: bool = True) -> None:
         for conn in list(self.room_sockets.get(request_id, [])):
             try:
                 await asyncio.wait_for(conn.send_envelope(env), timeout=SEND_TIMEOUT)
             except Exception:
                 self.disconnect(request_id, conn)
+        # Cross-instance fanout
+        if publish and _bus_enabled():
+            try:
+                topic = f"booking-requests:{int(request_id)}"
+                data = json.loads(env.to_json())
+                data["origin"] = INSTANCE_ID
+                await _bus_publish(topic, data)
+            except Exception:
+                pass
 
 
 chat = ChatRoom()
@@ -541,7 +566,7 @@ async def multiplex_ws(
                             str(int(br.client_id)): "online" if Presence.is_online(int(br.client_id)) else "offline",
                             str(int(br.artist_id)): "online" if Presence.is_online(int(br.artist_id)) else "offline",
                         }
-                        await mux.broadcast_topic(topic, Envelope(type="presence", topic=topic, payload={"updates": updates}))
+                        await mux.broadcast_topic(topic, Envelope(type="presence", topic=topic, payload={"updates": updates}), publish=False)
                     continue
 
                 if t == "unsubscribe":
@@ -567,7 +592,7 @@ async def multiplex_ws(
                     if topic.startswith("booking-requests:"):
                         updates = (env.payload or {}).get("updates")
                         if isinstance(updates, dict):
-                            await mux.broadcast_topic(topic, Envelope(type="presence", topic=topic, payload={"updates": updates}))
+                            await mux.broadcast_topic(topic, Envelope(type="presence", topic=topic, payload={"updates": updates}), publish=True)
                     continue
 
                 if t == "read":
@@ -611,13 +636,22 @@ class NotifyFanout:
         if not conns:
             del self.user_sockets[int(user_id)]
 
-    async def push(self, user_id: int, env: Envelope) -> None:
+    async def push(self, user_id: int, env: Envelope, publish: bool = True) -> None:
         env.topic = env.topic or f"notifications:{int(user_id)}"
         for conn in list(self.user_sockets.get(int(user_id), set())):
             try:
                 await asyncio.wait_for(conn.send_envelope(env), timeout=SEND_TIMEOUT)
             except Exception:
                 self.disconnect(int(user_id), conn)
+        # Cross-instance fanout for notifications
+        if publish and _bus_enabled():
+            try:
+                topic = f"notifications:{int(user_id)}"
+                data = json.loads(env.to_json())
+                data["origin"] = INSTANCE_ID
+                await _bus_publish(topic, data)
+            except Exception:
+                pass
 
 
 notify = NotifyFanout()
@@ -722,3 +756,66 @@ class _CompatNotificationsManager:
 # Export compatibility objects for existing imports
 manager = _CompatManager()
 notifications_manager = _CompatNotificationsManager()
+
+
+# ---------------------------------------------------------------------
+# Redis bus consumer → relay to local sockets (no re-publish)
+# ---------------------------------------------------------------------
+
+async def _bus_dispatch(topic: str, data: dict) -> None:
+    """Handle a bus event for topic -> deliver to local sockets only.
+
+    Avoid re-publishing to bus by passing publish=False.
+    """
+    try:
+        # Drop self-originated events to avoid double-delivery
+        if isinstance(data, dict) and data.get("origin") == INSTANCE_ID:
+            return
+        env = Envelope.from_raw(data)
+    except Exception:
+        env = Envelope()
+    # Multiplex subscribers
+    try:
+        await mux.broadcast_topic(topic, env, publish=False)
+    except Exception:
+        pass
+    # Legacy endpoints
+    try:
+        if topic.startswith("booking-requests:"):
+            try:
+                req_id = int(topic.split(":", 1)[1])
+            except Exception:
+                req_id = None
+            if isinstance(req_id, int):
+                try:
+                    await chat.broadcast(req_id, env, publish=False)
+                except Exception:
+                    pass
+        elif topic.startswith("notifications:"):
+            try:
+                user_id = int(topic.split(":", 1)[1])
+            except Exception:
+                user_id = None
+            if isinstance(user_id, int):
+                try:
+                    await notify.push(user_id, env, publish=False)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+_bus_ready = False
+
+
+async def ensure_ws_bus_started() -> None:
+    """Start the Redis pattern consumer once per process."""
+    global _bus_ready
+    if _bus_ready or not _bus_enabled():
+        return
+    try:
+        await _bus_start_consumer("ws-topic:*", _bus_dispatch)
+        _bus_ready = True
+    except Exception:
+        _bus_ready = False
+        return
