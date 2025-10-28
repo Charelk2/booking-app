@@ -17,7 +17,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
   // Global notifications subscription: bump unread for threads referenced by notifications
   useEffect(() => {
-    // Subscribe once and keep across app lifetime
+    // Do not subscribe/open until we have a token to avoid 403 flaps
+    if (!token) return;
     const unsubscribe = rt.subscribe('notifications', (payload: any) => {
       try {
         const link = String((payload && (payload.link || (payload.payload && payload.payload.link))) || '');
@@ -47,7 +48,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return () => { try { unsubscribe(); } catch {} };
-  }, [rt]);
+  }, [rt, token]);
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }

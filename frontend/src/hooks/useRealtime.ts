@@ -201,11 +201,8 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
             openWS();
             return;
           } catch {}
-          // If refresh fails, fall back to SSE to keep realtime limping
-          setMode('sse');
-          setStatus('connecting');
-          try { console.warn('[realtime] Refresh failed; falling back to SSE'); } catch {}
-          openSSE();
+          // If refresh fails, keep closed; do not use SSE fallback
+          setStatus('closed');
         })();
         return;
       }
@@ -219,55 +216,18 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       try { console.warn('[realtime] WS closed, scheduling reconnect', { code: e?.code, reason: e?.reason, delay }); } catch {}
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       reconnectTimer.current = setTimeout(() => {
-        // Fallback to SSE after 3 short‑lived failures or closes
-        if (attemptsRef.current >= 3) {
-          setMode('sse');
-          setStatus('connecting');
-          try { console.warn('[realtime] Too many WS failures; switching to SSE'); } catch {}
-          openSSE();
-        } else {
-          openWS();
-        }
+        // Keep retrying WS; SSE fallback disabled
+        openWS();
       }, delay);
     };
     ws.onerror = (err) => { try { console.error('[realtime] WS error', err); } catch {} try { ws.close(); } catch {} schedule(); };
     ws.onclose = schedule;
   }, [wsUrl, deliver]);
 
+  // SSE fallback is disabled for now to avoid proxy/404 churn
   const openSSE = useCallback(() => {
-    const topics = Array.from(subs.current.keys());
-    if (topics.length === 0) { setStatus('closed'); return; }
-    const url = sseUrlForTopics(topics);
-    if (!url) { setStatus('closed'); return; }
-    try { esRef.current?.close(); } catch {}
-    setStatus('connecting');
-    const es = new EventSource(url, { withCredentials: true } as any);
-    esRef.current = es;
-    es.onopen = () => {
-      setStatus('open');
-      try { console.info('[realtime] SSE open', { url }); } catch {}
-    };
-    es.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data?.topic) {
-          if (DEBUG) try { console.debug('[rt] sse recv', { topic: data.topic, type: data.type, keys: Object.keys(data || {}) }); } catch {}
-          deliver(data);
-        } else {
-          if (DEBUG) try { console.debug('[rt] sse recv (no topic)', { type: data?.type, keys: Object.keys(data || {}) }); } catch {}
-          deliverFanout(data);
-        }
-      } catch {}
-    };
-    es.onerror = (ev) => {
-      setStatus('reconnecting');
-      setFailureCount((c) => c + 1);
-      try { console.warn('[realtime] SSE error; retrying', ev); } catch {}
-      // simple retry
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      reconnectTimer.current = setTimeout(() => openSSE(), 3000);
-    };
-  }, [sseUrlForTopics, deliver]);
+    setStatus('closed');
+  }, []);
 
   // Avoid proactive refreshes; rely on cookie-auth WS when possible.
   // If a token is supplied (e.g., from AuthContext), it will be used.
@@ -276,15 +236,9 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     // Don’t open any realtime connection until there’s at least one topic
     const hasTopics = subs.current.size > 0;
     if (!hasTopics) { setStatus('closed'); return () => {}; }
-    if (mode === 'ws') {
-      if (!wsUrl) {
-        openSSE();
-      } else {
-        openWS();
-      }
-    } else {
-      openSSE();
-    }
+    // WS-only: if URL is not available, keep closed instead of using SSE
+    if (!wsUrl) { setStatus('closed'); return () => {}; }
+    openWS();
     return () => {
       try { wsRef.current?.close(); } catch {}
       try { esRef.current?.close(); } catch {}
@@ -292,7 +246,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, wsUrl, wsToken]);
+  }, [wsUrl, wsToken]);
 
   // Re-open SSE when topics change
   const refreshSSE = useCallback(() => {
@@ -308,25 +262,16 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     if (mode === 'ws' && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       try { wsRef.current.send(JSON.stringify({ v: 1, type: 'subscribe', topic })); } catch {}
     }
-    // Ensure SSE tracks current topics even if mode is still 'ws' (best-effort fallback active)
-    if (mode === 'sse' || esRef.current) { refreshSSE(); }
+    // SSE disabled; no refresh when topics change
     // If we just added the first topic and the transport isn't open yet, open it now.
     try {
       const topicCount = subs.current.size;
       if (topicCount > 0) {
-        if (mode === 'ws') {
-          const state = wsRef.current?.readyState;
-          const openOrConnecting = state === WebSocket.OPEN || state === WebSocket.CONNECTING;
-          if (!openOrConnecting) {
-            try { console.info('[realtime] opening WS after subscribe (topics:', topicCount, ')'); } catch {}
-            if (!wsBase || !wsUrl) openSSE(); else openWS();
-          }
-        } else {
-          const esOpen = !!esRef.current;
-          if (!esOpen) {
-            try { console.info('[realtime] opening SSE after subscribe (topics:', topicCount, ')'); } catch {}
-            openSSE();
-          }
+        const state = wsRef.current?.readyState;
+        const openOrConnecting = state === WebSocket.OPEN || state === WebSocket.CONNECTING;
+        if (!openOrConnecting) {
+          try { console.info('[realtime] opening WS after subscribe (topics:', topicCount, ')'); } catch {}
+          if (wsBase && wsUrl) openWS();
         }
       }
     } catch {}
@@ -340,10 +285,10 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       if (mode === 'ws' && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         try { wsRef.current.send(JSON.stringify({ v: 1, type: 'unsubscribe', topic })); } catch {}
       }
-      if (mode === 'sse' || esRef.current) refreshSSE();
+      // SSE disabled; do nothing here
       if (DEBUG) try { console.info('[rt] unsubscribe', topic); } catch {}
     };
-  }, [mode, refreshSSE, openWS, openSSE, wsBase, wsUrl]);
+  }, [openWS, wsBase, wsUrl, DEBUG]);
 
   const publish = useCallback((topic: string, payload: Record<string, any>) => {
     // If WS is open, send immediately
