@@ -1,6 +1,6 @@
 "use client";
 
-import dynamic from 'next/dynamic';
+import MessageThreadWrapper from '@/components/chat/MessageThreadWrapper';
 import type { BookingRequest } from '@/types';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
@@ -13,12 +13,6 @@ type Props = {
 };
 
 export default function ThreadPane({ selectedThreadId, threads, isMobile = false, onBack, setShowReviewModal }: Props) {
-  const MessageThreadWrapper = dynamic(() => import('@/components/chat/MessageThreadWrapper'), {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-full items-center justify-center text-gray-400">Loading messages…</div>
-    ),
-  });
   return (
     <div id="chat-thread" className="flex-1 relative min-h-0 min-w-0 overflow-hidden">
       {isMobile && onBack && (

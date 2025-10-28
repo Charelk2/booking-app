@@ -153,42 +153,6 @@ export default function InboxPage() {
     return unsubscribe;
   }, []);
 
-  // Preload the heavy message thread chunk on idle so first click is instant
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const prime = () => {
-      try { import('@/components/chat/MessageThreadWrapper'); } catch {}
-    };
-    const idle = (cb: () => void) => {
-      try {
-        if ('requestIdleCallback' in window) {
-          (window as any).requestIdleCallback(cb, { timeout: 1500 });
-        } else {
-          setTimeout(cb, 1200);
-        }
-      } catch {
-        setTimeout(cb, 1200);
-      }
-    };
-    idle(prime);
-  }, []);
-
-  // Also prefetch the message chunk on first hover/focus over the conversations list
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const el = document.getElementById('conversation-list-wrapper');
-    if (!el) return;
-    const handler = () => {
-      try { import('@/components/chat/MessageThreadWrapper'); } catch {}
-    };
-    el.addEventListener('mouseenter', handler, { once: true } as any);
-    el.addEventListener('focusin', handler, { once: true } as any);
-    return () => {
-      try { el.removeEventListener('mouseenter', handler as any); } catch {}
-      try { el.removeEventListener('focusin', handler as any); } catch {}
-    };
-  }, [threads.length]);
-
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < BREAKPOINT_MD);
     handleResize();
@@ -352,16 +316,6 @@ export default function InboxPage() {
     }
   }, [threads, searchParams, selectedThreadId, SEL_KEY, PERSIST_TTL_MS, applyLocalRead]);
 
-  // Prefetch the topmost thread's messages once, so first open is snappy
-  useEffect(() => {
-    if (!threads.length) return;
-    const topId = Number(threads[0]?.id || 0);
-    if (!Number.isFinite(topId) || topId <= 0) return;
-    if (!warmedIdsRef.current.has(topId)) {
-      warmedIdsRef.current.add(topId);
-      try { void prefetchThreadMessages(topId); } catch {}
-    }
-  }, [threads]);
 
   const filteredRequests = useMemo(() => {
     const q = query.trim().toLowerCase();
