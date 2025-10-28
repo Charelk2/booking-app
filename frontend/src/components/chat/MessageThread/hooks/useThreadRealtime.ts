@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
-import { threadStore } from '@/lib/chat/threadStore';
+import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, setLastRead as cacheSetLastRead, updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
 
 type UseThreadRealtimeOptions = {
   threadId: number;
@@ -41,7 +41,7 @@ export function useThreadRealtime({
     const scheduleTypingClear = () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
       typingTimer = window.setTimeout(() => {
-        try { threadStore.update(threadId, { typing: false }); } catch {}
+        try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
       }, 3000);
     };
     const unsubscribe = subscribe(topic, (payload: any) => {
@@ -58,9 +58,11 @@ export function useThreadRealtime({
         const isDuplicate = Number.isFinite(mid) && mid > 0 && seenSet.has(mid);
         if (Number.isFinite(senderId) && senderId > 0 && senderId !== myUserId) {
           if (!isDuplicate) {
-            if (threadStore.getActiveThreadId() !== threadId) {
-              threadStore.incrementUnread(threadId);
-            }
+            try {
+              const list = cacheGetSummaries() as any[];
+              const next = list.map((t) => Number(t?.id) === threadId ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 } : t);
+              cacheSetSummaries(next as any);
+            } catch {}
             if (Number.isFinite(mid) && mid > 0) {
               try {
                 seenSet.add(mid);
@@ -74,9 +76,9 @@ export function useThreadRealtime({
             }
           }
           // Counterparty sent a message: they are no longer typing
-          try { threadStore.update(threadId, { typing: false }); } catch {}
+          try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
         } else if (Number.isFinite(payload?.id)) {
-          threadStore.applyRead(threadId, Number(payload?.id));
+          cacheSetLastRead(threadId, Number(payload?.id));
         }
         // Delivered ack: if we are the recipient, visible and active, debounce a PUT
         if (isActive && typeof document !== 'undefined' && document.visibilityState === 'visible') {
@@ -103,7 +105,7 @@ export function useThreadRealtime({
         const readerId = Number(payload.user_id ?? payload.reader_id ?? 0);
         if (!Number.isFinite(upToId) || upToId <= 0 || !Number.isFinite(readerId) || readerId <= 0) return;
         if (readerId === myUserId) {
-          threadStore.applyRead(threadId, upToId, payload.read_at ?? null);
+          cacheSetLastRead(threadId, upToId);
         } else {
           applyReadReceipt(upToId, readerId, myUserId);
         }
@@ -113,7 +115,7 @@ export function useThreadRealtime({
       if (type === 'typing') {
         const users = Array.isArray(payload.users) ? payload.users : [];
         const typing = users.some((id: any) => Number(id) !== myUserId);
-        threadStore.update(threadId, { typing });
+        cacheUpdateSummary(threadId, { typing });
         if (typing) scheduleTypingClear();
         return;
       }
@@ -125,7 +127,7 @@ export function useThreadRealtime({
           for (const [uid, status] of Object.entries(updates)) {
             const id = Number(uid);
             if (!Number.isFinite(id) || id === myUserId) continue;
-            threadStore.update(threadId, { presence: (status || '').toString(), last_presence_at: Date.now() });
+            cacheUpdateSummary(threadId, { presence: (status || '').toString(), last_presence_at: Date.now() });
             break;
           }
         } catch {}

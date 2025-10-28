@@ -36,7 +36,8 @@ import { useQuotes } from '@/hooks/useQuotes';
 
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
-import { threadStore, safeParseDate } from '@/lib/chat/threadStore';
+import { safeParseDate } from '@/lib/chat/threadStore';
+import { getSummaries as cacheGetSummaries, subscribe as cacheSubscribe } from '@/lib/chat/threadCache';
 
 import { format } from 'date-fns';
 import { readThreadCache } from '@/lib/chat/threadCache';
@@ -204,7 +205,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
     const computePresence = () => {
       try {
-        const t = threadStore.getThread(bookingRequestId) as any;
+        const t = (cacheGetSummaries() as any[]).find((s) => Number(s?.id) === Number(bookingRequestId)) as any;
         const typing = Boolean(t?.typing);
         const presence: string | null = (t?.presence ?? null) as any; // e.g., 'online'
         const lastPresenceAt: number | null = (t?.last_presence_at ?? null) as any;
@@ -258,7 +259,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     };
 
     computePresence();
-    const unsub = threadStore.subscribe(() => computePresence());
+    const unsub = cacheSubscribe(() => computePresence());
     return () => {
       try {
         unsub?.();

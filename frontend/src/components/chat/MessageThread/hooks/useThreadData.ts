@@ -14,7 +14,8 @@ import {
   readThreadCache as _readThreadCache,
   writeThreadCache as _writeThreadCache,
 } from '@/lib/chat/threadCache';
-import { threadStore, safeParseDate } from '@/lib/chat/threadStore';
+import { safeParseDate } from '@/lib/chat/threadStore';
+import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries } from '@/lib/chat/threadCache';
 import { normalizeMessage as normalizeShared } from '@/lib/normalizers/messages';
 
 type ThreadMessage = any; // Keep flexible; UI uses normalized fields downstream
@@ -94,6 +95,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
   const messagesRef = React.useRef<ThreadMessage[]>([]);
   const fetchInFlightRef = React.useRef<boolean>(false);
   const refetchRequestedRef = React.useRef<null | FetchMessagesOptions>(null);
+  const abortRef = React.useRef<AbortController | null>(null);
   const missingThreadRef = React.useRef<boolean>(false);
   const initialLoadedRef = React.useRef<boolean>(false);
   const lastMessageIdRef = React.useRef<number | null>(null);
@@ -173,7 +175,10 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
 
       try {
         // Pass known quotes for dedupe (best-effort)
-        const res = await apiList(threadId, params as any);
+        // Abort any previous in‑flight request for this thread instance
+        try { abortRef.current?.abort(); } catch {}
+        abortRef.current = new AbortController();
+        const res = await apiList(threadId, params as any, { signal: abortRef.current.signal });
         try {
           const qmap = (res.data as any)?.quotes as Record<number, any> | undefined;
           if (qmap && typeof qmap === 'object') seedGlobalQuotes(Object.values(qmap).filter(Boolean) as any);
@@ -205,6 +210,11 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         } catch {}
         try { opts?.onMessagesFetched?.(normalized, params.mode === 'delta' ? 'delta' : 'fetch'); } catch {}
       } catch (err) {
+        // Ignore silent aborts when switching threads quickly
+        if (isAxiosError(err) && (err as any).code === 'ERR_CANCELED') {
+          setLoading(false);
+          return;
+        }
         if (isAxiosError(err)) {
           const status = err.response?.status;
           if (status === 404) {
@@ -237,6 +247,8 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         setLoading(false);
       } finally {
         fetchInFlightRef.current = false;
+        // Clear controller after resolution
+        try { abortRef.current = null; } catch {}
         const queued = refetchRequestedRef.current;
         refetchRequestedRef.current = null;
         if (queued) void fetchMessages({ mode: queued.mode ?? 'incremental', force: true, reason: queued.reason ?? 'queued-refetch' });
@@ -244,6 +256,9 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     },
     [threadId, isActiveThread, transport.online],
   );
+
+  // Abort on unmount to reduce wasted work
+  React.useEffect(() => () => { try { abortRef.current?.abort(); } catch {} }, []);
 
   // Send a message via API and return the normalized server message (does not modify local list).
   const send = React.useCallback(async (payload: any, opts?: { idempotencyKey?: string; clientRequestId?: string }): Promise<ThreadMessage> => {
@@ -520,13 +535,13 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     const last = messages[messages.length - 1];
     const lastId = Number(last?.id || 0);
     if (Number.isFinite(lastId)) lastMessageIdRef.current = lastId;
-    const existing = threadStore.getThread(threadId);
+    const existing = (cacheGetSummaries() as any[]).find((s) => Number(s?.id) === Number(threadId));
     const nextTimestamp = coerceTimestamp(last?.timestamp ?? new Date().toISOString());
-    if (existing && Number(existing.last_message_id || 0) === lastId) {
+    if (existing && Number((existing as any).last_message_id || 0) === lastId) {
       return;
     }
     if (existing) {
-      const existingTimestamp = coerceTimestamp(existing.last_message_timestamp || existing.updated_at || existing.created_at);
+      const existingTimestamp = coerceTimestamp((existing as any).last_message_timestamp || (existing as any).updated_at || (existing as any).created_at);
       if (existingTimestamp > nextTimestamp) {
         return;
       }
@@ -538,13 +553,19 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     const collapsedPreview = rawPreviewLabel
       || (contentText.startsWith(BOOKING_DETAILS_PREFIX) ? 'New Booking Request' : contentText);
 
-    threadStore.upsert({
-      id: threadId,
-      last_message_id: Number(last?.id || 0) || undefined,
-      last_message_content: collapsedPreview,
-      last_message_timestamp: last?.timestamp ?? new Date().toISOString(),
-      last_sender_id: Number(last?.sender_id ?? last?.senderId ?? 0) || undefined,
-    });
+    try {
+      const list = cacheGetSummaries() as any[];
+      const nextList = list.map((s: any) => (Number(s?.id) === Number(threadId)
+        ? {
+            ...s,
+            last_message_id: Number(last?.id || 0) || s.last_message_id || undefined,
+            last_message_content: collapsedPreview,
+            last_message_timestamp: last?.timestamp ?? new Date().toISOString(),
+            last_sender_id: Number(last?.sender_id ?? last?.senderId ?? 0) || s.last_sender_id || undefined,
+          }
+        : s));
+      cacheSetSummaries(nextList as any);
+    } catch {}
   }, [messages, threadId]);
 
   React.useEffect(() => {

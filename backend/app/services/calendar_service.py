@@ -10,6 +10,11 @@ import logging
 from fastapi import HTTPException
 import os
 from typing import TYPE_CHECKING, Any
+import base64
+import hashlib
+import hmac
+import json
+import time
 
 try:  # optional in minimal environments
     from google_auth_oauthlib.flow import Flow  # type: ignore
@@ -44,6 +49,7 @@ SCOPES = [
 
 _CALENDAR_STATE_PREFIX = "oauth:calendar:state:"
 _CALENDAR_STATE_TTL = 600  # 10 minutes
+_SIGNED_STATE_PREFIX = "sig:"
 
 
 def _require_credentials() -> None:
@@ -102,6 +108,54 @@ def _pop_calendar_state(state: str) -> Optional[int]:
         return None
 
 
+def _b64_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def _b64_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode(value + padding)
+
+
+def _encode_signed_calendar_state(user_id: int) -> str:
+    """Return a short‑lived HMAC-signed state embedding the user id.
+
+    Payload shape: {"uid": <int>, "exp": epochSeconds}
+    """
+    exp = int(time.time()) + _CALENDAR_STATE_TTL
+    payload = json.dumps({"uid": int(user_id), "exp": exp}, separators=(",", ":")).encode("utf-8")
+    secret = settings.SECRET_KEY.encode("utf-8")
+    digest = hmac.new(secret, payload, hashlib.sha256).digest()
+    return f"{_SIGNED_STATE_PREFIX}{_b64_encode(payload)}.{_b64_encode(digest)}"
+
+
+def _decode_signed_calendar_state(token: str) -> int:
+    """Verify and decode signed calendar state; return user id or raise ValueError."""
+    if not token.startswith(_SIGNED_STATE_PREFIX):
+        raise ValueError("not_signed")
+    try:
+        encoded_payload, encoded_digest = token[len(_SIGNED_STATE_PREFIX) :].split(".", 1)
+    except ValueError as exc:
+        raise ValueError("malformed_state") from exc
+    payload = _b64_decode(encoded_payload)
+    provided = _b64_decode(encoded_digest)
+    secret = settings.SECRET_KEY.encode("utf-8")
+    expected = hmac.new(secret, payload, hashlib.sha256).digest()
+    if not hmac.compare_digest(expected, provided):
+        raise ValueError("bad_signature")
+    try:
+        data = json.loads(payload.decode("utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("bad_payload") from exc
+    exp = int(data.get("exp") or 0)
+    if exp <= int(time.time()):
+        raise ValueError("expired")
+    uid = data.get("uid")
+    if not isinstance(uid, int):
+        raise ValueError("missing_uid")
+    return uid
+
+
 def get_auth_url(user_id: int, redirect_uri: str) -> str:
     """Return the Google OAuth authorization URL for the user."""
     if not _HAS_GOOGLE:
@@ -109,11 +163,10 @@ def get_auth_url(user_id: int, redirect_uri: str) -> str:
     require_credentials()
     flow = _flow(redirect_uri)
 
-    # Prefer a random state stored server-side; fall back to user_id on failure.
-    state_token = None
+    # Use signed, short‑lived state by default (bypasses Redis).
+    # If signing ever fails (shouldn't), fall back to numeric user id.
     try:
-        state_token = new_oauth_state()
-        _store_calendar_state(state_token, user_id)
+        state_token = _encode_signed_calendar_state(user_id)
     except Exception:  # noqa: BLE001
         state_token = str(user_id)
 
@@ -128,9 +181,17 @@ def get_auth_url(user_id: int, redirect_uri: str) -> str:
 
 def resolve_calendar_state(state: str) -> Optional[int]:
     """Convert the OAuth state string back into the originating user id."""
+    # 1) Signed token path
+    if isinstance(state, str) and state.startswith(_SIGNED_STATE_PREFIX):
+        try:
+            return _decode_signed_calendar_state(state)
+        except ValueError:
+            return None
+    # 2) Legacy Redis path
     user_id = _pop_calendar_state(state)
     if user_id is not None:
         return user_id
+    # 3) Last‑ditch: numeric fallback
     try:
         return int(state)
     except (TypeError, ValueError):

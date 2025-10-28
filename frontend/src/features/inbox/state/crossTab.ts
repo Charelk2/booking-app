@@ -1,4 +1,4 @@
-import { threadStore } from '@/lib/chat/threadStore';
+import { setLastRead as cacheSetLastRead } from '@/lib/chat/threadCache';
 import { THREAD_READ_EVENT } from '@/components/chat/MessageThread/hooks/useThreadReadManager';
 
 type Msg =
@@ -36,7 +36,7 @@ export function initCrossTabSync() {
     if (data.t === 'thread_read') {
       const { threadId, lastMessageId, readAt } = data;
       if (Number.isFinite(threadId) && threadId > 0) {
-        try { threadStore.applyRead(threadId, Number(lastMessageId) || undefined, readAt ?? null); } catch {}
+        try { cacheSetLastRead(threadId, Number(lastMessageId) || undefined); } catch {}
       }
       return;
     }

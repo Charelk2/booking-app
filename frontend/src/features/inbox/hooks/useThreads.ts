@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { getThreadsIndex } from '@/lib/api';
-import { threadStore } from '@/lib/chat/threadStore';
+import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, subscribe as cacheSubscribe } from '@/lib/chat/threadCache';
 import type { BookingRequest, User } from '@/types';
 import { initCrossTabSync } from '@/features/inbox/state/crossTab';
 
@@ -32,16 +32,19 @@ export function useThreads(user: User | null | undefined) {
   // Subscribe to store changes and persist caches
   useEffect(() => {
     if (!user) return () => {};
-    const unsubscribe = threadStore.subscribe(() => {
+    const persist = () => {
       try {
-        const next = threadStore.getThreads();
+        const next = cacheGetSummaries();
         if (!Array.isArray(next) || next.length === 0) return;
         const json = JSON.stringify(next);
         sessionStorage.setItem(cacheKey, json);
         sessionStorage.setItem(latestCacheKey, json);
         localStorage.setItem(persistKey, JSON.stringify({ ts: Date.now(), items: next }));
       } catch {}
-    });
+    };
+    const unsubscribe = cacheSubscribe(persist);
+    // Persist once on mount so initial cache is stored
+    persist();
     return unsubscribe;
   }, [user, cacheKey, latestCacheKey, persistKey]);
 
@@ -53,8 +56,7 @@ export function useThreads(user: User | null | undefined) {
       if (sessionCached) {
         const items = JSON.parse(sessionCached) as BookingRequest[];
         if (Array.isArray(items) && items.length) {
-          if (threadStore.getThreads().length === 0) threadStore.replace(items as any);
-          else items.forEach((it) => threadStore.upsert(it as any));
+          cacheSetSummaries(items as any);
           return;
         }
       }
@@ -63,8 +65,7 @@ export function useThreads(user: User | null | undefined) {
         const obj = JSON.parse(raw) as { ts: number; items: BookingRequest[] };
         const age = Date.now() - Number(obj?.ts || 0);
         if (obj?.items && Array.isArray(obj.items) && obj.items.length && age >= 0 && age < PERSIST_TTL_MS) {
-          if (threadStore.getThreads().length === 0) threadStore.replace(obj.items as any);
-          else obj.items.forEach((it) => threadStore.upsert(it as any));
+          cacheSetSummaries(obj.items as any);
           // also refresh session cache for tab lifetime
           try {
             const json = JSON.stringify(obj.items);
@@ -121,11 +122,7 @@ export function useThreads(user: User | null | undefined) {
       ...(it?.state ? { thread_state: it.state } : {}),
     } as any));
 
-    if (threadStore.getThreads().length === 0) {
-      threadStore.replace(mapped as any);
-    } else {
-      mapped.forEach((m) => threadStore.upsert(m as any));
-    }
+    cacheSetSummaries(mapped as any);
     try {
       const newTag = (res as any)?.headers?.etag || (res as any)?.headers?.ETag;
       if (newTag && typeof window !== 'undefined') sessionStorage.setItem(etagKey, String(newTag));

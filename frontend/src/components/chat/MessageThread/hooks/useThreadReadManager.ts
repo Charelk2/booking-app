@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { markThreadMessagesRead } from '@/lib/api';
 import { runWithTransport } from '@/lib/transportState';
-import { threadStore } from '@/lib/chat/threadStore';
+import { getSummaries as cacheGetSummaries, setLastRead as cacheSetLastRead } from '@/lib/chat/threadCache';
 
 export const THREAD_READ_EVENT = 'thread:read';
 
@@ -44,7 +44,7 @@ export function useThreadReadManager({ threadId, messages, isActive, myUserId }:
       if (!threadId) return;
       inflightRef.current = lastMessageId;
 
-      const prev = threadStore.getThreads().find((t) => t.id === threadId);
+      const prev = (cacheGetSummaries() as any[]).find((t) => t.id === threadId);
       const prevUnread = Number(prev?.unread_count || 0);
       if (prevUnread > 0 && typeof window !== 'undefined') {
         try {
@@ -56,7 +56,7 @@ export function useThreadReadManager({ threadId, messages, isActive, myUserId }:
         } catch {}
       }
 
-      threadStore.applyRead(threadId, lastMessageId);
+      cacheSetLastRead(threadId, lastMessageId);
       fireEvent(lastMessageId);
 
       const maybe = runWithTransport(

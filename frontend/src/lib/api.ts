@@ -156,6 +156,10 @@ api.interceptors.response.use(
   },
   (error) => {
     if (axios.isAxiosError(error)) {
+      // Silently ignore AbortController cancellations (quick thread switches)
+      if ((error as any).code === 'ERR_CANCELED') {
+        return Promise.reject(error);
+      }
       rememberMachineFromResponse(error.response?.headers as any);
       const originalRequest = (error.config || {}) as RetryableRequest;
       const req = originalRequest as any; // permissive accessor for url/method/headers
@@ -849,6 +853,7 @@ export interface MessageListParams {
 export const getMessagesForBookingRequest = (
   bookingRequestId: number,
   params: MessageListParams = {},
+  opts?: { signal?: AbortSignal }
 ) => {
   const qp: Record<string, unknown> = { ...params };
   const afterCandidate = params.after_id ?? params.after;
@@ -877,10 +882,12 @@ export const getMessagesForBookingRequest = (
       .filter((n) => Number.isFinite(n) && n > 0)
       .join(',');
   }
-  return getDeduped<MessageListResponseEnvelope>(
-    `${API_V1}/booking-requests/${bookingRequestId}/messages`,
-    qp as any,
-  );
+  const url = `${API_V1}/booking-requests/${bookingRequestId}/messages`;
+  if (opts && opts.signal) {
+    // When an AbortSignal is provided, bypass global dedupe so this request can be aborted.
+    return api.get<MessageListResponseEnvelope>(url, { params: qp as any, signal: opts.signal });
+  }
+  return getDeduped<MessageListResponseEnvelope>(url, qp as any);
 };
 
 // Batch messages by thread ids (breadth-first warmup)

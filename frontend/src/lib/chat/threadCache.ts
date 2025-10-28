@@ -1,7 +1,8 @@
 import Dexie, { Table } from 'dexie';
 
-// Lightweight sessionStorage-backed thread cache with simple LRU capping.
-// Keys are shared with MessageThread and ConversationList to avoid duplication.
+// Unified chat cache: one cache → two subscribers → zero wasted work.
+// This file owns summaries, per-thread messages, and unread bookkeeping,
+// and exposes a subscribe() API usable with useSyncExternalStore selectors.
 
 export const THREAD_CACHE_PREFIX = 'inbox:thread';
 const THREAD_LRU_KEY = `${THREAD_CACHE_PREFIX}:lru:v1`;
@@ -18,6 +19,22 @@ type ThreadRecord = {
   messageCount: number;
 };
 export type ThreadStoreRecord = ThreadRecord;
+
+// Minimal summary record used by the conversation list
+export type ThreadSummary = {
+  id: number;
+  last_message_id?: number | null;
+  last_message_timestamp?: string | null;
+  last_message_content?: string | null;
+  unread_count?: number;
+  state?: string | null;
+  counterparty_label?: string | null;
+  counterparty_avatar_url?: string | null;
+  // Ephemeral realtime fields
+  typing?: boolean;
+  presence?: string | null;
+  last_presence_at?: number | null;
+};
 
 class ThreadCacheDatabase extends Dexie {
   threads!: Table<ThreadRecord, number>;
@@ -242,4 +259,192 @@ export function writeThreadCache(id: number, messages: any[], maxThreads = MAX_T
   } catch {}
   void writeThreadToIndexedDb(id, messages);
 }
+
+// ————————————————————————————————————————————————————————————————
+// In-memory unified cache + subscription layer
+
+type Listener = () => void;
+
+const summaries: Map<number, ThreadSummary> = new Map();
+let summariesArray: ThreadSummary[] = [];
+const messagesById: Map<number, any[]> = new Map();
+const lastReadById: Map<number, number> = new Map();
+const listeners: Set<Listener> = new Set();
+
+function notify() {
+  listeners.forEach((fn) => { try { fn(); } catch {} });
+}
+
+function sortSummaries(arr: ThreadSummary[]): ThreadSummary[] {
+  return [...arr].sort((a, b) => {
+    const at = Date.parse(String(a.last_message_timestamp || '')) || 0;
+    const bt = Date.parse(String(b.last_message_timestamp || '')) || 0;
+    if (bt !== at) return bt - at;
+    return (Number(b.id) || 0) - (Number(a.id) || 0);
+  });
+}
+
+function shallowEqualMessages(a: any[], b: any[]): boolean {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const ai = a[i];
+    const bi = b[i];
+    if (Number(ai?.id) !== Number(bi?.id)) return false;
+    // If ids match and content changed, treat as change
+    const ac = (ai?.content ?? ai?.text ?? '') as any;
+    const bc = (bi?.content ?? bi?.text ?? '') as any;
+    if (ac !== bc) return false;
+  }
+  return true;
+}
+
+export function subscribe(listener: Listener) {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+
+export function getSummaries(): ThreadSummary[] { return summariesArray; }
+
+export function setSummaries(list: ThreadSummary[]): void {
+  if (!Array.isArray(list)) { summaries.clear(); summariesArray = []; notify(); return; }
+  const next = sortSummaries(list.map((it) => ({ ...it, id: Number(it.id) })));
+  // Reuse object identities where possible to keep list stable
+  const byId = new Map<number, ThreadSummary>();
+  next.forEach((it) => {
+    const id = Number(it.id);
+    const prev = summaries.get(id);
+    const merged = prev ? { ...prev, ...it } : it;
+    byId.set(id, merged);
+  });
+  summaries.clear();
+  byId.forEach((v, k) => summaries.set(k, v));
+  const arr = Array.from(summaries.values());
+  const sorted = sortSummaries(arr);
+  // Only swap array reference if contents changed
+  const same = summariesArray.length === sorted.length && summariesArray.every((s, i) => Number(s.id) === Number(sorted[i].id) && s.last_message_content === sorted[i].last_message_content && s.last_message_timestamp === sorted[i].last_message_timestamp && Number(s.unread_count || 0) === Number(sorted[i].unread_count || 0));
+  if (!same) summariesArray = sorted;
+  notify();
+}
+
+export function updateSummary(id: number, patch: Partial<ThreadSummary>) {
+  const tid = Number(id);
+  const prev = summaries.get(tid) || ({ id: tid } as ThreadSummary);
+  const next = { ...prev, ...patch } as ThreadSummary;
+  summaries.set(tid, next);
+  summariesArray = sortSummaries(Array.from(summaries.values()));
+  notify();
+}
+
+export function getMessages(conversationId: number): any[] {
+  return messagesById.get(Number(conversationId)) || [];
+}
+
+export function setMessages(conversationId: number, page: any[], replace = true): void {
+  const id = Number(conversationId);
+  const prev = messagesById.get(id) || [];
+  const normalized = Array.isArray(page) ? page.slice().sort((a, b) => {
+    const at = Date.parse(String(a?.timestamp || '')) || 0;
+    const bt = Date.parse(String(b?.timestamp || '')) || 0;
+    if (at !== bt) return at - bt;
+    return (Number(a?.id) || 0) - (Number(b?.id) || 0);
+  }) : [];
+  const next = replace ? normalized : (() => {
+    const map = new Map<number, any>();
+    prev.forEach((m) => { if (Number.isFinite(Number(m?.id))) map.set(Number(m.id), m); });
+    normalized.forEach((m) => { if (Number.isFinite(Number(m?.id))) map.set(Number(m.id), { ...map.get(Number(m.id)), ...m }); });
+    return Array.from(map.values()).sort((a, b) => {
+      const at = Date.parse(String(a?.timestamp || '')) || 0;
+      const bt = Date.parse(String(b?.timestamp || '')) || 0;
+      if (at !== bt) return at - bt;
+      return (Number(a?.id) || 0) - (Number(b?.id) || 0);
+    });
+  })();
+  if (!shallowEqualMessages(prev, next)) {
+    messagesById.set(id, next);
+    // Persist a bounded slice for fast warm-starts
+    try { writeThreadCache(id, next); } catch {}
+    // Update summary preview optimistically
+    const tail = next[next.length - 1];
+    if (tail) {
+      const s = summaries.get(id) || ({ id } as ThreadSummary);
+      const ts = String(tail.timestamp || new Date().toISOString());
+      const text = String(tail.preview_label || tail.content || tail.text || '') || s.last_message_content || '';
+      summaries.set(id, { ...s, last_message_id: Number(tail.id) || s.last_message_id || null, last_message_timestamp: ts, last_message_content: text });
+      summariesArray = sortSummaries(Array.from(summaries.values()));
+    }
+    notify();
+  }
+}
+
+export function upsertMessage(msg: any): void {
+  if (!msg) return;
+  const id = Number(msg.booking_request_id || msg.thread_id || msg.conversation_id || 0);
+  if (!Number.isFinite(id) || id <= 0) return;
+  const prev = messagesById.get(id) || [];
+  const without = prev.filter((m) => Number(m?.id) !== Number(msg.id));
+  const next = [...without, msg].sort((a, b) => {
+    const at = Date.parse(String(a?.timestamp || '')) || 0;
+    const bt = Date.parse(String(b?.timestamp || '')) || 0;
+    if (at !== bt) return at - bt;
+    return (Number(a?.id) || 0) - (Number(b?.id) || 0);
+  });
+  if (!shallowEqualMessages(prev, next)) {
+    messagesById.set(id, next);
+    try { writeThreadCache(id, next); } catch {}
+    const tail = next[next.length - 1];
+    if (tail) {
+      const s = summaries.get(id) || ({ id } as ThreadSummary);
+      const ts = String(tail.timestamp || new Date().toISOString());
+      const text = String(tail.preview_label || tail.content || tail.text || '') || s.last_message_content || '';
+      const prevUnread = Number(s.unread_count || 0);
+      const unread = Number(msg.sender_id) && Number(msg.sender_id) !== Number((window as any)?.__currentUserId || 0)
+        ? prevUnread + 1
+        : prevUnread;
+      summaries.set(id, { ...s, last_message_id: Number(tail.id) || s.last_message_id || null, last_message_timestamp: ts, last_message_content: text, unread_count: unread });
+      summariesArray = sortSummaries(Array.from(summaries.values()));
+    }
+    notify();
+  }
+}
+
+export function setLastRead(conversationId: number, lastReadMessageId?: number | null) {
+  const id = Number(conversationId);
+  if (!Number.isFinite(id) || id <= 0) return;
+  if (Number.isFinite(Number(lastReadMessageId))) lastReadById.set(id, Number(lastReadMessageId));
+  const s = summaries.get(id);
+  if (s) {
+    const next = { ...s, unread_count: 0 } as ThreadSummary;
+    summaries.set(id, next);
+    summariesArray = sortSummaries(Array.from(summaries.values()));
+    notify();
+  }
+}
+
+export function applyReadServer(conversationId: number, unreadCount: number, lastReadAt?: string | null) {
+  const id = Number(conversationId);
+  const s = summaries.get(id);
+  if (!s) return;
+  summaries.set(id, { ...s, unread_count: Math.max(0, Number(unreadCount || 0)) });
+  summariesArray = sortSummaries(Array.from(summaries.values()));
+  notify();
+}
+
+export function getTotalUnread(): number {
+  let total = 0;
+  summaries.forEach((s) => { total += Number(s.unread_count || 0); });
+  return total;
+}
+
+// Utilities for tests/bootstrapping
+export function __seedSummaries(list: ThreadSummary[]) { setSummaries(list); }
+export function __clearAll() {
+  summaries.clear();
+  summariesArray = [];
+  messagesById.clear();
+  lastReadById.clear();
+  notify();
+}
+
 // moved to lib/chat

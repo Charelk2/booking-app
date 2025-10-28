@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import useRealtime from '@/hooks/useRealtime';
 import { useAuth } from '@/contexts/AuthContext';
-import { threadStore } from '@/lib/chat/threadStore';
+import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries } from '@/lib/chat/threadCache';
 
 type RealtimeCtx = ReturnType<typeof useRealtime>;
 
@@ -31,15 +31,17 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
           if (m2 && m2[1]) id = Number(m2[1]);
         }
         if (!Number.isFinite(id) || id <= 0) return;
-        // If this thread is not the active one, bump unread and nudge preview
-        const active = threadStore.getActiveThreadId();
-        if (active !== id) {
-          const msg = String((payload && (payload.message || (payload.payload && payload.payload.message))) || '').trim();
-          const nowIso = new Date().toISOString();
-          // Update preview timestamp/content best-effort so the thread floats up; server will reconcile on next hydrate
-          threadStore.update(id, { last_message_timestamp: nowIso, last_message_content: msg || 'New message' } as any);
-          threadStore.incrementUnread(id, 1);
-        }
+        const msg = String((payload && (payload.message || (payload.payload && payload.payload.message))) || '').trim();
+        const nowIso = new Date().toISOString();
+        const list = cacheGetSummaries() as any[];
+        let found = false;
+        const next = list.map((t) => {
+          if (Number(t?.id) !== id) return t;
+          found = true;
+          const unread = Math.max(0, Number(t?.unread_count || 0)) + 1;
+          return { ...t, last_message_timestamp: nowIso, last_message_content: msg || 'New message', unread_count: unread };
+        });
+        cacheSetSummaries(found ? next : ([{ id, last_message_timestamp: nowIso, last_message_content: msg || 'New message', unread_count: 1 } as any, ...list] as any));
       } catch {
         // best-effort only
       }

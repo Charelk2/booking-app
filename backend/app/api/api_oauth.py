@@ -114,15 +114,13 @@ def _decode_signed_state(token: str) -> str:
 
 
 async def _issue_oauth_state(next_path: str) -> str:
+    """Issue a signed, short‑lived state token.
+
+    We bypass Redis entirely for state issuance to avoid infra coupling. The
+    consumer still accepts legacy Redis states for backward compatibility.
+    """
     sanitized = _normalize_next_path(next_path)
-    state_id = new_oauth_state()
-    try:
-        await redis.setex(f"{_STATE_KEY_PREFIX}{state_id}", _STATE_TTL_SECONDS, "1")
-        await redis.setex(f"{_NEXT_KEY_PREFIX}{state_id}", _STATE_TTL_SECONDS, sanitized)
-        return f"{_REDIS_STATE_PREFIX}{state_id}"
-    except Exception as exc:
-        logger.warning("Redis unavailable for OAuth state, using signed token: %s", exc)
-        return _encode_signed_state(sanitized)
+    return _encode_signed_state(sanitized)
 
 
 async def _consume_oauth_state(state_token: str) -> str:

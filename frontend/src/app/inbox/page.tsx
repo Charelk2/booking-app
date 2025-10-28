@@ -37,25 +37,26 @@ import type { PrefetchCandidate } from '@/lib/chat/threadPrefetcher';
 import { recordThreadSwitchStart } from '@/lib/chat/inboxTelemetry';
 import { counterpartyLabel } from '@/lib/names';
 import OfflineBanner from '@/components/inbox/OfflineBanner';
-import { threadStore } from '@/lib/chat/threadStore';
+import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, subscribe as cacheSubscribe, setLastRead as cacheSetLastRead } from '@/lib/chat/threadCache';
 
 export default function InboxPage() {
   const { user, loading: authLoading } = useAuth();
 
-  const [threads, setThreads] = useState<BookingRequest[]>(() => threadStore.getThreads());
+  const [threads, setThreads] = useState<BookingRequest[]>(() => cacheGetSummaries() as any);
   const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
 
   const replaceThreads = useCallback((items: BookingRequest[]) => {
-    threadStore.replace(items);
+    cacheSetSummaries(items as any);
   }, []);
 
   const mutateThreads = useCallback((updater: (threads: BookingRequest[]) => BookingRequest[]) => {
-    threadStore.mutate(updater);
+    const next = updater(cacheGetSummaries() as any);
+    cacheSetSummaries(next as any);
   }, []);
 
   const applyLocalRead = useCallback((id: number) => {
     if (!id) return;
-    const record = threadStore.getThreads().find((t) => t.id === id) as any;
+    const record = (cacheGetSummaries() as any[]).find((t) => t.id === id) as any;
     const unreadBefore = Number(record?.unread_count || 0) || 0;
     if (unreadBefore > 0 && typeof window !== 'undefined') {
       try {
@@ -73,9 +74,9 @@ export default function InboxPage() {
         0,
     );
     if (Number.isFinite(lastMessageId) && lastMessageId > 0) {
-      threadStore.applyRead(id, lastMessageId);
+      cacheSetLastRead(id, lastMessageId);
     } else {
-      threadStore.applyRead(id, undefined);
+      cacheSetLastRead(id, undefined);
     }
   }, []);
   const [loadingRequests, setLoadingRequests] = useState(false);
@@ -112,9 +113,7 @@ export default function InboxPage() {
   );
   const { refreshThreads } = useThreads(user ?? null);
 
-  useEffect(() => {
-    threadStore.setActiveThread(selectedThreadId ?? null);
-  }, [selectedThreadId]);
+  // active thread id is owned locally here; cache is a pure data store
 
   useEffect(() => {
     if (selectedThreadId == null) return;
@@ -148,11 +147,47 @@ export default function InboxPage() {
   const SEL_KEY = useMemo(() => `${CACHE_KEY}:selected`, [CACHE_KEY]);
 
   useEffect(() => {
-    const unsubscribe = threadStore.subscribe(() => {
-      setThreads(threadStore.getThreads());
+    const unsubscribe = cacheSubscribe(() => {
+      setThreads(cacheGetSummaries() as any);
     });
     return unsubscribe;
   }, []);
+
+  // Preload the heavy message thread chunk on idle so first click is instant
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const prime = () => {
+      try { import('@/components/chat/MessageThreadWrapper'); } catch {}
+    };
+    const idle = (cb: () => void) => {
+      try {
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(cb, { timeout: 1500 });
+        } else {
+          setTimeout(cb, 1200);
+        }
+      } catch {
+        setTimeout(cb, 1200);
+      }
+    };
+    idle(prime);
+  }, []);
+
+  // Also prefetch the message chunk on first hover/focus over the conversations list
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const el = document.getElementById('conversation-list-wrapper');
+    if (!el) return;
+    const handler = () => {
+      try { import('@/components/chat/MessageThreadWrapper'); } catch {}
+    };
+    el.addEventListener('mouseenter', handler, { once: true } as any);
+    el.addEventListener('focusin', handler, { once: true } as any);
+    return () => {
+      try { el.removeEventListener('mouseenter', handler as any); } catch {}
+      try { el.removeEventListener('focusin', handler as any); } catch {}
+    };
+  }, [threads.length]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < BREAKPOINT_MD);
@@ -316,6 +351,17 @@ export default function InboxPage() {
       }
     }
   }, [threads, searchParams, selectedThreadId, SEL_KEY, PERSIST_TTL_MS, applyLocalRead]);
+
+  // Prefetch the topmost thread's messages once, so first open is snappy
+  useEffect(() => {
+    if (!threads.length) return;
+    const topId = Number(threads[0]?.id || 0);
+    if (!Number.isFinite(topId) || topId <= 0) return;
+    if (!warmedIdsRef.current.has(topId)) {
+      warmedIdsRef.current.add(topId);
+      try { void prefetchThreadMessages(topId); } catch {}
+    }
+  }, [threads]);
 
   const filteredRequests = useMemo(() => {
     const q = query.trim().toLowerCase();
