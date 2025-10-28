@@ -27,9 +27,9 @@ export default function useWebSocket(
   const socketRef = useRef<WebSocket | null>(null);
   const handlersRef = useRef<MessageHandler[]>([]);
   const attemptsRef = useRef(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceBuffer = useRef<Map<number, string>>(new Map());
-  const presenceTimer = useRef<NodeJS.Timeout | null>(null);
+  const presenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPresenceUser = useRef<number | null>(null);
   const [status, setStatus] = useState<SocketStatus>('closed');
   const lastReconnectDelayRef = useRef<number | null>(null);
@@ -66,7 +66,7 @@ export default function useWebSocket(
       lastPresenceUser.current = userId;
       presenceBuffer.current.set(userId, status);
       if (!presenceTimer.current) {
-        presenceTimer.current = setTimeout(flushPresence, 1000);
+        presenceTimer.current = window.setTimeout(flushPresence, 1000);
       }
     },
     [flushPresence],
@@ -136,7 +136,7 @@ export default function useWebSocket(
                     qs.set('token', at);
                     const nextUrl = `${u.origin}${u.pathname}?${qs.toString()}`;
                     // Immediate reconnect with fresh token
-                    if (timerRef.current) clearTimeout(timerRef.current);
+                    if (timerRef.current) window.clearTimeout(timerRef.current);
                     attemptsRef.current = 0;
                     setStatus('reconnecting');
                     cancelled = false;
@@ -170,9 +170,9 @@ export default function useWebSocket(
         const delay = raw + jitter;
         lastReconnectDelayRef.current = delay;
         if (timerRef.current) {
-          clearTimeout(timerRef.current);
+          window.clearTimeout(timerRef.current);
         }
-        timerRef.current = setTimeout(connect, delay);
+        timerRef.current = window.setTimeout(connect, delay);
         setStatus('reconnecting');
       };
 
@@ -225,7 +225,7 @@ export default function useWebSocket(
         socketRef.current = null;
       }
       if (timerRef.current) {
-        clearTimeout(timerRef.current);
+        window.clearTimeout(timerRef.current);
         timerRef.current = null;
       }
     };

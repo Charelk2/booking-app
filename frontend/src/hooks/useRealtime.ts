@@ -21,6 +21,8 @@ interface UseRealtimeReturn {
 // - SSE: always use a same-origin relative path so it flows through Next.js rewrites
 // Prefer explicit WS URL. If not provided, fall back to API URL origin.
 let WS_BASE_ENV = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '') as string;
+// Prefer directing SSE to the API origin to avoid proxy buffering/closures
+let SSE_BASE_ENV = (process.env.NEXT_PUBLIC_SSE_URL || process.env.NEXT_PUBLIC_API_URL || '') as string;
 // Reduce full API URL to origin since WS endpoint path is fixed under /api/v1/ws
 try {
   if (WS_BASE_ENV) {
@@ -31,6 +33,16 @@ try {
   // Keep as-is if not a valid URL (e.g., empty)
 }
 WS_BASE_ENV = WS_BASE_ENV.replace(/\/+$/, '');
+
+try {
+  if (SSE_BASE_ENV) {
+    const u = new URL(SSE_BASE_ENV);
+    SSE_BASE_ENV = `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
+  }
+} catch {
+  // noop
+}
+SSE_BASE_ENV = SSE_BASE_ENV.replace(/\/+$/, '');
 
 export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const DEBUG = typeof window !== 'undefined' && (localStorage.getItem('CHAT_DEBUG') === '1');
@@ -71,8 +83,9 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     const qs = new URLSearchParams();
     if (topics.length) qs.set('topics', topics.join(','));
     if (token) qs.set('token', token);
-    // Always use same-origin so SSE streams through Next.js rewrites (avoids CORS/proxy drift)
-    return `/api/v1/sse?${qs.toString()}`;
+    // Prefer API origin; fall back to same-origin only if not configured
+    const base = SSE_BASE_ENV;
+    return base ? `${base}/api/v1/sse?${qs.toString()}` : `/api/v1/sse?${qs.toString()}`;
   }, [token]);
 
   const deliver = useCallback((msg: any) => {
