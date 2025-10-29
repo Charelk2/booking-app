@@ -174,8 +174,15 @@ def read_messages(
         # Delta without a cursor degrades to lite to avoid returning duplicate history
         normalized_mode = "lite"
 
+    # Clamp heavy pages to keep p95 low and avoid starving health checks
+    requested_limit = int(limit)
+    if normalized_mode == "delta":
+        # Delta pages should be small; align with (booking_request_id, id) index
+        effective_limit = min(requested_limit, 100)
+    else:
+        # Initial/lite/full pages: cap to a reasonable window
+        effective_limit = min(requested_limit, 120)
     # Always over-fetch by 1 so we can compute has_more uniformly across modes
-    effective_limit = int(limit)
     query_limit = effective_limit + 1
 
     request_start = time.perf_counter()
@@ -229,8 +236,15 @@ def read_messages(
         )
         return envelope
 
-    # If we requested newest_first, results are newest→oldest; reverse to oldest→newest
+    # Normalize all responses to oldest→newest for the client
+    # - First page (newest_first): DB returned newest→oldest → reverse
+    # - Before-cursor page: we ordered by id DESC for efficiency → reverse
     if 'newest_first' in locals() and newest_first:
+        try:
+            db_messages = list(reversed(db_messages))
+        except Exception:
+            pass
+    elif before_id is not None:
         try:
             db_messages = list(reversed(db_messages))
         except Exception:
@@ -487,7 +501,10 @@ def read_messages(
     }
 
     # Optionally attach quote summaries for any quote messages in this page
-    if include_quotes:
+    # Ignore include_quotes when the client asks for very large pages to
+    # avoid extra DB work on already heavy responses.
+    include_quotes_effective = bool(include_quotes and requested_limit <= 120)
+    if include_quotes_effective:
         try:
             quote_ids = sorted({int(m.get("quote_id")) for m in result if m.get("quote_id")})
         except Exception:

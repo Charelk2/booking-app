@@ -103,11 +103,21 @@ def get_messages_for_request(
         query = query.filter(models.Message.id < before_id)
     if since:
         query = query.filter(models.Message.timestamp >= since)
-    query = (
-        query.order_by(models.Message.timestamp.desc() if newest_first else models.Message.timestamp.asc())
-        .offset(skip)
-        .limit(limit)
-    )
+    # Choose an ORDER BY that aligns with available indexes.
+    # - For cursored reads (after_id / before_id), order by id to use the
+    #   (booking_request_id, id) composite index efficiently.
+    #   • after_id: ascending (append newer messages)
+    #   • before_id: descending (grab older page efficiently; caller may reverse)
+    # - For first page (no cursors), keep timestamp order (newest_first ⇒ desc).
+    if after_id is not None:
+        ordered = query.order_by(models.Message.id.asc())
+    elif before_id is not None:
+        ordered = query.order_by(models.Message.id.desc())
+    else:
+        ordered = query.order_by(
+            models.Message.timestamp.desc() if newest_first else models.Message.timestamp.asc()
+        )
+    query = ordered.offset(skip).limit(limit)
     return query.all()
 
 

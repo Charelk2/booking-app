@@ -264,9 +264,8 @@ const nextConfig = {
       // Direct attachments mount (bypasses /static if desired)
       { source: '/attachments/:path*', destination: `${apiBase}/attachments/:path*` },
       { source: '/static/:path*', destination: `${apiBase}/static/:path*` },
-      // Realtime endpoints; WS will use NEXT_PUBLIC_WS_URL when set, but allow same-origin proxy too
+      // Realtime endpoint; WS will use NEXT_PUBLIC_WS_URL when set, but allow same-origin proxy too
       { source: '/api/v1/ws', destination: `${apiBase}/api/v1/ws` },
-      { source: '/api/v1/sse', destination: `${apiBase}/api/v1/sse` },
     ];
   },
 };
