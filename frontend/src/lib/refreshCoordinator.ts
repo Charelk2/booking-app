@@ -3,6 +3,7 @@
 // network call to /auth/refresh is made at a time. Others wait for the result.
 
 type RefreshOutcome = 'ok' | 'err';
+import { API_ORIGIN } from '@/lib/api';
 
 let inflight = false;
 let waiters: Array<(ok: boolean) => void> = [];
@@ -60,7 +61,7 @@ async function leaderRefresh(): Promise<boolean> {
   // Use fetch to avoid axios interceptors recursion.
   const attempt = async () => {
     try {
-      const res = await fetch('/auth/refresh', {
+      const res = await fetch(`${API_ORIGIN}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

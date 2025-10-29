@@ -19,6 +19,7 @@ import { loadPlaces } from '@/lib/loadPlaces';
 import { LatLng } from '@/lib/geo';
 import eventTypes from '@/data/eventTypes.json';
 import toast from '@/components/ui/Toast';
+import { apiUrl } from '@/lib/api';
 import { parseBookingText, uploadBookingAttachment } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { getDrivingMetricsCached, TravelResult } from '@/lib/travel';
@@ -732,7 +733,7 @@ export function SoundStep({
 
     (async () => {
       try {
-        const svc = await fetch(`/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
+        const svc = await fetch(apiUrl(`/api/v1/services/${sid}`), { cache: 'force-cache' }).then((r) => r.json());
         const sp = svc?.details?.sound_provisioning || {};
         let modeDefault: string | undefined = sp.mode_default;
         // Fallback to legacy `mode` if `mode_default` is missing
@@ -795,13 +796,13 @@ export function SoundStep({
 
     (async () => {
       try {
-        const svc = await fetch(`/api/v1/services/${sid}`, { cache: 'force-cache' }).then((r) => r.json());
+        const svc = await fetch(apiUrl(`/api/v1/services/${sid}`), { cache: 'force-cache' }).then((r) => r.json());
         const sp = svc?.details?.sound_provisioning || {};
         let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
 
         if (!prefs.length) {
           try {
-            const pr = await fetch(`/api/v1/services/${sid}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json());
+            const pr = await fetch(apiUrl(`/api/v1/services/${sid}/sound-preferences`), { cache: 'no-store' }).then((r) => r.json());
             if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences;
           } catch {}
         }
@@ -838,7 +839,7 @@ export function SoundStep({
         })();
         for (const pid of preferredIds) {
           try {
-            const s = await fetch(`/api/v1/services/${pid}`, { cache: 'force-cache' }).then((r) => r.ok ? r.json() : null);
+            const s = await fetch(apiUrl(`/api/v1/services/${pid}`), { cache: 'force-cache' }).then((r) => r.ok ? r.json() : null);
             if (!s || !s.id) continue;
             const publicName =
               s?.details?.publicName ||
@@ -878,7 +879,7 @@ export function SoundStep({
 
         let cards: any[] = [];
         if (candidates.length) {
-          const ranked: any[] = await fetch(`/api/v1/pricebook/batch-estimate-rank`, {
+          const ranked: any[] = await fetch(apiUrl(`/api/v1/pricebook/batch-estimate-rank`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

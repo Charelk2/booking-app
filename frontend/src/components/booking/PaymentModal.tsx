@@ -4,8 +4,7 @@ import TextInput from '../ui/TextInput';
 import { createPayment } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
-// Use relative base for HTTP calls so they go through Next.js rewrites
-const API_BASE = '';
+import { apiUrl } from '@/lib/api';
 
 interface PaymentSuccess {
   status: string;
@@ -89,12 +88,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     setVerifying(true);
     setError(null);
     try {
-      const verifyUrl = `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(paystackReference)}`;
+      const verifyUrl = apiUrl(`/api/v1/payments/paystack/verify?reference=${encodeURIComponent(paystackReference)}`);
       const resp = await fetch(verifyUrl, { credentials: 'include' as RequestCredentials });
       if (resp.ok) {
         const v = await resp.json();
         const pid = v?.payment_id || paystackReference;
-        const receiptUrl = `/api/v1/payments/${pid}/receipt`;
+        const receiptUrl = apiUrl(`/api/v1/payments/${pid}/receipt`);
         try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
         onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
         return;
@@ -288,7 +287,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       }
       // No Paystack redirect: treat as immediate success (fake or direct capture gateway)
       const paymentId = (data as { payment_id?: string }).payment_id;
-      const receiptUrl = paymentId ? `/api/v1/payments/${paymentId}/receipt` : undefined;
+      const receiptUrl = paymentId ? apiUrl(`/api/v1/payments/${paymentId}/receipt`) : undefined;
       try { if (receiptUrl) localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
       onSuccess({ status: 'paid', amount: Number(amount), receiptUrl, paymentId });
     } catch (err: any) {
@@ -297,7 +296,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         console.warn('Payment API unavailable; simulating paid status (FAKE).', err);
         const hex = Math.random().toString(16).slice(2).padEnd(8, '0');
         const paymentId = `test_${Date.now().toString(16)}${hex}`;
-        const receiptUrl = `${API_BASE.replace(/\/+$/,'')}/api/v1/payments/${paymentId}/receipt`;
+        const receiptUrl = apiUrl(`/api/v1/payments/${paymentId}/receipt`);
         try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
         onSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl, mocked: true });
       } else {
@@ -322,11 +321,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     const MAX = 60000; // 1 minute max
     const tick = async () => {
       try {
-        const resp = await fetch(`/api/v1/payments/paystack/verify?reference=${encodeURIComponent(paystackReference)}`, { credentials: 'include' as RequestCredentials });
+        const resp = await fetch(apiUrl(`/api/v1/payments/paystack/verify?reference=${encodeURIComponent(paystackReference)}`), { credentials: 'include' as RequestCredentials });
         if (resp.ok) {
           const v = await resp.json();
           const pid = v?.payment_id || paystackReference;
-          const receiptUrl = `/api/v1/payments/${pid}/receipt`;
+          const receiptUrl = apiUrl(`/api/v1/payments/${pid}/receipt`);
           try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
           onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
           return;

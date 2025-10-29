@@ -29,6 +29,7 @@ import { calculateTravelMode, getDrivingMetricsCached, geocodeCached } from '@/l
 import { BookingRequestCreate } from '@/types';
 import './wizard/wizard.css';
 import toast from '../ui/Toast';
+import { apiUrl } from '@/lib/api';
 // 404-aware service cache (tombstones)
 const svcCache = new Map<number, any | null>();
 type ServiceJson = any | null; // null = tombstone (missing)
@@ -36,7 +37,7 @@ async function fetchServiceCached(serviceId: number): Promise<ServiceJson> {
   const cached = svcCache.get(serviceId);
   if (cached !== undefined) return cached as ServiceJson;
   try {
-    const resp = await fetch(`/api/v1/services/${serviceId}`, { cache: 'force-cache' });
+    const resp = await fetch(apiUrl(`/api/v1/services/${serviceId}`), { cache: 'force-cache' });
     if (resp.status === 404) {
       svcCache.set(serviceId, null);
       return null;
@@ -356,7 +357,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       try {
         const [availabilityRes, artistRes] = await Promise.all([
           getServiceProviderAvailability(artistId),
-          fetch(`/api/v1/service-provider-profiles/${artistId}`, { cache: 'force-cache' }).then((res) => res.json()),
+          fetch(apiUrl(`/api/v1/service-provider-profiles/${artistId}`), { cache: 'force-cache' }).then((res) => res.json()),
         ]);
         setUnavailable(availabilityRes.data.unavailable_dates);
         setArtistLocation(artistRes.location || null);
@@ -537,7 +538,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             const sp = svcRes?.details?.sound_provisioning || {};
             let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
             if (!prefs.length) {
-              try { const pr = await fetch(`/api/v1/services/${serviceId}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json()); if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences; } catch {}
+              try { const pr = await fetch(apiUrl(`/api/v1/services/${serviceId}/sound-preferences`), { cache: 'no-store' }).then((r) => r.json()); if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences; } catch {}
             }
             const locLower = String(details.location || '').toLowerCase();
             const locCityLower = locLower.split(',')[0]?.trim() || locLower;
@@ -565,7 +566,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               } catch {}
             }
             if (candidates.length) {
-              const ranked: any[] = await fetch(`/api/v1/pricebook/batch-estimate-rank`, {
+              const ranked: any[] = await fetch(apiUrl(`/api/v1/pricebook/batch-estimate-rank`), {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   rider_spec: {
@@ -609,7 +610,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           }
           // Fetch and normalize the musician's rider once to provide unit/backline context
           try {
-            const rider = await fetch(`/api/v1/services/${serviceId}/rider`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null);
+            const rider = await fetch(apiUrl(`/api/v1/services/${serviceId}/rider`), { cache: 'no-store' }).then(r => r.ok ? r.json() : null);
             const norm = normalizeRiderForPricing(rider?.spec);
             riderUnitsForServer = norm.units;
             backlineRequestedForServer = (details as any).backlineRequired ? norm.backline : {};
@@ -651,7 +652,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             const selectedId = (details as any).soundSupplierServiceId as number | undefined;
             let normalizedRider = { units: { vocal_mics: 0, speech_mics: 0, monitor_mixes: 0, iem_packs: 0, di_boxes: 0 }, backline: {} as Record<string, number> };
             try {
-              const rider = await fetch(`/api/v1/services/${serviceId}/rider`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null);
+              const rider = await fetch(apiUrl(`/api/v1/services/${serviceId}/rider`), { cache: 'no-store' }).then(r => r.ok ? r.json() : null);
               normalizedRider = normalizeRiderForPricing(rider?.spec);
             } catch {}
             if (selectedId) {
@@ -700,7 +701,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               if (!Number.isFinite(scFromAudience) || scFromAudience <= 0) {
                 try {
                   if (!missingServiceRef.current.has(selectedId)) {
-                    const resp = await fetch(`/api/v1/services/${selectedId}/sound-estimate`, {
+                    const resp = await fetch(apiUrl(`/api/v1/services/${selectedId}/sound-estimate`), {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
@@ -746,7 +747,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
               if (!prefs.length) {
                 try {
-                  const pr = await fetch(`/api/v1/services/${serviceId}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json());
+                  const pr = await fetch(apiUrl(`/api/v1/services/${serviceId}/sound-preferences`), { cache: 'no-store' }).then((r) => r.json());
                   if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences;
                 } catch {}
               }
@@ -764,7 +765,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               for (const pid of tryIds) {
                 try {
                   if (missingServiceRef.current.has(pid)) continue;
-                  const resp = await fetch(`/api/v1/services/${pid}/sound-estimate`, {
+                  const resp = await fetch(apiUrl(`/api/v1/services/${pid}/sound-estimate`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -803,7 +804,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
               if (!prefs.length) {
                 try {
-                  const pr = await fetch(`/api/v1/services/${serviceId}/sound-preferences`, { cache: 'no-store' }).then((r) => r.json());
+                  const pr = await fetch(apiUrl(`/api/v1/services/${serviceId}/sound-preferences`), { cache: 'no-store' }).then((r) => r.json());
                   if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences;
                 } catch {}
               }
@@ -833,7 +834,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 candidates.push({ service_id: pid, distance_km });
               }
               if (candidates.length) {
-                const ranked: any[] = await fetch(`/api/v1/pricebook/batch-estimate-rank`, {
+                const ranked: any[] = await fetch(apiUrl(`/api/v1/pricebook/batch-estimate-rank`), {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({

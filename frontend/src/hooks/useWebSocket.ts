@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { API_ORIGIN } from '@/lib/api';
 
 export type MessageHandler = (event: MessageEvent) => void;
 
@@ -125,7 +126,7 @@ export default function useWebSocket(
           // Try to refresh token and reconnect once with updated URL
           (async () => {
             try {
-              const res = await fetch('/auth/refresh', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+              const res = await fetch(`${API_ORIGIN}/auth/refresh`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
               if (res.ok) {
                 const body = await res.json().catch(() => null);
                 const at = body?.access_token as string | undefined;

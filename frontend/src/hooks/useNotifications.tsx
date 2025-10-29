@@ -10,6 +10,7 @@ import {
   ReactNode,
 } from 'react';
 import axios, { type AxiosRequestHeaders } from 'axios';
+import { getApiOrigin } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,7 +41,7 @@ function extractThreadId(notif: Notification): number | null {
 // All REST requests use the v1 prefix so calls line up with the backend router
 // mounted at /api/v1.
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: `${getApiOrigin()}/api/v1`,
   withCredentials: true,
 });
 

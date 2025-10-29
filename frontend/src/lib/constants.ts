@@ -20,12 +20,14 @@ export const FEATURE_EVENT_PREP: boolean = !!(
  * environment variables. The resolved value updates `DEFAULT_CURRENCY` so
  * subsequent calls use the fetched value.
  */
+import { apiUrl } from '@/lib/api';
+
 export async function fetchDefaultCurrency(): Promise<string> {
   if (process.env.NEXT_PUBLIC_DEFAULT_CURRENCY) {
     return DEFAULT_CURRENCY;
   }
   try {
-    const res = await fetch('/api/v1/settings');
+    const res = await fetch(apiUrl('/api/v1/settings'));
     if (res.ok) {
       const data = await res.json();
       DEFAULT_CURRENCY = data.default_currency || DEFAULT_CURRENCY;

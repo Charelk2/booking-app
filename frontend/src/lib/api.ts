@@ -36,12 +36,20 @@ import {
 export const getApiOrigin = () =>
   (process.env.NEXT_PUBLIC_API_URL || 'https://api.booka.co.za').replace(/\/+$/, '');
 
-// Create a single axios instance for all requests
-// Use same-origin relative base so browser calls go through Next.js rewrites
-// and avoid CORS in production. Server-side or tests still work since the
-// requests are relative to the Next.js server origin.
+// Public constants/helpers so all callers can build absolute API URLs
+export const API_ORIGIN = getApiOrigin();
+export const apiUrl = (path: string) => {
+  if (!path) return API_ORIGIN;
+  // If already absolute, return as-is
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_ORIGIN}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
+// Create a single axios instance for all requests.
+// Use an absolute origin so the browser talks directly to the API host
+// (avoids an extra proxy hop through the Next.js app/CDN on production).
 const api = axios.create({
-  baseURL: '',
+  baseURL: API_ORIGIN,
   withCredentials: true,
   headers: {
     // Do not force a global Content-Type. Let axios infer JSON for plain objects
