@@ -488,19 +488,21 @@ export default function InboxPage() {
       } catch {}
       if (isMobile) setShowList(false);
 
-      // Prefetch neighbors on idle
+      // Prefetch neighbors on idle (disabled by default)
       try {
-        const list = filteredRequests.length ? filteredRequests : threads;
-        const idx = list.findIndex((r) => r.id === id);
-        if (idx >= 0) {
-          const neighbors = [] as { id: number; priority: number; reason: string }[];
-          const prevId = list[idx - 1]?.id;
-          const nextId = list[idx + 1]?.id;
-          if (prevId && prevId !== id) neighbors.push({ id: prevId, priority: 260, reason: 'neighbor' });
-          if (nextId && nextId !== id) neighbors.push({ id: nextId, priority: 240, reason: 'neighbor' });
-          if (neighbors.length) {
-            enqueueThreadPrefetch(neighbors);
-            kickThreadPrefetcher();
+        if (INBOX_PREFETCH_ENABLED) {
+          const list = filteredRequests.length ? filteredRequests : threads;
+          const idx = list.findIndex((r) => r.id === id);
+          if (idx >= 0) {
+            const neighbors = [] as { id: number; priority: number; reason: string }[];
+            const prevId = list[idx - 1]?.id;
+            const nextId = list[idx + 1]?.id;
+            if (prevId && prevId !== id) neighbors.push({ id: prevId, priority: 260, reason: 'neighbor' });
+            if (nextId && nextId !== id) neighbors.push({ id: nextId, priority: 240, reason: 'neighbor' });
+            if (neighbors.length) {
+              enqueueThreadPrefetch(neighbors);
+              kickThreadPrefetcher();
+            }
           }
         }
       } catch {}
@@ -586,7 +588,7 @@ export default function InboxPage() {
       const priority = priorityBase + recencyBoost - i * 4;
       candidates.push({ id, priority, reason: unread > 0 ? 'unread' : 'list' });
     }
-    if (candidates.length) {
+    if (INBOX_PREFETCH_ENABLED && candidates.length) {
       enqueueThreadPrefetch(candidates);
       kickThreadPrefetcher();
     }
@@ -612,7 +614,7 @@ export default function InboxPage() {
         return { id: Number(req.id), priority, reason: 'filter' as const };
       })
       .filter((candidate) => candidate.id !== selectedThreadId && candidate.id > 0);
-    if (candidates.length) {
+    if (INBOX_PREFETCH_ENABLED && candidates.length) {
       enqueueThreadPrefetch(candidates);
       kickThreadPrefetcher();
     }
@@ -625,8 +627,10 @@ export default function InboxPage() {
       if (!id || id === selectedThreadId) return;
       const reason = detail.reason || 'updated';
       const priority = detail.source === 'realtime' ? 360 : 250;
-      markThreadAsStale(id, priority, reason);
-      kickThreadPrefetcher();
+      if (INBOX_PREFETCH_ENABLED) {
+        markThreadAsStale(id, priority, reason);
+        kickThreadPrefetcher();
+      }
     };
     window.addEventListener('threads:updated', handler as any);
     return () => {
