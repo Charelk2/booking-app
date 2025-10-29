@@ -305,7 +305,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
         const openOrConnecting = state === WebSocket.OPEN || state === WebSocket.CONNECTING;
         if (!openOrConnecting) {
           try { console.info('[realtime] opening WS after subscribe (topics:', topicCount, ')'); } catch {}
-          if (wsBase && wsUrl) openWS();
+          if (wsUrl) openWS();
         }
       }
     } catch {}
@@ -322,7 +322,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       // SSE disabled; do nothing here
       if (DEBUG) try { console.info('[rt] unsubscribe', topic); } catch {}
     };
-  }, [openWS, wsBase, wsUrl, DEBUG]);
+  }, [openWS, wsUrl, DEBUG]);
 
   const publish = useCallback((topic: string, payload: Record<string, any>) => {
     // If WS is open, send immediately
