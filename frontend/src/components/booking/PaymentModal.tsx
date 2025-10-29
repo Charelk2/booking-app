@@ -119,9 +119,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     setError(null);
     // If Paystack is enabled, do not use fake payments even if the flag is set
     if (FAKE_PAYMENTS && !USE_PAYSTACK) {
-      const apiBase = (API_BASE || '').replace(/\/+$/,'');
       const fakeId = `fake_${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
-      const receiptUrl = `/api/v1/payments/${fakeId}/receipt`;
+      const receiptUrl = apiUrl(`/api/v1/payments/${fakeId}/receipt`);
       try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
       onSuccess({
         status: 'paid',
