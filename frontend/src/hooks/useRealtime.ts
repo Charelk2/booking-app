@@ -24,15 +24,8 @@ let WS_BASE_ENV = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API
 // Prefer directing SSE to the API origin to avoid proxy buffering/closures
 let SSE_BASE_ENV = (process.env.NEXT_PUBLIC_SSE_URL || process.env.NEXT_PUBLIC_API_URL || '') as string;
 // Reduce full API URL to origin since WS endpoint path is fixed under /api/v1/ws
-try {
-  if (WS_BASE_ENV) {
-    const u = new URL(WS_BASE_ENV);
-    WS_BASE_ENV = `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
-  }
-} catch {
-  // Keep as-is if not a valid URL (e.g., empty)
-}
-WS_BASE_ENV = WS_BASE_ENV.replace(/\/+$/, '');
+// Do not pre-normalize WS_BASE_ENV here beyond trimming
+WS_BASE_ENV = (WS_BASE_ENV || '').trim();
 
 try {
   if (SSE_BASE_ENV) {
@@ -65,19 +58,60 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const [refreshAttempted, setRefreshAttempted] = useState(false);
   useEffect(() => { setWsToken(token ?? null); }, [token]);
 
-  const wsBase = useMemo(() => {
-    // If an explicit WS (or API) base is configured, prefer it — avoids Next dev server WS proxy issues
-    if (WS_BASE_ENV) return WS_BASE_ENV.replace(/^http/, 'ws');
-    if (typeof window !== 'undefined') return window.location.origin.replace(/^http/, 'ws');
-    return '';
-  }, []);
-
   const wsUrl = useMemo(() => {
-    if (!wsBase) return null;
-    // Prefer token when available; otherwise rely on HttpOnly cookie for same-site/subdomain
-    const q = wsToken ? `?token=${encodeURIComponent(wsToken)}` : '';
-    return `${wsBase}/api/v1/ws${q}`;
-  }, [wsBase, wsToken]);
+    // Build a robust WS URL that never produces a relative path like
+    // "api.booka.co.za/api/v1/ws" which browsers would resolve against the current origin.
+    const build = (): string | null => {
+      const raw = (WS_BASE_ENV || '').trim();
+      const appendDefaultPath = (u: URL) => {
+        if (!u.pathname || u.pathname === '/' || u.pathname === '') u.pathname = '/api/v1/ws';
+        return u;
+      };
+      try {
+        if (raw) {
+          if (/^wss?:\/\//i.test(raw)) {
+            const u = new URL(raw);
+            appendDefaultPath(u);
+            // Ensure ws/wss protocol
+            if (!/^wss?:$/i.test(u.protocol)) u.protocol = u.protocol.startsWith('https') ? 'wss:' : 'ws:';
+            return u.toString();
+          }
+          if (/^https?:\/\//i.test(raw)) {
+            const u = new URL(raw);
+            appendDefaultPath(u);
+            u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
+            return u.toString();
+          }
+          // Scheme-less host or host+path provided → assume wss and normalize
+          const guess = new URL(`wss://${raw.replace(/^\/+/, '')}`);
+          appendDefaultPath(guess);
+          return guess.toString();
+        }
+      } catch {
+        // fall through to window.location
+      }
+      if (typeof window !== 'undefined' && window.location) {
+        const loc = window.location;
+        const u = new URL(loc.origin);
+        u.protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
+        u.pathname = '/api/v1/ws';
+        return u.toString();
+      }
+      return null;
+    };
+    const base = build();
+    if (!base) return null;
+    if (!wsToken) return base;
+    try {
+      const u = new URL(base);
+      u.searchParams.set('token', wsToken);
+      return u.toString();
+    } catch {
+      // Fallback: naive concat
+      const sep = base.includes('?') ? '&' : '?';
+      return `${base}${sep}token=${encodeURIComponent(wsToken)}`;
+    }
+  }, [wsToken]);
 
   const sseUrlForTopics = useCallback((topics: string[]) => {
     const qs = new URLSearchParams();
