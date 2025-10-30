@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import useRealtime from '@/hooks/useRealtime';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries } from '@/lib/chat/threadCache';
+// Thread list mutations are owned by chat WS events; notifications should not
+// bump per-thread unread to avoid drift. Keep only aggregate unread_total.
 
 type RealtimeCtx = ReturnType<typeof useRealtime>;
 
@@ -37,40 +38,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
           try { window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { total: Number(payload?.payload?.total ?? 0) } })); } catch {}
           return;
         }
-        const link = String((payload && (payload.link || (payload.payload && payload.payload.link))) || '');
-        if (!link) return;
-        // Extract booking request id from link (supports /booking-requests/{id} or /inbox?requestId={id})
-        let id = 0;
-        const m1 = link.match(/\/booking-requests\/(\d+)/);
-        if (m1 && m1[1]) id = Number(m1[1]);
-        if (!id) {
-          const m2 = link.match(/requestId=(\d+)/i);
-          if (m2 && m2[1]) id = Number(m2[1]);
-        }
-        if (!Number.isFinite(id) || id <= 0) return;
-        const msg = String((payload && (payload.message || (payload.payload && payload.payload.message))) || '').trim();
-        // Prefer server-provided timestamp if present to compare with local read epoch
-        const nowIso = new Date().toISOString();
-        const createdAt = String((payload && (payload.created_at || (payload.payload && payload.payload.created_at))) || nowIso);
-        const ts = Date.parse(createdAt) || Date.now();
-        const list = cacheGetSummaries() as any[];
-        let found = false;
-        const next = list.map((t) => {
-          if (Number(t?.id) !== id) return t;
-          found = true;
-          const lastLocal = localReadEpochByThread.get(id) || 0;
-          if (lastLocal && ts <= lastLocal) return t; // stale relative to local read
-          const unread = Math.max(0, Number(t?.unread_count || 0)) + 1;
-          return { ...t, last_message_timestamp: nowIso, last_message_content: msg || 'New message', unread_count: unread };
-        });
-        if (found) {
-          cacheSetSummaries(next as any);
-        } else {
-          const lastLocal = localReadEpochByThread.get(id) || 0;
-          if (!lastLocal || ts > lastLocal) {
-            cacheSetSummaries([{ id, last_message_timestamp: nowIso, last_message_content: msg || 'New message', unread_count: 1 } as any, ...list] as any);
-          }
-        }
+        // Ignore per-thread/unicast bumps; chat WS events own thread list updates.
+        return;
       } catch {
         // best-effort only
       }

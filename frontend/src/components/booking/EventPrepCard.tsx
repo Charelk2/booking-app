@@ -7,8 +7,7 @@ import Link from "next/link";
 
 import { EventPrep } from "@/types";
 import { getEventPrep } from "@/lib/api";
-import useWebSocket from "@/hooks/useWebSocket";
-import { useAuth } from "@/contexts/AuthContext";
+import { useRealtimeContext } from "@/contexts/chat/RealtimeContext";
 
 // ───────────────────────────────────────────────────────────────────────────────
 // In-memory cache for instant thread switching
@@ -127,7 +126,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
   const router = useRouter();
   const [ep, setEp] = useState<EventPrep | null>(null);
   const [initializing, setInitializing] = useState(true);
-  const { token: authToken } = useAuth();
+  const { subscribe } = useRealtimeContext();
 
   // Bootstrap with stale-while-revalidate using cache
   useEffect(() => {
@@ -156,43 +155,28 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
     };
   }, [bookingId]);
 
-  // Live updates via WS
-  const token = useMemo(() => {
-    const t =
-      authToken ||
-      (typeof window !== "undefined"
-        ? localStorage.getItem("token") || sessionStorage.getItem("token") || null
-        : null);
-    return t && t.trim().length > 0 ? t : null;
-  }, [authToken]);
-
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const wsBase = apiBase.replace(/^http/, "ws");
-  const [wsUrl, setWsUrl] = useState<string | null>(null);
-
+  // Live updates via multiplex realtime topic (single global connection)
   useEffect(() => {
-    const base = `${wsBase}/api/v1/ws/booking-requests/${bookingRequestId}`;
-    setWsUrl(token ? `${base}?token=${encodeURIComponent(token)}` : null);
-  }, [wsBase, bookingRequestId, token]);
-
-  const { onMessage: onSocketMessage } = useWebSocket(wsUrl || undefined);
-
-  useEffect(() => {
-    return onSocketMessage((event) => {
+    const topic = `booking-requests:${bookingRequestId}`;
+    const unsubscribe = subscribe(topic, (env: any) => {
       try {
-        const data = JSON.parse(event.data as string);
-        if (data?.type === "event_prep_updated" && data?.payload?.booking_id === bookingId) {
-          setEp((prev) => {
-            const next = { ...(prev || ({} as any)), ...data.payload } as EventPrep;
-            EVENT_PREP_CACHE.set(bookingId, next);
-            return next;
-          });
-        }
+        // Envelopes from multiplex carry { type: 'message', payload: { data: { type, payload } } }
+        const inner = (env && (env.payload?.data || env.payload)) || env;
+        const t = String((inner && inner.type) || env?.type || '').toLowerCase();
+        if (t !== 'event_prep_updated') return;
+        const payload = (inner && inner.payload) || (env?.payload && env.payload.payload) || null;
+        if (!payload || Number(payload.booking_id) !== Number(bookingId)) return;
+        setEp((prev) => {
+          const next = { ...(prev || ({} as any)), ...payload } as EventPrep;
+          EVENT_PREP_CACHE.set(bookingId, next);
+          return next;
+        });
       } catch {
-        /* ignore */
+        // ignore parse errors
       }
     });
-  }, [bookingId, onSocketMessage]);
+    return () => { try { unsubscribe(); } catch {} };
+  }, [subscribe, bookingRequestId, bookingId]);
 
   const progress = useMemo(
     () => ({
