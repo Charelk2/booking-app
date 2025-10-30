@@ -80,6 +80,20 @@ class Envelope:
             data["payload"] = self.payload
         return json.dumps(data, separators=(",", ":"))
 
+    def to_json_bytes(self) -> bytes:
+        try:
+            return self.to_json().encode("utf-8")
+        except Exception:
+            return b"{}"
+
+    @staticmethod
+    def from_raw_json(text: str) -> "Envelope":
+        try:
+            obj = json.loads(text)
+            return Envelope.from_raw(obj)
+        except Exception:
+            return Envelope()
+
 
 # Unique instance identifier for bus loop prevention
 INSTANCE_ID = os.getenv("INSTANCE_ID", "inst-" + os.urandom(4).hex())
@@ -141,12 +155,22 @@ class NoiseWS:
         self._ready = True
 
     async def send_envelope(self, env: Envelope) -> None:
-        data = env.to_json().encode("utf-8")
-        if self._noise:
-            ct = self._noise.encrypt(data)
-            await self.ws.send_bytes(ct)
-        else:
-            await self.ws.send_text(data.decode("utf-8"))
+        data = env.to_json_bytes()
+        try:
+            if self._noise:
+                ct = self._noise.encrypt(data)
+                await self.ws.send_bytes(ct)
+            else:
+                await self.ws.send_text(data.decode("utf-8", errors="ignore"))
+        except WebSocketDisconnect:
+            # Peer is gone; allow caller to handle cleanup
+            raise
+        except RuntimeError:
+            # Event loop/transport issue; treat as disconnect
+            raise WebSocketDisconnect(code=1006)
+        except Exception:
+            # Be conservative: surface a disconnect to upstream
+            raise WebSocketDisconnect(code=1006)
 
     async def recv_envelope(self) -> Envelope:
         if self._noise:
@@ -433,6 +457,12 @@ async def booking_request_ws(
                 t = env.type
 
                 # Minimal allowlist
+                if t == "ping":
+                    try:
+                        await conn.send_envelope(Envelope(type="pong"))
+                    except Exception:
+                        break
+                    continue
                 if t == "pong":
                     last_pong = time.time()
                     continue
@@ -543,6 +573,12 @@ async def multiplex_ws(
                     continue
                 t = env.type
 
+                if t == "ping":
+                    try:
+                        await conn.send_envelope(Envelope(type="pong"))
+                    except Exception:
+                        break
+                    continue
                 if t == "pong":
                     continue
 
@@ -711,6 +747,12 @@ async def notifications_ws(
             while True:
                 env = await conn.recv_envelope()
                 if env.v != 1:
+                    continue
+                if env.type == "ping":
+                    try:
+                        await conn.send_envelope(Envelope(type="pong"))
+                    except Exception:
+                        break
                     continue
                 if env.type == "pong":
                     continue

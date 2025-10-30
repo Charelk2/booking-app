@@ -359,9 +359,22 @@ export default function InboxPage() {
   const PREFETCH_DEFAULT_LIMIT = 50; // breadth-first: last 50 per thread
   const PREFETCH_CANDIDATE_LIMIT = 15;
 
+  const inflightByThreadRef = useRef<Map<number, AbortController>>(new Map());
+
   const prefetchThreadMessages = useCallback(async (id: number, limit = PREFETCH_DEFAULT_LIMIT) => {
     if (!id) return;
     try {
+      // Cancel any in-flight fetch for this thread to avoid piling up long requests
+      try {
+        const prev = inflightByThreadRef.current.get(id);
+        if (prev) {
+          try { prev.abort(); } catch {}
+          inflightByThreadRef.current.delete(id);
+        }
+      } catch {}
+      const ac = new AbortController();
+      inflightByThreadRef.current.set(id, ac);
+
       // Try delta against the last cached id for minimal payloads
       let lastId: number | null = null;
       try {
@@ -406,7 +419,7 @@ export default function InboxPage() {
       };
 
       if (lastId && lastId > 0) {
-        const res = await getMessagesForBookingRequest(id, { mode: 'delta', after_id: lastId, limit: Math.max(20, limit) });
+        const res = await getMessagesForBookingRequest(id, { mode: 'delta', after_id: lastId, limit: Math.max(20, limit) }, { signal: ac.signal });
         const incoming = Array.isArray((res.data as any)?.items) ? (res.data as any).items : [];
         if (incoming.length) {
           const base = (readThreadCache(id) || []) as any[];
@@ -417,7 +430,7 @@ export default function InboxPage() {
           } catch {}
         }
       } else {
-        const res = await getMessagesForBookingRequest(id, { limit, mode: 'lite' });
+        const res = await getMessagesForBookingRequest(id, { limit, mode: 'lite' }, { signal: ac.signal });
         writeThreadCache(id, res.data.items);
         try {
           const items = Array.isArray((res.data as any)?.items) ? (res.data as any).items : [];
