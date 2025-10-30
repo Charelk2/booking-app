@@ -16,7 +16,12 @@ export default function SecurityPage() {
         return;
       }
       const toBase64Url = (buf: ArrayBuffer) => {
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += 1) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const b64 = btoa(binary);
         return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       };
       const fromBase64Url = (b64url: string): Uint8Array => {

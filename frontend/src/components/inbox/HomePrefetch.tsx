@@ -86,7 +86,9 @@ export default function HomePrefetch() {
           const items = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
           writeThreadCache(id, items);
           try {
-            const qids = Array.from(new Set<number>(items.map((m: any) => Number(m?.quote_id)).filter((n) => Number.isFinite(n) && n > 0)));
+            const qids = Array.from(new Set<number>(items
+              .map((m: any) => Number(m?.quote_id))
+              .filter((n: number) => Number.isFinite(n) && n > 0)));
             if (qids.length) await prefetchQuotesByIds(qids);
           } catch {}
         } catch {}
@@ -96,7 +98,9 @@ export default function HomePrefetch() {
       const list = threadStore.getThreads();
       if (!Array.isArray(list) || list.length === 0) return;
       const BATCH = 10;
-      const ids = list.slice(0, BATCH).map((r: any) => Number(r?.id)).filter((n) => Number.isFinite(n) && n > 0);
+      const ids = list.slice(0, BATCH)
+        .map((r: any) => Number(r?.id))
+        .filter((n: number) => Number.isFinite(n) && n > 0);
       // One-shot batch warmup (best-effort)
       if (ids.length) {
         try {
@@ -112,7 +116,9 @@ export default function HomePrefetch() {
           }
           try {
             if (quotes && typeof quotes === 'object') {
-              const qids = Object.keys(quotes).map((k) => Number(k)).filter((n) => Number.isFinite(n) && n > 0);
+              const qids = Object.keys(quotes)
+                .map((k) => Number(k))
+                .filter((n: number) => Number.isFinite(n) && n > 0);
               if (qids.length) await prefetchQuotesByIds(qids);
             }
           } catch {}

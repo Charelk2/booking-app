@@ -650,7 +650,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           if (soundModePref === 'supplier' || confExternal) {
             // Determine selected supplier or pick a preferred candidate
             const selectedId = (details as any).soundSupplierServiceId as number | undefined;
-            let normalizedRider = { units: { vocal_mics: 0, speech_mics: 0, monitor_mixes: 0, iem_packs: 0, di_boxes: 0 }, backline: {} as Record<string, number> };
+            let normalizedRider: { units: Record<string, number>; backline: Record<string, number> } = { units: { vocal_mics: 0, speech_mics: 0, monitor_mixes: 0, iem_packs: 0, di_boxes: 0 }, backline: {} as Record<string, number> };
             try {
               const rider = await fetch(apiUrl(`/api/v1/services/${serviceId}/rider`), { cache: 'no-store' }).then(r => r.ok ? r.json() : null);
               normalizedRider = normalizeRiderForPricing(rider?.spec);

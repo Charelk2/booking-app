@@ -29,7 +29,7 @@ export default function ClientDashboardPage() {
   const [error, setError] = useState("");
 
   const initialTab = params.get("tab") === "bookings" ? "bookings" : "requests";
-  const [activeTab, setActiveTab] = useState<"requests" | "bookings">(initialTab);
+  const [activeTab, setActiveTab] = useState<"requests" | "bookings" | "services">(initialTab);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -94,7 +94,15 @@ export default function ClientDashboardPage() {
   return (
     <MainLayout>
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <DashboardTabs activeTab={activeTab} onChange={setActiveTab} showServices={false} />
+        <DashboardTabs
+          tabs={[
+            { id: 'requests', label: 'Requests' },
+            { id: 'bookings', label: 'Bookings' },
+          ]}
+          active={activeTab}
+          onChange={(id) => setActiveTab(id === 'requests' ? 'requests' : 'bookings')}
+          variant="segmented"
+        />
         <div className="mt-6">
           {activeTab === "requests" && (
             <section>
@@ -117,7 +125,7 @@ export default function ClientDashboardPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">
-                          {booking.artist?.first_name || "Unknown"} {booking.artist?.last_name || ""}
+                          {booking.service?.service_provider?.business_name || booking.service_provider?.business_name || 'Unknown'}
                         </div>
                         <div className="mt-0.5 text-sm text-gray-600 truncate">{booking.service?.title || "—"}</div>
                         <div className="mt-1 text-xs text-gray-500">{format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}</div>

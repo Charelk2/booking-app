@@ -5,6 +5,7 @@ import type { HTMLAttributes } from 'react';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
+import type { HTMLMotionProps } from 'framer-motion';
 import {
   StarIcon,
   CheckBadgeIcon,
@@ -12,7 +13,7 @@ import {
 import { getFullImageUrl, getTownProvinceFromAddress } from '@/lib/utils';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
-export interface ServiceProviderCardProps extends HTMLAttributes<HTMLDivElement> {
+export interface ServiceProviderCardProps extends HTMLMotionProps<'div'> {
   serviceProviderId: number;
   imageUrl?: string | null;
   name: string;

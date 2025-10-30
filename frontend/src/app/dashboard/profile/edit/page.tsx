@@ -18,7 +18,7 @@ import {
   connectGoogleCalendar,
   disconnectGoogleCalendar,
 } from '@/lib/api';
-import { presignMyAvatar } from '@/lib/api';
+import { presignMyAvatar, presignMyCoverPhoto, presignMyPortfolioImage } from '@/lib/api';
 import { getFullImageUrl, normalizeAssetPathForStorage } from '@/lib/utils';
 import { Spinner, ImagePreviewModal } from '@/components/ui';
 import SavedPill from '@/components/ui/SavedPill';

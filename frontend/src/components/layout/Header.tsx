@@ -273,6 +273,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const searchParams = useSearchParams();
 
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
+  const isClientUser = user?.user_type === 'client';
   const headerVariant = variant;
   const isAuthVariant = headerVariant === 'auth';
   const suppressAccountActions = hideAccountActions;
@@ -854,7 +855,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 </>
               ) : (
                 <div className="flex gap-2">
-                  {(!user || user.user_type === 'client') && (
+                  {(!user || isClientUser) && (
                     user ? (
                       <button
                         onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}

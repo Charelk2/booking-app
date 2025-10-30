@@ -84,13 +84,13 @@ export default function BookingDetailsPage() {
     <MainLayout>
       <div className="max-w-xl mx-auto p-4 space-y-3">
         <h1 className="text-xl font-semibold">
-          {booking.service.title} - {booking.service.artist.business_name}
+          {booking.service.title} - {(booking.service.artist ?? booking.service.service_provider).business_name}
         </h1>
         <p className="text-sm text-gray-700">
           {new Date(booking.start_time).toLocaleString()}
         </p>
         <Link
-          href={`/service-providers/${booking.artist_id}`}
+          href={`/service-providers/${booking.service_provider_id}`}
           className="text-brand-dark underline text-sm"
           data-testid="view-artist-link"
         >

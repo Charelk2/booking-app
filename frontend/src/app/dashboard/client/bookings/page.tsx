@@ -36,7 +36,7 @@ function BookingList({
             label: "Pay now",
             onClick: () => onPayNow(b.id),
             primary: true,
-            ariaLabel: `Pay now for ${b.service.title} – ${b.service.artist.business_name}`,
+            ariaLabel: `Pay now for ${b.service.title} – ${(b.service.artist ?? b.service.service_provider).business_name}`,
             dataTestId: "pay-now-button",
           });
         }
@@ -44,21 +44,21 @@ function BookingList({
           actions.push({
             label: "Message Service Provider",
             href: `/booking-requests/${b.booking_request_id}`,
-            ariaLabel: `Message artist about ${b.service.title} – ${b.service.artist.business_name}`,
+            ariaLabel: `Message artist about ${b.service.title} – ${(b.service.artist ?? b.service.service_provider).business_name}`,
             dataTestId: "message-artist-link",
           });
         }
         actions.push({
           label: "View Service Provider",
-          href: `/service-providers/${b.artist_id}`,
-          ariaLabel: `View ${b.service.artist.business_name} profile`,
+          href: `/service-providers/${b.service_provider_id}`,
+          ariaLabel: `View ${(b.service.artist ?? b.service.service_provider).business_name} profile`,
           dataTestId: "view-artist-link",
         });
 
         return (
           <BookingCard
             key={b.id}
-            title={`${b.service.title} - ${b.service.artist.business_name}`}
+            title={`${b.service.title} - ${(b.service.artist ?? b.service.service_provider).business_name}`}
             date={format(new Date(b.start_time), "MMM d, yyyy h:mm a")}
             status={formatStatus(b.status)}
             price={formatCurrency(Number(b.total_price))}
@@ -70,7 +70,7 @@ function BookingList({
               className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
             >
               <div className="font-medium text-gray-900">
-                {b.service.title} - {b.service.artist.business_name}
+                {b.service.title} - {(b.service.artist ?? b.service.service_provider).business_name}
               </div>
               <div className="text-sm text-gray-500">
                 {format(new Date(b.start_time), "MMM d, yyyy h:mm a")}
