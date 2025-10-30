@@ -9,7 +9,7 @@ import { type ThreadsUpdatedDetail } from '@/lib/chat/threadsEvents';
 import { Spinner } from '@/components/ui';
 // list + thread panes moved to features/inbox
 import ReviewFormModal from '@/components/review/ReviewFormModal';
-import { getMessagesForBookingRequest, getMessagesBatch, ensureBookaThread } from '@/lib/api';
+import { getMessagesForBookingRequest, getMessagesBatch, ensureBookaThread, markThreadMessagesRead } from '@/lib/api';
 import { useTransportState } from '@/hooks/useTransportState';
 import { useThreads } from '@/features/inbox/hooks/useThreads';
 import {
@@ -90,6 +90,16 @@ export default function InboxPage() {
         cacheSetSummaries(next as any);
         try { window.dispatchEvent(new CustomEvent('threads:updated', { detail: { threadId: id, reason: 'read' } })); } catch {}
       }
+    } catch {}
+
+    // Persist read state server-side immediately to keep remote aggregates in sync
+    // Do this best-effort and tolerate offline by queuing via runWithTransport
+    try {
+      runWithTransport(
+        `thread-read:${id}`,
+        async () => { await markThreadMessagesRead(id); },
+        { metadata: { type: 'markThreadMessagesRead', threadId: id, lastMessageId } },
+      );
     } catch {}
   }, []);
   const [loadingRequests, setLoadingRequests] = useState(false);
