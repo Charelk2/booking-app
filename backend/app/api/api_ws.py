@@ -726,15 +726,42 @@ class _CompatManager:
 
     async def broadcast(self, request_id: int, message: Any) -> None:  # noqa: D401
         try:
+            rid = int(request_id)
+        except Exception:
+            rid = request_id  # best-effort
+
+        try:
             if isinstance(message, Envelope):
                 env = message
+                # Ensure sensible defaults so multiplex subscribers can route
+                env.topic = env.topic or f"booking-requests:{int(rid)}"
+                env.type = env.type or "message"
             elif isinstance(message, dict):
-                env = Envelope.from_raw(message)
+                # Normalize dict payloads into a proper envelope
+                try:
+                    v = int(message.get("v", 1))  # type: ignore[arg-type]
+                except Exception:
+                    v = 1
+                msg_type = str(message.get("type") or "message")
+                env = Envelope(
+                    v=v,
+                    type=msg_type,
+                    topic=f"booking-requests:{int(rid)}",
+                    payload=message if isinstance(message, dict) else None,
+                )
             else:
-                env = Envelope(type="message", payload={"data": message})
+                env = Envelope(type="message", topic=f"booking-requests:{int(rid)}", payload={"data": message})
         except Exception:
-            env = Envelope()
-        await chat.broadcast(int(request_id), env)
+            env = Envelope(type="message", topic=f"booking-requests:{int(rid)}")
+
+        # 1) Legacy room endpoint (clients connected to /ws/booking-requests/{id})
+        await chat.broadcast(int(rid), env)
+
+        # 2) Multiplex subscribers (clients connected to /ws and subscribed to topic)
+        try:
+            await mux.broadcast_topic(env.topic or f"booking-requests:{int(rid)}", env)
+        except Exception:
+            pass
 
 
 class _CompatNotificationsManager:

@@ -5,8 +5,8 @@ import { subscribe as cacheSubscribe, getSummaries as cacheGetSummaries } from '
 
 function fetchAggregateUnread(): Promise<number> {
   return axios
-    .get<{ count?: number }>(`${getApiOrigin()}/api/v1/inbox/unread`, { withCredentials: true })
-    .then((r) => Number(r.data?.count || 0))
+    .get<{ total?: number; count?: number }>(`${getApiOrigin()}/api/v1/inbox/unread`, { withCredentials: true })
+    .then((r) => Number((r.data?.total ?? r.data?.count ?? 0)))
     .catch(() => 0);
 }
 

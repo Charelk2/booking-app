@@ -78,6 +78,19 @@ export default function InboxPage() {
     } else {
       cacheSetLastRead(id, undefined);
     }
+    // Also zero unread locally in cached summaries so ConversationList updates immediately
+    try {
+      const prior = cacheGetSummaries() as any[];
+      if (Array.isArray(prior) && prior.length) {
+        const next = prior.map((s: any) =>
+          Number(s?.id) === Number(id)
+            ? { ...s, unread_count: 0, is_unread_by_current_user: false }
+            : s,
+        );
+        cacheSetSummaries(next as any);
+        try { window.dispatchEvent(new CustomEvent('threads:updated', { detail: { threadId: id, reason: 'read' } })); } catch {}
+      }
+    } catch {}
   }, []);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [hydratedThreadIds, setHydratedThreadIds] = useState<number[]>([]);
