@@ -6,6 +6,8 @@ import os
 from typing import Any, Awaitable, Callable, Optional
 
 from app.services.redis_client import redis as _redis_client  # async redis (or null)
+import logging
+import random
 
 
 # Feature gate to enable/disable the realtime bus without code changes.
@@ -39,15 +41,17 @@ async def publish_topic(topic: str, envelope: dict[str, Any] | str) -> None:
 
 
 _consumer_started = False
+_logger = logging.getLogger(__name__)
 
 
 async def start_pattern_consumer(
     pattern: str,
     handler: Callable[[str, dict[str, Any]], Awaitable[None]],
 ) -> None:
-    """Start a background task that PSUBSCRIBEs to a pattern and dispatches JSON payloads.
+    """Start a resilient background task that PSUBSCRIBEs to a pattern and dispatches JSON payloads.
 
     Handler receives (topic_without_prefix, envelope_dict).
+    Reconnects with exponential backoff on errors/timeouts.
     """
     if not bus_enabled():
         return
@@ -57,47 +61,58 @@ async def start_pattern_consumer(
         return
     _consumer_started = True
 
-    try:
-        pubsub = _redis_client.pubsub()
-        await pubsub.psubscribe(pattern)
-
-        async def _loop() -> None:
+    async def _supervisor() -> None:
+        backoff = 1.0
+        while True:
+            pubsub = None
             try:
+                pubsub = _redis_client.pubsub()
+                await pubsub.psubscribe(pattern)
+                _logger.info("WS bus consumer started: pattern=%s", pattern)
+
+                # Reset backoff after a successful subscribe
+                backoff = 1.0
+
                 async for msg in pubsub.listen():
-                    if not isinstance(msg, dict):
-                        continue
-                    if msg.get("type") != "pmessage":
-                        continue
-                    chan = msg.get("channel")
-                    data = msg.get("data")
                     try:
-                        if isinstance(data, (bytes, bytearray)):
-                            payload = json.loads(data.decode("utf-8"))
-                        elif isinstance(data, str):
-                            payload = json.loads(data)
-                        else:
-                            payload = {}
-                    except Exception:
-                        # Fallback: wrap raw
-                        payload = {"payload": data.decode("utf-8") if isinstance(data, (bytes, bytearray)) else str(data)}
-                    # Strip the prefix (e.g., "ws-topic:") for handler clarity
-                    topic = str(chan).replace("ws-topic:", "")
-                    try:
+                        if not isinstance(msg, dict):
+                            continue
+                        if msg.get("type") != "pmessage":
+                            continue
+                        chan = msg.get("channel")
+                        data = msg.get("data")
+                        try:
+                            if isinstance(data, (bytes, bytearray)):
+                                payload = json.loads(data.decode("utf-8"))
+                            elif isinstance(data, str):
+                                payload = json.loads(data)
+                            else:
+                                payload = {}
+                        except Exception:
+                            # Fallback: wrap raw
+                            payload = {"payload": data.decode("utf-8") if isinstance(data, (bytes, bytearray)) else str(data)}
+                        # Strip the prefix (e.g., "ws-topic:") for handler clarity
+                        topic = str(chan).replace("ws-topic:", "")
                         await handler(topic, payload)
-                    except Exception:
-                        # Swallow to keep the stream alive
-                        pass
+                    except Exception as e:
+                        # Swallow per-message errors to keep stream alive
+                        _logger.debug("WS bus consumer message error: %s", e)
+                        continue
+            except Exception as e:
+                # Connection broke or subscribe failed — backoff and retry
+                jitter = random.uniform(0, 0.3)
+                delay = min(30.0, backoff + jitter)
+                _logger.warning("WS bus consumer error; reconnecting in %.1fs: %s", delay, e)
+                await asyncio.sleep(delay)
+                backoff = min(backoff * 2, 30.0)
             finally:
                 try:
-                    await pubsub.close()
+                    if pubsub is not None:
+                        await pubsub.close()
                 except Exception:
                     pass
 
-        asyncio.create_task(_loop())
-    except Exception:
-        # If pubsub subscribe fails, leave disabled; caller may retry on next startup
-        _consumer_started = False
-        return
+    asyncio.create_task(_supervisor())
 
 
 __all__ = [
@@ -105,4 +120,3 @@ __all__ = [
     "publish_topic",
     "start_pattern_consumer",
 ]
-
