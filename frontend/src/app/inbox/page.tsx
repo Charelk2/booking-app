@@ -365,17 +365,13 @@ export default function InboxPage() {
 
   const prefetchThreadMessages = useCallback(async (id: number, limit = PREFETCH_DEFAULT_LIMIT) => {
     if (!id) return;
-    // Always create a fresh controller and ensure cleanup in finally
+    // If a fetch is already in-flight for this thread, let it finish to avoid thrash
+    const existing = inflightByThreadRef.current.get(id);
+    if (existing) return;
+    // Create a fresh controller and ensure cleanup in finally
     const ac = new AbortController();
     try {
-      // Cancel any in-flight fetch for this thread to avoid piling up long requests
-      try {
-        const prev = inflightByThreadRef.current.get(id);
-        if (prev) {
-          try { prev.abort(); } catch {}
-          inflightByThreadRef.current.delete(id);
-        }
-      } catch {}
+      // Register this in-flight fetch; subsequent prefetch attempts will no-op
       inflightByThreadRef.current.set(id, ac);
 
       // Try delta against the last cached id for minimal payloads
