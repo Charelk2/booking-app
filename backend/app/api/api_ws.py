@@ -402,7 +402,14 @@ async def booking_request_ws(
     try:
         # Reconnect hint (unencrypted in plaintext mode; encrypted in Noise mode)
         delay = min(2 ** attempt, 30)
-        await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": delay}))
+        try:
+            await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": delay}))
+        except WebSocketDisconnect:
+            # Client dropped during early handshake; exit quietly
+            return
+        except Exception:
+            # Network hiccup or slow consumer; let client retry without log spam
+            return
 
         # Heartbeat loop
         last_pong = time.time()
@@ -510,7 +517,12 @@ async def multiplex_ws(
         user_request_ids = set()
 
     try:
-        await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": min(2 ** attempt, 30)}))
+        try:
+            await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": min(2 ** attempt, 30)}))
+        except WebSocketDisconnect:
+            return
+        except Exception:
+            return
 
         async def ping_loop() -> None:
             while True:
@@ -677,7 +689,12 @@ async def notifications_ws(
     Presence.mark_online(int(user.id))
 
     try:
-        await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": min(2 ** attempt, 30)}))
+        try:
+            await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": min(2 ** attempt, 30)}))
+        except WebSocketDisconnect:
+            return
+        except Exception:
+            return
 
         async def ping_loop() -> None:
             while True:

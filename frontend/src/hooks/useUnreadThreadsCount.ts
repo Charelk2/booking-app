@@ -3,17 +3,38 @@ import axios from 'axios';
 import { getApiOrigin } from '@/lib/api';
 import { subscribe as cacheSubscribe, getSummaries as cacheGetSummaries } from '@/lib/chat/threadCache';
 
+// Lightweight client-side cache to reduce server load from frequent updates
+let _unreadLastEtag: string | null = null;
+let _unreadLastFetchAt = 0;
+let _unreadInflight: Promise<number> | null = null;
+
 function fetchAggregateUnread(prev?: number): Promise<number> {
-  return axios
+  const now = Date.now();
+  // Throttle network calls to at most once every 5 seconds
+  if (now - _unreadLastFetchAt < 5000 && typeof prev === 'number') {
+    return Promise.resolve(prev);
+  }
+  if (_unreadInflight) return _unreadInflight;
+  _unreadLastFetchAt = now;
+  _unreadInflight = axios
     .get<{ total?: number; count?: number }>(`${getApiOrigin()}/api/v1/inbox/unread`, {
       withCredentials: true,
       // Treat 200 or 304 as success; keep previous on 304
       validateStatus: (s) => s === 200 || s === 304,
-      headers: { 'Cache-Control': 'no-cache' },
+      headers: {
+        'Cache-Control': 'no-cache',
+        ...(_unreadLastEtag ? { 'If-None-Match': _unreadLastEtag } : {}),
+      },
       params: { _: Date.now() },
     })
-    .then((r) => (r.status === 304 ? (typeof prev === 'number' ? prev : 0) : Number((r.data?.total ?? r.data?.count ?? 0))))
-    .catch(() => (typeof prev === 'number' ? prev : 0));
+    .then((r) => {
+      try { _unreadLastEtag = String((r.headers as any)?.etag || '') || _unreadLastEtag; } catch {}
+      if (r.status === 304) return typeof prev === 'number' ? prev : 0;
+      return Number((r.data?.total ?? r.data?.count ?? 0));
+    })
+    .catch(() => (typeof prev === 'number' ? prev : 0))
+    .finally(() => { _unreadInflight = null; });
+  return _unreadInflight;
 }
 
 export default function useUnreadThreadsCount() {

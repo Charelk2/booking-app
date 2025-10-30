@@ -533,6 +533,85 @@ def ensure_message_core_indexes(engine: Engine) -> None:
         pass
 
 
+def ensure_message_unread_indexes(engine: Engine) -> None:
+    """Ensure indexes that accelerate unread-count and mark-read queries.
+
+    Optimizes queries of the form:
+      - COUNT(*) joined via booking_requests for user inbox totals
+      - UPDATE ... SET is_read=TRUE WHERE booking_request_id=? AND sender_id!=? AND is_read IS NOT TRUE
+
+    Strategy:
+      - Composite partial index on (booking_request_id, sender_id, id) WHERE is_read IS NOT TRUE
+        on Postgres/SQLite. Fallback to a full composite index when partial indexes
+        are not supported.
+    """
+    try:
+        inspector = inspect(engine)
+        if "messages" not in inspector.get_table_names():
+            return
+        existing = set()
+        try:
+            existing = {idx.get("name") for idx in inspector.get_indexes("messages") if isinstance(idx, dict)}
+        except Exception:
+            existing = set()
+
+        with engine.connect() as conn:
+            try:
+                if engine.dialect.name in ("postgresql", "sqlite"):
+                    # Partial index: only unread rows
+                    if "ix_messages_unread_bsid_partial" not in existing:
+                        conn.execute(
+                            text(
+                                "CREATE INDEX IF NOT EXISTS ix_messages_unread_bsid_partial "
+                                "ON messages(booking_request_id, sender_id, id) "
+                                "WHERE is_read IS NOT TRUE"
+                            )
+                        )
+                else:
+                    # Fallback composite index
+                    if "ix_messages_unread_bsid" not in existing:
+                        conn.execute(
+                            text(
+                                "CREATE INDEX IF NOT EXISTS ix_messages_unread_bsid "
+                                "ON messages(booking_request_id, sender_id, is_read, id)"
+                            )
+                        )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+    except Exception:
+        # Best-effort; never block startup
+        pass
+
+
+def ensure_booking_requests_user_indexes(engine: Engine) -> None:
+    """Ensure indexes on booking_requests for user membership filters.
+
+    Adds missing index on (client_id). The artist_id index typically exists from
+    migrations; we guard both for safety.
+    """
+    try:
+        inspector = inspect(engine)
+        if "booking_requests" not in inspector.get_table_names():
+            return
+        existing = set()
+        try:
+            existing = {idx.get("name") for idx in inspector.get_indexes("booking_requests") if isinstance(idx, dict)}
+        except Exception:
+            existing = set()
+        with engine.connect() as conn:
+            try:
+                if "ix_booking_requests_client_id" not in existing:
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_booking_requests_client_id ON booking_requests(client_id)"))
+                if "ix_booking_requests_artist_id" not in existing:
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_booking_requests_artist_id ON booking_requests(artist_id)"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+    except Exception:
+        pass
+
+
 def ensure_identity_pk(engine: Engine, table: str, column: str = "id") -> None:
     """On Postgres, ensure the given table.column autogenerates values.
 
