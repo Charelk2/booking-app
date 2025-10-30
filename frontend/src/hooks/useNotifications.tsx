@@ -137,6 +137,15 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           const prev = threadStore.getThread(threadId);
           if (isActive) {
             threadStore.applyRead(threadId, prev?.last_message_id ?? null);
+            // Keep cache summaries in sync so ConversationList updates immediately
+            // Best-effort: dynamic import avoids bundling issues in edge runtimes
+            void (async () => {
+              try {
+                const lastId = Number(prev?.last_message_id ?? 0) || undefined;
+                const { setLastRead: cacheSetLastRead } = await import('@/lib/chat/threadCache');
+                cacheSetLastRead(threadId, lastId);
+              } catch {}
+            })();
           }
           const nextUnread = isActive ? 0 : (Number(prev?.unread_count || 0) + 1);
           threadStore.upsert({
