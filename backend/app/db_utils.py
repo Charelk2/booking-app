@@ -533,6 +533,35 @@ def ensure_message_core_indexes(engine: Engine) -> None:
         pass
 
 
+def ensure_notification_core_indexes(engine: Engine) -> None:
+    """Ensure helpful indexes exist on notifications.
+
+    Adds the following when missing:
+    - idx_notifications_user_ts(user_id, timestamp)
+    - idx_notifications_user_type_unread_ts(user_id, type, is_read, timestamp)
+    """
+    try:
+        inspector = inspect(engine)
+        if "notifications" not in inspector.get_table_names():
+            return
+        existing = set()
+        try:
+            existing = {idx.get("name") for idx in inspector.get_indexes("notifications") if isinstance(idx, dict)}
+        except Exception:
+            existing = set()
+        with engine.connect() as conn:
+            try:
+                if "idx_notifications_user_ts" not in existing:
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_notifications_user_ts ON notifications(user_id, timestamp)"))
+                if "idx_notifications_user_type_unread_ts" not in existing:
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_notifications_user_type_unread_ts ON notifications(user_id, type, is_read, timestamp)"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+    except Exception:
+        # Best-effort; never block startup
+        pass
+
 def ensure_message_unread_indexes(engine: Engine) -> None:
     """Ensure indexes that accelerate unread-count and mark-read queries.
 

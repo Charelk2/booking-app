@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Response, Header
 from sqlalchemy.orm import Session
 from typing import List
 import enum
@@ -15,18 +15,36 @@ router = APIRouter(tags=["notifications"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/notifications", response_model=List[schemas.NotificationResponse])
+@router.get("/notifications", response_model=List[schemas.NotificationResponse], responses={304: {"description": "Not Modified"}})
 def read_my_notifications(
     skip: int = 0,
     limit: int = 20,
+    response: Response = None,
+    if_none_match: str | None = Header(default=None, convert_underscores=False, alias="If-None-Match"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Retrieve notifications for the current user with pagination."""
+    """Retrieve notifications with lightweight ETag support to reduce churn."""
     notifs = crud.crud_notification.get_notifications_for_user(
         db, current_user.id, skip=skip, limit=limit
     )
-    return [_build_response(db, n) for n in notifs]
+    # Compute a weak ETag from user_id + latest timestamp + count
+    try:
+        import hashlib
+        latest = max((n.timestamp.isoformat() if n.timestamp else "0") for n in notifs) if notifs else "0"
+        src = f"notif:{int(current_user.id)}:{latest}:{len(notifs)}:{int(skip)}:{int(limit)}"
+        etag = f'W/"{hashlib.sha1(src.encode()).hexdigest()}"'
+    except Exception:
+        etag = None
+    if etag and if_none_match and if_none_match.strip() == etag:
+        # Fast 304 path
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag})
+    items = [_build_response(db, n) for n in notifs]
+    # Attach ETag so clients can revalidate
+    if response is not None and etag:
+        response.headers["ETag"] = etag
+        response.headers["Cache-Control"] = "private, max-age=15, stale-while-revalidate=60"
+    return items
 
 
 @router.put(

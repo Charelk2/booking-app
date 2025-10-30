@@ -33,7 +33,9 @@ router = APIRouter()
 
 PING_INTERVAL_DEFAULT = 30.0     # seconds
 PONG_TIMEOUT = 45.0              # seconds
-SEND_TIMEOUT = 1.0               # seconds
+# Be tolerant of transient event loop pauses and mobile networks.
+# 1s proved too aggressive in production; raise to 5s to avoid flapping.
+SEND_TIMEOUT = 5.0               # seconds
 WS_4401_UNAUTHORIZED = 4401      # custom close code mirroring HTTP 401
 
 ENABLE_NOISE = os.getenv("ENABLE_NOISE", "0") in {"1", "true", "yes"}

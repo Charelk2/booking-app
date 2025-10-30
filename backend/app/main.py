@@ -125,6 +125,7 @@ from .db_utils import (
     ensure_performance_indexes,
     ensure_message_system_key_index,
     ensure_message_core_indexes,
+    ensure_notification_core_indexes,
     ensure_message_unread_indexes,
     ensure_booking_requests_user_indexes,
     seed_service_categories,
@@ -239,6 +240,7 @@ ensure_service_provider_onboarding_columns(engine)
 ensure_performance_indexes(engine)
 ensure_message_system_key_index(engine)
 ensure_message_core_indexes(engine)
+ensure_notification_core_indexes(engine)
 ensure_message_unread_indexes(engine)
 ensure_booking_requests_user_indexes(engine)
 try:

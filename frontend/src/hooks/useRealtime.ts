@@ -265,22 +265,35 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
 
   // Avoid proactive refreshes; rely on cookie-auth WS when possible.
   // If a token is supplied (e.g., from AuthContext), it will be used.
-
+  // Make this effect idempotent: only (re)open when URL changes or when there is no active socket.
+  const lastUrlRef = useRef<string | null>(null);
   useEffect(() => {
-    // Don’t open any realtime connection until there’s at least one topic
     const hasTopics = subs.current.size > 0;
-    if (!hasTopics) { setStatus('closed'); return () => {}; }
-    // WS-only: if URL is not available, keep closed instead of using SSE
-    if (!wsUrl) { setStatus('closed'); return () => {}; }
-    openWS();
-    return () => {
-      try { wsRef.current?.close(); } catch {}
-      try { esRef.current?.close(); } catch {}
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
-    };
+    if (!hasTopics || !wsUrl) { setStatus('closed'); return; }
+    const state = wsRef.current?.readyState;
+    const openOrConnecting = state === WebSocket.OPEN || state === WebSocket.CONNECTING;
+    if (openOrConnecting && lastUrlRef.current === wsUrl) {
+      // Already open to the same URL
+      return;
+    }
+    // If URL changed while a socket exists, close and reopen after a tiny delay to avoid thrash
+    if (wsRef.current && lastUrlRef.current && lastUrlRef.current !== wsUrl) {
+      try { wsRef.current.close(); } catch {}
+    }
+    lastUrlRef.current = wsUrl;
+    // Gentle delay to avoid racing with heavy first-paint API calls
+    const id = setTimeout(() => { openWS(); }, 500);
+    return () => { try { clearTimeout(id); } catch {} };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wsUrl, wsToken]);
+  }, [wsUrl]);
+
+  // Close transports on unmount
+  useEffect(() => () => {
+    try { wsRef.current?.close(); } catch {}
+    try { esRef.current?.close(); } catch {}
+    if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+    if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
+  }, []);
 
   // Re-open SSE when topics change
   const refreshSSE = useCallback(() => {

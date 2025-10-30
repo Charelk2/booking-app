@@ -90,17 +90,30 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     currentToken = token;
   }, [token]);
 
+  // Cache ETag + throttle to avoid flooding the API while navigating
+  const lastEtagRef = useRef<string | null>(null);
+  const lastFetchAtRef = useRef<number>(0);
+  const inflightRef = useRef<Promise<void> | null>(null);
   const fetchNotifications = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastFetchAtRef.current < 5000) return; // 5s throttle
+    if (inflightRef.current) return;
     setLoading(true);
-    try {
-      const res = await api.get<Notification[]>('/notifications', {
-        params: { limit: 20, unreadOnly: false },
-      });
+    inflightRef.current = (async () => {
+      try {
+        const res = await api.get<Notification[]>('/notifications', {
+          params: { limit: 20, unreadOnly: false },
+          validateStatus: (s) => s === 200 || s === 304,
+          headers: lastEtagRef.current ? { 'If-None-Match': lastEtagRef.current } : undefined,
+        });
+        lastFetchAtRef.current = Date.now();
+        try { lastEtagRef.current = String((res.headers as any)?.etag || '') || lastEtagRef.current; } catch {}
+        if (res.status === 304) { setLoading(false); inflightRef.current = null; return; }
       setNotifications(res.data);
       setUnreadCount(res.data.filter((n) => !n.is_read).length);
       setHasMore(res.data.length === 20);
       setError(null);
-    } catch (err) {
+      } catch (err) {
       console.error('Failed to load notifications:', err);
       const msg = authAwareMessage(
         err,
@@ -108,16 +121,20 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         'Failed to load notifications. Please log in to view your notifications.',
       );
       setError(new Error(msg));
-    } finally {
+      } finally {
       setLoading(false);
-    }
+        inflightRef.current = null;
+      }
+    })();
+    await inflightRef.current;
   }, []);
 
   useEffect(() => {
     if (!tokenRef.current) return;
-    fetchNotifications();
+    // Gentle delay to avoid contending with heavy first-paint API calls
+    const t = setTimeout(() => { void fetchNotifications(); }, 1000);
     const id = setInterval(fetchNotifications, 30_000);
-    return () => clearInterval(id);
+    return () => { clearTimeout(t); clearInterval(id); };
   }, [fetchNotifications, token]);
 
   const { subscribe, publish } = useRealtimeContext();
