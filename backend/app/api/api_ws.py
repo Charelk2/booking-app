@@ -726,33 +726,35 @@ class _CompatManager:
 
     async def broadcast(self, request_id: int, message: Any) -> None:  # noqa: D401
         try:
-            rid = int(request_id)
-        except Exception:
-            rid = request_id  # best-effort
+            try:
+                rid = int(request_id)
+            except Exception:
+                rid = request_id  # best-effort
+            topic = f"booking-requests:{int(rid)}"
 
-        try:
             if isinstance(message, Envelope):
                 env = message
                 # Ensure sensible defaults so multiplex subscribers can route
-                env.topic = env.topic or f"booking-requests:{int(rid)}"
+                env.topic = env.topic or topic
                 env.type = env.type or "message"
+                # leave env.payload as-is (may already be wrapped)
             elif isinstance(message, dict):
-                # Normalize dict payloads into a proper envelope
-                try:
-                    v = int(message.get("v", 1))  # type: ignore[arg-type]
-                except Exception:
-                    v = 1
-                msg_type = str(message.get("type") or "message")
+                # Critical compat: keep payload.data for legacy consumers; also include .message
                 env = Envelope(
-                    v=v,
-                    type=msg_type,
-                    topic=f"booking-requests:{int(rid)}",
-                    payload=message if isinstance(message, dict) else None,
+                    v=1,
+                    type="message",
+                    topic=topic,
+                    payload={"data": message, "message": message},
                 )
             else:
-                env = Envelope(type="message", topic=f"booking-requests:{int(rid)}", payload={"data": message})
+                env = Envelope(
+                    v=1,
+                    type="message",
+                    topic=topic,
+                    payload={"data": message},
+                )
         except Exception:
-            env = Envelope(type="message", topic=f"booking-requests:{int(rid)}")
+            env = Envelope(v=1, type="message", topic=f"booking-requests:{int(request_id)}")
 
         # 1) Legacy room endpoint (clients connected to /ws/booking-requests/{id})
         await chat.broadcast(int(rid), env)

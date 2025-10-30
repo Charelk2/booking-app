@@ -114,9 +114,9 @@ def get_messages_for_request(
     elif before_id is not None:
         ordered = query.order_by(models.Message.id.desc())
     else:
-        ordered = query.order_by(
-            models.Message.timestamp.desc() if newest_first else models.Message.timestamp.asc()
-        )
+        # For first page (no cursors), use id DESC to align with (booking_request_id, id) index,
+        # then the caller can reverse to oldest→newest for the client.
+        ordered = query.order_by(models.Message.id.desc())
     query = ordered.offset(skip).limit(limit)
     return query.all()
 

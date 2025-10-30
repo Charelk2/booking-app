@@ -29,7 +29,7 @@ from ..utils.notifications import (
 from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..utils import error_response
 from ..utils import r2 as r2utils
-from .api_ws import manager
+from .api_ws import manager, notifications_manager
 from ..utils.metrics import incr as metrics_incr
 import os
 import mimetypes
@@ -978,6 +978,16 @@ async def mark_messages_read(
             )
         except Exception:  # pragma: no cover - broadcast best effort
             logger.exception("Failed to broadcast read receipt", extra={"request_id": request_id, "user_id": current_user.id})
+
+    # Push updated aggregate unread total to the user's notifications channel so header can refresh outside Inbox
+    try:
+        total, _ = crud.crud_message.get_unread_message_totals_for_user(db, int(current_user.id))
+        await notifications_manager.broadcast(
+            int(current_user.id),
+            {"v": 1, "type": "unread_total", "payload": {"total": int(total)}},
+        )
+    except Exception:
+        logger.exception("Failed to push unread_total notification", extra={"user_id": current_user.id})
     return {"updated": updated}
 
 
@@ -1403,6 +1413,19 @@ def create_message(
             request_id,
             {"v": 1, "type": "read", "up_to_id": int(last_unread), "user_id": int(current_user.id)},
         )
+    # Push unread_total to the recipient so their header updates outside Inbox
+    try:
+        other_user_id = (
+            booking_request.artist_id if current_user.id == booking_request.client_id else booking_request.client_id
+        )
+        total_for_other, _ = crud.crud_message.get_unread_message_totals_for_user(db, int(other_user_id))
+        background_tasks.add_task(
+            notifications_manager.broadcast,
+            int(other_user_id),
+            {"v": 1, "type": "unread_total", "payload": {"total": int(total_for_other)}},
+        )
+    except Exception:
+        pass
     # Record idempotency mapping for the newly created message
     try:
         if id_key:

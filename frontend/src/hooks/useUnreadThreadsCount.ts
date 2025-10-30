@@ -3,24 +3,30 @@ import axios from 'axios';
 import { getApiOrigin } from '@/lib/api';
 import { subscribe as cacheSubscribe, getSummaries as cacheGetSummaries } from '@/lib/chat/threadCache';
 
-function fetchAggregateUnread(): Promise<number> {
+function fetchAggregateUnread(prev?: number): Promise<number> {
   return axios
-    .get<{ total?: number; count?: number }>(`${getApiOrigin()}/api/v1/inbox/unread`, { withCredentials: true })
-    .then((r) => Number((r.data?.total ?? r.data?.count ?? 0)))
-    .catch(() => 0);
+    .get<{ total?: number; count?: number }>(`${getApiOrigin()}/api/v1/inbox/unread`, {
+      withCredentials: true,
+      // Treat 200 or 304 as success; keep previous on 304
+      validateStatus: (s) => s === 200 || s === 304,
+      headers: { 'Cache-Control': 'no-cache' },
+      params: { _: Date.now() },
+    })
+    .then((r) => (r.status === 304 ? (typeof prev === 'number' ? prev : 0) : Number((r.data?.total ?? r.data?.count ?? 0))))
+    .catch(() => (typeof prev === 'number' ? prev : 0));
 }
 
 export default function useUnreadThreadsCount() {
   const [count, setCount] = useState<number>(0);
 
-  const compute = useCallback(async () => {
+  const compute = useCallback(async (prevCount?: number) => {
     const list = cacheGetSummaries() as any[];
     const local = Array.isArray(list)
       ? list.reduce((a, s: any) => a + (Number(s?.unread_count || 0) || 0), 0)
       : 0;
     let server = 0;
     try {
-      server = await fetchAggregateUnread();
+      server = await fetchAggregateUnread(prevCount);
     } catch {}
     return Math.max(local, server);
   }, []);
@@ -28,7 +34,7 @@ export default function useUnreadThreadsCount() {
   useEffect(() => {
     let canceled = false;
     const setFromCompute = async () => {
-      const next = await compute();
+      const next = await compute(count);
       if (!canceled) setCount(next);
     };
 

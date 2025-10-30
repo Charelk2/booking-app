@@ -21,6 +21,11 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     if (!token) return;
     const unsubscribe = rt.subscribe('notifications', (payload: any) => {
       try {
+        // Header aggregate push: unread_total → trigger recompute in hooks
+        if (payload && (payload.type === 'unread_total' || (payload.payload && typeof payload.payload.total === 'number'))) {
+          try { window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { total: Number(payload?.payload?.total ?? 0) } })); } catch {}
+          return;
+        }
         const link = String((payload && (payload.link || (payload.payload && payload.payload.link))) || '');
         if (!link) return;
         // Extract booking request id from link (supports /booking-requests/{id} or /inbox?requestId={id})
