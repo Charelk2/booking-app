@@ -17,6 +17,7 @@ import {
 import { safeParseDate } from '@/lib/chat/threadStore';
 import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries } from '@/lib/chat/threadCache';
 import { normalizeMessage as normalizeShared } from '@/lib/normalizers/messages';
+import { getEphemeralStubs, clearEphemeralStubs } from '@/lib/chat/ephemeralStubs';
 
 type ThreadMessage = any; // Keep flexible; UI uses normalized fields downstream
 
@@ -103,6 +104,32 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
   // so stale responses from a previous thread instance won't merge into the new one.
 
   React.useEffect(() => { messagesRef.current = messages; }, [messages]);
+  // Merge ephemeral stubs on arrival for instant display
+  React.useEffect(() => {
+    const applyStubs = () => {
+      try {
+        const stubs = getEphemeralStubs(threadId) || [];
+        if (!Array.isArray(stubs) || stubs.length === 0) return;
+        const normalized = stubs
+          .map((m: any) => normalizeShared(m) as any)
+          .filter((m: any) => Number.isFinite((m as any)?.id));
+        setMessages((prev) => mergeMessages(prev, normalized));
+      } catch {}
+    };
+    applyStubs();
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent<{ threadId?: number }>).detail || {};
+        if (Number(detail.threadId) !== Number(threadId)) return;
+      } catch {}
+      applyStubs();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('ephemeral:stubs', handler as any);
+      return () => window.removeEventListener('ephemeral:stubs', handler as any);
+    }
+    return () => {};
+  }, [threadId]);
   React.useEffect(() => {
     // If we already have messages (seeded synchronously), skip async seed
     if (messagesRef.current && messagesRef.current.length > 0) return;
@@ -209,6 +236,11 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
           // For 'full', leave reachedHistoryStart as-is (default false) so top loads work.
         } catch {}
         try { opts?.onMessagesFetched?.(normalized, params.mode === 'delta' ? 'delta' : 'fetch'); } catch {}
+        // Drop ephemeral stubs now that real data arrived
+        try {
+          clearEphemeralStubs(threadId);
+          setMessages((prev) => prev.filter((m: any) => Number(m?.id) > 0));
+        } catch {}
       } catch (err) {
         // Ignore silent aborts when switching threads quickly
         if (isAxiosError(err) && (err as any).code === 'ERR_CANCELED') {

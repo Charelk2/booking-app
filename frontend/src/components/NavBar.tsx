@@ -53,11 +53,12 @@ export default function NavBar() {
 }
 
 export function NavBarWithProvider({ children }: { children: React.ReactNode }) {
+  // Provider is now mounted at the app root; avoid duplicate providers here.
   return (
-    <NotificationsProvider>
+    <>
       <NavBar />
       {children}
-    </NotificationsProvider>
+    </>
   );
 }
 //note

@@ -362,7 +362,6 @@ export default function MainLayout({
   const shouldHideFooter = hideFooter || isAuthScreen;
 
   return (
-    <NotificationsProvider>
     <div className="flex min-h-screen flex-col bg-white bg-gradient-to-b from-brand-light/50 to-gray-50">
       {/* Desktop expanded overlay */}
       {showSearchOverlay && (
@@ -441,6 +440,5 @@ export default function MainLayout({
       {/* Vercel Analytics */}
       <Analytics />
     </div>
-    </NotificationsProvider>
   );
 }

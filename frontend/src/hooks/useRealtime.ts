@@ -167,7 +167,9 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     wsRef.current = null;
     if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
     setStatus(attemptsRef.current > 0 ? 'reconnecting' : 'connecting');
-    const ws = new WebSocket(wsUrl);
+    // Prefer Sec-WebSocket-Protocol bearer token when available so the URL stays stable.
+    const tok = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || null;
+    const ws = tok ? new WebSocket(wsUrl, ['bearer', tok]) : new WebSocket(wsUrl);
     wsRef.current = ws;
     ws.onopen = () => {
       // Mark open time; do not reset attempts immediately — only after a
@@ -211,6 +213,10 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
         const data = JSON.parse(e.data as string);
         if (data?.type === 'ping') {
           ws.send(JSON.stringify({ v: 1, type: 'pong' }));
+          return;
+        }
+        // Ignore reconnect hints from server; client manages its own backoff/stability.
+        if (data?.type === 'reconnect_hint') {
           return;
         }
         if (data?.topic) {

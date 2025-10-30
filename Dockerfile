@@ -13,6 +13,11 @@ RUN apt-get update && apt-get install -y curl gnupg ca-certificates \
     && npm config set registry https://registry.npmjs.org \
     && rm -rf /var/lib/apt/lists/*
 
+# Bake Cloud SQL Auth Proxy into the image so we don't download at boot
+RUN curl -sLo /usr/local/bin/cloud-sql-proxy \
+      https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.10.0/cloud-sql-proxy.linux.amd64 \
+    && chmod +x /usr/local/bin/cloud-sql-proxy
+
 # install Python dependencies into a virtual environment
 COPY backend/requirements.txt backend/
 COPY requirements-dev.txt ./
@@ -33,6 +38,8 @@ RUN npm ci --silent \
 FROM python:3.12.11-slim
 WORKDIR /app
 COPY --from=builder /app /app
+# Copy pre-baked Cloud SQL Auth Proxy
+COPY --from=builder /usr/local/bin/cloud-sql-proxy /usr/local/bin/cloud-sql-proxy
 COPY setup.sh scripts/test-all.sh ./
 RUN chmod +x setup.sh scripts/test-all.sh
 ENV CONTENT_SECURITY_POLICY="default-src 'self'" \

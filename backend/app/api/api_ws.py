@@ -34,11 +34,12 @@ router = APIRouter()
 PING_INTERVAL_DEFAULT = 30.0     # seconds
 PONG_TIMEOUT = 45.0              # seconds
 # Be tolerant of transient event loop pauses and mobile networks.
-# 1s proved too aggressive in production; raise to 5s to avoid flapping.
-SEND_TIMEOUT = 5.0               # seconds
+# Increase to 10s to avoid premature disconnects under transient stalls.
+SEND_TIMEOUT = 10.0              # seconds
 WS_4401_UNAUTHORIZED = 4401      # custom close code mirroring HTTP 401
 
 ENABLE_NOISE = os.getenv("ENABLE_NOISE", "0") in {"1", "true", "yes"}
+WS_ENABLE_RECONNECT_HINT = os.getenv("WS_ENABLE_RECONNECT_HINT", "0") in {"1", "true", "yes"}
 
 # Optional dependency: python-noise (disabled by default)
 _HAS_NOISE = False
@@ -426,16 +427,17 @@ async def booking_request_ws(
     Presence.mark_online(int(user.id))
     await chat.connect(request_id, conn)
     try:
-        # Reconnect hint (unencrypted in plaintext mode; encrypted in Noise mode)
-        delay = min(2 ** attempt, 30)
-        try:
-            await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": delay}))
-        except WebSocketDisconnect:
-            # Client dropped during early handshake; exit quietly
-            return
-        except Exception:
-            # Network hiccup or slow consumer; let client retry without log spam
-            return
+        # Optional reconnect hint (disabled by default). Enable via WS_ENABLE_RECONNECT_HINT=1
+        if WS_ENABLE_RECONNECT_HINT:
+            delay = min(2 ** attempt, 30)
+            try:
+                await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": delay}))
+            except WebSocketDisconnect:
+                # Client dropped during early handshake; exit quietly
+                return
+            except Exception:
+                # Network hiccup or slow consumer; let client retry without log spam
+                return
 
         # Heartbeat loop
         last_pong = time.time()
@@ -560,12 +562,13 @@ async def multiplex_ws(
         user_request_ids = set()
 
     try:
-        try:
-            await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": min(2 ** attempt, 30)}))
-        except WebSocketDisconnect:
-            return
-        except Exception:
-            return
+        if WS_ENABLE_RECONNECT_HINT:
+            try:
+                await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": min(2 ** attempt, 30)}))
+            except WebSocketDisconnect:
+                return
+            except Exception:
+                return
 
         last_pong = time.time()
         async def ping_loop() -> None:
@@ -749,12 +752,13 @@ async def notifications_ws(
     Presence.mark_online(int(user.id))
 
     try:
-        try:
-            await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": min(2 ** attempt, 30)}))
-        except WebSocketDisconnect:
-            return
-        except Exception:
-            return
+        if WS_ENABLE_RECONNECT_HINT:
+            try:
+                await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": min(2 ** attempt, 30)}))
+            except WebSocketDisconnect:
+                return
+            except Exception:
+                return
 
         last_pong = time.time()
         async def ping_loop() -> None:

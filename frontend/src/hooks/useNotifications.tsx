@@ -18,7 +18,8 @@ import type { Notification, UnifiedNotification } from '@/types';
 import { toUnifiedFromNotification } from './notificationUtils';
 import { authAwareMessage } from '@/lib/utils';
 import { threadStore } from '@/lib/chat/threadStore';
-import { readThreadCache, writeThreadCache } from '@/lib/chat/threadCache';
+import { readThreadCache } from '@/lib/chat/threadCache';
+import { addEphemeralStub } from '@/lib/chat/ephemeralStubs';
 import { requestThreadPrefetch, kickThreadPrefetcher } from '@/lib/chat/threadPrefetcher';
 import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
 
@@ -183,7 +184,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             emitThreadsUpdated({ threadId, source: 'realtime', immediate: true }, { immediate: true, force: true });
           } catch {}
 
-          // Best-effort synthetic stub in cache (overwritten by the subsequent fetch)
+          // Best-effort synthetic stub via ephemeral overlay (overwritten by the subsequent fetch)
           try {
             const base = (readThreadCache(threadId) || []) as any[];
             const text = String(newNotif.message || '');
@@ -207,7 +208,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               timestamp: newNotif.timestamp,
               avatar_url: null,
             } as any;
-            writeThreadCache(threadId, [...base, stub]);
+            // Push stub to ephemeral overlay; persist layer remains clean
+            addEphemeralStub(threadId, stub);
           } catch {}
           if (!isActive && typeof window !== 'undefined') {
             try {
