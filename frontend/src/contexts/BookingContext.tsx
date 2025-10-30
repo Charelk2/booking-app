@@ -31,6 +31,17 @@ export interface EventDetails {
   attachment_url?: string;
 }
 
+// Persisted/saved details differ from EventDetails: date is stored as ISO string or null
+type SavedDetails = Partial<Omit<EventDetails, 'date'>> & { date?: string | null; time?: string };
+
+type SavedState = {
+  step?: number;
+  details?: SavedDetails;
+  serviceId?: number;
+  requestId?: number;
+  travelResult?: TravelResult | null;
+};
+
 interface BookingContextValue {
   step: number;
   setStep: (s: number) => void;
@@ -44,20 +55,8 @@ interface BookingContextValue {
   setTravelResult: (r: TravelResult | null) => void;
   resetBooking: () => void;
   loadSavedProgress: () => boolean;
-  peekSavedProgress: () => {
-    step?: number;
-    details?: Partial<EventDetails> & { date?: string; time?: string };
-    serviceId?: number;
-    requestId?: number;
-    travelResult?: TravelResult | null;
-  } | null;
-  applySavedProgress: (parsed: {
-    step?: number;
-    details?: Partial<EventDetails> & { date?: string; time?: string };
-    serviceId?: number;
-    requestId?: number;
-    travelResult?: TravelResult | null;
-  }) => void;
+  peekSavedProgress: () => SavedState | null;
+  applySavedProgress: (parsed: SavedState) => void;
 }
 
 const BookingContext = createContext<BookingContextValue | undefined>(undefined);
@@ -103,10 +102,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Determine whether saved data is meaningful (user actually started)
-  const hasMeaningfulProgress = (p: {
-    step?: number;
-    details?: Partial<EventDetails> & { date?: string | null; time?: string };
-  }) => {
+  const hasMeaningfulProgress = (p: SavedState) => {
     if (!p) return false;
     if ((p.step ?? 0) > 0) return true;
     const d = p.details || {};
@@ -125,13 +121,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return null;
     try {
-      const parsed = JSON.parse(stored) as {
-        step?: number;
-        details?: Partial<EventDetails> & { date?: string; time?: string };
-        serviceId?: number;
-        requestId?: number;
-        travelResult?: TravelResult | null;
-      };
+      const parsed = JSON.parse(stored) as SavedState;
       if (!hasMeaningfulProgress(parsed)) return null;
       return parsed;
     } catch (e) {
@@ -141,13 +131,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const applySavedProgress = (parsed: {
-    step?: number;
-    details?: Partial<EventDetails> & { date?: string; time?: string };
-    serviceId?: number;
-    requestId?: number;
-    travelResult?: TravelResult | null;
-  }) => {
+  const applySavedProgress = (parsed: SavedState) => {
     if (parsed.step !== undefined) setStep(parsed.step);
     if (parsed.details) {
       const parsedDetails: EventDetails = {
@@ -178,10 +162,12 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const data = {
+    // Build a SavedState object for persistence (date as string|null)
+    const { date: _date, ...restDetails } = throttledState.details;
+    const data: SavedState = {
       step: throttledState.step,
       details: {
-        ...throttledState.details,
+        ...restDetails,
         // Guard against undefined or invalid dates when persisting progress
         date: throttledState.details.date
           ? new Date(throttledState.details.date).toISOString()
