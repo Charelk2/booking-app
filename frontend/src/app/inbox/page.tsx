@@ -38,6 +38,7 @@ import { recordThreadSwitchStart } from '@/lib/chat/inboxTelemetry';
 import { counterpartyLabel } from '@/lib/names';
 import OfflineBanner from '@/components/inbox/OfflineBanner';
 import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, subscribe as cacheSubscribe, setLastRead as cacheSetLastRead } from '@/lib/chat/threadCache';
+import { noteLocalReadEpoch } from '@/contexts/chat/RealtimeContext';
 
 export default function InboxPage() {
   const { user, loading: authLoading } = useAuth();
@@ -78,6 +79,7 @@ export default function InboxPage() {
     } else {
       cacheSetLastRead(id, undefined);
     }
+    try { noteLocalReadEpoch(id); } catch {}
     // Also zero unread locally in cached summaries so ConversationList updates immediately
     try {
       const prior = cacheGetSummaries() as any[];
@@ -363,6 +365,8 @@ export default function InboxPage() {
 
   const prefetchThreadMessages = useCallback(async (id: number, limit = PREFETCH_DEFAULT_LIMIT) => {
     if (!id) return;
+    // Always create a fresh controller and ensure cleanup in finally
+    const ac = new AbortController();
     try {
       // Cancel any in-flight fetch for this thread to avoid piling up long requests
       try {
@@ -372,7 +376,6 @@ export default function InboxPage() {
           inflightByThreadRef.current.delete(id);
         }
       } catch {}
-      const ac = new AbortController();
       inflightByThreadRef.current.set(id, ac);
 
       // Try delta against the last cached id for minimal payloads
@@ -439,6 +442,11 @@ export default function InboxPage() {
         } catch {}
       }
     } catch {}
+    finally {
+      // Always clear the inflight marker for this thread
+      const cur = inflightByThreadRef.current.get(id);
+      if (cur === ac) inflightByThreadRef.current.delete(id);
+    }
   }, [prefetchQuotesByIds]);
 
   // One-shot breadth-first batch warmup for the top visible threads

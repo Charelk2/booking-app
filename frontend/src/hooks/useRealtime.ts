@@ -57,6 +57,12 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const [wsToken, setWsToken] = useState<string | null>(token ?? null);
   const [refreshAttempted, setRefreshAttempted] = useState(false);
   useEffect(() => { setWsToken(token ?? null); }, [token]);
+  // Keep last non-empty token to avoid flipping WS URL between with/without token
+  const lastTokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    const t = (token || '').trim();
+    if (t) lastTokenRef.current = t;
+  }, [token]);
 
   const wsUrl = useMemo(() => {
     // Build a robust WS URL that never produces a relative path like
@@ -101,15 +107,22 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     };
     const base = build();
     if (!base) return null;
-    if (!wsToken) return base;
+    // If we do not have a token and the WS base is cross-origin, do not open yet
+    // (avoid unauthorized open/close loops). Same-origin cookie auth is still allowed.
     try {
+      const baseOrigin = new URL(base).origin;
+      const sameOrigin = typeof window !== 'undefined' ? (new URL(window.location.href).origin === baseOrigin) : true;
+      const tCandidate = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || '';
+      if (!tCandidate && !sameOrigin) return null;
+      if (!tCandidate) return base;
       const u = new URL(base);
-      u.searchParams.set('token', wsToken);
+      u.searchParams.set('token', tCandidate);
       return u.toString();
     } catch {
-      // Fallback: naive concat
       const sep = base.includes('?') ? '&' : '?';
-      return `${base}${sep}token=${encodeURIComponent(wsToken)}`;
+      const tCandidate = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || '';
+      if (!tCandidate) return base;
+      return `${base}${sep}token=${encodeURIComponent(tCandidate)}`;
     }
   }, [wsToken]);
 

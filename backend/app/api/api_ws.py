@@ -446,6 +446,17 @@ async def booking_request_ws(
                     await conn.send_envelope(Envelope(type="ping"))
                 except Exception:
                     break
+                # Actively close idle sockets that miss pong beyond grace
+                try:
+                    if (time.time() - last_pong) > PONG_TIMEOUT:
+                        try:
+                            await conn.ws.close(code=1006)
+                        except Exception:
+                            pass
+                        break
+                except Exception:
+                    # best-effort only
+                    pass
 
         pinger = asyncio.create_task(ping_loop())
 
@@ -556,6 +567,7 @@ async def multiplex_ws(
         except Exception:
             return
 
+        last_pong = time.time()
         async def ping_loop() -> None:
             while True:
                 await asyncio.sleep(max(heartbeat, PING_INTERVAL_DEFAULT))
@@ -563,6 +575,15 @@ async def multiplex_ws(
                     await conn.send_envelope(Envelope(type="ping"))
                 except Exception:
                     break
+                try:
+                    if (time.time() - last_pong) > PONG_TIMEOUT:
+                        try:
+                            await conn.ws.close(code=1006)
+                        except Exception:
+                            pass
+                        break
+                except Exception:
+                    pass
 
         pinger = asyncio.create_task(ping_loop())
 
@@ -580,6 +601,7 @@ async def multiplex_ws(
                         break
                     continue
                 if t == "pong":
+                    last_pong = time.time()
                     continue
 
                 if t == "heartbeat":
@@ -734,6 +756,7 @@ async def notifications_ws(
         except Exception:
             return
 
+        last_pong = time.time()
         async def ping_loop() -> None:
             while True:
                 await asyncio.sleep(max(heartbeat, PING_INTERVAL_DEFAULT))
@@ -741,6 +764,15 @@ async def notifications_ws(
                     await conn.send_envelope(Envelope(type="ping"))
                 except Exception:
                     break
+                try:
+                    if (time.time() - last_pong) > PONG_TIMEOUT:
+                        try:
+                            await conn.ws.close(code=1006)
+                        except Exception:
+                            pass
+                        break
+                except Exception:
+                    pass
         pinger = asyncio.create_task(ping_loop())
 
         try:
@@ -755,6 +787,7 @@ async def notifications_ws(
                         break
                     continue
                 if env.type == "pong":
+                    last_pong = time.time()
                     continue
                 if env.type == "heartbeat":
                     try:

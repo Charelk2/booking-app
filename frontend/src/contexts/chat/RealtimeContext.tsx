@@ -9,6 +9,17 @@ type RealtimeCtx = ReturnType<typeof useRealtime>;
 
 const RealtimeContext = createContext<RealtimeCtx | null>(null);
 
+// Local read epochs per thread to suppress stale unread bumps that arrive after
+// the user has already marked a thread as read in this tab.
+const localReadEpochByThread: Map<number, number> = new Map();
+
+export function noteLocalReadEpoch(threadId: number) {
+  try {
+    if (!Number.isFinite(threadId) || threadId <= 0) return;
+    localReadEpochByThread.set(Number(threadId), Date.now());
+  } catch {}
+}
+
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
   // Single hook instance provides one WS/SSE connection for the entire app
@@ -38,16 +49,28 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         }
         if (!Number.isFinite(id) || id <= 0) return;
         const msg = String((payload && (payload.message || (payload.payload && payload.payload.message))) || '').trim();
+        // Prefer server-provided timestamp if present to compare with local read epoch
         const nowIso = new Date().toISOString();
+        const createdAt = String((payload && (payload.created_at || (payload.payload && payload.payload.created_at))) || nowIso);
+        const ts = Date.parse(createdAt) || Date.now();
         const list = cacheGetSummaries() as any[];
         let found = false;
         const next = list.map((t) => {
           if (Number(t?.id) !== id) return t;
           found = true;
+          const lastLocal = localReadEpochByThread.get(id) || 0;
+          if (lastLocal && ts <= lastLocal) return t; // stale relative to local read
           const unread = Math.max(0, Number(t?.unread_count || 0)) + 1;
           return { ...t, last_message_timestamp: nowIso, last_message_content: msg || 'New message', unread_count: unread };
         });
-        cacheSetSummaries(found ? next : ([{ id, last_message_timestamp: nowIso, last_message_content: msg || 'New message', unread_count: 1 } as any, ...list] as any));
+        if (found) {
+          cacheSetSummaries(next as any);
+        } else {
+          const lastLocal = localReadEpochByThread.get(id) || 0;
+          if (!lastLocal || ts > lastLocal) {
+            cacheSetSummaries([{ id, last_message_timestamp: nowIso, last_message_content: msg || 'New message', unread_count: 1 } as any, ...list] as any);
+          }
+        }
       } catch {
         // best-effort only
       }
