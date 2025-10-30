@@ -20,7 +20,7 @@ export interface LocationInputProps {
   onValueChange: (value: string) => void;
   onPlaceSelect: (place: PlaceResult) => void;
   placeholder?: string;
-  className?: string; // wrapper div
+  className?: string; // wrapper di
   inputClassName?: string; // input element
   enterKeyHint?: React.InputHTMLAttributes<HTMLInputElement>["enterKeyHint"]; // mobile keyboard hint
   onPredictionsChange?: (
