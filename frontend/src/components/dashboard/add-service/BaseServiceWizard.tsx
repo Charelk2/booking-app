@@ -37,7 +37,7 @@ function useImageThumbnails(files: File[]) {
 export interface WizardStep<T extends FieldValues> {
   label: string;
   render: (args: {
-    form: UseFormReturn<T>;
+    form: UseFormReturn<T, any>;
     mediaFiles: File[];
     setMediaFiles: (files: File[]) => void;
     onFileChange: (files: FileList | null) => void;
@@ -49,7 +49,7 @@ export interface WizardStep<T extends FieldValues> {
   }) => ReactNode;
   fields?: (keyof T)[];
   validate?: (args: {
-    form: UseFormReturn<T>;
+    form: UseFormReturn<T, any>;
     mediaFiles: File[];
     existingMediaUrl: string | null;
     mediaError: string | null;
@@ -87,7 +87,7 @@ export default function BaseServiceWizard<T extends FieldValues>({
   const thumbnails = useImageThumbnails(mediaFiles);
 
 
-  const form = useForm<T>({ defaultValues });
+  const form = useForm<T, any>({ defaultValues: defaultValues as any });
   const { handleSubmit, trigger, reset, formState } = form;
 
   // Track furthest step reached for stepper highlighting
@@ -97,7 +97,7 @@ export default function BaseServiceWizard<T extends FieldValues>({
 
   const next = async () => {
     const fields = steps[step].fields;
-    if (fields && !(await trigger(fields as string[]))) return;
+    if (fields && !(await trigger(fields as any))) return;
     const validate = steps[step].validate;
     if (
       validate &&
@@ -170,7 +170,7 @@ export default function BaseServiceWizard<T extends FieldValues>({
     }
   };
 
-  const onSubmit = handleSubmit(async (data: T) => {
+  const onSubmit = handleSubmit(async (data: any) => {
     try {
       // Ensure at least one image (hero or uploaded) to avoid backend 422 on required media
       const imageCount = mediaFiles.length + (existingMediaUrl ? 1 : 0);

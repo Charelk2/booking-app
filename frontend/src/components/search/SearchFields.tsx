@@ -73,10 +73,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     const whenButtonRef = useRef<HTMLButtonElement>(null);
     const locationContainerRef = useRef<HTMLDivElement>(null);
 
-    const iconMap = {
+    const iconMap: Partial<Record<SearchFieldId, any>> = {
       category: MusicalNoteIcon,
       when: CalendarIcon,
-    } as const;
+      location: MapPinIcon,
+    };
 
     // Helper to render a generic search field button
     const renderField = (
@@ -93,7 +94,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         typeof currentValue === 'string' &&
         currentValue !== '' &&
         !['Search', 'Add dates', 'Add location'].includes(currentValue);
-      const Icon = iconMap[id];
+      const Icon = (iconMap[id] as any) ?? MusicalNoteIcon;
 
       return (
         <div className="relative flex-1 min-w-0">
@@ -127,7 +128,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
               className={clsx(
                 'block truncate pointer-events-none select-none',
                 isValuePresent ? 'text-gray-800' : 'text-gray-500', // Uses italic for placeholders
-                compact ? 'text-sm' : 'text-base text-xs'
+                compact ? 'text-sm' : 'text-base'
               )}
             >
               {currentValue}

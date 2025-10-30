@@ -406,7 +406,7 @@ function ThumbnailTray({ items, activeIndex, onIndexChange }: { items: GalleryIt
         {items.map((it, i) => (
           <div
             key={it.src + i}
-            ref={(el) => (itemRefs.current[i] = el)}
+            ref={(el) => { itemRefs.current[i] = el; }}
             className={`relative flex-shrink-0 w-14 h-14 rounded-md overflow-hidden border ${i === activeIndex ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-300'}`}
           >
             <button

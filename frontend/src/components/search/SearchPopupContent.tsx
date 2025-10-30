@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, RefObject, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import SafeImage from '@/components/ui/SafeImage';
 import ReactDatePicker from 'react-datepicker';
 import { Listbox } from '@headlessui/react';
@@ -198,9 +199,9 @@ export default function SearchPopupContent({
                   }`}
                   onClick={() =>
                     handleLocationSelect({
-                      name: s.name,
-                      formatted_address: s.description,
-                    })
+                      description: s.name,
+                      structured_formatting: { main_text: s.name, secondary_text: s.description || '' },
+                    } as unknown as google.maps.places.AutocompletePrediction)
                   }
                   className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
                   tabIndex={-1}

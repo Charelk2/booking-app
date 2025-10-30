@@ -111,14 +111,14 @@ const ServicesSection: React.FC<Props> = ({ services, onReorder, onAdd, onEdit, 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
   const [isReordering, setIsReordering] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const hintTimer = useRef<NodeJS.Timeout | null>(null);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const items = useMemo(() => services, [services]);
 
   const handleDragStart = () => {
     setIsReordering(true);
     setShowHint(true);
-    if (hintTimer.current) clearTimeout(hintTimer.current);
+    if (hintTimer.current) clearTimeout(hintTimer.current as any);
     hintTimer.current = setTimeout(() => setShowHint(false), 1500);
   };
 

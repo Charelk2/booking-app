@@ -5,11 +5,7 @@ import { Fragment, useState, useRef, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
-import {
-  FixedSizeList as RWFixedSizeList,
-  type ListChildComponentProps,
-  type FixedSizeList as FixedSizeListType,
-} from 'react-window';
+import { FixedSizeList as RWFixedSizeList } from 'react-window';
 import NotificationCard from '../ui/NotificationCard';
 import getNotificationDisplayProps from '@/hooks/getNotificationDisplayProps';
 import { ToggleSwitch, IconButton } from '../ui';
@@ -54,7 +50,7 @@ export default function NotificationDrawer({
 
   const [showUnread, setShowUnread] = useState(false);
   const [visibleCount, setVisibleCount] = useState(pageSize);
-  const listRef = useRef<FixedSizeListType>(null);
+  const listRef = useRef<any>(null);
   const prevCountRef = useRef(visibleCount);
 
   // clamp visibleCount when pageSize changes
@@ -65,7 +61,7 @@ export default function NotificationDrawer({
   // auto-scroll when loading more
   useEffect(() => {
     if (visibleCount > prevCountRef.current && listRef.current) {
-      listRef.current.scrollToItem(prevCountRef.current, 'start');
+      (listRef.current as any).scrollToItem?.(prevCountRef.current, 'start');
     }
     prevCountRef.current = visibleCount;
   }, [visibleCount]);
@@ -153,7 +149,7 @@ export default function NotificationDrawer({
                       width="100%"
                       overscanCount={3}
                     >
-                      {({ index, style }: ListChildComponentProps) => {
+                      {({ index, style }: { index: number; style: React.CSSProperties }) => {
                         if (index < visible.length) {
                           const n = visible[index];
                           const props = getNotificationDisplayProps(n);

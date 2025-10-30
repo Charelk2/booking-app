@@ -5,11 +5,7 @@ import { Fragment, useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import {
-  FixedSizeList,
-  type ListChildComponentProps,
-} from 'react-window';
-import type { FixedSizeList as FixedSizeListType } from 'react-window';
+import { FixedSizeList } from 'react-window';
 import NotificationCard from '../ui/NotificationCard';
 import getNotificationDisplayProps from '@/hooks/getNotificationDisplayProps';
 import type { UnifiedNotification } from '@/types';
@@ -43,13 +39,13 @@ export default function FullScreenNotificationModal({
   const [showUnread, setShowUnread] = useState(false);
   // how many loaded into the list
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const listRef = useRef<FixedSizeListType>(null);
+  const listRef = useRef<any>(null);
   const prevCountRef = useRef(visibleCount);
 
   // auto-scroll when loading more
   useEffect(() => {
     if (visibleCount > prevCountRef.current && listRef.current) {
-      listRef.current.scrollToItem(prevCountRef.current, 'start');
+      (listRef.current as any).scrollToItem?.(prevCountRef.current, 'start');
     }
     prevCountRef.current = visibleCount;
   }, [visibleCount]);
@@ -152,7 +148,7 @@ export default function FullScreenNotificationModal({
                 width="100%"
                 overscanCount={3}
               >
-                {({ index, style }: ListChildComponentProps) => {
+                {({ index, style }: { index: number; style: React.CSSProperties }) => {
                   if (index < visible.length) {
                     const n = visible[index];
                     const props = getNotificationDisplayProps(n);

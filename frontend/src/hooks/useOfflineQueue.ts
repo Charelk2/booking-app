@@ -14,7 +14,7 @@ export default function useOfflineQueue<T>(
   });
 
   const backoffRef = useRef(1000);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

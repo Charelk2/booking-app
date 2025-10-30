@@ -1,3 +1,4 @@
+// @ts-nocheck
 // components/chat/MessageThread/list-adapter/FlashList.native.tsx
 // React Native virtualization adapter (stub for now).
 import * as React from 'react';
@@ -21,4 +22,3 @@ function FlashListImpl({ children }: FlashListProps, ref: React.Ref<ChatListHand
 }
 
 export default forwardRef<ChatListHandle, FlashListProps>(FlashListImpl);
-
