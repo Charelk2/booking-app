@@ -199,6 +199,14 @@ export function useThreadRealtime({
       }
     });
 
+    // Minimal proven fix: after subscribing, trigger a single best-effort
+    // reconcile signal so the thread can close any join-window gap.
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('thread:reconcile-once', { detail: { threadId } }));
+      }
+    } catch {}
+
     return () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
       unsubscribe();
