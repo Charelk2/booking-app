@@ -18,7 +18,7 @@ import type { Notification, UnifiedNotification } from '@/types';
 import { toUnifiedFromNotification } from './notificationUtils';
 import { authAwareMessage } from '@/lib/utils';
 import { threadStore } from '@/lib/chat/threadStore';
-import { readThreadCache } from '@/lib/chat/threadCache';
+import { readThreadCache, updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
 import { addEphemeralStub } from '@/lib/chat/ephemeralStubs';
 import { requestThreadPrefetch, kickThreadPrefetcher } from '@/lib/chat/threadPrefetcher';
 import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
@@ -174,6 +174,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             last_message_timestamp: newNotif.timestamp,
             counterparty_label: newNotif.sender_name || prev?.counterparty_label || undefined,
           } as any);
+
+          // Also update the shared cache summaries so the ConversationList reorders instantly
+          // without waiting for a server refresh. This mirrors the active-thread path
+          // where setMessages() updates summaries. Best-effort only.
+          try {
+            cacheUpdateSummary(threadId, {
+              last_message_content: newNotif.message,
+              last_message_timestamp: newNotif.timestamp as any,
+              unread_count: nextUnread,
+            } as any);
+          } catch {}
 
           // Proactively warm the thread so opening it shows the new message immediately.
           try {
