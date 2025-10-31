@@ -396,6 +396,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const fetchMessagesRef = useLatest(fetchMessages);
   const throttleRef = React.useRef<number>(0);
   const lastReactionRefreshRef = React.useRef<number>(0);
+  const postSubFetchDoneRef = React.useRef<boolean>(false);
 
   const onVisible = React.useCallback(() => {
     if (typeof document === 'undefined') return;
@@ -415,6 +416,26 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [onVisible]);
+
+  // One guaranteed post-subscribe fetch to close the join window gap (once per mount/switch)
+  React.useEffect(() => {
+    postSubFetchDoneRef.current = false;
+    const handler = (e: any) => {
+      try {
+        const d = (e && e.detail) || {};
+        const tid = Number(d.threadId || 0);
+        if (!Number.isFinite(tid) || tid !== Number(bookingRequestId)) return;
+        if (postSubFetchDoneRef.current) return;
+        postSubFetchDoneRef.current = true;
+        void fetchMessagesRef.current({ mode: 'initial', force: true, reason: 'post-subscribe', limit: 5000 });
+      } catch {}
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('thread:reconcile-once', handler as any);
+      return () => { try { window.removeEventListener('thread:reconcile-once', handler as any); } catch {} };
+    }
+    return () => {};
+  }, [bookingRequestId, fetchMessagesRef]);
 
   // ——— Ensure we land at the bottom when switching to an active thread
   React.useEffect(() => {
