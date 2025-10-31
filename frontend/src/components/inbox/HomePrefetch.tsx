@@ -82,7 +82,7 @@ export default function HomePrefetch() {
       // Initialize prefetcher (idempotent)
       initThreadPrefetcher(async (id: number, limit: number) => {
         try {
-          const res = await getMessagesForBookingRequest(id, { limit, mode: 'lite' });
+          const res = await getMessagesForBookingRequest(id, { limit, mode: 'full' });
           const items = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
           writeThreadCache(id, items);
           try {
@@ -104,7 +104,7 @@ export default function HomePrefetch() {
       // One-shot batch warmup (best-effort)
       if (ids.length) {
         try {
-          const res = await getMessagesBatch(ids, 50, 'lite');
+          const res = await getMessagesBatch(ids, 50, 'full');
           const map = (res?.data as any)?.threads as Record<string, any[]> | undefined;
           const quotes = (res?.data as any)?.quotes as Record<number, any> | undefined;
           if (map && typeof map === 'object') {

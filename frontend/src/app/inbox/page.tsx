@@ -417,26 +417,14 @@ export default function InboxPage() {
         return next;
       };
 
-      if (lastId && lastId > 0) {
-        const res = await getMessagesForBookingRequest(id, { mode: 'delta', after_id: lastId, limit: Math.max(20, limit) }, { signal: ac.signal });
-        const incoming = Array.isArray((res.data as any)?.items) ? (res.data as any).items : [];
-        if (incoming.length) {
-          const base = (readThreadCache(id) || []) as any[];
-          const merged = mergeAndWrite(base, incoming);
-          try {
-            const qids = Array.from(new Set<number>(merged.map((m: any) => Number(m?.quote_id)).filter((n) => Number.isFinite(n) && n > 0)));
-            if (qids.length) await prefetchQuotesByIds(qids);
-          } catch {}
-        }
-      } else {
-        const res = await getMessagesForBookingRequest(id, { limit, mode: 'lite' }, { signal: ac.signal });
-        writeThreadCache(id, res.data.items);
-        try {
-          const items = Array.isArray((res.data as any)?.items) ? (res.data as any).items : [];
-          const ids = Array.from(new Set<number>(items.map((m: any) => Number(m?.quote_id)).filter((n: number) => Number.isFinite(n) && n > 0))) as number[];
-          if (ids.length) await prefetchQuotesByIds(ids as number[]);
-        } catch {}
-      }
+      // Full fetch only (no lite/delta)
+      const res = await getMessagesForBookingRequest(id, { limit: Math.max(100, limit), mode: 'full' }, { signal: ac.signal });
+      writeThreadCache(id, res.data.items);
+      try {
+        const items = Array.isArray((res.data as any)?.items) ? (res.data as any).items : [];
+        const ids = Array.from(new Set<number>(items.map((m: any) => Number(m?.quote_id)).filter((n: number) => Number.isFinite(n) && n > 0))) as number[];
+        if (ids.length) await prefetchQuotesByIds(ids as number[]);
+      } catch {}
     } catch {}
     finally {
       // Always clear the inflight marker for this thread
