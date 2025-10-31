@@ -160,15 +160,24 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
     const topic = `booking-requests:${bookingRequestId}`;
     const unsubscribe = subscribe(topic, (env: any) => {
       try {
-        // Envelopes from multiplex carry { type: 'message', payload: { data: { type, payload } } }
-        const inner = (env && (env.payload?.data || env.payload)) || env;
-        const t = String((inner && inner.type) || env?.type || '').toLowerCase();
+        // Multiplex envelopes: { type: 'message', payload: { data|message: { type, payload } } }
+        const inner = (env?.payload?.message || env?.payload?.data || env?.payload) || env;
+        const t = String((inner?.type || env?.type || '')).toLowerCase();
         if (t !== 'event_prep_updated') return;
-        const payload = (inner && inner.payload) || (env?.payload && env.payload.payload) || null;
-        if (!payload || Number(payload.booking_id) !== Number(bookingId)) return;
+        const payload = (inner?.payload || env?.payload?.payload || env?.payload) as any;
+        if (!payload) return;
+        const bid = Number(payload.booking_id || 0);
+        // Persist discovered booking id for this thread so other components can hydrate quickly
+        if (bid > 0) {
+          try { sessionStorage.setItem(`bookingId:br:${bookingRequestId}`, String(bid)); } catch {}
+        }
+        // If this card already has a concrete bookingId, ensure events match that booking
+        if (Number.isFinite(bookingId) && bookingId > 0 && bid > 0 && bid !== Number(bookingId)) return;
         setEp((prev) => {
           const next = { ...(prev || ({} as any)), ...payload } as EventPrep;
-          EVENT_PREP_CACHE.set(bookingId, next);
+          // Cache by concrete booking id when available; fall back to prop
+          const cacheKey = bid > 0 ? bid : bookingId;
+          if (cacheKey > 0) EVENT_PREP_CACHE.set(cacheKey, next);
           return next;
         });
       } catch {
