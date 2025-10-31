@@ -25,12 +25,26 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
   // Single hook instance provides one WS/SSE connection for the entire app
   const rt = useRealtime(token || null);
-  const value = useMemo(() => rt, [rt.mode, rt.status, rt.lastReconnectDelay, rt.failureCount]);
+  // Expose a value object that updates when either transport state OR
+  // handler identities change so subscribers always receive fresh closures.
+  // Previously this memo omitted method refs, which could leave consumers
+  // with stale subscribe/publish callbacks and delay realtime delivery.
+  const value = useMemo(
+    () => ({
+      mode: rt.mode,
+      status: rt.status,
+      lastReconnectDelay: rt.lastReconnectDelay,
+      failureCount: rt.failureCount,
+      subscribe: rt.subscribe,
+      publish: rt.publish,
+      forceReconnect: rt.forceReconnect,
+    }),
+    [rt.mode, rt.status, rt.lastReconnectDelay, rt.failureCount, rt.subscribe, rt.publish, rt.forceReconnect],
+  );
 
-  // Global notifications subscription: bump unread for threads referenced by notifications
+  // Global notifications subscription: keep one topic to ensure WS opens early
+  // even before AuthContext token is restored after a refresh (cookie auth works).
   useEffect(() => {
-    // Do not subscribe/open until we have a token to avoid 403 flaps
-    if (!token) return;
     const unsubscribe = rt.subscribe('notifications', (payload: any) => {
       try {
         // Header aggregate push: unread_total → trigger recompute in hooks
@@ -45,7 +59,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return () => { try { unsubscribe(); } catch {} };
-  }, [rt, token]);
+  }, [rt]);
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }

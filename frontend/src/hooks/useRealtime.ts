@@ -108,13 +108,11 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     };
     const base = build();
     if (!base) return null;
-    // If cross-origin and no token, do not open (avoid 401 flaps). Auth will come from subprotocols when available.
-    try {
-      const baseOrigin = new URL(base).origin;
-      const sameOrigin = typeof window !== 'undefined' ? (new URL(window.location.href).origin === baseOrigin) : true;
-      const tCandidate = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || '';
-      if (!tCandidate && !sameOrigin) return null;
-    } catch {}
+    // Allow opening even without a token; servers can authenticate via cookies.
+    // Previously we blocked cross-origin opens without a token, which prevented
+    // reconnect after a hard refresh when AuthContext had not yet restored the
+    // in-memory token (despite valid auth cookies). We now always provide a URL
+    // and rely on subprotocols or cookies when available.
     // Attach token as a query parameter for compatibility with proxies/tests
     // while still also sending it via Sec-WebSocket-Protocol.
     try {
