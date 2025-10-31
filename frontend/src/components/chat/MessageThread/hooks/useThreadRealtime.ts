@@ -1,16 +1,7 @@
-// components/chat/MessageThread/hooks/useThreadRealtime.ts
-// Realtime glue for a single thread (topic: booking-requests:{id})
-// Handles: message echoes, typing, presence, read receipts, delivered,
-// reactions, and deletions.
-
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
-import {
-  getSummaries as cacheGetSummaries,
-  setSummaries as cacheSetSummaries,
-  setLastRead as cacheSetLastRead,
-  updateSummary as cacheUpdateSummary,
-} from '@/lib/chat/threadCache';
+import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, setLastRead as cacheSetLastRead, updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
+import { threadStore } from '@/lib/chat/threadStore';
 
 type UseThreadRealtimeOptions = {
   threadId: number;
@@ -36,24 +27,17 @@ export function useThreadRealtime({
   applyDelivered,
 }: UseThreadRealtimeOptions) {
   const { subscribe } = useRealtimeContext();
-
-  // Dedup fast echoes → avoid double-unread
-  const seenIdsRef =
-    typeof window !== 'undefined'
-      ? ((window as any).__threadSeenIds ?? new Map<number, Set<number>>())
-      : new Map<number, Set<number>>();
+  const seenIdsRef = (typeof window !== 'undefined') ? (window as any).__threadSeenIds ?? new Map<number, Set<number>>() : new Map<number, Set<number>>();
   if (typeof window !== 'undefined' && !(window as any).__threadSeenIds) {
     try { (window as any).__threadSeenIds = seenIdsRef; } catch {}
   }
-
   // Debounced delivered ack state
-  const deliveredMaxRef = useRef(0);
-  const deliveredTimerRef = useRef<any>(0);
+  const deliveredMaxRef = { current: 0 } as { current: number };
+  const deliveredTimerRef = { current: 0 as any } as { current: any };
 
   useEffect(() => {
     if (!threadId || !isActive) return;
     const topic = `${THREAD_TOPIC_PREFIX}${threadId}`;
-
     let typingTimer: number | null = null;
     const scheduleTypingClear = () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
@@ -61,51 +45,45 @@ export function useThreadRealtime({
         try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
       }, 3000);
     };
-
     const unsubscribe = subscribe(topic, (evt: any) => {
       if (!evt) return;
       const type = evt.type;
 
-      // Messages (legacy & new envelopes)
+      // Normalize envelope → message shape for message-like events
       if (!type || type === 'message' || type === 'message_new') {
         const raw = (evt?.payload && (evt.payload.message || evt.payload.data)) || evt.message || evt.data || evt;
         ingestMessage(raw);
-
         const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
         const mid = Number(raw?.id ?? 0);
-
+        // Deduplicate by message id to avoid double unread on fast+reliable deliveries
         let seenSet = seenIdsRef.get(threadId);
         if (!seenSet) { seenSet = new Set<number>(); seenIdsRef.set(threadId, seenSet); }
         const isDuplicate = Number.isFinite(mid) && mid > 0 && seenSet.has(mid);
-
         if (Number.isFinite(senderId) && senderId > 0 && senderId !== myUserId) {
           if (!isDuplicate) {
             try {
               const list = cacheGetSummaries() as any[];
-              const next = list.map(t =>
-                Number(t?.id) === threadId
-                  ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 }
-                  : t,
-              );
+              const next = list.map((t) => Number(t?.id) === threadId ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 } : t);
               cacheSetSummaries(next as any);
             } catch {}
             if (Number.isFinite(mid) && mid > 0) {
               try {
                 seenSet.add(mid);
+                // Simple cap to avoid unbounded growth
                 if (seenSet.size > 500) {
+                  // Drop oldest half (best-effort; Set iteration order is insertion order in modern engines)
                   const half = Math.floor(seenSet.size / 2);
                   let i = 0; for (const v of seenSet) { seenSet.delete(v); if (++i >= half) break; }
                 }
               } catch {}
             }
           }
-          // Counterparty sent a message → they aren't typing anymore
+          // Counterparty sent a message: they are no longer typing
           try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
         } else if (Number.isFinite(raw?.id)) {
           cacheSetLastRead(threadId, Number(raw?.id));
         }
-
-        // Debounced delivered ack up to this id
+        // Delivered ack: if we are the recipient, visible and active, debounce a PUT
         if (isActive && typeof document !== 'undefined' && document.visibilityState === 'visible') {
           if (Number.isFinite(senderId) && senderId !== myUserId && Number.isFinite(mid) && mid > 0) {
             deliveredMaxRef.current = Math.max(deliveredMaxRef.current || 0, mid);
@@ -151,6 +129,7 @@ export function useThreadRealtime({
         try {
           const p = (evt?.payload || evt);
           const updates = (p?.updates || {}) as Record<string, string>;
+          // Pick first counterparty status
           for (const [uid, status] of Object.entries(updates)) {
             const id = Number(uid);
             if (!Number.isFinite(id) || id === myUserId) continue;
@@ -177,7 +156,8 @@ export function useThreadRealtime({
           const mid = Number(p?.message_id ?? 0);
           const userId = Number(p?.user_id ?? 0);
           const emoji = (p?.emoji || '').toString();
-          if (Number.isFinite(userId) && userId === myUserId) return; // we'll already be optimistic locally
+          // Skip applying our own reaction event to avoid double-applying
+          if (Number.isFinite(userId) && Number(userId) === Number(myUserId)) return;
           if (Number.isFinite(mid) && mid > 0 && emoji) {
             applyReactionEvent({ messageId: mid, emoji, userId, kind: type === 'reaction_added' ? 'added' : 'removed' });
           }
@@ -193,11 +173,43 @@ export function useThreadRealtime({
         }
         return;
       }
+
+      if (type === 'thread_tail') {
+        const p = (evt?.payload || evt) as any;
+        const tid = Number(p?.thread_id ?? threadId);
+        const lastId = Number(p?.last_id ?? 0);
+        const lastTs = (p?.last_ts || null) as string | null;
+        const snippet = (p?.snippet || '') as string;
+        if (Number.isFinite(tid) && tid === Number(threadId)) {
+          try {
+            threadStore.update(tid, {
+              id: tid,
+              last_message_id: Number.isFinite(lastId) && lastId > 0 ? lastId : (undefined as any),
+              last_message_timestamp: (lastTs || undefined) as any,
+              last_message_content: snippet || undefined,
+            } as any);
+          } catch {}
+          try {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('thread:reconcile', { detail: { threadId: tid, lastId } }));
+            }
+          } catch {}
+        }
+        return;
+      }
     });
+
+    // Minimal proven fix: after subscribing, trigger a single best-effort
+    // reconcile signal so the thread can close any join-window gap.
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('thread:reconcile-once', { detail: { threadId } }));
+      }
+    } catch {}
 
     return () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
       unsubscribe();
     };
-  }, [threadId, isActive, subscribe, ingestMessage, applyReadReceipt, myUserId, applyDelivered, applyReactionEvent, applyMessageDeleted]);
+  }, [threadId, isActive, subscribe, ingestMessage, applyReadReceipt, myUserId]);
 }
