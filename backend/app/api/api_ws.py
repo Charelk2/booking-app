@@ -118,10 +118,28 @@ class NoiseWS:
         self._ready = False
 
     async def handshake(self) -> None:
+        # Select a compatible subprotocol if the client requested any.
+        # We expect clients to offer ["bearer", "<token>"]; we echo back
+        # only "bearer" to satisfy the handshake.
+        chosen_subproto: Optional[str] = None
+        try:
+            proto_hdr = self.ws.headers.get("sec-websocket-protocol", "") or ""
+            if proto_hdr:
+                parts = [p.strip() for p in proto_hdr.split(",") if p and p.strip()]
+                for p in parts:
+                    if p.lower() == "bearer":
+                        chosen_subproto = p
+                        break
+        except Exception:
+            chosen_subproto = None
         if not _HAS_NOISE:
             if ENABLE_NOISE:
                 logger.warning("ENABLE_NOISE=1 but noiseprotocol not available; falling back to plaintext.")
-            await self.ws.accept()
+            try:
+                await self.ws.accept(subprotocol=chosen_subproto)
+            except TypeError:
+                # Older Starlette may not support keyword; try positional
+                await self.ws.accept(chosen_subproto)  # type: ignore[arg-type]
             self._ready = True
             return
 
@@ -135,7 +153,10 @@ class NoiseWS:
             Keypair.STATIC,
             os.urandom(32)
         )
-        await self.ws.accept()
+        try:
+            await self.ws.accept(subprotocol=chosen_subproto)
+        except TypeError:
+            await self.ws.accept(chosen_subproto)  # type: ignore[arg-type]
 
         # 1) Receive client hello
         client_hello = await self._recv_bytes_plain()

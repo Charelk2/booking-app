@@ -167,9 +167,22 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     wsRef.current = null;
     if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
     setStatus(attemptsRef.current > 0 ? 'reconnecting' : 'connecting');
-    // Prefer Sec-WebSocket-Protocol bearer token when available so the URL stays stable.
+    // Revert to URL token param to avoid subprotocol handshake issues on some proxies.
     const tok = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || null;
-    const ws = tok ? new WebSocket(wsUrl, ['bearer', tok]) : new WebSocket(wsUrl);
+    let openUrl = wsUrl;
+    try {
+      if (tok) {
+        const u = new URL(wsUrl);
+        // Avoid duplicating token param across reconnects
+        const qs = new URLSearchParams(u.search || '');
+        if (!qs.get('token')) {
+          qs.set('token', tok);
+          u.search = `?${qs.toString()}`;
+        }
+        openUrl = u.toString();
+      }
+    } catch {}
+    const ws = new WebSocket(openUrl);
     wsRef.current = ws;
     ws.onopen = () => {
       // Mark open time; do not reset attempts immediately — only after a
