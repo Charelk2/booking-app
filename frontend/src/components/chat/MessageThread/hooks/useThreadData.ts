@@ -81,6 +81,7 @@ export type ThreadMessage = {
 };
 
 export type FetchMessagesOptions = {
+  // Modes are ignored (always fetch full history as requested by ops)
   mode?: 'initial' | 'incremental';
   force?: boolean;
   reason?: string;
@@ -264,29 +265,17 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
 
       fetchInFlightRef.current = true;
 
-      let mode: 'initial' | 'incremental' =
-        options.mode ?? (messagesRef.current.length > 0 ? 'incremental' : 'initial');
-
-      const lastId = Number(lastMessageIdRef.current || 0);
-      const hasCursor = Number.isFinite(lastId) && lastId > 0;
-      if (mode === 'incremental' && !hasCursor) mode = 'initial';
-      if (mode === 'initial' && !initialLoadedRef.current) setLoading(true);
+      // Disable delta/lite; always perform a full fetch
+      const FULL_LIMIT = options.limit != null ? options.limit : 5000;
+      setLoading(true);
 
       const params: MessageListParams = {
-        limit:
-          options.limit != null
-            ? options.limit
-            : mode === 'initial' && !initialLoadedRef.current ? 50 : 250,
+        // Load everything up to FULL_LIMIT in one shot
+        limit: FULL_LIMIT,
       } as MessageListParams;
-
-      if (mode === 'incremental' && hasCursor) {
-        params.after_id = lastId;
-        params.mode = 'delta' as any;
-        params.fields = 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions';
-      } else {
-        params.mode = 'lite' as any;
-        params.fields = 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions';
-      }
+      // Always request full mode; include fields for UI richness
+      params.mode = 'full' as any;
+      params.fields = 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions';
 
       const queueRetry = (reason: 'offline' | 'transient') => {
         runWithTransport(
@@ -333,16 +322,13 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         setLoading(false);
         initialLoadedRef.current = true;
 
-        // has_more → reachedHistoryStart
+        // Since we loaded the entire window, treat history as complete when under limit
         try {
-          const serverMode = String(((res as any)?.data?.mode || params.mode || '')).toLowerCase();
-          if (serverMode === 'lite' || serverMode === 'delta') {
-            const hasMore = Boolean((res as any)?.data?.has_more);
-            setReachedHistoryStart(!hasMore);
-          }
-        } catch {}
+          const hasMore = Boolean((res as any)?.data?.has_more);
+          setReachedHistoryStart(!hasMore || normalized.length < FULL_LIMIT);
+        } catch { setReachedHistoryStart(true); }
 
-        try { opts?.onMessagesFetched?.(normalized, params.mode === 'delta' ? 'delta' : 'fetch'); } catch {}
+        try { opts?.onMessagesFetched?.(normalized, 'fetch'); } catch {}
 
         // Replace ephemeral stubs now that the real data arrived
         try {

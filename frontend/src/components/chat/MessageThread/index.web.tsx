@@ -292,32 +292,16 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     // Append detection: strictly increasing tail id
     if (Number.isFinite(prevTail) && Number.isFinite(currTail) && currTail > (prevTail as number)) {
       const now = Date.now();
-      const rtHealthy = rtMode === 'ws' && rtStatus === 'open' && (rtFailures || 0) === 0;
 
       // Within post-switch grace: force follow
       if (now < switchedUntilRef.current) {
-        try {
-          setAtBottom(true);
-          scheduleScrollToEndSmooth();
-        } catch {}
+        try { setAtBottom(true); scheduleScrollToEndSmooth(); } catch {}
         setNewAnchorId(null);
       } else if (!isAtBottomRef.current) {
         // Not at bottom → mark first new id for divider
         const firstNew = list.find((m: any) => Number(m?.id) > (prevTail as number));
         const id = Number(firstNew?.id);
         if (Number.isFinite(id) && id > 0) setNewAnchorId((old) => old ?? id);
-
-        // If realtime degraded, schedule a reconciliation fetch quickly (edge-case safety)
-        if (!rtHealthy) {
-          // Throttled via lastReactionRefreshRef below to avoid storms
-          const now2 = Date.now();
-          if (now2 - lastReactionRefreshRef.current > 1000) {
-            lastReactionRefreshRef.current = now2;
-            try {
-              fetchMessagesRef.current({ mode: 'incremental', force: true, reason: 'rt-append', limit: 500 });
-            } catch {}
-          }
-        }
       }
     }
     lastTailIdRef.current = Number.isFinite(currTail) ? currTail : prevTail ?? null;
@@ -409,24 +393,8 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   // ————————————————————————————————————————————————————————————————
   // Initial + thread switch fetch
   React.useEffect(() => {
-    const MIN_CURSOR_MESSAGES = 200;
-    let hasCursor = false;
-    try {
-      const inState = Array.isArray(messages) ? messages.length : 0;
-      let cached = 0;
-      try {
-        const arr = readThreadCache(bookingRequestId);
-        if (Array.isArray(arr)) cached = arr.length;
-      } catch {}
-      hasCursor = inState >= MIN_CURSOR_MESSAGES || cached >= MIN_CURSOR_MESSAGES;
-    } catch {}
-
-    void fetchMessages({
-      mode: hasCursor ? 'incremental' : 'initial',
-      force: true,
-      reason: 'orchestrator-mount',
-      limit: 500,
-    });
+    // Full-load on mount/switch (no delta/lite)
+    void fetchMessages({ mode: 'initial', force: true, reason: 'full-load', limit: 5000 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingRequestId]);
 
@@ -444,16 +412,8 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     if (now - throttleRef.current < 1000) return; // 1s guard
     throttleRef.current = now;
 
-    const list = messagesRef.current;
-    const MIN_CURSOR_MESSAGES = 200;
-    const hasCursor = Array.isArray(list) && list.length >= MIN_CURSOR_MESSAGES;
-
-    void fetchMessagesRef.current({
-      mode: hasCursor ? 'incremental' : 'initial',
-      force: true,
-      reason: 'orchestrator-visible',
-      limit: 500,
-    });
+    // Full refresh when visible
+    void fetchMessagesRef.current({ mode: 'initial', force: true, reason: 'orchestrator-visible', limit: 5000 });
   }, [messagesRef, fetchMessagesRef]);
 
   React.useEffect(() => {
@@ -462,57 +422,11 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [onVisible]);
 
-  // Reconcile on server tail hints: when realtime reports a newer tail (via
-  // thread_tail on the topic -> forwarded as a window event by the RT hook),
-  // fetch deltas or a full page to ensure the latest message appears instantly.
-  React.useEffect(() => {
-    const handler = (e: any) => {
-      try {
-        const d = (e && e.detail) || {};
-        const tid = Number(d.threadId || 0);
-        if (!Number.isFinite(tid) || tid !== Number(bookingRequestId)) return;
-        const serverLastId = Number(d.lastId || 0);
-        const currTail = Number(lastTailIdRef.current || 0);
-        const hasGap = Number.isFinite(serverLastId) && serverLastId > currTail;
-        void fetchMessagesRef.current({
-          mode: hasGap ? 'initial' : 'incremental',
-          force: true,
-          reason: hasGap ? 'realtime-reconcile-gap' : 'realtime-reconcile',
-          limit: hasGap ? 500 : 250,
-        });
-      } catch {}
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('thread:reconcile', handler as any);
-      return () => { try { window.removeEventListener('thread:reconcile', handler as any); } catch {} };
-    }
-    return () => {};
-  }, [bookingRequestId, fetchMessagesRef]);
+  // Disable reconcile fetches; rely on realtime + full load only
+  React.useEffect(() => { return () => {}; }, [bookingRequestId]);
 
-  // One-shot reconcile hint right after subscribing to the topic — ensures any
-  // join-window gap is closed even if the echo arrived early.
-  React.useEffect(() => {
-    const once = (e: any) => {
-      try {
-        const d = (e && e.detail) || {};
-        const tid = Number(d.threadId || 0);
-        if (!Number.isFinite(tid) || tid !== Number(bookingRequestId)) return;
-        const list = messagesRef.current as any[] | undefined;
-        const hasCursor = Array.isArray(list) && list.length >= 200;
-        void fetchMessagesRef.current({
-          mode: hasCursor ? 'incremental' : 'initial',
-          force: true,
-          reason: 'realtime-reconcile-once',
-          limit: hasCursor ? 250 : 500,
-        });
-      } catch {}
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('thread:reconcile-once', once as any);
-      return () => { try { window.removeEventListener('thread:reconcile-once', once as any); } catch {} };
-    }
-    return () => {};
-  }, [bookingRequestId, fetchMessagesRef, messagesRef]);
+  // One-shot reconcile disabled
+  React.useEffect(() => { return () => {}; }, [bookingRequestId, fetchMessagesRef, messagesRef]);
 
   // ——— Ensure we land at the bottom when switching to an active thread
   React.useEffect(() => {
@@ -655,15 +569,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         }),
       );
 
-      // If realtime is unhealthy, do a small reconciliation
-      const now = Date.now();
-      const rtHealthy = rtMode === 'ws' && rtStatus === 'open' && (rtFailures || 0) === 0;
-      if (!rtHealthy && now - lastReactionRefreshRef.current > 1000) {
-        lastReactionRefreshRef.current = now;
-        try {
-          fetchMessagesRef.current({ mode: 'incremental', force: true, reason: 'rt-reaction', limit: 500 });
-        } catch {}
-      }
+      // No reconcile fetches for reactions; rely on realtime only
     },
     applyMessageDeleted: (messageId: number) => {
       setMessages((prev: any[]) =>

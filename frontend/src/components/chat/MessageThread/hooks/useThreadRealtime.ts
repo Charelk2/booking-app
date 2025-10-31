@@ -53,13 +53,6 @@ export function useThreadRealtime({
       if (!type || type === 'message' || type === 'message_new') {
         const raw = (evt?.payload && (evt.payload.message || evt.payload.data)) || evt.message || evt.data || evt;
         ingestMessage(raw);
-        // Proactively reconcile in case the echo races subscription or a delivery drops.
-        try {
-          const mid = Number(raw?.id ?? 0);
-          if (Number.isFinite(mid) && mid > 0 && typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('thread:reconcile', { detail: { threadId, lastId: mid } }));
-          }
-        } catch {}
         const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
         const mid = Number(raw?.id ?? 0);
         // Deduplicate by message id to avoid double unread on fast+reliable deliveries
@@ -196,23 +189,13 @@ export function useThreadRealtime({
               last_message_content: snippet || undefined,
             } as any);
           } catch {}
-          try {
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('thread:reconcile', { detail: { threadId: tid, lastId } }));
-            }
-          } catch {}
+          // No reconcile events; UI ingests realtime directly
         }
         return;
       }
     });
 
-    // Minimal proven fix: after subscribing, trigger a single best-effort
-    // reconcile signal so the thread can close any join-window gap.
-    try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('thread:reconcile-once', { detail: { threadId } }));
-      }
-    } catch {}
+    // Reconcile disabled — rely on realtime + explicit fetches by orchestrator.
 
     return () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
