@@ -52,7 +52,11 @@ export function useThreadRealtime({
       // Normalize envelope → message shape for message-like events
       if (!type || type === 'message' || type === 'message_new') {
         const raw = (evt?.payload && (evt.payload.message || evt.payload.data)) || evt.message || evt.data || evt;
-        ingestMessage(raw);
+        try {
+          ingestMessage(raw);
+        } catch (e) {
+          try { console.warn('[realtime] ingest failed', e, { keys: raw && typeof raw === 'object' ? Object.keys(raw) : [] }); } catch {}
+        }
         const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
         const mid = Number(raw?.id ?? 0);
         // Deduplicate by message id to avoid double unread on fast+reliable deliveries

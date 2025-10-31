@@ -166,6 +166,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     fetchOlder,
     fetchMessages,
     handlers,
+    messagesVersion,
   } = useThreadData(bookingRequestId, { isActiveThread: isActive, onMessagesFetched: () => {} });
 
   // ——— Virtualization selection (stable)
@@ -1136,6 +1137,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     <ThreadView
       list={
         <ListComponent
+          key={`${bookingRequestId}:${messagesVersion}`}
           ref={listRef}
           data={groups as any}
           alignToBottom
