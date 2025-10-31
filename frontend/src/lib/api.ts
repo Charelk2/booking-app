@@ -907,7 +907,7 @@ export interface MessagesBatchEnvelope {
 export const getMessagesBatch = (
   ids: number[],
   per = 20,
-  mode: 'lite' | 'full' = 'lite',
+  mode: 'lite' | 'full' = 'full',
   etag?: string,
 ) =>
   getDeduped<MessagesBatchEnvelope>(

@@ -287,8 +287,10 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
 
       fetchInFlightRef.current = true;
 
-      // Disable delta/lite; always perform a full fetch
-      const FULL_LIMIT = options.limit != null ? options.limit : 100000;
+      // Disable delta/lite; always perform a full fetch.
+      // Server caps non-delta pages to ~120 rows, so we chunk in full mode
+      // until history is exhausted.
+      const FULL_LIMIT = Math.min(options.limit != null ? options.limit : 120, 120);
       setLoading(true);
 
       const params: MessageListParams = {
@@ -344,13 +346,51 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         setLoading(false);
         initialLoadedRef.current = true;
 
-        // Since we loaded the entire window, treat history as complete when under limit
-        try {
-          const hasMore = Boolean((res as any)?.data?.has_more);
-          setReachedHistoryStart(!hasMore || normalized.length < FULL_LIMIT);
-        } catch { setReachedHistoryStart(true); }
-
+        // Exhaust older history in full mode using before_id paging
+        let hasMoreFlag = false;
+        try { hasMoreFlag = Boolean((res as any)?.data?.has_more); } catch { hasMoreFlag = false; }
         try { opts?.onMessagesFetched?.(normalized, 'fetch'); } catch {}
+
+        if (hasMoreFlag) {
+          // Walk older pages until no more; bounded by a generous guard
+          let guard = 0;
+          while (guard < 500) {
+            guard += 1;
+            const list = messagesRef.current || [];
+            let earliest: number | null = null;
+            for (let i = 0; i < list.length; i += 1) {
+              const idn = Number((list[i] as any)?.id || 0);
+              if (Number.isFinite(idn) && idn > 0) { earliest = idn; break; }
+            }
+            if (!earliest || earliest <= 1) break;
+            try {
+              const olderRes = await apiList(threadId, {
+                limit: FULL_LIMIT,
+                mode: 'full' as any,
+                before_id: earliest,
+                fields: 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions',
+              } as any);
+              const rows = Array.isArray((olderRes as any)?.data?.items) ? (olderRes as any).data.items : [];
+              if (!rows.length) break;
+              const older = rows.map(normalizeForRender).filter((m) => Number.isFinite(m.id) && m.id > 0);
+              if (!older.length) break;
+              setMessages((prev) => {
+                const next = mergeMessages(older, prev);
+                const last = next[next.length - 1];
+                if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
+                return next;
+              });
+              try { opts?.onMessagesFetched?.(older, 'fetch'); } catch {}
+              const olderHasMore = Boolean((olderRes as any)?.data?.has_more);
+              if (!olderHasMore) break;
+            } catch {
+              break;
+            }
+          }
+          setReachedHistoryStart(true);
+        } else {
+          setReachedHistoryStart(true);
+        }
 
         // Replace ephemeral stubs now that the real data arrived
         try {

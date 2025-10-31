@@ -386,9 +386,9 @@ async function prefetchThread(threadId: number) {
     const hasCache = await hasThreadCacheAsync(threadId);
     if (hasCache) return;
     const res = await getMessagesForBookingRequest(threadId, {
-      // Lightweight warmup: just enough for the preview + anchors
-      limit: 50,
-      mode: "lite",
+      // Full warmup so preview and thread open use the same set
+      limit: 100000,
+      mode: 'full',
     });
     const items = Array.isArray((res.data as any)?.items)
       ? (res.data as any).items
