@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { EventPrep } from "@/types";
 import { getEventPrep } from "@/lib/api";
+import { threadStore } from "@/lib/chat/threadStore";
 import { useRealtimeContext } from "@/contexts/chat/RealtimeContext";
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -183,7 +184,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
         try {
           // Keep inbox preview-style summary in sync
           const label = 'Event prep updated';
-          (await import('@/lib/chat/threadStore')).threadStore.update(Number(bookingRequestId), {
+          threadStore.update(Number(bookingRequestId), {
             id: Number(bookingRequestId),
             last_message_content: label,
             last_message_timestamp: new Date().toISOString(),
