@@ -309,11 +309,58 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   }, [messagesRef.current, rtMode, rtStatus, rtFailures]);
 
   // ————————————————————————————————————————————————————————————————
+  // Synthetic tail (preview) — show latest summary as a temporary bubble until real echo arrives
+  const [previewTick, setPreviewTick] = React.useState(0);
+  React.useEffect(() => {
+    // Re-render when thread summaries change
+    const unsub = cacheSubscribe(() => setPreviewTick((v) => v + 1));
+    return () => { try { unsub?.(); } catch {} };
+  }, []);
+
+  const messagesForView = React.useMemo(() => {
+    try {
+      const base = Array.isArray(messages) ? messages : [];
+      // Find latest message timestamp in the thread
+      const lastTs = (() => {
+        try { return String((base[base.length - 1] as any)?.timestamp || '') || ''; } catch { return ''; }
+      })();
+      // Look up summary for this thread
+      const summaries = cacheGetSummaries() as any[];
+      const summary = Array.isArray(summaries) ? summaries.find((s: any) => Number(s?.id) === Number(bookingRequestId)) : null;
+      const sumTs = String((summary as any)?.last_message_timestamp || '') || '';
+      const sumTextRaw = (summary as any)?.last_message_content ?? '';
+      // Collapse booking details like ConversationList does
+      const sumText = (() => {
+        const t = String(sumTextRaw || '');
+        return t.startsWith(BOOKING_DETAILS_PREFIX) ? 'New Booking Request' : t;
+      })();
+      const newer = (() => {
+        try { return new Date(sumTs).getTime() > new Date(lastTs || 0).getTime(); } catch { return false; }
+      })();
+      if (!newer || !sumText) return base;
+      const synthetic = {
+        id: -Math.abs(Date.now()),
+        booking_request_id: bookingRequestId,
+        sender_id: 0, // treat as incoming
+        sender_type: 'CLIENT',
+        content: sumText,
+        message_type: 'USER',
+        timestamp: sumTs || new Date().toISOString(),
+        status: 'sent',
+        _synthetic_preview: true,
+      } as any;
+      return [...base, synthetic];
+    } catch {
+      return messages;
+    }
+  }, [messages, previewTick, bookingRequestId]);
+
+  // ————————————————————————————————————————————————————————————————
   // Grouping (pure; only input identity changes should recompute)
   const shouldShowTimestampGroup = React.useCallback(() => true, []);
   const groups = React.useMemo(
-    () => groupMessages(messages as any, shouldShowTimestampGroup as any),
-    [messages, shouldShowTimestampGroup],
+    () => groupMessages(messagesForView as any, shouldShowTimestampGroup as any),
+    [messagesForView, shouldShowTimestampGroup],
   );
 
   // ————————————————————————————————————————————————————————————————
