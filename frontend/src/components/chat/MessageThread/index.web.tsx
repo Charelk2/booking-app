@@ -462,6 +462,33 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [onVisible]);
 
+  // Reconcile on server tail hints: when realtime reports a newer tail (via
+  // thread_tail on the topic -> forwarded as a window event by the RT hook),
+  // fetch deltas or a full page to ensure the latest message appears instantly.
+  React.useEffect(() => {
+    const handler = (e: any) => {
+      try {
+        const d = (e && e.detail) || {};
+        const tid = Number(d.threadId || 0);
+        if (!Number.isFinite(tid) || tid !== Number(bookingRequestId)) return;
+        const serverLastId = Number(d.lastId || 0);
+        const currTail = Number(lastTailIdRef.current || 0);
+        const hasGap = Number.isFinite(serverLastId) && serverLastId > currTail;
+        void fetchMessagesRef.current({
+          mode: hasGap ? 'initial' : 'incremental',
+          force: true,
+          reason: hasGap ? 'realtime-reconcile-gap' : 'realtime-reconcile',
+          limit: hasGap ? 500 : 250,
+        });
+      } catch {}
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('thread:reconcile', handler as any);
+      return () => { try { window.removeEventListener('thread:reconcile', handler as any); } catch {} };
+    }
+    return () => {};
+  }, [bookingRequestId, fetchMessagesRef]);
+
   // ——— Ensure we land at the bottom when switching to an active thread
   React.useEffect(() => {
     if (!isActive) return;
