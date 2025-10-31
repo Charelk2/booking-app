@@ -115,8 +115,18 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       const tCandidate = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || '';
       if (!tCandidate && !sameOrigin) return null;
     } catch {}
-    // Return a stable URL with no query params; token will be carried via Sec-WebSocket-Protocol.
-    return base;
+    // Attach token as a query parameter for compatibility with proxies/tests
+    // while still also sending it via Sec-WebSocket-Protocol.
+    try {
+      const u = new URL(base);
+      const tCandidate = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || '';
+      if (tCandidate) {
+        u.searchParams.set('token', tCandidate);
+      }
+      return u.toString();
+    } catch {
+      return base;
+    }
   }, [wsToken]);
 
   const sseUrlForTopics = useCallback((topics: string[]) => {
