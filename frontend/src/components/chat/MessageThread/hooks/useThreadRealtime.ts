@@ -193,7 +193,28 @@ export function useThreadRealtime({
               last_message_content: snippet || undefined,
             } as any);
           } catch {}
-          // No reconcile events; UI ingests realtime directly
+          // Also append a minimal synthetic bubble immediately so the open thread
+          // reflects the latest preview without waiting for the full echo.
+          // It will be replaced once the real WS 'message' arrives or after the
+          // next fetch merge, since ids will match.
+          try {
+            if (Number.isFinite(lastId) && lastId > 0 && typeof ingestMessage === 'function') {
+              const ts = lastTs || new Date().toISOString();
+              const synthetic = {
+                id: lastId,
+                booking_request_id: tid,
+                sender_id: 0,
+                sender_type: 'CLIENT',
+                content: String(snippet || ''),
+                message_type: 'USER',
+                timestamp: ts,
+                _synthetic_preview: true,
+              } as any;
+              // Only inject when we have some content to show
+              if (synthetic.content) ingestMessage(synthetic);
+            }
+          } catch {}
+          // No reconcile events otherwise; UI ingests realtime directly
         }
         return;
       }
