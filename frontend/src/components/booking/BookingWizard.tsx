@@ -1225,6 +1225,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_cost: travelResult?.totalCost,
       travel_breakdown: {
         ...(travelResult?.breakdown || {}),
+        // Include a normalized mode for downstream consumers that expect it here
+        mode: travelResult?.mode,
         venue_name: vals.locationName,
         sound_required: vals.sound === 'yes',
         sound_mode: (details as any).soundMode,
@@ -1292,6 +1294,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_cost: travelResult.totalCost,
       travel_breakdown: {
         ...travelResult.breakdown,
+        // Include a normalized mode for downstream consumers that expect it here
+        mode: travelResult.mode,
         venue_name: vals.locationName,
         sound_required: vals.sound === 'yes',
         sound_mode: (details as any).soundMode,

@@ -263,7 +263,9 @@ const InlineQuoteForm: React.FC<Props> = ({
           try {
             const soundRequired = Boolean(tb.sound_required);
             const provisioning = (br?.service as any)?.details?.sound_provisioning;
-            const mode = tb.travel_mode || tb.mode;
+            // Normalize travel mode from multiple possible sources and naming schemes
+            const rawMode = String((br as any)?.travel_mode || tb.travel_mode || tb.mode || '').toLowerCase();
+            const mode = rawMode === 'flight' ? 'fly' : rawMode === 'driving' ? 'drive' : rawMode;
             let soundCost: number | undefined = undefined;
             if (soundRequired && provisioning?.mode === 'artist_provides_variable') {
               const drive = Number(provisioning?.price_driving_sound_zar ?? provisioning?.price_driving_sound ?? 0);

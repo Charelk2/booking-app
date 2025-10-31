@@ -368,22 +368,9 @@ def create_payment(
                 system_key="payment_received",
             )
             db.commit()
-            # Provider-targeted mirror to create an unread bump for the provider's inbox
-            try:
-                crud.crud_message.create_message(
-                    db=db,
-                    booking_request_id=br.id,
-                    sender_id=booking.client_id,
-                    sender_type=SenderType.CLIENT,
-                    content=f"Payment received. Your booking is confirmed and the date is secured.{receipt_suffix}",
-                    message_type=MessageType.SYSTEM,
-                    visible_to=VisibleTo.ARTIST,
-                    action=None,
-                    system_key="payment_received_artist",
-                )
-                db.commit()
-            except Exception:
-                pass
+            # Note: we no longer create a provider-only mirror system line.
+            # The canonical BOTH-visible message above is sufficient, and
+            # bell notifications are emitted below to surface the event.
             # Broadcast this system message to the thread via WS/SSE (best effort)
             try:
                 if ws_manager:
@@ -567,22 +554,9 @@ def paystack_verify(
                 system_key="payment_received",
             )
             db.commit()
-            # Provider-targeted mirror for unread bump
-            try:
-                crud.crud_message.create_message(
-                    db=db,
-                    booking_request_id=br.id,
-                    sender_id=simple.client_id,
-                    sender_type=SenderType.CLIENT,
-                    content=f"Payment received — order #{simple.payment_id}.",
-                    message_type=MessageType.SYSTEM,
-                    visible_to=VisibleTo.ARTIST,
-                    action=None,
-                    system_key="payment_received_artist",
-                )
-                db.commit()
-            except Exception:
-                pass
+            # Note: we no longer create a provider-only mirror system line.
+            # The canonical BOTH-visible message above is sufficient, and
+            # bell notifications are emitted below to surface the event.
             try:
                 if ws_manager:
                     env = _message_to_envelope(db, msg_sys)
