@@ -588,6 +588,28 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       if (prior && prior.attachment_url && !incoming.attachment_url) {
         safeIncoming = { ...incoming, attachment_url: prior.attachment_url, _upload_pct: (prior as any)._upload_pct };
       }
+      // Monotonic tail boost: if this is a strictly newer id than anything we have,
+      // ensure its timestamp does not sort before the current tail. This makes the
+      // newest message appear at the bottom instantly even if the server timestamp
+      // is stale or rounded.
+      try {
+        const prevMaxId = prev.reduce((m, msg) => {
+          const idn = Number((msg as any)?.id || 0);
+          return Number.isFinite(idn) && idn > m ? idn : m;
+        }, 0);
+        const incomingId = Number((safeIncoming as any)?.id || 0);
+        if (Number.isFinite(incomingId) && incomingId > prevMaxId) {
+          const tailTs = (() => {
+            try { return tsNum((prev[prev.length - 1] as any)?.timestamp || undefined); } catch { return 0; }
+          })();
+          const incTs = tsNum((safeIncoming as any)?.timestamp || undefined);
+          if (!Number.isFinite(incTs) || incTs <= tailTs) {
+            const bump = Math.max(Date.now(), tailTs + 1);
+            safeIncoming = { ...safeIncoming, timestamp: new Date(bump).toISOString() } as any;
+          }
+        }
+      } catch {}
+
       const next = mergeMessages(prev, [safeIncoming]);
       const last = next[next.length - 1];
       if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
