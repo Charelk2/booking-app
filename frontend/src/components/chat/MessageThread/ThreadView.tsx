@@ -21,4 +21,3 @@ export default function ThreadView({ header, list, composer, indicators }: Threa
     </div>
   );
 }
-
