@@ -2,56 +2,82 @@
 // Phase 4: Centralize thread data lifecycle (incremental start).
 // Owns: messages state, loading, and a fetchMessages (initial/delta) identical in behavior.
 // Next steps will move older paging, optimistic sends, reactions, and unread tracking.
+
 import * as React from 'react';
 import { isAxiosError } from 'axios';
 import { useTransportState } from '@/hooks/useTransportState';
-import { isOfflineError, isTransientTransportError, runWithTransport, classifyTransportError } from '@/lib/transportState';
-import { getMessagesForBookingRequest, type MessageListParams } from '@/lib/api';
+import {
+  isOfflineError,
+  isTransientTransportError,
+  runWithTransport,
+  classifyTransportError,
+} from '@/lib/transportState';
+import {
+  getMessagesForBookingRequest as listMessages,
+  type MessageListParams,
+  postMessageToBookingRequest,
+  deleteMessageForBookingRequest,
+  addMessageReaction,
+  removeMessageReaction,
+  uploadMessageAttachment,
+} from '@/lib/api';
 import { seedGlobalQuotes } from '@/hooks/useQuotes';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
-import { getMessagesForBookingRequest as apiList, postMessageToBookingRequest, deleteMessageForBookingRequest, addMessageReaction, removeMessageReaction, uploadMessageAttachment } from '@/lib/api';
 import {
-  readThreadCache as _readThreadCache,
-  writeThreadCache as _writeThreadCache,
+  readThreadCache as readCache,
+  writeThreadCache as writeCache,
+  getSummaries as cacheGetSummaries,
+  setSummaries as cacheSetSummaries,
+  setLastRead as cacheSetLastRead,
+  updateSummary as cacheUpdateSummary,
 } from '@/lib/chat/threadCache';
 import { safeParseDate } from '@/lib/chat/threadStore';
-import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries } from '@/lib/chat/threadCache';
 import { normalizeMessage as normalizeShared } from '@/lib/normalizers/messages';
 import { getEphemeralStubs, clearEphemeralStubs } from '@/lib/chat/ephemeralStubs';
 
-type ThreadMessage = any; // Keep flexible; UI uses normalized fields downstream
+// ----------------------------
+// Types
+// ----------------------------
 
-function mergeMessages(prev: ThreadMessage[], incoming: ThreadMessage[]): ThreadMessage[] {
-  if (!incoming?.length) return prev;
-  const byId = new Map<number, ThreadMessage>();
-  for (const m of prev) { if (m && typeof m.id === 'number') byId.set(m.id, m); }
-  for (const m of incoming) {
-    if (!m || typeof m.id !== 'number') continue;
-    const prior = byId.get(m.id);
-    if (!prior) byId.set(m.id, m);
-    else byId.set(m.id, { ...prior, ...m });
-  }
-  const out = Array.from(byId.values());
-  out.sort((a, b) => {
-    const at = new Date(a.timestamp || 0).getTime();
-    const bt = new Date(b.timestamp || 0).getTime();
-    if (at !== bt) return at - bt;
-    return (a.id || 0) - (b.id || 0);
-  });
-  return out;
-}
+export type ThreadMessage = {
+  id: number;                          // stable server id (>0) or temp (<0) for stubs
+  booking_request_id?: number;
+  sender_id?: number | null;
+  sender_type?: 'CLIENT' | 'ARTIST' | 'SYSTEM' | string;
+  message_type?: 'USER' | 'SYSTEM' | 'QUOTE' | string;
+  visible_to?: 'BOTH' | 'CLIENT' | 'ARTIST' | string;
 
-function coerceString(value: any): string {
-  if (value == null) return '';
-  return typeof value === 'string' ? value : String(value);
-}
+  // Content & preview
+  content?: string | null;
+  text?: string | null;                // normalized alias for content
+  preview_label?: string | null;
+  preview_key?: string | null;
+  reply_to_message_id?: number | null;
+  reply_to_preview?: string | null;
 
-function coerceTimestamp(value: any): number {
-  if (!value) return 0;
-  const ms = safeParseDate(String(value)).getTime();
-  return Number.isFinite(ms) ? ms : 0;
-}
+  // Attachments
+  attachment_url?: string | null;
+  attachment_meta?: Record<string, any> | null;
 
+  // Reactions
+  reactions?: Record<string, number>;
+  my_reactions?: string[];
+
+  // Status & state
+  timestamp?: string;                  // ISO string
+  is_read?: boolean;
+  read_at?: string | null;
+  is_delivered?: boolean;
+  delivered_at?: string | null;
+
+  // Client-only
+  status?: 'queued' | 'sending' | 'failed' | 'sent';
+  _upload_pct?: number;
+  avatar_url?: string | null;
+  quote_id?: number | null;
+};
+
+// Internal options
 export type FetchMessagesOptions = {
   mode?: 'initial' | 'incremental';
   force?: boolean;
@@ -63,60 +89,144 @@ export type FetchMessagesOptions = {
 type HookOpts = {
   isActiveThread?: boolean;
   ensureQuotesLoaded?: (ids: number[]) => void | Promise<void>;
-  onMessagesFetched?: (subset: ThreadMessage[], source: 'fetch'|'older'|'delta'|'cache'|'hydrate') => void;
+  onMessagesFetched?: (
+    subset: ThreadMessage[],
+    source: 'fetch' | 'older' | 'delta' | 'cache' | 'hydrate'
+  ) => void;
 };
 
+// ----------------------------
+// Utilities
+// ----------------------------
+
+function coerceString(value: unknown): string {
+  if (value == null) return '';
+  return typeof value === 'string' ? value : String(value);
+}
+
+function coerceTimestamp(value: unknown): number {
+  if (!value) return 0;
+  const d = typeof value === 'string' ? value : String(value);
+  const ms = safeParseDate(d).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function toIso(value: unknown): string {
+  const ms = coerceTimestamp(value);
+  return ms > 0 ? new Date(ms).toISOString() : new Date(0).toISOString();
+}
+
+function normalizeForRender(raw: any): ThreadMessage {
+  // Delegate to your shared normalizer, then ensure the UI has everything it needs.
+  const n: any = normalizeShared(raw) ?? {};
+  const id = Number(n.id);
+  const ts = toIso(n.timestamp ?? n.created_at ?? n.updated_at);
+  return {
+    ...n,
+    id: Number.isFinite(id) ? id : 0,
+    text: n.text ?? n.content ?? '',
+    timestamp: ts,
+    reactions: n.reactions ?? {},
+    my_reactions: Array.isArray(n.my_reactions) ? n.my_reactions : [],
+    is_read: Boolean(n.is_read || n.read_at),
+    is_delivered: Boolean(n.is_delivered || n.delivered_at),
+  } as ThreadMessage;
+}
+
+function byChronoThenId(a: ThreadMessage, b: ThreadMessage): number {
+  const at = coerceTimestamp(a.timestamp);
+  const bt = coerceTimestamp(b.timestamp);
+  if (at !== bt) return at - bt;
+  return (a.id || 0) - (b.id || 0);
+}
+
+function mergeMessages(prev: ThreadMessage[], incoming: ThreadMessage[]): ThreadMessage[] {
+  if (!Array.isArray(incoming) || incoming.length === 0) return prev;
+
+  const map = new Map<number, ThreadMessage>();
+  for (const m of prev) {
+    if (m && Number.isFinite(m.id)) map.set(m.id, m);
+  }
+  for (const m of incoming) {
+    if (!m || !Number.isFinite(m.id)) continue;
+    const prior = map.get(m.id);
+    if (!prior) {
+      map.set(m.id, m);
+      continue;
+    }
+    // Shallow merge but prefer newer truthy values; keep upload progress if present
+    const merged: ThreadMessage = {
+      ...prior,
+      ...m,
+      attachment_url: m.attachment_url ?? prior.attachment_url,
+      _upload_pct: m._upload_pct ?? prior._upload_pct,
+    };
+    map.set(m.id, merged);
+  }
+  const out = Array.from(map.values());
+  out.sort(byChronoThenId);
+  return out;
+}
+
+// ----------------------------
+// Hook: useThreadData
+// ----------------------------
+
 export function useThreadData(threadId: number, opts?: HookOpts) {
-  const isActiveThread = opts?.isActiveThread !== false;
   const transport = useTransportState();
-  // Seed from sessionStorage/IDB synchronously so the first fetch can use a cursor
+  const isActiveThread = opts?.isActiveThread !== false;
+
+  // Synchronous cache seed for a stable first paint
   const [messages, setMessages] = React.useState<ThreadMessage[]>(() => {
     try {
-      const arr = _readThreadCache(threadId);
-      if (!Array.isArray(arr) || arr.length === 0) return [] as ThreadMessage[];
-      const normalized = arr
-        .map((m: any) => normalizeShared(m) as any)
-        .filter((m: any) => Number.isFinite((m as any)?.id))
-        .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-      return normalized as ThreadMessage[];
+      const cached = readCache(threadId);
+      if (!Array.isArray(cached) || cached.length === 0) return [];
+      return cached
+        .map(normalizeForRender)
+        .filter(m => Number.isFinite(m.id))
+        .sort(byChronoThenId);
     } catch {
-      return [] as ThreadMessage[];
+      return [];
     }
   });
+
   const [loading, setLoading] = React.useState<boolean>(() => {
     try {
-      const arr = _readThreadCache(threadId);
-      return !(Array.isArray(arr) && arr.length > 0);
-    } catch { return true; }
+      const cached = readCache(threadId);
+      return !(Array.isArray(cached) && cached.length > 0);
+    } catch {
+      return true;
+    }
   });
-  const [loadingOlder, setLoadingOlder] = React.useState<boolean>(false);
-  const [reachedHistoryStart, setReachedHistoryStart] = React.useState<boolean>(false);
 
-  // Local refs for lifecycle
-  const messagesRef = React.useRef<ThreadMessage[]>([]);
-  const fetchInFlightRef = React.useRef<boolean>(false);
+  const [loadingOlder, setLoadingOlder] = React.useState(false);
+  const [reachedHistoryStart, setReachedHistoryStart] = React.useState(false);
+
+  // Refs
+  const messagesRef = React.useRef<ThreadMessage[]>(messages);
+  React.useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  const fetchInFlightRef = React.useRef(false);
   const refetchRequestedRef = React.useRef<null | FetchMessagesOptions>(null);
   const abortRef = React.useRef<AbortController | null>(null);
-  const missingThreadRef = React.useRef<boolean>(false);
-  const initialLoadedRef = React.useRef<boolean>(false);
-  const lastMessageIdRef = React.useRef<number | null>(null);
-  // Note: ThreadPane remounts MessageThread on thread switches via a keyed wrapper,
-  // so stale responses from a previous thread instance won't merge into the new one.
+  const initialLoadedRef = React.useRef<boolean>(messages.length > 0);
+  const lastMessageIdRef = React.useRef<number | null>(
+    messages.length ? Number(messages[messages.length - 1]?.id || 0) || null : null,
+  );
+  const missingThreadRef = React.useRef(false);
 
-  React.useEffect(() => { messagesRef.current = messages; }, [messages]);
-  // Merge ephemeral stubs on arrival for instant display
+  // Merge ephemeral stubs (optimistic UI) and replace on real echo
   React.useEffect(() => {
     const applyStubs = () => {
       try {
         const stubs = getEphemeralStubs(threadId) || [];
         if (!Array.isArray(stubs) || stubs.length === 0) return;
-        const normalized = stubs
-          .map((m: any) => normalizeShared(m) as any)
-          .filter((m: any) => Number.isFinite((m as any)?.id));
-        setMessages((prev) => mergeMessages(prev, normalized));
+        setMessages(prev => mergeMessages(prev, stubs.map(normalizeForRender)));
       } catch {}
     };
+
     applyStubs();
+
     const handler = (e: Event) => {
       try {
         const detail = (e as CustomEvent<{ threadId?: number }>).detail || {};
@@ -130,22 +240,19 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     }
     return () => {};
   }, [threadId]);
+
+  // Async hydrate from cache if the first sync seed returned empty
   React.useEffect(() => {
-    // If we already have messages (seeded synchronously), skip async seed
-    if (messagesRef.current && messagesRef.current.length > 0) return;
+    if (messagesRef.current.length > 0) return;
     let cancelled = false;
     (async () => {
       try {
-        const arr = _readThreadCache(threadId);
-        if (cancelled || !Array.isArray(arr) || arr.length === 0) return;
-        const normalized = arr
-          .map((m: any) => normalizeShared(m) as any)
-          .filter((m: any) => Number.isFinite((m as any)?.id))
-          .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-        const last = Number((normalized as any)[(normalized as any).length - 1]?.id || 0);
-        if ((normalized as any).length) {
-          lastMessageIdRef.current = Number.isFinite(last) && last > 0 ? last : null;
-          setMessages(normalized as any);
+        const cached = readCache(threadId);
+        if (cancelled || !Array.isArray(cached) || cached.length === 0) return;
+        const normalized = cached.map(normalizeForRender).filter(m => Number.isFinite(m.id)).sort(byChronoThenId);
+        if (normalized.length) {
+          lastMessageIdRef.current = normalized[normalized.length - 1]?.id ?? null;
+          setMessages(normalized);
           setLoading(false);
         }
       } catch {}
@@ -153,6 +260,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     return () => { cancelled = true; };
   }, [threadId]);
 
+  // Fetch messages (initial or incremental)
   const fetchMessages = React.useCallback(
     async (options: FetchMessagesOptions = {}) => {
       if (missingThreadRef.current) return;
@@ -161,26 +269,31 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         return;
       }
       if (!options.force && !isActiveThread) return;
-      fetchInFlightRef.current = true;
 
-      let mode: 'initial' | 'incremental' = options.mode ?? (messagesRef.current.length > 0 ? 'incremental' : 'initial');
+      fetchInFlightRef.current = true;
+      let mode: 'initial' | 'incremental' =
+        options.mode ?? (messagesRef.current.length > 0 ? 'incremental' : 'initial');
+
       const lastId = Number(lastMessageIdRef.current || 0);
       const hasCursor = Number.isFinite(lastId) && lastId > 0;
       if (mode === 'incremental' && !hasCursor) mode = 'initial';
       if (mode === 'initial' && !initialLoadedRef.current) setLoading(true);
 
       const params: MessageListParams = {
-        // Prefer small slices for snappy first paint; caller can override
-        limit: options.limit != null ? options.limit : (mode === 'initial' && !initialLoadedRef.current ? 50 : 250),
+        limit:
+          options.limit != null
+            ? options.limit
+            : mode === 'initial' && !initialLoadedRef.current
+              ? 50
+              : 250,
       } as MessageListParams;
+
       if (mode === 'incremental' && hasCursor) {
         params.after_id = lastId;
         params.mode = 'delta' as any;
         params.fields = 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions';
+        // Small deltas keep p95 low; server caps anyway
       } else {
-        // Use 'lite' for initial loads so the server returns has_more.
-        // This lets us determine in a single request whether older history exists
-        // and avoids a follow-up prepend that causes a brief scroll jump.
         params.mode = 'lite' as any;
         params.fields = 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions';
       }
@@ -201,76 +314,84 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       }
 
       try {
-        // Pass known quotes for dedupe (best-effort)
-        // Abort any previous in‑flight request for this thread instance
+        // Abort previous request
         try { abortRef.current?.abort(); } catch {}
         abortRef.current = new AbortController();
-        const res = await apiList(threadId, params as any, { signal: abortRef.current.signal });
+
+        const res = await listMessages(threadId, params as any, { signal: abortRef.current.signal });
+
+        // Seed any quoted items
         try {
           const qmap = (res.data as any)?.quotes as Record<number, any> | undefined;
           if (qmap && typeof qmap === 'object') seedGlobalQuotes(Object.values(qmap).filter(Boolean) as any);
         } catch {}
-        const items = Array.isArray((res.data as any)?.messages)
-          ? (res.data as any).messages
-          : Array.isArray((res.data as any)?.items)
-            ? (res.data as any).items
-            : Array.isArray(res.data)
-              ? (res.data as any)
-              : [];
-        const normalized: ThreadMessage[] = items.map((m: any) => normalizeShared(m) as any).filter((m: any) => Number.isFinite(m.id));
-        setMessages((prev) => {
+
+        // Normalize items for rendering
+        const raw =
+          Array.isArray((res.data as any)?.messages) ? (res.data as any).messages
+            : Array.isArray((res.data as any)?.items) ? (res.data as any).items
+            : Array.isArray(res.data) ? (res.data as any)
+            : [];
+
+        const normalized: ThreadMessage[] = raw
+          .map(normalizeForRender)
+          .filter(m => Number.isFinite(m.id) && m.id > 0);
+
+        setMessages(prev => {
           const next = mergeMessages(prev, normalized);
           const last = next[next.length - 1];
           if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
           return next;
         });
+
         setLoading(false);
         initialLoadedRef.current = true;
+
+        // has_more → reachedHistoryStart
         try {
-          // Backend sets has_more reliably for lite/delta. For full, we don't flip the flag.
           const serverMode = String(((res as any)?.data?.mode || params.mode || '')).toLowerCase();
           if (serverMode === 'lite' || serverMode === 'delta') {
             const hasMore = Boolean((res as any)?.data?.has_more);
             setReachedHistoryStart(!hasMore);
           }
-          // For 'full', leave reachedHistoryStart as-is (default false) so top loads work.
         } catch {}
+
         try { opts?.onMessagesFetched?.(normalized, params.mode === 'delta' ? 'delta' : 'fetch'); } catch {}
-        // Drop ephemeral stubs now that real data arrived
+
+        // Clear ephemeral stubs now that real data arrived
         try {
           clearEphemeralStubs(threadId);
-          setMessages((prev) => prev.filter((m: any) => Number(m?.id) > 0));
+          setMessages(prev => prev.filter(m => Number(m.id) > 0));
         } catch {}
       } catch (err) {
-        // Ignore silent aborts when switching threads quickly
+        // Ignore canceled fetch (thread switch)
         if (isAxiosError(err) && (err as any).code === 'ERR_CANCELED') {
           setLoading(false);
           return;
         }
-        if (isAxiosError(err)) {
-          const status = err.response?.status;
-          if (status === 404) {
-            const had = (messagesRef.current?.length || 0) > 0;
-            if (!had) {
-              missingThreadRef.current = true;
-              setMessages([]);
-            }
-            setLoading(false);
-            return;
+        // 404: thread missing (or no access)
+        if (isAxiosError(err) && err.response?.status === 404) {
+          const had = (messagesRef.current?.length || 0) > 0;
+          if (!had) {
+            missingThreadRef.current = true;
+            setMessages([]);
           }
-          if (status === 403) {
-            setLoading(false);
-            queueRetry('transient');
-            return;
-          }
-          if (isTransientTransportError(err) || isOfflineError(err)) {
-            setLoading(false);
-            queueRetry(isOfflineError(err) ? 'offline' : 'transient');
-            return;
-          }
-        } else if (isTransientTransportError(err) || isOfflineError(err)) {
           setLoading(false);
-          queueRetry(isOfflineError(err) ? 'offline' : 'transient');
+          return;
+        }
+        // 403: transient (auth refresh, race)
+        if (isAxiosError(err) && err.response?.status === 403) {
+          setLoading(false);
+          queueRetry('transient');
+          return;
+        }
+        // Transient / offline
+        if (
+          (isAxiosError(err) && (isTransientTransportError(err) || isOfflineError(err))) ||
+          (!isAxiosError(err) && (isTransientTransportError(err as any) || isOfflineError(err as any)))
+        ) {
+          setLoading(false);
+          queueRetry(isOfflineError(err as any) ? 'offline' : 'transient');
           return;
         }
         // Hard error
@@ -279,148 +400,147 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         setLoading(false);
       } finally {
         fetchInFlightRef.current = false;
-        // Clear controller after resolution
         try { abortRef.current = null; } catch {}
         const queued = refetchRequestedRef.current;
         refetchRequestedRef.current = null;
         if (queued) void fetchMessages({ mode: queued.mode ?? 'incremental', force: true, reason: queued.reason ?? 'queued-refetch' });
       }
     },
-    [threadId, isActiveThread, transport.online],
+    [threadId, isActiveThread, transport.online, opts],
   );
 
-  // Abort on unmount to reduce wasted work
+  // Abort on unmount
   React.useEffect(() => () => { try { abortRef.current?.abort(); } catch {} }, []);
 
-  // Send a message via API and return the normalized server message (does not modify local list).
-  const send = React.useCallback(async (payload: any, opts?: { idempotencyKey?: string; clientRequestId?: string }): Promise<ThreadMessage> => {
-    const res = await postMessageToBookingRequest(threadId, payload, opts as any);
-    return normalizeShared(res.data) as any;
-  }, [threadId]);
+  // --- Public handlers ---
 
-  // Optional attachment upload helper: returns { url, metadata }
-  const upload = React.useCallback(async (file: File, onProgress?: (pct: number) => void, signal?: AbortSignal) => {
-    const res = await uploadMessageAttachment(threadId, file, (evt) => {
-      if (onProgress && evt.total) {
-        const pct = Math.round((evt.loaded * 100) / evt.total);
-        onProgress(pct);
-      }
-    }, signal);
-    return res.data;
-  }, [threadId]);
+  const send = React.useCallback(
+    async (payload: any, optsSend?: { idempotencyKey?: string; clientRequestId?: string }): Promise<ThreadMessage> => {
+      const res = await postMessageToBookingRequest(threadId, payload, optsSend as any);
+      return normalizeForRender(res.data);
+    },
+    [threadId],
+  );
+
+  const upload = React.useCallback(
+    async (file: File, onProgress?: (pct: number) => void, signal?: AbortSignal) => {
+      const res = await uploadMessageAttachment(
+        threadId,
+        file,
+        (evt) => {
+          if (onProgress && evt.total) {
+            const pct = Math.round((evt.loaded * 100) / evt.total);
+            onProgress(pct);
+          }
+        },
+        signal,
+      );
+      return res.data; // { url, metadata }
+    },
+    [threadId],
+  );
 
   const deleteMessage = React.useCallback(async (messageId: number) => {
     await deleteMessageForBookingRequest(threadId, messageId);
   }, [threadId]);
 
-  // Track in-flight reaction toggles to avoid duplicate taps
+  // Reaction toggle (optimistic with single in-flight guard)
   const reactionInflightRef = React.useRef<Set<string>>(new Set());
+  const reactToggle = React.useCallback(
+    async (messageId: number, emoji: string, hasNow: boolean) => {
+      const inflightKey = `${threadId}:${messageId}:${emoji}`;
+      if (reactionInflightRef.current.has(inflightKey)) return;
+      reactionInflightRef.current.add(inflightKey);
 
-  const reactToggle = React.useCallback(async (messageId: number, emoji: string, hasNow: boolean) => {
-    const inflightKey = `${threadId}:${messageId}:${emoji}`;
-    if (reactionInflightRef.current.has(inflightKey)) return;
-    reactionInflightRef.current.add(inflightKey);
-    // Optimistic local update
-    setMessages((prev) => prev.map((m: any) => {
-      if (Number(m?.id) !== Number(messageId)) return m;
-      const next: any = { ...m };
-      const agg: Record<string, number> = { ...(m.reactions || {}) };
-      const mineSet = new Set<string>((m.my_reactions || []) as string[]);
-      if (hasNow) {
-        if (mineSet.has(emoji)) mineSet.delete(emoji);
-        const curr = Number(agg[emoji] || 0) - 1;
-        if (curr > 0) agg[emoji] = curr; else delete agg[emoji];
-      } else {
-        mineSet.add(emoji);
-        agg[emoji] = Number(agg[emoji] || 0) + 1;
-      }
-      next.reactions = agg;
-      next.my_reactions = Array.from(mineSet);
-      return next;
-    }));
-    const taskId = `reaction:${threadId}:${messageId}:${emoji}:${hasNow ? 'remove' : 'add'}`;
-    const revert = () => {
-      setMessages((prev) => prev.map((m: any) => {
-        if (Number(m?.id) !== Number(messageId)) return m;
-        const next: any = { ...m };
-        const agg: Record<string, number> = { ...(m.reactions || {}) };
-        const mineSet = new Set<string>((m.my_reactions || []) as string[]);
-        if (hasNow) {
-          // removal failed → add it back
-          mineSet.add(emoji);
-          agg[emoji] = Number(agg[emoji] || 0) + 1;
-        } else {
-          // add failed → undo add
-          if (mineSet.has(emoji)) mineSet.delete(emoji);
-          const curr = Number(agg[emoji] || 0) - 1;
-          if (curr > 0) agg[emoji] = curr; else delete agg[emoji];
-        }
-        next.reactions = agg;
-        next.my_reactions = Array.from(mineSet);
-        return next;
-      }));
-    };
+      const mutate = (reverse: boolean) => {
+        setMessages(prev =>
+          prev.map(m => {
+            if (Number(m?.id) !== Number(messageId)) return m;
+            const next: ThreadMessage = { ...m };
+            const agg: Record<string, number> = { ...(m.reactions || {}) };
+            const mine = new Set<string>(m.my_reactions || []);
+            const doAdd = reverse ? hasNow : !hasNow;
+            if (doAdd) {
+              mine.add(emoji);
+              agg[emoji] = Number(agg[emoji] || 0) + 1;
+            } else {
+              if (mine.has(emoji)) mine.delete(emoji);
+              const curr = Number(agg[emoji] || 0) - 1;
+              if (curr > 0) agg[emoji] = curr; else delete agg[emoji];
+            }
+            next.reactions = agg;
+            next.my_reactions = Array.from(mine);
+            return next;
+          }),
+        );
+      };
 
-    const runner = async () => {
-      if (hasNow) await removeMessageReaction(threadId, messageId, emoji);
-      else await addMessageReaction(threadId, messageId, emoji);
-    };
+      // optimistic apply
+      mutate(false);
+      const taskId = `reaction:${threadId}:${messageId}:${emoji}:${hasNow ? 'remove' : 'add'}`;
 
-    try {
-      const maybePromise = runWithTransport(taskId, runner, {
-        metadata: { type: 'reaction', threadId, messageId, emoji, op: hasNow ? 'remove' : 'add' },
-        onFailure: () => { revert(); },
-      });
-      if (maybePromise && typeof (maybePromise as any).then === 'function') {
-        await (maybePromise as Promise<void>);
-      }
-    } finally {
-      reactionInflightRef.current.delete(inflightKey);
-    }
-  }, [threadId]);
-
-  const ingestExternalMessage = React.useCallback((raw: any) => {
-    if (!raw) return;
-    const clientReqId = (raw && (raw.client_request_id || raw.clientRequestId)) ? String(raw.client_request_id || raw.clientRequestId) : '';
-    const incoming = normalizeShared(raw) as any;
-    if (!Number.isFinite(incoming?.id)) return;
-    if (clientReqId) {
-      const tempId = cidToTempRef.current.get(clientReqId);
-      if (Number.isFinite(tempId)) {
-        setMessages((prev) => {
-          const tid = Number(tempId);
-          const withoutTemp = prev.filter((m: any) => Number(m?.id) !== tid);
-          const already = withoutTemp.some((m: any) => Number(m?.id) === Number(incoming.id));
-          const mergedList = already ? withoutTemp : [...withoutTemp, { ...incoming, status: 'sent' }];
-          mergedList.sort((a: any, b: any) => new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime());
-          const last = mergedList[mergedList.length - 1];
-          if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
-          return mergedList as any;
+      try {
+        const runner = async () => {
+          if (hasNow) await removeMessageReaction(threadId, messageId, emoji);
+          else await addMessageReaction(threadId, messageId, emoji);
+        };
+        const maybe = runWithTransport(taskId, runner, {
+          metadata: { type: 'reaction', threadId, messageId, emoji, op: hasNow ? 'remove' : 'add' },
+          onFailure: () => mutate(true), // revert
         });
-        try { cidToTempRef.current.delete(clientReqId); } catch {}
-        try { import('@/lib/chat/threadsEvents').then(({ emitThreadsUpdated }) => emitThreadsUpdated({ threadId, reason: 'message', immediate: true }, { immediate: true, force: true })); } catch {}
-        return;
+        if (maybe && typeof (maybe as any).then === 'function') {
+          await (maybe as Promise<void>);
+        }
+      } finally {
+        reactionInflightRef.current.delete(inflightKey);
       }
-    }
-    setMessages((prev) => {
-      const prior = prev.find((m: any) => Number(m?.id) === Number(incoming.id));
-      let safeIncoming = incoming;
-      if (prior && prior.attachment_url && !incoming.attachment_url) {
-        // Preserve local preview/progress when placeholder echo lacks a URL
-        safeIncoming = { ...incoming, attachment_url: prior.attachment_url } as any;
-        if ((prior as any)._upload_pct != null) (safeIncoming as any)._upload_pct = (prior as any)._upload_pct;
-      }
-      const next = mergeMessages(prev, [safeIncoming]);
-      const last = next[next.length - 1];
-      if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
-      return next;
-    });
-  }, [threadId]);
+    },
+    [threadId],
+  );
 
-  // Unified send with offline queue + retry runner using transport task queue
-  // Correlation: client_request_id -> temp message id (per thread)
+  // Correlate server echo → replace temp stub or merge fresh message
   const cidToTempRef = React.useRef<Map<string, number>>(new Map());
+  const ingestExternalMessage = React.useCallback(
+    (raw: any) => {
+      if (!raw) return;
+      const incoming = normalizeForRender(raw);
+      if (!Number.isFinite(incoming.id) || incoming.id <= 0) return;
 
+      const clientReqId = coerceString((raw.client_request_id ?? raw.clientRequestId) || '');
+      if (clientReqId) {
+        const tempId = cidToTempRef.current.get(clientReqId);
+        if (Number.isFinite(tempId)) {
+          setMessages(prev => {
+            const withoutTemp = prev.filter(m => Number(m.id) !== Number(tempId));
+            const already = withoutTemp.some(m => Number(m.id) === Number(incoming.id));
+            const mergedList = already ? withoutTemp : mergeMessages(withoutTemp, [incoming]);
+            const last = mergedList[mergedList.length - 1];
+            if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
+            return mergedList;
+          });
+          try { cidToTempRef.current.delete(clientReqId); } catch {}
+          try { import('@/lib/chat/threadsEvents').then(({ emitThreadsUpdated }) => emitThreadsUpdated({ threadId, reason: 'message', immediate: true }, { immediate: true, force: true })); } catch {}
+          return;
+        }
+      }
+
+      // Merge normally (also preserves local upload preview if server echo lacks url)
+      setMessages(prev => {
+        const prior = prev.find(m => Number(m.id) === Number(incoming.id));
+        let safeIncoming = incoming;
+        if (prior && prior.attachment_url && !incoming.attachment_url) {
+          safeIncoming = { ...incoming, attachment_url: prior.attachment_url, _upload_pct: (prior as any)._upload_pct };
+        }
+        const next = mergeMessages(prev, [safeIncoming]);
+        const last = next[next.length - 1];
+        if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
+        return next;
+      });
+    },
+    [threadId],
+  );
+
+  // Unified send with queue + retry via transport runner
   const sendWithQueue = React.useCallback(
     async (
       tempId: number,
@@ -430,42 +550,49 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       options?: { kind?: 'text' | 'voice' | 'file'; clientRequestId?: string },
     ) => {
       const kind = options?.kind || 'text';
-      const clientRequestId = options?.clientRequestId && typeof options.clientRequestId === 'string' ? options.clientRequestId : undefined;
+      const clientRequestId = options?.clientRequestId && typeof options.clientRequestId === 'string'
+        ? options.clientRequestId
+        : undefined;
+
       if (clientRequestId && (kind === 'text' || kind === 'voice')) {
         try { cidToTempRef.current.set(clientRequestId, Number(tempId)); } catch {}
       }
+
       const taskId = `send:${threadId}:${Math.abs(Number(tempId) || Date.now())}`;
+
       const run = async () => {
-        // Mark as sending just before attempt
-        setMessages((prev: any[]) => prev.map((m: any) => (Number(m?.id) === Number(tempId) ? { ...m, status: 'sending' } : m)));
+        // mark sending just before attempt
+        setMessages(prev => prev.map(m => (Number(m.id) === Number(tempId) ? { ...m, status: 'sending' } : m)));
         const real = await exec();
         onSuccess(real);
         if (clientRequestId) {
           try { cidToTempRef.current.delete(clientRequestId); } catch {}
         }
       };
-      // Always enqueue via transport runner so transient failures auto-retry
+
+      // Status while queued / online
       if (!transport.online) {
-        setMessages((prev: any[]) => prev.map((m: any) => (Number(m?.id) === Number(tempId) ? { ...m, status: 'queued' } : m)));
+        setMessages(prev => prev.map(m => (Number(m.id) === Number(tempId) ? { ...m, status: 'queued' } : m)));
       } else {
-        // Online now: mark sending immediately
-        setMessages((prev: any[]) => prev.map((m: any) => (Number(m?.id) === Number(tempId) ? { ...m, status: 'sending' } : m)));
+        setMessages(prev => prev.map(m => (Number(m.id) === Number(tempId) ? { ...m, status: 'sending' } : m)));
       }
+
       runWithTransport(taskId, run, {
         metadata: { type: 'message-send', threadId, tempId, kind },
         onFailure: (err?: unknown) => {
           try { onFailure?.(); } catch {}
-          // For text/voice, keep queued instead of failed to "never fail" UX
           if (kind === 'file') {
-            setMessages((prev: any[]) => prev.map((m: any) => (Number(m?.id) === Number(tempId) ? { ...m, status: 'failed' } : m)));
+            setMessages(prev => prev.map(m => (Number(m.id) === Number(tempId) ? { ...m, status: 'failed' } : m)));
           } else {
             const meta = classifyTransportError(err);
-            const hard4xx = meta.status && [401,403,404,413,422].includes(meta.status);
-            setMessages((prev: any[]) => prev.map((m: any) => (
-              Number(m?.id) === Number(tempId)
-                ? { ...m, status: hard4xx ? 'failed' : 'queued' }
-                : m
-            )));
+            const hard4xx = meta.status && [401, 403, 404, 413, 422].includes(meta.status);
+            setMessages(prev =>
+              prev.map(m =>
+                Number(m.id) === Number(tempId)
+                  ? { ...m, status: hard4xx ? 'failed' : 'queued' }
+                  : m,
+              ),
+            );
           }
         },
         immediateOnReconnect: true,
@@ -477,77 +604,92 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     [threadId, transport.online],
   );
 
-  const applyReadReceipt = React.useCallback((upToId: number, readerId: number, myUserId?: number | null) => {
-    if (!Number.isFinite(upToId) || myUserId == null || !Number.isFinite(myUserId)) return;
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (Number(msg?.sender_id) !== myUserId) return msg;
-        if (!Number.isFinite(msg?.id) || Number(msg.id) > upToId) return msg;
-        if (msg.read_at || msg.is_read) return msg;
-        return {
-          ...msg,
-          is_read: true,
-          read_at: msg.read_at || new Date().toISOString(),
-        };
-      }),
-    );
-  }, []);
+  const applyReadReceipt = React.useCallback(
+    (upToId: number, readerId: number, myUserId?: number | null) => {
+      if (!Number.isFinite(upToId) || myUserId == null || !Number.isFinite(myUserId)) return;
+      // Flip only my messages (sent by me) up to upToId
+      setMessages(prev =>
+        prev.map(msg => {
+          const fromMe = Number(msg?.sender_id) === Number(myUserId);
+          if (!fromMe) return msg;
+          if (!Number.isFinite(msg?.id) || Number(msg.id) > upToId) return msg;
+          if (msg.read_at || msg.is_read) return msg;
+          return {
+            ...msg,
+            is_read: true,
+            read_at: msg.read_at || new Date().toISOString(),
+          };
+        }),
+      );
+    },
+    [],
+  );
 
-  const applyDelivered = React.useCallback((upToId: number, recipientId: number, myUserId?: number | null) => {
-    if (!Number.isFinite(upToId) || myUserId == null || !Number.isFinite(myUserId)) return;
-    // Flip only my messages (sent by me) with id <= upToId to delivered
-    setMessages((prev) =>
-      prev.map((msg: any) => {
-        const fromMe = Number(msg?.sender_id) === Number(myUserId);
-        if (!fromMe) return msg;
-        if (!Number.isFinite(msg?.id) || Number(msg.id) > upToId) return msg;
-        if (msg.is_read || msg.read_at) return msg; // read wins
-        if (msg.is_delivered || msg.delivered_at) return msg;
-        return {
-          ...msg,
-          is_delivered: true,
-          delivered_at: msg.delivered_at || new Date().toISOString(),
-        };
-      }),
-    );
-  }, []);
+  const applyDelivered = React.useCallback(
+    (upToId: number, recipientId: number, myUserId?: number | null) => {
+      if (!Number.isFinite(upToId) || myUserId == null || !Number.isFinite(myUserId)) return;
+      setMessages(prev =>
+        prev.map(msg => {
+          const fromMe = Number(msg?.sender_id) === Number(myUserId);
+          if (!fromMe) return msg;
+          if (!Number.isFinite(msg?.id) || Number(msg.id) > upToId) return msg;
+          if (msg.is_read || msg.read_at) return msg; // read wins
+          if (msg.is_delivered || msg.delivered_at) return msg;
+          return {
+            ...msg,
+            is_delivered: true,
+            delivered_at: msg.delivered_at || new Date().toISOString(),
+          };
+        }),
+      );
+    },
+    [],
+  );
 
+  // Older history paging
   const fetchOlder = React.useCallback(async () => {
     if (loadingOlder || reachedHistoryStart) return { added: 0 } as const;
     const list = messagesRef.current;
     if (!list || list.length === 0) return { added: 0 } as const;
-    // Earliest numeric id in current list
+
+    // Earliest positive id in current list
     let earliest: number | null = null;
     for (let i = 0; i < list.length; i += 1) {
       const id = Number(list[i]?.id);
       if (Number.isFinite(id) && id > 0) { earliest = id; break; }
     }
     if (!earliest || earliest <= 1) return { added: 0 } as const;
+
     setLoadingOlder(true);
     try {
-      const res = await apiList(threadId, ({ limit: 500, mode: 'lite', before_id: earliest, fields: 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions' } as any));
+      const res = await listMessages(threadId, {
+        limit: 500,
+        mode: 'lite' as any,
+        before_id: earliest,
+        fields: 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions',
+      } as any);
+
       const rows = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
       if (!rows.length) {
         setReachedHistoryStart(true);
         return { added: 0 } as const;
       }
-      const older: ThreadMessage[] = [];
-      for (const raw of rows as any[]) {
-        const msg = normalizeShared(raw) as any;
-        // Include booking-details system messages so users can see the full summary in history
-        older.push(msg);
-      }
+
+      const older = rows.map(normalizeForRender).filter(m => Number.isFinite(m.id) && m.id > 0);
       if (!older.length) return { added: 0 } as const;
-      setMessages((prev) => {
+
+      setMessages(prev => {
         const next = mergeMessages(older, prev);
         const last = next[next.length - 1];
         if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
         return next;
       });
+
       try {
-        const qids = Array.from(new Set(older.map((m: any) => Number(m.quote_id)).filter((n) => Number.isFinite(n) && n > 0)));
+        const qids = Array.from(new Set(older.map(m => Number(m.quote_id)).filter(n => Number.isFinite(n) && n > 0)));
         if (qids.length) await opts?.ensureQuotesLoaded?.(qids);
       } catch {}
+
       if (!(res as any)?.data?.has_more || rows.length < 500) setReachedHistoryStart(true);
       try { opts?.onMessagesFetched?.(older, 'older'); } catch {}
       return { added: older.length } as const;
@@ -556,8 +698,9 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     } finally {
       setLoadingOlder(false);
     }
-  }, [threadId, loadingOlder, reachedHistoryStart]);
+  }, [threadId, loadingOlder, reachedHistoryStart, opts]);
 
+  // Keep summary cache fresh for preview panes
   React.useEffect(() => {
     if (!threadId) return;
     if (!messages.length) {
@@ -567,52 +710,55 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     const last = messages[messages.length - 1];
     const lastId = Number(last?.id || 0);
     if (Number.isFinite(lastId)) lastMessageIdRef.current = lastId;
-    const existing = (cacheGetSummaries() as any[]).find((s) => Number(s?.id) === Number(threadId));
+
+    const existing = (cacheGetSummaries() as any[]).find(s => Number(s?.id) === Number(threadId));
     const nextTimestamp = coerceTimestamp(last?.timestamp ?? new Date().toISOString());
+
     if (existing && Number((existing as any).last_message_id || 0) === lastId) {
       return;
     }
     if (existing) {
-      const existingTimestamp = coerceTimestamp((existing as any).last_message_timestamp || (existing as any).updated_at || (existing as any).created_at);
+      const existingTimestamp = coerceTimestamp(
+        (existing as any).last_message_timestamp || (existing as any).updated_at || (existing as any).created_at,
+      );
       if (existingTimestamp > nextTimestamp) {
         return;
       }
     }
-    // Prefer server-provided preview label when available; otherwise, collapse
-    // booking-details summaries to a safe label for the thread preview.
-    const rawPreviewLabel = (last as any)?.preview_label ? String((last as any).preview_label) : '';
-    const contentText = coerceString(last?.content ?? last?.text ?? '');
-    const collapsedPreview = rawPreviewLabel
-      || (contentText.startsWith(BOOKING_DETAILS_PREFIX) ? 'New Booking Request' : contentText);
+
+    // Prefer server preview label, else collapse booking-details boilerplate
+    const rawPreviewLabel = coerceString((last as any)?.preview_label || '');
+    const contentText = coerceString((last?.content ?? last?.text ?? '') as any);
+    const collapsedPreview =
+      rawPreviewLabel || (contentText.startsWith(BOOKING_DETAILS_PREFIX) ? 'New Booking Request' : contentText);
 
     try {
       const list = cacheGetSummaries() as any[];
-      const nextList = list.map((s: any) => (Number(s?.id) === Number(threadId)
-        ? {
-            ...s,
-            last_message_id: Number(last?.id || 0) || s.last_message_id || undefined,
-            last_message_content: collapsedPreview,
-            last_message_timestamp: last?.timestamp ?? new Date().toISOString(),
-            last_sender_id: Number(last?.sender_id ?? last?.senderId ?? 0) || s.last_sender_id || undefined,
-          }
-        : s));
+      const nextList = list.map((s: any) =>
+        Number(s?.id) === Number(threadId)
+          ? {
+              ...s,
+              last_message_id: Number(last?.id || 0) || s.last_message_id || undefined,
+              last_message_content: collapsedPreview,
+              last_message_timestamp: last?.timestamp ?? new Date().toISOString(),
+              last_sender_id: Number(last?.sender_id ?? (last as any)?.senderId ?? 0) || s.last_sender_id || undefined,
+            }
+          : s,
+      );
       cacheSetSummaries(nextList as any);
     } catch {}
   }, [messages, threadId]);
 
+  // Persist local cache after every merge
   React.useEffect(() => {
-    try {
-      _writeThreadCache(threadId, messages);
-    } catch {}
+    try { writeCache(threadId, messages); } catch {}
   }, [messages, threadId]);
 
-  // Public surface for Phase 4 (incremental)
   return {
     messages,
     setMessages,
     loading,
-    // Expose setLoading temporarily so the legacy component logic can drive skeletons
-    setLoading,
+    setLoading, // temporary escape hatch for legacy skeletons
     fetchMessages,
     fetchOlder,
     loadingOlder,
@@ -628,4 +774,198 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       sendWithQueue,
     },
   } as const;
+}
+
+// ----------------------------
+// Realtime glue (kept colocated)
+// ----------------------------
+
+import { useEffect } from 'react';
+import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
+
+type UseThreadRealtimeOptions = {
+  threadId: number;
+  isActive: boolean;
+  myUserId: number;
+  ingestMessage: (raw: any) => void;
+  applyReadReceipt: (upToId: number, readerId: number, myUserId?: number | null) => void;
+  applyReactionEvent?: (evt: { messageId: number; emoji: string; userId: number; kind: 'added' | 'removed' }) => void;
+  applyMessageDeleted?: (messageId: number) => void;
+  applyDelivered?: (upToId: number, recipientId: number, myUserId?: number | null) => void;
+};
+
+const THREAD_TOPIC_PREFIX = 'booking-requests:';
+
+export function useThreadRealtime({
+  threadId,
+  isActive,
+  myUserId,
+  ingestMessage,
+  applyReadReceipt,
+  applyReactionEvent,
+  applyMessageDeleted,
+  applyDelivered,
+}: UseThreadRealtimeOptions) {
+  const { subscribe } = useRealtimeContext();
+
+  // Prevent double-unread on fast echoes
+  const seenIdsRef =
+    typeof window !== 'undefined'
+      ? ((window as any).__threadSeenIds ?? new Map<number, Set<number>>())
+      : new Map<number, Set<number>>();
+  if (typeof window !== 'undefined' && !(window as any).__threadSeenIds) {
+    try { (window as any).__threadSeenIds = seenIdsRef; } catch {}
+  }
+
+  // Debounced delivered ack
+  const deliveredMaxRef = React.useRef(0);
+  const deliveredTimerRef = React.useRef<any>(0);
+
+  useEffect(() => {
+    if (!threadId || !isActive) return;
+    const topic = `${THREAD_TOPIC_PREFIX}${threadId}`;
+
+    let typingTimer: number | null = null;
+    const scheduleTypingClear = () => {
+      try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
+      typingTimer = window.setTimeout(() => {
+        try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
+      }, 3000);
+    };
+
+    const unsubscribe = subscribe(topic, (evt: any) => {
+      if (!evt) return;
+      const type = evt.type;
+
+      // Message / message_new (normalize envelope)
+      if (!type || type === 'message' || type === 'message_new') {
+        const raw = (evt?.payload && (evt.payload.message || evt.payload.data)) || evt.message || evt.data || evt;
+        ingestMessage(raw);
+
+        const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
+        const mid = Number(raw?.id ?? 0);
+
+        let seenSet = seenIdsRef.get(threadId);
+        if (!seenSet) { seenSet = new Set<number>(); seenIdsRef.set(threadId, seenSet); }
+        const isDuplicate = Number.isFinite(mid) && mid > 0 && seenSet.has(mid);
+
+        if (Number.isFinite(senderId) && senderId > 0 && senderId !== myUserId) {
+          if (!isDuplicate) {
+            try {
+              const list = cacheGetSummaries() as any[];
+              const next = list.map(t => Number(t?.id) === threadId ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 } : t);
+              cacheSetSummaries(next as any);
+            } catch {}
+            if (Number.isFinite(mid) && mid > 0) {
+              try {
+                seenSet.add(mid);
+                if (seenSet.size > 500) {
+                  const half = Math.floor(seenSet.size / 2);
+                  let i = 0; for (const v of seenSet) { seenSet.delete(v); if (++i >= half) break; }
+                }
+              } catch {}
+            }
+          }
+          // Counterparty sent a message → not typing
+          try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
+        } else if (Number.isFinite(raw?.id)) {
+          cacheSetLastRead(threadId, Number(raw?.id));
+        }
+
+        // Debounced delivered ack (client is active & visible)
+        if (isActive && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          if (Number.isFinite(senderId) && senderId !== myUserId && Number.isFinite(mid) && mid > 0) {
+            deliveredMaxRef.current = Math.max(deliveredMaxRef.current || 0, mid);
+            try { if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current); } catch {}
+            deliveredTimerRef.current = setTimeout(async () => {
+              const up = deliveredMaxRef.current || 0;
+              deliveredMaxRef.current = 0;
+              if (up > 0) {
+                try {
+                  const mod = await import('@/lib/api');
+                  await mod.putDeliveredUpTo(threadId, up);
+                } catch {}
+              }
+            }, 150);
+          }
+        }
+        return;
+      }
+
+      if (type === 'read') {
+        const p = (evt?.payload || evt);
+        const upToId = Number(p.up_to_id ?? p.last_read_id ?? p.message_id ?? 0);
+        const readerId = Number(p.user_id ?? p.reader_id ?? 0);
+        if (!Number.isFinite(upToId) || upToId <= 0 || !Number.isFinite(readerId) || readerId <= 0) return;
+        if (readerId === myUserId) {
+          cacheSetLastRead(threadId, upToId);
+        } else {
+          applyReadReceipt(upToId, readerId, myUserId);
+        }
+        return;
+      }
+
+      if (type === 'typing') {
+        const p = (evt?.payload || evt);
+        const users = Array.isArray(p.users) ? p.users : [];
+        const typing = users.some((id: any) => Number(id) !== myUserId);
+        cacheUpdateSummary(threadId, { typing });
+        if (typing) scheduleTypingClear();
+        return;
+      }
+
+      if (type === 'presence') {
+        try {
+          const p = (evt?.payload || evt);
+          const updates = (p?.updates || {}) as Record<string, string>;
+          // Pick first counterparty status
+          for (const [uid, status] of Object.entries(updates)) {
+            const id = Number(uid);
+            if (!Number.isFinite(id) || id === myUserId) continue;
+            cacheUpdateSummary(threadId, { presence: (status || '').toString(), last_presence_at: Date.now() });
+            break;
+          }
+        } catch {}
+        return;
+      }
+
+      if (type === 'delivered' && applyDelivered) {
+        const p = (evt?.payload || evt);
+        const upToId = Number(p.up_to_id ?? p.last_delivered_id ?? 0);
+        const recipientId = Number(p.user_id ?? p.recipient_id ?? 0);
+        if (Number.isFinite(upToId) && upToId > 0 && Number.isFinite(recipientId) && recipientId > 0) {
+          try { applyDelivered(upToId, recipientId, myUserId); } catch {}
+        }
+        return;
+      }
+
+      if ((type === 'reaction_added' || type === 'reaction_removed') && applyReactionEvent) {
+        try {
+          const p = ((evt?.payload && (evt.payload.payload || evt.payload)) || evt.payload || evt) as any;
+          const mid = Number(p?.message_id ?? 0);
+          const userId = Number(p?.user_id ?? 0);
+          const emoji = (p?.emoji || '').toString();
+          if (Number.isFinite(userId) && userId === myUserId) return; // skip our own to avoid double-apply
+          if (Number.isFinite(mid) && mid > 0 && emoji) {
+            applyReactionEvent({ messageId: mid, emoji, userId, kind: type === 'reaction_added' ? 'added' : 'removed' });
+          }
+        } catch {}
+        return;
+      }
+
+      if (type === 'message_deleted' && applyMessageDeleted) {
+        const p = (evt?.payload || evt);
+        const mid = Number(p?.id ?? p?.message_id ?? 0);
+        if (Number.isFinite(mid) && mid > 0) {
+          try { applyMessageDeleted(mid); } catch {}
+        }
+        return;
+      }
+    });
+
+    return () => {
+      try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
+      unsubscribe();
+    };
+  }, [threadId, isActive, subscribe, ingestMessage, applyReadReceipt, myUserId, applyDelivered, applyReactionEvent, applyMessageDeleted]);
 }
