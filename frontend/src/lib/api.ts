@@ -34,7 +34,9 @@ import {
 } from '@/types';
 
 export const getApiOrigin = () =>
-  (process.env.NEXT_PUBLIC_API_URL || 'https://api.booka.co.za').replace(/\/+$/, '');
+  (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '') ||
+  // Use same-origin relative API in SSR to avoid cross-origin cookies on Vercel edge/Node
+  (typeof window === 'undefined' ? '' : 'https://api.booka.co.za');
 
 // Public constants/helpers so all callers can build absolute API URLs
 export const API_ORIGIN = getApiOrigin();
@@ -49,7 +51,7 @@ export const apiUrl = (path: string) => {
 // Use an absolute origin so the browser talks directly to the API host
 // (avoids an extra proxy hop through the Next.js app/CDN on production).
 const api = axios.create({
-  baseURL: API_ORIGIN,
+  baseURL: (typeof window === 'undefined' ? '' : API_ORIGIN) || API_ORIGIN,
   withCredentials: true,
   headers: {
     // Do not force a global Content-Type. Let axios infer JSON for plain objects
@@ -60,12 +62,8 @@ const api = axios.create({
 const STATIC_API_ORIGIN = getApiOrigin();
 const withApiOrigin = (path: string) => {
   if (!path || /^https?:/i.test(path)) return path;
-  if (typeof window !== 'undefined') {
-    // In the browser rely on Next.js rewrites so requests stay same-origin
-    return path;
-  }
-  const origin = STATIC_API_ORIGIN;
-  return origin ? `${origin}${path}` : path;
+  // In SSR, use relative paths so Next.js rewrites proxy to the backend and cookies flow correctly
+  return path;
 };
 
 // Allow sending/receiving HttpOnly cookies
