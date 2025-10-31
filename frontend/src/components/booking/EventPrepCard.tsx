@@ -180,6 +180,15 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
           if (cacheKey > 0) EVENT_PREP_CACHE.set(cacheKey, next);
           return next;
         });
+        try {
+          // Keep inbox preview-style summary in sync
+          const label = 'Event prep updated';
+          (await import('@/lib/chat/threadStore')).threadStore.update(Number(bookingRequestId), {
+            id: Number(bookingRequestId),
+            last_message_content: label,
+            last_message_timestamp: new Date().toISOString(),
+          } as any);
+        } catch {}
       } catch {
         // ignore parse errors
       }

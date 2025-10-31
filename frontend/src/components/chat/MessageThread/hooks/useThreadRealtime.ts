@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
 import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, setLastRead as cacheSetLastRead, updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
+import { threadStore } from '@/lib/chat/threadStore';
 
 type UseThreadRealtimeOptions = {
   threadId: number;
@@ -169,6 +170,30 @@ export function useThreadRealtime({
         const mid = Number(p?.id ?? p?.message_id ?? 0);
         if (Number.isFinite(mid) && mid > 0) {
           try { applyMessageDeleted(mid); } catch {}
+        }
+        return;
+      }
+
+      if (type === 'thread_tail') {
+        const p = (evt?.payload || evt) as any;
+        const tid = Number(p?.thread_id ?? threadId);
+        const lastId = Number(p?.last_id ?? 0);
+        const lastTs = (p?.last_ts || null) as string | null;
+        const snippet = (p?.snippet || '') as string;
+        if (Number.isFinite(tid) && tid === Number(threadId)) {
+          try {
+            threadStore.update(tid, {
+              id: tid,
+              last_message_id: Number.isFinite(lastId) && lastId > 0 ? lastId : (undefined as any),
+              last_message_timestamp: (lastTs || undefined) as any,
+              last_message_content: snippet || undefined,
+            } as any);
+          } catch {}
+          try {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('thread:reconcile', { detail: { threadId: tid, lastId } }));
+            }
+          } catch {}
         }
         return;
       }

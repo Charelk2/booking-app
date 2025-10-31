@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query, status, Response, Header
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Any, Dict, List, Optional
 
 from .. import models
@@ -193,6 +194,59 @@ def get_threads_index(
         is_artist = False
     elif role == "artist":
         is_artist = True
+
+    # Early ETag pre-check using cheap aggregates to short-circuit 304s
+    try:
+        # Count threads for this user
+        q_threads = db.query(models.BookingRequest.id)
+        if is_artist:
+            q_threads = q_threads.filter(models.BookingRequest.artist_id == current_user.id)
+        else:
+            q_threads = q_threads.filter(models.BookingRequest.client_id == current_user.id)
+        thread_count = q_threads.count()
+
+        # Max message timestamp across user threads
+        q_max_msg = (
+            db.query(func.max(models.Message.timestamp))
+            .join(models.BookingRequest, models.Message.booking_request_id == models.BookingRequest.id)
+        )
+        if is_artist:
+            q_max_msg = q_max_msg.filter(models.BookingRequest.artist_id == current_user.id)
+        else:
+            q_max_msg = q_max_msg.filter(models.BookingRequest.client_id == current_user.id)
+        max_msg_ts = q_max_msg.scalar()  # datetime | None
+
+        # Also consider threads with no messages (fallback to booking request created_at)
+        q_max_req = db.query(func.max(models.BookingRequest.created_at))
+        if is_artist:
+            q_max_req = q_max_req.filter(models.BookingRequest.artist_id == current_user.id)
+        else:
+            q_max_req = q_max_req.filter(models.BookingRequest.client_id == current_user.id)
+        max_req_ts = q_max_req.scalar()  # datetime | None
+
+        # Marker is the max of both (if any)
+        marker_dt = None
+        try:
+            if max_msg_ts and max_req_ts:
+                marker_dt = max(max_msg_ts, max_req_ts)
+            else:
+                marker_dt = max_msg_ts or max_req_ts
+        except Exception:
+            marker_dt = max_msg_ts or max_req_ts
+        marker_iso = marker_dt.isoformat(timespec="seconds") if isinstance(marker_dt, datetime) else "0"
+
+        # Unread total for this user
+        try:
+            total_unread, _ = crud.crud_message.get_unread_message_totals_for_user(db, int(current_user.id))
+        except Exception:
+            total_unread = 0
+
+        etag_pre = f'W/"{hashlib.sha1(f"idx:{current_user.id}:{marker_iso}:{int(total_unread)}:{int(thread_count)}".encode()).hexdigest()}"'
+        if if_none_match and if_none_match.strip() == etag_pre:
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag_pre})
+    except Exception:
+        # Fall through to full compose on any error
+        pass
 
     brs = crud.crud_booking_request.get_booking_requests_with_last_message(
         db,

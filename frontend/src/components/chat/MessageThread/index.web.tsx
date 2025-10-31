@@ -332,6 +332,26 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     [messages, shouldShowTimestampGroup],
   );
 
+  // Reconcile on thread_tail hints (from server) to close any missed gaps quickly
+  const fetchMessagesRef = React.useRef(fetchMessages);
+  React.useEffect(() => { fetchMessagesRef.current = fetchMessages; }, [fetchMessages]);
+  React.useEffect(() => {
+    const handler = (e: any) => {
+      try {
+        const d = (e && e.detail) || {};
+        const tid = Number(d.threadId || 0);
+        if (!Number.isFinite(tid) || tid !== Number(bookingRequestId)) return;
+        // Force a quick incremental refresh to close the gap
+        try { fetchMessagesRef.current({ mode: 'incremental', force: true, reason: 'thread_tail', limit: 500 }); } catch {}
+      } catch {}
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('thread:reconcile', handler as any);
+      return () => { try { window.removeEventListener('thread:reconcile', handler as any); } catch {} };
+    }
+    return () => {};
+  }, [bookingRequestId]);
+
   // ————————————————————————————————————————————————————————————————
   // Media gallery (images + videos; exclude voice/audio)
   const galleryItems = React.useMemo<GalleryItem[]>(() => {

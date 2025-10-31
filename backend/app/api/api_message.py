@@ -29,7 +29,7 @@ from ..utils.notifications import (
 from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..utils import error_response
 from ..utils import r2 as r2utils
-from .api_ws import manager, notifications_manager
+from .api_ws import manager, notifications_manager, Envelope
 from ..utils.metrics import incr as metrics_incr
 import os
 import mimetypes
@@ -1385,6 +1385,42 @@ def create_message(
             background_tasks.add_task(manager.broadcast, request_id, data)
         except Exception:
             pass
+    # Also broadcast a lightweight thread_tail hint so clients can reconcile gaps deterministically
+    try:
+        snippet = preview_label_for_message(msg)
+        last_ts = None
+        try:
+            # msg.timestamp can be datetime; normalize to iso string
+            last_ts = (msg.timestamp.isoformat() if hasattr(msg, 'timestamp') and msg.timestamp else None)
+        except Exception:
+            last_ts = None
+        tail_payload = {
+            "thread_id": int(request_id),
+            "last_id": int(getattr(msg, "id", 0) or 0),
+            "last_ts": last_ts,
+            "snippet": snippet or "",
+        }
+        try:
+            env = Envelope(type="thread_tail", payload=tail_payload)
+        except Exception:
+            env = Envelope()
+            env.type = "thread_tail"
+            env.payload = tail_payload  # type: ignore
+        try:
+            # in-band scheduling similar to message broadcast
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                loop.create_task(manager.broadcast(request_id, env))
+            except RuntimeError:
+                asyncio.run(manager.broadcast(request_id, env))
+        except Exception:
+            try:
+                background_tasks.add_task(manager.broadcast, request_id, env)
+            except Exception:
+                pass
+    except Exception:
+        pass
     # Optional reliable fanout for attachments/system messages
     try:
         if data.get("attachment_url") or str(data.get("message_type") or "").upper() == "SYSTEM":
