@@ -36,6 +36,7 @@ import {
 } from '@/lib/chat/threadCache';
 import { safeParseDate } from '@/lib/chat/threadStore';
 import { normalizeMessage as normalizeShared } from '@/lib/normalizers/messages';
+import { normalizeMessage as normalizeGeneric } from '@/utils/messages';
 import { getEphemeralStubs, clearEphemeralStubs } from '@/lib/chat/ephemeralStubs';
 
 export type ThreadMessage = {
@@ -75,6 +76,9 @@ export type ThreadMessage = {
 
   // Client-only status
   status?: 'queued' | 'sending' | 'failed' | 'sent';
+  // Client correlation id for optimistic replace
+  client_request_id?: string;
+  pending?: boolean;
 
   avatar_url?: string | null;
   quote_id?: number | null;
@@ -113,20 +117,24 @@ const tsNum = (v?: string) => {
 };
 
 const normalizeForRender = (raw: any): ThreadMessage => {
-  const n: any = normalizeShared(raw) ?? {};
-  const id = Number(n.id);
-  const timestamp = toIso(n.timestamp ?? n.created_at ?? n.updated_at);
-  const text = (n.text ?? n.content ?? '') as string;
+  // Use generic normalizer to ensure createdAt+text are always present
+  const g = normalizeGeneric(raw);
+  const n: any = { ...(normalizeShared(raw) ?? {}), text: g.text };
+  const idNum = Number(n.id ?? g.id ?? 0);
+  const timestamp = toIso(g.createdAt ?? n.timestamp ?? n.created_at ?? n.updated_at);
+  const clientReq = String(raw?.client_request_id ?? raw?.clientRequestId ?? g.clientId ?? '') || undefined;
 
   return {
     ...n,
-    id: Number.isFinite(id) ? id : 0,
+    id: Number.isFinite(idNum) ? idNum : 0,
     timestamp,
-    text,
+    text: g.text,
     reactions: n.reactions ?? {},
     my_reactions: Array.isArray(n.my_reactions) ? n.my_reactions : [],
     is_read: Boolean(n.is_read || n.read_at),
     is_delivered: Boolean(n.is_delivered || n.delivered_at),
+    client_request_id: clientReq,
+    pending: Boolean(raw?.pending || n.status === 'queued' || n.status === 'sending'),
   } as ThreadMessage;
 };
 
@@ -139,24 +147,38 @@ const sortChrono = (a: ThreadMessage, b: ThreadMessage) => {
 
 function mergeMessages(prev: ThreadMessage[], incoming: ThreadMessage[]): ThreadMessage[] {
   if (!incoming?.length) return prev;
-  const map = new Map<number, ThreadMessage>();
-  for (const m of prev) if (m && Number.isFinite(m.id)) map.set(m.id, m);
+  const byId = new Map<number, ThreadMessage>();
+  const byClient = new Map<string, number>();
+  const push = (m: ThreadMessage) => {
+    if (!m || !Number.isFinite(m.id)) return;
+    byId.set(m.id, m);
+    const cid = (m as any)?.client_request_id as string | undefined;
+    if (cid) byClient.set(cid, m.id);
+  };
+  for (const m of prev) push(m);
   for (const m of incoming) {
-    if (!m || !Number.isFinite(m.id)) continue;
-    const prior = map.get(m.id);
-    if (!prior) {
-      map.set(m.id, m);
-      continue;
+    if (!m) continue;
+    const cid = (m as any)?.client_request_id as string | undefined;
+    const existingId = Number.isFinite(m.id) ? m.id : (cid && byClient.get(cid)) || undefined;
+    if (existingId && byId.has(existingId)) {
+      const prior = byId.get(existingId)!;
+      const merged: ThreadMessage = {
+        ...prior,
+        ...m,
+        // Keep any local-only hints (upload progress, temporary attachment preview)
+        attachment_url: m.attachment_url ?? prior.attachment_url,
+        _upload_pct: (m as any)._upload_pct ?? (prior as any)._upload_pct,
+        status: (m.status as any) || (prior.status as any),
+        pending: false,
+      } as any;
+      byId.set(Number(merged.id) || existingId, merged);
+      if (cid) byClient.set(cid, Number(merged.id) || existingId);
+    } else if (Number.isFinite(m.id)) {
+      byId.set(Number(m.id), m);
+      if (cid) byClient.set(cid, Number(m.id));
     }
-    // Keep any local-only hints (upload progress, temporary attachment preview)
-    map.set(m.id, {
-      ...prior,
-      ...m,
-      attachment_url: m.attachment_url ?? prior.attachment_url,
-      _upload_pct: m._upload_pct ?? prior._upload_pct,
-    });
   }
-  const out = Array.from(map.values());
+  const out = Array.from(byId.values());
   out.sort(sortChrono);
   return out;
 }

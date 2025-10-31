@@ -722,6 +722,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         message_type: 'USER',
         timestamp: nowIso,
         status: transport.online ? 'sending' : 'queued',
+        client_request_id: clientRequestId,
         reply_to_message_id: replyTarget?.id ?? null,
         reply_to_preview: replyTarget?.content ?? null,
       },

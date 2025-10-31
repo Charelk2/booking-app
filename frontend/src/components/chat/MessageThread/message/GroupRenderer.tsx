@@ -245,7 +245,7 @@ export default function GroupRenderer({
           // System message line (rich renderer)
           if (isSystem || isInquiryCard) return (
             <SystemMessage
-              key={m.id}
+              key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)}
               msg={m}
               hasAnyQuote={hasAnyQuote}
               onOpenDetails={onOpenDetailsPanel}
@@ -258,7 +258,7 @@ export default function GroupRenderer({
             const q = quotesById?.[quoteId];
             const isClientView = String(userType).toLowerCase() === 'client';
             return (
-              <div key={m.id} className="my-2 w-full flex justify-center">
+              <div key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)} className="my-2 w-full flex justify-center">
                 {q ? (
                   <>
                     {isClientView && String(q?.status || '').toLowerCase() === 'pending' && (
@@ -300,7 +300,7 @@ export default function GroupRenderer({
             );
           }
           return (
-            <div key={m.id} className={`my-1 flex ${fromSelfMsg ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
+            <div key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)} className={`my-1 flex ${fromSelfMsg ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
               {(() => {
                 const raw = String(m?.status || '').toLowerCase();
                 const failed = raw === 'failed' || raw === 'error';
@@ -458,8 +458,8 @@ export default function GroupRenderer({
                   return <>{blocks}</>;
                 })();
 
-                return (
-                  <Bubble id={`msg-${m.id}`} fromSelf={fromSelfMsg} highlight={Number(m.id) === Number(highlightId)}>
+                  return (
+                    <Bubble id={`msg-${String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)}`} fromSelf={fromSelfMsg} highlight={Number(m.id) === Number(highlightId)}>
                     {/* Inline actions trigger + popover */}
                     {(() => {
                       const mySet = new Set<string>((m?.my_reactions || []) as string[]);
