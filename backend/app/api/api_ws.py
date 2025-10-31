@@ -1,3 +1,8 @@
+# server/api_ws.py
+# WebSocket transport: room (/ws/booking-requests/{id}), multiplex (/ws),
+# notifications (/ws/notifications). Optional Noise framing. Presence, ping/pong,
+# and typed envelopes. Includes manager/notifications_manager shims.
+
 from __future__ import annotations
 
 import asyncio
@@ -9,16 +14,9 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from starlette import status as ws_status
 from starlette.exceptions import WebSocketException
 from jose import JWTError, jwt
-from app.realtime.bus import (
-    bus_enabled as _bus_enabled,
-    publish_topic as _bus_publish,
-    start_pattern_consumer as _bus_start_consumer,
-)
 
-# --- App-local imports you already have ---
 from ..database import SessionLocal
 from ..models.user import User
 from .. import crud
@@ -27,21 +25,14 @@ from .auth import ALGORITHM, SECRET_KEY, get_user_by_email
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# ---------------------------------------------------------------------
-# Libsignal-inspired transport: Auth first, then upgrade to WS, then wrap in Noise
-# ---------------------------------------------------------------------
+PING_INTERVAL_DEFAULT = 30.0
+PONG_TIMEOUT = 45.0
+SEND_TIMEOUT = 10.0
+WS_4401_UNAUTHORIZED = 4401
 
-PING_INTERVAL_DEFAULT = 30.0     # seconds
-PONG_TIMEOUT = 45.0              # seconds
-# Be tolerant of transient event loop pauses and mobile networks.
-# Increase to 10s to avoid premature disconnects under transient stalls.
-SEND_TIMEOUT = 10.0              # seconds
-WS_4401_UNAUTHORIZED = 4401      # custom close code mirroring HTTP 401
+ENABLE_NOISE = os.getenv("ENABLE_NOISE", "0").lower() in {"1","true","yes"}
+WS_ENABLE_RECONNECT_HINT = os.getenv("WS_ENABLE_RECONNECT_HINT", "0").lower() in {"1","true","yes"}
 
-ENABLE_NOISE = os.getenv("ENABLE_NOISE", "0") in {"1", "true", "yes"}
-WS_ENABLE_RECONNECT_HINT = os.getenv("WS_ENABLE_RECONNECT_HINT", "0") in {"1", "true", "yes"}
-
-# Optional dependency: python-noise (disabled by default)
 _HAS_NOISE = False
 try:
     if ENABLE_NOISE:
@@ -50,15 +41,10 @@ try:
 except Exception:
     _HAS_NOISE = False
 
-
 @dataclass
 class Envelope:
-    """
-    Wire envelope; keep small and versioned.
-    For production parity, use Protobuf and generated Python classes instead.
-    """
     v: int = 1
-    type: str = ""        # "ping" | "pong" | "typing" | "presence" | "read" | "subscribe" | "unsubscribe" | ...
+    type: str = ""        # default to "message" on send
     topic: Optional[str] = None
     payload: Optional[Dict[str, Any]] = None
 
@@ -74,11 +60,9 @@ class Envelope:
         return Envelope()
 
     def to_json(self) -> str:
-        data: Dict[str, Any] = {"v": self.v, "type": self.type}
-        if self.topic is not None:
-            data["topic"] = self.topic
-        if self.payload is not None:
-            data["payload"] = self.payload
+        data: Dict[str, Any] = {"v": self.v, "type": (self.type or "message")}
+        if self.topic is not None: data["topic"] = self.topic
+        if self.payload is not None: data["payload"] = self.payload
         return json.dumps(data, separators=(",", ":"))
 
     def to_json_bytes(self) -> bytes:
@@ -87,40 +71,12 @@ class Envelope:
         except Exception:
             return b"{}"
 
-    @staticmethod
-    def from_raw_json(text: str) -> "Envelope":
-        try:
-            obj = json.loads(text)
-            return Envelope.from_raw(obj)
-        except Exception:
-            return Envelope()
-
-
-# Unique instance identifier for bus loop prevention
-INSTANCE_ID = os.getenv("INSTANCE_ID", "inst-" + os.urandom(4).hex())
-
-
 class NoiseWS:
-    """
-    Transparent WebSocket wrapper with optional Noise framing.
-    If Noise is disabled/unavailable, it pass-throughs plaintext.
-
-    Handshake model (simplified):
-      - Server acts as Noise responder (use an ephemeral static or long-term key).
-      - Client sends 'client_hello' frame, server replies with 'server_hello'.
-      - Thereafter frames are ciphertext.
-
-    This class hides all of that from the handlers below.
-    """
     def __init__(self, websocket: WebSocket) -> None:
         self.ws = websocket
-        self._noise: Optional[NoiseConnection] = None
-        self._ready = False
+        self._noise: Optional["NoiseConnection"] = None
 
     async def handshake(self) -> None:
-        # Select a compatible subprotocol if the client requested any.
-        # We expect clients to offer ["bearer", "<token>"]; we echo back
-        # only "bearer" to satisfy the handshake.
         chosen_subproto: Optional[str] = None
         try:
             proto_hdr = self.ws.headers.get("sec-websocket-protocol", "") or ""
@@ -132,49 +88,33 @@ class NoiseWS:
                         break
         except Exception:
             chosen_subproto = None
+
         if not _HAS_NOISE:
-            if ENABLE_NOISE:
-                logger.warning("ENABLE_NOISE=1 but noiseprotocol not available; falling back to plaintext.")
             try:
                 await self.ws.accept(subprotocol=chosen_subproto)
             except TypeError:
-                # Older Starlette may not support keyword; try positional
                 await self.ws.accept(chosen_subproto)  # type: ignore[arg-type]
-            self._ready = True
             return
 
-        # Minimal Noise XX handshake (as responder)
-        # NOTE: Choose a concrete Noise pattern/cipher suite matching your client.
-        # This is a placeholder; configure according to your client library.
+        from noise.connection import NoiseConnection, Keypair  # type: ignore
         noise = NoiseConnection.from_name(b"Noise_XX_25519_ChaChaPoly_BLAKE2s")
         noise.set_as_responder()
-        # Use ephemeral keypair (replace with stable server keypair if you need identity)
-        noise.set_keypair_from_private_bytes(
-            Keypair.STATIC,
-            os.urandom(32)
-        )
+        noise.set_keypair_from_private_bytes(Keypair.STATIC, os.urandom(32))
+
         try:
             await self.ws.accept(subprotocol=chosen_subproto)
         except TypeError:
             await self.ws.accept(chosen_subproto)  # type: ignore[arg-type]
 
-        # 1) Receive client hello
         client_hello = await self._recv_bytes_plain()
         noise.start_handshake()
-        payload = noise.read_message(client_hello)
-
-        # Optionally, you can enforce a pre-auth payload shape here
-        if payload and payload != b"":
-            # e.g., parse JSON with advertised client caps
+        try:
+            noise.read_message(client_hello)
+        except Exception:
             pass
-
-        # 2) Send server hello
         server_hello = noise.write_message(b"")
         await self._send_bytes_plain(server_hello)
-
-        # Handshake complete (in XX it is 2 or 3 messages depending on payloads)
         self._noise = noise
-        self._ready = True
 
     async def send_envelope(self, env: Envelope) -> None:
         data = env.to_json_bytes()
@@ -185,13 +125,10 @@ class NoiseWS:
             else:
                 await self.ws.send_text(data.decode("utf-8", errors="ignore"))
         except WebSocketDisconnect:
-            # Peer is gone; allow caller to handle cleanup
             raise
         except RuntimeError:
-            # Event loop/transport issue; treat as disconnect
             raise WebSocketDisconnect(code=1006)
         except Exception:
-            # Be conservative: surface a disconnect to upstream
             raise WebSocketDisconnect(code=1006)
 
     async def recv_envelope(self) -> Envelope:
@@ -204,7 +141,6 @@ class NoiseWS:
                 return Envelope()
             return Envelope.from_raw(obj)
         else:
-            # Accept text or bytes in plaintext mode
             try:
                 text = await self.ws.receive_text()
                 obj = json.loads(text)
@@ -225,22 +161,9 @@ class NoiseWS:
             return msg["text"].encode("utf-8")
         return b""
 
-
-# ---------------------------------------------------------------------
-# Auth helpers (Authorization header first; cookie fallback)
-# ---------------------------------------------------------------------
+# -------- auth helpers --------
 
 def _extract_bearer_token(ws: WebSocket) -> Optional[str]:
-    """Extract a Bearer token from a browser-friendly set of places.
-
-    Priority:
-      1) Sec-WebSocket-Protocol: ["bearer", "<token>"] or "bearer <token>"
-      2) Query param ?token=...
-      3) Authorization: Bearer ...
-      4) Cookie fallback (access_token)
-    """
-    # 1) Subprotocol header supports comma-separated values. Accept either
-    #    ["bearer","<token>"] or a single value "bearer <token>".
     try:
         proto = ws.headers.get("sec-websocket-protocol", "") or ""
         if proto:
@@ -253,32 +176,23 @@ def _extract_bearer_token(ws: WebSocket) -> Optional[str]:
                     return p.split(" ", 1)[1].strip()
     except Exception:
         pass
-
-    # 2) Query parameter ?token=...
     try:
         qtok = ws.query_params.get("token")  # type: ignore[attr-defined]
-        if qtok:
-            return qtok
+        if qtok: return qtok
     except Exception:
         pass
-
-    # 3) Authorization header (non-browser clients)
     try:
         auth = ws.headers.get("authorization") or ws.headers.get("Authorization")
         if auth and auth.lower().startswith("bearer "):
             return auth.split(" ", 1)[1].strip()
     except Exception:
         pass
-
-    # 4) Cookie fallback
     try:
         tok = ws.cookies.get("access_token")
-        if tok:
-            return tok
+        if tok: return tok
     except Exception:
         pass
     return None
-
 
 def _current_user_from_token(token: str) -> Optional[User]:
     try:
@@ -294,14 +208,11 @@ def _current_user_from_token(token: str) -> Optional[User]:
     finally:
         db.close()
 
-
-# ---------------------------------------------------------------------
-# Presence & topic multiplex (single-process; add bus if you need cross-process)
-# ---------------------------------------------------------------------
+# -------- presence & topic mux --------
 
 class Presence:
-    _counts: Dict[int, int] = {}      # user_id -> connection count
-    _status: Dict[int, str] = {}      # user_id -> "online" | "offline"
+    _counts: Dict[int, int] = {}
+    _status: Dict[int, str] = {}
 
     @classmethod
     def mark_online(cls, uid: int) -> None:
@@ -321,9 +232,7 @@ class Presence:
     def is_online(cls, uid: int) -> bool:
         return cls._counts.get(uid, 0) > 0 or cls._status.get(uid) == "online"
 
-
 class TopicMux:
-    """In-proc topic multiplexer; replace send/broadcast hooks with a bus if needed."""
     def __init__(self) -> None:
         self.topic_sockets: Dict[str, Set[NoiseWS]] = {}
         self.socket_topics: Dict[NoiseWS, Set[str]] = {}
@@ -347,16 +256,13 @@ class TopicMux:
         self.socket_topics.pop(conn, None)
 
     async def broadcast_topic(self, topic: str, env: Envelope, publish: bool = True) -> None:
-        # Always include topic in the outgoing envelope
         if env.topic is None:
             env.topic = topic
         for conn in list(self.topic_sockets.get(topic, set())):
             try:
                 await asyncio.wait_for(conn.send_envelope(env), timeout=SEND_TIMEOUT)
             except Exception:
-                # Client likely gone
                 await self.disconnect(conn)
-        # Cross-instance fanout via Redis bus
         if publish and _bus_enabled():
             try:
                 data = json.loads(env.to_json())
@@ -365,17 +271,11 @@ class TopicMux:
             except Exception:
                 pass
 
-
 mux = TopicMux()
-
-
-# ---------------------------------------------------------------------
-# Booking-room chat manager (per-room fanout, libsignal-like envelopes)
-# ---------------------------------------------------------------------
 
 class ChatRoom:
     def __init__(self) -> None:
-        self.room_sockets: Dict[int, List[NoiseWS]] = {}  # request_id -> conns
+        self.room_sockets: Dict[int, List[NoiseWS]] = {}
 
     async def connect(self, request_id: int, conn: NoiseWS) -> None:
         self.room_sockets.setdefault(request_id, []).append(conn)
@@ -393,7 +293,6 @@ class ChatRoom:
                 await asyncio.wait_for(conn.send_envelope(env), timeout=SEND_TIMEOUT)
             except Exception:
                 self.disconnect(request_id, conn)
-        # Cross-instance fanout
         if publish and _bus_enabled():
             try:
                 topic = f"booking-requests:{int(request_id)}"
@@ -403,13 +302,9 @@ class ChatRoom:
             except Exception:
                 pass
 
-
 chat = ChatRoom()
 
-
-# ---------------------------------------------------------------------
-# WS Endpoint #1: booking-requests/{request_id}
-# ---------------------------------------------------------------------
+# -------- /ws/booking-requests/{id} --------
 
 @router.websocket("/ws/booking-requests/{request_id}")
 async def booking_request_ws(
@@ -418,21 +313,14 @@ async def booking_request_ws(
     attempt: int = Query(0),
     heartbeat: float = Query(PING_INTERVAL_DEFAULT),
 ):
-    """
-    Libsignal-style flow:
-      1) Validate Authorization.
-      2) Accept WS and immediately perform (optional) Noise handshake.
-      3) Exchange typed envelopes over the encrypted stream.
-    """
     token = _extract_bearer_token(websocket)
     if not token:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
-
     user = _current_user_from_token(token)
     if not user:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
 
-    # Authorization: user must be a participant in this booking request
+    # Authorization
     db = SessionLocal()
     try:
         br = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
@@ -442,26 +330,22 @@ async def booking_request_ws(
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Unauthorized")
 
     conn = NoiseWS(websocket)
-    await conn.handshake()  # Accept + optional Noise
+    await conn.handshake()
 
-    # Presence
     Presence.mark_online(int(user.id))
     await chat.connect(request_id, conn)
+
     try:
-        # Optional reconnect hint (disabled by default). Enable via WS_ENABLE_RECONNECT_HINT=1
         if WS_ENABLE_RECONNECT_HINT:
-            delay = min(2 ** attempt, 30)
             try:
-                await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": delay}))
+                await conn.send_envelope(Envelope(type="reconnect_hint", payload={"delay": min(2 ** attempt, 30)}))
             except WebSocketDisconnect:
-                # Client dropped during early handshake; exit quietly
                 return
             except Exception:
-                # Network hiccup or slow consumer; let client retry without log spam
                 return
 
-        # Heartbeat loop
         last_pong = time.time()
+
         async def ping_loop() -> None:
             while True:
                 await asyncio.sleep(max(heartbeat, PING_INTERVAL_DEFAULT))
@@ -469,16 +353,12 @@ async def booking_request_ws(
                     await conn.send_envelope(Envelope(type="ping"))
                 except Exception:
                     break
-                # Actively close idle sockets that miss pong beyond grace
                 try:
                     if (time.time() - last_pong) > PONG_TIMEOUT:
-                        try:
-                            await conn.ws.close(code=1006)
-                        except Exception:
-                            pass
+                        try: await conn.ws.close(code=1006)
+                        except Exception: pass
                         break
                 except Exception:
-                    # best-effort only
                     pass
 
         pinger = asyncio.create_task(ping_loop())
@@ -490,53 +370,36 @@ async def booking_request_ws(
                     continue
                 t = env.type
 
-                # Minimal allowlist
                 if t == "ping":
-                    try:
-                        await conn.send_envelope(Envelope(type="pong"))
-                    except Exception:
-                        break
+                    try: await conn.send_envelope(Envelope(type="pong"))
+                    except Exception: break
                     continue
                 if t == "pong":
                     last_pong = time.time()
                     continue
-
                 if t == "heartbeat":
-                    # client can suggest a larger interval
                     try:
-                        interval = float(env.payload.get("interval"))  # type: ignore[union-attr]
-                        if interval >= PING_INTERVAL_DEFAULT:
-                            heartbeat = interval
+                        interval = float((env.payload or {}).get("interval", PING_INTERVAL_DEFAULT))
+                        if interval >= PING_INTERVAL_DEFAULT: heartbeat = interval
                     except Exception:
                         pass
                     continue
-
                 if t == "typing":
                     uid = int((env.payload or {}).get("user_id", 0))
                     if uid:
-                        await chat.broadcast(
-                            request_id,
-                            Envelope(type="typing", payload={"users": [uid]}),
-                        )
+                        await chat.broadcast(request_id, Envelope(type="typing", payload={"users": [uid]}))
                     continue
-
                 if t == "presence":
-                    # presence updates fan out to room
                     updates = (env.payload or {}).get("updates")
                     msg = {"updates": updates} if isinstance(updates, dict) else {}
                     await chat.broadcast(request_id, Envelope(type="presence", payload=msg))
                     continue
-
                 if t == "read":
                     up_to_id = (env.payload or {}).get("up_to_id")
                     if isinstance(up_to_id, int):
-                        await chat.broadcast(
-                            request_id,
-                            Envelope(type="read", payload={"up_to_id": up_to_id, "user_id": int(user.id)}),
-                        )
+                        await chat.broadcast(request_id, Envelope(type="read", payload={"up_to_id": up_to_id, "user_id": int(user.id)}))
                     continue
-
-                # Ignore any other types
+                # ignore everything else
                 continue
         except WebSocketDisconnect:
             pass
@@ -546,10 +409,7 @@ async def booking_request_ws(
         Presence.mark_offline(int(user.id))
         chat.disconnect(request_id, conn)
 
-
-# ---------------------------------------------------------------------
-# WS Endpoint #2: multiplex (topic subscribe/unsubscribe)
-# ---------------------------------------------------------------------
+# -------- /ws (multiplex) --------
 
 @router.websocket("/ws")
 async def multiplex_ws(
@@ -568,19 +428,6 @@ async def multiplex_ws(
     await conn.handshake()
 
     Presence.mark_online(int(user.id))
-    # Best-effort: pre-compute rooms for presence snapshot (bounded)
-    user_request_ids: Set[int] = set()
-    try:
-        db = SessionLocal()
-        try:
-            client_reqs = crud.get_booking_requests_by_client(db, client_id=int(user.id), skip=0, limit=100)
-            artist_reqs = crud.get_booking_requests_by_artist(db, artist_id=int(user.id), skip=0, limit=100)
-            for r in client_reqs: user_request_ids.add(int(r.id))
-            for r in artist_reqs: user_request_ids.add(int(r.id))
-        finally:
-            db.close()
-    except Exception:
-        user_request_ids = set()
 
     try:
         if WS_ENABLE_RECONNECT_HINT:
@@ -592,6 +439,7 @@ async def multiplex_ws(
                 return
 
         last_pong = time.time()
+
         async def ping_loop() -> None:
             while True:
                 await asyncio.sleep(max(heartbeat, PING_INTERVAL_DEFAULT))
@@ -601,10 +449,8 @@ async def multiplex_ws(
                     break
                 try:
                     if (time.time() - last_pong) > PONG_TIMEOUT:
-                        try:
-                            await conn.ws.close(code=1006)
-                        except Exception:
-                            pass
+                        try: await conn.ws.close(code=1006)
+                        except Exception: pass
                         break
                 except Exception:
                     pass
@@ -619,20 +465,16 @@ async def multiplex_ws(
                 t = env.type
 
                 if t == "ping":
-                    try:
-                        await conn.send_envelope(Envelope(type="pong"))
-                    except Exception:
-                        break
+                    try: await conn.send_envelope(Envelope(type="pong"))
+                    except Exception: break
                     continue
                 if t == "pong":
                     last_pong = time.time()
                     continue
-
                 if t == "heartbeat":
                     try:
                         interval = float((env.payload or {}).get("interval", PING_INTERVAL_DEFAULT))
-                        if interval >= PING_INTERVAL_DEFAULT:
-                            heartbeat = interval
+                        if interval >= PING_INTERVAL_DEFAULT: heartbeat = interval
                     except Exception:
                         pass
                     continue
@@ -657,7 +499,6 @@ async def multiplex_ws(
                         if not br or int(user.id) not in {int(br.client_id), int(br.artist_id)}:
                             continue
                         await mux.subscribe(conn, topic)
-                        # presence snapshot
                         updates = {
                             str(int(br.client_id)): "online" if Presence.is_online(int(br.client_id)) else "offline",
                             str(int(br.artist_id)): "online" if Presence.is_online(int(br.artist_id)) else "offline",
@@ -667,8 +508,7 @@ async def multiplex_ws(
 
                 if t == "unsubscribe":
                     topic = (env.topic or "").strip()
-                    if not topic:
-                        continue
+                    if not topic: continue
                     await mux.unsubscribe(conn, topic)
                     continue
 
@@ -696,13 +536,10 @@ async def multiplex_ws(
                     if topic.startswith("booking-requests:"):
                         up_to_id = (env.payload or {}).get("up_to_id")
                         if isinstance(up_to_id, int):
-                            await mux.broadcast_topic(
-                                topic,
-                                Envelope(type="read", topic=topic, payload={"up_to_id": up_to_id, "user_id": int(user.id)}),
-                            )
+                            await mux.broadcast_topic(topic, Envelope(type="read", topic=topic, payload={"up_to_id": up_to_id, "user_id": int(user.id)}))
                     continue
 
-                # ignore everything else
+                # ignore others
                 continue
         except WebSocketDisconnect:
             pass
@@ -712,10 +549,7 @@ async def multiplex_ws(
         Presence.mark_offline(int(user.id))
         await mux.disconnect(conn)
 
-
-# ---------------------------------------------------------------------
-# WS Endpoint #3: notifications (unicast)
-# ---------------------------------------------------------------------
+# -------- /ws/notifications --------
 
 class NotifyFanout:
     def __init__(self) -> None:
@@ -726,8 +560,7 @@ class NotifyFanout:
 
     def disconnect(self, user_id: int, conn: NoiseWS) -> None:
         conns = self.user_sockets.get(int(user_id))
-        if not conns:
-            return
+        if not conns: return
         conns.discard(conn)
         if not conns:
             del self.user_sockets[int(user_id)]
@@ -739,7 +572,6 @@ class NotifyFanout:
                 await asyncio.wait_for(conn.send_envelope(env), timeout=SEND_TIMEOUT)
             except Exception:
                 self.disconnect(int(user_id), conn)
-        # Cross-instance fanout for notifications
         if publish and _bus_enabled():
             try:
                 topic = f"notifications:{int(user_id)}"
@@ -749,9 +581,7 @@ class NotifyFanout:
             except Exception:
                 pass
 
-
 notify = NotifyFanout()
-
 
 @router.websocket("/ws/notifications")
 async def notifications_ws(
@@ -782,6 +612,7 @@ async def notifications_ws(
                 return
 
         last_pong = time.time()
+
         async def ping_loop() -> None:
             while True:
                 await asyncio.sleep(max(heartbeat, PING_INTERVAL_DEFAULT))
@@ -791,13 +622,12 @@ async def notifications_ws(
                     break
                 try:
                     if (time.time() - last_pong) > PONG_TIMEOUT:
-                        try:
-                            await conn.ws.close(code=1006)
-                        except Exception:
-                            pass
+                        try: await conn.ws.close(code=1006)
+                        except Exception: pass
                         break
                 except Exception:
                     pass
+
         pinger = asyncio.create_task(ping_loop())
 
         try:
@@ -806,10 +636,8 @@ async def notifications_ws(
                 if env.v != 1:
                     continue
                 if env.type == "ping":
-                    try:
-                        await conn.send_envelope(Envelope(type="pong"))
-                    except Exception:
-                        break
+                    try: await conn.send_envelope(Envelope(type="pong"))
+                    except Exception: break
                     continue
                 if env.type == "pong":
                     last_pong = time.time()
@@ -817,12 +645,11 @@ async def notifications_ws(
                 if env.type == "heartbeat":
                     try:
                         interval = float((env.payload or {}).get("interval", PING_INTERVAL_DEFAULT))
-                        if interval >= PING_INTERVAL_DEFAULT:
-                            heartbeat = interval
+                        if interval >= PING_INTERVAL_DEFAULT: heartbeat = interval
                     except Exception:
                         pass
                     continue
-                # ignore other types (notifications are server-push)
+                # notifications are server-push only
         except WebSocketDisconnect:
             pass
         finally:
@@ -831,64 +658,33 @@ async def notifications_ws(
         Presence.mark_offline(int(user.id))
         notify.disconnect(int(user.id), conn)
 
-
-# ---------------------------------------------------------------------
-# Compatibility shims for legacy imports (manager, notifications_manager)
-# ---------------------------------------------------------------------
+# -------- compatibility shims --------
 
 class _CompatManager:
-    """Backwards-compatible shim exposing manager.broadcast(request_id, message).
-
-    Adapts legacy dict payloads to the new Envelope shape and forwards to the
-    ChatRoom broadcaster. Keeps existing call sites working.
-    """
-
-    async def broadcast(self, request_id: int, message: Any) -> None:  # noqa: D401
+    async def broadcast(self, request_id: int, message: Any) -> None:
         try:
-            try:
-                rid = int(request_id)
-            except Exception:
-                rid = request_id  # best-effort
-            topic = f"booking-requests:{int(rid)}"
-
-            if isinstance(message, Envelope):
-                env = message
-                # Ensure sensible defaults so multiplex subscribers can route
-                env.topic = env.topic or topic
-                env.type = env.type or "message"
-                # leave env.payload as-is (may already be wrapped)
-            elif isinstance(message, dict):
-                # Critical compat: keep payload.data for legacy consumers; also include .message
-                env = Envelope(
-                    v=1,
-                    type="message",
-                    topic=topic,
-                    payload={"data": message, "message": message},
-                )
-            else:
-                env = Envelope(
-                    v=1,
-                    type="message",
-                    topic=topic,
-                    payload={"data": message},
-                )
+            rid = int(request_id)
         except Exception:
-            env = Envelope(v=1, type="message", topic=f"booking-requests:{int(request_id)}")
+            rid = request_id
+        topic = f"booking-requests:{int(rid)}"
 
-        # 1) Legacy room endpoint (clients connected to /ws/booking-requests/{id})
+        if isinstance(message, Envelope):
+            env = message
+            env.topic = env.topic or topic
+            env.type = env.type or "message"
+        elif isinstance(message, dict):
+            env = Envelope(v=1, type="message", topic=topic, payload={"data": message, "message": message})
+        else:
+            env = Envelope(v=1, type="message", topic=topic, payload={"data": message})
+
         await chat.broadcast(int(rid), env)
-
-        # 2) Multiplex subscribers (clients connected to /ws and subscribed to topic)
         try:
-            await mux.broadcast_topic(env.topic or f"booking-requests:{int(rid)}", env)
+            await mux.broadcast_topic(env.topic or topic, env)
         except Exception:
             pass
 
-
 class _CompatNotificationsManager:
-    """Backwards-compatible shim exposing notifications_manager.broadcast(user_id, message)."""
-
-    async def broadcast(self, user_id: int, message: Any) -> None:  # noqa: D401
+    async def broadcast(self, user_id: int, message: Any) -> None:
         try:
             if isinstance(message, Envelope):
                 env = message
@@ -900,64 +696,66 @@ class _CompatNotificationsManager:
             env = Envelope(type="notification")
         await notify.push(int(user_id), env)
 
-
-# Export compatibility objects for existing imports
 manager = _CompatManager()
 notifications_manager = _CompatNotificationsManager()
 
+# -------- optional Redis bus (no-ops if missing) --------
 
-# ---------------------------------------------------------------------
-# Redis bus consumer → relay to local sockets (no re-publish)
-# ---------------------------------------------------------------------
+INSTANCE_ID = os.getenv("INSTANCE_ID", "inst-" + os.urandom(4).hex())
+
+def _bus_enabled() -> bool:
+    try:
+        from app.realtime.bus import bus_enabled as _bus_enabled  # type: ignore
+        return bool(_bus_enabled())
+    except Exception:
+        return False
+
+async def _bus_publish(topic: str, data: dict) -> None:
+    try:
+        from app.realtime.bus import publish_topic  # type: ignore
+        await publish_topic(topic, data)
+    except Exception:
+        pass
+
+async def _bus_start_consumer(pattern: str, handler) -> None:
+    try:
+        from app.realtime.bus import start_pattern_consumer  # type: ignore
+        await start_pattern_consumer(pattern, handler)
+    except Exception:
+        pass
 
 async def _bus_dispatch(topic: str, data: dict) -> None:
-    """Handle a bus event for topic -> deliver to local sockets only.
-
-    Avoid re-publishing to bus by passing publish=False.
-    """
     try:
-        # Drop self-originated events to avoid double-delivery
         if isinstance(data, dict) and data.get("origin") == INSTANCE_ID:
             return
         env = Envelope.from_raw(data)
     except Exception:
         env = Envelope()
-    # Multiplex subscribers
     try:
         await mux.broadcast_topic(topic, env, publish=False)
     except Exception:
         pass
-    # Legacy endpoints
     try:
         if topic.startswith("booking-requests:"):
-            try:
-                req_id = int(topic.split(":", 1)[1])
-            except Exception:
-                req_id = None
+            req_id = None
+            try: req_id = int(topic.split(":", 1)[1])
+            except Exception: req_id = None
             if isinstance(req_id, int):
-                try:
-                    await chat.broadcast(req_id, env, publish=False)
-                except Exception:
-                    pass
+                try: await chat.broadcast(req_id, env, publish=False)
+                except Exception: pass
         elif topic.startswith("notifications:"):
-            try:
-                user_id = int(topic.split(":", 1)[1])
-            except Exception:
-                user_id = None
+            user_id = None
+            try: user_id = int(topic.split(":", 1)[1])
+            except Exception: user_id = None
             if isinstance(user_id, int):
-                try:
-                    await notify.push(user_id, env, publish=False)
-                except Exception:
-                    pass
+                try: await notify.push(user_id, env, publish=False)
+                except Exception: pass
     except Exception:
         pass
 
-
 _bus_ready = False
 
-
 async def ensure_ws_bus_started() -> None:
-    """Start the Redis pattern consumer once per process."""
     global _bus_ready
     if _bus_ready or not _bus_enabled():
         return
