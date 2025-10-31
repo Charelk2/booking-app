@@ -279,7 +279,13 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
         openWS();
       }, delay);
     };
-    ws.onerror = (err) => { try { console.error('[realtime] WS error', err); } catch {} try { ws.close(); } catch {} schedule(); };
+    ws.onerror = (err) => {
+      // Some environments emit transient error events without a meaningful reason.
+      // Avoid forcing an immediate additional close/schedule cycle here; onclose
+      // will handle backoff scheduling. This reduces thrash seen as rapid
+      // unsubscribe/subscribe loops in StrictMode or flaky networks.
+      try { console.error('[realtime] WS error', err); } catch {}
+    };
     ws.onclose = schedule;
   }, [wsUrl, deliver]);
 

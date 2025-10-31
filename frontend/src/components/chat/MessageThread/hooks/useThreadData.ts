@@ -293,18 +293,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     return () => { cancelled = true; };
   }, [threadId, opts]);
 
-  // Listen for global delta pokes (e.g., notifications) and reconcile when it targets this thread
-  React.useEffect(() => {
-    const handler = (e: Event) => {
-      try {
-        const detail = (e as CustomEvent<{ threadId?: number }>).detail || {};
-        if (Number(detail.threadId) !== Number(threadId)) return;
-        void fetchDelta('poked');
-      } catch {}
-    };
-    if (typeof window !== 'undefined') window.addEventListener('thread:pokedelta', handler as any);
-    return () => { if (typeof window !== 'undefined') window.removeEventListener('thread:pokedelta', handler as any); };
-  }, [threadId, fetchDelta]);
+  // (moved below) — Listen for global delta pokes
 
   const fetchMessages = React.useCallback(
     async (options: FetchMessagesOptions = {}) => {
@@ -364,7 +353,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
           : Array.isArray(res.data) ? (res.data as any)
           : [];
 
-        const normalized = items.map(normalizeForRender).filter(m => Number.isFinite(m.id) && m.id > 0);
+        const normalized = items.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
 
         setMessages(prev => {
           const next = mergeMessages(prev, normalized);
@@ -402,7 +391,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
               } as any);
               const rows = Array.isArray((olderRes as any)?.data?.items) ? (olderRes as any).data.items : [];
               if (!rows.length) break;
-              const older = rows.map(normalizeForRender).filter((m) => Number.isFinite(m.id) && m.id > 0);
+              const older = rows.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
               if (!older.length) break;
               setMessages((prev) => {
                 const next = mergeMessages(older, prev);
@@ -425,7 +414,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         // Replace ephemeral stubs now that the real data arrived
         try {
           clearEphemeralStubs(threadId);
-          setMessages(prev => prev.filter(m => Number(m.id) > 0));
+          setMessages(prev => prev.filter((m: any) => Number(m.id) > 0));
         } catch {}
       } catch (err) {
         if (isAxiosError(err) && (err as any).code === 'ERR_CANCELED') {
@@ -484,7 +473,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       } as any);
       const rows = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
       if (!rows.length) return;
-      const newer = rows.map(normalizeForRender).filter((m) => Number.isFinite(m.id) && m.id > 0);
+      const newer = rows.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
       if (!newer.length) return;
       setMessages((prev) => {
         const next = mergeMessages(prev, newer);
@@ -496,6 +485,19 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       // swallow — delta is best-effort
     }
   }, [threadId]);
+
+  // Listen for global delta pokes (e.g., notifications) and reconcile when it targets this thread
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent<{ threadId?: number }>).detail || {};
+        if (Number(detail.threadId) !== Number(threadId)) return;
+        void fetchDelta('poked');
+      } catch {}
+    };
+    if (typeof window !== 'undefined') window.addEventListener('thread:pokedelta', handler as any);
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('thread:pokedelta', handler as any); };
+  }, [threadId, fetchDelta]);
 
   // Abort on unmount to prevent stray merges
   React.useEffect(() => () => { try { abortRef.current?.abort(); } catch {} }, []);

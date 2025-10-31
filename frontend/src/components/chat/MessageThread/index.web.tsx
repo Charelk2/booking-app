@@ -165,6 +165,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     reachedHistoryStart,
     fetchOlder,
     fetchMessages,
+    fetchDelta,
     handlers,
   } = useThreadData(bookingRequestId, { isActiveThread: isActive, onMessagesFetched: () => {} });
 
