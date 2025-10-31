@@ -48,6 +48,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const reconnectTimer = useRef<any>(null);
   const pingTimer = useRef<any>(null);
   const attemptsRef = useRef(0);
+  const connectingRef = useRef(false);
   // Track how long a connection stayed open; treat sub‑5s uptimes as failures
   const openedAtRef = useRef<number | null>(null);
   const subs = useRef<Map<string, Set<RealtimeHandler>>>(new Map());
@@ -107,23 +108,15 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     };
     const base = build();
     if (!base) return null;
-    // If we do not have a token and the WS base is cross-origin, do not open yet
-    // (avoid unauthorized open/close loops). Same-origin cookie auth is still allowed.
+    // If cross-origin and no token, do not open (avoid 401 flaps). Auth will come from subprotocols when available.
     try {
       const baseOrigin = new URL(base).origin;
       const sameOrigin = typeof window !== 'undefined' ? (new URL(window.location.href).origin === baseOrigin) : true;
       const tCandidate = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || '';
       if (!tCandidate && !sameOrigin) return null;
-      if (!tCandidate) return base;
-      const u = new URL(base);
-      u.searchParams.set('token', tCandidate);
-      return u.toString();
-    } catch {
-      const sep = base.includes('?') ? '&' : '?';
-      const tCandidate = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || '';
-      if (!tCandidate) return base;
-      return `${base}${sep}token=${encodeURIComponent(tCandidate)}`;
-    }
+    } catch {}
+    // Return a stable URL with no query params; token will be carried via Sec-WebSocket-Protocol.
+    return base;
   }, [wsToken]);
 
   const sseUrlForTopics = useCallback((topics: string[]) => {
@@ -162,27 +155,13 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
 
   const openWS = useCallback(() => {
     if (!wsUrl) return;
-    // Close any existing
-    try { wsRef.current?.close(); } catch {}
-    wsRef.current = null;
+    if (connectingRef.current || wsRef.current) return;
     if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
     setStatus(attemptsRef.current > 0 ? 'reconnecting' : 'connecting');
-    // Revert to URL token param to avoid subprotocol handshake issues on some proxies.
+    connectingRef.current = true;
     const tok = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || null;
-    let openUrl = wsUrl;
-    try {
-      if (tok) {
-        const u = new URL(wsUrl);
-        // Avoid duplicating token param across reconnects
-        const qs = new URLSearchParams(u.search || '');
-        if (!qs.get('token')) {
-          qs.set('token', tok);
-          u.search = `?${qs.toString()}`;
-        }
-        openUrl = u.toString();
-      }
-    } catch {}
-    const ws = new WebSocket(openUrl);
+    const subprotocols = tok ? (['bearer', tok] as string[]) : undefined;
+    const ws = subprotocols ? new WebSocket(wsUrl, subprotocols) : new WebSocket(wsUrl);
     wsRef.current = ws;
     ws.onopen = () => {
       // Mark open time; do not reset attempts immediately — only after a
@@ -190,7 +169,10 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       // open→close flapping from forever avoiding SSE fallback.
       openedAtRef.current = Date.now();
       lastDelayRef.current = null;
+      connectingRef.current = false;
       setStatus('open');
+      // Reset attempts after a short stability window to avoid fast flap loops
+      try { setTimeout(() => { attemptsRef.current = 0; }, 5000); } catch {}
       // Flush queued HTTP tasks (message sends, etc.) when WS is healthy
       try { flushTransportQueue(); } catch {}
       try { console.info('[realtime] WS open', { url: wsUrl }); } catch {}
@@ -244,6 +226,8 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     const schedule = (e?: CloseEvent) => {
       try { console.warn('[realtime] WS closed', { code: e?.code, reason: e?.reason }); } catch {}
       if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
+      connectingRef.current = false;
+      wsRef.current = null;
       // If the socket closed soon after opening, count it as a failure toward
       // SSE fallback. Only consider an open "stable" if it lived >= 10s.
       const uptimeMs = openedAtRef.current ? (Date.now() - openedAtRef.current) : 0;
@@ -274,9 +258,10 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       }
       // If not already incremented above (stable close), ensure counters reflect a failure
       setFailureCount((c) => c + 1);
-      const raw = Math.min(30000, 1000 * 2 ** (attemptsRef.current - 1));
-      const jitter = Math.floor(Math.random() * 300);
-      const delay = raw + jitter;
+      const attempt = Math.max(0, attemptsRef.current);
+      const baseSec = Math.min(30, 2 ** attempt);
+      const jitterMultiplier = 0.8 + Math.random() * 0.4; // 0.8x–1.2x
+      const delay = Math.floor(baseSec * jitterMultiplier * 1000);
       lastDelayRef.current = delay;
       setStatus('reconnecting');
       try { console.warn('[realtime] WS closed, scheduling reconnect', { code: e?.code, reason: e?.reason, delay }); } catch {}
@@ -304,7 +289,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     if (!hasTopics || !wsUrl) { setStatus('closed'); return; }
     const state = wsRef.current?.readyState;
     const openOrConnecting = state === WebSocket.OPEN || state === WebSocket.CONNECTING;
-    if (openOrConnecting && lastUrlRef.current === wsUrl) {
+    if ((openOrConnecting || connectingRef.current) && lastUrlRef.current === wsUrl) {
       // Already open to the same URL
       return;
     }
@@ -348,7 +333,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       if (topicCount > 0) {
         const state = wsRef.current?.readyState;
         const openOrConnecting = state === WebSocket.OPEN || state === WebSocket.CONNECTING;
-        if (!openOrConnecting) {
+        if (!openOrConnecting && !connectingRef.current) {
           try { console.info('[realtime] opening WS after subscribe (topics:', topicCount, ')'); } catch {}
           if (wsUrl) openWS();
         }
