@@ -584,7 +584,8 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       if (!rtHealthy && now - lastReactionRefreshRef.current > 1000) {
         lastReactionRefreshRef.current = now;
         try {
-          fetchMessagesRef.current({ mode: 'incremental', force: true, reason: 'rt-reaction', limit: 500 });
+          // Heavy, one-shot reconcile: fetch full thread to avoid any missed frames
+          fetchMessagesRef.current({ mode: 'initial', force: true, reason: 'rt-reaction', limit: 5000 });
         } catch {}
       }
     },
