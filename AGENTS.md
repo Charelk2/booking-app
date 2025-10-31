@@ -182,3 +182,35 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 
 **This doc will help future contributors, new devs, and even yourself quickly grok all “smart” parts of the app.**
 If you add new features (like analytics, webhook agents, etc.), just append new rows!
+
+---
+
+## Realtime Tail Render (Sacred Path)
+
+The latest message must always appear instantly at the bottom of the open thread. The following code paths and behaviors are sacred — do not revert or remove them without reading `docs/CHAT_REALTIME_TAIL_RUNBOOK.md` and updating it.
+
+- Files (keep behaviors intact):
+  - `frontend/src/components/chat/MessageThread/hooks/useThreadData.ts`
+    - Monotonic tail placement: newest id forced to tail if timestamp drifts.
+    - Timestamp fallback to `now` when missing/invalid.
+    - Tiny after_id delta reconcile (`fetchDelta`) + throttle.
+    - Listener for `thread:pokedelta` to trigger delta fetch.
+  - `frontend/src/components/chat/MessageThread/hooks/useThreadRealtime.ts`
+    - Append minimal synthetic bubble on `thread_tail`.
+    - Poke delta after `message` and `thread_tail`.
+  - `frontend/src/components/chat/MessageThread/index.web.tsx`
+    - Wire `fetchDelta` from `useThreadData` into `useThreadRealtime` via `pokeDelta`.
+  - `frontend/src/components/chat/MessageThread/message/SystemMessage.tsx`
+    - Do not hide booking‑details summaries (render compact CTA instead).
+  - `frontend/src/hooks/useNotifications.tsx`
+    - On active thread NEW_MESSAGE, add ephemeral stub and dispatch `thread:pokedelta`.
+  - `frontend/src/hooks/useRealtime.ts`
+    - `ws.onerror` logs only; `onclose` owns reconnect backoff (prevents thrash).
+
+- Do not:
+  - Remove the tail bump or timestamp fallback.
+  - Remove delta reconcile paths (after WS, after notifications).
+  - Reintroduce `return null` for booking‑details tails.
+  - Close the socket inside `onerror` (causes unsubscribe/subscribe loops).
+
+See `docs/CHAT_REALTIME_TAIL_RUNBOOK.md` for full context, rationale, and troubleshooting.
