@@ -338,16 +338,47 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         try { return new Date(sumTs).getTime() > new Date(lastTs || 0).getTime(); } catch { return false; }
       })();
       if (!newer || !sumText) return base;
+      // Try to detect attachments from the local thread cache (best-effort)
+      let attachmentLabel: string | null = null;
+      let attachmentUrl: string | null = null;
+      let attachmentMeta: Record<string, any> | null = null;
+      try {
+        const cached = readThreadCache(bookingRequestId) || [];
+        const last = Array.isArray(cached) && cached.length ? cached[cached.length - 1] : null;
+        if (last && (last.attachment_url || (last.attachment_meta && last.attachment_meta.content_type))) {
+          const url = String(last.attachment_url || '') || '';
+          const meta = (last.attachment_meta || {}) as { content_type?: string; original_filename?: string };
+          const ct = String(meta?.content_type || '').toLowerCase().split(';')[0].trim();
+          const filename = String(meta?.original_filename || '').toLowerCase();
+          const pathLower = url.toLowerCase();
+          const looksVoice = filename.includes('voice') || pathLower.includes('/voice') || pathLower.includes('voicenote');
+          if (ct.startsWith('image/') || isImage(url)) {
+            attachmentLabel = 'Photo';
+            if (url) { attachmentUrl = url; attachmentMeta = meta; }
+          } else if (ct.startsWith('video/') || (!ct && isVideo(url))) {
+            if (looksVoice) attachmentLabel = 'Voice note';
+            else {
+              attachmentLabel = 'Video';
+              if (url) { attachmentUrl = url; attachmentMeta = meta; }
+            }
+          } else if (ct.startsWith('audio/') || looksVoice) {
+            attachmentLabel = 'Voice note';
+          }
+        }
+      } catch {}
+
       const synthetic = {
         id: -Math.abs(Date.now()),
         booking_request_id: bookingRequestId,
         sender_id: 0, // treat as incoming
         sender_type: 'CLIENT',
-        content: sumText,
+        content: attachmentLabel ? `${attachmentLabel}${sumText ? ` · ${sumText}` : ''}` : sumText,
         message_type: 'USER',
         timestamp: sumTs || new Date().toISOString(),
         status: 'sent',
         _synthetic_preview: true,
+        ...(attachmentUrl ? { attachment_url: attachmentUrl } : {}),
+        ...(attachmentMeta ? { attachment_meta: attachmentMeta } : {}),
       } as any;
       return [...base, synthetic];
     } catch {
