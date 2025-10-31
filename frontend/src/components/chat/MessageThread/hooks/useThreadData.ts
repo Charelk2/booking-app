@@ -293,6 +293,19 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     return () => { cancelled = true; };
   }, [threadId, opts]);
 
+  // Listen for global delta pokes (e.g., notifications) and reconcile when it targets this thread
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent<{ threadId?: number }>).detail || {};
+        if (Number(detail.threadId) !== Number(threadId)) return;
+        void fetchDelta('poked');
+      } catch {}
+    };
+    if (typeof window !== 'undefined') window.addEventListener('thread:pokedelta', handler as any);
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('thread:pokedelta', handler as any); };
+  }, [threadId, fetchDelta]);
+
   const fetchMessages = React.useCallback(
     async (options: FetchMessagesOptions = {}) => {
       if (missingThreadRef.current) return;

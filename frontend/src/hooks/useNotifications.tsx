@@ -221,6 +221,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             } as any;
             // Push stub to ephemeral overlay; persist layer remains clean
             addEphemeralStub(threadId, stub);
+            // If the active thread matches, nudge a delta reconcile to force-tail visibility
+            if (isActive && typeof window !== 'undefined') {
+              try { window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId, source: 'notification' } })); } catch {}
+            }
           } catch {}
           if (!isActive && typeof window !== 'undefined') {
             try {
