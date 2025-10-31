@@ -394,7 +394,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   // Initial + thread switch fetch
   React.useEffect(() => {
     // Full-load on mount/switch (no delta/lite)
-    void fetchMessages({ mode: 'initial', force: true, reason: 'full-load', limit: 100000 });
+    void fetchMessages({ mode: 'initial', force: true, reason: 'full-load', limit: 120 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingRequestId]);
 
@@ -413,7 +413,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     throttleRef.current = now;
 
     // Full refresh when visible
-    void fetchMessagesRef.current({ mode: 'initial', force: true, reason: 'orchestrator-visible', limit: 100000 });
+    void fetchMessagesRef.current({ mode: 'initial', force: true, reason: 'orchestrator-visible', limit: 120 });
   }, [messagesRef, fetchMessagesRef]);
 
   React.useEffect(() => {
