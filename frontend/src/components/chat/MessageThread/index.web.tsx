@@ -333,8 +333,6 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   );
 
   // Reconcile on thread_tail hints (from server) to close any missed gaps quickly
-  const fetchMessagesRef = React.useRef(fetchMessages);
-  React.useEffect(() => { fetchMessagesRef.current = fetchMessages; }, [fetchMessages]);
   React.useEffect(() => {
     const handler = (e: any) => {
       try {
