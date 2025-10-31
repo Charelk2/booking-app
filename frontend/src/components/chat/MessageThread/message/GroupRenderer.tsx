@@ -14,6 +14,7 @@ import SystemMessage from './SystemMessage';
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal';
 import QuoteBubble from '@/components/chat/QuoteBubble';
 import { safeParseDate } from '@/lib/chat/threadStore';
+import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import MessageActions from './MessageActions';
 
 export type GroupRendererProps = {
@@ -363,12 +364,31 @@ export default function GroupRenderer({
                   })();
                   // Fallback label for non-media attachments (e.g., PDFs)
                   const fileLabel = (!hasMedia && url) ? (meta?.original_filename || 'Attachment') : null;
+                  // ConversationList-style fallback when content is missing but we still want a visible line
+                  const fallbackText = (() => {
+                    const rawText = String(text || '').trim();
+                    if (rawText) return rawText;
+                    // Collapse booking details to a safe label
+                    if ((m as any)?.content && String((m as any).content).startsWith(BOOKING_DETAILS_PREFIX)) return 'New Booking Request';
+                    // Prefer preview label if present
+                    const prev = String((m as any)?.preview_label || '').trim();
+                    if (prev) return prev;
+                    // Derive basic media labels from metadata when URL missing
+                    if ((meta?.content_type || '').toLowerCase().startsWith('audio/')) return 'Voice note';
+                    if ((meta?.content_type || '').toLowerCase().startsWith('image/')) return 'Photo';
+                    if ((meta?.content_type || '').toLowerCase().startsWith('video/')) return 'Video';
+                    const qid = Number((m as any)?.quote_id || 0);
+                    if (qid > 0) return 'Quote';
+                    return '';
+                  })();
                   if (!hasMedia) {
                     return (
                       <div className="flex items-end gap-2">
                         <div className="min-w-0 flex-1 text-[#111b21]">
                           {replyHeader}
-                          {renderText()}
+                          {renderText() || (fallbackText ? (
+                            <div className="text-[13px] leading-snug break-words">{fallbackText}</div>
+                          ) : null)}
                           {fileLabel ? (
                             <div className="mt-1">
                               <Attachments fileLabel={fileLabel} fileUrl={url as string} />
