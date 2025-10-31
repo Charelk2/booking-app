@@ -288,7 +288,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       fetchInFlightRef.current = true;
 
       // Disable delta/lite; always perform a full fetch
-      const FULL_LIMIT = options.limit != null ? options.limit : 5000;
+      const FULL_LIMIT = options.limit != null ? options.limit : 100000;
       setLoading(true);
 
       const params: MessageListParams = {
@@ -624,55 +624,10 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
 
   // Older history
   const fetchOlder = React.useCallback(async () => {
-    if (loadingOlder || reachedHistoryStart) return { added: 0 } as const;
-    const list = messagesRef.current;
-    if (!list || list.length === 0) return { added: 0 } as const;
-
-    let earliest: number | null = null;
-    for (let i = 0; i < list.length; i += 1) {
-      const id = Number(list[i]?.id);
-      if (Number.isFinite(id) && id > 0) { earliest = id; break; }
-    }
-    if (!earliest || earliest <= 1) return { added: 0 } as const;
-
-    setLoadingOlder(true);
-    try {
-      const res = await apiList(threadId, {
-        limit: 500,
-        mode: 'lite' as any,
-        before_id: earliest,
-        fields: 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions',
-      } as any);
-
-      const rows = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
-      if (!rows.length) {
-        setReachedHistoryStart(true);
-        return { added: 0 } as const;
-      }
-      const older = rows.map(normalizeForRender).filter(m => Number.isFinite(m.id) && m.id > 0);
-      if (!older.length) return { added: 0 } as const;
-
-      setMessages(prev => {
-        const next = mergeMessages(older, prev);
-        const last = next[next.length - 1];
-        if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
-        return next;
-      });
-
-      try {
-        const qids = Array.from(new Set(older.map(m => Number(m.quote_id)).filter(n => Number.isFinite(n) && n > 0)));
-        if (qids.length) await opts?.ensureQuotesLoaded?.(qids);
-      } catch {}
-
-      if (!(res as any)?.data?.has_more || rows.length < 500) setReachedHistoryStart(true);
-      try { opts?.onMessagesFetched?.(older, 'older'); } catch {}
-      return { added: older.length } as const;
-    } catch {
-      return { added: 0 } as const;
-    } finally {
-      setLoadingOlder(false);
-    }
-  }, [threadId, loadingOlder, reachedHistoryStart, opts]);
+    // Disabled older-page loading: full history is fetched upfront
+    setReachedHistoryStart(true);
+    return { added: 0 } as const;
+  }, []);
 
   // Delete (applied from realtime)
   const applyMessageDeleted = React.useCallback((messageId: number) => {

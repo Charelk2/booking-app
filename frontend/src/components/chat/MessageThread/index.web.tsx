@@ -394,7 +394,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   // Initial + thread switch fetch
   React.useEffect(() => {
     // Full-load on mount/switch (no delta/lite)
-    void fetchMessages({ mode: 'initial', force: true, reason: 'full-load', limit: 5000 });
+    void fetchMessages({ mode: 'initial', force: true, reason: 'full-load', limit: 100000 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingRequestId]);
 
@@ -413,7 +413,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     throttleRef.current = now;
 
     // Full refresh when visible
-    void fetchMessagesRef.current({ mode: 'initial', force: true, reason: 'orchestrator-visible', limit: 5000 });
+    void fetchMessagesRef.current({ mode: 'initial', force: true, reason: 'orchestrator-visible', limit: 100000 });
   }, [messagesRef, fetchMessagesRef]);
 
   React.useEffect(() => {
@@ -691,7 +691,8 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     })();
   });
 
-  const onStartReached = useStableCallback(loadOlderWithAnchor);
+  // Disable top-prepend loading; we fetch full history upfront
+  const onStartReached = undefined as unknown as (() => void);
 
   const onAtBottomStateChange = useStableCallback((atBottom: boolean) => {
     setAtBottom(atBottom);
@@ -1153,7 +1154,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           // keep handlers stable to avoid Virtuoso churn
           followOutput={followOutput}
           style={{ height: '100%', width: '100%' }}
-          startReached={onStartReached}
+          startReached={undefined}
           atBottomStateChange={onAtBottomStateChange}
         />
       }
