@@ -122,7 +122,7 @@ const normalizeForRender = (raw: any): ThreadMessage => {
   const n: any = { ...(normalizeShared(raw) ?? {}), text: g.text };
   const idNum = Number(n.id ?? g.id ?? 0);
   // Accept a wide range of timestamp keys from realtime/events
-  const timestamp = toIso(
+  let timestamp = toIso(
     g.createdAt
     ?? (n as any).timestamp
     ?? (n as any).created_at
@@ -131,6 +131,12 @@ const normalizeForRender = (raw: any): ThreadMessage => {
     ?? (raw as any)?.updated_at
     ?? (raw as any)?.time
   );
+  // If we still failed to resolve a sane timestamp (epoch fallback), prefer "now"
+  // so the new message lands at the tail rather than floating to the top.
+  try {
+    const t = safeParseDate(timestamp).getTime();
+    if (!Number.isFinite(t) || t <= 0) timestamp = new Date().toISOString();
+  } catch { timestamp = new Date().toISOString(); }
   const clientReq = String(raw?.client_request_id ?? raw?.clientRequestId ?? g.clientId ?? '') || undefined;
 
   return {
