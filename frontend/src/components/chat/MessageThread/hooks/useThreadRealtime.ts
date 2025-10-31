@@ -44,14 +44,16 @@ export function useThreadRealtime({
         try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
       }, 3000);
     };
-    const unsubscribe = subscribe(topic, (payload: any) => {
-      if (!payload) return;
-      const type = payload.type;
+    const unsubscribe = subscribe(topic, (evt: any) => {
+      if (!evt) return;
+      const type = evt.type;
 
-      if (!type || type === 'message' || type === 'message_new' || payload.id) {
-        ingestMessage(payload);
-        const senderId = Number(payload?.sender_id ?? payload?.senderId ?? 0);
-        const mid = Number(payload?.id ?? 0);
+      // Normalize envelope → message shape for message-like events
+      if (!type || type === 'message' || type === 'message_new') {
+        const raw = (evt?.payload && (evt.payload.message || evt.payload.data)) || evt.message || evt.data || evt;
+        ingestMessage(raw);
+        const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
+        const mid = Number(raw?.id ?? 0);
         // Deduplicate by message id to avoid double unread on fast+reliable deliveries
         let seenSet = seenIdsRef.get(threadId);
         if (!seenSet) { seenSet = new Set<number>(); seenIdsRef.set(threadId, seenSet); }
@@ -77,8 +79,8 @@ export function useThreadRealtime({
           }
           // Counterparty sent a message: they are no longer typing
           try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
-        } else if (Number.isFinite(payload?.id)) {
-          cacheSetLastRead(threadId, Number(payload?.id));
+        } else if (Number.isFinite(raw?.id)) {
+          cacheSetLastRead(threadId, Number(raw?.id));
         }
         // Delivered ack: if we are the recipient, visible and active, debounce a PUT
         if (isActive && typeof document !== 'undefined' && document.visibilityState === 'visible') {
@@ -101,8 +103,9 @@ export function useThreadRealtime({
       }
 
       if (type === 'read') {
-        const upToId = Number(payload.up_to_id ?? payload.last_read_id ?? payload.message_id ?? 0);
-        const readerId = Number(payload.user_id ?? payload.reader_id ?? 0);
+        const p = (evt?.payload || evt);
+        const upToId = Number(p.up_to_id ?? p.last_read_id ?? p.message_id ?? 0);
+        const readerId = Number(p.user_id ?? p.reader_id ?? 0);
         if (!Number.isFinite(upToId) || upToId <= 0 || !Number.isFinite(readerId) || readerId <= 0) return;
         if (readerId === myUserId) {
           cacheSetLastRead(threadId, upToId);
@@ -113,7 +116,8 @@ export function useThreadRealtime({
       }
 
       if (type === 'typing') {
-        const users = Array.isArray(payload.users) ? payload.users : [];
+        const p = (evt?.payload || evt);
+        const users = Array.isArray(p.users) ? p.users : [];
         const typing = users.some((id: any) => Number(id) !== myUserId);
         cacheUpdateSummary(threadId, { typing });
         if (typing) scheduleTypingClear();
@@ -122,7 +126,8 @@ export function useThreadRealtime({
 
       if (type === 'presence') {
         try {
-          const updates = (payload?.updates || {}) as Record<string, string>;
+          const p = (evt?.payload || evt);
+          const updates = (p?.updates || {}) as Record<string, string>;
           // Pick first counterparty status
           for (const [uid, status] of Object.entries(updates)) {
             const id = Number(uid);
@@ -135,8 +140,9 @@ export function useThreadRealtime({
       }
 
       if (type === 'delivered' && applyDelivered) {
-        const upToId = Number(payload.up_to_id ?? payload.last_delivered_id ?? 0);
-        const recipientId = Number(payload.user_id ?? payload.recipient_id ?? 0);
+        const p = (evt?.payload || evt);
+        const upToId = Number(p.up_to_id ?? p.last_delivered_id ?? 0);
+        const recipientId = Number(p.user_id ?? p.recipient_id ?? 0);
         if (Number.isFinite(upToId) && upToId > 0 && Number.isFinite(recipientId) && recipientId > 0) {
           try { applyDelivered(upToId, recipientId, myUserId); } catch {}
         }
@@ -145,7 +151,7 @@ export function useThreadRealtime({
 
       if ((type === 'reaction_added' || type === 'reaction_removed') && applyReactionEvent) {
         try {
-          const p = (payload?.payload || payload) as any;
+          const p = ((evt?.payload && (evt.payload.payload || evt.payload)) || evt.payload || evt) as any;
           const mid = Number(p?.message_id ?? 0);
           const userId = Number(p?.user_id ?? 0);
           const emoji = (p?.emoji || '').toString();
@@ -159,7 +165,8 @@ export function useThreadRealtime({
       }
 
       if (type === 'message_deleted' && applyMessageDeleted) {
-        const mid = Number(payload?.id ?? payload?.message_id ?? 0);
+        const p = (evt?.payload || evt);
+        const mid = Number(p?.id ?? p?.message_id ?? 0);
         if (Number.isFinite(mid) && mid > 0) {
           try { applyMessageDeleted(mid); } catch {}
         }
