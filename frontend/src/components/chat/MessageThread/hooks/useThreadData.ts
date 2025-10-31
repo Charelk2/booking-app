@@ -200,7 +200,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
   const transport = useTransportState();
 
   // Seed state from cache synchronously for stable first paint
-  const [messages, __setMessages] = React.useState<ThreadMessage[]>(() => {
+  const [messages, setMessages] = React.useState<ThreadMessage[]>(() => {
     try {
       const cached = readCache(threadId);
       if (!Array.isArray(cached) || cached.length === 0) return [];
@@ -220,29 +220,6 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
   });
   const [loadingOlder, setLoadingOlder] = React.useState(false);
   const [reachedHistoryStart, setReachedHistoryStart] = React.useState(false);
-
-  // Version bump to force virtualization layers to reconcile when the messages array identity changes
-  const [messagesVersion, _bumpVersion] = React.useReducer((v: number) => v + 1, 0);
-
-  // Wrapper setter that bumps the version whenever the array identity changes
-  const setMessages = React.useCallback(
-    (next: React.SetStateAction<ThreadMessage[]>) => {
-      if (typeof next === 'function') {
-        __setMessages((prev) => {
-          // @ts-expect-error functional update
-          const computed = next(prev);
-          if (computed !== prev) _bumpVersion();
-          return computed;
-        });
-      } else {
-        __setMessages((prev) => {
-          if (next !== prev) _bumpVersion();
-          return next as ThreadMessage[];
-        });
-      }
-    },
-    [],
-  );
 
   const messagesRef = React.useRef(messages);
   React.useEffect(() => { messagesRef.current = messages; }, [messages]);
@@ -752,7 +729,6 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
 
   return {
     messages,
-    messagesVersion,
     setMessages,
     loading,
     setLoading, // temporary (skeleton coordination)
