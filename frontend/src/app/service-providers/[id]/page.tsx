@@ -18,30 +18,19 @@ export default async function Page({ params }: { params: { id: string } }) {
     );
   }
 
-  try {
-    const [spRes, svcsRes, revsRes] = await Promise.all([
-      getServiceProvider(id),
-      getServiceProviderServices(id),
-      getServiceProviderReviews(id),
-    ]);
-    return (
-      <ProfileClient
-        serviceProviderId={id}
-        initialServiceProvider={spRes.data}
-        initialServices={svcsRes.data}
-        initialReviews={revsRes.data}
-      />
-    );
-  } catch {
-    // Fail-soft: render a not-found style shell instead of throwing on the server
-    const empty: any = null;
-    return (
-      <ProfileClient
-        serviceProviderId={id}
-        initialServiceProvider={empty}
-        initialServices={[]}
-        initialReviews={[]}
-      />
-    );
-  }
+  const [spRes, svcsRes, revsRes] = await Promise.all([
+    getServiceProvider(id),
+    getServiceProviderServices(id),
+    getServiceProviderReviews(id),
+  ]);
+
+  return (
+    <ProfileClient
+      serviceProviderId={id}
+      initialServiceProvider={spRes.data}
+      initialServices={svcsRes.data}
+      initialReviews={revsRes.data}
+    />
+  );
 }
+

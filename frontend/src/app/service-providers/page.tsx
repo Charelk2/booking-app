@@ -159,8 +159,8 @@ export default function ServiceProvidersPage() {
           limit: LIMIT,
           fields: [
             'id','business_name','custom_subtitle','profile_picture_url','portfolio_urls','hourly_rate','price_visible','rating','rating_count','location','service_categories','service_price','user.first_name','user.last_name'
-          ] as string[],
-        };
+          ],
+        } as const;
 
         const cached = getCachedServiceProviders(cacheParams);
         if (cached && !append) {
