@@ -489,6 +489,31 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     return () => {};
   }, [bookingRequestId, fetchMessagesRef]);
 
+  // One-shot reconcile hint right after subscribing to the topic — ensures any
+  // join-window gap is closed even if the echo arrived early.
+  React.useEffect(() => {
+    const once = (e: any) => {
+      try {
+        const d = (e && e.detail) || {};
+        const tid = Number(d.threadId || 0);
+        if (!Number.isFinite(tid) || tid !== Number(bookingRequestId)) return;
+        const list = messagesRef.current as any[] | undefined;
+        const hasCursor = Array.isArray(list) && list.length >= 200;
+        void fetchMessagesRef.current({
+          mode: hasCursor ? 'incremental' : 'initial',
+          force: true,
+          reason: 'realtime-reconcile-once',
+          limit: hasCursor ? 250 : 500,
+        });
+      } catch {}
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('thread:reconcile-once', once as any);
+      return () => { try { window.removeEventListener('thread:reconcile-once', once as any); } catch {} };
+    }
+    return () => {};
+  }, [bookingRequestId, fetchMessagesRef, messagesRef]);
+
   // ——— Ensure we land at the bottom when switching to an active thread
   React.useEffect(() => {
     if (!isActive) return;
