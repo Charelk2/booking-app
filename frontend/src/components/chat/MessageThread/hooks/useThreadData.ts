@@ -238,6 +238,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     messages.length ? Number(messages[messages.length - 1]?.id || 0) || null : null,
   );
   const missingThreadRef = React.useRef(false);
+  const deltaCooldownRef = React.useRef<number>(0);
 
   // Reset history flags when thread changes
   React.useEffect(() => {
@@ -453,6 +454,35 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     },
     [threadId, isActiveThread, transport.online, opts],
   );
+
+  // Lightweight delta reconcile after realtime events (best-effort)
+  const fetchDelta = React.useCallback(async (reason: string = 'delta') => {
+    try {
+      const after = Number(lastMessageIdRef.current || 0);
+      if (!Number.isFinite(after) || after <= 0) return;
+      const now = Date.now();
+      if (now < (deltaCooldownRef.current || 0)) return;
+      deltaCooldownRef.current = now + 600; // throttle
+      const res = await apiList(threadId, {
+        limit: 100,
+        mode: 'delta' as any,
+        after_id: after,
+        fields: 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions',
+      } as any);
+      const rows = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
+      if (!rows.length) return;
+      const newer = rows.map(normalizeForRender).filter((m) => Number.isFinite(m.id) && m.id > 0);
+      if (!newer.length) return;
+      setMessages((prev) => {
+        const next = mergeMessages(prev, newer);
+        const last = next[next.length - 1];
+        if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
+        return next;
+      });
+    } catch {
+      // swallow — delta is best-effort
+    }
+  }, [threadId]);
 
   // Abort on unmount to prevent stray merges
   React.useEffect(() => () => { try { abortRef.current?.abort(); } catch {} }, []);
@@ -761,6 +791,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     loading,
     setLoading, // temporary (skeleton coordination)
     fetchMessages,
+    fetchDelta,
     fetchOlder,
     loadingOlder,
     reachedHistoryStart,

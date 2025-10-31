@@ -624,6 +624,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     ingestMessage: (useStableCallback as any)(handlers.ingestExternalMessage),
     applyReadReceipt: (useStableCallback as any)(handlers.applyReadReceipt),
     applyDelivered: (useStableCallback as any)(handlers.applyDelivered),
+    pokeDelta: () => { try { (fetchDelta as any)('post-ws'); } catch {} },
     applyReactionEvent: (evt: { messageId: number; emoji: string; userId: number; kind: 'added' | 'removed' }) => {
       const { messageId, emoji, userId, kind } = evt || ({} as any);
       setMessages((prev: any[]) =>

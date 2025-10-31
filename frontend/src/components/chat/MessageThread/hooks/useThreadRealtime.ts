@@ -12,6 +12,8 @@ type UseThreadRealtimeOptions = {
   applyReactionEvent?: (evt: { messageId: number; emoji: string; userId: number; kind: 'added' | 'removed' }) => void;
   applyMessageDeleted?: (messageId: number) => void;
   applyDelivered?: (upToId: number, recipientId: number, myUserId?: number | null) => void;
+  // Optional: request a quick delta reconcile after realtime if UI did not visibly update yet
+  pokeDelta?: (reason?: string) => void;
 };
 
 const THREAD_TOPIC_PREFIX = 'booking-requests:';
@@ -25,6 +27,7 @@ export function useThreadRealtime({
   applyReactionEvent,
   applyMessageDeleted,
   applyDelivered,
+  pokeDelta,
 }: UseThreadRealtimeOptions) {
   const { subscribe } = useRealtimeContext();
   const seenIdsRef = (typeof window !== 'undefined') ? (window as any).__threadSeenIds ?? new Map<number, Set<number>>() : new Map<number, Set<number>>();
@@ -57,6 +60,12 @@ export function useThreadRealtime({
         } catch (e) {
           try { console.warn('[realtime] ingest failed', e, { keys: raw && typeof raw === 'object' ? Object.keys(raw) : [] }); } catch {}
         }
+        // Best-effort: nudge a tiny delta fetch shortly after to guarantee visibility.
+        try {
+          if (typeof pokeDelta === 'function') setTimeout(() => {
+            try { pokeDelta('post-ws-message'); } catch {}
+          }, 140);
+        } catch {}
         const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
         const mid = Number(raw?.id ?? 0);
         // Deduplicate by message id to avoid double unread on fast+reliable deliveries
@@ -214,6 +223,8 @@ export function useThreadRealtime({
               if (synthetic.content) ingestMessage(synthetic);
             }
           } catch {}
+          // And nudge a tiny delta fetch to ensure parity if echo is delayed
+          try { if (typeof pokeDelta === 'function') pokeDelta('thread_tail'); } catch {}
           // No reconcile events otherwise; UI ingests realtime directly
         }
         return;
