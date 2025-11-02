@@ -207,20 +207,25 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               low.startsWith('listing approved:') ||
               low.startsWith('listing rejected:')
             );
-            const stub = {
-              id: -Date.now(),
-              booking_request_id: threadId,
-              sender_id: 0,
-              sender_type: 'client',
-              content: text,
-              message_type: isSystem ? 'SYSTEM' : 'USER',
-              visible_to: 'both',
-              is_read: isActive,
-              timestamp: newNotif.timestamp,
-              avatar_url: null,
-            } as any;
-            // Push stub to ephemeral overlay; persist layer remains clean
-            addEphemeralStub(threadId, stub);
+            // Skip ephemeral stub specifically for new booking requests, since
+            // the real booking-details card follows immediately and a preview would flicker.
+            const isNewRequest = low.startsWith('booking details:') || low.includes('new booking request') || low.includes('you have a new booking request');
+            if (!isNewRequest) {
+              const stub = {
+                id: -Date.now(),
+                booking_request_id: threadId,
+                sender_id: 0,
+                sender_type: 'client',
+                content: text,
+                message_type: isSystem ? 'SYSTEM' : 'USER',
+                visible_to: 'both',
+                is_read: isActive,
+                timestamp: newNotif.timestamp,
+                avatar_url: null,
+              } as any;
+              // Push stub to ephemeral overlay; persist layer remains clean
+              addEphemeralStub(threadId, stub);
+            }
             // If the active thread matches, nudge a delta reconcile to force-tail visibility
             if (isActive && typeof window !== 'undefined') {
               try { window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId, source: 'notification' } })); } catch {}

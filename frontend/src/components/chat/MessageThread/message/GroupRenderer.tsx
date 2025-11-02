@@ -175,16 +175,6 @@ export default function GroupRenderer({
         {header}
         {/* Coalesce image-only sequences into album blocks */}
         {(() => {
-          // If this group already contains a booking-details summary line,
-          // hide the generic "New booking request" system notice for service providers
-          // to avoid duplicate CTAs. Do not hide the booking-details summary itself.
-          const groupHasBookingDetails = (() => {
-            try {
-              return group.messages.some((mm: any) => typeof mm?.content === 'string' && mm.content.startsWith(BOOKING_DETAILS_PREFIX));
-            } catch {
-              return false;
-            }
-          })();
           const out: Array<{ type: 'album'; items: { id: number; url: string }[] } | { type: 'msg'; m: any }> = [];
           const isImageOnly = (mm: any) => {
             const url = mm?.attachment_url as string | undefined;
@@ -235,8 +225,8 @@ export default function GroupRenderer({
             }
 
             const m = entry.m;
-            const fromSelfMsg = Number(m?.sender_id) === Number(myUserId);
-            const url = m?.attachment_url as string | undefined;
+          const fromSelfMsg = Number(m?.sender_id) === Number(myUserId);
+          const url = m?.attachment_url as string | undefined;
           // Detect media by extension and, if available, by content-type metadata
           const meta = (m as any)?.attachment_meta as { content_type?: string; original_filename?: string } | undefined;
           // Normalize content-type and prefer it over extension when present
@@ -254,26 +244,15 @@ export default function GroupRenderer({
           const quoteId = Number(m?.quote_id || 0);
 
           // System message line (rich renderer)
-          if (isSystem || isInquiryCard) {
-            // Dedupe: if a booking-details summary exists in this group and this
-            // is the generic new-booking notice, skip rendering it for providers.
-            try {
-              const textLow = String(m?.content || '').trim().toLowerCase();
-              const isGenericNewBooking = textLow.includes('new booking request') || textLow.includes('you have a new booking request');
-              if (userType === 'service_provider' && groupHasBookingDetails && isGenericNewBooking) {
-                return null;
-              }
-            } catch {}
-            return (
-              <SystemMessage
-                key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)}
-                msg={m}
-                hasAnyQuote={hasAnyQuote}
-                onOpenDetails={onOpenDetailsPanel}
-                onOpenQuote={onOpenQuote}
-              />
-            );
-          }
+          if (isSystem || isInquiryCard) return (
+            <SystemMessage
+              key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)}
+              msg={m}
+              hasAnyQuote={hasAnyQuote}
+              onOpenDetails={onOpenDetailsPanel}
+              onOpenQuote={onOpenQuote}
+            />
+          );
 
           // Quote block (render if loaded, else show placeholder; effect above requests loads)
           if (quoteId > 0) {
