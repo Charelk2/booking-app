@@ -339,6 +339,18 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         try { return new Date(sumTs).getTime() > new Date(lastTs || 0).getTime(); } catch { return false; }
       })();
       if (!newer || !sumText) return base;
+      // Suppress synthetic preview for initial booking requests to avoid a brief
+      // flicker (the real booking‑details and new‑request cards follow immediately).
+      try {
+        const low = String(sumText || '').trim().toLowerCase();
+        const isNewRequest = (
+          low === 'new booking request' ||
+          low.includes('new booking request') ||
+          low.startsWith('you have a new booking request') ||
+          low.startsWith('booking details:')
+        );
+        if (isNewRequest) return base;
+      } catch {}
       // Try to detect attachments from the local thread cache (best-effort)
       let attachmentLabel: string | null = null;
       let attachmentUrl: string | null = null;
