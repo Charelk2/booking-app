@@ -84,7 +84,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const tokenRef = useRef<string | null>(token);
   useEffect(() => {
     tokenRef.current = token;
@@ -207,10 +207,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               low.startsWith('listing approved:') ||
               low.startsWith('listing rejected:')
             );
-            // Skip ephemeral stub specifically for new booking requests, since
-            // the real booking-details card follows immediately and a preview would flicker.
+            // Skip ephemeral stub for new booking requests only for service providers.
             const isNewRequest = low.startsWith('booking details:') || low.includes('new booking request') || low.includes('you have a new booking request');
-            if (!isNewRequest) {
+            const isProvider = String((user as any)?.user_type || '').toLowerCase() === 'service_provider';
+            if (!(isProvider && isNewRequest)) {
               const stub = {
                 id: -Date.now(),
                 booking_request_id: threadId,

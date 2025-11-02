@@ -339,8 +339,8 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         try { return new Date(sumTs).getTime() > new Date(lastTs || 0).getTime(); } catch { return false; }
       })();
       if (!newer || !sumText) return base;
-      // Suppress synthetic preview for initial booking requests to avoid a brief
-      // flicker (the real booking‑details and new‑request cards follow immediately).
+      // Suppress synthetic preview for initial booking requests for providers only
+      // to avoid a brief flicker. Clients still benefit from the preview.
       try {
         const low = String(sumText || '').trim().toLowerCase();
         const isNewRequest = (
@@ -349,7 +349,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           low.startsWith('you have a new booking request') ||
           low.startsWith('booking details:')
         );
-        if (isNewRequest) return base;
+        if (userType === 'service_provider' && isNewRequest) return base;
       } catch {}
       // Try to detect attachments from the local thread cache (best-effort)
       let attachmentLabel: string | null = null;
