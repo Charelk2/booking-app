@@ -95,8 +95,14 @@ export default function MessageThreadWrapper({
       const accepted = Number((bookingRequest as any)?.accepted_quote_id || 0);
       if (Number.isFinite(accepted) && accepted > 0) ids.push(accepted);
     } catch {}
-    if (ids.length) void prefetchQuotesByIds(ids);
-  }, [bookingRequest]);
+    if (!ids.length) return;
+    // Prefetch to global cache for fast subsequent loads, then ensure this
+    // component's local state is hydrated so the side panel totals render.
+    (async () => {
+      try { await prefetchQuotesByIds(ids); } catch {}
+      try { await ensureQuotesLoaded(ids); } catch {}
+    })();
+  }, [bookingRequest, ensureQuotesLoaded]);
 
   /** Payment modal */
   const { openPaymentModal, paymentModal } = usePaymentModal(

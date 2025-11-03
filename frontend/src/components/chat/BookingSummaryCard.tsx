@@ -259,8 +259,12 @@ export default function BookingSummaryCard({
         {/* Estimate or Quote Totals */}
         {(() => {
           const quoteList = Object.values(quotes || {});
-          const accepted = quoteList.find((q) => q.status === 'accepted');
-          const pending = quoteList.filter((q) => q.status === 'pending');
+          // Tolerate variant status strings (e.g., 'accepted_by_client', 'pending_client_action')
+          const accepted = quoteList.find((q: any) => String(q?.status || '').toLowerCase().includes('accept'));
+          const pending = quoteList.filter((q: any) => {
+            const s = String(q?.status || '').toLowerCase();
+            return s === 'pending' || s.includes('pending');
+          });
           const latestPending = pending.sort((a, b) => (a.id || 0) - (b.id || 0)).slice(-1)[0];
           const best = accepted || latestPending;
 
