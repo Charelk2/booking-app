@@ -113,14 +113,9 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     // reconnect after a hard refresh when AuthContext had not yet restored the
     // in-memory token (despite valid auth cookies). We now always provide a URL
     // and rely on subprotocols or cookies when available.
-    // Attach token as a query parameter for compatibility with proxies/tests
-    // while still also sending it via Sec-WebSocket-Protocol.
+    // Do not attach tokens in the URL; authenticate via cookies.
     try {
       const u = new URL(base);
-      const tCandidate = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || '';
-      if (tCandidate) {
-        u.searchParams.set('token', tCandidate);
-      }
       return u.toString();
     } catch {
       return base;
@@ -130,7 +125,6 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const sseUrlForTopics = useCallback((topics: string[]) => {
     const qs = new URLSearchParams();
     if (topics.length) qs.set('topics', topics.join(','));
-    if (token) qs.set('token', token);
     // Prefer API origin; fall back to same-origin only if not configured
     const base = SSE_BASE_ENV;
     return base ? `${base}/api/v1/sse?${qs.toString()}` : `/api/v1/sse?${qs.toString()}`;
@@ -167,9 +161,8 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
     setStatus(attemptsRef.current > 0 ? 'reconnecting' : 'connecting');
     connectingRef.current = true;
-    const tok = (wsToken && wsToken.trim()) || (lastTokenRef.current && lastTokenRef.current.trim()) || null;
-    const subprotocols = tok ? (['bearer', tok] as string[]) : undefined;
-    const ws = subprotocols ? new WebSocket(wsUrl, subprotocols) : new WebSocket(wsUrl);
+    // Authenticate via cookies; avoid passing bearer tokens in subprotocols
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     ws.onopen = () => {
       // Mark open time; do not reset attempts immediately — only after a

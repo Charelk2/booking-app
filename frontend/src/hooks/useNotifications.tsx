@@ -9,8 +9,12 @@ import {
   useRef,
   ReactNode,
 } from 'react';
-import axios, { type AxiosRequestHeaders } from 'axios';
-import { getApiOrigin } from '@/lib/api';
+import {
+  getNotifications as apiGetNotifications,
+  markNotificationRead as apiMarkNotificationRead,
+  markAllNotificationsRead as apiMarkAllNotificationsRead,
+  deleteNotification as apiDeleteNotification,
+} from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,26 +41,8 @@ function extractThreadId(notif: Notification): number | null {
   return null;
 }
 
-// Use the root API URL and include the /api prefix on each request so
-// paths match the FastAPI router mounted with prefix="/api".
-// All REST requests use the v1 prefix so calls line up with the backend router
-// mounted at /api/v1.
-const api = axios.create({
-  baseURL: `${getApiOrigin()}/api/v1`,
-  withCredentials: true,
-});
-
-let currentToken: string | null = null;
-
-api.interceptors.request.use((config) => {
-  if (currentToken) {
-    config.headers = {
-      ...(config.headers as AxiosRequestHeaders),
-      Authorization: `Bearer ${currentToken}`,
-    } as AxiosRequestHeaders;
-  }
-  return config;
-});
+// Use shared API client functions which already handle credentials and
+// one-time 401→refresh→retry behavior.
 
 
 interface NotificationsContextValue {
@@ -84,12 +70,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const { token, user } = useAuth();
-  const tokenRef = useRef<string | null>(token);
-  useEffect(() => {
-    tokenRef.current = token;
-    currentToken = token;
-  }, [token]);
+  const { user } = useAuth();
 
   // Cache ETag + throttle to avoid flooding the API while navigating
   const lastEtagRef = useRef<string | null>(null);
@@ -102,18 +83,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     inflightRef.current = (async () => {
       try {
-        const res = await api.get<Notification[]>('/notifications', {
-          params: { limit: 20, unreadOnly: false },
-          validateStatus: (s) => s === 200 || s === 304,
-          headers: lastEtagRef.current ? { 'If-None-Match': lastEtagRef.current } : undefined,
-        });
+        // Note: shared api client currently does not expose ETag-aware
+        // options. We keep a simple 5s throttle which is sufficient.
+        const res = await apiGetNotifications(0, 20);
         lastFetchAtRef.current = Date.now();
-        try { lastEtagRef.current = String((res.headers as any)?.etag || '') || lastEtagRef.current; } catch {}
-        if (res.status === 304) { setLoading(false); inflightRef.current = null; return; }
-      setNotifications(res.data);
-      setUnreadCount(res.data.filter((n) => !n.is_read).length);
-      setHasMore(res.data.length === 20);
-      setError(null);
+        try { lastEtagRef.current = String((res as any)?.headers?.etag || '') || lastEtagRef.current; } catch {}
+        const items = res.data as any as Notification[];
+        setNotifications(items);
+        setUnreadCount(items.filter((n) => !n.is_read).length);
+        setHasMore(items.length === 20);
+        setError(null);
       } catch (err) {
       console.error('Failed to load notifications:', err);
       const msg = authAwareMessage(
@@ -242,7 +221,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       }
     });
     return () => { try { unsub(); } catch {} };
-  }, [subscribe, token]);
+  }, [subscribe]);
 
   const markAsRead = useCallback(async (id: number) => {
     // 1) optimistic update
@@ -251,7 +230,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     );
     setUnreadCount((c) => Math.max(0, c - 1));
     try {
-      await api.put(`/notifications/${id}/read`);
+      await apiMarkNotificationRead(id);
     } catch (err) {
       // rollback
       setNotifications((ns) =>
@@ -275,7 +254,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setNotifications((p) => p.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
       try {
-        await api.put('/notifications/read-all');
+        await apiMarkAllNotificationsRead();
       } catch (err) {
         setNotifications(prev);
         setUnreadCount(prevCount);
@@ -293,7 +272,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const deleteNotification = useCallback(async (id: number) => {
     try {
-      await api.delete(`/notifications/${id}`);
+      await apiDeleteNotification(id);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       setUnreadCount((c) => Math.max(0, c - 1));
     } catch (err) {

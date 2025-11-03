@@ -1257,9 +1257,10 @@ export const retrySoundOutreach = (
 ) => api.post(`${API_V1}/bookings/${bookingId}/sound/retry`, data || {});
 const API_NOTIFICATIONS = API_V1;
 
-export const getNotifications = (skip = 0, limit = 20) =>
+export const getNotifications = (skip = 0, limit = 20, config?: AxiosRequestConfig) =>
   api.get<Notification[]>(
-    `${API_NOTIFICATIONS}/notifications?skip=${skip}&limit=${limit}`,
+    `${API_NOTIFICATIONS}/notifications`,
+    { params: { skip, limit }, ...(config || {}) },
   );
 
 export const markNotificationRead = (id: number) =>
@@ -1267,6 +1268,9 @@ export const markNotificationRead = (id: number) =>
 
 export const markAllNotificationsRead = () =>
   api.put(`${API_NOTIFICATIONS}/notifications/read-all`);
+
+export const deleteNotification = (id: number) =>
+  api.delete(`${API_NOTIFICATIONS}/notifications/${id}`);
 
 export const getMessageThreads = () =>
   api.get<ThreadNotification[]>(
