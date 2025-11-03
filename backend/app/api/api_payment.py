@@ -468,29 +468,7 @@ def paystack_verify(
     return {"status": "ok", "payment_id": simple.payment_id}
 
 
-@router.get("/{payment_id}/receipt")
-def download_receipt(payment_id: str, request: Request, db: Session = Depends(get_db)):
-    """Return a minimal plaintext receipt for the given payment id.
-
-    In test mode we emit a small text response so callers can download it.
-    """
-    # Try to find a booking_simple with this payment_id to extract some context
-    bs = db.query(BookingSimple).filter(BookingSimple.payment_id == payment_id).first()
-    lines = [
-        f"Payment ID: {payment_id}",
-        f"Date: {datetime.utcnow().isoformat()}Z",
-    ]
-    if bs:
-        try:
-            amt = bs.charged_total_amount or Decimal("0")
-            lines.append(f"Amount: {amt} ZAR")
-        except Exception:
-            pass
-        if bs.quote and bs.quote.booking_request_id:
-            lines.append(f"Booking Request: {bs.quote.booking_request_id}")
-    body = "\n".join(lines) + "\n"
-    headers = {"Content-Disposition": f"attachment; filename=receipt-{payment_id}.txt"}
-    return Response(content=body, media_type="text/plain", headers=headers)
+## Removed plaintext receipt endpoint; HTML/PDF receipt implemented below.
 
 
 @router.post("/paystack/webhook")
