@@ -193,13 +193,22 @@ export function useThreadRealtime({
         const lastId = Number(p?.last_id ?? 0);
         const lastTs = (p?.last_ts || null) as string | null;
         const snippet = (p?.snippet || '') as string;
+        // Derive a friendly preview for known system lines to avoid a brief
+        // flicker from raw content (e.g., order numbers) to the normalized
+        // label once the server preview arrives.
+        const rawText = String(snippet || '').trim();
+        const lowText = rawText.toLowerCase();
+        let previewLabel = rawText;
+        if (lowText.startsWith('payment received')) {
+          previewLabel = 'Payment received';
+        }
         if (Number.isFinite(tid) && tid === Number(threadId)) {
           try {
             threadStore.update(tid, {
               id: tid,
               last_message_id: Number.isFinite(lastId) && lastId > 0 ? lastId : (undefined as any),
               last_message_timestamp: (lastTs || undefined) as any,
-              last_message_content: snippet || undefined,
+              last_message_content: previewLabel || undefined,
             } as any);
           } catch {}
           // Also append a minimal synthetic bubble immediately so the open thread

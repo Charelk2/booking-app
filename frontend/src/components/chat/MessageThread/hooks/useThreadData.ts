@@ -777,7 +777,17 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
 
     const previewLabel = String((last as any)?.preview_label || '');
     const contentText = String((last?.content ?? last?.text ?? '') || '');
-    const collapsedPreview = previewLabel || (contentText.startsWith(BOOKING_DETAILS_PREFIX) ? 'New Booking Request' : contentText);
+    const lowText = contentText.toLowerCase();
+    let collapsedPreview = previewLabel;
+    if (!collapsedPreview) {
+      if (contentText.startsWith(BOOKING_DETAILS_PREFIX)) {
+        collapsedPreview = 'New Booking Request';
+      } else if (lowText.startsWith('payment received')) {
+        collapsedPreview = 'Payment received';
+      } else {
+        collapsedPreview = contentText;
+      }
+    }
 
     try {
       const nextList = list.map((s: any) =>
