@@ -1,6 +1,7 @@
 // components/chat/MessageThread/message/SystemMessage.tsx
 import * as React from 'react';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
+import { apiUrl } from '@/lib/api';
 import { t } from '@/lib/i18n';
 
 type SystemMessageProps = {
@@ -10,7 +11,8 @@ type SystemMessageProps = {
   hasAnyQuote?: boolean;
 };
 
-const urlRegex = /(https?:\/\/[^\s]+)/i;
+const absUrlRegex = /(https?:\/\/[^\s]+)/i;
+const relUrlRegex = /(\/api\/[\S]+)/i;
 
 export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQuote = false }: SystemMessageProps) {
   try {
@@ -83,8 +85,11 @@ export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQ
 
     // Payment received
     if (key.includes('payment_received') || content.toLowerCase().includes('payment received')) {
-      const m = content.match(urlRegex);
-      const receiptUrl = m?.[1];
+      // Extract a receipt link from the content. Prefer absolute; fall back to
+      // relative and normalize to absolute using apiUrl.
+      const abs = content.match(absUrlRegex)?.[1] || null;
+      const rel = abs ? null : (content.match(relUrlRegex)?.[1] || null);
+      const receiptUrl = abs || (rel ? apiUrl(rel) : null);
       return (
         <div className="my-2 w-full flex justify-center">
           <div className="text-[12px] text-gray-700 bg-green-50 border border-green-200 px-2 py-1 rounded">
