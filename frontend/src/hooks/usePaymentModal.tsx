@@ -35,9 +35,16 @@ export default function usePaymentModal(
       amount={args.amount}
       providerName={args.providerName}
       serviceName={args.serviceName}
-      onClose={() => setOpen(false)}
-      onSuccess={(result) => {
+      onClose={() => {
+        // Unmount the modal to reset its internal state (Paystack URL/reference,
+        // timers, errors). This prevents being "stuck" on re-open after closing.
         setOpen(false);
+        setArgs(null);
+      }}
+      onSuccess={(result) => {
+        // Close and unmount so any inline/iframe state and polling are torn down
+        setOpen(false);
+        setArgs(null);
         try {
           if (args?.bookingRequestId) {
             emitThreadsUpdated({ threadId: args.bookingRequestId, reason: 'payment', source: 'client', immediate: true }, { immediate: true, force: true });
