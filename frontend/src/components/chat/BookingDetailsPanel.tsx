@@ -10,6 +10,7 @@ import BookingSummaryCard from '@/components/chat/BookingSummaryCard';
 import { getEventPrep, getMyServices } from '@/lib/api';
 import { AddServiceCategorySelector } from '@/components/dashboard';
 import { useRouter } from 'next/navigation';
+import { counterpartyAvatar, counterpartyLabel } from '@/lib/names';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -324,14 +325,17 @@ export default function BookingDetailsPanel({
           // Legacy aliases (back-compat)
           (bookingRequest as any)?.artist_profile?.cover_photo_url ||
           (bookingRequest as any)?.artist_profile?.profile_picture_url ||
+          // As a last resort, derive from role-aware helper
+          counterpartyAvatar(bookingRequest as any, user as any, (bookingRequest as any)?.counterparty_avatar_url || null) ||
           null;
 
-        // Display name preference
+        // Display name preference; fall back to counterparty label so header isn't generic
         const artistName =
           (bookingRequest as any)?.service_provider_profile?.business_name ||
           (bookingRequest as any)?.service_provider?.business_name ||
           (bookingRequest as any)?.artist_profile?.business_name ||
           (bookingRequest as any)?.artist?.first_name ||
+          counterpartyLabel(bookingRequest as any, user as any, (bookingRequest as any)?.counterparty_label || null) ||
           undefined;
 
         const cancellationPolicy =
