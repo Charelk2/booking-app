@@ -1285,6 +1285,19 @@ export const markThreadRead = (bookingRequestId: number) =>
 export const markThreadMessagesRead = (bookingRequestId: number) =>
   api.put(`${API_V1}/booking-requests/${bookingRequestId}/messages/read`);
 
+// ─── INBOX UNREAD (aggregate) ───────────────────────────────────────────────
+export const getInboxUnread = (config?: AxiosRequestConfig) =>
+  api.get<{ total?: number; count?: number }>(
+    `${API_V1}/inbox/unread`,
+    {
+      // Accept 200 or 304 when caller supplies If-None-Match
+      validateStatus: (s) => s === 200 || s === 304,
+      // Include a cache buster param similar to prior implementation
+      params: { _: Date.now() },
+      ...(config || {}),
+    },
+  );
+
 // ─── MESSAGE THREADS PREVIEW (atomic previews + unread counts) ─────────────
 export interface ThreadPreviewResponse {
   items: ThreadPreview[];

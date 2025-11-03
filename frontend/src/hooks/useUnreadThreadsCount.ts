@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
-import { getApiOrigin } from '@/lib/api';
+import { getInboxUnread } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { subscribe as cacheSubscribe, getSummaries as cacheGetSummaries } from '@/lib/chat/threadCache';
 
 // Lightweight client-side cache to reduce server load from frequent updates
@@ -16,17 +16,11 @@ function fetchAggregateUnread(prev?: number): Promise<number> {
   }
   if (_unreadInflight) return _unreadInflight;
   _unreadLastFetchAt = now;
-  _unreadInflight = axios
-    .get<{ total?: number; count?: number }>(`${getApiOrigin()}/api/v1/inbox/unread`, {
-      withCredentials: true,
-      // Treat 200 or 304 as success; keep previous on 304
-      validateStatus: (s) => s === 200 || s === 304,
-      headers: {
-        'Cache-Control': 'no-cache',
-        ...(_unreadLastEtag ? { 'If-None-Match': _unreadLastEtag } : {}),
-      },
-      params: { _: Date.now() },
-    })
+  _unreadInflight = getInboxUnread({
+    // Treat 200 or 304 as success; keep previous on 304
+    validateStatus: (s) => s === 200 || s === 304,
+    headers: _unreadLastEtag ? { 'If-None-Match': _unreadLastEtag } : undefined,
+  })
     .then((r) => {
       try { _unreadLastEtag = String((r.headers as any)?.etag || '') || _unreadLastEtag; } catch {}
       if (r.status === 304) return typeof prev === 'number' ? prev : 0;
@@ -39,6 +33,7 @@ function fetchAggregateUnread(prev?: number): Promise<number> {
 
 export default function useUnreadThreadsCount() {
   const [count, setCount] = useState<number>(0);
+  const { user } = useAuth();
 
   const compute = useCallback(async (prevCount?: number) => {
     const list = cacheGetSummaries() as any[];
@@ -55,6 +50,7 @@ export default function useUnreadThreadsCount() {
   useEffect(() => {
     let canceled = false;
     const setFromCompute = async () => {
+      if (!user) { if (!canceled) setCount(0); return; }
       const next = await compute(count);
       if (!canceled) setCount(next);
     };
@@ -90,7 +86,7 @@ export default function useUnreadThreadsCount() {
         document.removeEventListener('visibilitychange', onVisibility);
       }
     };
-  }, [compute]);
+  }, [compute, user]);
 
   return useMemo(() => ({ count }), [count]);
 }
