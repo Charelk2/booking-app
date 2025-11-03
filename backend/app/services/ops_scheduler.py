@@ -250,9 +250,8 @@ def handle_pre_event_reminders(db: Session) -> int:
         if not br_id:
             continue
 
-        # Compose concise, actionable reminders
-        date_str = b.start_time.strftime("%Y-%m-%d %H:%M")
-        ics_link = f"/api/v1/bookings/{b.id}/calendar.ics"
+        # Compose concise, actionable reminders (date-only; no time)
+        date_str = b.start_time.strftime("%Y-%m-%d")
 
         # If sound is still pending, inform artist specifically
         sound_pending = b.status == models.BookingStatus.PENDING_SOUND
@@ -262,19 +261,25 @@ def handle_pre_event_reminders(db: Session) -> int:
         if not client or not artist:
             continue
 
-        # Client-facing message
-        content_client = (
-            f"{label}: {date_str}. Add to calendar: {ics_link}. "
-            "Please share any access/parking details and confirm guest count."
+        # Unified message content for both client and artist
+        simplified = f"{label}: {date_str}. Please ensure Eventprep is updated."
+        _post_system(
+            db,
+            br_id,
+            actor_id=artist.id,
+            content=simplified,
+            visible_to=models.VisibleTo.CLIENT,
+            system_key="event_reminder",
         )
-        _post_system(db, br_id, actor_id=artist.id, content=content_client, visible_to=models.VisibleTo.CLIENT, system_key="event_reminder")
 
-        # Artist-facing message
-        content_artist = (
-            f"{label}: {date_str}. Tech check and arrival time confirmed? "
-            "If sound is required, ensure supplier status is up to date in this thread."
+        _post_system(
+            db,
+            br_id,
+            actor_id=artist.id,
+            content=simplified,
+            visible_to=models.VisibleTo.ARTIST,
+            system_key="event_reminder",
         )
-        _post_system(db, br_id, actor_id=artist.id, content=content_artist, visible_to=models.VisibleTo.ARTIST, system_key="event_reminder")
 
         sent += 2
     return sent
