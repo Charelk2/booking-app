@@ -79,15 +79,22 @@ class ThreadStoreInternal {
     if (!record || !record.id) return;
     const existingIndex = this.threads.findIndex((t) => t.id === record.id);
     if (existingIndex >= 0) {
+      const prev = this.threads[existingIndex];
+      const prevTs = coerceTimestamp(prev.last_message_timestamp || prev.updated_at || prev.created_at);
       const merged = {
         ...this.threads[existingIndex],
         ...this.normalizeRecord(record, this.threads[existingIndex]),
       } as ThreadRecord;
+      const nextTs = coerceTimestamp(merged.last_message_timestamp || merged.updated_at || merged.created_at);
+      const orderingChanged = nextTs !== prevTs;
       this.threads = [
         ...this.threads.slice(0, existingIndex),
         cloneThread(merged),
         ...this.threads.slice(existingIndex + 1),
       ];
+      if (orderingChanged) this.sort();
+      this.notify();
+      return;
     } else {
       const normalized = this.normalizeRecord(record);
       this.threads = [...this.threads, cloneThread(normalized)];
@@ -100,16 +107,20 @@ class ThreadStoreInternal {
     if (!threadId) return;
     const idx = this.threads.findIndex((thread) => thread.id === threadId);
     if (idx === -1) return;
+    const prev = this.threads[idx];
+    const prevTs = coerceTimestamp(prev.last_message_timestamp || prev.updated_at || prev.created_at);
     const merged = {
       ...this.threads[idx],
       ...this.normalizeRecord(patch, this.threads[idx]),
     } as ThreadRecord;
+    const nextTs = coerceTimestamp(merged.last_message_timestamp || merged.updated_at || merged.created_at);
+    const orderingChanged = nextTs !== prevTs;
     this.threads = [
       ...this.threads.slice(0, idx),
       cloneThread(merged),
       ...this.threads.slice(idx + 1),
     ];
-    this.sort();
+    if (orderingChanged) this.sort();
     this.notify();
   }
 
