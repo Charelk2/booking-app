@@ -110,17 +110,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!tokenRef.current) return;
+    if (!user) return;
     // Gentle delay to avoid contending with heavy first-paint API calls
     const t = setTimeout(() => { void fetchNotifications(); }, 1000);
     const id = setInterval(fetchNotifications, 30_000);
     return () => { clearTimeout(t); clearInterval(id); };
-  }, [fetchNotifications, token]);
+  }, [fetchNotifications, user]);
 
   const { subscribe, publish } = useRealtimeContext();
 
   useEffect(() => {
-    if (!token) return;
+    if (!user) return;
     const unsub = subscribe('notifications', (data) => {
       try {
         if (data.type === 'reconnect' || data.type === 'ping') return;
@@ -221,7 +221,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       }
     });
     return () => { try { unsub(); } catch {} };
-  }, [subscribe]);
+  }, [subscribe, user]);
 
   const markAsRead = useCallback(async (id: number) => {
     // 1) optimistic update
@@ -288,15 +288,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const loadMore = useCallback(async () => {
     try {
-      const res = await api.get<Notification[]>('/notifications', {
-        params: {
-          skip: notifications.length,
-          limit: 20,
-          unreadOnly: false,
-        },
-      });
-      setNotifications((prev) => [...prev, ...res.data]);
-      setHasMore(res.data.length === 20);
+      const res = await apiGetNotifications(notifications.length, 20);
+      const items = res.data as any as Notification[];
+      setNotifications((prev) => [...prev, ...items]);
+      setHasMore(items.length === 20);
       setError(null);
     } catch (err) {
       console.error('Failed to load more notifications:', err);
