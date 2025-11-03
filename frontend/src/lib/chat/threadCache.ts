@@ -1,4 +1,5 @@
 import Dexie, { Table } from 'dexie';
+import { safeParseDate } from '@/lib/chat/threadStore';
 
 // Unified chat cache: one cache → two subscribers → zero wasted work.
 // This file owns summaries, per-thread messages, and unread bookkeeping,
@@ -275,10 +276,15 @@ function notify() {
   listeners.forEach((fn) => { try { fn(); } catch {} });
 }
 
+function tsToMs(value: string | null | undefined): number {
+  const t = safeParseDate(String(value || '')).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
 function sortSummaries(arr: ThreadSummary[]): ThreadSummary[] {
   return [...arr].sort((a, b) => {
-    const at = Date.parse(String(a.last_message_timestamp || '')) || 0;
-    const bt = Date.parse(String(b.last_message_timestamp || '')) || 0;
+    const at = tsToMs(a.last_message_timestamp);
+    const bt = tsToMs(b.last_message_timestamp);
     if (bt !== at) return bt - at;
     return (Number(b.id) || 0) - (Number(a.id) || 0);
   });
@@ -315,8 +321,20 @@ export function setSummaries(list: ThreadSummary[]): void {
   next.forEach((it) => {
     const id = Number(it.id);
     const prev = summaries.get(id);
-    const merged = prev ? { ...prev, ...it } : it;
-    byId.set(id, merged);
+    if (prev) {
+      // Monotonic timestamp merge: never move a thread backwards in time
+      const prevTs = tsToMs(prev.last_message_timestamp as string);
+      const nextTs = tsToMs(it.last_message_timestamp as string);
+      const merged = { ...prev, ...it } as ThreadSummary;
+      if (prevTs && nextTs && nextTs < prevTs) {
+        merged.last_message_timestamp = prev.last_message_timestamp;
+        merged.last_message_content = prev.last_message_content;
+        merged.last_message_id = prev.last_message_id;
+      }
+      byId.set(id, merged);
+    } else {
+      byId.set(id, it);
+    }
   });
   summaries.clear();
   byId.forEach((v, k) => summaries.set(k, v));
@@ -331,7 +349,18 @@ export function setSummaries(list: ThreadSummary[]): void {
 export function updateSummary(id: number, patch: Partial<ThreadSummary>) {
   const tid = Number(id);
   const prev = summaries.get(tid) || ({ id: tid } as ThreadSummary);
-  const next = { ...prev, ...patch } as ThreadSummary;
+  // Monotonic timestamp update
+  let next = { ...prev, ...patch } as ThreadSummary;
+  const prevTs = tsToMs(prev.last_message_timestamp as string);
+  const curTs = tsToMs(next.last_message_timestamp as string);
+  if (prevTs && curTs && curTs < prevTs) {
+    next = {
+      ...next,
+      last_message_timestamp: prev.last_message_timestamp,
+      last_message_content: prev.last_message_content,
+      last_message_id: prev.last_message_id,
+    } as ThreadSummary;
+  }
   summaries.set(tid, next);
   summariesArray = sortSummaries(Array.from(summaries.values()));
   notify();
@@ -345,8 +374,8 @@ export function setMessages(conversationId: number, page: any[], replace = true)
   const id = Number(conversationId);
   const prev = messagesById.get(id) || [];
   const normalized = Array.isArray(page) ? page.slice().sort((a, b) => {
-    const at = Date.parse(String(a?.timestamp || '')) || 0;
-    const bt = Date.parse(String(b?.timestamp || '')) || 0;
+    const at = tsToMs(String(a?.timestamp || ''));
+    const bt = tsToMs(String(b?.timestamp || ''));
     if (at !== bt) return at - bt;
     return (Number(a?.id) || 0) - (Number(b?.id) || 0);
   }) : [];
@@ -355,8 +384,8 @@ export function setMessages(conversationId: number, page: any[], replace = true)
     prev.forEach((m) => { if (Number.isFinite(Number(m?.id))) map.set(Number(m.id), m); });
     normalized.forEach((m) => { if (Number.isFinite(Number(m?.id))) map.set(Number(m.id), { ...map.get(Number(m.id)), ...m }); });
     return Array.from(map.values()).sort((a, b) => {
-      const at = Date.parse(String(a?.timestamp || '')) || 0;
-      const bt = Date.parse(String(b?.timestamp || '')) || 0;
+      const at = tsToMs(String(a?.timestamp || ''));
+      const bt = tsToMs(String(b?.timestamp || ''));
       if (at !== bt) return at - bt;
       return (Number(a?.id) || 0) - (Number(b?.id) || 0);
     });
@@ -380,6 +409,13 @@ export function setMessages(conversationId: number, page: any[], replace = true)
         last_message_timestamp: ts || s.last_message_timestamp || null,
         last_message_content: text,
       });
+      // Enforce monotonicity post-update
+      const fixed = summaries.get(id)!;
+      const prevMs = tsToMs(s.last_message_timestamp as string);
+      const nextMs = tsToMs(fixed.last_message_timestamp as string);
+      if (prevMs && nextMs && nextMs < prevMs) {
+        summaries.set(id, { ...fixed, last_message_timestamp: s.last_message_timestamp, last_message_content: s.last_message_content, last_message_id: s.last_message_id });
+      }
       summariesArray = sortSummaries(Array.from(summaries.values()));
     }
     notify();
@@ -393,8 +429,8 @@ export function upsertMessage(msg: any): void {
   const prev = messagesById.get(id) || [];
   const without = prev.filter((m) => Number(m?.id) !== Number(msg.id));
   const next = [...without, msg].sort((a, b) => {
-    const at = Date.parse(String(a?.timestamp || '')) || 0;
-    const bt = Date.parse(String(b?.timestamp || '')) || 0;
+    const at = tsToMs(String(a?.timestamp || ''));
+    const bt = tsToMs(String(b?.timestamp || ''));
     if (at !== bt) return at - bt;
     return (Number(a?.id) || 0) - (Number(b?.id) || 0);
   });
@@ -420,6 +456,13 @@ export function upsertMessage(msg: any): void {
         last_message_content: text,
         unread_count: unread,
       });
+      // Enforce monotonicity post-update
+      const fixed = summaries.get(id)!;
+      const prevMs = tsToMs(s.last_message_timestamp as string);
+      const nextMs = tsToMs(fixed.last_message_timestamp as string);
+      if (prevMs && nextMs && nextMs < prevMs) {
+        summaries.set(id, { ...fixed, last_message_timestamp: s.last_message_timestamp, last_message_content: s.last_message_content, last_message_id: s.last_message_id });
+      }
       summariesArray = sortSummaries(Array.from(summaries.values()));
     }
     notify();
