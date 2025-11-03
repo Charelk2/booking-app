@@ -1345,13 +1345,7 @@ export const getThreadsIndex = (
   );
 
 // ─── INBOX UNREAD TOTAL (tiny endpoint with optional ETag) ────────────────
-export const getInboxUnread = (etag?: string) =>
-  getDeduped<{ total: number }>(
-    withApiOrigin(`${API_V1}/inbox/unread`),
-    {},
-    etag ? { 'If-None-Match': etag } : undefined,
-    (s) => (s >= 200 && s < 300) || s === 304,
-  );
+// (removed duplicate getInboxUnread; use the axios-based variant above)
 
 // ─── LIGHTWEIGHT SINGLE-FLIGHT FOR COMMON GETs ─────────────────────────────
 const inflight = new Map<string, Promise<any>>();
