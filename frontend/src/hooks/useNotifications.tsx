@@ -145,11 +145,21 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             })();
           }
           const nextUnread = isActive ? 0 : (Number(prev?.unread_count || 0) + 1);
+          // Derive a friendly preview label locally for known system lines to
+          // avoid a brief flicker from raw content (e.g., order numbers) to the
+          // server-normalized label after the subsequent fetch.
+          const rawText = String(newNotif.message || '').trim();
+          const lowText = rawText.toLowerCase();
+          let previewLabel = rawText;
+          // Payment received → always use a clean label in the list
+          if (lowText.startsWith('payment received')) {
+            previewLabel = 'Payment received';
+          }
           threadStore.upsert({
             id: threadId,
             unread_count: nextUnread,
             is_unread_by_current_user: nextUnread > 0,
-            last_message_content: newNotif.message,
+            last_message_content: previewLabel,
             last_message_timestamp: newNotif.timestamp,
             counterparty_label: newNotif.sender_name || prev?.counterparty_label || undefined,
           } as any);
@@ -159,7 +169,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           // where setMessages() updates summaries. Best-effort only.
           try {
             cacheUpdateSummary(threadId, {
-              last_message_content: newNotif.message,
+              last_message_content: previewLabel,
               last_message_timestamp: newNotif.timestamp as any,
               unread_count: nextUnread,
             } as any);
