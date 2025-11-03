@@ -369,9 +369,17 @@ export function setMessages(conversationId: number, page: any[], replace = true)
     const tail = next[next.length - 1];
     if (tail) {
       const s = summaries.get(id) || ({ id } as ThreadSummary);
-      const ts = String(tail.timestamp || new Date().toISOString());
+      // Only use a server-provided timestamp; avoid client 'now' fallbacks
+      const ts = tail && typeof tail.timestamp === 'string' && tail.timestamp
+        ? String(tail.timestamp)
+        : (s.last_message_timestamp as string | undefined);
       const text = String(tail.preview_label || tail.content || tail.text || '') || s.last_message_content || '';
-      summaries.set(id, { ...s, last_message_id: Number(tail.id) || s.last_message_id || null, last_message_timestamp: ts, last_message_content: text });
+      summaries.set(id, {
+        ...s,
+        last_message_id: Number(tail.id) || s.last_message_id || null,
+        last_message_timestamp: ts || s.last_message_timestamp || null,
+        last_message_content: text,
+      });
       summariesArray = sortSummaries(Array.from(summaries.values()));
     }
     notify();
@@ -396,13 +404,22 @@ export function upsertMessage(msg: any): void {
     const tail = next[next.length - 1];
     if (tail) {
       const s = summaries.get(id) || ({ id } as ThreadSummary);
-      const ts = String(tail.timestamp || new Date().toISOString());
+      // Only use a server-provided timestamp; avoid client 'now' fallbacks
+      const ts = tail && typeof tail.timestamp === 'string' && tail.timestamp
+        ? String(tail.timestamp)
+        : (s.last_message_timestamp as string | undefined);
       const text = String(tail.preview_label || tail.content || tail.text || '') || s.last_message_content || '';
       const prevUnread = Number(s.unread_count || 0);
       const unread = Number(msg.sender_id) && Number(msg.sender_id) !== Number((window as any)?.__currentUserId || 0)
         ? prevUnread + 1
         : prevUnread;
-      summaries.set(id, { ...s, last_message_id: Number(tail.id) || s.last_message_id || null, last_message_timestamp: ts, last_message_content: text, unread_count: unread });
+      summaries.set(id, {
+        ...s,
+        last_message_id: Number(tail.id) || s.last_message_id || null,
+        last_message_timestamp: ts || s.last_message_timestamp || null,
+        last_message_content: text,
+        unread_count: unread,
+      });
       summariesArray = sortSummaries(Array.from(summaries.values()));
     }
     notify();
