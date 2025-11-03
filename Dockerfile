@@ -42,6 +42,15 @@ COPY --from=builder /app /app
 COPY --from=builder /usr/local/bin/cloud-sql-proxy /usr/local/bin/cloud-sql-proxy
 COPY setup.sh scripts/test-all.sh ./
 RUN chmod +x setup.sh scripts/test-all.sh
+# Install system libs for headless Chromium used by Python Playwright
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl gnupg ca-certificates \
+    libnss3 libatk1.0-0 libcups2 libdrm2 libgbm1 libgtk-3-0 libasound2 \
+    libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libxkbcommon0 \
+    libxshmfence1 libdbus-1-3 libxss1 libxtst6 \
+    && rm -rf /var/lib/apt/lists/*
+# Install Chromium for Python Playwright (uses the venv from builder)
+RUN backend/venv/bin/python -m playwright install chromium --with-deps || true
 ENV CONTENT_SECURITY_POLICY="default-src 'self'" \
     STRICT_TRANSPORT_SECURITY="max-age=63072000; includeSubDomains" \
     X_FRAME_OPTIONS="DENY"

@@ -301,7 +301,9 @@ export default function BookingDetailsPanel({
           // Legacy alias
           (bookingRequest as any).artist_id ||
           // Expanded relations
+          (bookingRequest as any).service_provider?.id ||
           (bookingRequest as any).artist?.id ||
+          (bookingRequest as any).service_provider_profile?.user_id ||
           (bookingRequest as any).artist_profile?.user_id ||
           // From the linked service (canonical + deprecated + nested)
           (bookingRequest as any).service?.service_provider_id ||
@@ -309,38 +311,59 @@ export default function BookingDetailsPanel({
           (bookingRequest as any).service?.artist?.user_id ||
           0;
 
+        // Prefer canonical provider image fields so next/image optimizes a real photo
+        const imageUrl =
+          // Service media (hero) if present
+          (bookingRequest?.service?.media_url as any) ||
+          // Explicit counterparty/avatar URL provided by thread preview/normalizer
+          (bookingRequest as any)?.counterparty_avatar_url ||
+          // Canonical profile fields
+          (bookingRequest as any)?.service_provider_profile?.cover_photo_url ||
+          (bookingRequest as any)?.service_provider_profile?.profile_picture_url ||
+          (bookingRequest as any)?.service_provider?.profile_picture_url ||
+          // Legacy aliases (back-compat)
+          (bookingRequest as any)?.artist_profile?.cover_photo_url ||
+          (bookingRequest as any)?.artist_profile?.profile_picture_url ||
+          null;
+
+        // Display name preference
+        const artistName =
+          (bookingRequest as any)?.service_provider_profile?.business_name ||
+          (bookingRequest as any)?.service_provider?.business_name ||
+          (bookingRequest as any)?.artist_profile?.business_name ||
+          (bookingRequest as any)?.artist?.first_name ||
+          undefined;
+
+        const cancellationPolicy =
+          (bookingRequest as any)?.service_provider_profile?.cancellation_policy ??
+          (bookingRequest as any)?.artist_profile?.cancellation_policy ??
+          null;
+
         return (
           <BookingSummaryCard
-    
-        
-        parsedBookingDetails={parsedBookingDetails ?? undefined}
-        imageUrl={
-          (bookingRequest?.service?.media_url as any) ||
-          (bookingRequest?.artist_profile?.cover_photo_url as any) ||
-          (bookingRequest?.artist_profile?.profile_picture_url as any) ||
-          null
-        }
-        serviceName={bookingRequest.service?.title}
-        artistName={bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name}
-        bookingConfirmed={bookingConfirmed}
-        paymentInfo={{ status: null, amount: null, receiptUrl: null }}
-        bookingDetails={confirmedBookingDetails}
-        quotes={quotes}
-        allowInstantBooking={false}
-        openPaymentModal={openPaymentModal}
-        bookingRequestId={bookingRequest.id}
-        baseFee={Number(bookingRequest.service?.price || 0)}
-        travelFee={Number(bookingRequest.travel_cost || 0)}
-        initialSound={String(parsedBookingDetails?.soundNeeded || '').trim().toLowerCase() === 'yes'}
-        artistCancellationPolicy={bookingRequest.artist_profile?.cancellation_policy}
-        currentArtistId={Number(currentArtistId) || 0}
-        // Adapt panel for service type
-        showTravel={!isPersonalized}
-        showSound={!isPersonalized}
-        showPolicy={!isPersonalized}
-        showEventDetails={!isPersonalized}
-        showReceiptBelowTotal={isPersonalized}
-      />
+            parsedBookingDetails={parsedBookingDetails ?? undefined}
+            imageUrl={imageUrl}
+            serviceName={bookingRequest.service?.title}
+            artistName={artistName}
+            bookingConfirmed={bookingConfirmed}
+            paymentInfo={{ status: null, amount: null, receiptUrl: null }}
+            bookingDetails={confirmedBookingDetails}
+            quotes={quotes}
+            allowInstantBooking={false}
+            openPaymentModal={openPaymentModal}
+            bookingRequestId={bookingRequest.id}
+            baseFee={Number(bookingRequest.service?.price || 0)}
+            travelFee={Number(bookingRequest.travel_cost || 0)}
+            initialSound={String(parsedBookingDetails?.soundNeeded || '').trim().toLowerCase() === 'yes'}
+            artistCancellationPolicy={cancellationPolicy}
+            currentArtistId={Number(currentArtistId) || 0}
+            // Adapt panel for service type
+            showTravel={!isPersonalized}
+            showSound={!isPersonalized}
+            showPolicy={!isPersonalized}
+            showEventDetails={!isPersonalized}
+            showReceiptBelowTotal={isPersonalized}
+          />
         );
       })()}
       {bookingConfirmed &&

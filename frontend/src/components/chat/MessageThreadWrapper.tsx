@@ -423,7 +423,12 @@ export default function MessageThreadWrapper({
               paymentModal={null}
               quotes={quotesById as Record<number, QuoteV2>}
               openPaymentModal={(args: { bookingRequestId: number; amount: number }) => {
-                const provider = bookingRequest?.artist_profile?.business_name || (bookingRequest as any)?.artist?.first_name || 'Service Provider';
+                const provider =
+                  (bookingRequest as any)?.service_provider_profile?.business_name ||
+                  (bookingRequest as any)?.service_provider?.business_name ||
+                  bookingRequest?.artist_profile?.business_name ||
+                  (bookingRequest as any)?.artist?.first_name ||
+                  'Service Provider';
                 const serviceName = bookingRequest?.service?.title || undefined;
                 openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount, providerName: String(provider), serviceName: serviceName as any } as any);
               }}

@@ -28,6 +28,7 @@ from ..models import (
     VisibleTo,
 )
 from .dependencies import get_db, get_current_active_client, get_current_service_provider
+from ..database import SessionLocal
 from ..core.config import settings
 from ..utils import error_response
 from ..utils.outbox import enqueue_outbox
@@ -465,6 +466,12 @@ def paystack_verify(
         metrics_incr("payment.verify_success_total", tags={"source": "verify"})
     except Exception:
         pass
+    # Best-effort: schedule generation of a downloadable PDF receipt
+    try:
+        if simple.payment_id:
+            background_tasks.add_task(_background_generate_receipt_pdf, str(simple.payment_id))
+    except Exception:
+        logger.debug("schedule receipt pdf failed (verify)", exc_info=True)
     return {"status": "ok", "payment_id": simple.payment_id}
 
 
@@ -476,6 +483,7 @@ async def paystack_webhook(
     request: Request,
     db: Session = Depends(get_db),
     x_paystack_signature: str | None = Header(default=None),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """Handle Paystack webhook events (test/production).
 
@@ -642,6 +650,12 @@ async def paystack_webhook(
         metrics_incr("payment.webhook_success_total", tags={"source": "webhook"})
     except Exception:
         pass
+    # Best-effort: schedule generation of a downloadable PDF receipt
+    try:
+        if simple.payment_id:
+            background_tasks.add_task(_background_generate_receipt_pdf, str(simple.payment_id))
+    except Exception:
+        logger.debug("schedule receipt pdf failed (webhook)", exc_info=True)
     return Response(status_code=status.HTTP_200_OK)
 
 
@@ -762,9 +776,37 @@ def get_payment_receipt(payment_id: str, db: Session = Depends(get_db)):
             media_type="application/pdf",
             filename=f"{payment_id}.pdf",
         )
+    # On-demand stateless generation: try to build the PDF now. If it
+    # succeeds, stream the new file; otherwise fall back to HTML.
+    try:
+        ok = generate_receipt_pdf(db, payment_id)
+        if ok and os.path.exists(path):
+            return FileResponse(
+                path,
+                media_type="application/pdf",
+                filename=f"{payment_id}.pdf",
+            )
+    except Exception:
+        # best-effort only — fall through to HTML
+        pass
 
     # Fallback HTML receipt (mock, branded)
     from fastapi.responses import HTMLResponse
+    html = _compose_receipt_html(db, payment_id)
+    return HTMLResponse(
+        content=html,
+        status_code=200,
+        headers={
+            # Allow inline <style> and style attributes for this receipt only
+            "Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'",
+        },
+    )
+
+# ————————————————————————————————————————————————————————————————
+# Receipt HTML composition + PDF generation (Playwright, best-effort)
+
+def _compose_receipt_html(db: Session, payment_id: str) -> str:
+    """Compose the branded receipt HTML used for fallback rendering and PDF generation."""
     now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
     # Enrich with booking + quote context (best effort)
@@ -960,11 +1002,60 @@ def get_payment_receipt(payment_id: str, db: Session = Depends(get_db)):
       </body>
     </html>
     """
-    return HTMLResponse(
-        content=html,
-        status_code=200,
-        headers={
-            # Allow inline <style> and style attributes for this receipt only
-            "Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'",
-        },
-    )
+    return html
+
+
+def _generate_receipt_pdf_with_playwright(html: str, output_path: str) -> bool:
+    """Render HTML to a PDF using Playwright (Chromium). Returns True on success.
+
+    This function is best-effort: if Playwright or Chromium are unavailable, it
+    will return False without raising, so callers can fall back to HTML.
+    """
+    try:
+        from playwright.sync_api import sync_playwright  # type: ignore
+    except Exception:
+        return False
+    try:
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+        with sync_playwright() as p:  # type: ignore
+            browser = p.chromium.launch(args=["--no-sandbox", "--disable-setuid-sandbox"])  # type: ignore
+            context = browser.new_context()
+            page = context.new_page()
+            page.set_content(html, wait_until="load")
+            page.pdf(path=output_path, format="A4", print_background=True)
+            context.close()
+            browser.close()
+        return True
+    except Exception:
+        try:
+            # Clean up partial file if any
+            if os.path.exists(output_path) and os.path.getsize(output_path) < 1024:
+                os.remove(output_path)
+        except Exception:
+            pass
+        return False
+
+
+def generate_receipt_pdf(db: Session, payment_id: str) -> bool:
+    """Generate a PDF receipt for the given payment id if missing. Best-effort.
+
+    Returns True if a PDF exists after this call, else False.
+    """
+    path = os.path.abspath(os.path.join(RECEIPT_DIR, f"{payment_id}.pdf"))
+    if os.path.exists(path):
+        return True
+    html = _compose_receipt_html(db, payment_id)
+    ok = _generate_receipt_pdf_with_playwright(html, path)
+    return ok and os.path.exists(path)
+
+
+def _background_generate_receipt_pdf(payment_id: str) -> None:
+    """Background task entrypoint: open a session, generate the receipt PDF."""
+    try:
+        with SessionLocal() as session:  # type: ignore
+            try:
+                generate_receipt_pdf(session, payment_id)
+            except Exception:
+                logger.debug("generate_receipt_pdf failed", exc_info=True)
+    except Exception:
+        logger.debug("SessionLocal for receipt generation failed", exc_info=True)
