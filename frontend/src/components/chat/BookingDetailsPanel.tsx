@@ -11,6 +11,8 @@ import { getEventPrep, getMyServices, getBookingRequestById } from '@/lib/api';
 import { AddServiceCategorySelector } from '@/components/dashboard';
 import { useRouter } from 'next/navigation';
 
+const providerIdentityCache = new Map<number, { name: string | null; avatar: string | null }>();
+
 interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
@@ -49,6 +51,8 @@ export default function BookingDetailsPanel({
   const [services, setServices] = React.useState<any[] | null>(null);
   const [loadingServices, setLoadingServices] = React.useState(false);
   const [showAddService, setShowAddService] = React.useState(false);
+  const router = useRouter();
+  const requestId = React.useMemo(() => Number(bookingRequest?.id || 0), [bookingRequest?.id]);
   const providerProfile = React.useMemo(() => {
     return (
       (bookingRequest as any)?.service_provider_profile ||
@@ -57,19 +61,25 @@ export default function BookingDetailsPanel({
     );
   }, [bookingRequest]);
 
+  const cachedIdentity = React.useMemo(() => {
+    if (!requestId) return null;
+    return providerIdentityCache.get(requestId) ?? null;
+  }, [requestId]);
+
   const initialProviderName = React.useMemo(() => {
+    if (cachedIdentity?.name) return cachedIdentity.name;
     const name = providerProfile?.business_name;
     return name ? String(name) : null;
-  }, [providerProfile?.business_name]);
+  }, [cachedIdentity?.name, providerProfile?.business_name]);
 
   const initialProviderAvatar = React.useMemo(() => {
+    if (cachedIdentity?.avatar) return cachedIdentity.avatar;
     const avatar = providerProfile?.profile_picture_url;
     return avatar ? String(avatar) : null;
-  }, [providerProfile?.profile_picture_url]);
+  }, [cachedIdentity?.avatar, providerProfile?.profile_picture_url]);
 
   const [providerName, setProviderName] = React.useState<string | null>(initialProviderName);
   const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(initialProviderAvatar);
-  const router = useRouter();
 
   React.useEffect(() => {
     const bid = (confirmedBookingDetails as any)?.id;
