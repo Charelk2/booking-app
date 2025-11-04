@@ -55,6 +55,9 @@ class BookingRequestResponse(BookingRequestBase):
     artist: Optional[UserResponse] = None  # Original artist user details
     # Added artist_profile so responses include business name
     artist_profile: Optional[ArtistProfileResponse] = None
+    # Alias for frontend compatibility: some clients expect
+    # `service_provider_profile` on booking requests.
+    service_provider_profile: Optional[ArtistProfileResponse] = None
     service: Optional[ServiceResponse] = None
     quotes: List['QuoteResponse'] = []
     accepted_quote_id: Optional[int] = None

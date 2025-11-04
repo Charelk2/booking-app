@@ -40,7 +40,10 @@ def get_booking_request(db: Session, request_id: int) -> Optional[models.Booking
     )
 
     if db_request and db_request.artist and db_request.artist.artist_profile:
+        # Canonical provider profile attached for responses
         setattr(db_request, "artist_profile", db_request.artist.artist_profile)
+        # Alias for clients expecting `service_provider_profile`
+        setattr(db_request, "service_provider_profile", db_request.artist.artist_profile)
     if db_request:
         for q in db_request.quotes:
             if q.artist and q.artist.artist_profile:
@@ -67,6 +70,7 @@ def get_booking_requests_by_client(db: Session, client_id: int, skip: int = 0, l
     for br in rows:
         if br.artist and br.artist.artist_profile:
             setattr(br, "artist_profile", br.artist.artist_profile)
+            setattr(br, "service_provider_profile", br.artist.artist_profile)
         for q in br.quotes:
             if q.artist and q.artist.artist_profile:
                 setattr(q, "artist_profile", q.artist.artist_profile)
@@ -92,6 +96,7 @@ def get_booking_requests_by_artist(db: Session, artist_id: int, skip: int = 0, l
     for br in rows:
         if br.artist and br.artist.artist_profile:
             setattr(br, "artist_profile", br.artist.artist_profile)
+            setattr(br, "service_provider_profile", br.artist.artist_profile)
         for q in br.quotes:
             if q.artist and q.artist.artist_profile:
                 setattr(q, "artist_profile", q.artist.artist_profile)
