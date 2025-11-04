@@ -49,8 +49,26 @@ export default function BookingDetailsPanel({
   const [services, setServices] = React.useState<any[] | null>(null);
   const [loadingServices, setLoadingServices] = React.useState(false);
   const [showAddService, setShowAddService] = React.useState(false);
-  const [providerName, setProviderName] = React.useState<string | null>(null);
-  const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(null);
+  const providerProfile = React.useMemo(() => {
+    return (
+      (bookingRequest as any)?.service_provider_profile ||
+      (bookingRequest as any)?.artist_profile ||
+      null
+    );
+  }, [bookingRequest]);
+
+  const initialProviderName = React.useMemo(() => {
+    const name = providerProfile?.business_name;
+    return name ? String(name) : null;
+  }, [providerProfile?.business_name]);
+
+  const initialProviderAvatar = React.useMemo(() => {
+    const avatar = providerProfile?.profile_picture_url;
+    return avatar ? String(avatar) : null;
+  }, [providerProfile?.profile_picture_url]);
+
+  const [providerName, setProviderName] = React.useState<string | null>(initialProviderName);
+  const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(initialProviderAvatar);
   const router = useRouter();
 
   React.useEffect(() => {
@@ -95,19 +113,11 @@ export default function BookingDetailsPanel({
     };
   }, [confirmedBookingDetails?.id, parsedBookingDetails?.eventType, parsedBookingDetails?.guests, eventType, guestsCount]);
 
-  // Seed provider identity from the current booking request payload
-  React.useEffect(() => {
-    try {
-      const profile =
-        (bookingRequest as any)?.service_provider_profile ||
-        (bookingRequest as any)?.artist_profile ||
-        null;
-      const name = profile?.business_name ? String(profile.business_name) : null;
-      const avatar = profile?.profile_picture_url ? String(profile.profile_picture_url) : null;
-      if (name) setProviderName((prev) => (prev ? prev : name));
-      if (avatar) setProviderAvatarUrl((prev) => (prev ? prev : avatar));
-    } catch {}
-  }, [bookingRequest]);
+  // Reset provider identity whenever we switch threads or the payload updates
+  React.useLayoutEffect(() => {
+    setProviderName(initialProviderName);
+    setProviderAvatarUrl(initialProviderAvatar);
+  }, [initialProviderName, initialProviderAvatar]);
 
   // Load canonical provider identity if missing (ensures both roles see the same info)
   React.useEffect(() => {
@@ -351,11 +361,6 @@ export default function BookingDetailsPanel({
           (bookingRequest as any).service?.artist_id ||
           (bookingRequest as any).service?.artist?.user_id ||
           0;
-
-        const providerProfile =
-          (bookingRequest as any)?.service_provider_profile ||
-          (bookingRequest as any)?.artist_profile ||
-          null;
 
         const resolvedAvatar = providerAvatarUrl || (providerProfile?.profile_picture_url ?? null);
         const resolvedName = providerName || (providerProfile?.business_name ? String(providerProfile.business_name) : null);
