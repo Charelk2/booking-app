@@ -25,6 +25,17 @@ interface ParsedBookingDetails {
   notes?: string;
 }
 
+const DETAIL_KEYS: (keyof ParsedBookingDetails)[] = [
+  'eventType',
+  'description',
+  'date',
+  'location',
+  'guests',
+  'venueType',
+  'soundNeeded',
+  'notes',
+];
+
 interface BookingDetailsPanelProps {
   bookingRequest: BookingRequest;
   parsedBookingDetails: ParsedBookingDetails | null;
