@@ -33,6 +33,51 @@ declare global {
   }
 }
 
+const ensurePaystackScript = async () => {
+  if (typeof window === 'undefined') return;
+  if (window.Paystack) return; // already available
+  const existing = document.querySelector<HTMLScriptElement>('script[data-paystack-inline="1"]');
+  if (existing) {
+    if (window.Paystack) return;
+    await new Promise<void>((resolve, reject) => {
+      if (existing.dataset.loaded === '1') {
+        resolve();
+        return;
+      }
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener(
+        'error',
+        () => {
+          existing.remove();
+          reject(new Error('Failed to load Paystack InlineJS'));
+        },
+        { once: true },
+      );
+    });
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://js.paystack.co/v2/inline.js';
+    script.async = true;
+    script.dataset.paystackInline = '1';
+    script.addEventListener('load', () => {
+      script.dataset.loaded = '1';
+      resolve();
+    });
+    script.addEventListener(
+      'error',
+      () => {
+        script.remove();
+        reject(new Error('Failed to load Paystack InlineJS'));
+      },
+      { once: true },
+    );
+    document.body.appendChild(script);
+  });
+};
+
 const PaymentModal: FC<PaymentModalProps> = ({
   open,
   onClose,
@@ -100,23 +145,12 @@ const PaymentModal: FC<PaymentModalProps> = ({
   const getPaystackInstance = useCallback(async () => {
     if (typeof window === 'undefined') return null;
     try {
-      const mod = await import('@paystack/inline-js'); // preferred per docs
-      // eslint-disable-next-line new-cap
-      return new (mod as any).default();
-    } catch {
-      // Fallback to CDN script if package not installed
       if (!window.Paystack) {
-        await new Promise<void>((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = 'https://js.paystack.co/v2/inline.js';
-          s.async = true;
-          s.onload = () => resolve();
-          s.onerror = () => reject(new Error('Failed to load Paystack InlineJS'));
-          document.body.appendChild(s);
-        });
+        await ensurePaystackScript();
       }
-      // eslint-disable-next-line new-cap
       return window.Paystack ? new window.Paystack() : null;
+    } catch {
+      return null;
     }
   }, []);
 
