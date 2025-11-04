@@ -41,7 +41,7 @@ import { getSummaries as cacheGetSummaries, subscribe as cacheSubscribe } from '
 
 import { format } from 'date-fns';
 import { readThreadCache } from '@/lib/chat/threadCache';
-import { initAttachmentMessage, finalizeAttachmentMessage } from '@/lib/api';
+import { initAttachmentMessage, finalizeAttachmentMessage, apiUrl } from '@/lib/api';
 import { useDeclineQuote } from '@/hooks/useQuoteActions';
 import useTransportState from '@/hooks/useTransportState';
 import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
@@ -83,6 +83,10 @@ function useThrottled<T extends (...args: any[]) => void>(fn: T, ms: number): T 
 // ————————————————————————————————————————————————————————————————
 // Types (minimal, local)
 
+const absUrlRegex = /(https?:\/\/[^\s]+)/i;
+const relUrlRegex = /(\/api\/[\S]+)/i;
+const paymentIdRegex = /order\s*#\s*([A-Za-z0-9_-]+)/i;
+
 type ReplyTarget = { id: number; sender_type: string; content: string } | null;
 type GalleryItem = { src: string; type: 'image' | 'video' };
 
@@ -103,6 +107,7 @@ export type MessageThreadWebProps = {
   initialBookingRequest?: any;
   // Optional handler to resolve and navigate to Event Prep when booking_id not yet known
   onContinueEventPrep?: (bookingRequestId: number) => void;
+  onPaymentStatusChange?: (status: string | null, amount?: number | null, receiptUrl?: string | null) => void;
   // allow passthrough
   [k: string]: any;
 };
@@ -125,6 +130,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     isPaidOverride,
     initialBookingRequest,
     onContinueEventPrep,
+    onPaymentStatusChange,
   } = props;
 
   // ——— Auth / identity
@@ -568,22 +574,141 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
   // ————————————————————————————————————————————————————————————————
   // Paid state (FIX: must be inside component; previously out-of-scope)
-  const isPaidFromMessages = React.useMemo(() => {
+  const paymentMeta = React.useMemo(() => {
     try {
       const list = Array.isArray(messages) ? messages : [];
       for (let i = list.length - 1; i >= 0; i -= 1) {
         const m: any = list[i];
         if (String(m?.message_type || '').toUpperCase() !== 'SYSTEM') continue;
-        const text = String(m?.content || '').toLowerCase();
-        if (text.startsWith('payment received')) return true;
+        const text = String(m?.content || '');
+        if (!text) continue;
+        const low = text.toLowerCase();
+        if (!low.startsWith('payment received')) continue;
+        const abs = text.match(absUrlRegex)?.[1] || null;
+        const rel = abs ? null : text.match(relUrlRegex)?.[1] || null;
+        const receiptUrl = abs || (rel ? apiUrl(rel) : null);
+        const paymentId = text.match(paymentIdRegex)?.[1] || null;
+        return {
+          status: 'paid' as const,
+          receiptUrl: receiptUrl || null,
+          paymentId: paymentId || null,
+          messageId: Number(m?.id || 0) || null,
+          amount: null as number | null,
+        };
       }
-      return false;
+      return null;
     } catch {
-      return false;
+      return null;
     }
   }, [messages]);
 
-  const isPaid = Boolean(isPaidOverride) || isPaidFromMessages;
+  const [cachedReceiptUrl, setCachedReceiptUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = window.localStorage.getItem(`receipt_url:br:${bookingRequestId}`);
+      setCachedReceiptUrl(stored ? stored : null);
+    } catch {
+      setCachedReceiptUrl(null);
+    }
+  }, [bookingRequestId]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = paymentMeta?.receiptUrl;
+    if (!url) return;
+    try {
+      window.localStorage.setItem(`receipt_url:br:${bookingRequestId}`, url);
+      setCachedReceiptUrl(url);
+    } catch {}
+  }, [paymentMeta?.receiptUrl, bookingRequestId]);
+
+  const initialPaymentStatus = React.useMemo(() => {
+    try {
+      const snapshot = initialBookingRequest || {};
+      const candidates = [
+        (snapshot as any)?.payment_status,
+        (snapshot as any)?.latest_payment_status,
+        (snapshot as any)?.booking?.payment_status,
+      ];
+      for (const candidate of candidates) {
+        if (candidate == null) continue;
+        const str = String(candidate).trim();
+        if (str.length) return str;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [initialBookingRequest]);
+
+  const initialPaymentAmount = React.useMemo(() => {
+    try {
+      const snapshot = initialBookingRequest || {};
+      const candidate =
+        (snapshot as any)?.payment_amount ??
+        (snapshot as any)?.latest_payment_amount ??
+        (snapshot as any)?.booking?.payment_amount;
+      if (candidate == null) return null;
+      const num = Number(candidate);
+      return Number.isFinite(num) ? num : null;
+    } catch {
+      return null;
+    }
+  }, [initialBookingRequest]);
+
+  const initialReceiptFromSnapshot = React.useMemo(() => {
+    try {
+      const snapshot = initialBookingRequest || {};
+      const candidates = [
+        (snapshot as any)?.receipt_url,
+        (snapshot as any)?.payment_receipt_url,
+        (snapshot as any)?.latest_receipt_url,
+        (snapshot as any)?.booking?.receipt_url,
+      ];
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        const str = String(candidate).trim();
+        if (!str) continue;
+        if (/^https?:\/\//i.test(str)) return str;
+        return apiUrl(str);
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [initialBookingRequest]);
+
+  const resolvedPaymentStatus = React.useMemo(() => {
+    if (isPaidOverride) return 'paid';
+    if (paymentMeta?.status) return paymentMeta.status;
+    if (initialPaymentStatus) return initialPaymentStatus;
+    return null;
+  }, [isPaidOverride, paymentMeta?.status, initialPaymentStatus]);
+
+  const resolvedPaymentAmount = paymentMeta?.amount ?? initialPaymentAmount ?? null;
+  const resolvedReceiptUrl = paymentMeta?.receiptUrl || cachedReceiptUrl || initialReceiptFromSnapshot || null;
+
+  const onPaymentStatusChangeRef = useLatest(onPaymentStatusChange);
+  const lastPaymentPayloadRef = React.useRef<string>('');
+
+  React.useEffect(() => {
+    const cb = onPaymentStatusChangeRef.current;
+    if (!cb) return;
+    const status = resolvedPaymentStatus ? String(resolvedPaymentStatus) : null;
+    const amount = resolvedPaymentAmount ?? null;
+    const url = resolvedReceiptUrl ?? null;
+    if (!status && amount == null && !url) return;
+    const signature = `${status ?? ''}|${amount ?? ''}|${url ?? ''}`;
+    if (lastPaymentPayloadRef.current === signature) return;
+    lastPaymentPayloadRef.current = signature;
+    try {
+      cb(status, amount, url);
+    } catch {}
+  }, [resolvedPaymentStatus, resolvedPaymentAmount, resolvedReceiptUrl, onPaymentStatusChangeRef]);
+
+  const isPaid = String(resolvedPaymentStatus || '').toLowerCase() === 'paid';
 
   // ——— Request new quote (client CTA when a quote is expired)
   const requestNewQuote = useStableCallback(() => {
@@ -1221,8 +1346,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   }, [acceptedQuoteForThread, bookingRequestId]);
 
   const enableEventPrepCard = (process.env.NEXT_PUBLIC_ENABLE_EVENT_PREP_CARD || '1') !== '0';
-  const paid = Boolean(isPaidOverride) || isPaidFromMessages;
-  const showEventPrepCard = enableEventPrepCard && paid;
+  const showEventPrepCard = enableEventPrepCard && isPaid;
 
   return (
     <ThreadView

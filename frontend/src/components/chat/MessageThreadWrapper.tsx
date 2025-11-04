@@ -157,6 +157,63 @@ export default function MessageThreadWrapper({
     setIsUserArtist(Boolean(user && user.user_type === 'service_provider'));
   }, [user]);
 
+  useEffect(() => {
+    if (!bookingRequestId || typeof window === 'undefined') return;
+    try {
+      const cached = window.localStorage.getItem(`receipt_url:br:${bookingRequestId}`);
+      if (cached && !receiptUrl) setReceiptUrl(cached);
+    } catch {}
+  }, [bookingRequestId, receiptUrl]);
+
+  useEffect(() => {
+    if (!bookingRequest) return;
+    if (!paymentStatus) {
+      const candidates = [
+        (bookingRequest as any)?.payment_status,
+        (bookingRequest as any)?.latest_payment_status,
+        (bookingRequest as any)?.booking?.payment_status,
+      ];
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        const str = String(candidate).trim();
+        if (!str) continue;
+        setPaymentStatus(str);
+        break;
+      }
+    }
+    if (paymentAmount == null) {
+      const amountCandidates = [
+        (bookingRequest as any)?.payment_amount,
+        (bookingRequest as any)?.latest_payment_amount,
+        (bookingRequest as any)?.booking?.payment_amount,
+      ];
+      for (const candidate of amountCandidates) {
+        if (candidate == null) continue;
+        const num = Number(candidate);
+        if (Number.isFinite(num)) {
+          setPaymentAmount(num);
+          break;
+        }
+      }
+    }
+    if (!receiptUrl) {
+      const receiptCandidates = [
+        (bookingRequest as any)?.receipt_url,
+        (bookingRequest as any)?.payment_receipt_url,
+        (bookingRequest as any)?.latest_receipt_url,
+        (bookingRequest as any)?.booking?.receipt_url,
+      ];
+      for (const candidate of receiptCandidates) {
+        if (!candidate) continue;
+        const str = String(candidate).trim();
+        if (!str) continue;
+        const absolute = /^https?:\/\//i.test(str) ? str : api.apiUrl(str);
+        setReceiptUrl(absolute);
+        break;
+      }
+    }
+  }, [bookingRequest, paymentStatus, paymentAmount, receiptUrl]);
+
   /** Mobile details sheet visibility (defaults open on desktop widths) */
   const [showSidePanel, setShowSidePanel] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
