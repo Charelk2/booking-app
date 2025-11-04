@@ -40,6 +40,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [paystackReference, setPaystackReference] = useState<string | null>(null);
+  const [paystackAccessCode, setPaystackAccessCode] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [inlineBlocked, setInlineBlocked] = useState(false);
   const [showFallbackBanner, setShowFallbackBanner] = useState(false);
@@ -144,10 +145,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         const data = res.data as any;
         const reference = String(data?.reference || data?.payment_id || '').trim();
         const authorizationUrl = (data?.authorization_url as string | undefined) || undefined;
+        const accessCode = String(data?.access_code || data?.accessCode || '').trim();
         if (!reference) {
           throw new Error('Payment reference missing');
         }
         setPaystackReference(reference);
+        setPaystackAccessCode(accessCode || null);
 
         const loadPaystack = async (): Promise<void> => {
           if (typeof window === 'undefined') return;
@@ -174,6 +177,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               amount: amountKobo,
               currency: 'ZAR',
               reference,
+              access_code: accessCode || undefined,
               metadata: { booking_request_id: bookingRequestId },
               onSuccess: async (transaction: { reference: string }) => {
                 try {
@@ -384,6 +388,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setShowFallbackBanner(false);
       setPaystackUrl(null);
       setPaystackReference(null);
+      setPaystackAccessCode(null);
       setVerifying(false);
       return;
     }
