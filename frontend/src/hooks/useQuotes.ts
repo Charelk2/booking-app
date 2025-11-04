@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getQuoteV2, getQuotesBatch, getQuotesForBookingRequest } from '@/lib/api';
 import type { Quote, QuoteV2, ServiceItem } from '@/types';
 
@@ -60,11 +60,55 @@ function getGlobalQuotesMap(): Map<number, QuoteV2> {
   return m;
 }
 
+type QuotesSnapshot = Record<string, QuoteV2>;
+
+const QUOTE_LISTENERS: Set<(snapshot: QuotesSnapshot) => void> = new Set();
+
+function snapshotGlobalQuotes(): QuotesSnapshot {
+  const MAP = getGlobalQuotesMap();
+  const out: QuotesSnapshot = {};
+  try {
+    MAP.forEach((quote, id) => {
+      if (!quote) return;
+      out[String(id)] = quote;
+    });
+  } catch {}
+  return out;
+}
+
+function emitQuoteUpdate() {
+  const snapshot = snapshotGlobalQuotes();
+  QUOTE_LISTENERS.forEach((listener) => {
+    try {
+      listener(snapshot);
+    } catch {}
+  });
+}
+
+function subscribeToQuotes(listener: (snapshot: QuotesSnapshot) => void) {
+  QUOTE_LISTENERS.add(listener);
+  return () => {
+    QUOTE_LISTENERS.delete(listener);
+  };
+}
+
+function shallowEqualQuotes(a: QuotesSnapshot, b: QuotesSnapshot): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (let i = 0; i < aKeys.length; i += 1) {
+    const key = aKeys[i];
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}
+
 /** Seed the global quotes cache with known quotes (batch prefetch helper). */
 export function seedGlobalQuotes(quotes: QuoteV2[]) {
   try {
     const MAP = getGlobalQuotesMap();
     quotes.forEach((q) => { if (q && typeof q.id === 'number') MAP.set(q.id, q); });
+    emitQuoteUpdate();
   } catch {}
 }
 
@@ -90,7 +134,7 @@ export async function prefetchQuotesByIds(ids: number[]) {
         booking_request_id:
           next.booking_request_id != null
             ? Number(next.booking_request_id)
-            : Number((q as any)?.booking_request_id ?? bookingRequestId ?? 0),
+            : Number((q as any)?.booking_request_id ?? 0),
       } as QuoteV2;
     });
     seedGlobalQuotes(normalized);
@@ -118,17 +162,26 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
     seedKeyRef.current = bookingRequestId;
   }
 
-  const [quotesById, setQuotesById] = useState<Record<number, QuoteV2>>(() => {
+  const [quotesById, setQuotesById] = useState<Record<string, QuoteV2>>(() => {
     // Seed with any previously known quotes to avoid skeletons on rapid switches
     try {
       const entries = Array.from(GLOBAL_QUOTES.entries());
-      return entries.length ? Object.fromEntries(entries.map(([id, q]) => [id, q])) as Record<number, QuoteV2> : {};
+      return entries.length ? Object.fromEntries(entries.map(([id, q]) => [id, q])) as Record<string, QuoteV2> : {};
     } catch {
-      return {} as Record<number, QuoteV2>;
+      return {} as Record<string, QuoteV2>;
     }
   });
   const pendingRef = useRef<Set<number>>(new Set());
   const lastTryRef = useRef<Map<number, number>>(new Map());
+
+  useEffect(() => {
+    const listener = (snapshot: QuotesSnapshot) => {
+      setQuotesById((prev) => (shallowEqualQuotes(prev, snapshot) ? prev : snapshot));
+    };
+    const unsubscribe = subscribeToQuotes(listener);
+    listener(snapshotGlobalQuotes());
+    return unsubscribe;
+  }, []);
 
   const setQuote = useCallback((q: QuoteV2) => {
     if (!q || typeof q.id !== 'number') return;
@@ -142,6 +195,7 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
     const map = getGlobalQuotesMap();
     try { map.set(normalized.id, normalized); } catch {}
     setQuotesById((prev) => (prev[normalized.id] === normalized ? prev : { ...prev, [normalized.id]: normalized }));
+    emitQuoteUpdate();
   }, [bookingRequestId]);
 
   const ensureQuoteLoaded = useCallback(async (quoteId: number) => {
@@ -165,6 +219,7 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
       const res = await getQuoteV2(quoteId);
       try { GLOBAL_QUOTES.set(quoteId, res.data); } catch {}
       setQuotesById((prev) => ({ ...prev, [quoteId]: res.data }));
+      emitQuoteUpdate();
       return;
     } catch {}
 
@@ -177,6 +232,7 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
         const adapted = toQuoteV2FromLegacy(legacy as Quote);
         try { GLOBAL_QUOTES.set(quoteId, adapted); } catch {}
         setQuotesById((prev) => ({ ...prev, [quoteId]: adapted }));
+        emitQuoteUpdate();
       }
     } catch {}
     finally {
@@ -212,6 +268,7 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
       if (normalized.length) {
         try { normalized.forEach((q: QuoteV2) => GLOBAL_QUOTES.set(q.id, q)); } catch {}
         setQuotesById((prev) => ({ ...prev, ...Object.fromEntries(normalized.map((q: QuoteV2) => [q.id, q])) }));
+        emitQuoteUpdate();
       }
       const received = new Set<number>(normalized.map((q) => Number(q.id)).filter((n) => Number.isFinite(n)));
       const still = missing.filter((id) => !received.has(id));
@@ -223,7 +280,19 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
     }
   }, [quotesById, ensureQuoteLoaded]);
 
-  const resetQuotes = useCallback(() => setQuotesById({}), []);
+  const resetQuotes = useCallback(() => {
+    setQuotesById({});
+    emitQuoteUpdate();
+  }, []);
 
-  return useMemo(() => ({ quotesById, setQuote, ensureQuoteLoaded, ensureQuotesLoaded, resetQuotes }), [quotesById, setQuote, ensureQuoteLoaded, ensureQuotesLoaded, resetQuotes]);
+  return useMemo(
+    () => ({
+      quotesById: quotesById as unknown as Record<number, QuoteV2>,
+      setQuote,
+      ensureQuoteLoaded,
+      ensureQuotesLoaded,
+      resetQuotes,
+    }),
+    [quotesById, setQuote, ensureQuoteLoaded, ensureQuotesLoaded, resetQuotes],
+  );
 }
