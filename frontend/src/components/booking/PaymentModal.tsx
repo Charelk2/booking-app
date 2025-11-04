@@ -434,9 +434,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         aria-modal="true"
         aria-labelledby="paystack-modal-heading"
       >
-        <h2 id="paystack-modal-heading" className="text-lg font-semibold mb-2">
-          Checkout with Paystack
-        </h2>
+       
         {serviceName && (
           <div className="flex items-center justify-between text-sm text-gray-700 mb-3">
             <span>Service</span>
