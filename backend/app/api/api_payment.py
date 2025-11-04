@@ -283,6 +283,7 @@ def create_payment(
             data = r.json().get("data", {})
         auth_url = data.get("authorization_url")
         reference = data.get("reference")
+        access_code = data.get("access_code")
         if not auth_url or not reference:
             raise RuntimeError("Invalid Paystack response")
         booking.payment_id = reference
@@ -297,7 +298,13 @@ def create_payment(
             db.commit()
         except Exception:
             db.rollback()
-        return {"status": "redirect", "authorization_url": auth_url, "reference": reference, "payment_id": reference}
+        return {
+            "status": "redirect",
+            "authorization_url": auth_url,
+            "reference": reference,
+            "payment_id": reference,
+            "access_code": access_code,
+        }
     except Exception as exc:
         logger.error("Paystack init error: %s", exc, exc_info=True)
         raise error_response("Payment initialization failed", {}, status.HTTP_502_BAD_GATEWAY)
