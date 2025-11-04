@@ -71,6 +71,7 @@ def get_booking_requests_by_client(db: Session, client_id: int, skip: int = 0, l
         if br.artist and br.artist.artist_profile:
             setattr(br, "artist_profile", br.artist.artist_profile)
             setattr(br, "service_provider_profile", br.artist.artist_profile)
+            setattr(br, "service_provider_profile", br.artist.artist_profile)
         for q in br.quotes:
             if q.artist and q.artist.artist_profile:
                 setattr(q, "artist_profile", q.artist.artist_profile)
