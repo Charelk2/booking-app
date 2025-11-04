@@ -95,10 +95,6 @@ export default function BookingDetailsPanel({
   }, [requestId]);
 
   React.useEffect(() => {
-    canonicalFetchedRef.current = false;
-  }, [requestId]);
-
-  React.useEffect(() => {
     const bid = (confirmedBookingDetails as any)?.id;
     if (!bid) return;
     // If parsed booking details or local state already provide quick info, skip eager fetch
@@ -162,7 +158,9 @@ export default function BookingDetailsPanel({
 
   // Load canonical provider identity if missing (ensures both roles see the same info)
   React.useEffect(() => {
-    const needIdentity = !providerName || !providerAvatarUrl;
+    const profileHasName = Boolean(providerProfile?.business_name);
+    const profileHasAvatar = Boolean(providerProfile?.profile_picture_url);
+    const needIdentity = !(profileHasName && profileHasAvatar);
     if (canonicalFetchedRef.current) return;
     if (!needIdentity) return;
     if (!Number.isFinite(requestId) || requestId <= 0) return;
@@ -196,7 +194,7 @@ export default function BookingDetailsPanel({
     return () => {
       cancelled = true;
     };
-  }, [requestId, providerName, providerAvatarUrl, quotesLoading, onHydratedBookingRequest]);
+  }, [requestId, providerName, providerAvatarUrl, providerProfile?.business_name, providerProfile?.profile_picture_url, onHydratedBookingRequest, bookingRequest]);
 
   // Detect Booka moderation thread (system-only updates)
   const isBookaThread = React.useMemo(() => {

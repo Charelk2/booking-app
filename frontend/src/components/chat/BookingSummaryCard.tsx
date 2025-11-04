@@ -387,69 +387,10 @@ export default function BookingSummaryCard({
 
           return (
             <div className="mt-4">
-              <div className="font-semibold mb-1">Total</div>
-              <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
-                <div className="flex justify-between text-gray-700">
-                  <span>Base fee</span>
-                  <span>{formatCurrency(Number(baseFee || 0))}</span>
-                </div>
-                {showTravel && (
-                  <div className="flex justify-between text-gray-700 mt-1">
-                    <span>Travel</span>
-                    <span>{formatCurrency(Number(travelFee || 0))}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
-                  <span>Total</span>
-                  <span>{formatCurrency(Number(baseFee || 0) + Number(travelFee || 0))}</span>
-                </div>
-                {showSound && typeof initialSound !== 'undefined' && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    Sound equipment: {initialSound ? 'Yes' : 'No'} (if required, may be quoted separately)
-                  </div>
-                )}
+              <div className="font-semibold mb-1">Quote total</div>
+              <div className="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600">
+                No quote is available yet for this request.
               </div>
-
-              {(() => {
-                if (!showReceiptBelowTotal) return null;
-                const url = buildReceiptUrl(
-                  paymentInfo?.receiptUrl ?? null,
-                  bookingDetails?.payment_id ?? null
-                );
-                return url ? (
-                  <div className="mt-2">
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm underline text-gray-700"
-                    >
-                      View receipt
-                    </a>
-                  </div>
-                ) : null;
-              })()}
-
-              {allowInstantBooking && (
-                <div className="mt-3 text-right">
-                  <Button
-                    type="button"
-                    onClick={() =>
-                      openPaymentModal({
-                        bookingRequestId,
-                        amount:
-                          Number(
-                            instantBookingPrice ??
-                              Number(baseFee || 0) + Number(travelFee || 0)
-                          ),
-                      })
-                    }
-                    className="bg-gray-900 text-white hover:bg-black"
-                  >
-                    Reserve now
-                  </Button>
-                </div>
-              )}
             </div>
           );
         })()}

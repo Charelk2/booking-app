@@ -73,25 +73,26 @@ export default function MessageThreadWrapper({
     if (!bookingRequest) return [] as QuoteV2[];
     const arr = Array.isArray((bookingRequest as any)?.quotes) ? (bookingRequest as any).quotes : [];
     const normalized: QuoteV2[] = [];
-    const seen = new Set<number>();
-    for (const raw of arr) {
-      if (!raw) continue;
-      let q: QuoteV2 | null = null;
-      if (Array.isArray((raw as any)?.services)) {
-        q = raw as QuoteV2;
-      } else {
-        try {
-          q = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id });
-        } catch {
-          q = null;
+      const seen = new Set<number>();
+      for (const raw of arr) {
+        if (!raw) continue;
+        let q: QuoteV2 | null = null;
+        if (Array.isArray((raw as any)?.services)) {
+          q = raw as QuoteV2;
+        } else {
+          try {
+            q = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id });
+          } catch {
+            q = null;
+          }
         }
+        const qid = Number(q?.id || 0);
+        if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
+        seen.add(qid);
+        const bookingId = Number(q?.booking_request_id ?? bookingRequest?.id ?? bookingRequestId ?? 0) || Number(bookingRequestId || 0);
+        normalized.push({ ...q, booking_request_id: bookingId } as QuoteV2);
       }
-      const qid = Number(q?.id || 0);
-      if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
-      seen.add(qid);
-      normalized.push(q);
-    }
-    return normalized;
+      return normalized;
   }, [bookingRequest]);
 
   const { quotesById, ensureQuotesLoaded, setQuote } = useQuotes(Number(bookingRequestId || 0), initialQuotes);
@@ -121,7 +122,8 @@ export default function MessageThreadWrapper({
         const qid = Number(q?.id || 0);
         if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
         seen.add(qid);
-        normalized.push(q);
+        const bookingId = Number(q?.booking_request_id ?? request.id ?? bookingRequestId ?? 0) || Number(bookingRequestId || 0);
+        normalized.push({ ...q, booking_request_id: bookingId } as QuoteV2);
       }
       if (normalized.length) {
         normalized.forEach((q) => setQuote(q));
@@ -147,7 +149,10 @@ export default function MessageThreadWrapper({
             normalized = null;
           }
         }
-        if (normalized && typeof normalized.id === 'number') setQuote(normalized);
+        if (normalized && typeof normalized.id === 'number') {
+          const bookingId = Number(normalized.booking_request_id ?? bookingRequestId ?? 0) || Number(bookingRequestId || 0);
+          setQuote({ ...normalized, booking_request_id: bookingId } as QuoteV2);
+        }
       }
     } catch { /* ignore */ }
   }, [bookingRequestId, setQuote, bookingRequest]);

@@ -79,8 +79,19 @@ export async function prefetchQuotesByIds(ids: number[]) {
     const batch = await getQuotesBatch(missing);
     const got = Array.isArray(batch.data) ? (batch.data as any[]) : [];
     const normalized: QuoteV2[] = got.map((q: any) => {
-      if (q && Array.isArray(q.services)) return q as QuoteV2; // already v2ish
-      try { return toQuoteV2FromLegacy(q as Quote); } catch { return q as QuoteV2; }
+      let next: QuoteV2;
+      if (q && Array.isArray(q.services)) next = q as QuoteV2;
+      else {
+        try { next = toQuoteV2FromLegacy(q as Quote); }
+        catch { next = q as QuoteV2; }
+      }
+      return {
+        ...next,
+        booking_request_id:
+          next.booking_request_id != null
+            ? Number(next.booking_request_id)
+            : Number((q as any)?.booking_request_id ?? bookingRequestId ?? 0),
+      } as QuoteV2;
     });
     seedGlobalQuotes(normalized);
   } catch {
@@ -121,9 +132,17 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
 
   const setQuote = useCallback((q: QuoteV2) => {
     if (!q || typeof q.id !== 'number') return;
-    try { GLOBAL_QUOTES.set(q.id, q); } catch {}
-    setQuotesById((prev) => (prev[q.id] === q ? prev : { ...prev, [q.id]: q }));
-  }, []);
+    const normalized: QuoteV2 = {
+      ...q,
+      booking_request_id:
+        q.booking_request_id != null
+          ? Number(q.booking_request_id)
+          : Number(bookingRequestId || 0),
+    } as QuoteV2;
+    const map = getGlobalQuotesMap();
+    try { map.set(normalized.id, normalized); } catch {}
+    setQuotesById((prev) => (prev[normalized.id] === normalized ? prev : { ...prev, [normalized.id]: normalized }));
+  }, [bookingRequestId]);
 
   const ensureQuoteLoaded = useCallback(async (quoteId: number) => {
     if (!Number.isFinite(quoteId) || quoteId <= 0) return;
@@ -176,8 +195,19 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
       // Normalize: backend /quotes batch may return legacy Quote rows. Convert
       // any non-V2 shapes to QuoteV2 so the UI renders immediately.
       const normalized: QuoteV2[] = got.map((q: any) => {
-        if (q && Array.isArray(q.services)) return q as QuoteV2; // already v2-ish
-        try { return toQuoteV2FromLegacy(q as Quote); } catch { return q as QuoteV2; }
+        let next: QuoteV2;
+        if (q && Array.isArray(q.services)) next = q as QuoteV2;
+        else {
+          try { next = toQuoteV2FromLegacy(q as Quote); }
+          catch { next = q as QuoteV2; }
+        }
+        return {
+          ...next,
+          booking_request_id:
+            next.booking_request_id != null
+              ? Number(next.booking_request_id)
+              : Number((q as any)?.booking_request_id ?? bookingRequestId ?? 0),
+        } as QuoteV2;
       });
       if (normalized.length) {
         try { normalized.forEach((q: QuoteV2) => GLOBAL_QUOTES.set(q.id, q)); } catch {}
