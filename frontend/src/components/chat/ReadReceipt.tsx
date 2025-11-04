@@ -14,7 +14,7 @@ function _ReadReceipt({
 }: {
   state: DeliveryState;
   at?: string | Date | null;
-  /** outgoing | incoming — incoming hides the ticks entirely */
+  /** outgoing | incoming - incoming hides the ticks entirely */
   align?: 'outgoing' | 'incoming';
   className?: string;
 }) {

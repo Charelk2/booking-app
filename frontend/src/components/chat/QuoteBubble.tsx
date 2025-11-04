@@ -336,13 +336,13 @@ export default function QuotePeek(props: QuotePeekProps) {
     </span>
   );
 
-  /* ——— handlers ——— */
+  /* --- handlers --- */
   const handleAcceptPay = () => {
     setOpen(false);
     props.onPayNow?.();
   };
 
-  /* ——— UI ——— */
+  /* --- UI --- */
   return (
     <>
       {/* PEEK (thread item) */}

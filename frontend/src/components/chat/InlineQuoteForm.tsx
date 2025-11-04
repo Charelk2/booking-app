@@ -7,7 +7,7 @@ import type { EventDetails } from './QuoteBubble';
 import { calculateQuoteBreakdown, getBookingRequestById, getService } from '@/lib/api';
 
 /**
- * InlineQuoteForm (v3.1 — optimized UX + perf)
+ * InlineQuoteForm (v3.1 - optimized UX + perf)
  * ------------------------------------------------------------
  * - Keeps original logic and API behavior.
  * - Reduces renders (memoized money inputs & rows).
@@ -45,9 +45,9 @@ const expiryOptions = [
   { label: '7 days', value: 168 },
 ];
 
-// ——————————————————————————————————————————————————————————————
+// --------------------------------------------------------------
 // Helpers
-// ——————————————————————————————————————————————————————————————
+// --------------------------------------------------------------
 
 const toNumber = (v: string | number) => {
   if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
@@ -158,7 +158,7 @@ const InlineQuoteForm: React.FC<Props> = ({
   onDecline,
   calculationParams,
 }) => {
-  // — State —
+  // - State -
   const [serviceFee, setServiceFee] = useState<number>(initialBaseFee ?? 0);
   const [soundFee, setSoundFee] = useState<number>(initialSoundCost ?? (initialSoundNeeded ? 1000 : 0));
   const [travelFee, setTravelFee] = useState<number>(initialTravelCost ?? 0);

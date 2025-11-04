@@ -47,7 +47,7 @@ import useTransportState from '@/hooks/useTransportState';
 import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
 import EventPrepCard from '@/components/booking/EventPrepCard';
 
-// ————————————————————————————————————————————————————————————————
+// ----------------------------------------------------------------
 // Small utilities
 
 function useLatest<T>(value: T) {
@@ -80,7 +80,7 @@ function useThrottled<T extends (...args: any[]) => void>(fn: T, ms: number): T 
   }) as T, [ms]);
 }
 
-// ————————————————————————————————————————————————————————————————
+// ----------------------------------------------------------------
 // Types (minimal, local)
 
 const absUrlRegex = /(https?:\/\/[^\s]+)/i;
@@ -117,7 +117,7 @@ export type MessageThreadWebProps = {
   [k: string]: any;
 };
 
-// ————————————————————————————————————————————————————————————————
+// ----------------------------------------------------------------
 // Component
 
 export default function MessageThreadWeb(props: MessageThreadWebProps) {
@@ -138,16 +138,16 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     onPaymentStatusChange,
   } = props;
 
-  // ——— Auth / identity
+  // --- Auth / identity
   const { user } = useAuth();
   const transport = useTransportState();
   const myUserId = Number(user?.id || 0);
   const userType = (user?.user_type as any) || 'client';
 
-  // ——— Realtime
+  // --- Realtime
   const { publish, status: rtStatus, mode: rtMode, failureCount: rtFailures } = useRealtimeContext();
 
-  // ——— Anchoring + list control
+  // --- Anchoring + list control
   const listRef = React.useRef<ChatListHandle | null>(null);
   const {
     setAtBottom,
@@ -160,14 +160,14 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     scheduleScrollToEndSmooth,
   } = useAnchoredChat(listRef);
 
-  // ——— Local UI state
+  // --- Local UI state
   const composerRef = React.useRef<HTMLDivElement | null>(null);
   const [replyTarget, setReplyTarget] = React.useState<ReplyTarget>(null);
   const [highlightId, setHighlightId] = React.useState<number | null>(null);
   const [isAtBottom, setIsAtBottom] = React.useState(true);
   const [newAnchorId, setNewAnchorId] = React.useState<number | null>(null);
 
-  // ——— Server data (messages + helpers)
+  // --- Server data (messages + helpers)
   const {
     messages,
     setMessages,
@@ -180,13 +180,13 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     handlers,
   } = useThreadData(bookingRequestId, { isActiveThread: isActive, onMessagesFetched: () => {} });
 
-  // ——— Virtualization selection (stable)
+  // --- Virtualization selection (stable)
   const ListComponent = React.useMemo(() => {
     const count = Array.isArray(messages) ? messages.length : 0;
     return selectAdapter(count) === 'virtuoso' ? VirtuosoList : PlainList;
   }, [messages]);
 
-  // ——— Quotes
+  // --- Quotes
   const { quotesById, ensureQuoteLoaded, setQuote } = useQuotes(bookingRequestId) as any;
   const declineQuote = useDeclineQuote();
   const onDecline = useStableCallback((q: any) => {
@@ -206,7 +206,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     } catch {}
   });
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Presence / typing header label derived from threadStore
   const messagesRef = useLatest(messages);
   // Debounce reaction toggles per message id to avoid rapid double-taps
@@ -279,7 +279,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     };
   }, [bookingRequestId, onPresenceUpdate, myUserId, messagesRef]);
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Track bottom/anchor state + detect tail appends
 
   const switchedUntilRef = React.useRef<number>(0);
@@ -320,8 +320,8 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messagesRef.current, rtMode, rtStatus, rtFailures]);
 
-  // ————————————————————————————————————————————————————————————————
-  // Synthetic tail (preview) — show latest summary as a temporary bubble until real echo arrives
+  // ----------------------------------------------------------------
+  // Synthetic tail (preview) - show latest summary as a temporary bubble until real echo arrives
   const [previewTick, setPreviewTick] = React.useState(0);
   React.useEffect(() => {
     // Re-render when thread summaries change
@@ -410,7 +410,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     }
   }, [messages, previewTick, bookingRequestId]);
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Grouping (pure; only input identity changes should recompute)
   const shouldShowTimestampGroup = React.useCallback(() => true, []);
   const groups = React.useMemo(
@@ -418,7 +418,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     [messagesForView, shouldShowTimestampGroup],
   );
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Media gallery (images + videos; exclude voice/audio)
   const galleryItems = React.useMemo<GalleryItem[]>(() => {
     const out: GalleryItem[] = [];
@@ -458,7 +458,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     return out;
   }, [messages]);
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Local message lookup for reply preview resolution
   const messageLookup = React.useMemo(() => {
     const map = new Map<number, any>();
@@ -492,7 +492,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     [messageLookup],
   );
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Initial + thread switch fetch
   React.useEffect(() => {
     // Full-load on mount/switch (no delta/lite)
@@ -500,7 +500,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingRequestId]);
 
-  // ——— Visibility-triggered refresh (throttled)
+  // --- Visibility-triggered refresh (throttled)
   const fetchMessagesRef = useLatest(fetchMessages);
   const throttleRef = React.useRef<number>(0);
   const lastReactionRefreshRef = React.useRef<number>(0);
@@ -530,7 +530,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   // One-shot reconcile disabled
   React.useEffect(() => { return () => {}; }, [bookingRequestId, fetchMessagesRef, messagesRef]);
 
-  // ——— Ensure we land at the bottom when switching to an active thread
+  // --- Ensure we land at the bottom when switching to an active thread
   React.useEffect(() => {
     if (!isActive) return;
     try {
@@ -552,7 +552,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     } catch {}
   }, [bookingRequestId, isActive, setAtBottom, scheduleScrollToEndSmooth]);
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Booking details → immediate side panel update (idempotent)
   const onParsedCbRef = useLatest((props as any)?.onBookingDetailsParsed as undefined | ((parsed: any) => void));
   const lastParsedMsgIdRef = React.useRef<number | null>(null);
@@ -577,7 +577,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     } catch {}
   }, [messages, onParsedCbRef]);
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Paid state (FIX: must be inside component; previously out-of-scope)
   const paymentMeta = React.useMemo(() => {
     try {
@@ -765,7 +765,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
   const isPaid = String(resolvedPaymentStatus || '').toLowerCase() === 'paid';
 
-  // ——— Request new quote (client CTA when a quote is expired)
+  // --- Request new quote (client CTA when a quote is expired)
   const requestNewQuote = useStableCallback(() => {
     try {
       (handlers as any).send(
@@ -808,7 +808,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     }
   }, [messages]);
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Realtime wire-up
   useThreadRealtime({
     threadId: bookingRequestId,
@@ -854,10 +854,10 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     },
   });
 
-  // ——— Read receipts (after realtime hookup so applyReadReceipt exists)
+  // --- Read receipts (after realtime hookup so applyReadReceipt exists)
   useThreadReadManager({ threadId: bookingRequestId, messages, isActive, myUserId });
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Scrolling helpers
 
   const smoothScrollIntoView = React.useCallback((el: HTMLElement, scroller: HTMLElement) => {
@@ -936,7 +936,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     // Not found → silent no-op (optionally toast)
   });
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // List events
 
   const loadOlderWithAnchor = useStableCallback(() => {
@@ -972,7 +972,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     if (atBottom && newAnchorId != null) setNewAnchorId(null);
   });
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Composer (stable + resilient optimistic flow)
 
   const sendText = useStableCallback((text: string) => {
@@ -1165,7 +1165,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     }
   });
 
-  // ——— Typing (throttled to 1 event / 1.2s for hygiene)
+  // --- Typing (throttled to 1 event / 1.2s for hygiene)
   const throttledTyping = useThrottled(() => {
     try {
       const topic = `booking-requests:${bookingRequestId}`;
@@ -1173,7 +1173,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     } catch {}
   }, 1200);
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Composer resize → adjust anchoring minimally
   React.useEffect(() => {
     const el = composerRef.current;
@@ -1191,7 +1191,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     return () => observer.disconnect();
   }, [applyComposerDelta]);
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Item renderer (stable)
   const renderGroupAtIndex = useStableCallback((index: number) => {
     const group = (groups as any)[index];
@@ -1334,7 +1334,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     }
   });
 
-  // ————————————————————————————————————————————————————————————————
+  // ----------------------------------------------------------------
   // Render
 
   const hasQueued = React.useMemo(() => {

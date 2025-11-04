@@ -175,7 +175,7 @@ export default function BookingSummaryCard({
             } else if (name) {
               addr = raw;
             }
-            const label = name ? (addr ? `${name} — ${addr}` : name) : (addr || '');
+            const label = name ? (addr ? `${name} - ${addr}` : name) : (addr || '');
             return label ? (
               <li className="py-2">
                 <span className="font-semibold">Location:</span>{' '}

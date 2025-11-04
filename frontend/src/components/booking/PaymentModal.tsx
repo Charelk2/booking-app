@@ -204,7 +204,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         } catch (e) {
           // fall through to iframe embed
         }
-        // Inline not available or failed to load — embed iframe as fallback
+        // Inline not available or failed to load - embed iframe as fallback
         const auth = (res?.data as any)?.authorization_url as string | undefined;
         if (auth) {
           setPaystackUrl(auth);

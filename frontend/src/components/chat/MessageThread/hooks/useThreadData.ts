@@ -51,7 +51,7 @@ export type ThreadMessage = {
   // Core content
   content?: string | null;
   text?: string | null; // always present after normalization
-  timestamp?: string; // ISO string — always present after normalization
+  timestamp?: string; // ISO string - always present after normalization
 
   // Preview/replies
   preview_label?: string | null;
@@ -293,7 +293,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     return () => { cancelled = true; };
   }, [threadId, opts]);
 
-  // (moved below) — Listen for global delta pokes
+  // (moved below) - Listen for global delta pokes
 
   const fetchMessages = React.useCallback(
     async (options: FetchMessagesOptions = {}) => {
@@ -482,7 +482,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         return next;
       });
     } catch {
-      // swallow — delta is best-effort
+      // swallow - delta is best-effort
     }
   }, [threadId]);
 

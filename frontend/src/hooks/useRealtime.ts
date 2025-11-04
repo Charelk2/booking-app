@@ -165,7 +165,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     ws.onopen = () => {
-      // Mark open time; do not reset attempts immediately — only after a
+      // Mark open time; do not reset attempts immediately - only after a
       // stable open (see onclose schedule below). This prevents infinite
       // open→close flapping from forever avoiding SSE fallback.
       openedAtRef.current = Date.now();
@@ -233,7 +233,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       // SSE fallback. Only consider an open "stable" if it lived >= 10s.
       const uptimeMs = openedAtRef.current ? (Date.now() - openedAtRef.current) : 0;
       if (uptimeMs >= 10000) {
-        // Stable connection — reset failure streak
+        // Stable connection - reset failure streak
         attemptsRef.current = 0;
       } else {
         // Flap: increase failure streak so we can switch to SSE quickly
@@ -245,7 +245,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
         (async () => {
           try {
             const mod = await import('@/lib/refreshCoordinator');
-            try { console.warn('[realtime] WS unauthorized (4401) — coordinating refresh'); } catch {}
+            try { console.warn('[realtime] WS unauthorized (4401) - coordinating refresh'); } catch {}
             await mod.ensureFreshAccess();
             attemptsRef.current = 0;
             setStatus('reconnecting');

@@ -345,7 +345,7 @@ function computeRow(
 
   return {
     id: thread.id,
-    name: counterpartyName || "—",
+    name: counterpartyName || "-",
     nameParts,
     previewParts,
     avatarUrl: isBookaModeration ? null : avatar,
@@ -395,7 +395,7 @@ async function prefetchThread(threadId: number) {
       : [];
     if (items.length) writeThreadCache(threadId, items);
   } catch {
-    // ignore — prefetch is best-effort
+    // ignore - prefetch is best-effort
   } finally {
     PREFETCH_INFLIGHT.delete(threadId);
   }

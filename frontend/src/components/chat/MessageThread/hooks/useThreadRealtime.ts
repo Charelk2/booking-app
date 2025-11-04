@@ -212,7 +212,7 @@ export function useThreadRealtime({
             } as any);
           } catch {}
           // Also append a minimal synthetic bubble immediately so the open thread
-          // reflects the latest preview without waiting for the full echo — except for
+          // reflects the latest preview without waiting for the full echo - except for
           // initial booking requests where this produces a transient duplicate card.
           try {
             if (Number.isFinite(lastId) && lastId > 0 && typeof ingestMessage === 'function') {
@@ -243,7 +243,7 @@ export function useThreadRealtime({
       }
     });
 
-    // Reconcile disabled — rely on realtime + explicit fetches by orchestrator.
+    // Reconcile disabled - rely on realtime + explicit fetches by orchestrator.
 
     return () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
