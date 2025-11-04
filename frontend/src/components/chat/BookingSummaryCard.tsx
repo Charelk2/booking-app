@@ -127,9 +127,9 @@ export default function BookingSummaryCard({
                 <div className="text-base font-semibold">
                   {serviceName || 'Service'}
                 </div>
-                <div className="text-sm text-gray-600">
-                  {artistName || 'Service Provider'}
-                </div>
+                {artistName ? (
+                  <div className="text-sm text-gray-600">{artistName}</div>
+                ) : null}
               </div>
             )}
           </div>
