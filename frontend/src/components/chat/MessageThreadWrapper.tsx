@@ -32,6 +32,68 @@ interface ParsedBookingDetails {
   notes?: string;
 }
 
+const DETAILS_CACHE_PREFIX = 'inbox:bookingDetails:v1';
+const parsedDetailsCache = new Map<number, ParsedBookingDetails | null>();
+
+const detailKeys: (keyof ParsedBookingDetails)[] = ['eventType', 'description', 'date', 'location', 'guests', 'venueType', 'soundNeeded', 'notes'];
+
+function normalizeDetails(details: ParsedBookingDetails | null | undefined): ParsedBookingDetails | null {
+  if (!details) return null;
+  const normalized: ParsedBookingDetails = {};
+  detailKeys.forEach((key) => {
+    const value = details[key];
+    if (value == null) return;
+    const trimmed = String(value).trim();
+    if (trimmed.length > 0) normalized[key] = trimmed;
+  });
+  return Object.keys(normalized).length ? normalized : null;
+}
+
+function detailsCacheKey(id: number) {
+  return `${DETAILS_CACHE_PREFIX}:${id}`;
+}
+
+function readCachedDetails(id: number): ParsedBookingDetails | null {
+  if (parsedDetailsCache.has(id)) return parsedDetailsCache.get(id) ?? null;
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(detailsCacheKey(id));
+    if (raw) {
+      const parsed = normalizeDetails(JSON.parse(raw));
+      parsedDetailsCache.set(id, parsed);
+      return parsed;
+    }
+  } catch {}
+  parsedDetailsCache.set(id, null);
+  return null;
+}
+
+function writeCachedDetails(id: number, details: ParsedBookingDetails | null) {
+  const normalized = normalizeDetails(details);
+  parsedDetailsCache.set(id, normalized);
+  if (typeof window === 'undefined') return;
+  const key = detailsCacheKey(id);
+  try {
+    if (normalized) sessionStorage.setItem(key, JSON.stringify(normalized));
+    else sessionStorage.removeItem(key);
+  } catch {}
+}
+
+function mergeDetails(base: ParsedBookingDetails | null, incoming: ParsedBookingDetails | null): ParsedBookingDetails | null {
+  const normalizedIncoming = normalizeDetails(incoming);
+  if (!normalizedIncoming) return normalizeDetails(base);
+  const normalizedBase = normalizeDetails(base) ?? {};
+  const merged: ParsedBookingDetails = { ...normalizedBase };
+  detailKeys.forEach((key) => {
+    if (!merged[key] && normalizedIncoming[key]) merged[key] = normalizedIncoming[key];
+  });
+  return Object.keys(merged).length ? merged : null;
+}
+
+function detailsEqual(a: ParsedBookingDetails | null, b: ParsedBookingDetails | null) {
+  return detailKeys.every((key) => (a ?? {})[key] === (b ?? {})[key]);
+}
+
 interface MessageThreadWrapperProps {
   bookingRequestId: number | null;
   bookingRequest: BookingRequest | null;
@@ -52,12 +114,42 @@ export default function MessageThreadWrapper({
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
-  const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(null);
+  const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(() => {
+    if (!bookingRequestId) return null;
+    return readCachedDetails(bookingRequestId) ?? null;
+  });
   const [presenceHeader, setPresenceHeader] = useState<string>('');
 
   const [isUserArtist, setIsUserArtist] = useState(false);
   const { user } = useContextAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!bookingRequestId) {
+      setParsedDetails(null);
+      return;
+    }
+    const cached = readCachedDetails(bookingRequestId);
+    setParsedDetails((prev) => (detailsEqual(prev, cached) ? prev : cached));
+  }, [bookingRequestId]);
+
+  const handleParsedDetails = useCallback((details: ParsedBookingDetails | null) => {
+    if (!bookingRequestId) return;
+    const normalized = normalizeDetails(details);
+    writeCachedDetails(bookingRequestId, normalized);
+    setParsedDetails(normalized);
+  }, [bookingRequestId]);
+
+  const handleFallbackDetails = useCallback((details: ParsedBookingDetails | null) => {
+    if (!bookingRequestId || !details) return;
+    setParsedDetails((prev) => {
+      const base = prev ?? readCachedDetails(bookingRequestId);
+      const merged = mergeDetails(base, details);
+      if (detailsEqual(base, merged)) return prev ?? base ?? null;
+      writeCachedDetails(bookingRequestId, merged);
+      return merged;
+    });
+  }, [bookingRequestId]);
 
   useEffect(() => {
     setIsUserArtist(Boolean(user && user.user_type === 'service_provider'));
@@ -424,7 +516,7 @@ export default function MessageThreadWrapper({
             initialBaseFee={bookingRequest?.service?.price ? Number(bookingRequest.service.price) : undefined}
             initialTravelCost={bookingRequest && bookingRequest.travel_cost !== null && bookingRequest.travel_cost !== undefined ? Number(bookingRequest.travel_cost) : undefined}
             initialSoundNeeded={parsedDetails?.soundNeeded?.toLowerCase() === 'yes'}
-            onBookingDetailsParsed={setParsedDetails}
+            onBookingDetailsParsed={handleParsedDetails}
             onBookingConfirmedChange={(confirmed: boolean, booking: any) => {
               setBookingConfirmed(confirmed);
               setConfirmedBookingDetails(booking);
@@ -521,6 +613,8 @@ export default function MessageThreadWrapper({
               paymentModal={null}
               quotes={quotesById as Record<number, QuoteV2>}
               quotesLoading={quotesLoading}
+              onBookingDetailsParsed={handleParsedDetails}
+              onBookingDetailsHydrated={handleFallbackDetails}
               onHydratedBookingRequest={handleHydratedBookingRequest}
               openPaymentModal={(args: { bookingRequestId: number; amount: number }) => {
                 const provider =
@@ -583,6 +677,8 @@ export default function MessageThreadWrapper({
                 paymentModal={null}
                 quotes={quotesById as Record<number, QuoteV2>}
                 quotesLoading={quotesLoading}
+                onBookingDetailsParsed={handleParsedDetails}
+                onBookingDetailsHydrated={handleFallbackDetails}
                 onHydratedBookingRequest={handleHydratedBookingRequest}
                 openPaymentModal={(args: { bookingRequestId: number; amount: number }) =>
                   openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount } as any)

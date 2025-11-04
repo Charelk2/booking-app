@@ -10,6 +10,7 @@ import BookingSummaryCard from '@/components/chat/BookingSummaryCard';
 import { getEventPrep, getMyServices, getBookingRequestById } from '@/lib/api';
 import { AddServiceCategorySelector } from '@/components/dashboard';
 import { useRouter } from 'next/navigation';
+import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
 
 const providerIdentityCache = new Map<number, { name: string | null; avatar: string | null }>();
 
@@ -34,6 +35,8 @@ interface BookingDetailsPanelProps {
   quotes: Record<number, QuoteV2>;
   quotesLoading: boolean;
   openPaymentModal: (args: { bookingRequestId: number; amount: number }) => void;
+  onBookingDetailsParsed?: (details: ParsedBookingDetails | null) => void;
+  onBookingDetailsHydrated?: (details: ParsedBookingDetails) => void;
   onHydratedBookingRequest?: (request: BookingRequest) => void;
 }
 
@@ -47,6 +50,8 @@ export default function BookingDetailsPanel({
   quotes,
   quotesLoading,
   openPaymentModal,
+  onBookingDetailsParsed,
+  onBookingDetailsHydrated,
   onHydratedBookingRequest,
 }: BookingDetailsPanelProps) {
   const { user } = useAuth();
@@ -89,6 +94,12 @@ export default function BookingDetailsPanel({
   const [providerName, setProviderName] = React.useState<string | null>(initialProviderName);
   const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(initialProviderAvatar);
   const canonicalFetchedRef = React.useRef(false);
+  const hasParsedDetails = React.useMemo(() => {
+    return DETAIL_KEYS.some((key) => {
+      const value = parsedBookingDetails?.[key];
+      return value != null && String(value).trim().length > 0;
+    });
+  }, [parsedBookingDetails]);
 
   React.useEffect(() => {
     canonicalFetchedRef.current = false;
@@ -121,6 +132,13 @@ export default function BookingDetailsPanel({
           const gc = (ep as any)?.guests_count;
           setEventType(et ? String(et) : null);
           setGuestsCount(typeof gc === 'number' ? gc : (gc != null ? Number(gc) : null));
+          const fallback: ParsedBookingDetails = {};
+          if (et) fallback.eventType = String(et);
+          if (typeof gc === 'number') fallback.guests = String(gc);
+          if ((ep as any)?.notes) fallback.notes = String((ep as any)?.notes);
+          if (Object.keys(fallback).length) {
+            try { onBookingDetailsHydrated?.(fallback); } catch {}
+          }
         })
         .catch(() => {});
     });
@@ -161,8 +179,10 @@ export default function BookingDetailsPanel({
     const profileHasName = Boolean(providerProfile?.business_name);
     const profileHasAvatar = Boolean(providerProfile?.profile_picture_url);
     const needIdentity = !(profileHasName && profileHasAvatar);
+    const needDetails = !hasParsedDetails;
+    const needCanonical = needIdentity || needDetails;
     if (canonicalFetchedRef.current) return;
-    if (!needIdentity) return;
+    if (!needCanonical) return;
     if (!Number.isFinite(requestId) || requestId <= 0) return;
     let cancelled = false;
     (async () => {
@@ -185,6 +205,14 @@ export default function BookingDetailsPanel({
             name: canonicalName ?? null,
             avatar: canonicalAvatar ?? null,
           });
+        }
+        const detailsMessage = (res?.data as any)?.booking_details_message;
+        if (detailsMessage) {
+          try {
+            const parsed = parseBookingDetailsFromMessage(detailsMessage);
+            if (Object.keys(parsed).length) onBookingDetailsHydrated?.(parsed);
+            onBookingDetailsParsed?.(parsed);
+          } catch {}
         }
         try { onHydratedBookingRequest?.(res.data as BookingRequest); } catch {}
       } catch {
