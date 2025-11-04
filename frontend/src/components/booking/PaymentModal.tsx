@@ -426,7 +426,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const fallbackActive = inlineBlocked && showFallbackBanner && paystackUrl;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-[200]">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-[999999909]">
       <div
         ref={modalRef}
         className="bg-white rounded-lg shadow-lg w-full max-w-sm p-4 mx-2 max-h-[90vh] overflow-y-auto focus:outline-none"
