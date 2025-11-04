@@ -22,7 +22,7 @@ export function noteLocalReadEpoch(threadId: number) {
 }
 
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   // Single hook instance provides one WS/SSE connection for the entire app
   const rt = useRealtime(token || null);
   // Expose a value object that updates when either transport state OR
@@ -44,7 +44,10 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
   // Global notifications subscription: keep one topic to ensure WS opens early
   // even before AuthContext token is restored after a refresh (cookie auth works).
+  const hasSession = !!token || !!user;
+
   useEffect(() => {
+    if (!hasSession) return;
     const unsubscribe = rt.subscribe('notifications', (payload: any) => {
       try {
         // Header aggregate push: unread_total → trigger recompute in hooks
@@ -59,7 +62,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return () => { try { unsubscribe(); } catch {} };
-  }, [rt]);
+  }, [rt, hasSession]);
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }
