@@ -250,15 +250,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const data = res.data as any;
       const authUrl = data?.authorization_url as (string | undefined);
       const reference = String(data?.reference || data?.payment_id || '').trim();
+      const accessCode = String(data?.access_code || data?.accessCode || '').trim();
       if (authUrl && reference && PAYSTACK_PK) {
         setPaystackReference(reference);
+        setPaystackAccessCode(accessCode || null);
         try {
           const loadPaystack = async (): Promise<void> => {
             if (typeof window === 'undefined') return;
             if ((window as any).PaystackPop) return;
             await new Promise<void>((resolve, reject) => {
               const s = document.createElement('script');
-              s.src = 'https://js.paystack.co/v1/inline.js';
+              s.src = 'https://js.paystack.co/v2/inline.js';
               s.async = true;
               s.onload = () => resolve();
               s.onerror = () => reject(new Error('Failed to load Paystack script'));
@@ -267,16 +269,18 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           };
           await loadPaystack();
           const PaystackPop = (window as any).PaystackPop;
-          if (PaystackPop && typeof PaystackPop.setup === 'function') {
-            const handler = PaystackPop.setup({
+          if (PaystackPop && typeof PaystackPop === 'function') {
+            const paystack = new PaystackPop();
+            paystack.newTransaction({
               key: PAYSTACK_PK,
               email: 'client@booka.local',
               amount: Math.round(Math.max(0, Number(amount || 0)) * 100),
               currency: 'ZAR',
-              ref: reference,
               reference,
-              callback: async (resp: { reference: string }) => {
-                const ref = resp?.reference || reference;
+              access_code: accessCode || undefined,
+              metadata: { booking_request_id: bookingRequestId },
+              onSuccess: async (transaction: { reference: string }) => {
+                const ref = transaction?.reference || reference;
                 const verifyUrl = `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(ref)}`;
                 const v = await fetch(verifyUrl, { credentials: 'include' as RequestCredentials });
                 if (v.ok) {
@@ -285,30 +289,26 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   const rurl = `/api/v1/payments/${pid}/receipt`;
                   try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, rurl); } catch {}
                   onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl: rurl });
-                } else {
-                  let message = 'Payment not completed yet. Return to Paystack to finish.';
-                  try {
-                    const payload = await v.json();
-                    message = interpretStatus(payload, message, 'Payment is still pending. Leave Paystack open until it completes.');
-                  } catch {
-                    if (v.status === 400) {
-                      message = 'Payment is still pending. Leave Paystack open until it completes.';
-                    }
-                  }
-                  setError(message);
+                  return;
                 }
+                let message = 'Payment not completed yet. Return to Paystack to finish.';
+                try {
+                  const payload = await v.json();
+                  message = interpretStatus(payload, message, 'Payment is still pending. Leave Paystack open until it completes.');
+                } catch {
+                  if (v.status === 400) {
+                    message = 'Payment is still pending. Leave Paystack open until it completes.';
+                  }
+                }
+                setError(message);
               },
-              onClose: () => {},
+              onCancel: () => {
+                setError('Payment cancelled before completion. Reopen Paystack to finish.');
+              },
             });
-            try {
-              handler.openIframe();
-              setLoading(false);
-              setShowFallbackBanner(false);
-              return;
-            } catch {
-              setInlineBlocked(true);
-              setShowFallbackBanner(true);
-            }
+            setLoading(false);
+            setShowFallbackBanner(false);
+            return;
           }
         } catch {
           setInlineBlocked(true);
