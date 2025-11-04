@@ -205,7 +205,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     };
   }, [open, handleCancel]);
 
-  // Poll verify endpoint when using hosted fallback (iframe)
+  // Poll verify endpoint when waiting on hosted checkout
   useEffect(() => {
     if (!paystackUrl || !paystackReference) return;
 
@@ -306,19 +306,26 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
         <div className="space-y-3">
           {showStatusBanner && (
-            <div className="rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-700">
+            <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">
               {loading && <span>Opening secure checkout…</span>}
               {!loading && error && <span className="text-red-600">{error}</span>}
             </div>
           )}
 
           {paystackUrl && (
-            <div className="rounded-md border overflow-hidden">
-              <iframe
-                title="Paystack Checkout"
-                src={paystackUrl}
-                className="w-full h-[560px] border-0"
-              />
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
+              <div className="flex items-start gap-3">
+                <span className="relative flex h-3 w-3 mt-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+                </span>
+                <div className="space-y-1">
+                  <p className="font-medium text-emerald-900">Finalizing your booking…</p>
+                  <p className="text-emerald-800">
+                    Keep the Paystack window open while we finalize your booking. 
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
