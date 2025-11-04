@@ -1220,14 +1220,11 @@ export const calculateSoundServiceEstimate = (serviceId: number, payload: {
 }) => api.post(`${API_V1}/services/${serviceId}/sound-estimate`, payload);
 
 // ─── PAYMENTS ───────────────────────────────────────────────────────────────
-export const createPayment = (
-  data: {
-    booking_request_id: number;
-    amount: number;
-    full?: boolean;
-  },
-  config?: AxiosRequestConfig,
-) => api.post(`${API_V1}/payments`, data, config);
+export const createPayment =  (data: {
+  booking_request_id: number;
+  amount: number;
+  full?: boolean;
+}) => api.post(`${API_V1}/payments`, data);
 
 // ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
 // Notifications endpoints live under /api/v1

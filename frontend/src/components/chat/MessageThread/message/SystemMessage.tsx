@@ -15,6 +15,9 @@ const absUrlRegex = /(https?:\/\/[^\s]+)/i;
 const relUrlRegex = /(\/api\/[\S]+)/i;
 const urlRegex = /(https?:\/\/[^\s]+|\/[^\s]+)/i;
 
+
+
+
 export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQuote = false }: SystemMessageProps) {
   try {
     const key = String((msg?.system_key || msg?.action || '')).toLowerCase();
@@ -180,8 +183,8 @@ export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQ
         }
       } catch {
         // Fallback: extract the first URL (if any) from the content
-        const found = content.match(urlRegex)?.[1] || null;
-        view = found ? (found.startsWith('/') ? apiUrl(found) : found) : null;
+        const m = content.match(urlRegex);
+        view = m?.[1] || null;
       }
 
       const hasMeta = Boolean(date || guests !== undefined);
