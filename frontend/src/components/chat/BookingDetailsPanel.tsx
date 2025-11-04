@@ -416,14 +416,18 @@ export default function BookingDetailsPanel({
           (bookingRequest as any).service?.artist?.user_id ||
           0;
 
-        const resolvedAvatar = providerAvatarUrl || (providerProfile?.profile_picture_url ?? null);
-        const resolvedName = providerName || (providerProfile?.business_name ? String(providerProfile.business_name) : null);
-
-        const imageUrl =
-          resolvedAvatar ||
-          ((bookingRequest as any)?.counterparty_avatar_url as string | null | undefined) ||
+        const resolvedAvatar =
+          providerAvatarUrl ||
+          providerProfile?.profile_picture_url ||
+          (bookingRequest as any)?.counterparty_avatar_url ||
           null;
 
+        const resolvedName =
+          providerName ||
+          (providerProfile?.business_name ? String(providerProfile.business_name) : null) ||
+          ((bookingRequest as any)?.counterparty_label ? String((bookingRequest as any)?.counterparty_label) : null);
+
+        const imageUrl = resolvedAvatar ? String(resolvedAvatar) : null;
         const artistName = resolvedName ?? undefined;
 
         const cancellationPolicy =
