@@ -154,7 +154,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           if ((window as any).PaystackPop) return;
           await new Promise<void>((resolve, reject) => {
             const s = document.createElement('script');
-            s.src = 'https://js.paystack.co/v1/inline.js';
+            s.src = 'https://js.paystack.co/v2/inline.js';
             s.async = true;
             s.onload = () => resolve();
             s.onerror = () => reject(new Error('Failed to load Paystack script'));
@@ -162,25 +162,23 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           });
         };
 
-        let attemptedInline = false;
         try {
           await loadPaystack();
           const PaystackPop = (window as any).PaystackPop;
-          if (PaystackPop && typeof PaystackPop.setup === 'function') {
-            attemptedInline = true;
+          if (PaystackPop && typeof PaystackPop === 'function') {
+            const paystack = new PaystackPop();
             const amountKobo = Math.round(Math.max(0, Number(amount || 0)) * 100);
-            const handler = PaystackPop.setup({
+            paystack.newTransaction({
               key: PAYSTACK_PK,
               email: 'client@booka.local',
               amount: amountKobo,
               currency: 'ZAR',
-              ref: reference,
               reference,
               metadata: { booking_request_id: bookingRequestId },
-              callback: async (response: { reference: string }) => {
+              onSuccess: async (transaction: { reference: string }) => {
                 try {
                   setVerifying(true);
-                  const ref = response?.reference || reference;
+                  const ref = transaction?.reference || reference;
                   const verifyUrl = `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(ref)}`;
                   const resp = await fetch(verifyUrl, { credentials: 'include' as RequestCredentials });
                   if (resp.ok) {
@@ -189,17 +187,22 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     const receiptUrl = `/api/v1/payments/${pid}/receipt`;
                     try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
                     onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
-                  } else {
-                    let message = 'Payment not completed. You can reopen Paystack below.';
-                    try {
-                      const payload = await resp.json();
-                      message = interpretStatus(payload, message, 'Payment is still pending. Leave Paystack open until it completes.');
-                    } catch {
-                      if (resp.status === 400) {
-                        message = 'Payment is still pending. Leave Paystack open until it completes.';
-                      }
+                    return;
+                  }
+                  let message = 'Payment not completed yet. Return to Paystack to finish.';
+                  try {
+                    const payload = await resp.json();
+                    message = interpretStatus(payload, message, 'Payment is still pending. Leave Paystack open until it completes.');
+                  } catch {
+                    if (resp.status === 400) {
+                      message = 'Payment is still pending. Leave Paystack open until it completes.';
                     }
-                    setError(message);
+                  }
+                  setError(message);
+                  if (authorizationUrl) {
+                    setInlineBlocked(true);
+                    setShowFallbackBanner(true);
+                    setPaystackUrl(authorizationUrl);
                   }
                 } catch {
                   setError('Verification failed. Reopen Paystack if the window closed.');
@@ -207,33 +210,25 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   setVerifying(false);
                 }
               },
-              onClose: () => {
-                // Keep modal open for retriable flow
+              onCancel: () => {
+                setError('Payment cancelled before completion. Reopen Paystack to finish.');
+                if (authorizationUrl) {
+                  setInlineBlocked(true);
+                  setShowFallbackBanner(true);
+                  setPaystackUrl(authorizationUrl);
+                }
               },
             });
-
-            try {
-              handler.openIframe();
-              setLoading(false);
-              setShowFallbackBanner(false);
-              return;
-            } catch {
-              setInlineBlocked(true);
-              if (authorizationUrl) {
-                setShowFallbackBanner(true);
-              }
-            }
+            setLoading(false);
+            return;
           }
         } catch {
-          // fall through to iframe in case of script or setup failure
+          setInlineBlocked(true);
         }
 
         if (authorizationUrl) {
           setPaystackUrl(authorizationUrl);
-          if (attemptedInline) {
-            setInlineBlocked(true);
-            setShowFallbackBanner(true);
-          }
+          setShowFallbackBanner(true);
           setLoading(false);
           return;
         }
