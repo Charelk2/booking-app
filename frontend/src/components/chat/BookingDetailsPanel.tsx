@@ -25,6 +25,7 @@ const normalizeIdentityString = (value: unknown): string | null => {
   return str.length ? str : null;
 };
 
+// DONT DELETE: provider self identity cache ensures providers always see their own business profile instead of counterparty fallbacks.
 let selfProviderIdentityCache: { name: string | null; avatar: string | null } | null = null;
 let selfProviderIdentityPromise:
   | Promise<{ name: string | null; avatar: string | null }>

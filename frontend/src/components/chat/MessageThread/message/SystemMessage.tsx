@@ -49,6 +49,7 @@ export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQ
 
     // New booking request CTA card
     if (lower.includes('new booking request') || lower.includes('you have a new booking request')) {
+      if (hasAnyQuote) return null;
       return (
         <div className="my-2 w-full flex justify-center">
           <div className="mx-auto flex max-w-2xl items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
@@ -109,6 +110,7 @@ export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQ
 
     // Booking details summary: show a compact, actionable line instead of hiding completely
     if (content.startsWith(BOOKING_DETAILS_PREFIX)) {
+      if (hasAnyQuote) return null;
       return (
         <div className="my-2 w-full flex justify-center">
           <div className="mx-auto flex max-w-2xl items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">

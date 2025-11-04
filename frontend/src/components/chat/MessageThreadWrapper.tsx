@@ -157,8 +157,11 @@ export default function MessageThreadWrapper({
     setIsUserArtist(Boolean(user && user.user_type === 'service_provider'));
   }, [user]);
 
-  /** Mobile details sheet visibility */
-  const [showSidePanel, setShowSidePanel] = useState(false);
+  /** Mobile details sheet visibility (defaults open on desktop widths) */
+  const [showSidePanel, setShowSidePanel] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(min-width: 768px)').matches;
+  });
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
