@@ -533,7 +533,7 @@ export default function MessageThreadWrapper({
           if (found) break;
           const ids = rows
             .map((row: any) => Number((row as any)?.id || 0))
-            .filter((id) => Number.isFinite(id) && id > 0);
+            .filter((id: number) => Number.isFinite(id) && id > 0);
           if (!payload.has_more || !ids.length) break;
           cursor = Math.min(...ids);
         } catch {
@@ -776,8 +776,8 @@ export default function MessageThreadWrapper({
               setBookingConfirmed(confirmed);
               setConfirmedBookingDetails(booking);
             }}
-            onPaymentStatusChange={(status: string, amount?: number, url?: string | null, reference?: string | null) => {
-              setPaymentStatus(status);
+            onPaymentStatusChange={(status: string | null, amount?: number | null, url?: string | null, reference?: string | null) => {
+              setPaymentStatus(status ?? null);
               setPaymentAmount(amount ?? null);
               setReceiptUrl(url ?? null);
               if (url) {
