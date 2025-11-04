@@ -30,6 +30,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   onError,
   amount,
   serviceName,
+  providerName: _unusedProviderName,
 }) => {
   const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
   const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
