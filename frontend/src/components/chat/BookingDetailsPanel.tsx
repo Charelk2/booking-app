@@ -357,13 +357,15 @@ export default function BookingDetailsPanel({
           (bookingRequest as any)?.artist_profile ||
           null;
 
+        const resolvedAvatar = providerAvatarUrl || (providerProfile?.profile_picture_url ?? null);
+        const resolvedName = providerName || (providerProfile?.business_name ? String(providerProfile.business_name) : null);
+
         const imageUrl =
-          providerAvatarUrl ||
-          (providerProfile?.profile_picture_url as string | null | undefined) ||
+          resolvedAvatar ||
           ((bookingRequest as any)?.counterparty_avatar_url as string | null | undefined) ||
           null;
 
-        const artistName = providerName || (providerProfile?.business_name ? String(providerProfile.business_name) : undefined);
+        const artistName = resolvedName ?? undefined;
 
         const cancellationPolicy =
           (bookingRequest as any)?.service_provider_profile?.cancellation_policy ??
