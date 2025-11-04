@@ -3,11 +3,11 @@
 import React from 'react';
 
 import { format, parseISO, isValid } from 'date-fns';
-import { Booking, BookingRequest, Review, QuoteV2 } from '@/types';
+import { Booking, BookingRequest, Review, QuoteV2, ServiceProviderProfile } from '@/types';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import BookingSummaryCard from '@/components/chat/BookingSummaryCard';
-import { getEventPrep, getMyServices } from '@/lib/api';
+import { getEventPrep, getMyServices, getServiceProvider } from '@/lib/api';
 import { AddServiceCategorySelector } from '@/components/dashboard';
 import { useRouter } from 'next/navigation';
 import { counterpartyAvatar, counterpartyLabel } from '@/lib/names';
@@ -50,6 +50,9 @@ export default function BookingDetailsPanel({
   const [services, setServices] = React.useState<any[] | null>(null);
   const [loadingServices, setLoadingServices] = React.useState(false);
   const [showAddService, setShowAddService] = React.useState(false);
+  // Canonical provider identity for the side panel header (same for both roles)
+  const [providerName, setProviderName] = React.useState<string | null>(null);
+  const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(null);
   const router = useRouter();
 
   React.useEffect(() => {
@@ -131,6 +134,54 @@ export default function BookingDetailsPanel({
       cancelled = true;
     };
   }, [isBookaThread, user?.user_type]);
+
+  // Seed provider identity from thread payload (provider-only fields)
+  React.useEffect(() => {
+    try {
+      const initialName =
+        (bookingRequest as any)?.service_provider_profile?.business_name ||
+        (bookingRequest as any)?.artist_profile?.business_name ||
+        null;
+      const initialAvatar =
+        (bookingRequest as any)?.service_provider_profile?.profile_picture_url ||
+        (bookingRequest as any)?.artist_profile?.profile_picture_url ||
+        null;
+      if (initialName && !providerName) setProviderName(String(initialName));
+      if (initialAvatar && !providerAvatarUrl) setProviderAvatarUrl(String(initialAvatar));
+    } catch {}
+  }, [bookingRequest, providerName, providerAvatarUrl]);
+
+  // Fetch provider profile by user id if any part is missing
+  React.useEffect(() => {
+    const need = !providerName || !providerAvatarUrl;
+    if (!need) return;
+    const providerUserId =
+      (bookingRequest as any).service_provider_id ||
+      (bookingRequest as any).artist_id ||
+      (bookingRequest as any).service_provider?.id ||
+      (bookingRequest as any).artist?.id ||
+      (bookingRequest as any).service_provider_profile?.user_id ||
+      (bookingRequest as any).artist_profile?.user_id ||
+      (bookingRequest as any).service?.service_provider_id ||
+      (bookingRequest as any).service?.artist_id ||
+      (bookingRequest as any).service?.artist?.user_id ||
+      0;
+    const id = Number(providerUserId || 0);
+    if (!Number.isFinite(id) || id <= 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getServiceProvider(id);
+        if (cancelled) return;
+        const p = (res?.data || {}) as Partial<ServiceProviderProfile>;
+        if (!providerName && p.business_name) setProviderName(String(p.business_name));
+        if (!providerAvatarUrl && p.profile_picture_url) setProviderAvatarUrl(String(p.profile_picture_url));
+      } catch {
+        // Leave placeholders; profile must be fixed upstream
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [bookingRequest, providerName, providerAvatarUrl]);
 
   // Determine service type once for conditional UI
   const serviceTypeText = String(
@@ -312,31 +363,11 @@ export default function BookingDetailsPanel({
           (bookingRequest as any).service?.artist?.user_id ||
           0;
 
-        // Prefer canonical provider image fields so next/image optimizes a real photo
-        const imageUrl =
-          // Service media (hero) if present
-          (bookingRequest?.service?.media_url as any) ||
-          // Explicit counterparty/avatar URL provided by thread preview/normalizer
-          (bookingRequest as any)?.counterparty_avatar_url ||
-          // Canonical profile fields
-          (bookingRequest as any)?.service_provider_profile?.cover_photo_url ||
-          (bookingRequest as any)?.service_provider_profile?.profile_picture_url ||
-          (bookingRequest as any)?.service_provider?.profile_picture_url ||
-          // Legacy aliases (back-compat)
-          (bookingRequest as any)?.artist_profile?.cover_photo_url ||
-          (bookingRequest as any)?.artist_profile?.profile_picture_url ||
-          // As a last resort, derive from role-aware helper
-          counterpartyAvatar(bookingRequest as any, user as any, (bookingRequest as any)?.counterparty_avatar_url || null) ||
-          null;
+        // Canonical provider avatar used on profile/home
+        const imageUrl = providerAvatarUrl || null;
 
-        // Display name preference; fall back to counterparty label so header isn't generic
-        const artistName =
-          (bookingRequest as any)?.service_provider_profile?.business_name ||
-          (bookingRequest as any)?.service_provider?.business_name ||
-          (bookingRequest as any)?.artist_profile?.business_name ||
-          (bookingRequest as any)?.artist?.first_name ||
-          counterpartyLabel(bookingRequest as any, user as any, (bookingRequest as any)?.counterparty_label || null) ||
-          undefined;
+        // Canonical provider business name used on profile/home
+        const artistName = providerName || undefined;
 
         const cancellationPolicy =
           (bookingRequest as any)?.service_provider_profile?.cancellation_policy ??
