@@ -177,12 +177,18 @@ export default function BookingDetailsPanel({
   }, [requestId]);
 
   const initialProviderName = React.useMemo(() => {
+    if (viewerIsProvider) {
+      return derivedProviderName ?? cachedIdentity?.name ?? null;
+    }
     return cachedIdentity?.name ?? derivedProviderName ?? null;
-  }, [cachedIdentity?.name, derivedProviderName]);
+  }, [viewerIsProvider, derivedProviderName, cachedIdentity?.name]);
 
   const initialProviderAvatar = React.useMemo(() => {
+    if (viewerIsProvider) {
+      return derivedProviderAvatar ?? cachedIdentity?.avatar ?? null;
+    }
     return cachedIdentity?.avatar ?? derivedProviderAvatar ?? null;
-  }, [cachedIdentity?.avatar, derivedProviderAvatar]);
+  }, [viewerIsProvider, derivedProviderAvatar, cachedIdentity?.avatar]);
 
   const [providerName, setProviderName] = React.useState<string | null>(initialProviderName);
   const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(initialProviderAvatar);
