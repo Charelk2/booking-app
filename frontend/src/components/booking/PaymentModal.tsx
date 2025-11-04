@@ -192,16 +192,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     let message = 'Payment not completed. You can reopen Paystack below.';
                     try {
                       const payload = await resp.json();
-                      message = interpretStatus(payload, message, 'Payment is still pending. Keep checkout open, then click Check status.');
+                      message = interpretStatus(payload, message, 'Payment is still pending. Leave Paystack open until it completes.');
                     } catch {
                       if (resp.status === 400) {
-                        message = 'Payment is still pending. Keep checkout open, then click Check status.';
+                        message = 'Payment is still pending. Leave Paystack open until it completes.';
                       }
                     }
                     setError(message);
                   }
                 } catch {
-                  setError('Verification failed. Click Check status or reopen Paystack.');
+                  setError('Verification failed. Reopen Paystack if the window closed.');
                 } finally {
                   setVerifying(false);
                 }
@@ -286,13 +286,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, rurl); } catch {}
                   onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl: rurl });
                 } else {
-                  let message = 'Payment not completed. Click Check status after finishing checkout.';
+                  let message = 'Payment not completed yet. Return to Paystack to finish.';
                   try {
                     const payload = await v.json();
-                    message = interpretStatus(payload, message, 'Payment is still pending. Keep checkout open, then click Check status.');
+                    message = interpretStatus(payload, message, 'Payment is still pending. Leave Paystack open until it completes.');
                   } catch {
                     if (v.status === 400) {
-                      message = 'Payment is still pending. Keep checkout open, then click Check status.';
+                      message = 'Payment is still pending. Leave Paystack open until it completes.';
                     }
                   }
                   setError(message);
@@ -461,16 +461,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           )}
         </div>
 
-        <div className="mt-6 flex flex-col gap-3">
-          <div className="flex justify-between gap-3">
-            <div />
-            {fallbackActive && (
-              <Button type="button" onClick={handlePay} isLoading={loading}>
-                Reopen Paystack
-              </Button>
-            )}
+        {fallbackActive && (
+          <div className="mt-6 flex justify-end">
+            <Button type="button" onClick={handlePay} isLoading={loading}>
+              Reopen Paystack
+            </Button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
