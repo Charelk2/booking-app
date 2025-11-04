@@ -100,6 +100,38 @@ export default function MessageThreadWrapper({
   useEffect(() => {
     setQuotesLoading(initialQuotes.length === 0);
   }, [initialQuotes]);
+
+  const handleHydratedBookingRequest = useCallback((request: BookingRequest) => {
+    try {
+      const arr = Array.isArray((request as any)?.quotes) ? (request as any).quotes : [];
+      const normalized: QuoteV2[] = [];
+      const seen = new Set<number>();
+      for (const raw of arr) {
+        if (!raw) continue;
+        let q: QuoteV2 | null = null;
+        if (Array.isArray((raw as any)?.services)) {
+          q = raw as QuoteV2;
+        } else {
+          try {
+            q = toQuoteV2FromLegacy(raw as Quote, { clientId: (request as any)?.client_id });
+          } catch {
+            q = null;
+          }
+        }
+        const qid = Number(q?.id || 0);
+        if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
+        seen.add(qid);
+        normalized.push(q);
+      }
+      if (normalized.length) {
+        normalized.forEach((q) => setQuote(q));
+      }
+    } catch {
+      // ignore enrich failures
+    } finally {
+      setQuotesLoading(false);
+    }
+  }, [setQuote]);
   const refreshQuotesForThread = useCallback(async () => {
     try {
       const res = await api.getQuotesForBookingRequest(Number(bookingRequestId || 0));
@@ -484,6 +516,7 @@ export default function MessageThreadWrapper({
               paymentModal={null}
               quotes={quotesById as Record<number, QuoteV2>}
               quotesLoading={quotesLoading}
+              onHydratedBookingRequest={handleHydratedBookingRequest}
               openPaymentModal={(args: { bookingRequestId: number; amount: number }) => {
                 const provider =
                   (bookingRequest as any)?.service_provider_profile?.business_name ||
@@ -545,6 +578,7 @@ export default function MessageThreadWrapper({
                 paymentModal={null}
                 quotes={quotesById as Record<number, QuoteV2>}
                 quotesLoading={quotesLoading}
+                onHydratedBookingRequest={handleHydratedBookingRequest}
                 openPaymentModal={(args: { bookingRequestId: number; amount: number }) =>
                   openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount } as any)
                 }
