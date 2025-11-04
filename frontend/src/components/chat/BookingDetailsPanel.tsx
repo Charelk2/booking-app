@@ -136,6 +136,31 @@ export default function BookingDetailsPanel({
           if (et) fallback.eventType = String(et);
           if (typeof gc === 'number') fallback.guests = String(gc);
           if ((ep as any)?.notes) fallback.notes = String((ep as any)?.notes);
+          const venueAddress =
+            (ep as any)?.venue_address ||
+            (ep as any)?.venue_name ||
+            (ep as any)?.venue_description ||
+            null;
+          if (venueAddress) fallback.location = String(venueAddress);
+          const fallbackDate =
+            (confirmedBookingDetails as any)?.start_time ||
+            (bookingRequest as any)?.proposed_datetime_1 ||
+            (bookingRequest as any)?.proposed_datetime_2 ||
+            (bookingRequest as any)?.event_date ||
+            null;
+          if (fallbackDate) fallback.date = String(fallbackDate);
+          const soundContext = (bookingRequest as any)?.sound_context;
+          const soundRequired =
+            (bookingRequest as any)?.sound_required ??
+            (bookingRequest as any)?.sound_needed ??
+            (soundContext ? soundContext.sound_required : undefined);
+          if (typeof soundRequired === 'boolean') {
+            fallback.soundNeeded = soundRequired ? 'Yes' : 'No';
+          } else if (typeof soundRequired === 'string' && soundRequired.trim().length) {
+            fallback.soundNeeded = soundRequired.trim();
+          } else if (soundContext?.mode && soundContext.mode !== 'none') {
+            fallback.soundNeeded = 'Yes';
+          }
           if (Object.keys(fallback).length) {
             try { onBookingDetailsHydrated?.(fallback); } catch {}
           }
@@ -152,7 +177,16 @@ export default function BookingDetailsPanel({
         }
       } catch {}
     };
-  }, [confirmedBookingDetails?.id, parsedBookingDetails?.eventType, parsedBookingDetails?.guests, eventType, guestsCount]);
+  }, [
+    confirmedBookingDetails?.id,
+    confirmedBookingDetails?.start_time,
+    parsedBookingDetails?.eventType,
+    parsedBookingDetails?.guests,
+    eventType,
+    guestsCount,
+    bookingRequest,
+    onBookingDetailsHydrated,
+  ]);
 
   // Reset provider identity whenever we switch threads or the payload updates
   React.useLayoutEffect(() => {
