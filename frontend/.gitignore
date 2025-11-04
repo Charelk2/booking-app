@@ -2,3 +2,6 @@
 .env.local
 .env.development.local
 .env.production.local
+
+*storybook.log
+storybook-static

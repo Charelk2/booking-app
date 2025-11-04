@@ -7,7 +7,12 @@ import { Booking, BookingRequest, Review, QuoteV2 } from '@/types';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import BookingSummaryCard from '@/components/chat/BookingSummaryCard';
-import { getEventPrep, getMyServices, getBookingRequestById } from '@/lib/api';
+import {
+  getEventPrep,
+  getMyServices,
+  getBookingRequestById,
+  getServiceProviderProfileMe,
+} from '@/lib/api';
 import { AddServiceCategorySelector } from '@/components/dashboard';
 import { useRouter } from 'next/navigation';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
@@ -19,6 +24,11 @@ const normalizeIdentityString = (value: unknown): string | null => {
   const str = String(value).trim();
   return str.length ? str : null;
 };
+
+let selfProviderIdentityCache: { name: string | null; avatar: string | null } | null = null;
+let selfProviderIdentityPromise:
+  | Promise<{ name: string | null; avatar: string | null }>
+  | null = null;
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -91,6 +101,11 @@ export default function BookingDetailsPanel({
     return Boolean(user && user.user_type === 'service_provider');
   }, [user]);
 
+  const [selfProviderIdentity, setSelfProviderIdentity] = React.useState<{
+    name: string | null;
+    avatar: string | null;
+  } | null>(null);
+
   const derivedProviderIdentity = React.useMemo(() => {
     const identity: { name: string | null; avatar: string | null } = { name: null, avatar: null };
 
@@ -131,8 +146,14 @@ export default function BookingDetailsPanel({
     }
 
     if (viewerIsProvider) {
+      if (!identity.name && selfProviderIdentity?.name) {
+        identity.name = normalizeIdentityString(selfProviderIdentity.name) ?? identity.name;
+      }
       if (!identity.avatar) {
         identity.avatar = normalizeIdentityString(user?.profile_picture_url) ?? identity.avatar;
+      }
+      if (!identity.avatar && selfProviderIdentity?.avatar) {
+        identity.avatar = normalizeIdentityString(selfProviderIdentity.avatar) ?? identity.avatar;
       }
     } else {
       if (!identity.name) {
@@ -149,10 +170,50 @@ export default function BookingDetailsPanel({
     providerProfile,
     bookingRequest,
     user?.profile_picture_url,
+    selfProviderIdentity?.name,
+    selfProviderIdentity?.avatar,
   ]);
 
   const derivedProviderName = derivedProviderIdentity.name;
   const derivedProviderAvatar = derivedProviderIdentity.avatar;
+
+  React.useEffect(() => {
+    if (!viewerIsProvider) return;
+    if (selfProviderIdentityCache) {
+      setSelfProviderIdentity(selfProviderIdentityCache);
+      return;
+    }
+    let cancelled = false;
+    if (!selfProviderIdentityPromise) {
+      selfProviderIdentityPromise = getServiceProviderProfileMe()
+        .then((res) => {
+          const payload = {
+            name: normalizeIdentityString(res?.data?.business_name),
+            avatar: normalizeIdentityString(res?.data?.profile_picture_url),
+          };
+          selfProviderIdentityCache = payload;
+          return payload;
+        })
+        .catch(() => {
+          const payload = { name: null, avatar: null };
+          selfProviderIdentityCache = payload;
+          return payload;
+        })
+        .finally(() => {
+          selfProviderIdentityPromise = null;
+        });
+    }
+    selfProviderIdentityPromise
+      ?.then((payload) => {
+        if (!cancelled) setSelfProviderIdentity(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setSelfProviderIdentity({ name: null, avatar: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerIsProvider]);
 
   const cachedIdentity = React.useMemo(() => {
     if (!requestId) return null;
@@ -161,17 +222,17 @@ export default function BookingDetailsPanel({
 
   const initialProviderName = React.useMemo(() => {
     if (viewerIsProvider) {
-      return derivedProviderName ?? null;
+      return derivedProviderName ?? selfProviderIdentity?.name ?? null;
     }
     return cachedIdentity?.name ?? derivedProviderName ?? null;
-  }, [viewerIsProvider, derivedProviderName, cachedIdentity?.name]);
+  }, [viewerIsProvider, derivedProviderName, cachedIdentity?.name, selfProviderIdentity?.name]);
 
   const initialProviderAvatar = React.useMemo(() => {
     if (viewerIsProvider) {
-      return derivedProviderAvatar ?? null;
+      return derivedProviderAvatar ?? selfProviderIdentity?.avatar ?? null;
     }
     return cachedIdentity?.avatar ?? derivedProviderAvatar ?? null;
-  }, [viewerIsProvider, derivedProviderAvatar, cachedIdentity?.avatar]);
+  }, [viewerIsProvider, derivedProviderAvatar, cachedIdentity?.avatar, selfProviderIdentity?.avatar]);
 
   const [providerName, setProviderName] = React.useState<string | null>(initialProviderName);
   const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(initialProviderAvatar);
@@ -341,7 +402,10 @@ export default function BookingDetailsPanel({
           }
         }
         if (!canonicalName) {
-          canonicalName = derivedProviderName ?? (viewerIsProvider ? null : providerName ?? null);
+          canonicalName =
+            derivedProviderName ??
+            selfProviderIdentity?.name ??
+            (viewerIsProvider ? null : providerName ?? null);
         }
 
         const canonicalAvatarCandidates: Array<unknown> = [
@@ -364,7 +428,11 @@ export default function BookingDetailsPanel({
           }
         }
         if (!canonicalAvatar) {
-          canonicalAvatar = derivedProviderAvatar ?? providerAvatarUrl ?? null;
+          canonicalAvatar =
+            derivedProviderAvatar ??
+            selfProviderIdentity?.avatar ??
+            providerAvatarUrl ??
+            null;
         }
         if (canonicalName !== providerName) setProviderName(canonicalName);
         if (canonicalAvatar !== providerAvatarUrl) setProviderAvatarUrl(canonicalAvatar);
@@ -399,6 +467,8 @@ export default function BookingDetailsPanel({
     derivedProviderName,
     derivedProviderAvatar,
     viewerIsProvider,
+    selfProviderIdentity?.name,
+    selfProviderIdentity?.avatar,
     hasParsedDetails,
     onHydratedBookingRequest,
     bookingRequest,
