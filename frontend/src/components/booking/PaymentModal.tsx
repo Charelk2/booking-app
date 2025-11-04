@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Button from '../ui/Button';
-import TextInput from '../ui/TextInput';
 import { createPayment } from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
-import { format } from 'date-fns';
 import { apiUrl } from '@/lib/api';
 
 interface PaymentSuccess {
@@ -32,33 +29,43 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   onSuccess,
   onError,
   amount,
-  providerName,
   serviceName,
 }) => {
-  // Check the environment variable at runtime so tests can override it
   const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
   const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
   const PAYSTACK_PK = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PK;
-  const [full] = useState(true); // always full amount
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paystackUrl, setPaystackUrl] = useState<string | null>(null); // legacy iframe path (unused with inline)
+  const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [paystackReference, setPaystackReference] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [inlineBlocked, setInlineBlocked] = useState(false);
   const pollTimerRef = useRef<number | null>(null);
-  const modalRef = useRef<HTMLFormElement | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
   const autoRunRef = useRef(false);
 
-  useEffect(() => {}, [open]);
+  const handleCancel = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      const confirmCancel = window.confirm('Cancel and return? You can restart payment anytime.');
+      if (!confirmCancel) {
+        return;
+      }
+    }
+    autoRunRef.current = false;
+    onClose();
+  }, [onClose]);
 
   useEffect(() => {
     if (!open || !modalRef.current) return undefined;
+
     const modal = modalRef.current;
     const focusable = modal.querySelectorAll<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
     );
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
+
     const trap = (e: KeyboardEvent) => {
       if (e.key === 'Tab') {
         if (e.shiftKey) {
@@ -72,17 +79,40 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        handleCancel();
       }
     };
+
     document.addEventListener('keydown', trap);
     (first || modal).focus();
     return () => {
       document.removeEventListener('keydown', trap);
     };
-  }, [open, onClose]);
+  }, [open, handleCancel]);
 
-  // Trigger payment via backend (Paystack or fallback)
+  const interpretStatus = (payload: any, fallback: string, pendingMsg: string) => {
+    try {
+      const statusHint =
+        (typeof payload?.status === 'string' && payload.status) ||
+        (typeof payload?.detail?.status === 'string' && payload.detail.status) ||
+        (typeof payload?.detail === 'string' && payload.detail) ||
+        '';
+      const hint = statusHint.toLowerCase();
+      if (hint.includes('failed') || hint.includes('declin')) {
+        return 'Payment declined. Reopen Paystack to try again.';
+      }
+      if (hint.includes('cancel') || hint.includes('abandon')) {
+        return 'Checkout cancelled before completion. Reopen Paystack when you are ready.';
+      }
+      if (hint.includes('pending') || hint.includes('processing')) {
+        return pendingMsg;
+      }
+    } catch {
+      // ignore parse errors; fall back to default messaging
+    }
+    return fallback;
+  };
+
   const refreshVerify = useCallback(async () => {
     if (!paystackReference) return;
     setVerifying(true);
@@ -98,13 +128,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
         return;
       }
-      // Non-200: likely not completed yet
-      const code = resp.status;
-      if (code === 400) {
-        setError('Payment not completed yet. Please finish checkout, then click Refresh.');
-      } else {
-        setError('Could not verify payment. Try again in a few seconds.');
+      let message = 'Could not verify payment. Try again in a few seconds.';
+      try {
+        const payload = await resp.json();
+        message = interpretStatus(payload, message, 'Payment is still pending. Finish checkout, then click Check status.');
+      } catch {
+        if (resp.status === 400) {
+          message = 'Payment is still pending. Finish checkout, then click Check status.';
+        }
       }
+      setError(message);
     } catch (e) {
       setError('Network issue while verifying. Please try again.');
     } finally {
@@ -112,12 +145,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   }, [paystackReference, bookingRequestId, amount, onSuccess]);
 
-  // Trigger payment via backend (Paystack or fallback)
-  const handlePay = async () => {
-    if (loading || paystackUrl) return;
+  const handlePay = useCallback(async () => {
+    if (loading) return;
     setLoading(true);
     setError(null);
-    // If Paystack is enabled, do not use fake payments even if the flag is set
+    setInlineBlocked(false);
+    setPaystackUrl(null);
+
     if (FAKE_PAYMENTS && !USE_PAYSTACK) {
       const fakeId = `fake_${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
       const receiptUrl = apiUrl(`/api/v1/payments/${fakeId}/receipt`);
@@ -132,18 +166,18 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setLoading(false);
       return;
     }
+
     try {
       if (USE_PAYSTACK && PAYSTACK_PK) {
-        // Initialize a Paystack transaction on the backend to create and persist the reference
         const res = await createPayment({ booking_request_id: bookingRequestId, amount: Number(amount), full: true });
         const data = res.data as any;
-        const reference = String(data?.reference || data?.payment_id || '');
+        const reference = String(data?.reference || data?.payment_id || '').trim();
+        const authorizationUrl = (data?.authorization_url as string | undefined) || undefined;
         if (!reference) {
           throw new Error('Payment reference missing');
         }
         setPaystackReference(reference);
 
-        // Load Paystack inline script
         const loadPaystack = async (): Promise<void> => {
           if (typeof window === 'undefined') return;
           if ((window as any).PaystackPop) return;
@@ -157,98 +191,108 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           });
         };
 
-        let inlineReady = false;
+        let attemptedInline = false;
         try {
           await loadPaystack();
           const PaystackPop = (window as any).PaystackPop;
           if (PaystackPop && typeof PaystackPop.setup === 'function') {
-            inlineReady = true;
+            attemptedInline = true;
             const amountKobo = Math.round(Math.max(0, Number(amount || 0)) * 100);
             const handler = PaystackPop.setup({
-          key: PAYSTACK_PK,
-          email: 'client@booka.local',
-          amount: amountKobo,
-          currency: 'ZAR',
-          ref: reference,
-          reference,
-          metadata: { booking_request_id: bookingRequestId },
-          callback: async (response: { reference: string }) => {
-            try {
-              setVerifying(true);
-              const ref = response?.reference || reference;
-              const verifyUrl = `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(ref)}`;
-              const resp = await fetch(verifyUrl, { credentials: 'include' as RequestCredentials });
-              if (resp.ok) {
-                const v = await resp.json();
-                const pid = v?.payment_id || ref;
-                const receiptUrl = `/api/v1/payments/${pid}/receipt`;
-                try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
-                onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
-              } else {
-                setError('Payment not completed. Please try again or use Refresh.');
-              }
-            } catch (e: any) {
-              setError('Verification failed. Please click Refresh Status.');
-            } finally {
-              setVerifying(false);
-            }
-          },
-          onClose: () => {
-            // Keep the modal open; allow user to retry or refresh
-          },
+              key: PAYSTACK_PK,
+              email: 'client@booka.local',
+              amount: amountKobo,
+              currency: 'ZAR',
+              ref: reference,
+              reference,
+              metadata: { booking_request_id: bookingRequestId },
+              callback: async (response: { reference: string }) => {
+                try {
+                  setVerifying(true);
+                  const ref = response?.reference || reference;
+                  const verifyUrl = `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(ref)}`;
+                  const resp = await fetch(verifyUrl, { credentials: 'include' as RequestCredentials });
+                  if (resp.ok) {
+                    const v = await resp.json();
+                    const pid = v?.payment_id || ref;
+                    const receiptUrl = `/api/v1/payments/${pid}/receipt`;
+                    try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
+                    onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
+                  } else {
+                    let message = 'Payment not completed. You can reopen Paystack below.';
+                    try {
+                      const payload = await resp.json();
+                      message = interpretStatus(payload, message, 'Payment is still pending. Keep checkout open, then click Check status.');
+                    } catch {
+                      if (resp.status === 400) {
+                        message = 'Payment is still pending. Keep checkout open, then click Check status.';
+                      }
+                    }
+                    setError(message);
+                  }
+                } catch {
+                  setError('Verification failed. Click Check status or reopen Paystack.');
+                } finally {
+                  setVerifying(false);
+                }
+              },
+              onClose: () => {
+                // Keep modal open for retriable flow
+              },
             });
-            handler.openIframe();
-            setLoading(false);
-            return;
+
+            try {
+              handler.openIframe();
+              setLoading(false);
+              return;
+            } catch {
+              setInlineBlocked(true);
+            }
           }
-        } catch (e) {
-          // fall through to iframe embed
+        } catch {
+          // fall through to iframe in case of script or setup failure
         }
-        // Inline not available or failed to load - embed iframe as fallback
-        const auth = (res?.data as any)?.authorization_url as string | undefined;
-        if (auth) {
-          setPaystackUrl(auth);
+
+        if (authorizationUrl) {
+          setPaystackUrl(authorizationUrl);
+          if (attemptedInline) {
+            setInlineBlocked(true);
+          }
           setLoading(false);
           return;
         }
+
         setError('Unable to launch Paystack checkout. Please try again.');
         setLoading(false);
         return;
       }
+
       const res = await createPayment({
         booking_request_id: bookingRequestId,
         amount: Number(amount),
         full: true,
       });
       const data = res.data as any;
-      // If backend returned Paystack redirect details, honor them even if USE_PAYSTACK is off
       const authUrl = data?.authorization_url as (string | undefined);
       const reference = String(data?.reference || data?.payment_id || '').trim();
-      if (authUrl && reference) {
+      if (authUrl && reference && PAYSTACK_PK) {
         setPaystackReference(reference);
-        if (PAYSTACK_PK) {
-          // Try inline overlay even if the flag wasn't set at build time
-          try {
-            const loadPaystack = async (): Promise<void> => {
-              if (typeof window === 'undefined') return;
-              if ((window as any).PaystackPop) return;
-              await new Promise<void>((resolve, reject) => {
-                const s = document.createElement('script');
-                s.src = 'https://js.paystack.co/v1/inline.js';
-                s.async = true;
-                s.onload = () => resolve();
-                s.onerror = () => reject(new Error('Failed to load Paystack script'));
-                document.body.appendChild(s);
-              });
-            };
-            await loadPaystack();
-            const PaystackPop = (window as any).PaystackPop;
-            if (!PaystackPop || typeof PaystackPop.setup !== 'function') {
-              // Inline not available: embed iframe
-              setPaystackUrl(authUrl);
-              setLoading(false);
-              return;
-            }
+        try {
+          const loadPaystack = async (): Promise<void> => {
+            if (typeof window === 'undefined') return;
+            if ((window as any).PaystackPop) return;
+            await new Promise<void>((resolve, reject) => {
+              const s = document.createElement('script');
+              s.src = 'https://js.paystack.co/v1/inline.js';
+              s.async = true;
+              s.onload = () => resolve();
+              s.onerror = () => reject(new Error('Failed to load Paystack script'));
+              document.body.appendChild(s);
+            });
+          };
+          await loadPaystack();
+          const PaystackPop = (window as any).PaystackPop;
+          if (PaystackPop && typeof PaystackPop.setup === 'function') {
             const handler = PaystackPop.setup({
               key: PAYSTACK_PK,
               email: 'client@booka.local',
@@ -267,24 +311,36 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, rurl); } catch {}
                   onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl: rurl });
                 } else {
-                  setError('Payment not completed. Click Refresh Status after finishing checkout.');
+                  let message = 'Payment not completed. Click Check status after finishing checkout.';
+                  try {
+                    const payload = await v.json();
+                    message = interpretStatus(payload, message, 'Payment is still pending. Keep checkout open, then click Check status.');
+                  } catch {
+                    if (v.status === 400) {
+                      message = 'Payment is still pending. Keep checkout open, then click Check status.';
+                    }
+                  }
+                  setError(message);
                 }
               },
               onClose: () => {},
             });
-            handler.openIframe();
-            setLoading(false);
-            return;
-          } catch {
-            // Fallback to iframe below
+            try {
+              handler.openIframe();
+              setLoading(false);
+              return;
+            } catch {
+              setInlineBlocked(true);
+            }
           }
+        } catch {
+          setInlineBlocked(true);
         }
-        // No inline: embed authorization_url as iframe
         setPaystackUrl(authUrl);
         setLoading(false);
         return;
       }
-      // No Paystack redirect: treat as immediate success (fake or direct capture gateway)
+
       const paymentId = (data as { payment_id?: string }).payment_id;
       const receiptUrl = paymentId ? apiUrl(`/api/v1/payments/${paymentId}/receipt`) : undefined;
       try { if (receiptUrl) localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
@@ -299,7 +355,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
         onSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl, mocked: true });
       } else {
-        // Surface a helpful error instead of auto‑mocking when the backend returns 4xx
         let msg = 'Payment failed. Please try again later.';
         if (status === 404) msg = 'This booking is not ready for payment or was not found.';
         else if (status === 403) msg = 'You are not allowed to pay for this booking.';
@@ -310,14 +365,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [FAKE_PAYMENTS, USE_PAYSTACK, PAYSTACK_PK, bookingRequestId, amount, onSuccess, onError, loading]);
 
-  // Iframe fallback: gently poll verify so localhost completes without manual refresh
   useEffect(() => {
     if (!paystackUrl || !paystackReference) return;
     let elapsed = 0;
     const INTERVAL = 5000;
-    const MAX = 60000; // 1 minute max
+    const MAX = 60000;
     const tick = async () => {
       try {
         const resp = await fetch(apiUrl(`/api/v1/payments/paystack/verify?reference=${encodeURIComponent(paystackReference)}`), { credentials: 'include' as RequestCredentials });
@@ -329,7 +383,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
           return;
         }
-      } catch {}
+      } catch {
+        // ignore network errors; continue polling until timeout
+      }
       elapsed += INTERVAL;
       if (elapsed >= MAX && pollTimerRef.current) {
         clearInterval(pollTimerRef.current);
@@ -345,69 +401,108 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     };
   }, [paystackUrl, paystackReference, bookingRequestId, amount, onSuccess]);
 
-  // Auto-run disabled: only start after user clicks Pay
+  useEffect(() => {
+    if (!open) {
+      autoRunRef.current = false;
+      setLoading(false);
+      setError(null);
+      setInlineBlocked(false);
+      setPaystackUrl(null);
+      setPaystackReference(null);
+      setVerifying(false);
+      return;
+    }
+    if (autoRunRef.current) return;
+    autoRunRef.current = true;
+    handlePay().catch(() => {
+      setLoading(false);
+      setInlineBlocked(true);
+    });
+  }, [open, handlePay]);
 
   if (!open) return null;
 
+  const showStatusBanner = Boolean(error || verifying || loading);
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-[200]">
-      <form
+      <div
         ref={modalRef}
-        onSubmit={(e) => {
-          e.preventDefault();
-          handlePay();
-        }}
-        className="bg-white rounded-lg shadow-lg w-full max-w-sm p-4 mx-2 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-lg shadow-lg w-full max-w-sm p-4 mx-2 max-h-[90vh] overflow-y-auto focus:outline-none"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="paystack-modal-heading"
       >
-        <h2 className="text-lg font-semibold mb-1">Checkout with Paystack</h2>
-        {/* Provider name intentionally not shown */}
-        <div className="space-y-2">
-          {serviceName && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Service</span>
-              <span className="text-sm text-gray-900">{serviceName}</span>
-            </div>
-          )}
-          {loading && !paystackUrl && (
-            <div className="text-[13px] text-gray-700 flex items-center gap-2">
-              <span className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" aria-hidden />
-              Connecting to Paystack…
-            </div>
-          )}
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {paystackUrl && (
-            <div className="mt-2">
-              <iframe
-                title="Paystack Checkout"
-                src={paystackUrl}
-                className="w-full h-[560px] border rounded-md"
-              />
-              <div className="mt-2 text-[12px] text-gray-600">If the checkout is blocked, continue in a new tab.</div>
-              <div className="mt-3 flex items-center gap-2">
-                <a href={paystackUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-lg font-semibold min-h-10 px-3 py-2 text-sm bg-brand text-white hover:bg-brand-dark/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus:ring-brand-dark">
-                  Continue in new tab
-                </a>
-                <Button type="button" onClick={refreshVerify} isLoading={verifying}>
-                  Refresh Status
-                </Button>
-                <Button type="button" variant="secondary" onClick={onClose}>
-                  Close
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-        {!paystackUrl && (
-          <div className="flex justify-end gap-2 mt-4">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={loading}>
-              Pay
-            </Button>
+        <h2 id="paystack-modal-heading" className="text-lg font-semibold mb-2">
+          Checkout with Paystack
+        </h2>
+        {serviceName && (
+          <div className="flex items-center justify-between text-sm text-gray-700 mb-3">
+            <span>Service</span>
+            <span className="text-gray-900">{serviceName}</span>
           </div>
         )}
-      </form>
+
+        <div className="space-y-3">
+          {showStatusBanner && (
+            <div className="rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-700">
+              {loading && !paystackUrl && <span>Opening secure checkout…</span>}
+              {!loading && verifying && <span>Verifying payment status…</span>}
+              {!loading && !verifying && error && <span className="text-red-600">{error}</span>}
+            </div>
+          )}
+
+          {inlineBlocked && paystackUrl && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Your browser blocked the inline checkout. Use the secure window below or open it in a new tab.
+            </div>
+          )}
+
+          {paystackUrl && (
+            <>
+              <div className="rounded-md border overflow-hidden">
+                <iframe
+                  title="Paystack Checkout"
+                  src={paystackUrl}
+                  className="w-full h-[560px] border-0"
+                />
+              </div>
+              <a
+                href={paystackUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-md font-semibold min-h-10 px-3 py-2 text-sm bg-brand text-white hover:bg-brand-dark/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-dark"
+              >
+                Open checkout in a new tab
+              </a>
+            </>
+          )}
+        </div>
+
+        <div className="mt-6 flex flex-col gap-3">
+          <div className="flex justify-between gap-3">
+            <Button type="button" variant="secondary" onClick={handleCancel}>
+              Cancel and return?
+            </Button>
+            <div className="flex gap-2">
+              {paystackReference && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={refreshVerify}
+                  isLoading={verifying}
+                  disabled={verifying}
+                >
+                  Check status
+                </Button>
+              )}
+              <Button type="button" onClick={handlePay} isLoading={loading}>
+                {paystackUrl ? 'Retry checkout' : 'Reopen Paystack'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
