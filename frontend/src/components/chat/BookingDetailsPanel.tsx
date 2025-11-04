@@ -14,6 +14,12 @@ import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
 
 const providerIdentityCache = new Map<number, { name: string | null; avatar: string | null }>();
 
+const normalizeIdentityString = (value: unknown): string | null => {
+  if (value == null) return null;
+  const str = String(value).trim();
+  return str.length ? str : null;
+};
+
 interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
@@ -87,22 +93,19 @@ export default function BookingDetailsPanel({
 
   const derivedProviderIdentity = React.useMemo(() => {
     const identity: { name: string | null; avatar: string | null } = { name: null, avatar: null };
-    const normalize = (value: unknown): string | null => {
-      if (value == null) return null;
-      const str = String(value).trim();
-      return str.length ? str : null;
-    };
 
     const nameCandidates = [
       providerProfile?.business_name,
       (bookingRequest as any)?.service_provider_profile?.business_name,
+      (bookingRequest as any)?.artist_profile?.business_name,
       (bookingRequest as any)?.service_provider?.business_name,
+      (bookingRequest as any)?.service?.service_provider_profile?.business_name,
+      (bookingRequest as any)?.service?.artist_profile?.business_name,
       (bookingRequest as any)?.service?.service_provider?.business_name,
       (bookingRequest as any)?.service?.artist?.business_name,
-      (bookingRequest as any)?.service?.artist_profile?.business_name,
     ];
     for (const candidate of nameCandidates) {
-      const next = normalize(candidate);
+      const next = normalizeIdentityString(candidate);
       if (next) {
         identity.name = next;
         break;
@@ -111,12 +114,16 @@ export default function BookingDetailsPanel({
 
     const avatarCandidates = [
       providerProfile?.profile_picture_url,
+      (bookingRequest as any)?.service_provider_profile?.profile_picture_url,
+      (bookingRequest as any)?.artist_profile?.profile_picture_url,
       (bookingRequest as any)?.service_provider?.profile_picture_url,
+      (bookingRequest as any)?.service?.service_provider_profile?.profile_picture_url,
+      (bookingRequest as any)?.service?.artist_profile?.profile_picture_url,
       (bookingRequest as any)?.service?.service_provider?.profile_picture_url,
       (bookingRequest as any)?.service?.artist?.profile_picture_url,
     ];
     for (const candidate of avatarCandidates) {
-      const next = normalize(candidate);
+      const next = normalizeIdentityString(candidate);
       if (next) {
         identity.avatar = next;
         break;
@@ -125,14 +132,14 @@ export default function BookingDetailsPanel({
 
     if (viewerIsProvider) {
       if (!identity.avatar) {
-        identity.avatar = normalize(user?.profile_picture_url) ?? identity.avatar;
+        identity.avatar = normalizeIdentityString(user?.profile_picture_url) ?? identity.avatar;
       }
     } else {
       if (!identity.name) {
-        identity.name = normalize((bookingRequest as any)?.counterparty_label) ?? identity.name;
+        identity.name = normalizeIdentityString((bookingRequest as any)?.counterparty_label) ?? identity.name;
       }
       if (!identity.avatar) {
-        identity.avatar = normalize((bookingRequest as any)?.counterparty_avatar_url) ?? identity.avatar;
+        identity.avatar = normalizeIdentityString((bookingRequest as any)?.counterparty_avatar_url) ?? identity.avatar;
       }
     }
 
@@ -141,8 +148,6 @@ export default function BookingDetailsPanel({
     viewerIsProvider,
     providerProfile,
     bookingRequest,
-    user?.first_name,
-    user?.last_name,
     user?.profile_picture_url,
   ]);
 
@@ -156,14 +161,14 @@ export default function BookingDetailsPanel({
 
   const initialProviderName = React.useMemo(() => {
     if (viewerIsProvider) {
-      return derivedProviderName ?? cachedIdentity?.name ?? null;
+      return derivedProviderName ?? null;
     }
     return cachedIdentity?.name ?? derivedProviderName ?? null;
   }, [viewerIsProvider, derivedProviderName, cachedIdentity?.name]);
 
   const initialProviderAvatar = React.useMemo(() => {
     if (viewerIsProvider) {
-      return derivedProviderAvatar ?? cachedIdentity?.avatar ?? null;
+      return derivedProviderAvatar ?? null;
     }
     return cachedIdentity?.avatar ?? derivedProviderAvatar ?? null;
   }, [viewerIsProvider, derivedProviderAvatar, cachedIdentity?.avatar]);
@@ -279,7 +284,10 @@ export default function BookingDetailsPanel({
     if (!requestId) return;
     const nextName = providerName ?? null;
     const nextAvatar = providerAvatarUrl ?? null;
-    if (nextName == null && nextAvatar == null) return;
+    if (nextName == null && nextAvatar == null) {
+      providerIdentityCache.delete(requestId);
+      return;
+    }
     const existing = providerIdentityCache.get(requestId);
     if (existing && existing.name === nextName && existing.avatar === nextAvatar) return;
     providerIdentityCache.set(requestId, { name: nextName, avatar: nextAvatar });
@@ -305,12 +313,59 @@ export default function BookingDetailsPanel({
           (res?.data as any)?.service_provider_profile ||
           (res?.data as any)?.artist_profile ||
           null;
-        const canonicalName = profile?.business_name
-          ? String(profile.business_name)
-          : derivedProviderName ?? providerName ?? null;
-        const canonicalAvatar = profile?.profile_picture_url
-          ? String(profile.profile_picture_url)
-          : derivedProviderAvatar ?? providerAvatarUrl ?? null;
+        const responseIdentity = {
+          profile,
+          service_provider_profile: (res?.data as any)?.service_provider_profile,
+          artist_profile: (res?.data as any)?.artist_profile,
+          service_provider: (res?.data as any)?.service_provider,
+          service: (res?.data as any)?.service,
+        } as Record<string, any>;
+
+        const canonicalNameCandidates: Array<unknown> = [
+          responseIdentity.profile?.business_name,
+          responseIdentity.service_provider_profile?.business_name,
+          responseIdentity.artist_profile?.business_name,
+          responseIdentity.service_provider?.business_name,
+          responseIdentity.service?.service_provider_profile?.business_name,
+          responseIdentity.service?.artist_profile?.business_name,
+          responseIdentity.service?.service_provider?.business_name,
+          responseIdentity.service?.artist?.business_name,
+        ];
+
+        let canonicalName: string | null = null;
+        for (const candidate of canonicalNameCandidates) {
+          const normalized = normalizeIdentityString(candidate);
+          if (normalized) {
+            canonicalName = normalized;
+            break;
+          }
+        }
+        if (!canonicalName) {
+          canonicalName = derivedProviderName ?? (viewerIsProvider ? null : providerName ?? null);
+        }
+
+        const canonicalAvatarCandidates: Array<unknown> = [
+          responseIdentity.profile?.profile_picture_url,
+          responseIdentity.service_provider_profile?.profile_picture_url,
+          responseIdentity.artist_profile?.profile_picture_url,
+          responseIdentity.service_provider?.profile_picture_url,
+          responseIdentity.service?.service_provider_profile?.profile_picture_url,
+          responseIdentity.service?.artist_profile?.profile_picture_url,
+          responseIdentity.service?.service_provider?.profile_picture_url,
+          responseIdentity.service?.artist?.profile_picture_url,
+        ];
+
+        let canonicalAvatar: string | null = null;
+        for (const candidate of canonicalAvatarCandidates) {
+          const normalized = normalizeIdentityString(candidate);
+          if (normalized) {
+            canonicalAvatar = normalized;
+            break;
+          }
+        }
+        if (!canonicalAvatar) {
+          canonicalAvatar = derivedProviderAvatar ?? providerAvatarUrl ?? null;
+        }
         if (canonicalName !== providerName) setProviderName(canonicalName);
         if (canonicalAvatar !== providerAvatarUrl) setProviderAvatarUrl(canonicalAvatar);
         if (canonicalName || canonicalAvatar) {
@@ -343,6 +398,7 @@ export default function BookingDetailsPanel({
     providerProfile?.profile_picture_url,
     derivedProviderName,
     derivedProviderAvatar,
+    viewerIsProvider,
     hasParsedDetails,
     onHydratedBookingRequest,
     bookingRequest,
