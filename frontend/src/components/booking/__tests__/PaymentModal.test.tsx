@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import PaymentModal from '../PaymentModal';
+import PaystackPaymentModal from '../PaystackPaymentModal';
 import * as api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -28,7 +28,7 @@ describe('PaymentModal', () => {
     const root = createRoot(div);
     await act(async () => {
       root.render(
-        <PaymentModal
+        <PaystackPaymentModal
           open
           bookingRequestId={1}
           onClose={() => {}}
@@ -65,7 +65,7 @@ describe('PaymentModal', () => {
     const root = createRoot(div);
     await act(async () => {
       root.render(
-        <PaymentModal
+        <PaystackPaymentModal
           open
           bookingRequestId={2}
           onClose={() => {}}
@@ -97,7 +97,7 @@ describe('PaymentModal', () => {
     const root = createRoot(div);
     await act(async () => {
       root.render(
-        <PaymentModal
+        <PaystackPaymentModal
           open
           bookingRequestId={3}
           onClose={() => {}}
@@ -110,7 +110,7 @@ describe('PaymentModal', () => {
 
     await act(async () => {
       root.render(
-        <PaymentModal
+        <PaystackPaymentModal
           open={false}
           bookingRequestId={3}
           onClose={() => {}}
@@ -123,7 +123,7 @@ describe('PaymentModal', () => {
 
     await act(async () => {
       root.render(
-        <PaymentModal
+        <PaystackPaymentModal
           open
           bookingRequestId={3}
           onClose={() => {}}
@@ -146,7 +146,7 @@ describe('PaymentModal', () => {
     const root = createRoot(div);
     await act(async () => {
       root.render(
-        <PaymentModal
+        <PaystackPaymentModal
           open
           bookingRequestId={6}
           onClose={() => {}}

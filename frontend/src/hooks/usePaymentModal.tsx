@@ -1,6 +1,6 @@
 'use client';
 import { useState, useCallback } from 'react';
-import PaymentModal from '@/components/booking/PaymentModal';
+import PaystackPaymentModal from '@/components/booking/PaystackPaymentModal';
 import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
 import { createPayment } from '@/lib/api';
 
@@ -29,7 +29,7 @@ export default function usePaymentModal(
   }, []);
 
   const modal = args ? (
-    <PaymentModal
+    <PaystackPaymentModal
       open={open}
       bookingRequestId={args.bookingRequestId}
       amount={args.amount}

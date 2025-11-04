@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import MainLayout from "@/components/layout/MainLayout";
-import PaymentModal from "@/components/booking/PaymentModal";
+import PaystackPaymentModal from "@/components/booking/PaystackPaymentModal";
 import toast from "@/components/ui/Toast";
 import { getBookingDetails, downloadBookingIcs } from "@/lib/api";
 import type { Booking } from "@/types";
@@ -153,7 +153,7 @@ export default function BookingDetailsPage() {
           </Link>
         </div>
       </div>
-      <PaymentModal
+      <PaystackPaymentModal
         open={showPayment}
         onClose={() => setShowPayment(false)}
         bookingRequestId={booking.booking_request_id as number}

@@ -1,11 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import Button from '../ui/Button';
-import { createPayment } from '@/lib/api';
-import { apiUrl } from '@/lib/api';
+import { createPayment, apiUrl } from '@/lib/api';
 
-// ---------- Types ----------
 interface PaymentSuccess {
   status: string;
   amount: number;
@@ -14,28 +12,29 @@ interface PaymentSuccess {
   mocked?: boolean;
 }
 
-interface PaymentModalProps {
+interface PaystackPaymentModalProps {
   open: boolean;
   onClose: () => void;
   bookingRequestId: number;
   onSuccess: (result: PaymentSuccess) => void;
   onError: (msg: string) => void;
-  amount: number;                // major units (e.g. 199.99)
+  amount: number;
   serviceName?: string;
-  providerName?: string;         // (unused but kept for compatibility)
-  customerEmail?: string;        // if you also initialize client-side in future
-  currency?: string;             // e.g. 'ZAR' | 'NGN' | 'GHS' (server should own truth)
+  providerName?: string;
+  customerEmail?: string;
+  currency?: string;
 }
 
 declare global {
   interface Window {
-    Paystack?: any; // CDN fallback class for v2 InlineJS: new window.Paystack()
+    Paystack?: any;
   }
 }
 
 const ensurePaystackScript = async () => {
   if (typeof window === 'undefined') return;
-  if (window.Paystack) return; // already available
+  if (window.Paystack) return;
+
   const existing = document.querySelector<HTMLScriptElement>('script[data-paystack-inline="1"]');
   if (existing) {
     if (window.Paystack) return;
@@ -78,7 +77,7 @@ const ensurePaystackScript = async () => {
   });
 };
 
-const PaymentModal: FC<PaymentModalProps> = ({
+const PaystackPaymentModal: FC<PaystackPaymentModalProps> = ({
   open,
   onClose,
   bookingRequestId,
@@ -88,31 +87,25 @@ const PaymentModal: FC<PaymentModalProps> = ({
   serviceName,
   providerName: _unusedProviderName,
   customerEmail,
-  currency = process.env.NEXT_PUBLIC_PAYSTACK_CURRENCY || 'ZAR', // only used in extreme fallback
+  currency = process.env.NEXT_PUBLIC_PAYSTACK_CURRENCY || 'ZAR',
 }) => {
-  // ---------- Env / feature switches ----------
   const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
-  const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK !== '0'; // default to true
+  const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK !== '0';
   const PAYSTACK_PK =
     process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PK || '';
 
   const IS_TEST_KEY = PAYSTACK_PK?.startsWith('pk_test');
 
-  // ---------- UI state ----------
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
-  // Server-initialized transaction
   const [reference, setReference] = useState<string | null>(null);
   const [accessCode, setAccessCode] = useState<string | null>(null);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
-
-  // Fallback management
   const [fallbackActive, setFallbackActive] = useState(false);
 
-  // Refs
   const modalRef = useRef<HTMLDivElement | null>(null);
   const mountedRef = useRef(false);
   const pollTimerRef = useRef<number | null>(null);
@@ -127,7 +120,6 @@ const PaymentModal: FC<PaymentModalProps> = ({
     }
   }, [amountNumber, currency]);
 
-  // ---------- Helpers ----------
   const persistReceiptUrl = (pid: string) => {
     const receiptUrl = apiUrl(`/api/v1/payments/${pid}/receipt`);
     try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
@@ -141,7 +133,6 @@ const PaymentModal: FC<PaymentModalProps> = ({
     }
   };
 
-  // Load InlineJS v2 via NPM first, then fallback to CDN
   const getPaystackInstance = useCallback(async () => {
     if (typeof window === 'undefined') return null;
     try {
@@ -169,7 +160,6 @@ const PaymentModal: FC<PaymentModalProps> = ({
           return true;
         }
 
-        // Not paid yet — show helpful message (pending/processing)
         let message = 'Payment not completed yet. If a checkout window is open, please finish there.';
         try {
           const payload = await resp.json();
@@ -177,9 +167,7 @@ const PaymentModal: FC<PaymentModalProps> = ({
           if (hint.includes('pending') || hint.includes('processing')) {
             message = 'Payment is still pending. Keep the Paystack window open until it completes.';
           }
-        } catch {
-          // ignore parse error
-        }
+        } catch {}
         setStatusMsg(message);
         return false;
       } catch {
@@ -197,7 +185,7 @@ const PaymentModal: FC<PaymentModalProps> = ({
       clearPoll();
       let elapsed = 0;
       const INTERVAL = 4000;
-      const MAX = 120000; // 2 minutes
+      const MAX = 120000;
       pollTimerRef.current = window.setInterval(async () => {
         const ok = await verifyReference(ref);
         if (ok) {
@@ -211,12 +199,10 @@ const PaymentModal: FC<PaymentModalProps> = ({
     [verifyReference],
   );
 
-  // ---------- Main flow ----------
   const launchInline = useCallback(
     async (ac: string, ref: string) => {
       const popup = await getPaystackInstance();
       if (!popup) {
-        // If we can't load InlineJS, fall back to hosted checkout
         setFallbackActive(true);
         if (authUrl) window.open(authUrl, '_blank', 'noopener,noreferrer');
         return;
@@ -224,25 +210,21 @@ const PaymentModal: FC<PaymentModalProps> = ({
 
       setStatusMsg('Opening secure Paystack checkout…');
 
-      // Resume previously initialized backend transaction via access_code (recommended). Docs: resumeTransaction(access_code)
-      // https://paystack.com/docs/developer-tools/inlinejs/
       popup.resumeTransaction(ac, {
-        onLoad: () => {
-          setStatusMsg(null);
-        },
+        onLoad: () => setStatusMsg(null),
         onSuccess: async (tx: { reference?: string }) => {
           const refToVerify = tx?.reference || ref;
           await verifyReference(refToVerify);
         },
         onCancel: () => {
           setErrorMsg('Payment cancelled before completion. You can try again.');
+          if (authUrl) window.open(authUrl, '_blank', 'noopener,noreferrer');
+          beginPolling(ref);
         },
         onError: (err: any) => {
-          // If popup failed to load (adblockers, CSP, etc.), nudge to hosted page
           setErrorMsg(err?.message || 'Unable to open inline checkout.');
           setFallbackActive(true);
           if (authUrl) window.open(authUrl, '_blank', 'noopener,noreferrer');
-          // Start polling in case they finish on the hosted page
           beginPolling(ref);
         },
       });
@@ -261,8 +243,9 @@ const PaymentModal: FC<PaymentModalProps> = ({
     setAuthUrl(null);
 
     if (!PAYSTACK_PK) {
-      setErrorMsg('Paystack public key is not configured.');
-      onError('Paystack public key is not configured.');
+      const msg = 'Paystack public key is not configured.';
+      setErrorMsg(msg);
+      onError(msg);
       return;
     }
 
@@ -274,8 +257,6 @@ const PaymentModal: FC<PaymentModalProps> = ({
       return;
     }
 
-    // Initialize transaction on the server (recommended)
-    // Server should return { reference, access_code, authorization_url }
     createAbortRef.current?.abort();
     const ac = new AbortController();
     createAbortRef.current = ac;
@@ -299,8 +280,6 @@ const PaymentModal: FC<PaymentModalProps> = ({
       if (acode) {
         await launchInline(acode, ref);
       } else if (auth) {
-        // No access_code? Open hosted checkout in a new tab (inline popup cannot proceed without it)
-        // (Avoid iframes – Paystack checkout sends X-Frame-Options: SAMEORIGIN and will be blocked)
         setFallbackActive(true);
         window.open(auth, '_blank', 'noopener,noreferrer');
         beginPolling(ref);
@@ -339,8 +318,6 @@ const PaymentModal: FC<PaymentModalProps> = ({
     beginPolling,
   ]);
 
-  // ---------- Effects ----------
-  // Focus trap and Esc to close
   useEffect(() => {
     if (!open || !modalRef.current) return;
     const modal = modalRef.current;
@@ -372,7 +349,6 @@ const PaymentModal: FC<PaymentModalProps> = ({
     return () => document.removeEventListener('keydown', trap);
   }, [open, onClose]);
 
-  // Auto-start payment on open
   useEffect(() => {
     if (!open) {
       clearPoll();
@@ -394,7 +370,6 @@ const PaymentModal: FC<PaymentModalProps> = ({
     startPayment();
   }, [open, startPayment]);
 
-  // If user returns from hosted checkout tab, re-verify immediately
   useEffect(() => {
     const handler = () => {
       if (document.visibilityState === 'visible' && reference) {
@@ -405,7 +380,6 @@ const PaymentModal: FC<PaymentModalProps> = ({
     return () => document.removeEventListener('visibilitychange', handler);
   }, [reference, verifyReference]);
 
-  // ---------- Render ----------
   if (!open) return null;
 
   const showBanner = !!(statusMsg || errorMsg || verifying || loading);
@@ -492,4 +466,4 @@ const PaymentModal: FC<PaymentModalProps> = ({
   );
 };
 
-export default PaymentModal;
+export default PaystackPaymentModal;
