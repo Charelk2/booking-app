@@ -97,14 +97,14 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
   // @ts-ignore
   const GLOBAL_QUOTES = getGlobalQuotesMap();
 
-  const seededRef = useRef(false);
-  if (!seededRef.current && initialQuotes && initialQuotes.length) {
+  const seedKeyRef = useRef<number | null>(null);
+  if (initialQuotes && initialQuotes.length && seedKeyRef.current !== bookingRequestId) {
     initialQuotes.forEach((q) => {
       if (q && typeof q.id === 'number') {
         try { GLOBAL_QUOTES.set(q.id, q); } catch {}
       }
     });
-    seededRef.current = true;
+    seedKeyRef.current = bookingRequestId;
   }
 
   const [quotesById, setQuotesById] = useState<Record<number, QuoteV2>>(() => {
