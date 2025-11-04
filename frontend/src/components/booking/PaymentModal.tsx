@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPayment, apiUrl } from '@/lib/api';
+import Button from '../ui/Button';
 
 /* =========================
  * Types
@@ -74,6 +75,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const handlePay = useCallback(async () => {
     if (loading) return;
 
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+
     setLoading(true);
     setError(null);
     setPaystackUrl(null);
@@ -117,6 +123,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       if (authorizationUrl) {
         setPaystackReference(reference);
         setPaystackUrl(authorizationUrl);
+        if (typeof window !== 'undefined') {
+          try {
+            window.open(authorizationUrl, '_blank', 'noopener,noreferrer');
+          } catch {
+            // fall through; user can reopen with the button below
+          }
+        }
         setLoading(false);
         return;
       }
@@ -313,18 +326,37 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           )}
 
           {paystackUrl && (
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900 space-y-3">
               <div className="flex items-start gap-3">
                 <span className="relative flex h-3 w-3 mt-1">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
                 </span>
                 <div className="space-y-1">
-                  <p className="font-medium text-emerald-900">Finalizing your booking…</p>
+                  <p className="font-medium text-emerald-900">Confirming your payment…</p>
                   <p className="text-emerald-800">
-                    Keep the Paystack window open while we finalize your booking. 
+                    Keep the Paystack window open while we finalize your booking. This card will update as soon as we get a confirmation.
                   </p>
                 </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={loading}
+                  onClick={() => {
+                    if (paystackUrl && typeof window !== 'undefined') {
+                      window.open(paystackUrl, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
+                >
+                  Reopen checkout window
+                </Button>
+                <Button type="button" variant="outline" onClick={handlePay} disabled={loading}>
+                  Start over
+                </Button>
               </div>
             </div>
           )}
