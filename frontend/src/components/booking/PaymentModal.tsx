@@ -41,6 +41,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [paystackReference, setPaystackReference] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [inlineBlocked, setInlineBlocked] = useState(false);
+  const [showFallbackBanner, setShowFallbackBanner] = useState(false);
   const pollTimerRef = useRef<number | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const autoRunRef = useRef(false);
@@ -113,43 +114,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     return fallback;
   };
 
-  const refreshVerify = useCallback(async () => {
-    if (!paystackReference) return;
-    setVerifying(true);
-    setError(null);
-    try {
-      const verifyUrl = apiUrl(`/api/v1/payments/paystack/verify?reference=${encodeURIComponent(paystackReference)}`);
-      const resp = await fetch(verifyUrl, { credentials: 'include' as RequestCredentials });
-      if (resp.ok) {
-        const v = await resp.json();
-        const pid = v?.payment_id || paystackReference;
-        const receiptUrl = apiUrl(`/api/v1/payments/${pid}/receipt`);
-        try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
-        onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
-        return;
-      }
-      let message = 'Could not verify payment. Try again in a few seconds.';
-      try {
-        const payload = await resp.json();
-        message = interpretStatus(payload, message, 'Payment is still pending. Finish checkout, then click Check status.');
-      } catch {
-        if (resp.status === 400) {
-          message = 'Payment is still pending. Finish checkout, then click Check status.';
-        }
-      }
-      setError(message);
-    } catch (e) {
-      setError('Network issue while verifying. Please try again.');
-    } finally {
-      setVerifying(false);
-    }
-  }, [paystackReference, bookingRequestId, amount, onSuccess]);
-
   const handlePay = useCallback(async () => {
     if (loading) return;
     setLoading(true);
     setError(null);
     setInlineBlocked(false);
+    setShowFallbackBanner(false);
     setPaystackUrl(null);
 
     if (FAKE_PAYMENTS && !USE_PAYSTACK) {
@@ -244,9 +214,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             try {
               handler.openIframe();
               setLoading(false);
+              setShowFallbackBanner(false);
               return;
             } catch {
               setInlineBlocked(true);
+              if (authorizationUrl) {
+                setShowFallbackBanner(true);
+              }
             }
           }
         } catch {
@@ -257,6 +231,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           setPaystackUrl(authorizationUrl);
           if (attemptedInline) {
             setInlineBlocked(true);
+            setShowFallbackBanner(true);
           }
           setLoading(false);
           return;
@@ -328,13 +303,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             try {
               handler.openIframe();
               setLoading(false);
+              setShowFallbackBanner(false);
               return;
             } catch {
               setInlineBlocked(true);
+              setShowFallbackBanner(true);
             }
           }
         } catch {
           setInlineBlocked(true);
+          setShowFallbackBanner(true);
         }
         setPaystackUrl(authUrl);
         setLoading(false);
@@ -407,6 +385,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setLoading(false);
       setError(null);
       setInlineBlocked(false);
+      setShowFallbackBanner(false);
       setPaystackUrl(null);
       setPaystackReference(null);
       setVerifying(false);
@@ -422,7 +401,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   if (!open) return null;
 
-  const showStatusBanner = Boolean(error || verifying || loading);
+  const showStatusBanner = Boolean(error || verifying || (loading && !paystackUrl));
+  const fallbackActive = inlineBlocked && showFallbackBanner && paystackUrl;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-[200]">
@@ -452,7 +432,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
           )}
 
-          {inlineBlocked && paystackUrl && (
+          {fallbackActive && (
             <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               Your browser blocked the inline checkout. Use the secure window below or open it in a new tab.
             </div>
@@ -467,39 +447,28 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   className="w-full h-[560px] border-0"
                 />
               </div>
-              <a
-                href={paystackUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-md font-semibold min-h-10 px-3 py-2 text-sm bg-brand text-white hover:bg-brand-dark/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-dark"
-              >
-                Open checkout in a new tab
-              </a>
+              {fallbackActive && (
+                <a
+                  href={paystackUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-md font-semibold min-h-10 px-3 py-2 text-sm bg-brand text-white hover:bg-brand-dark/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-dark"
+                >
+                  Open checkout in a new tab
+                </a>
+              )}
             </>
           )}
         </div>
 
         <div className="mt-6 flex flex-col gap-3">
           <div className="flex justify-between gap-3">
-            <Button type="button" variant="secondary" onClick={handleCancel}>
-              Cancel and return?
-            </Button>
-            <div className="flex gap-2">
-              {paystackReference && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={refreshVerify}
-                  isLoading={verifying}
-                  disabled={verifying}
-                >
-                  Check status
-                </Button>
-              )}
+            <div />
+            {fallbackActive && (
               <Button type="button" onClick={handlePay} isLoading={loading}>
-                {paystackUrl ? 'Retry checkout' : 'Reopen Paystack'}
+                Reopen Paystack
               </Button>
-            </div>
+            )}
           </div>
         </div>
       </div>
