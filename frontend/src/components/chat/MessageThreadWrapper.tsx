@@ -203,8 +203,32 @@ export default function MessageThreadWrapper({
     historyFetchTriggeredRef.current = false;
   }, [bookingRequestId]);
 
+  const refreshQuotesForThread = useCallback(async () => {
+    try {
+      const res = await api.getQuotesForBookingRequest(Number(bookingRequestId || 0));
+      const arr = Array.isArray(res.data) ? (res.data as any[]) : [];
+      for (const raw of arr) {
+        let normalized: QuoteV2 | null = null;
+        if (Array.isArray((raw as any)?.services)) {
+          normalized = raw as QuoteV2;
+        } else {
+          try {
+            normalized = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id });
+          } catch {
+            normalized = null;
+          }
+        }
+        if (normalized && typeof normalized.id === 'number') {
+          const bookingId = Number(normalized.booking_request_id ?? bookingRequestId ?? 0) || Number(bookingRequestId || 0);
+          setQuote({ ...normalized, booking_request_id: bookingId } as QuoteV2);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [bookingRequestId, setQuote, bookingRequest]);
+
   const handleHydratedBookingRequest = useCallback((request: BookingRequest) => {
     canonicalHydrateAttemptedRef.current = true;
+    let seededQuotes = false;
     try {
       const arr = Array.isArray((request as any)?.quotes) ? (request as any).quotes : [];
       const normalized: QuoteV2[] = [];
@@ -229,10 +253,25 @@ export default function MessageThreadWrapper({
       }
       if (normalized.length) {
         normalized.forEach((q) => setQuote(q));
+        seededQuotes = true;
+        setQuotesLoading(false);
       }
     } catch {
       // ignore enrich failures
-    } finally {
+    }
+
+    const acceptedId = Number((request as any)?.accepted_quote_id || 0);
+    const rawQuotesCount = Array.isArray((request as any)?.quotes) ? (request as any).quotes.length : 0;
+    if (!seededQuotes && (acceptedId > 0 || rawQuotesCount > 0)) {
+      setQuotesLoading(true);
+      (async () => {
+        try {
+          await refreshQuotesForThread();
+        } finally {
+          setQuotesLoading(false);
+        }
+      })();
+    } else if (!seededQuotes) {
       setQuotesLoading(false);
     }
 
@@ -304,29 +343,7 @@ export default function MessageThreadWrapper({
     } catch {
       // ignore fallback merge issues
     }
-  }, [bookingRequestId, handleFallbackDetails, handleParsedDetails, setQuote]);
-  const refreshQuotesForThread = useCallback(async () => {
-    try {
-      const res = await api.getQuotesForBookingRequest(Number(bookingRequestId || 0));
-      const arr = Array.isArray(res.data) ? (res.data as any[]) : [];
-      for (const raw of arr) {
-        let normalized: QuoteV2 | null = null;
-        if (Array.isArray((raw as any)?.services)) {
-          normalized = raw as QuoteV2;
-        } else {
-          try {
-            normalized = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id });
-          } catch {
-            normalized = null;
-          }
-        }
-        if (normalized && typeof normalized.id === 'number') {
-          const bookingId = Number(normalized.booking_request_id ?? bookingRequestId ?? 0) || Number(bookingRequestId || 0);
-          setQuote({ ...normalized, booking_request_id: bookingId } as QuoteV2);
-        }
-      }
-    } catch { /* ignore */ }
-  }, [bookingRequestId, setQuote, bookingRequest]);
+  }, [bookingRequestId, refreshQuotesForThread, handleFallbackDetails, handleParsedDetails, setQuote]);
   useEffect(() => {
     const ids: number[] = [];
     try {
