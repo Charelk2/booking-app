@@ -29,6 +29,7 @@ interface BookingSummaryCardProps {
   serviceName?: string;
   artistName?: string;
   bookingConfirmed: boolean;
+  quotesLoading?: boolean;
   paymentInfo: {
     status: string | null;
     amount: number | null;
@@ -61,6 +62,7 @@ export default function BookingSummaryCard({
   serviceName,
   artistName,
   bookingConfirmed,
+  quotesLoading,
   paymentInfo,
   bookingDetails,
   quotes,
@@ -259,6 +261,7 @@ export default function BookingSummaryCard({
         {/* Estimate or Quote Totals */}
         {(() => {
           const quoteList = Object.values(quotes || {});
+          const loadingQuotes = Boolean(quotesLoading) && quoteList.length === 0;
           // Tolerate variant status strings (e.g., 'accepted_by_client', 'pending_client_action')
           const accepted = quoteList.find((q: any) => String(q?.status || '').toLowerCase().includes('accept'));
           const pending = quoteList.filter((q: any) => {
@@ -267,6 +270,20 @@ export default function BookingSummaryCard({
           });
           const latestPending = pending.sort((a, b) => (a.id || 0) - (b.id || 0)).slice(-1)[0];
           const best = accepted || latestPending;
+
+          if (loadingQuotes) {
+            return (
+              <div className="mt-4">
+                <div className="font-semibold mb-1">Quote total</div>
+                <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-2 animate-pulse">
+                  <div className="h-3 w-1/2 rounded bg-gray-200" />
+                  <div className="h-3 w-1/3 rounded bg-gray-200" />
+                  <div className="h-3 w-5/12 rounded bg-gray-200" />
+                  <div className="h-3 w-1/2 rounded bg-gray-200" />
+                </div>
+              </div>
+            );
+          }
 
           if (best) {
             const base = Array.isArray(best.services)

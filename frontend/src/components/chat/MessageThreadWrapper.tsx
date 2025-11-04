@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SafeImage from '@/components/ui/SafeImage';
 
-import { Booking, BookingRequest, QuoteV2 } from '@/types';
+import { Booking, BookingRequest, Quote, QuoteV2 } from '@/types';
 import * as api from '@/lib/api';
 import { useAuth as useContextAuth } from '@/contexts/AuthContext';
 import { getFullImageUrl } from '@/lib/utils';
@@ -19,7 +19,7 @@ import BookingSummarySkeleton from '@/components/chat/BookingSummarySkeleton';
 
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { counterpartyLabel } from '@/lib/names';
-import { useQuotes, prefetchQuotesByIds } from '@/hooks/useQuotes';
+import { useQuotes, prefetchQuotesByIds, toQuoteV2FromLegacy } from '@/hooks/useQuotes';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -69,18 +69,53 @@ export default function MessageThreadWrapper({
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   /** Quotes for totals in the side panel */
-  const { quotesById, ensureQuotesLoaded, setQuote } = useQuotes(Number(bookingRequestId || 0));
+  const initialQuotes = useMemo(() => {
+    if (!bookingRequest) return [] as QuoteV2[];
+    const arr = Array.isArray((bookingRequest as any)?.quotes) ? (bookingRequest as any).quotes : [];
+    const normalized: QuoteV2[] = [];
+    const seen = new Set<number>();
+    for (const raw of arr) {
+      if (!raw) continue;
+      let q: QuoteV2 | null = null;
+      if (Array.isArray((raw as any)?.services)) {
+        q = raw as QuoteV2;
+      } else {
+        try {
+          q = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id });
+        } catch {
+          q = null;
+        }
+      }
+      const qid = Number(q?.id || 0);
+      if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
+      seen.add(qid);
+      normalized.push(q);
+    }
+    return normalized;
+  }, [bookingRequest]);
+
+  const { quotesById, ensureQuotesLoaded, setQuote } = useQuotes(Number(bookingRequestId || 0), initialQuotes);
+  const [quotesLoading, setQuotesLoading] = useState(initialQuotes.length === 0);
+
+  useEffect(() => {
+    setQuotesLoading(initialQuotes.length === 0);
+  }, [initialQuotes]);
   const refreshQuotesForThread = useCallback(async () => {
     try {
       const res = await api.getQuotesForBookingRequest(Number(bookingRequestId || 0));
       const arr = Array.isArray(res.data) ? (res.data as any[]) : [];
-      // Prefer v2 shape; best-effort normalize legacy
-      for (const q of arr) {
-        const isV2 = Array.isArray((q as any)?.services);
-        const normalized = isV2 ? (q as any) : (await (async () => {
-          try { const { toQuoteV2FromLegacy } = await import('@/hooks/useQuotes'); return toQuoteV2FromLegacy(q as any, { clientId: (bookingRequest as any)?.client_id }); } catch { return q as any; }
-        })());
-        if (normalized && typeof normalized.id === 'number') setQuote(normalized as any);
+      for (const raw of arr) {
+        let normalized: QuoteV2 | null = null;
+        if (Array.isArray((raw as any)?.services)) {
+          normalized = raw as QuoteV2;
+        } else {
+          try {
+            normalized = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id });
+          } catch {
+            normalized = null;
+          }
+        }
+        if (normalized && typeof normalized.id === 'number') setQuote(normalized);
       }
     } catch { /* ignore */ }
   }, [bookingRequestId, setQuote, bookingRequest]);
@@ -95,14 +130,34 @@ export default function MessageThreadWrapper({
       const accepted = Number((bookingRequest as any)?.accepted_quote_id || 0);
       if (Number.isFinite(accepted) && accepted > 0) ids.push(accepted);
     } catch {}
-    if (!ids.length) return;
+    if (!ids.length) {
+      if (Number(bookingRequestId || 0) > 0 && initialQuotes.length === 0) {
+        setQuotesLoading(true);
+        (async () => {
+          try { await refreshQuotesForThread(); }
+          finally { setQuotesLoading(false); }
+        })();
+      } else {
+        setQuotesLoading(false);
+      }
+      return;
+    }
     // Prefetch to global cache for fast subsequent loads, then ensure this
     // component's local state is hydrated so the side panel totals render.
     (async () => {
+      const shouldShowLoading = !initialQuotes.length;
+      if (shouldShowLoading) setQuotesLoading(true);
       try { await prefetchQuotesByIds(ids); } catch {}
       try { await ensureQuotesLoaded(ids); } catch {}
+      finally {
+        if (shouldShowLoading) setQuotesLoading(false);
+      }
     })();
-  }, [bookingRequest, ensureQuotesLoaded]);
+  }, [bookingRequest, ensureQuotesLoaded, initialQuotes.length, refreshQuotesForThread, bookingRequestId]);
+
+  useEffect(() => {
+    if (Object.keys(quotesById).length) setQuotesLoading(false);
+  }, [quotesById]);
 
   /** Payment modal */
   const { openPaymentModal, paymentModal } = usePaymentModal(
@@ -428,6 +483,7 @@ export default function MessageThreadWrapper({
               setShowReviewModal={setShowReviewModal}
               paymentModal={null}
               quotes={quotesById as Record<number, QuoteV2>}
+              quotesLoading={quotesLoading}
               openPaymentModal={(args: { bookingRequestId: number; amount: number }) => {
                 const provider =
                   (bookingRequest as any)?.service_provider_profile?.business_name ||
@@ -488,6 +544,7 @@ export default function MessageThreadWrapper({
                 setShowReviewModal={setShowReviewModal}
                 paymentModal={null}
                 quotes={quotesById as Record<number, QuoteV2>}
+                quotesLoading={quotesLoading}
                 openPaymentModal={(args: { bookingRequestId: number; amount: number }) =>
                   openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount } as any)
                 }

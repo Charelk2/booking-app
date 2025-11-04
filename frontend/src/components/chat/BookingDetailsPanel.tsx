@@ -32,6 +32,7 @@ interface BookingDetailsPanelProps {
   setShowReviewModal: (show: boolean) => void;
   paymentModal: React.ReactNode;
   quotes: Record<number, QuoteV2>;
+  quotesLoading: boolean;
   openPaymentModal: (args: { bookingRequestId: number; amount: number }) => void;
 }
 
@@ -43,6 +44,7 @@ export default function BookingDetailsPanel({
   setShowReviewModal,
   paymentModal,
   quotes,
+  quotesLoading,
   openPaymentModal,
 }: BookingDetailsPanelProps) {
   const { user } = useAuth();
@@ -415,6 +417,7 @@ export default function BookingDetailsPanel({
             serviceName={bookingRequest.service?.title}
             artistName={artistName}
             bookingConfirmed={bookingConfirmed}
+            quotesLoading={quotesLoading}
             paymentInfo={{ status: null, amount: null, receiptUrl: null }}
             bookingDetails={confirmedBookingDetails}
             quotes={quotes}

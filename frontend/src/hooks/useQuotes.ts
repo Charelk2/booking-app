@@ -88,7 +88,7 @@ export async function prefetchQuotesByIds(ids: number[]) {
   }
 }
 
-export function useQuotes(bookingRequestId: number) {
+export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | null) {
   // Global, cross-instance cache so fast thread switches can render quotes immediately
   // without waiting for network refetch.
   // Keeps a best-effort in-memory map of QuoteV2 by id.
@@ -96,6 +96,16 @@ export function useQuotes(bookingRequestId: number) {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   const GLOBAL_QUOTES = getGlobalQuotesMap();
+
+  const seededRef = useRef(false);
+  if (!seededRef.current && initialQuotes && initialQuotes.length) {
+    initialQuotes.forEach((q) => {
+      if (q && typeof q.id === 'number') {
+        try { GLOBAL_QUOTES.set(q.id, q); } catch {}
+      }
+    });
+    seededRef.current = true;
+  }
 
   const [quotesById, setQuotesById] = useState<Record<number, QuoteV2>>(() => {
     // Seed with any previously known quotes to avoid skeletons on rapid switches
