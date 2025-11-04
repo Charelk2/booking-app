@@ -62,7 +62,7 @@ export default function BookingSummaryCard({
   serviceName,
   artistName,
   bookingConfirmed,
-  quotesLoading,
+  quotesLoading = false,
   paymentInfo,
   bookingDetails,
   quotes,
@@ -260,7 +260,7 @@ export default function BookingSummaryCard({
 
         {/* Estimate or Quote Totals */}
         {(() => {
-          const quoteList = Object.values(quotes || {});
+          const quoteList = Object.values(quotes || {}).filter((q: any) => Number(q?.booking_request_id) === Number(bookingRequestId));
           const loadingQuotes = Boolean(quotesLoading) && quoteList.length === 0;
           // Tolerate variant status strings (e.g., 'accepted_by_client', 'pending_client_action')
           const accepted = quoteList.find((q: any) => String(q?.status || '').toLowerCase().includes('accept'));
