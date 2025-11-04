@@ -97,7 +97,10 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       if (isPlacesReady || initStartedRef.current) return;
       initStartedRef.current = true;
       const places = await loadPlaces();
-      if (!places) { initStartedRef.current = false; return; }
+      if (!places || typeof document === 'undefined') {
+        initStartedRef.current = false;
+        return;
+      }
       try {
         autocompleteServiceRef.current = new places.AutocompleteService();
         placesServiceRef.current = new places.PlacesService(document.createElement("div"));
@@ -228,6 +231,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
 
     // Close dropdown on outside click
     useEffect(() => {
+      if (typeof document === "undefined") return;
       const handleClickOutside = (event: MouseEvent | TouchEvent) => {
         if (
           containerRef.current &&
