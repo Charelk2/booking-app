@@ -198,6 +198,11 @@ export default function MessageThreadWrapper({
     setQuotesLoading(initialQuotes.length === 0);
   }, [initialQuotes]);
 
+  useEffect(() => {
+    canonicalHydrateAttemptedRef.current = false;
+    historyFetchTriggeredRef.current = false;
+  }, [bookingRequestId]);
+
   const handleHydratedBookingRequest = useCallback((request: BookingRequest) => {
     canonicalHydrateAttemptedRef.current = true;
     try {
@@ -249,22 +254,46 @@ export default function MessageThreadWrapper({
     try {
       const eventType = (request as any)?.event_type || (request as any)?.event?.event_type;
       const guests = (request as any)?.guests_count;
-      const soundNeeded = (request as any)?.sound_needed ?? (request as any)?.sound_required;
+      const soundContext = (request as any)?.sound_context;
+      const locationName =
+        (request as any)?.event_location_name ||
+        (request as any)?.venue_name ||
+        null;
       const location =
         (request as any)?.event_location ||
         (request as any)?.location ||
         (request as any)?.event_address ||
+        (request as any)?.venue_address ||
         null;
-      const proposedDate = (request as any)?.proposed_datetime_1 || (request as any)?.event_date;
+      const city = (request as any)?.event_city || (request as any)?.city || null;
+      const region = (request as any)?.event_region || (request as any)?.event_province || (request as any)?.province || null;
+      const proposedDate =
+        (request as any)?.proposed_datetime_1 ||
+        (request as any)?.event_date ||
+        (request as any)?.proposed_datetime_2 ||
+        null;
+      const rawSoundNeeded =
+        (request as any)?.sound_needed ??
+        (request as any)?.sound_required ??
+        (soundContext ? soundContext.sound_required : undefined);
       const fallback: ParsedBookingDetails = {};
       if (eventType) fallback.eventType = String(eventType);
-      if (location) fallback.location = String(location);
+      if (location) {
+        fallback.location = String(location);
+      } else if (city || region) {
+        fallback.location = [city, region].filter(Boolean).map((part) => String(part).trim()).filter(Boolean).join(', ');
+      }
+      if (locationName) {
+        (fallback as any).location_name = String(locationName);
+      }
       if (Number.isFinite(guests)) fallback.guests = String(guests);
       else if (typeof guests === 'string' && guests.trim().length) fallback.guests = guests.trim();
-      if (typeof soundNeeded === 'string' && soundNeeded.trim().length) {
-        fallback.soundNeeded = String(soundNeeded);
-      } else if (typeof soundNeeded === 'boolean') {
-        fallback.soundNeeded = soundNeeded ? 'Yes' : 'No';
+      if (typeof rawSoundNeeded === 'string' && rawSoundNeeded.trim().length) {
+        fallback.soundNeeded = String(rawSoundNeeded);
+      } else if (typeof rawSoundNeeded === 'boolean') {
+        fallback.soundNeeded = rawSoundNeeded ? 'Yes' : 'No';
+      } else if (soundContext?.mode && typeof soundContext.mode === 'string' && soundContext.mode !== 'none') {
+        fallback.soundNeeded = 'Yes';
       }
       if (typeof proposedDate === 'string' && proposedDate.trim().length) {
         fallback.date = proposedDate.trim();
@@ -337,6 +366,65 @@ export default function MessageThreadWrapper({
   useEffect(() => {
     if (Object.keys(quotesById).length) setQuotesLoading(false);
   }, [quotesById]);
+
+  useEffect(() => {
+    if (!bookingRequestId) return;
+    if (!canonicalHydrateAttemptedRef.current) return;
+    if (historyFetchTriggeredRef.current) return;
+    const normalized = normalizeDetails(parsedDetails);
+    const needHistoricalScan =
+      !normalized ||
+      detailKeys.every((key) => {
+        const value = normalized?.[key];
+        return value == null || String(value).trim().length === 0;
+      });
+    if (!needHistoricalScan) return;
+    historyFetchTriggeredRef.current = true;
+    (async () => {
+      let cursor: number | null = null;
+      for (let attempts = 0; attempts < 3; attempts += 1) {
+        try {
+          const params: any = { limit: 400, mode: 'full' as const };
+          if (Number.isFinite(cursor) && cursor != null && cursor > 0) {
+            params.before_id = cursor;
+          }
+          const res = await api.getMessagesForBookingRequest(Number(bookingRequestId), params as any);
+          const payload: any = res?.data ?? {};
+          const rows = Array.isArray(payload.items)
+            ? payload.items
+            : Array.isArray(payload.messages)
+              ? payload.messages
+              : Array.isArray(payload)
+                ? payload
+                : [];
+          if (!rows.length && !payload.has_more) break;
+          let found = false;
+          for (let i = rows.length - 1; i >= 0; i -= 1) {
+            const row = rows[i];
+            const type = String((row as any)?.message_type || '').toUpperCase();
+            if (type !== 'SYSTEM') continue;
+            const content = String((row as any)?.content || '').trim();
+            if (!content.startsWith(BOOKING_DETAILS_PREFIX)) continue;
+            const parsed = parseBookingDetailsFromMessage(content);
+            if (Object.keys(parsed).length) {
+              handleParsedDetails(parsed);
+              handleFallbackDetails(parsed);
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+          const ids = rows
+            .map((row: any) => Number((row as any)?.id || 0))
+            .filter((id) => Number.isFinite(id) && id > 0);
+          if (!payload.has_more || !ids.length) break;
+          cursor = Math.min(...ids);
+        } catch {
+          break;
+        }
+      }
+    })();
+  }, [bookingRequestId, parsedDetails, handleFallbackDetails, handleParsedDetails]);
 
   /** Payment modal */
   const { openPaymentModal, paymentModal } = usePaymentModal(
