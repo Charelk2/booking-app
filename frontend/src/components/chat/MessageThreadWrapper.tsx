@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SafeImage from '@/components/ui/SafeImage';
@@ -20,6 +20,8 @@ import BookingSummarySkeleton from '@/components/chat/BookingSummarySkeleton';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { counterpartyLabel } from '@/lib/names';
 import { useQuotes, prefetchQuotesByIds, toQuoteV2FromLegacy } from '@/hooks/useQuotes';
+import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
+import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -189,12 +191,15 @@ export default function MessageThreadWrapper({
 
   const { quotesById, ensureQuotesLoaded, setQuote } = useQuotes(Number(bookingRequestId || 0), initialQuotes);
   const [quotesLoading, setQuotesLoading] = useState(initialQuotes.length === 0);
+  const canonicalHydrateAttemptedRef = useRef(false);
+  const historyFetchTriggeredRef = useRef(false);
 
   useEffect(() => {
     setQuotesLoading(initialQuotes.length === 0);
   }, [initialQuotes]);
 
   const handleHydratedBookingRequest = useCallback((request: BookingRequest) => {
+    canonicalHydrateAttemptedRef.current = true;
     try {
       const arr = Array.isArray((request as any)?.quotes) ? (request as any).quotes : [];
       const normalized: QuoteV2[] = [];
@@ -225,7 +230,52 @@ export default function MessageThreadWrapper({
     } finally {
       setQuotesLoading(false);
     }
-  }, [setQuote]);
+
+    try {
+      const detailsMessage = (request as any)?.booking_details_message;
+      if (typeof detailsMessage === 'string' && detailsMessage.trim().length) {
+        const text = detailsMessage.trim();
+        if (text.startsWith(BOOKING_DETAILS_PREFIX) || text.includes(BOOKING_DETAILS_PREFIX)) {
+          const parsed = parseBookingDetailsFromMessage(text);
+          if (Object.keys(parsed).length) {
+            handleParsedDetails(parsed);
+          }
+        }
+      }
+    } catch {
+      // ignore parse errors; fallback fetch covers it
+    }
+
+    try {
+      const eventType = (request as any)?.event_type || (request as any)?.event?.event_type;
+      const guests = (request as any)?.guests_count;
+      const soundNeeded = (request as any)?.sound_needed ?? (request as any)?.sound_required;
+      const location =
+        (request as any)?.event_location ||
+        (request as any)?.location ||
+        (request as any)?.event_address ||
+        null;
+      const proposedDate = (request as any)?.proposed_datetime_1 || (request as any)?.event_date;
+      const fallback: ParsedBookingDetails = {};
+      if (eventType) fallback.eventType = String(eventType);
+      if (location) fallback.location = String(location);
+      if (Number.isFinite(guests)) fallback.guests = String(guests);
+      else if (typeof guests === 'string' && guests.trim().length) fallback.guests = guests.trim();
+      if (typeof soundNeeded === 'string' && soundNeeded.trim().length) {
+        fallback.soundNeeded = String(soundNeeded);
+      } else if (typeof soundNeeded === 'boolean') {
+        fallback.soundNeeded = soundNeeded ? 'Yes' : 'No';
+      }
+      if (typeof proposedDate === 'string' && proposedDate.trim().length) {
+        fallback.date = proposedDate.trim();
+      }
+      if (Object.keys(fallback).length) {
+        handleFallbackDetails(fallback);
+      }
+    } catch {
+      // ignore fallback merge issues
+    }
+  }, [bookingRequestId, handleFallbackDetails, handleParsedDetails, setQuote]);
   const refreshQuotesForThread = useCallback(async () => {
     try {
       const res = await api.getQuotesForBookingRequest(Number(bookingRequestId || 0));
