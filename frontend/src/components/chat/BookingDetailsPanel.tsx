@@ -65,6 +65,7 @@ interface BookingDetailsPanelProps {
   paymentStatus: string | null;
   paymentAmount: number | null;
   receiptUrl: string | null;
+  paymentReference: string | null;
   openPaymentModal: (args: { bookingRequestId: number; amount: number }) => void;
   onBookingDetailsParsed?: (details: ParsedBookingDetails | null) => void;
   onBookingDetailsHydrated?: (details: ParsedBookingDetails) => void;
@@ -83,6 +84,7 @@ export default function BookingDetailsPanel({
   paymentStatus,
   paymentAmount,
   receiptUrl,
+  paymentReference,
   openPaymentModal,
   onBookingDetailsParsed,
   onBookingDetailsHydrated,
@@ -718,7 +720,14 @@ export default function BookingDetailsPanel({
             artistName={artistName}
             bookingConfirmed={bookingConfirmed}
             quotesLoading={quotesLoading}
-            paymentInfo={{ status: paymentStatus, amount: paymentAmount, receiptUrl }}
+            paymentInfo={{
+              status: paymentStatus,
+              amount: paymentAmount,
+              receiptUrl,
+              reference: paymentReference ?? (confirmedBookingDetails?.payment_id
+                ? String(confirmedBookingDetails.payment_id)
+                : null),
+            }}
             bookingDetails={confirmedBookingDetails}
             quotes={quotes}
             allowInstantBooking={false}

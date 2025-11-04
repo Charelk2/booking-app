@@ -107,7 +107,12 @@ export type MessageThreadWebProps = {
   initialBookingRequest?: any;
   // Optional handler to resolve and navigate to Event Prep when booking_id not yet known
   onContinueEventPrep?: (bookingRequestId: number) => void;
-  onPaymentStatusChange?: (status: string | null, amount?: number | null, receiptUrl?: string | null) => void;
+  onPaymentStatusChange?: (
+    status: string | null,
+    amount?: number | null,
+    receiptUrl?: string | null,
+    reference?: string | null,
+  ) => void;
   // allow passthrough
   [k: string]: any;
 };
@@ -603,6 +608,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   }, [messages]);
 
   const [cachedReceiptUrl, setCachedReceiptUrl] = React.useState<string | null>(null);
+  const [cachedReceiptRef, setCachedReceiptRef] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -616,6 +622,16 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
+    try {
+      const stored = window.localStorage.getItem(`receipt_ref:br:${bookingRequestId}`);
+      setCachedReceiptRef(stored ? stored : null);
+    } catch {
+      setCachedReceiptRef(null);
+    }
+  }, [bookingRequestId]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
     const url = paymentMeta?.receiptUrl;
     if (!url) return;
     try {
@@ -623,6 +639,16 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       setCachedReceiptUrl(url);
     } catch {}
   }, [paymentMeta?.receiptUrl, bookingRequestId]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const ref = paymentMeta?.paymentId;
+    if (!ref) return;
+    try {
+      window.localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, ref);
+      setCachedReceiptRef(ref);
+    } catch {}
+  }, [paymentMeta?.paymentId, bookingRequestId]);
 
   const initialPaymentStatus = React.useMemo(() => {
     try {
@@ -680,6 +706,27 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     }
   }, [initialBookingRequest]);
 
+  const initialPaymentReference = React.useMemo(() => {
+    try {
+      const snapshot = initialBookingRequest || {};
+      const candidates = [
+        (snapshot as any)?.payment_reference,
+        (snapshot as any)?.latest_payment_reference,
+        (snapshot as any)?.payment_id,
+        (snapshot as any)?.booking?.payment_reference,
+        (snapshot as any)?.booking?.payment_id,
+      ];
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        const str = String(candidate).trim();
+        if (str.length) return str;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [initialBookingRequest]);
+
   const resolvedPaymentStatus = React.useMemo(() => {
     if (isPaidOverride) return 'paid';
     if (paymentMeta?.status) return paymentMeta.status;
@@ -689,6 +736,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
   const resolvedPaymentAmount = paymentMeta?.amount ?? initialPaymentAmount ?? null;
   const resolvedReceiptUrl = paymentMeta?.receiptUrl || cachedReceiptUrl || initialReceiptFromSnapshot || null;
+  const resolvedPaymentReference = paymentMeta?.paymentId || cachedReceiptRef || initialPaymentReference || null;
 
   const onPaymentStatusChangeRef = useLatest(onPaymentStatusChange);
   const lastPaymentPayloadRef = React.useRef<string>('');
@@ -699,14 +747,21 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     const status = resolvedPaymentStatus ? String(resolvedPaymentStatus) : null;
     const amount = resolvedPaymentAmount ?? null;
     const url = resolvedReceiptUrl ?? null;
-    if (!status && amount == null && !url) return;
-    const signature = `${status ?? ''}|${amount ?? ''}|${url ?? ''}`;
+    const reference = resolvedPaymentReference ?? null;
+    if (!status && amount == null && !url && !reference) return;
+    const signature = `${status ?? ''}|${amount ?? ''}|${url ?? ''}|${reference ?? ''}`;
     if (lastPaymentPayloadRef.current === signature) return;
     lastPaymentPayloadRef.current = signature;
     try {
-      cb(status, amount, url);
+      cb(status, amount, url, reference);
     } catch {}
-  }, [resolvedPaymentStatus, resolvedPaymentAmount, resolvedReceiptUrl, onPaymentStatusChangeRef]);
+  }, [
+    resolvedPaymentStatus,
+    resolvedPaymentAmount,
+    resolvedReceiptUrl,
+    resolvedPaymentReference,
+    onPaymentStatusChangeRef,
+  ]);
 
   const isPaid = String(resolvedPaymentStatus || '').toLowerCase() === 'paid';
 

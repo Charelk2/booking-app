@@ -115,6 +115,7 @@ export default function MessageThreadWrapper({
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [paymentReference, setPaymentReference] = useState<string | null>(null);
 
   const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(() => {
     if (!bookingRequestId) return null;
@@ -160,10 +161,16 @@ export default function MessageThreadWrapper({
   useEffect(() => {
     if (!bookingRequestId || typeof window === 'undefined') return;
     try {
-      const cached = window.localStorage.getItem(`receipt_url:br:${bookingRequestId}`);
-      if (cached && !receiptUrl) setReceiptUrl(cached);
+      if (!receiptUrl) {
+        const cachedUrl = window.localStorage.getItem(`receipt_url:br:${bookingRequestId}`);
+        if (cachedUrl) setReceiptUrl(cachedUrl);
+      }
+      if (!paymentReference) {
+        const cachedRef = window.localStorage.getItem(`receipt_ref:br:${bookingRequestId}`);
+        if (cachedRef) setPaymentReference(cachedRef);
+      }
     } catch {}
-  }, [bookingRequestId, receiptUrl]);
+  }, [bookingRequestId, receiptUrl, paymentReference]);
 
   useEffect(() => {
     if (!bookingRequest) return;
@@ -196,7 +203,7 @@ export default function MessageThreadWrapper({
         }
       }
     }
-    if (!receiptUrl) {
+    if (!receiptUrl || !paymentReference) {
       const receiptCandidates = [
         (bookingRequest as any)?.receipt_url,
         (bookingRequest as any)?.payment_receipt_url,
@@ -208,11 +215,44 @@ export default function MessageThreadWrapper({
         const str = String(candidate).trim();
         if (!str) continue;
         const absolute = /^https?:\/\//i.test(str) ? str : api.apiUrl(str);
-        setReceiptUrl(absolute);
+        if (!receiptUrl) {
+          setReceiptUrl(absolute);
+          try {
+            if (typeof window !== 'undefined' && bookingRequestId) {
+              window.localStorage.setItem(`receipt_url:br:${bookingRequestId}`, absolute);
+            }
+          } catch {}
+        }
         break;
       }
     }
-  }, [bookingRequest, paymentStatus, paymentAmount, receiptUrl]);
+    if (!paymentReference) {
+      const referenceCandidates = [
+        (bookingRequest as any)?.payment_reference,
+        (bookingRequest as any)?.latest_payment_reference,
+        (bookingRequest as any)?.payment_id,
+        (bookingRequest as any)?.booking?.payment_reference,
+        (bookingRequest as any)?.booking?.payment_id,
+      ];
+      for (const candidate of referenceCandidates) {
+        if (!candidate) continue;
+        const str = String(candidate).trim();
+        if (!str) continue;
+        setPaymentReference((prev) => {
+          if (!prev) {
+            try {
+              if (typeof window !== 'undefined' && bookingRequestId) {
+                window.localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, str);
+              }
+            } catch {}
+            return str;
+          }
+          return prev;
+        });
+        break;
+      }
+    }
+  }, [bookingRequest, paymentStatus, paymentAmount, receiptUrl, paymentReference, bookingRequestId]);
 
   /** Mobile details sheet visibility (defaults open on desktop widths) */
   const [showSidePanel, setShowSidePanel] = useState<boolean>(() => {
@@ -736,10 +776,25 @@ export default function MessageThreadWrapper({
               setBookingConfirmed(confirmed);
               setConfirmedBookingDetails(booking);
             }}
-            onPaymentStatusChange={(status: string, amount?: number, url?: string | null) => {
+            onPaymentStatusChange={(status: string, amount?: number, url?: string | null, reference?: string | null) => {
               setPaymentStatus(status);
               setPaymentAmount(amount ?? null);
               setReceiptUrl(url ?? null);
+              if (url) {
+                try {
+                  if (typeof window !== 'undefined' && bookingRequestId) {
+                    window.localStorage.setItem(`receipt_url:br:${bookingRequestId}`, url);
+                  }
+                } catch {}
+              }
+              if (reference) {
+                setPaymentReference(reference);
+                try {
+                  if (typeof window !== 'undefined' && bookingRequestId) {
+                    window.localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, reference);
+                  }
+                } catch {}
+              }
             }}
             onShowReviewModal={setShowReviewModal}
             onOpenDetailsPanel={() => setShowDetailsModal((s) => !s)}
@@ -831,6 +886,7 @@ export default function MessageThreadWrapper({
               paymentStatus={paymentStatus}
               paymentAmount={paymentAmount}
               receiptUrl={receiptUrl}
+              paymentReference={paymentReference}
               onBookingDetailsParsed={handleParsedDetails}
               onBookingDetailsHydrated={handleFallbackDetails}
               onHydratedBookingRequest={handleHydratedBookingRequest}
@@ -898,6 +954,7 @@ export default function MessageThreadWrapper({
                 paymentStatus={paymentStatus}
                 paymentAmount={paymentAmount}
                 receiptUrl={receiptUrl}
+                paymentReference={paymentReference}
                 onBookingDetailsParsed={handleParsedDetails}
                 onBookingDetailsHydrated={handleFallbackDetails}
                 onHydratedBookingRequest={handleHydratedBookingRequest}

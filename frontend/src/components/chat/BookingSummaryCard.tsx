@@ -34,6 +34,7 @@ interface BookingSummaryCardProps {
     status: string | null;
     amount: number | null;
     receiptUrl: string | null;
+    reference?: string | null;
   };
   bookingDetails: Booking | null;
   quotes: Record<number, QuoteV2>;
@@ -215,7 +216,20 @@ export default function BookingSummaryCard({
             <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
               <div className="flex items-center justify-between">
                 <span className="text-gray-700">Order number</span>
-                <span className="font-medium">{bookingDetails?.id ?? '—'}</span>
+                <span className="font-medium flex items-center gap-2">
+                  {bookingDetails?.id != null ? `#${bookingDetails.id}` : '—'}
+                  {(() => {
+                    const reference =
+                      paymentInfo.reference ||
+                      (bookingDetails?.payment_id ? String(bookingDetails.payment_id) : null);
+                    if (!reference) return null;
+                    return (
+                      <span className="text-xs font-normal text-gray-500">
+                        Ref {reference}
+                      </span>
+                    );
+                  })()}
+                </span>
               </div>
               {(() => {
                 const url = buildReceiptUrl(
@@ -344,29 +358,6 @@ export default function BookingSummaryCard({
                     <span>{formatCurrency(total)}</span>
                   </div>
                 </div>
-
-                {(() => {
-                  const url = buildReceiptUrl(
-                    paymentInfo?.receiptUrl ?? null,
-                    bookingDetails?.payment_id ?? null
-                  );
-                  const status = String(paymentInfo?.status || '').toLowerCase();
-                  const shouldShow = Boolean(
-                    url && (showReceiptBelowTotal || status.includes('paid'))
-                  );
-                  return shouldShow ? (
-                    <div className="mt-2">
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm underline text-gray-700"
-                      >
-                        View receipt
-                      </a>
-                    </div>
-                  ) : null;
-                })()}
 
                 {allowInstantBooking && !accepted && (
                   <div className="mt-3 text-right">
