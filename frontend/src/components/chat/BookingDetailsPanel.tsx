@@ -87,6 +87,10 @@ export default function BookingDetailsPanel({
   const canonicalFetchedRef = React.useRef(false);
 
   React.useEffect(() => {
+    canonicalFetchedRef.current = false;
+  }, [requestId]);
+
+  React.useEffect(() => {
     const bid = (confirmedBookingDetails as any)?.id;
     if (!bid) return;
     // If parsed booking details or local state already provide quick info, skip eager fetch
