@@ -710,7 +710,7 @@ export default function AddServiceModalMusician({
 
                           <TextInput
                             label="Duration (minutes or range)"
-                            placeholder="e.g., 60-90 min or 45–60 min"
+                            placeholder="e.g., 60-90 min or 45-60 min"
                             type="text"
                             {...register("duration_label", {
                               required: "Duration is required",
