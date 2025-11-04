@@ -28,49 +28,6 @@ interface PaymentModalProps {
  * ========================= */
 const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
 const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
-const PAYSTACK_PK =
-  process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PK;
-
-/* =========================
- * Helpers
- * ========================= */
-const loadPaystackInlineScript = async (): Promise<void> => {
-  if (typeof window === 'undefined') return;
-  if ((window as any).PaystackPop) return;
-
-  await new Promise<void>((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://js.paystack.co/v1/inline.js';
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Failed to load Paystack script'));
-    document.body.appendChild(s);
-  });
-};
-
-const interpretStatus = (payload: any, fallback: string, pendingMsg: string) => {
-  try {
-    const statusHint =
-      (typeof payload?.status === 'string' && payload.status) ||
-      (typeof payload?.detail?.status === 'string' && payload.detail.status) ||
-      (typeof payload?.detail === 'string' && payload.detail) ||
-      '';
-    const hint = statusHint.toLowerCase();
-
-    if (hint.includes('failed') || hint.includes('declin')) {
-      return 'Payment declined. Please retry the payment.';
-    }
-    if (hint.includes('cancel') || hint.includes('abandon')) {
-      return 'Checkout cancelled before completion. Continue in the payment window when you are ready.';
-    }
-    if (hint.includes('pending') || hint.includes('processing')) {
-      return pendingMsg;
-    }
-  } catch {
-    // ignore parse errors; fall back to default messaging
-  }
-  return fallback;
-};
 
 /* =========================
  * Component
@@ -87,7 +44,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 }) => {
   // UI state
   const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [paystackReference, setPaystackReference] = useState<string | null>(null);
@@ -112,104 +68,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
     setPaystackUrl(null);
     setPaystackReference(null);
-    setVerifying(false);
     onClose();
   }, [onClose]);
-
-  const launchInlinePaystack = useCallback(
-    async ({
-      reference,
-      authorizationUrl,
-    }: {
-      reference: string;
-      authorizationUrl?: string | null;
-    }): Promise<boolean> => {
-      try {
-        await loadPaystackInlineScript();
-        const PaystackPop = (window as any).PaystackPop;
-
-        if (PaystackPop && typeof PaystackPop.setup === 'function') {
-          const amountKobo = Math.round(Math.max(0, Number(amount || 0)) * 100);
-          const handler = PaystackPop.setup({
-            key: PAYSTACK_PK,
-            email: 'client@booka.local',
-            amount: amountKobo,
-            currency: 'ZAR',
-            ref: reference,
-            reference,
-            metadata: { booking_request_id: bookingRequestId },
-            callback: async (transaction: { reference?: string; status?: string }) => {
-              try {
-                setVerifying(true);
-                const ref = transaction?.reference || reference;
-                const verifyUrl = `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(
-                  ref,
-                )}`;
-                const resp = await fetch(verifyUrl, { credentials: 'include' as RequestCredentials });
-
-                if (resp.ok) {
-                  const v = await resp.json();
-                  const pid = v?.payment_id || ref;
-                const receiptUrl = `/api/v1/payments/${pid}/receipt`;
-                try {
-                  localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl);
-                } catch {}
-                setPaystackUrl(null);
-                setPaystackReference(null);
-                onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
-                return;
-              }
-
-                let message = 'Payment not completed yet. Return to the checkout window.';
-                try {
-                  const payload = await resp.json();
-                  message = interpretStatus(
-                    payload,
-                    message,
-                    'Payment is still pending. Leave the checkout window open until it completes.',
-                  );
-                } catch {
-                  if (resp.status === 400) {
-                    message = 'Payment is still pending. Leave the checkout window open until it completes.';
-                  }
-                }
-                setError(message);
-              } catch {
-                setError('Verification failed. Reopen the payment window if it was closed.');
-              } finally {
-                setVerifying(false);
-              }
-            },
-            onClose: () => {
-              setError('Payment window closed before completion. Continue in the checkout window when you are ready.');
-            },
-          });
-
-          if (handler && typeof handler.openIframe === 'function') {
-            handler.openIframe();
-            setLoading(false);
-            return true;
-          }
-        }
-      } catch {
-        // inline setup failed
-      }
-
-      if (authorizationUrl) {
-        setError(null);
-        setPaystackUrl(authorizationUrl);
-        setLoading(false);
-        return false;
-      }
-
-      const msg = 'Unable to launch checkout. Please try again.';
-      setError(msg);
-      onError(msg);
-      setLoading(false);
-      return false;
-    },
-    [amount, bookingRequestId, onSuccess, onError, PAYSTACK_PK],
-  );
 
   const handlePay = useCallback(async () => {
     if (loading) return;
@@ -253,25 +113,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       if (!reference) throw new Error('Payment reference missing');
 
-      setPaystackReference(reference);
-
-      // If we have a public key, attempt inline first (falls back to hosted checkout on failure).
-      if (USE_PAYSTACK && PAYSTACK_PK) {
-        const launched = await launchInlinePaystack({
-          reference,
-          authorizationUrl: authorizationUrl || null,
-        });
-        if (launched) return;
-        if (authorizationUrl) {
-          // launchInlinePaystack already set fallback iframe and loading state
-          return;
-        }
-        // Inline failed without a fallback; bail after error handling.
-        return;
-      }
-
-      // Hosted fallback when inline is disabled
+      // Hosted fallback (preferred flow)
       if (authorizationUrl) {
+        setPaystackReference(reference);
         setPaystackUrl(authorizationUrl);
         setLoading(false);
         return;
@@ -319,7 +163,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [bookingRequestId, amount, onSuccess, onError, launchInlinePaystack, loading]);
+  }, [bookingRequestId, amount, onSuccess, onError, loading]);
 
   /* -------------------------
    * Effects
@@ -391,7 +235,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           }
           setPaystackUrl(null);
           setPaystackReference(null);
-          setVerifying(false);
           onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
           return;
         }
@@ -425,7 +268,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setError(null);
       setPaystackUrl(null);
       setPaystackReference(null);
-      setVerifying(false);
       return;
     }
 
@@ -436,7 +278,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setLoading(false);
       setPaystackUrl(null);
       setPaystackReference(null);
-      setVerifying(false);
     });
   }, [open, handlePay]);
 
@@ -445,7 +286,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
    * ------------------------- */
   if (!open) return null;
 
-  const showStatusBanner = Boolean(error || verifying || loading);
+  const showStatusBanner = Boolean(error || loading);
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-[999999909]">
@@ -467,10 +308,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           {showStatusBanner && (
             <div className="rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-700">
               {loading && <span>Opening secure checkout…</span>}
-              {!loading && verifying && <span>Verifying payment status…</span>}
-              {!loading && !verifying && error && (
-                <span className="text-red-600">{error}</span>
-              )}
+              {!loading && error && <span className="text-red-600">{error}</span>}
             </div>
           )}
 
