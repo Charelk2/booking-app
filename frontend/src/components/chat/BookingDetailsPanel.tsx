@@ -72,19 +72,27 @@ export default function BookingDetailsPanel({
 
   const initialProviderName = React.useMemo(() => {
     if (cachedIdentity?.name) return cachedIdentity.name;
-    const name = providerProfile?.business_name;
-    return name ? String(name) : null;
-  }, [cachedIdentity?.name, providerProfile?.business_name]);
+    const profileName = providerProfile?.business_name;
+    if (profileName) return String(profileName);
+    const counterparty = (bookingRequest as any)?.counterparty_label;
+    return counterparty ? String(counterparty) : null;
+  }, [cachedIdentity?.name, providerProfile?.business_name, bookingRequest]);
 
   const initialProviderAvatar = React.useMemo(() => {
     if (cachedIdentity?.avatar) return cachedIdentity.avatar;
-    const avatar = providerProfile?.profile_picture_url;
-    return avatar ? String(avatar) : null;
-  }, [cachedIdentity?.avatar, providerProfile?.profile_picture_url]);
+    const profileAvatar = providerProfile?.profile_picture_url;
+    if (profileAvatar) return String(profileAvatar);
+    const counterpartyAvatar = (bookingRequest as any)?.counterparty_avatar_url;
+    return counterpartyAvatar ? String(counterpartyAvatar) : null;
+  }, [cachedIdentity?.avatar, providerProfile?.profile_picture_url, bookingRequest]);
 
   const [providerName, setProviderName] = React.useState<string | null>(initialProviderName);
   const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(initialProviderAvatar);
   const canonicalFetchedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    canonicalFetchedRef.current = false;
+  }, [requestId]);
 
   React.useEffect(() => {
     canonicalFetchedRef.current = false;
@@ -155,9 +163,8 @@ export default function BookingDetailsPanel({
   // Load canonical provider identity if missing (ensures both roles see the same info)
   React.useEffect(() => {
     const needIdentity = !providerName || !providerAvatarUrl;
-    const needQuotes = Boolean(quotesLoading);
     if (canonicalFetchedRef.current) return;
-    if (!needIdentity && !needQuotes) return;
+    if (!needIdentity) return;
     if (!Number.isFinite(requestId) || requestId <= 0) return;
     let cancelled = false;
     (async () => {
@@ -170,7 +177,9 @@ export default function BookingDetailsPanel({
           (res?.data as any)?.artist_profile ||
           null;
         const canonicalName = profile?.business_name ? String(profile.business_name) : providerName ?? null;
-        const canonicalAvatar = profile?.profile_picture_url ? String(profile.profile_picture_url) : providerAvatarUrl ?? null;
+        const canonicalAvatar = profile?.profile_picture_url
+          ? String(profile.profile_picture_url)
+          : providerAvatarUrl ?? ((bookingRequest as any)?.counterparty_avatar_url ? String((bookingRequest as any)?.counterparty_avatar_url) : null);
         if (canonicalName !== providerName) setProviderName(canonicalName);
         if (canonicalAvatar !== providerAvatarUrl) setProviderAvatarUrl(canonicalAvatar);
         if (canonicalName || canonicalAvatar) {
