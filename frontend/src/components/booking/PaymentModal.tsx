@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Button from '../ui/Button';
 import { createPayment, apiUrl } from '@/lib/api';
 
 /* =========================
@@ -59,10 +58,10 @@ const interpretStatus = (payload: any, fallback: string, pendingMsg: string) => 
     const hint = statusHint.toLowerCase();
 
     if (hint.includes('failed') || hint.includes('declin')) {
-      return 'Payment declined. Reopen Paystack to try again.';
+      return 'Payment declined. Please retry the payment.';
     }
     if (hint.includes('cancel') || hint.includes('abandon')) {
-      return 'Checkout cancelled before completion. Reopen Paystack when you are ready.';
+      return 'Checkout cancelled before completion. Continue in the payment window when you are ready.';
     }
     if (hint.includes('pending') || hint.includes('processing')) {
       return pendingMsg;
@@ -94,9 +93,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   // Paystack flow state
   const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [paystackReference, setPaystackReference] = useState<string | null>(null);
-  const [paystackAccessCode, setPaystackAccessCode] = useState<string | null>(null);
-  const [inlineBlocked, setInlineBlocked] = useState(false);
-  const [showFallbackBanner, setShowFallbackBanner] = useState(false);
+  const [, setPaystackAccessCode] = useState<string | null>(null);
 
   // refs
   const pollTimerRef = useRef<number | null>(null);
@@ -162,8 +159,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 }
 
                 // not OK
-                let message =
-                  'Payment not completed yet. Return to Paystack to finish.';
+                let message = 'Payment not completed yet. Return to the checkout window.';
                 try {
                   const payload = await resp.json();
                   message = interpretStatus(
@@ -184,16 +180,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   setPaystackUrl(authorizationUrl);
                 }
               } catch {
-                setError('Verification failed. Reopen Paystack if the window closed.');
+                setError('Verification failed. Reopen the payment window if it was closed.');
               } finally {
                 setVerifying(false);
               }
             },
             onCancel: () => {
-              setError('Payment cancelled before completion. Reopen Paystack to finish.');
+              setError('Payment cancelled before completion. Continue in the checkout window when you are ready.');
               if (authorizationUrl) {
-                setInlineBlocked(true);
-                setShowFallbackBanner(true);
                 setPaystackUrl(authorizationUrl);
               }
             },
@@ -204,14 +198,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         }
       } catch {
         // inline failed (blocked or script error)
-        setInlineBlocked(true);
+        // note: inline launch failed, fall back to the hosted checkout
       }
 
       // Fallback to redirect/iframe authorization URL
       if (authorizationUrl) {
         setPaystackUrl(authorizationUrl);
         setPaystackAccessCode(accessCode || null);
-        setShowFallbackBanner(true);
         setLoading(false);
         return;
       }
@@ -227,8 +220,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     setLoading(true);
     setError(null);
-    setInlineBlocked(false);
-    setShowFallbackBanner(false);
     setPaystackUrl(null);
 
     // Fake mode, short-circuit success
@@ -284,7 +275,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       if (authorizationUrl) {
         setPaystackUrl(authorizationUrl);
         setPaystackAccessCode(accessCode || null);
-        setShowFallbackBanner(Boolean(!accessCode));
         setLoading(false);
         return;
       }
@@ -439,7 +429,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     handlePay().catch(() => {
       setLoading(false);
-      setInlineBlocked(true);
     });
   }, [open, handlePay]);
 
@@ -449,7 +438,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   if (!open) return null;
 
   const showStatusBanner = Boolean(error || verifying || (loading && !paystackUrl));
-  const fallbackActive = inlineBlocked && showFallbackBanner && paystackUrl;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-[999999909]">
@@ -478,13 +466,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
           )}
 
-          {fallbackActive && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Your browser blocked the inline checkout. Use the secure window below or open it in a
-              new tab.
-            </div>
-          )}
-
           {paystackUrl && (
             <>
               <div className="rounded-md border overflow-hidden">
@@ -494,28 +475,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   className="w-full h-[560px] border-0"
                 />
               </div>
-
-              {fallbackActive && (
-                <a
-                  href={paystackUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-md font-semibold min-h-10 px-3 py-2 text-sm bg-brand text-white hover:bg-brand-dark/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-dark"
-                >
-                  Open checkout in a new tab
-                </a>
-              )}
             </>
           )}
         </div>
-
-        {fallbackActive && (
-          <div className="mt-6 flex justify-end">
-            <Button type="button" onClick={handlePay} isLoading={loading}>
-              Reopen Paystack
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );
