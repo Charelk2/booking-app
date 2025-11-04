@@ -45,7 +45,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
+  const [paystackReference, setPaystackReference] = useState<string | null>(null);
   // refs
+  const pollTimerRef = useRef<number | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const autoRunRef = useRef(false);
 
@@ -58,6 +61,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       if (!confirmCancel) return;
     }
     autoRunRef.current = false;
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    setPaystackUrl(null);
+    setPaystackReference(null);
     onClose();
   }, [onClose]);
 
@@ -66,6 +75,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     setLoading(true);
     setError(null);
+    setPaystackUrl(null);
+    setPaystackReference(null);
 
     // Fake mode, short-circuit success
     if (FAKE_PAYMENTS && !USE_PAYSTACK) {
@@ -101,11 +112,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       if (!reference) throw new Error('Payment reference missing');
 
-      // Hosted checkout not supported; surface error
+      // Hosted fallback (preferred flow)
       if (authorizationUrl) {
-        const msg = 'Paystack checkout could not be opened. Please try again later.';
-        setError(msg);
-        onError(msg);
+        setPaystackReference(reference);
+        setPaystackUrl(authorizationUrl);
         setLoading(false);
         return;
       }
@@ -120,6 +130,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl);
         }
       } catch {}
+      setPaystackUrl(null);
+      setPaystackReference(null);
       onSuccess({ status: 'paid', amount: Number(amount), receiptUrl, paymentId });
     } catch (err: any) {
       const status = Number(err?.response?.status || 0);
@@ -155,6 +167,61 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   /* -------------------------
    * Effects
    * ------------------------- */
+
+  // Poll verify endpoint when using hosted fallback (iframe)
+  useEffect(() => {
+    if (!paystackUrl || !paystackReference) return;
+
+    let elapsed = 0;
+    const INTERVAL = 5000;
+    const MAX = 60000;
+
+    const tick = async () => {
+      try {
+        const resp = await fetch(
+          apiUrl(
+            `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(paystackReference)}`,
+          ),
+          { credentials: 'include' as RequestCredentials },
+        );
+
+        if (resp.ok) {
+          const v = await resp.json();
+          const pid = v?.payment_id || paystackReference;
+          const receiptUrl = apiUrl(`/api/v1/payments/${pid}/receipt`);
+          try {
+            localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl);
+          } catch {}
+          if (pollTimerRef.current) {
+            clearInterval(pollTimerRef.current);
+            pollTimerRef.current = null;
+          }
+          setPaystackUrl(null);
+          setPaystackReference(null);
+          onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
+          return;
+        }
+      } catch {
+        // ignore network errors; continue polling until timeout
+      }
+
+      elapsed += INTERVAL;
+      if (elapsed >= MAX && pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+
+    tick();
+    pollTimerRef.current = window.setInterval(tick, INTERVAL) as unknown as number;
+
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, [paystackUrl, paystackReference, bookingRequestId, amount, onSuccess]);
 
   // Focus trap + ESC handling when open
   useEffect(() => {
@@ -198,6 +265,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       autoRunRef.current = false;
       setLoading(false);
       setError(null);
+      setPaystackUrl(null);
+      setPaystackReference(null);
       return;
     }
 
@@ -206,6 +275,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     handlePay().catch(() => {
       setLoading(false);
+      setPaystackUrl(null);
+      setPaystackReference(null);
     });
   }, [open, handlePay]);
 
@@ -237,6 +308,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">
               {loading && <span>Opening secure checkout…</span>}
               {!loading && error && <span className="text-red-600">{error}</span>}
+            </div>
+          )}
+
+          {paystackUrl && (
+            <div className="rounded-md border overflow-hidden">
+              <iframe
+                title="Paystack Checkout"
+                src={paystackUrl}
+                className="w-full h-[560px] border-0"
+              />
             </div>
           )}
         </div>
