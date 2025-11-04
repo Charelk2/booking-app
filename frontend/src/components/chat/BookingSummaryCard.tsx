@@ -217,7 +217,7 @@ export default function BookingSummaryCard({
               <div className="flex items-center justify-between">
                 <span className="text-gray-700">Order number</span>
                 <span className="font-medium flex items-center gap-2">
-                  {bookingDetails?.id != null ? `#${bookingDetails.id}` : '—'}
+                  {bookingDetails?.id != null ? `#${bookingDetails.id}` : ''}
                   {(() => {
                     const reference =
                       paymentInfo.reference ||
@@ -225,7 +225,7 @@ export default function BookingSummaryCard({
                     if (!reference) return null;
                     return (
                       <span className="text-xs font-normal text-gray-500">
-                        Ref {reference}
+                       {reference}
                       </span>
                     );
                   })()}
