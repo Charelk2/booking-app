@@ -445,7 +445,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="space-y-3">
           {showStatusBanner && (
             <div className="rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-700">
-              {loading && !paystackUrl && <span>Opening secure checkout…</span>}
+              
               {!loading && verifying && <span>Verifying payment status…</span>}
               {!loading && !verifying && error && <span className="text-red-600">{error}</span>}
             </div>
@@ -459,11 +459,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
           {paystackUrl && (
             <>
-              <div className="rounded-md border overflow-hidden">
+              <div className="rounded-md border overflow-y-auto">
                 <iframe
-                  title="Paystack Checkout"
+                  
                   src={paystackUrl}
-                  className="w-full h-[560px] border-0"
+                  
                 />
               </div>
               {fallbackActive && (
