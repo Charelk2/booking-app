@@ -204,7 +204,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setError('Unable to launch checkout. Please try again.');
       setLoading(false);
     },
-    [amount, bookingRequestId, onSuccess],
+    [amount, bookingRequestId, onSuccess, PAYSTACK_PK],
   );
 
   const handlePay = useCallback(async () => {
