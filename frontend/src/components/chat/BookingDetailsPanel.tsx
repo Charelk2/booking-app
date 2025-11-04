@@ -125,9 +125,23 @@ export default function BookingDetailsPanel({
 
   // Reset provider identity whenever we switch threads or the payload updates
   React.useLayoutEffect(() => {
-    setProviderName(initialProviderName);
-    setProviderAvatarUrl(initialProviderAvatar);
-  }, [initialProviderName, initialProviderAvatar]);
+    if (providerName !== initialProviderName) {
+      setProviderName(initialProviderName);
+    }
+    if (providerAvatarUrl !== initialProviderAvatar) {
+      setProviderAvatarUrl(initialProviderAvatar);
+    }
+  }, [initialProviderName, initialProviderAvatar, providerName, providerAvatarUrl]);
+
+  React.useEffect(() => {
+    if (!requestId) return;
+    const nextName = providerName ?? null;
+    const nextAvatar = providerAvatarUrl ?? null;
+    if (nextName == null && nextAvatar == null) return;
+    const existing = providerIdentityCache.get(requestId);
+    if (existing && existing.name === nextName && existing.avatar === nextAvatar) return;
+    providerIdentityCache.set(requestId, { name: nextName, avatar: nextAvatar });
+  }, [requestId, providerName, providerAvatarUrl]);
 
   // Load canonical provider identity if missing (ensures both roles see the same info)
   React.useEffect(() => {
