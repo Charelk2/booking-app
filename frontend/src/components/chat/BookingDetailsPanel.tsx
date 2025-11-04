@@ -146,19 +146,26 @@ export default function BookingDetailsPanel({
   // Load canonical provider identity if missing (ensures both roles see the same info)
   React.useEffect(() => {
     if (providerName && providerAvatarUrl) return;
-    const id = Number(bookingRequest?.id || 0);
-    if (!Number.isFinite(id) || id <= 0) return;
+    if (!Number.isFinite(requestId) || requestId <= 0) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await getBookingRequestById(id);
+        const res = await getBookingRequestById(requestId);
         if (cancelled) return;
         const profile =
           (res?.data as any)?.service_provider_profile ||
           (res?.data as any)?.artist_profile ||
           null;
-        if (profile?.business_name) setProviderName(String(profile.business_name));
-        if (profile?.profile_picture_url) setProviderAvatarUrl(String(profile.profile_picture_url));
+        const canonicalName = profile?.business_name ? String(profile.business_name) : providerName ?? null;
+        const canonicalAvatar = profile?.profile_picture_url ? String(profile.profile_picture_url) : providerAvatarUrl ?? null;
+        if (canonicalName !== providerName) setProviderName(canonicalName);
+        if (canonicalAvatar !== providerAvatarUrl) setProviderAvatarUrl(canonicalAvatar);
+        if (canonicalName || canonicalAvatar) {
+          providerIdentityCache.set(requestId, {
+            name: canonicalName ?? null,
+            avatar: canonicalAvatar ?? null,
+          });
+        }
       } catch {
         // leave placeholders; upstream data must be fixed
       }
@@ -166,7 +173,7 @@ export default function BookingDetailsPanel({
     return () => {
       cancelled = true;
     };
-  }, [bookingRequest?.id, providerName, providerAvatarUrl]);
+  }, [requestId, providerName, providerAvatarUrl]);
 
   // Detect Booka moderation thread (system-only updates)
   const isBookaThread = React.useMemo(() => {
