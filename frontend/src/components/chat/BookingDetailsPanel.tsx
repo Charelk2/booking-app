@@ -82,6 +82,7 @@ export default function BookingDetailsPanel({
 
   const [providerName, setProviderName] = React.useState<string | null>(initialProviderName);
   const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(initialProviderAvatar);
+  const canonicalFetchedRef = React.useRef(false);
 
   React.useEffect(() => {
     const bid = (confirmedBookingDetails as any)?.id;
@@ -147,13 +148,17 @@ export default function BookingDetailsPanel({
 
   // Load canonical provider identity if missing (ensures both roles see the same info)
   React.useEffect(() => {
-    if (providerName && providerAvatarUrl) return;
+    const needIdentity = !providerName || !providerAvatarUrl;
+    const needQuotes = Boolean(quotesLoading);
+    if (canonicalFetchedRef.current) return;
+    if (!needIdentity && !needQuotes) return;
     if (!Number.isFinite(requestId) || requestId <= 0) return;
     let cancelled = false;
     (async () => {
       try {
         const res = await getBookingRequestById(requestId);
         if (cancelled) return;
+        canonicalFetchedRef.current = true;
         const profile =
           (res?.data as any)?.service_provider_profile ||
           (res?.data as any)?.artist_profile ||
@@ -168,6 +173,7 @@ export default function BookingDetailsPanel({
             avatar: canonicalAvatar ?? null,
           });
         }
+        try { onHydratedBookingRequest?.(res.data as BookingRequest); } catch {}
       } catch {
         // leave placeholders; upstream data must be fixed
       }
@@ -175,7 +181,7 @@ export default function BookingDetailsPanel({
     return () => {
       cancelled = true;
     };
-  }, [requestId, providerName, providerAvatarUrl]);
+  }, [requestId, providerName, providerAvatarUrl, quotesLoading, onHydratedBookingRequest]);
 
   // Detect Booka moderation thread (system-only updates)
   const isBookaThread = React.useMemo(() => {
