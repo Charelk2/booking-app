@@ -7,7 +7,7 @@ import { Booking, BookingRequest, Review, QuoteV2 } from '@/types';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import BookingSummaryCard from '@/components/chat/BookingSummaryCard';
-import { getEventPrep, getMyServices } from '@/lib/api';
+import { getEventPrep, getMyServices, getBookingRequestById } from '@/lib/api';
 import { AddServiceCategorySelector } from '@/components/dashboard';
 import { useRouter } from 'next/navigation';
 
@@ -49,6 +49,8 @@ export default function BookingDetailsPanel({
   const [services, setServices] = React.useState<any[] | null>(null);
   const [loadingServices, setLoadingServices] = React.useState(false);
   const [showAddService, setShowAddService] = React.useState(false);
+  const [providerName, setProviderName] = React.useState<string | null>(null);
+  const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(null);
   const router = useRouter();
 
   React.useEffect(() => {
@@ -92,6 +94,45 @@ export default function BookingDetailsPanel({
       } catch {}
     };
   }, [confirmedBookingDetails?.id, parsedBookingDetails?.eventType, parsedBookingDetails?.guests, eventType, guestsCount]);
+
+  // Seed provider identity from the current booking request payload
+  React.useEffect(() => {
+    try {
+      const profile =
+        (bookingRequest as any)?.service_provider_profile ||
+        (bookingRequest as any)?.artist_profile ||
+        null;
+      const name = profile?.business_name ? String(profile.business_name) : null;
+      const avatar = profile?.profile_picture_url ? String(profile.profile_picture_url) : null;
+      if (name) setProviderName((prev) => (prev ? prev : name));
+      if (avatar) setProviderAvatarUrl((prev) => (prev ? prev : avatar));
+    } catch {}
+  }, [bookingRequest]);
+
+  // Load canonical provider identity if missing (ensures both roles see the same info)
+  React.useEffect(() => {
+    if (providerName && providerAvatarUrl) return;
+    const id = Number(bookingRequest?.id || 0);
+    if (!Number.isFinite(id) || id <= 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getBookingRequestById(id);
+        if (cancelled) return;
+        const profile =
+          (res?.data as any)?.service_provider_profile ||
+          (res?.data as any)?.artist_profile ||
+          null;
+        if (profile?.business_name) setProviderName(String(profile.business_name));
+        if (profile?.profile_picture_url) setProviderAvatarUrl(String(profile.profile_picture_url));
+      } catch {
+        // leave placeholders; upstream data must be fixed
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingRequest?.id, providerName, providerAvatarUrl]);
 
   // Detect Booka moderation thread (system-only updates)
   const isBookaThread = React.useMemo(() => {
@@ -317,13 +358,12 @@ export default function BookingDetailsPanel({
           null;
 
         const imageUrl =
+          providerAvatarUrl ||
           (providerProfile?.profile_picture_url as string | null | undefined) ||
           ((bookingRequest as any)?.counterparty_avatar_url as string | null | undefined) ||
           null;
 
-        const artistName = providerProfile?.business_name
-          ? String(providerProfile.business_name)
-          : undefined;
+        const artistName = providerName || (providerProfile?.business_name ? String(providerProfile.business_name) : undefined);
 
         const cancellationPolicy =
           (bookingRequest as any)?.service_provider_profile?.cancellation_policy ??
