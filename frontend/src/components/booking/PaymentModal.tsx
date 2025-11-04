@@ -40,7 +40,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [paystackReference, setPaystackReference] = useState<string | null>(null);
-  const [paystackAccessCode, setPaystackAccessCode] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [inlineBlocked, setInlineBlocked] = useState(false);
   const [showFallbackBanner, setShowFallbackBanner] = useState(false);
@@ -150,7 +149,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           throw new Error('Payment reference missing');
         }
         setPaystackReference(reference);
-        setPaystackAccessCode(accessCode || null);
 
         const loadPaystack = async (): Promise<void> => {
           if (typeof window === 'undefined') return;
@@ -253,7 +251,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const accessCode = String(data?.access_code || data?.accessCode || '').trim();
       if (authUrl && reference && PAYSTACK_PK) {
         setPaystackReference(reference);
-        setPaystackAccessCode(accessCode || null);
         try {
           const loadPaystack = async (): Promise<void> => {
             if (typeof window === 'undefined') return;
