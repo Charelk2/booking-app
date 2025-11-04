@@ -95,9 +95,11 @@ export default function BookingDetailsPanel({
 
     const nameCandidates = [
       providerProfile?.business_name,
+      (bookingRequest as any)?.service_provider_profile?.business_name,
       (bookingRequest as any)?.service_provider?.business_name,
       (bookingRequest as any)?.service?.service_provider?.business_name,
       (bookingRequest as any)?.service?.artist?.business_name,
+      (bookingRequest as any)?.service?.artist_profile?.business_name,
     ];
     for (const candidate of nameCandidates) {
       const next = normalize(candidate);
@@ -122,30 +124,6 @@ export default function BookingDetailsPanel({
     }
 
     if (viewerIsProvider) {
-      if (!identity.name) {
-        const profileUser =
-          providerProfile?.user ||
-          (bookingRequest as any)?.service_provider?.user ||
-          (bookingRequest as any)?.service?.service_provider?.user ||
-          (bookingRequest as any)?.service?.artist?.user ||
-          null;
-        const nameParts = [
-          profileUser?.first_name,
-          profileUser?.last_name,
-        ]
-          .map((part) => (typeof part === 'string' ? part.trim() : ''))
-          .filter(Boolean);
-        const authNameParts = [
-          user?.first_name,
-          user?.last_name,
-        ]
-          .map((part) => (typeof part === 'string' ? part.trim() : ''))
-          .filter(Boolean);
-        identity.name =
-          (nameParts.length ? nameParts.join(' ') : null) ||
-          (authNameParts.length ? authNameParts.join(' ') : null) ||
-          identity.name;
-      }
       if (!identity.avatar) {
         identity.avatar = normalize(user?.profile_picture_url) ?? identity.avatar;
       }
