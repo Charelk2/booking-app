@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import Button from '../ui/Button';
 import { createPayment } from '@/lib/api';
 import { apiUrl } from '@/lib/api';
@@ -31,7 +33,7 @@ declare global {
   }
 }
 
-const PaymentModal: React.FC<PaymentModalProps> = ({
+const PaymentModal: FC<PaymentModalProps> = ({
   open,
   onClose,
   bookingRequestId,
