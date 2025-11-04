@@ -258,7 +258,7 @@ export default function BookingSummaryCard({
           );
         })()}
 
-        {/* Estimate or Quote Totals */}
+        {/* Estimate or Costing Totals */}
         {(() => {
           const quoteList = Object.values(quotes || {}).filter((q: any) => {
             const qBookingId =
@@ -280,7 +280,7 @@ export default function BookingSummaryCard({
           if (loadingQuotes) {
             return (
               <div className="mt-4">
-                <div className="font-semibold mb-1">Quote total</div>
+                <div className="font-semibold mb-1">Costing</div>
                 <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-2 animate-pulse">
                   <div className="h-3 w-1/2 rounded bg-gray-200" />
                   <div className="h-3 w-1/3 rounded bg-gray-200" />
@@ -303,7 +303,7 @@ export default function BookingSummaryCard({
             const vat = Math.max(0, total - subtotal);
             return (
               <div className="mt-4">
-                <div className="font-semibold mb-1">Quote total</div>
+                <div className="font-semibold mb-1">Costing</div>
                 <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-1">
                   <div className="flex justify-between text-gray-700">
                     <span>Base fee</span>
@@ -346,12 +346,15 @@ export default function BookingSummaryCard({
                 </div>
 
                 {(() => {
-                  if (!showReceiptBelowTotal) return null;
                   const url = buildReceiptUrl(
                     paymentInfo?.receiptUrl ?? null,
                     bookingDetails?.payment_id ?? null
                   );
-                  return url ? (
+                  const status = String(paymentInfo?.status || '').toLowerCase();
+                  const shouldShow = Boolean(
+                    url && (showReceiptBelowTotal || status.includes('paid'))
+                  );
+                  return shouldShow ? (
                     <div className="mt-2">
                       <a
                         href={url}
@@ -387,7 +390,7 @@ export default function BookingSummaryCard({
 
           return (
             <div className="mt-4">
-              <div className="font-semibold mb-1">Quote total</div>
+              <div className="font-semibold mb-1">Costing</div>
               <div className="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600">
                 No quote is available yet for this request.
               </div>

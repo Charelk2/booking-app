@@ -771,6 +771,9 @@ export default function MessageThreadWrapper({
               paymentModal={null}
               quotes={quotesById as Record<number, QuoteV2>}
               quotesLoading={quotesLoading}
+              paymentStatus={paymentStatus}
+              paymentAmount={paymentAmount}
+              receiptUrl={receiptUrl}
               onBookingDetailsParsed={handleParsedDetails}
               onBookingDetailsHydrated={handleFallbackDetails}
               onHydratedBookingRequest={handleHydratedBookingRequest}
@@ -835,6 +838,9 @@ export default function MessageThreadWrapper({
                 paymentModal={null}
                 quotes={quotesById as Record<number, QuoteV2>}
                 quotesLoading={quotesLoading}
+                paymentStatus={paymentStatus}
+                paymentAmount={paymentAmount}
+                receiptUrl={receiptUrl}
                 onBookingDetailsParsed={handleParsedDetails}
                 onBookingDetailsHydrated={handleFallbackDetails}
                 onHydratedBookingRequest={handleHydratedBookingRequest}

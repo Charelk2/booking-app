@@ -62,6 +62,9 @@ interface BookingDetailsPanelProps {
   paymentModal: React.ReactNode;
   quotes: Record<number, QuoteV2>;
   quotesLoading: boolean;
+  paymentStatus: string | null;
+  paymentAmount: number | null;
+  receiptUrl: string | null;
   openPaymentModal: (args: { bookingRequestId: number; amount: number }) => void;
   onBookingDetailsParsed?: (details: ParsedBookingDetails | null) => void;
   onBookingDetailsHydrated?: (details: ParsedBookingDetails) => void;
@@ -77,6 +80,9 @@ export default function BookingDetailsPanel({
   paymentModal,
   quotes,
   quotesLoading,
+  paymentStatus,
+  paymentAmount,
+  receiptUrl,
   openPaymentModal,
   onBookingDetailsParsed,
   onBookingDetailsHydrated,
@@ -712,7 +718,7 @@ export default function BookingDetailsPanel({
             artistName={artistName}
             bookingConfirmed={bookingConfirmed}
             quotesLoading={quotesLoading}
-            paymentInfo={{ status: null, amount: null, receiptUrl: null }}
+            paymentInfo={{ status: paymentStatus, amount: paymentAmount, receiptUrl }}
             bookingDetails={confirmedBookingDetails}
             quotes={quotes}
             allowInstantBooking={false}
