@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPayment, apiUrl } from '@/lib/api';
-import Button from '../ui/Button';
 
 /* =========================
  * Types
@@ -46,11 +45,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
-  const [paystackReference, setPaystackReference] = useState<string | null>(null);
-
   // refs
-  const pollTimerRef = useRef<number | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const autoRunRef = useRef(false);
 
@@ -63,27 +58,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       if (!confirmCancel) return;
     }
     autoRunRef.current = false;
-    if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    setPaystackUrl(null);
-    setPaystackReference(null);
     onClose();
   }, [onClose]);
 
   const handlePay = useCallback(async () => {
     if (loading) return;
 
-    if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-
     setLoading(true);
     setError(null);
-    setPaystackUrl(null);
-    setPaystackReference(null);
 
     // Fake mode, short-circuit success
     if (FAKE_PAYMENTS && !USE_PAYSTACK) {
@@ -119,17 +101,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       if (!reference) throw new Error('Payment reference missing');
 
-      // Hosted fallback (preferred flow)
+      // Hosted checkout not supported; surface error
       if (authorizationUrl) {
-        setPaystackReference(reference);
-        setPaystackUrl(authorizationUrl);
-        if (typeof window !== 'undefined') {
-          try {
-            window.open(authorizationUrl, '_blank', 'noopener,noreferrer');
-          } catch {
-            // fall through; user can reopen with the button below
-          }
-        }
+        const msg = 'Paystack checkout could not be opened. Please try again later.';
+        setError(msg);
+        onError(msg);
         setLoading(false);
         return;
       }
@@ -144,8 +120,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl);
         }
       } catch {}
-      setPaystackUrl(null);
-      setPaystackReference(null);
       onSuccess({ status: 'paid', amount: Number(amount), receiptUrl, paymentId });
     } catch (err: any) {
       const status = Number(err?.response?.status || 0);
@@ -218,69 +192,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     };
   }, [open, handleCancel]);
 
-  // Poll verify endpoint when waiting on hosted checkout
-  useEffect(() => {
-    if (!paystackUrl || !paystackReference) return;
-
-    let elapsed = 0;
-    const INTERVAL = 5000;
-    const MAX = 60000;
-
-    const tick = async () => {
-      try {
-        const resp = await fetch(
-          apiUrl(
-            `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(paystackReference)}`,
-          ),
-          { credentials: 'include' as RequestCredentials },
-        );
-
-        if (resp.ok) {
-          const v = await resp.json();
-          const pid = v?.payment_id || paystackReference;
-          const receiptUrl = apiUrl(`/api/v1/payments/${pid}/receipt`);
-          try {
-            localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl);
-          } catch {}
-          if (pollTimerRef.current) {
-            clearInterval(pollTimerRef.current);
-            pollTimerRef.current = null;
-          }
-          setPaystackUrl(null);
-          setPaystackReference(null);
-          onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
-          return;
-        }
-      } catch {
-        // ignore network errors; continue polling until timeout
-      }
-
-      elapsed += INTERVAL;
-      if (elapsed >= MAX && pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-
-    tick();
-    pollTimerRef.current = window.setInterval(tick, INTERVAL) as unknown as number;
-
-    return () => {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-  }, [paystackUrl, paystackReference, bookingRequestId, amount, onSuccess]);
-
   // Auto-run on open
   useEffect(() => {
     if (!open) {
       autoRunRef.current = false;
       setLoading(false);
       setError(null);
-      setPaystackUrl(null);
-      setPaystackReference(null);
       return;
     }
 
@@ -289,8 +206,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     handlePay().catch(() => {
       setLoading(false);
-      setPaystackUrl(null);
-      setPaystackReference(null);
     });
   }, [open, handlePay]);
 
@@ -322,42 +237,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">
               {loading && <span>Opening secure checkout…</span>}
               {!loading && error && <span className="text-red-600">{error}</span>}
-            </div>
-          )}
-
-          {paystackUrl && (
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900 space-y-3">
-              <div className="flex items-start gap-3">
-                <span className="relative flex h-3 w-3 mt-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
-                </span>
-                <div className="space-y-1">
-                  <p className="font-medium text-emerald-900">Confirming your payment…</p>
-                  <p className="text-emerald-800">
-                    Keep the Paystack window open while we finalize your booking. This card will update as soon as we get a confirmation.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={loading}
-                  onClick={() => {
-                    if (paystackUrl && typeof window !== 'undefined') {
-                      window.open(paystackUrl, '_blank', 'noopener,noreferrer');
-                    }
-                  }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
-                >
-                  Reopen checkout window
-                </Button>
-                <Button type="button" variant="outline" onClick={handlePay} disabled={loading}>
-                  Start over
-                </Button>
-              </div>
             </div>
           )}
         </div>
