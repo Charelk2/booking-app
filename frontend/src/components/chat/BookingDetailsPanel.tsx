@@ -34,6 +34,7 @@ interface BookingDetailsPanelProps {
   quotes: Record<number, QuoteV2>;
   quotesLoading: boolean;
   openPaymentModal: (args: { bookingRequestId: number; amount: number }) => void;
+  onHydratedBookingRequest?: (request: BookingRequest) => void;
 }
 
 export default function BookingDetailsPanel({
@@ -46,6 +47,7 @@ export default function BookingDetailsPanel({
   quotes,
   quotesLoading,
   openPaymentModal,
+  onHydratedBookingRequest,
 }: BookingDetailsPanelProps) {
   const { user } = useAuth();
   const [eventType, setEventType] = React.useState<string | null>(null);
