@@ -90,12 +90,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Paystack flow state
-  const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
-  const [paystackReference, setPaystackReference] = useState<string | null>(null);
-
   // refs
-  const pollTimerRef = useRef<number | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const autoRunRef = useRef(false);
 
@@ -112,13 +107,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   }, [onClose]);
 
   const launchInlinePaystack = useCallback(
-    async ({
-      reference,
-      authorizationUrl,
-    }: {
-      reference: string;
-      authorizationUrl?: string | null;
-    }) => {
+    async ({ reference }: { reference: string }) => {
       try {
         await loadPaystackInlineScript();
         const PaystackPop = (window as any).PaystackPop;
@@ -167,10 +156,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   }
                 }
                 setError(message);
-
-                if (authorizationUrl) {
-                  setPaystackUrl(authorizationUrl);
-                }
               } catch {
                 setError('Verification failed. Reopen the payment window if it was closed.');
               } finally {
@@ -179,9 +164,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             },
             onClose: () => {
               setError('Payment window closed before completion. Continue in the checkout window when you are ready.');
-              if (authorizationUrl) {
-                setPaystackUrl(authorizationUrl);
-              }
             },
           });
 
@@ -192,16 +174,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           }
         }
       } catch {
-        // inline setup failed; fall back to hosted checkout if available
-      }
-
-      if (authorizationUrl) {
-        setPaystackUrl(authorizationUrl);
-        setLoading(false);
-        return;
+        // inline setup failed
       }
 
       setError('Unable to launch checkout. Please try again.');
+      onError('Unable to launch checkout. Please try again.');
       setLoading(false);
     },
     [amount, bookingRequestId, onSuccess, PAYSTACK_PK],
@@ -212,7 +189,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     setLoading(true);
     setError(null);
-    setPaystackUrl(null);
 
     // Fake mode, short-circuit success
     if (FAKE_PAYMENTS && !USE_PAYSTACK) {
@@ -248,21 +224,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       if (!reference) throw new Error('Payment reference missing');
 
-      setPaystackReference(reference);
-
-      // If we have a public key, attempt inline first,
-      // otherwise fall back to authorization URL flow.
+      // If we have a public key, attempt inline (fallback removed).
       if (USE_PAYSTACK && PAYSTACK_PK) {
-        await launchInlinePaystack({
-          reference,
-          authorizationUrl: authorizationUrl || null,
-        });
+        await launchInlinePaystack({ reference });
         return;
       }
 
-      // Non-inline path (still set by backend)
+      // Without inline Paystack we cannot proceed (fallback removed)
       if (authorizationUrl) {
-        setPaystackUrl(authorizationUrl);
+        const msg = 'Paystack inline checkout is disabled. Please try again later.';
+        setError(msg);
+        onError(msg);
         setLoading(false);
         return;
       }
@@ -349,62 +321,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     };
   }, [open, handleCancel]);
 
-  // Poll verify endpoint if we have a redirect/iframe URL + reference
-  useEffect(() => {
-    if (!paystackUrl || !paystackReference) return;
-
-    let elapsed = 0;
-    const INTERVAL = 5000;
-    const MAX = 60000;
-
-    const tick = async () => {
-      try {
-        const resp = await fetch(
-          apiUrl(
-            `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(paystackReference)}`,
-          ),
-          { credentials: 'include' as RequestCredentials },
-        );
-
-        if (resp.ok) {
-          const v = await resp.json();
-          const pid = v?.payment_id || paystackReference;
-          const receiptUrl = apiUrl(`/api/v1/payments/${pid}/receipt`);
-          try {
-            localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl);
-          } catch {}
-          onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
-          return;
-        }
-      } catch {
-        // ignore network errors; continue polling until timeout
-      }
-
-      elapsed += INTERVAL;
-      if (elapsed >= MAX && pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-
-    pollTimerRef.current = window.setInterval(tick, INTERVAL) as unknown as number;
-
-    return () => {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-  }, [paystackUrl, paystackReference, bookingRequestId, amount, onSuccess]);
-
   // Auto-run on open
   useEffect(() => {
     if (!open) {
       autoRunRef.current = false;
       setLoading(false);
       setError(null);
-      setPaystackUrl(null);
-      setPaystackReference(null);
       setVerifying(false);
       return;
     }
@@ -422,7 +344,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
    * ------------------------- */
   if (!open) return null;
 
-  const showStatusBanner = Boolean(error || verifying || (loading && !paystackUrl));
+  const showStatusBanner = Boolean(error || verifying || loading);
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-[999999909]">
@@ -443,24 +365,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="space-y-3">
           {showStatusBanner && (
             <div className="rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-700">
-              {loading && !paystackUrl && <span>Opening secure checkout…</span>}
+              {loading && <span>Opening secure checkout…</span>}
               {!loading && verifying && <span>Verifying payment status…</span>}
               {!loading && !verifying && error && (
                 <span className="text-red-600">{error}</span>
               )}
             </div>
-          )}
-
-          {paystackUrl && (
-            <>
-              <div className="rounded-md border overflow-hidden">
-                <iframe
-                  title="Paystack Checkout"
-                  src={paystackUrl}
-                  className="w-full h-[560px] border-0"
-                />
-              </div>
-            </>
           )}
         </div>
       </div>
