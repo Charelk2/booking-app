@@ -81,31 +81,9 @@ export default function BookingDetailsPanel({
     );
   }, [bookingRequest]);
 
-  const providerIdCandidates = React.useMemo(() => {
-    const ids = new Set<number>();
-    const push = (value: unknown) => {
-      const next = Number(value);
-      if (Number.isFinite(next) && next > 0) {
-        ids.add(next);
-      }
-    };
-    push((bookingRequest as any)?.service_provider_id);
-    push((bookingRequest as any)?.artist_id);
-    push((bookingRequest as any)?.service?.service_provider_id);
-    push((bookingRequest as any)?.service?.artist_id);
-    push((bookingRequest as any)?.service_provider?.id);
-    push((bookingRequest as any)?.service_provider?.user?.id);
-    push((bookingRequest as any)?.service_provider_profile?.user_id);
-    push((bookingRequest as any)?.artist_profile?.user_id);
-    push((bookingRequest as any)?.service?.service_provider?.user?.id);
-    push((bookingRequest as any)?.service?.artist?.user?.id);
-    return Array.from(ids);
-  }, [bookingRequest]);
-
   const viewerIsProvider = React.useMemo(() => {
-    if (!user || user.user_type !== 'service_provider') return false;
-    return providerIdCandidates.some((id) => id === Number(user.id));
-  }, [providerIdCandidates, user]);
+    return Boolean(user && user.user_type === 'service_provider');
+  }, [user]);
 
   const derivedProviderIdentity = React.useMemo(() => {
     const identity: { name: string | null; avatar: string | null } = { name: null, avatar: null };
