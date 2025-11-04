@@ -81,26 +81,130 @@ export default function BookingDetailsPanel({
     );
   }, [bookingRequest]);
 
+  const providerIdCandidates = React.useMemo(() => {
+    const ids = new Set<number>();
+    const push = (value: unknown) => {
+      const next = Number(value);
+      if (Number.isFinite(next) && next > 0) {
+        ids.add(next);
+      }
+    };
+    push((bookingRequest as any)?.service_provider_id);
+    push((bookingRequest as any)?.artist_id);
+    push((bookingRequest as any)?.service?.service_provider_id);
+    push((bookingRequest as any)?.service?.artist_id);
+    push((bookingRequest as any)?.service_provider?.id);
+    push((bookingRequest as any)?.service_provider?.user?.id);
+    push((bookingRequest as any)?.service_provider_profile?.user_id);
+    push((bookingRequest as any)?.artist_profile?.user_id);
+    push((bookingRequest as any)?.service?.service_provider?.user?.id);
+    push((bookingRequest as any)?.service?.artist?.user?.id);
+    return Array.from(ids);
+  }, [bookingRequest]);
+
+  const viewerIsProvider = React.useMemo(() => {
+    if (!user || user.user_type !== 'service_provider') return false;
+    return providerIdCandidates.some((id) => id === Number(user.id));
+  }, [providerIdCandidates, user]);
+
+  const derivedProviderIdentity = React.useMemo(() => {
+    const identity: { name: string | null; avatar: string | null } = { name: null, avatar: null };
+    const normalize = (value: unknown): string | null => {
+      if (value == null) return null;
+      const str = String(value).trim();
+      return str.length ? str : null;
+    };
+
+    const nameCandidates = [
+      providerProfile?.business_name,
+      (bookingRequest as any)?.service_provider?.business_name,
+      (bookingRequest as any)?.service?.service_provider?.business_name,
+      (bookingRequest as any)?.service?.artist?.business_name,
+    ];
+    for (const candidate of nameCandidates) {
+      const next = normalize(candidate);
+      if (next) {
+        identity.name = next;
+        break;
+      }
+    }
+
+    const avatarCandidates = [
+      providerProfile?.profile_picture_url,
+      (bookingRequest as any)?.service_provider?.profile_picture_url,
+      (bookingRequest as any)?.service?.service_provider?.profile_picture_url,
+      (bookingRequest as any)?.service?.artist?.profile_picture_url,
+    ];
+    for (const candidate of avatarCandidates) {
+      const next = normalize(candidate);
+      if (next) {
+        identity.avatar = next;
+        break;
+      }
+    }
+
+    if (viewerIsProvider) {
+      if (!identity.name) {
+        const profileUser =
+          providerProfile?.user ||
+          (bookingRequest as any)?.service_provider?.user ||
+          (bookingRequest as any)?.service?.service_provider?.user ||
+          (bookingRequest as any)?.service?.artist?.user ||
+          null;
+        const nameParts = [
+          profileUser?.first_name,
+          profileUser?.last_name,
+        ]
+          .map((part) => (typeof part === 'string' ? part.trim() : ''))
+          .filter(Boolean);
+        const authNameParts = [
+          user?.first_name,
+          user?.last_name,
+        ]
+          .map((part) => (typeof part === 'string' ? part.trim() : ''))
+          .filter(Boolean);
+        identity.name =
+          (nameParts.length ? nameParts.join(' ') : null) ||
+          (authNameParts.length ? authNameParts.join(' ') : null) ||
+          identity.name;
+      }
+      if (!identity.avatar) {
+        identity.avatar = normalize(user?.profile_picture_url) ?? identity.avatar;
+      }
+    } else {
+      if (!identity.name) {
+        identity.name = normalize((bookingRequest as any)?.counterparty_label) ?? identity.name;
+      }
+      if (!identity.avatar) {
+        identity.avatar = normalize((bookingRequest as any)?.counterparty_avatar_url) ?? identity.avatar;
+      }
+    }
+
+    return identity;
+  }, [
+    viewerIsProvider,
+    providerProfile,
+    bookingRequest,
+    user?.first_name,
+    user?.last_name,
+    user?.profile_picture_url,
+  ]);
+
+  const derivedProviderName = derivedProviderIdentity.name;
+  const derivedProviderAvatar = derivedProviderIdentity.avatar;
+
   const cachedIdentity = React.useMemo(() => {
     if (!requestId) return null;
     return providerIdentityCache.get(requestId) ?? null;
   }, [requestId]);
 
   const initialProviderName = React.useMemo(() => {
-    if (cachedIdentity?.name) return cachedIdentity.name;
-    const profileName = providerProfile?.business_name;
-    if (profileName) return String(profileName);
-    const counterparty = (bookingRequest as any)?.counterparty_label;
-    return counterparty ? String(counterparty) : null;
-  }, [cachedIdentity?.name, providerProfile?.business_name, bookingRequest]);
+    return cachedIdentity?.name ?? derivedProviderName ?? null;
+  }, [cachedIdentity?.name, derivedProviderName]);
 
   const initialProviderAvatar = React.useMemo(() => {
-    if (cachedIdentity?.avatar) return cachedIdentity.avatar;
-    const profileAvatar = providerProfile?.profile_picture_url;
-    if (profileAvatar) return String(profileAvatar);
-    const counterpartyAvatar = (bookingRequest as any)?.counterparty_avatar_url;
-    return counterpartyAvatar ? String(counterpartyAvatar) : null;
-  }, [cachedIdentity?.avatar, providerProfile?.profile_picture_url, bookingRequest]);
+    return cachedIdentity?.avatar ?? derivedProviderAvatar ?? null;
+  }, [cachedIdentity?.avatar, derivedProviderAvatar]);
 
   const [providerName, setProviderName] = React.useState<string | null>(initialProviderName);
   const [providerAvatarUrl, setProviderAvatarUrl] = React.useState<string | null>(initialProviderAvatar);
@@ -239,10 +343,12 @@ export default function BookingDetailsPanel({
           (res?.data as any)?.service_provider_profile ||
           (res?.data as any)?.artist_profile ||
           null;
-        const canonicalName = profile?.business_name ? String(profile.business_name) : providerName ?? null;
+        const canonicalName = profile?.business_name
+          ? String(profile.business_name)
+          : derivedProviderName ?? providerName ?? null;
         const canonicalAvatar = profile?.profile_picture_url
           ? String(profile.profile_picture_url)
-          : providerAvatarUrl ?? ((bookingRequest as any)?.counterparty_avatar_url ? String((bookingRequest as any)?.counterparty_avatar_url) : null);
+          : derivedProviderAvatar ?? providerAvatarUrl ?? null;
         if (canonicalName !== providerName) setProviderName(canonicalName);
         if (canonicalAvatar !== providerAvatarUrl) setProviderAvatarUrl(canonicalAvatar);
         if (canonicalName || canonicalAvatar) {
@@ -267,7 +373,18 @@ export default function BookingDetailsPanel({
     return () => {
       cancelled = true;
     };
-  }, [requestId, providerName, providerAvatarUrl, providerProfile?.business_name, providerProfile?.profile_picture_url, onHydratedBookingRequest, bookingRequest]);
+  }, [
+    requestId,
+    providerName,
+    providerAvatarUrl,
+    providerProfile?.business_name,
+    providerProfile?.profile_picture_url,
+    derivedProviderName,
+    derivedProviderAvatar,
+    hasParsedDetails,
+    onHydratedBookingRequest,
+    bookingRequest,
+  ]);
 
   // Detect Booka moderation thread (system-only updates)
   const isBookaThread = React.useMemo(() => {
@@ -487,16 +604,8 @@ export default function BookingDetailsPanel({
           (bookingRequest as any).service?.artist?.user_id ||
           0;
 
-        const resolvedAvatar =
-          providerAvatarUrl ||
-          providerProfile?.profile_picture_url ||
-          (bookingRequest as any)?.counterparty_avatar_url ||
-          null;
-
-        const resolvedName =
-          providerName ||
-          (providerProfile?.business_name ? String(providerProfile.business_name) : null) ||
-          ((bookingRequest as any)?.counterparty_label ? String((bookingRequest as any)?.counterparty_label) : null);
+        const resolvedAvatar = providerAvatarUrl ?? derivedProviderAvatar ?? null;
+        const resolvedName = providerName ?? derivedProviderName ?? null;
 
         const imageUrl = resolvedAvatar ? String(resolvedAvatar) : null;
         const artistName = resolvedName ?? undefined;
