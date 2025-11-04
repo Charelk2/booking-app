@@ -25,19 +25,24 @@ interface PaystackPaymentModalProps {
   currency?: string;
 }
 
+type PaystackPopInstance = {
+  newTransaction: (options: Record<string, unknown>) => void;
+  resumeTransaction: (accessCode: string, callbacks: Record<string, unknown>) => void;
+};
+
 declare global {
   interface Window {
-    Paystack?: any;
+    PaystackPop?: { new (): PaystackPopInstance };
   }
 }
 
 const ensurePaystackScript = async () => {
   if (typeof window === 'undefined') return;
-  if (window.Paystack) return;
+  if (window.PaystackPop) return;
 
   const existing = document.querySelector<HTMLScriptElement>('script[data-paystack-inline="1"]');
   if (existing) {
-    if (window.Paystack) return;
+    if (window.PaystackPop) return;
     await new Promise<void>((resolve, reject) => {
       if (existing.dataset.loaded === '1') {
         resolve();
@@ -136,10 +141,10 @@ const PaystackPaymentModal: FC<PaystackPaymentModalProps> = ({
   const getPaystackInstance = useCallback(async () => {
     if (typeof window === 'undefined') return null;
     try {
-      if (!window.Paystack) {
+      if (!window.PaystackPop) {
         await ensurePaystackScript();
       }
-      return window.Paystack ? new window.Paystack() : null;
+      return window.PaystackPop ? new window.PaystackPop() : null;
     } catch {
       return null;
     }
@@ -281,7 +286,7 @@ const PaystackPaymentModal: FC<PaystackPaymentModalProps> = ({
         await launchInline(acode, ref);
       } else if (auth) {
         setFallbackActive(true);
-        window.open(auth, '_blank', 'noopener,noreferrer');
+        setStatusMsg('Secure checkout opened in this window.');
         beginPolling(ref);
       } else {
         throw new Error('Neither access_code nor authorization_url were returned.');
