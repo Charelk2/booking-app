@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SafeImage from '@/components/ui/SafeImage';
 
-import { Booking, BookingRequest, Quote, QuoteV2 } from '@/types';
+import type { Booking, BookingRequest, Quote, QuoteV2 } from '@/types';
 import * as api from '@/lib/api';
 import { useAuth as useContextAuth } from '@/contexts/AuthContext';
 import { getFullImageUrl } from '@/lib/utils';
