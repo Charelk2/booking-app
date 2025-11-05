@@ -6,10 +6,15 @@ import { createPayment, apiUrl } from '@/lib/api';
 import { openPaystackInline } from '@/utils/paystackClient';
 
 const PAYSTACK_ENABLED = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
-const BACKOFF_STEPS = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000];
+// Exponential backoff up to 15s, ~6 min total polling window.
+const BACKOFF_STEPS = Array.from({ length: 24 }, (_, i) => Math.min(1000 * 2 ** i, 15000));
 
 const rcptKey = (bookingRequestId: number) => `receipt_url:br:${bookingRequestId}`;
-const safeSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch {} };
+const safeSet = (k: string, v: string) => {
+  try {
+    localStorage.setItem(k, v);
+  } catch {}
+};
 
 async function verifyPaystack(reference: string, bookingRequestId: number, signal?: AbortSignal) {
   const url = apiUrl(`/api/v1/payments/paystack/verify?reference=${encodeURIComponent(reference)}`);
@@ -37,8 +42,8 @@ interface PaymentModalProps {
   bookingRequestId: number;
   onSuccess: (result: PaymentSuccess) => void;
   onError: (msg: string) => void;
-  amount: number;                 // major units
-  serviceName?: string;           // accepted but not displayed
+  amount: number; // major units
+  serviceName?: string; // accepted but not displayed
   /** Try inline popup first (recommended) */
   preferInline?: boolean;
   /** If provided, we will attempt inline; otherwise fallback to hosted immediately. */
@@ -130,6 +135,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const startVerifyLoop = useCallback(
     async (reference: string) => {
+      if (!reference) return;
+
+      // cancel any existing loop
       verifyAbortRef.current?.abort();
       const ac = new AbortController();
       verifyAbortRef.current = ac;
@@ -143,26 +151,32 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           finishSuccess({ status: 'paid', amount, paymentId: out.paymentId, receiptUrl: out.receiptUrl });
           return;
         }
-      } catch {}
+      } catch {
+        // ignore and continue to backoff loop
+      }
 
       for (const delay of BACKOFF_STEPS) {
         if (ac.signal.aborted) return;
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
         try {
           const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
           if (out.ok) {
             finishSuccess({ status: 'paid', amount, paymentId: out.paymentId, receiptUrl: out.receiptUrl });
             return;
           }
-        } catch {}
+        } catch {
+          // keep polling until window ends or abort
+        }
       }
 
       if (isMounted.current) {
         setStatus('error');
-        setError('Still waiting for payment confirmation… If you’ve completed checkout, this will update shortly.');
+        setError(
+          'Still waiting for payment confirmation… If you’ve completed checkout, this will update shortly.'
+        );
       }
     },
-    [amount, bookingRequestId, finishSuccess]
+    [amount, bookingRequestId]
   );
 
   /** Inline-first (if email provided), otherwise hosted — opens immediately */
@@ -218,20 +232,22 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             metadata: { bookingRequestId, source: 'web_inline' },
             onSuccess: (ref) => startVerifyLoop(ref),
             onClose: () => {
-              // user closed inline; fall back to hosted instantly
+              // user closed inline; fall back to hosted instantly + start background verification
               setStatus('ready-hosted');
               setPaystackUrl(authorizationUrl);
+              startVerifyLoop(reference); // <-- start verify for hosted flow
             },
           });
           return;
         } catch {
-          // Inline failed -> hosted
+          // Inline failed -> fall back to hosted below
         }
       }
 
-      // 3) Hosted fallback (iframe) — open instantly
+      // 3) Hosted fallback (iframe) — open instantly + start background verification
       setPaystackUrl(authorizationUrl);
       setStatus('ready-hosted');
+      startVerifyLoop(reference); // <-- start verify for hosted flow
     } catch (err: any) {
       const statusCode = Number(err?.response?.status || 0);
       let msg = 'Payment failed. Please try again.';
@@ -240,7 +256,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       else if (statusCode === 422) msg = 'Invalid payment attempt. Refresh and try again.';
       finishError(msg);
     }
-  }, [status, amount, bookingRequestId, preferInline, customerEmail, currency]);
+  }, [
+    status,
+    amount,
+    bookingRequestId,
+    preferInline,
+    customerEmail,
+    currency, // currency is captured for inline init
+    startVerifyLoop,
+  ]);
 
   // Mount/unmount
   useEffect(() => {
@@ -300,6 +324,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     });
   }, [open, autoStart, startPayment, resetState]);
 
+  // Safety net: if we ever land in ready-hosted state with a reference, ensure verification is running.
+  useEffect(() => {
+    if (open && status === 'ready-hosted' && paystackReference) {
+      // If a loop is already running, startVerifyLoop will abort it and start a fresh one.
+      startVerifyLoop(paystackReference);
+    }
+  }, [open, status, paystackReference, startVerifyLoop]);
+
   if (!open) return null;
 
   const loading = status === 'starting' || status === 'verifying';
@@ -320,7 +352,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         {/* Banner with spinner */}
         {showBanner && (
           <div
-            className="mb-3 rounded-md bg-white px-3 py-2 text-sm flex flex-col items-center justify-center"
+            className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm flex flex-col items-center justify-center"
             role="status"
             aria-live="polite"
           >
