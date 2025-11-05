@@ -9,7 +9,6 @@ interface PaymentSuccess {
   amount: number;
   receiptUrl?: string;
   paymentId?: string;
-  mocked?: boolean;
 }
 
 interface PaymentModalProps {
@@ -30,7 +29,6 @@ interface PaymentModalProps {
 /* =========================
  * Env Flags (read once)
  * ========================= */
-const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
 const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
 
 /* =========================
@@ -97,7 +95,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     setPaystackUrl(null);
     setPaystackReference(null);
     startedRef.current = false;
-    // cancel any ongoing verify
     verifyAbortRef.current?.abort();
     verifyAbortRef.current = null;
   }, []);
@@ -152,45 +149,62 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     setPaystackUrl(null);
     setPaystackReference(null);
 
-    // Fake mode (short-circuit)
-    if (FAKE_PAYMENTS && !USE_PAYSTACK) {
-      const fakeId = `fake_${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
-      const receiptUrl = apiUrl(`/api/v1/payments/${fakeId}/receipt`);
-      safeSet(rcptKey(bookingRequestId), receiptUrl);
-      finishSuccess({ status: 'paid', amount: Number(amount), receiptUrl, paymentId: fakeId, mocked: true });
+    if (!USE_PAYSTACK) {
+      finishError('Paystack is not enabled.');
       return;
     }
 
     try {
-      // Ask backend to create/initiate payment
+      // 1) Ask backend to create/initiate a Paystack transaction
       const res = await createPayment({
         booking_request_id: bookingRequestId,
         amount: Number(amount),
         full: true,
       });
 
+      // 2) Backend should return a unique reference + authorization_url
       const data = res?.data as any;
       const reference: string = String(data?.reference || data?.payment_id || '').trim();
       const authorizationUrl: string | undefined = data?.authorization_url || data?.authorizationUrl;
 
       if (!reference) throw new Error('Payment reference missing');
 
-      // Hosted checkout (preferred)
-      if (authorizationUrl) {
-        setPaystackReference(reference);
-        setPaystackUrl(authorizationUrl);
-        setLoading(false);
+      if (!authorizationUrl) {
+        // Support for immediate-success paths if your backend sometimes completes instantly
+        const paymentId: string | undefined = data?.payment_id || data?.id;
+        const receiptUrl = paymentId ? apiUrl(`/api/v1/payments/${paymentId}/receipt`) : undefined;
+        if (!paymentId) throw new Error('Missing authorization URL and no payment id');
+        if (receiptUrl) safeSet(rcptKey(bookingRequestId), receiptUrl);
+        finishSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl });
+        return;
+      }
 
-        // Begin verify loop with backoff
-        verifyAbortRef.current?.abort();
-        const ac = new AbortController();
-        verifyAbortRef.current = ac;
+      // 3) Load Paystack’s hosted checkout in an iframe
+      setPaystackReference(reference);
+      setPaystackUrl(authorizationUrl);
+      setLoading(false);
 
-        (async () => {
-          // Try immediately once, then backoff attempts
-          let verified = false;
+      // 4) Begin verify loop (poll until Paystack/your backend marks it paid)
+      verifyAbortRef.current?.abort();
+      const ac = new AbortController();
+      verifyAbortRef.current = ac;
 
-          // Immediate attempt
+      (async () => {
+        let verified = false;
+
+        // Immediate attempt
+        try {
+          const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
+          if (out.ok) {
+            verified = true;
+            finishSuccess({ status: 'paid', amount: Number(amount), paymentId: out.paymentId, receiptUrl: out.receiptUrl });
+            return;
+          }
+        } catch { /* proceed to backoff attempts */ }
+
+        for (const delay of BACKOFF_STEPS) {
+          if (ac.signal.aborted) return;
+          await new Promise(r => setTimeout(r, delay));
           try {
             const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
             if (out.ok) {
@@ -198,52 +212,20 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               finishSuccess({ status: 'paid', amount: Number(amount), paymentId: out.paymentId, receiptUrl: out.receiptUrl });
               return;
             }
-          } catch { /* ignore and continue backoff */ }
+          } catch { /* keep trying */ }
+        }
 
-          // Backoff attempts
-          for (const delay of BACKOFF_STEPS) {
-            if (ac.signal.aborted) return;
-            await new Promise(r => setTimeout(r, delay));
-            try {
-              const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
-              if (out.ok) {
-                verified = true;
-                finishSuccess({ status: 'paid', amount: Number(amount), paymentId: out.paymentId, receiptUrl: out.receiptUrl });
-                return;
-              }
-            } catch { /* keep trying until we exhaust steps */ }
-          }
-
-          // If not verified after backoff, leave checkout open and show hint
-          if (!verified && isMounted.current) {
-            setError('Still waiting for payment confirmation… If you’ve completed checkout, this will update shortly.');
-          }
-        })();
-
-        return;
-      }
-
-      // Immediate success path (no hosted URL)
-      const paymentId: string | undefined = data?.payment_id || data?.id;
-      const receiptUrl = paymentId ? apiUrl(`/api/v1/payments/${paymentId}/receipt`) : undefined;
-      if (receiptUrl) safeSet(rcptKey(bookingRequestId), receiptUrl);
-
-      finishSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl });
+        if (!verified && isMounted.current) {
+          setError('Still waiting for payment confirmation… If you’ve completed checkout, this will update shortly.');
+        }
+      })();
     } catch (err: any) {
       const status = Number(err?.response?.status || 0);
-      if (FAKE_PAYMENTS && !USE_PAYSTACK) {
-        const hex = Math.random().toString(16).slice(2).padEnd(8, '0');
-        const paymentId = `test_${Date.now().toString(16)}${hex}`;
-        const receiptUrl = apiUrl(`/api/v1/payments/${paymentId}/receipt`);
-        safeSet(rcptKey(bookingRequestId), receiptUrl);
-        finishSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl, mocked: true });
-      } else {
-        let msg = 'Payment failed. Please try again later.';
-        if (status === 404) msg = 'This booking is not ready for payment or was not found.';
-        else if (status === 403) msg = 'You are not allowed to pay for this booking.';
-        else if (status === 422) msg = 'Invalid payment attempt. Please refresh and try again.';
-        finishError(msg);
-      }
+      let msg = 'Payment failed. Please try again later.';
+      if (status === 404) msg = 'This booking is not ready for payment or was not found.';
+      else if (status === 403) msg = 'You are not allowed to pay for this booking.';
+      else if (status === 422) msg = 'Invalid payment attempt. Please refresh and try again.';
+      finishError(msg);
     } finally {
       setLoading(false);
     }
@@ -252,8 +234,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   /* -------------------------
    * Effects
    * ------------------------- */
-
-  // Track mount/unmount
   useEffect(() => {
     isMounted.current = true;
     return () => {
@@ -318,7 +298,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
    * Render
    * ------------------------- */
   if (!open) return null;
-
   const showBanner = Boolean(error || loading);
 
   return (
@@ -347,11 +326,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         </header>
 
         {showBanner && (
-          <div
-            className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm"
-            role="status"
-            aria-live="polite"
-          >
+          <div className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm" role="status" aria-live="polite">
             {loading && <span>Opening secure checkout…</span>}
             {!loading && error && <span className="text-red-600">{error}</span>}
           </div>
@@ -368,9 +343,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           </div>
         ) : (
           <div className="text-sm text-gray-600">
-            {!loading && !error && (
-              <p>Preparing checkout… If nothing happens, try again.</p>
-            )}
+            {!loading && !error && <p>Preparing checkout… If nothing happens, try again.</p>}
           </div>
         )}
 
@@ -399,4 +372,3 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 };
 
 export default PaymentModal;
-  
