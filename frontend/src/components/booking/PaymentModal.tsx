@@ -73,7 +73,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   serviceName: _unusedServiceName,
   preferInline = true,
   customerEmail,
-  currency = 'NGN',
+  currency = 'ZAR',
   autoStart = true,
   dismissOnBackdrop = true,
 }) => {
