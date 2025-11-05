@@ -62,6 +62,7 @@ const CheckoutFrame: React.FC<{ src: string }> = ({ src }) => (
     />
   </div>
 );
+//funny - always ensure zar - not NGN or something
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
   open,
