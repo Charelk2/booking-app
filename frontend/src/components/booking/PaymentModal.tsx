@@ -159,7 +159,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     setStatus('starting');
     setError(null);
-    setPaystackUrl(null);
     setPaystackReference(null);
 
     if (!PAYSTACK_ENABLED) {
