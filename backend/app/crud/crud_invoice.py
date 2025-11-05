@@ -60,9 +60,14 @@ def ensure_invoice_for_booking(
     Returns None if no quote is available (cannot create line totals reliably).
     """
     try:
+        # Prefer booking match; also check by quote to prevent dupes
         existing = get_invoice_by_booking(db, int(booking.id))
         if existing:
             return existing
+        if quote is not None:
+            existing_q = get_invoice_by_quote(db, int(quote.id))
+            if existing_q:
+                return existing_q
         if quote is None:
             # Best-effort only; caller may handle None
             return None

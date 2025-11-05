@@ -113,7 +113,7 @@ describe("BookingDetailsPage", () => {
 
     const link = div.querySelector('[data-testid="booking-receipt-link"]');
     expect(link).not.toBeNull();
-    expect(link?.getAttribute("href")).toBe("/api/v1/payments/pay_123/receipt");
+    expect(link?.getAttribute("href")).toBe("/receipts/pay_123");
 
     act(() => {
       root.unmount();

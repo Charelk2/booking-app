@@ -293,8 +293,9 @@ def create_payment(
         db.add(booking)
         db.commit()
         try:
+            # Record initialization as a separate type to avoid double-counting charges
             db.execute(
-                text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"),
+                text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge_init', :amt, 'ZAR', :meta)"),
                 {"bid": booking.id, "amt": amount, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "init"})},
             )
             db.commit()
@@ -482,20 +483,44 @@ def paystack_verify(
 
     # Record ledger capture
     try:
-        db.execute(text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"), {"bid": simple.id, "amt": float(amount), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify"})})
-        # Provider split (50/50): immediate and held portions recorded as escrow entries
-        try:
-            half = float((amount or Decimal("0")) / Decimal("2"))
-        except Exception:
-            half = float(0)
-        db.execute(
-            text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_in', :amt, 'ZAR', :meta)"),
-            {"bid": simple.id, "amt": half, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify", "split": "first50"})},
-        )
-        db.execute(
-            text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_hold', :amt, 'ZAR', :meta)"),
-            {"bid": simple.id, "amt": half, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify", "split": "held50"})},
-        )
+        # Idempotency: avoid duplicate ledger rows on repeated verify/webhook calls
+        existing_rows = db.execute(
+            text("SELECT type, meta FROM ledger_entries WHERE booking_id = :bid ORDER BY id DESC LIMIT 200"),
+            {"bid": simple.id},
+        ).fetchall()
+        def _meta_has(type_: str, split: str | None = None) -> bool:
+            for row in existing_rows:
+                try:
+                    if str(row[0]) != type_:
+                        continue
+                    m = row[1] or {}
+                    if isinstance(m, str):
+                        m = json.loads(m)
+                    if (m.get("reference") == reference and (split is None or m.get("split") == split)):
+                        return True
+                except Exception:
+                    continue
+            return False
+
+        if not _meta_has("charge"):
+            db.execute(
+                text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"),
+                {"bid": simple.id, "amt": float(amount), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify"})},
+            )
+        # Provider split (50/50): deterministic rounding
+        from decimal import ROUND_HALF_UP
+        half1 = (amount / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        half2 = (amount - half1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        if not _meta_has("provider_escrow_in", split="first50"):
+            db.execute(
+                text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_in', :amt, 'ZAR', :meta)"),
+                {"bid": simple.id, "amt": float(half1), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify", "split": "first50"})},
+            )
+        if not _meta_has("provider_escrow_hold", split="held50"):
+            db.execute(
+                text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_hold', :amt, 'ZAR', :meta)"),
+                {"bid": simple.id, "amt": float(half2), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify", "split": "held50"})},
+            )
         db.commit()
     except Exception:
         db.rollback()
@@ -693,22 +718,44 @@ async def paystack_webhook(
     except Exception:
         pass
 
-    # Record ledger capture
+    # Record ledger capture (idempotent across verify/webhook)
     try:
-        db.execute(text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"), {"bid": simple.id, "amt": float(amount), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook"})})
-        # Provider split (50/50): immediate and held portions recorded as escrow entries
-        try:
-            half = float((amount or Decimal("0")) / Decimal("2"))
-        except Exception:
-            half = float(0)
-        db.execute(
-            text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_in', :amt, 'ZAR', :meta)"),
-            {"bid": simple.id, "amt": half, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook", "split": "first50"})},
-        )
-        db.execute(
-            text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_hold', :amt, 'ZAR', :meta)"),
-            {"bid": simple.id, "amt": half, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook", "split": "held50"})},
-        )
+        existing_rows = db.execute(
+            text("SELECT type, meta FROM ledger_entries WHERE booking_id = :bid ORDER BY id DESC LIMIT 200"),
+            {"bid": simple.id},
+        ).fetchall()
+        def _meta_has(type_: str, split: str | None = None) -> bool:
+            for row in existing_rows:
+                try:
+                    if str(row[0]) != type_:
+                        continue
+                    m = row[1] or {}
+                    if isinstance(m, str):
+                        m = json.loads(m)
+                    if (m.get("reference") == reference and (split is None or m.get("split") == split)):
+                        return True
+                except Exception:
+                    continue
+            return False
+
+        if not _meta_has("charge"):
+            db.execute(
+                text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"),
+                {"bid": simple.id, "amt": float(amount), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook"})},
+            )
+        from decimal import ROUND_HALF_UP
+        half1 = (amount / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        half2 = (amount - half1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        if not _meta_has("provider_escrow_in", split="first50"):
+            db.execute(
+                text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_in', :amt, 'ZAR', :meta)"),
+                {"bid": simple.id, "amt": float(half1), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook", "split": "first50"})},
+            )
+        if not _meta_has("provider_escrow_hold", split="held50"):
+            db.execute(
+                text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_hold', :amt, 'ZAR', :meta)"),
+                {"bid": simple.id, "amt": float(half2), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook", "split": "held50"})},
+            )
         db.commit()
     except Exception:
         db.rollback()

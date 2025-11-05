@@ -102,7 +102,7 @@ describe("ClientBookingsPage", () => {
     expect(artistLink?.getAttribute("href")).toBe("/service-providers/2");
     const receipt = div.querySelector('[data-testid="booking-receipt-link"]');
     expect(receipt?.getAttribute("href")).toBe(
-      "/api/v1/payments/pay_upcoming/receipt",
+      "/receipts/pay_upcoming",
     );
     act(() => {
       root.unmount();
