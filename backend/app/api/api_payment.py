@@ -29,7 +29,7 @@ from ..models import (
     SenderType,
     VisibleTo,
 )
-from .dependencies import get_db, get_current_active_client, get_current_service_provider
+from .dependencies import get_db, get_current_active_client, get_current_service_provider, get_current_user
 from ..database import SessionLocal
 from ..core.config import settings
 from ..core.config import FRONTEND_PRIMARY
@@ -885,7 +885,7 @@ os.makedirs(RECEIPT_DIR, exist_ok=True)
 def get_payment_receipt(
     payment_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_client),
+    current_user: User = Depends(get_current_user),
 ):
     """Return the receipt PDF for the given payment id.
 
@@ -896,7 +896,12 @@ def get_payment_receipt(
     simple = db.query(BookingSimple).filter(BookingSimple.payment_id == payment_id).first()
     if not simple:
         raise error_response("Payment reference not recognized", {}, status.HTTP_404_NOT_FOUND)
-    if simple.client_id != current_user.id:
+    # Allow: paying client OR admin
+    try:
+        is_admin = db.query(models.AdminUser).filter(models.AdminUser.user_id == current_user.id).first() is not None
+    except Exception:
+        is_admin = False
+    if not is_admin and simple.client_id != current_user.id:
         raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
 
     path = os.path.abspath(os.path.join(RECEIPT_DIR, f"{payment_id}.pdf"))

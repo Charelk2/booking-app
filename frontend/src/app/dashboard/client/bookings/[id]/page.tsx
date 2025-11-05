@@ -11,6 +11,7 @@ import type { Booking } from "@/types";
 import { formatCurrency, formatStatus } from "@/lib/utils";
 import { Spinner } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiUrl } from "@/lib/api";
 
 export default function BookingDetailsPage() {
   const params = useParams();
@@ -23,6 +24,7 @@ export default function BookingDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+  const [invoiceId, setInvoiceId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -30,6 +32,15 @@ export default function BookingDetailsPage() {
       try {
         const res = await getBookingDetails(id);
         setBooking(res.data);
+        // Attempt to fetch invoice id for this formal booking
+        try {
+          const url = apiUrl(`/api/v1/invoices/by-booking/${id}`);
+          const resp = await fetch(url, { credentials: 'include' });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && typeof data.id === 'number') setInvoiceId(data.id);
+          }
+        } catch {}
         if (pay === "1" && res.data.payment_status === "pending") {
           setShowPayment(true);
         }
@@ -109,6 +120,19 @@ export default function BookingDetailsPage() {
               data-testid="booking-receipt-link"
             >
               View receipt
+            </a>
+          </p>
+        )}
+        {invoiceId && (
+          <p>
+            <a
+              href={`/invoices/${invoiceId}`}
+              target="_blank"
+              rel="noopener"
+              className="text-brand-dark underline text-sm"
+              data-testid="booking-invoice-link"
+            >
+              View invoice
             </a>
           </p>
         )}
