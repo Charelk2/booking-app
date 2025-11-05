@@ -542,7 +542,7 @@ def paystack_verify(
     return {"status": "ok", "payment_id": simple.payment_id}
 
 
-## Removed plaintext receipt endpoint; HTML/PDF receipt implemented below.
+## Removed plaintext receipt endpoint; PDF receipt (ReportLab-only) implemented below.
 
 
 @router.post("/paystack/webhook")
@@ -890,7 +890,7 @@ def get_payment_receipt(
     """Return the receipt PDF for the given payment id.
 
     Auth: only the paying client may fetch the receipt.
-    Always return a PDF. If Playwright is unavailable, generate a minimal ReportLab PDF.
+    Always return a PDF generated via ReportLab (no HTML/Playwright rendering).
     """
     # Enforce ownership: payment reference must belong to the current client
     simple = db.query(BookingSimple).filter(BookingSimple.payment_id == payment_id).first()
@@ -932,8 +932,8 @@ def get_payment_receipt(
         except Exception:
             pass
         return resp
-    # On-demand stateless generation: try to build the PDF now. If it
-    # succeeds, stream the new file; otherwise fall back to HTML.
+    # On-demand stateless generation: try to build the PDF now using ReportLab.
+    # If it succeeds, stream/upload the new file.
     try:
         ok = generate_receipt_pdf(db, payment_id)
         if ok and os.path.exists(path):
@@ -958,10 +958,10 @@ def get_payment_receipt(
                     pass
                 return resp
     except Exception:
-        # best-effort only — fall through to ReportLab fallback
+        # Best-effort only — proceed to direct ReportLab generation
         pass
 
-    # Final fallback: generate a minimal PDF directly (no HTML)
+    # Final fallback: generate a minimal PDF directly via ReportLab
     try:
         _generate_receipt_pdf_with_reportlab(db, payment_id, path)
     except Exception:
@@ -992,13 +992,41 @@ def get_payment_receipt(
         return resp
 
 # ————————————————————————————————————————————————————————————————
-# Receipt HTML composition + PDF generation (Playwright, best-effort)
+# Receipt PDF generation (ReportLab only)
 
-def _compose_receipt_html(db: Session, payment_id: str) -> str:
-    """Compose the branded receipt HTML used for fallback rendering and PDF generation."""
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-    # Enrich with booking + quote context (best effort)
+def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_path: str) -> None:
+    """Generate a branded receipt PDF using ReportLab (no HTML).
+
+    Layout aims for global-standard clarity: header with brand + PAID badge,
+    summary grid, parties, line items, and totals. Raises on hard I/O errors.
+    """
+    try:
+        # Core ReportLab
+        from reportlab.lib.pagesizes import A4  # type: ignore
+        from reportlab.lib import colors  # type: ignore
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle  # type: ignore
+        from reportlab.lib.units import mm  # type: ignore
+        from reportlab.platypus import (
+            SimpleDocTemplate,
+            Paragraph,
+            Spacer,
+            Table,
+            TableStyle,
+        )  # type: ignore
+    except Exception as exc:  # pragma: no cover
+        raise RuntimeError("ReportLab unavailable for receipt generation") from exc
+
+    # -----------------------------
+    # Helpers and data gathering
+    # -----------------------------
+    def _zar(v: float | None) -> str:
+        try:
+            return f"ZAR {float(v or 0):,.2f}"
+        except Exception:
+            return "ZAR —"
+
+    # Load context (best-effort; tolerate partial data)
     amount = None
     client_name = None
     client_email = None
@@ -1011,236 +1039,6 @@ def _compose_receipt_html(db: Session, payment_id: str) -> str:
     discount = None
     total = None
 
-    try:
-        bs: BookingSimple | None = (
-            db.query(BookingSimple).filter(BookingSimple.payment_id == payment_id).first()
-        )
-        if bs:
-            booking_id = bs.id
-            try:
-                amount = float(bs.charged_total_amount or 0)
-            except Exception:
-                amount = None
-            if bs.client:
-                client_name = bs.client.name or None
-                client_email = bs.client.email or None
-            if bs.artist:
-                artist_name = bs.artist.name or None
-                artist_email = bs.artist.email or None
-
-            # Pull line items from QuoteV2
-            qv2 = db.query(QuoteV2).filter(QuoteV2.id == bs.quote_id).first()
-            if qv2:
-                try:
-                    for s in (qv2.services or []):
-                        desc = s.get("description") or "Service"
-                        price = float(s.get("price") or 0)
-                        if price:
-                            items.append((desc, price))
-                except Exception:
-                    pass
-                try:
-                    sv = float(qv2.sound_fee or 0)
-                    if sv:
-                        items.append(("Sound", sv))
-                except Exception:
-                    pass
-                try:
-                    tv = float(qv2.travel_fee or 0)
-                    if tv:
-                        items.append(("Travel", tv))
-                except Exception:
-                    pass
-                if (qv2.accommodation or "").strip():
-                    accommodation_note = str(qv2.accommodation)
-                try:
-                    subtotal = float(qv2.subtotal or 0)
-                except Exception:
-                    subtotal = None
-                try:
-                    discount = float(qv2.discount or 0)
-                except Exception:
-                    discount = None
-                try:
-                    total = float(qv2.total or 0)
-                except Exception:
-                    total = None
-    except Exception:
-        pass
-
-    # Branding / styles
-    brand_name = "Booka"
-    brand_primary = "#6C3BFF"
-    brand_text = "#111827"
-    brand_muted = "#6b7280"
-    border = "#e5e7eb"
-
-    # Compose sections
-    amount_row = (
-        f'<div class="row"><span class="muted">Amount</span><span>ZAR {amount:.2f}</span></div>'
-        if amount is not None else ''
-    )
-    booking_row = (
-        f'<div class="row"><span class="muted">Booking</span><span>#{booking_id}</span></div>'
-        if booking_id else ''
-    )
-
-    parties = []
-    if client_name or client_email:
-        parties.append(
-            f'<div><div class="label">Client</div><div class="value">{client_name or ""}</div><div class="muted">{client_email or ""}</div></div>'
-        )
-    if artist_name or artist_email:
-        parties.append(
-            f'<div><div class="label">Artist</div><div class="value">{artist_name or ""}</div><div class="muted">{artist_email or ""}</div></div>'
-        )
-    parties_html = ''.join(parties) or '<div class="muted">Participant details unavailable</div>'
-
-    item_rows = ''
-    for desc, price in items:
-        item_rows += f'<tr><td class="left">{desc}</td><td class="right">ZAR {price:.2f}</td></tr>'
-    if accommodation_note:
-        item_rows += f'<tr><td class="left">Accommodation</td><td class="right">{accommodation_note}</td></tr>'
-
-    totals_rows = ''
-    if subtotal is not None:
-        totals_rows += f'<div class="row"><span>Subtotal</span><span>ZAR {subtotal:.2f}</span></div>'
-    if (discount or 0) > 0:
-        totals_rows += f'<div class="row"><span>Discount</span><span>- ZAR {discount:.2f}</span></div>'
-    if total is not None:
-        totals_rows += f'<div class="row total"><span>Total</span><span>ZAR {total:.2f}</span></div>'
-
-    html = f"""
-    <!doctype html>
-    <html lang=\"en\">
-      <head>
-        <meta charset=\"utf-8\" />
-        <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />
-        <title>Receipt {payment_id}</title>
-        <style>
-          :root {{ --brand: {brand_primary}; --text: {brand_text}; --muted: {brand_muted}; --border: {border}; }}
-          body {{ font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: var(--text); background:#fff; }}
-          .shell {{ max-width: 840px; margin: 32px auto; padding: 0 16px; }}
-          .card {{ border:1px solid var(--border); border-radius: 12px; overflow:hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }}
-          .header {{ display:flex; align-items:center; justify-content:space-between; padding: 16px 18px; border-bottom:1px solid var(--border); background:#fafafa; }}
-          .brand {{ display:flex; align-items:center; gap:10px; font-weight:700; font-size: 18px; color: var(--text); }}
-          .brand-mark {{ width: 24px; height: 24px; border-radius:6px; background:var(--brand); display:inline-block; }}
-          .badge {{ display:inline-block; color:#14532d; background:#eafff0; border:1px solid #86efac; padding:2px 8px; border-radius: 999px; font-size: 12px; font-weight:600; }}
-          .section {{ padding: 16px 18px; }}
-          .grid {{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }}
-          .label {{ font-size:12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }}
-          .value {{ font-weight:600; }}
-          .muted {{ color: var(--muted); font-size: 12px; }}
-          .row {{ display:flex; justify-content: space-between; align-items:center; margin: 6px 0; font-size: 14px; }}
-          .row.total span:last-child {{ font-weight:700; font-size: 16px; }}
-          table {{ width: 100%; border-collapse: collapse; margin-top: 6px; }}
-          td {{ padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }}
-          td.left {{ text-align: left; color: #374151; }}
-          td.right {{ text-align: right; font-weight: 600; }}
-          .footer {{ padding: 14px 18px; border-top:1px solid var(--border); font-size:12px; color:var(--muted); }}
-        </style>
-      </head>
-      <body>
-        <div class=\"shell\">
-          <div class=\"card\">
-            <div class=\"header\">
-              <div class=\"brand\"><span class=\"brand-mark\"></span> {brand_name}</div>
-              <span class=\"badge\">PAID</span>
-            </div>
-
-            <div class=\"section\">
-              <div class=\"grid\">
-                <div>
-                  <div class=\"label\">Payment ID</div>
-                  <div class=\"value\">{payment_id}</div>
-                </div>
-                <div>
-                  <div class=\"label\">Issued</div>
-                  <div class=\"value\">{now}</div>
-                </div>
-                <div>
-                  <div class=\"label\">Currency</div>
-                  <div class=\"value\">ZAR</div>
-                </div>
-                <div>
-                  <div class=\"label\">Amount</div>
-                  <div class=\"value\">{('ZAR ' + f"{amount:.2f}") if amount is not None else '—'}</div>
-                </div>
-              </div>
-              {booking_row}
-            </div>
-
-            <div class=\"section\">
-              <div class=\"grid\">{parties_html}</div>
-            </div>
-
-            <div class=\"section\">
-              <div class=\"label\">Line items</div>
-              <table>
-                <tbody>
-                  {item_rows if item_rows else '<tr><td class="left">Booking</td><td class="right">See amount</td></tr>'}
-                </tbody>
-              </table>
-              <div style=\"height:8px\"></div>
-              {totals_rows}
-            </div>
-
-            <div class=\"footer\">Thank you for booking with {brand_name}. This is a mock receipt for testing. For a downloadable PDF, configure the payment gateway to upload PDFs.</div>
-          </div>
-        </div>
-      </body>
-    </html>
-    """
-    return html
-
-
-def _generate_receipt_pdf_with_playwright(html: str, output_path: str) -> bool:
-    """Render HTML to a PDF using Playwright (Chromium). Returns True on success.
-
-    This function is best-effort: if Playwright or Chromium are unavailable, it
-    will return False without raising, so callers can fall back to HTML.
-    """
-    try:
-        from playwright.sync_api import sync_playwright  # type: ignore
-    except Exception:
-        return False
-    try:
-        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-        with sync_playwright() as p:  # type: ignore
-            browser = p.chromium.launch(args=["--no-sandbox", "--disable-setuid-sandbox"])  # type: ignore
-            context = browser.new_context()
-            page = context.new_page()
-            page.set_content(html, wait_until="load")
-            page.pdf(path=output_path, format="A4", print_background=True)
-            context.close()
-            browser.close()
-        return True
-    except Exception:
-        try:
-            # Clean up partial file if any
-            if os.path.exists(output_path) and os.path.getsize(output_path) < 1024:
-                os.remove(output_path)
-        except Exception:
-            pass
-        return False
-
-
-def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_path: str) -> None:
-    """Minimal PDF generator using ReportLab as a reliable fallback.
-
-    Writes a simple branded receipt PDF with key facts. Raises on hard I/O errors.
-    """
-    try:
-        from reportlab.lib.pagesizes import A4  # type: ignore
-        from reportlab.pdfgen import canvas  # type: ignore
-    except Exception as exc:  # pragma: no cover
-        raise RuntimeError("ReportLab unavailable for receipt fallback") from exc
-
-    # Load context (best-effort)
-    amount = None
-    client_name = None
-    artist_name = None
-    booking_id = None
     bs: BookingSimple | None = db.query(BookingSimple).filter(BookingSimple.payment_id == payment_id).first()
     if bs:
         booking_id = getattr(bs, "id", None)
@@ -1250,55 +1048,202 @@ def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_pa
             amount = None
         try:
             client_name = getattr(bs.client, "name", None)
+            client_email = getattr(bs.client, "email", None)
         except Exception:
-            client_name = None
+            client_name = client_name or None
+            client_email = client_email or None
         try:
             artist_name = getattr(bs.artist, "name", None)
+            artist_email = getattr(bs.artist, "email", None)
         except Exception:
-            artist_name = None
+            artist_name = artist_name or None
+            artist_email = artist_email or None
+        # Pull line items from QuoteV2 when available
+        try:
+            qv2 = db.query(QuoteV2).filter(QuoteV2.id == bs.quote_id).first()
+        except Exception:
+            qv2 = None
+        if qv2:
+            try:
+                for s in (qv2.services or []):
+                    desc = (s.get("description") or "Service").strip() or "Service"
+                    price = float(s.get("price") or 0)
+                    if price:
+                        items.append((desc, price))
+            except Exception:
+                pass
+            try:
+                sv = float(qv2.sound_fee or 0)
+                if sv:
+                    items.append(("Sound", sv))
+            except Exception:
+                pass
+            try:
+                tv = float(qv2.travel_fee or 0)
+                if tv:
+                    items.append(("Travel", tv))
+            except Exception:
+                pass
+            if (getattr(qv2, "accommodation", "") or "").strip():
+                try:
+                    accommodation_note = str(qv2.accommodation)
+                except Exception:
+                    accommodation_note = None
+            try:
+                subtotal = float(qv2.subtotal or 0)
+            except Exception:
+                subtotal = None
+            try:
+                discount = float(qv2.discount or 0)
+            except Exception:
+                discount = None
+            try:
+                total = float(qv2.total or 0)
+            except Exception:
+                total = None
 
+    # -----------------------------
+    # Document + styles
+    # -----------------------------
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-    c = canvas.Canvas(output_path, pagesize=A4)
-    width, height = A4
-    y = height - 50
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, y, "Booka Receipt")
-    y -= 24
-    c.setFont("Helvetica", 11)
-    c.drawString(50, y, f"Payment ID: {payment_id}")
-    y -= 16
-    c.drawString(50, y, f"Issued: {datetime.utcnow():%Y-%m-%d %H:%M UTC}")
-    y -= 16
+    doc = SimpleDocTemplate(
+        output_path,
+        pagesize=A4,
+        leftMargin=18 * mm,
+        rightMargin=18 * mm,
+        topMargin=16 * mm,
+        bottomMargin=16 * mm,
+        title=f"Receipt {payment_id}",
+        author="Booka",
+    )
+    brand = colors.HexColor("#6C3BFF")
+    success = colors.HexColor("#16a34a")
+    muted = colors.HexColor("#6b7280")
+    border = colors.HexColor("#e5e7eb")
+
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name="TitleBrand", parent=styles["Heading1"], fontName="Helvetica-Bold", fontSize=18, textColor=colors.black, spaceAfter=6))
+    styles.add(ParagraphStyle(name="Muted", parent=styles["Normal"], fontName="Helvetica", fontSize=9, textColor=muted))
+    styles.add(ParagraphStyle(name="Strong", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=10))
+    styles.add(ParagraphStyle(name="NormalSmall", parent=styles["Normal"], fontName="Helvetica", fontSize=10))
+
+    story: list = []
+
+    # Header: Brand + PAID badge
+    header_tbl = Table(
+        [
+            [Paragraph("<b>Booka</b>", styles["TitleBrand"]), Paragraph("PAID", ParagraphStyle(name="PaidBadge", parent=styles["Normal"], textColor=success, backColor=colors.HexColor("#eafff0"), leading=12, fontName="Helvetica-Bold", alignment=1))],
+        ],
+        colWidths=[doc.width * 0.75, doc.width * 0.25],
+        hAlign="LEFT",
+    )
+    header_tbl.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+            ]
+        )
+    )
+    story.append(header_tbl)
+    story.append(Spacer(1, 6))
+
+    # Summary grid
+    issued_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    summary_data = [
+        [Paragraph("<font color='#6b7280'>Payment ID</font>", styles["NormalSmall"]), Paragraph(str(payment_id), styles["Strong"]),
+         Paragraph("<font color='#6b7280'>Issued</font>", styles["NormalSmall"]), Paragraph(issued_str, styles["NormalSmall"])],
+        [Paragraph("<font color='#6b7280'>Currency</font>", styles["NormalSmall"]), Paragraph("ZAR", styles["NormalSmall"]),
+         Paragraph("<font color='#6b7280'>Amount</font>", styles["NormalSmall"]), Paragraph(_zar(total if (total is not None and (total or 0) > 0) else amount), styles["Strong"])],
+    ]
+    summary_tbl = Table(summary_data, colWidths=[doc.width*0.15, doc.width*0.35, doc.width*0.15, doc.width*0.35])
+    summary_tbl.setStyle(
+        TableStyle([
+            ("INNERGRID", (0,0), (-1,-1), 0.25, border),
+            ("BOX", (0,0), (-1,-1), 0.25, border),
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ("BACKGROUND", (0,0), (-1,-1), colors.whitesmoke),
+            ("LEFTPADDING", (0,0), (-1,-1), 6),
+            ("RIGHTPADDING", (0,0), (-1,-1), 6),
+            ("TOPPADDING", (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ])
+    )
+    story.append(summary_tbl)
+    story.append(Spacer(1, 8))
+
+    # Parties (Client / Artist)
+    client_block = [Paragraph("Client", styles["Muted"]), Paragraph((client_name or "") + (f"\n{client_email}" if client_email else ""), styles["NormalSmall"]) ]
+    artist_block = [Paragraph("Artist", styles["Muted"]), Paragraph((artist_name or "") + (f"\n{artist_email}" if artist_email else ""), styles["NormalSmall"]) ]
+    parties_tbl = Table([[client_block, artist_block]], colWidths=[doc.width*0.5, doc.width*0.5])
+    parties_tbl.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP")]))
+    story.append(parties_tbl)
+    story.append(Spacer(1, 8))
+
+    # Line items
+    line_rows: list[list] = [[Paragraph("Description", styles["Strong"]), Paragraph("Amount", styles["Strong"])]]
+    if items:
+        for desc, price in items:
+            line_rows.append([Paragraph(desc, styles["NormalSmall"]), Paragraph(_zar(price), styles["NormalSmall"])])
+    else:
+        line_rows.append([Paragraph("Booking", styles["NormalSmall"]), Paragraph(_zar(amount), styles["NormalSmall"])])
+    if accommodation_note:
+        line_rows.append([Paragraph("Accommodation", styles["NormalSmall"]), Paragraph(accommodation_note, styles["NormalSmall"])])
+    items_tbl = Table(line_rows, colWidths=[doc.width*0.65, doc.width*0.35])
+    items_tbl.setStyle(
+        TableStyle([
+            ("BOX", (0,0), (-1,-1), 0.25, border),
+            ("INNERGRID", (0,0), (-1,-1), 0.25, border),
+            ("BACKGROUND", (0,0), (-1,0), colors.Color(0.95,0.95,0.97)),
+            ("ALIGN", (1,1), (1,-1), "RIGHT"),
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ])
+    )
+    story.append(items_tbl)
+    story.append(Spacer(1, 6))
+
+    # Totals
+    totals_rows: list[list] = []
+    if subtotal is not None:
+        totals_rows.append([Paragraph("Subtotal", styles["NormalSmall"]), Paragraph(_zar(subtotal), styles["NormalSmall"])])
+    if (discount or 0) > 0:
+        totals_rows.append([Paragraph("Discount", styles["NormalSmall"]), Paragraph("- " + _zar(discount or 0), styles["NormalSmall"])])
+    if total is not None:
+        totals_rows.append([Paragraph("Total", styles["Strong"]), Paragraph(_zar(total), styles["Strong"])])
+    elif amount is not None:
+        totals_rows.append([Paragraph("Total", styles["Strong"]), Paragraph(_zar(amount), styles["Strong"])])
     if booking_id:
-        c.drawString(50, y, f"Booking: #{booking_id}")
-        y -= 16
-    if client_name:
-        c.drawString(50, y, f"Client: {client_name}")
-        y -= 16
-    if artist_name:
-        c.drawString(50, y, f"Artist: {artist_name}")
-        y -= 16
-    if amount is not None:
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, y - 6, f"Total Paid: ZAR {amount:.2f}")
-        y -= 22
-    c.setFont("Helvetica", 10)
-    c.drawString(50, y, "Thank you for booking with Booka.")
-    c.showPage()
-    c.save()
+        totals_rows.append([Paragraph("Booking", styles["NormalSmall"]), Paragraph(f"#{booking_id}", styles["NormalSmall"])])
+    if totals_rows:
+        totals_tbl = Table(totals_rows, colWidths=[doc.width*0.65, doc.width*0.35])
+        totals_tbl.setStyle(TableStyle([
+            ("ALIGN", (1,0), (1,-1), "RIGHT"),
+            ("TOPPADDING", (0,0), (-1,-1), 2),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+        ]))
+        story.append(totals_tbl)
+
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("Thank you for booking with Booka.", styles["Muted"]))
+
+    # Build document
+    doc.build(story)
 
 
 def generate_receipt_pdf(db: Session, payment_id: str) -> bool:
-    """Generate a PDF receipt for the given payment id if missing. Best-effort.
+    """Generate a PDF receipt for the given payment id if missing.
 
-    Returns True if a PDF exists after this call, else False.
+    ReportLab-only path: create the PDF directly. Returns True if the file exists after.
     """
     path = os.path.abspath(os.path.join(RECEIPT_DIR, f"{payment_id}.pdf"))
     if os.path.exists(path):
         return True
-    html = _compose_receipt_html(db, payment_id)
-    ok = _generate_receipt_pdf_with_playwright(html, path)
-    return ok and os.path.exists(path)
+    try:
+        _generate_receipt_pdf_with_reportlab(db, payment_id, path)
+    except Exception:
+        # Do not raise; caller will handle stub creation as a last resort
+        pass
+    return os.path.exists(path)
 
 
 def _background_generate_receipt_pdf(payment_id: str) -> None:
