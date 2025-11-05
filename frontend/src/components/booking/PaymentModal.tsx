@@ -22,7 +22,7 @@ async function verifyPaystack(reference: string, bookingRequestId: number, signa
   return { ok: true as const, paymentId, receiptUrl };
 }
 
-type PaymentStatus = 'idle' | 'starting' | 'inline' | 'verifying' | 'ready-hosted' | 'error';
+type PaymentStatus = 'idle' | 'starting' | 'inline' | 'verifying' | 'error';
 
 export interface PaymentSuccess {
   status: string;
@@ -51,18 +51,7 @@ interface PaymentModalProps {
   dismissOnBackdrop?: boolean;
 }
 
-const CheckoutFrame: React.FC<{ src: string }> = ({ src }) => (
-  <div className="rounded-md border overflow-hidden">
-    <iframe
-      title="Paystack Checkout"
-      src={src}
-      className="w-full h-[560px] border-0"
-      allow="payment *; clipboard-write *"
-      aria-label="Secure Paystack Checkout"
-    />
-  </div>
-);
-//funny - always ensure zar - not NGN or something
+// Inline‑only flow; hosted iframe removed per product decision.
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
   open,
@@ -81,7 +70,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [status, setStatus] = useState<PaymentStatus>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [paystackReference, setPaystackReference] = useState<string | null>(null);
 
   const modalRef = useRef<HTMLDivElement | null>(null);
@@ -92,7 +80,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const resetState = useCallback(() => {
     setStatus('idle');
     setError(null);
-    setPaystackUrl(null);
     setPaystackReference(null);
     startedRef.current = false;
     verifyAbortRef.current?.abort();
@@ -207,7 +194,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       setPaystackReference(reference);
 
-      // 2) Inline-first if email provided; else hosted immediately
+      // 2) Inline-only: require a valid email
       const hasEmail = Boolean(customerEmail && /\S+@\S+\.\S+/.test(customerEmail));
       if (preferInline && hasEmail) {
         try {
@@ -221,23 +208,23 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             metadata: { bookingRequestId, source: 'web_inline' },
             onSuccess: (ref) => startVerifyLoop(ref),
             onClose: () => {
-              // user closed inline; fall back to hosted instantly
-              setStatus('ready-hosted');
-              setPaystackUrl(authorizationUrl);
+              // User closed popup — treat as cancelled; allow retry.
+              setStatus('error');
+              setError('Checkout closed. Please try again.');
             },
           });
           return;
         } catch {
-          // Inline failed -> hosted
+          // Inline failed — surface error and allow retry
+          setStatus('error');
+          setError('Could not open Paystack popup. Please try again.');
+          return;
         }
       }
 
-      // 3) Hosted fallback (iframe) — open instantly
-      setPaystackUrl(authorizationUrl);
-      setStatus('ready-hosted');
-      // Start verify polling in parallel for hosted checkout as well.
-      // This will complete automatically once Paystack confirms the charge.
-      startVerifyLoop(reference).catch(() => {/* best-effort */});
+      // No hosted fallback: require email for inline checkout
+      setStatus('error');
+      setError('A valid email is required to start payment.');
     } catch (err: any) {
       const statusCode = Number(err?.response?.status || 0);
       let msg = 'Payment failed. Please try again.';
@@ -300,7 +287,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     startedRef.current = true;
     startPayment().catch(() => {
       setStatus('error');
-      setPaystackUrl(null);
       setPaystackReference(null);
       setError('Could not start payment. Please try again.');
     });
@@ -345,26 +331,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           </div>
         )}
 
-        {/* Hosted fallback UI */}
-        {status === 'ready-hosted' && paystackUrl && (
-          <>
-            <CheckoutFrame src={paystackUrl} />
-            <div className="mt-2 text-xs text-gray-500">
-              Having trouble?{' '}
-              <a
-                href={paystackUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline text-blue-600 hover:text-blue-800"
-              >
-                Open checkout in a new tab
-              </a>
-            </div>
-          </>
-        )}
-
         {/* Idle placeholder */}
-        {!loading && !error && !paystackUrl && status !== 'inline' && (
+        {!loading && !error && status !== 'inline' && (
           <div className="text-sm text-gray-600">
             <p>Preparing checkout…</p>
           </div>

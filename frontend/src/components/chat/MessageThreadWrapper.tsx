@@ -971,7 +971,7 @@ export default function MessageThreadWrapper({
                 onBookingDetailsHydrated={handleFallbackDetails}
                 onHydratedBookingRequest={handleHydratedBookingRequest}
                 openPaymentModal={(args: { bookingRequestId: number; amount: number }) =>
-                  openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount } as any)
+                  openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount, customerEmail: (user as any)?.email || undefined } as any)
                 }
               />
             ) : (

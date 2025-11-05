@@ -367,6 +367,7 @@ export default function BookingSummaryCard({
                         openPaymentModal({
                           bookingRequestId,
                           amount: Number(best.total || 0),
+                          customerEmail: (user as any)?.email || undefined,
                         })
                       }
                       className="bg-gray-900 text-white hover:bg-black"
