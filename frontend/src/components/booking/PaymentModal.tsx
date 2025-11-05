@@ -5,7 +5,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPayment, apiUrl } from '@/lib/api';
 import { openPaystackInline } from '@/utils/paystackClient';
 
-// Minimal inline constants (or import from your utils if you already extracted them)
 const PAYSTACK_ENABLED = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
 const BACKOFF_STEPS = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000];
 
@@ -39,10 +38,10 @@ interface PaymentModalProps {
   onSuccess: (result: PaymentSuccess) => void;
   onError: (msg: string) => void;
   amount: number;                 // major units
-  serviceName?: string;           // (still supported; just not displayed)
+  serviceName?: string;           // accepted but not displayed
   /** Try inline popup first (recommended) */
   preferInline?: boolean;
-  /** Customer email (required by Paystack inline). If missing, we immediately fall back to hosted. */
+  /** If provided, we will attempt inline; otherwise fallback to hosted immediately. */
   customerEmail?: string;
   /** Currency code, defaults to NGN */
   currency?: string;
@@ -71,7 +70,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   onSuccess,
   onError,
   amount,
-  // serviceName is accepted but no longer displayed in the header
   serviceName: _unusedServiceName,
   preferInline = true,
   customerEmail,
@@ -167,7 +165,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     [amount, bookingRequestId, finishSuccess]
   );
 
-  /** Inline-first (if email provided), otherwise hosted — opens immediately on mount when autoStart */
+  /** Inline-first (if email provided), otherwise hosted — opens immediately */
   const startPayment = useCallback(async () => {
     if (status === 'starting' || status === 'inline' || status === 'verifying') return;
 
@@ -182,7 +180,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     try {
-      // 1) Ask backend to initiate a transaction (reference + authorization_url)
+      // 1) Backend init: get reference + authorization_url
       const res = await createPayment({
         booking_request_id: bookingRequestId,
         amount: Number(amount),
@@ -195,7 +193,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       if (!reference) throw new Error('Payment reference missing');
 
-      // If backend already marked it paid
+      // Already paid?
       if (!authorizationUrl) {
         const paymentId: string | undefined = data?.payment_id || data?.id || reference;
         const receiptUrl = paymentId ? apiUrl(`/api/v1/payments/${paymentId}/receipt`) : undefined;
@@ -206,7 +204,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       setPaystackReference(reference);
 
-      // 2) Inline-first if we have a valid customerEmail, otherwise hosted immediately
+      // 2) Inline-first if email provided; else hosted immediately
       const hasEmail = Boolean(customerEmail && /\S+@\S+\.\S+/.test(customerEmail));
       if (preferInline && hasEmail) {
         try {
@@ -218,18 +216,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             reference,
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
             metadata: { bookingRequestId, source: 'web_inline' },
-            onSuccess: (ref) => {
-              startVerifyLoop(ref);
-            },
+            onSuccess: (ref) => startVerifyLoop(ref),
             onClose: () => {
-              // user closed inline; fall back to hosted checkout instantly
+              // user closed inline; fall back to hosted instantly
               setStatus('ready-hosted');
               setPaystackUrl(authorizationUrl);
             },
           });
           return;
         } catch {
-          // Inline failed (script blocked, etc.) -> use hosted immediately
+          // Inline failed -> hosted
         }
       }
 
@@ -321,11 +317,22 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         className="bg-white rounded-xl shadow-xl w-full max-w-sm p-4 mx-2 max-h-[90vh] overflow-y-auto outline-none"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Removed header and email UI as requested */}
-
+        {/* Banner with spinner */}
         {showBanner && (
-          <div className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm" role="status" aria-live="polite">
-            {status === 'starting' && <span>Opening secure checkout…</span>}
+          <div
+            className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm flex flex-col items-center justify-center"
+            role="status"
+            aria-live="polite"
+          >
+            {status === 'starting' && (
+              <>
+                <span>Opening secure checkout…</span>
+                <div
+                  className="mt-2 w-5 h-5 border-2 border-gray-200 border-t-gray-800 rounded-full animate-spin"
+                  aria-hidden="true"
+                />
+              </>
+            )}
             {status === 'inline' && <span>Waiting for Paystack popup…</span>}
             {status === 'verifying' && <span>Verifying payment…</span>}
             {status === 'error' && error && <span className="text-red-600">{error}</span>}
@@ -350,7 +357,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           </>
         )}
 
-        {/* Idle placeholder (briefly shown if anything is async) */}
+        {/* Idle placeholder */}
         {!loading && !error && !paystackUrl && status !== 'inline' && (
           <div className="text-sm text-gray-600">
             <p>Preparing checkout…</p>
@@ -365,7 +372,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           >
             Cancel
           </button>
-          {/* No manual "Pay Now" needed when autoStart=true, but keep for flexibility */}
+          {/* Optional manual trigger if autoStart=false */}
           {!autoStart && (
             <button
               type="button"
