@@ -320,7 +320,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         {/* Banner with spinner */}
         {showBanner && (
           <div
-            className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm flex flex-col items-center justify-center"
+            className="mb-3 rounded-md bg-white px-3 py-2 text-sm flex flex-col items-center justify-center"
             role="status"
             aria-live="polite"
           >
