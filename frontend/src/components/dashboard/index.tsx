@@ -141,12 +141,16 @@ export function BookingRequestCard({ req }: BookingRequestCardProps) {
         null
       );
 
-  // Display name
+  // Display name (prefer business name for service providers)
   const displayName = isServiceProvider
     ? (req.client ? `${req.client.first_name} ${req.client.last_name}` : 'Unknown Client')
     : (
         req.service_provider_profile?.business_name ||
-        (req.service_provider ? `${req.service_provider.first_name ?? ''} ${req.service_provider.last_name ?? ''}`.trim() : 'Unknown Service Provider')
+        (req.service_provider as any)?.business_name ||
+        (req.service?.service_provider as any)?.business_name ||
+        (req.service_provider
+          ? `${req.service_provider.first_name ?? ''} ${req.service_provider.last_name ?? ''}`.trim()
+          : 'Unknown Service Provider')
       );
 
   const formattedDate = format(new Date(req.created_at), 'dd MMM yyyy');

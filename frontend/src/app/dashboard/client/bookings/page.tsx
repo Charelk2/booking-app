@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { formatCurrency, formatStatus } from "@/lib/utils";
 import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { apiUrl } from "@/lib/api";
 import { Spinner } from "@/components/ui";
 import BookingCard, { BookingCardAction } from "@/components/booking/BookingCard";
 
@@ -22,10 +23,12 @@ function BookingList({
   items,
   onReview,
   onPayNow,
+  invoiceMap,
 }: {
   items: BookingWithReview[];
   onReview: (id: number) => void;
   onPayNow: (id: number) => void;
+  invoiceMap: Record<number, number>;
 }) {
   return (
     <div>
@@ -88,15 +91,17 @@ function BookingList({
                 View receipt
               </a>
             )}
-            <a
-              href={`/invoices/by-booking/${b.id}`}
-              target="_blank"
-              rel="noopener"
-              className="ml-3 mt-2 text-brand-dark hover:underline text-sm"
-              data-testid="booking-invoice-link"
-            >
-              View invoice
-            </a>
+            {invoiceMap[b.id] && (
+              <a
+                href={`/invoices/${invoiceMap[b.id]}`}
+                target="_blank"
+                rel="noopener"
+                className="ml-3 mt-2 text-brand-dark hover:underline text-sm"
+                data-testid="booking-invoice-link"
+              >
+                View invoice
+              </a>
+            )}
             <div className="flex justify-between text-xs text-gray-500 mt-2">
               {["Requested", "Confirmed", b.status === "cancelled" ? "Cancelled" : "Completed"].map((step, idx) => {
                 const activeIdx =
@@ -145,6 +150,7 @@ export default function ClientBookingsPage() {
   const [reviewId, setReviewId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [invoiceMap, setInvoiceMap] = useState<Record<number, number>>({});
   const [paymentBookingId, setPaymentBookingId] = useState<number | null>(null);
   const { openPaymentModal, paymentModal } = usePaymentModal(
     (result) => {
@@ -189,6 +195,28 @@ export default function ClientBookingsPage() {
       setError("Access denied");
     }
   }, [user]);
+
+  // Fetch invoice ids for the loaded bookings (best-effort)
+  useEffect(() => {
+    const allIds = [...upcoming.map(b => b.id), ...past.map(b => b.id)];
+    if (allIds.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const out: Record<number, number> = {};
+      await Promise.all(
+        allIds.map(async (id) => {
+          try {
+            const resp = await fetch(apiUrl(`/api/v1/invoices/by-booking/${id}`), { credentials: 'include' });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data && typeof data.id === 'number') out[id] = data.id;
+          } catch {}
+        })
+      );
+      if (!cancelled) setInvoiceMap(out);
+    })();
+    return () => { cancelled = true; };
+  }, [upcoming, past]);
 
   const handleOpenReview = (id: number) => {
     setReviewId(id);
@@ -291,6 +319,7 @@ export default function ClientBookingsPage() {
               items={upcoming}
               onReview={handleOpenReview}
               onPayNow={handleOpenPayment}
+              invoiceMap={invoiceMap}
             />
           )}
         </section>
@@ -303,6 +332,7 @@ export default function ClientBookingsPage() {
               items={past}
               onReview={handleOpenReview}
               onPayNow={handleOpenPayment}
+              invoiceMap={invoiceMap}
             />
           )}
         </section>
