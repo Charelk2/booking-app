@@ -19,15 +19,45 @@ interface PaymentModalProps {
   onSuccess: (result: PaymentSuccess) => void;
   onError: (msg: string) => void;
   amount: number;
-  providerName?: string;
+  providerName?: string; // reserved for future
   serviceName?: string;
+  /** Start checkout automatically when opened (default: true) */
+  autoStart?: boolean;
+  /** Allow clicking backdrop to close (default: true) */
+  dismissOnBackdrop?: boolean;
 }
 
 /* =========================
- * Env Flags
+ * Env Flags (read once)
  * ========================= */
 const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
 const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
+
+/* =========================
+ * Small utilities
+ * ========================= */
+const safeSet = (k: string, v: string) => {
+  try { localStorage.setItem(k, v); } catch { /* noop */ }
+};
+const rcptKey = (bookingRequestId: number) => `receipt_url:br:${bookingRequestId}`;
+
+/** Exponential backoff sequence in ms (about 60–70s total) */
+const BACKOFF_STEPS = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000];
+
+const verifyPaystack = async (
+  reference: string,
+  bookingRequestId: number,
+  signal?: AbortSignal
+): Promise<{ ok: boolean; paymentId?: string; receiptUrl?: string }> => {
+  const url = apiUrl(`/api/v1/payments/paystack/verify?reference=${encodeURIComponent(reference)}`);
+  const resp = await fetch(url, { credentials: 'include', signal });
+  if (!resp.ok) return { ok: false };
+  const v = await resp.json();
+  const paymentId = v?.payment_id || reference;
+  const receiptUrl = apiUrl(`/api/v1/payments/${paymentId}/receipt`);
+  safeSet(rcptKey(bookingRequestId), receiptUrl);
+  return { ok: true, paymentId, receiptUrl };
+};
 
 /* =========================
  * Component
@@ -41,201 +71,216 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   amount,
   serviceName,
   providerName: _unusedProviderName,
+  autoStart = true,
+  dismissOnBackdrop = true,
 }) => {
-  // UI state
+  // UI/flow
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Hosted checkout state
   const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [paystackReference, setPaystackReference] = useState<string | null>(null);
+
   // refs
-  const pollTimerRef = useRef<number | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
-  const autoRunRef = useRef(false);
+  const startedRef = useRef(false);
+  const verifyAbortRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
 
   /* -------------------------
-   * Handlers
+   * Helpers
    * ------------------------- */
+  const resetState = useCallback(() => {
+    setLoading(false);
+    setError(null);
+    setPaystackUrl(null);
+    setPaystackReference(null);
+    startedRef.current = false;
+    // cancel any ongoing verify
+    verifyAbortRef.current?.abort();
+    verifyAbortRef.current = null;
+  }, []);
+
+  const closeModal = useCallback(() => {
+    resetState();
+    onClose();
+  }, [onClose, resetState]);
+
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!dismissOnBackdrop) return;
+      if (e.target === e.currentTarget) closeModal();
+    },
+    [closeModal, dismissOnBackdrop]
+  );
+
   const handleCancel = useCallback(() => {
     if (typeof window !== 'undefined') {
       const confirmCancel = window.confirm('Cancel and return? You can restart payment anytime.');
       if (!confirmCancel) return;
     }
-    autoRunRef.current = false;
-    if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    setPaystackUrl(null);
-    setPaystackReference(null);
-    onClose();
-  }, [onClose]);
+    closeModal();
+  }, [closeModal]);
 
-  const handlePay = useCallback(async () => {
+  const finishSuccess = useCallback(
+    (res: PaymentSuccess) => {
+      if (!isMounted.current) return;
+      resetState();
+      onSuccess(res);
+    },
+    [onSuccess, resetState]
+  );
+
+  const finishError = useCallback(
+    (msg: string) => {
+      if (!isMounted.current) return;
+      setError(msg);
+      setLoading(false);
+      onError(msg);
+    },
+    [onError]
+  );
+
+  /* -------------------------
+   * Start payment
+   * ------------------------- */
+  const startPayment = useCallback(async () => {
     if (loading) return;
-
     setLoading(true);
     setError(null);
     setPaystackUrl(null);
     setPaystackReference(null);
 
-    // Fake mode, short-circuit success
+    // Fake mode (short-circuit)
     if (FAKE_PAYMENTS && !USE_PAYSTACK) {
-      const fakeId = `fake_${Date.now().toString(16)}${Math.random()
-        .toString(16)
-        .slice(2, 10)}`;
+      const fakeId = `fake_${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
       const receiptUrl = apiUrl(`/api/v1/payments/${fakeId}/receipt`);
-      try {
-        localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl);
-      } catch {}
-      onSuccess({
-        status: 'paid',
-        amount: Number(amount),
-        receiptUrl,
-        paymentId: fakeId,
-        mocked: true,
-      });
-      setLoading(false);
+      safeSet(rcptKey(bookingRequestId), receiptUrl);
+      finishSuccess({ status: 'paid', amount: Number(amount), receiptUrl, paymentId: fakeId, mocked: true });
       return;
     }
 
     try {
-      // Server creates payment + (possibly) returns authorization URL
+      // Ask backend to create/initiate payment
       const res = await createPayment({
         booking_request_id: bookingRequestId,
         amount: Number(amount),
         full: true,
       });
-      const data = res.data as any;
 
-      const reference = String(data?.reference || data?.payment_id || '').trim();
-      const authorizationUrl = (data?.authorization_url as string | undefined) || undefined;
+      const data = res?.data as any;
+      const reference: string = String(data?.reference || data?.payment_id || '').trim();
+      const authorizationUrl: string | undefined = data?.authorization_url || data?.authorizationUrl;
 
       if (!reference) throw new Error('Payment reference missing');
 
-      // Hosted fallback (preferred flow)
+      // Hosted checkout (preferred)
       if (authorizationUrl) {
         setPaystackReference(reference);
         setPaystackUrl(authorizationUrl);
         setLoading(false);
+
+        // Begin verify loop with backoff
+        verifyAbortRef.current?.abort();
+        const ac = new AbortController();
+        verifyAbortRef.current = ac;
+
+        (async () => {
+          // Try immediately once, then backoff attempts
+          let verified = false;
+
+          // Immediate attempt
+          try {
+            const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
+            if (out.ok) {
+              verified = true;
+              finishSuccess({ status: 'paid', amount: Number(amount), paymentId: out.paymentId, receiptUrl: out.receiptUrl });
+              return;
+            }
+          } catch { /* ignore and continue backoff */ }
+
+          // Backoff attempts
+          for (const delay of BACKOFF_STEPS) {
+            if (ac.signal.aborted) return;
+            await new Promise(r => setTimeout(r, delay));
+            try {
+              const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
+              if (out.ok) {
+                verified = true;
+                finishSuccess({ status: 'paid', amount: Number(amount), paymentId: out.paymentId, receiptUrl: out.receiptUrl });
+                return;
+              }
+            } catch { /* keep trying until we exhaust steps */ }
+          }
+
+          // If not verified after backoff, leave checkout open and show hint
+          if (!verified && isMounted.current) {
+            setError('Still waiting for payment confirmation… If you’ve completed checkout, this will update shortly.');
+          }
+        })();
+
         return;
       }
 
-      // Direct, immediate success path (no URL to open)
-      const paymentId = (data as { payment_id?: string }).payment_id;
-      const receiptUrl = paymentId
-        ? apiUrl(`/api/v1/payments/${paymentId}/receipt`)
-        : undefined;
-      try {
-        if (receiptUrl) {
-          localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl);
-        }
-      } catch {}
-      setPaystackUrl(null);
-      setPaystackReference(null);
-      onSuccess({ status: 'paid', amount: Number(amount), receiptUrl, paymentId });
+      // Immediate success path (no hosted URL)
+      const paymentId: string | undefined = data?.payment_id || data?.id;
+      const receiptUrl = paymentId ? apiUrl(`/api/v1/payments/${paymentId}/receipt`) : undefined;
+      if (receiptUrl) safeSet(rcptKey(bookingRequestId), receiptUrl);
+
+      finishSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl });
     } catch (err: any) {
       const status = Number(err?.response?.status || 0);
-
       if (FAKE_PAYMENTS && !USE_PAYSTACK) {
-        console.warn('Payment API unavailable; simulating paid status (FAKE).', err);
         const hex = Math.random().toString(16).slice(2).padEnd(8, '0');
         const paymentId = `test_${Date.now().toString(16)}${hex}`;
         const receiptUrl = apiUrl(`/api/v1/payments/${paymentId}/receipt`);
-        try {
-          localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl);
-        } catch {}
-        onSuccess({
-          status: 'paid',
-          amount: Number(amount),
-          paymentId,
-          receiptUrl,
-          mocked: true,
-        });
+        safeSet(rcptKey(bookingRequestId), receiptUrl);
+        finishSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl, mocked: true });
       } else {
         let msg = 'Payment failed. Please try again later.';
         if (status === 404) msg = 'This booking is not ready for payment or was not found.';
         else if (status === 403) msg = 'You are not allowed to pay for this booking.';
         else if (status === 422) msg = 'Invalid payment attempt. Please refresh and try again.';
-        setError(msg);
-        onError(msg);
+        finishError(msg);
       }
     } finally {
       setLoading(false);
     }
-  }, [bookingRequestId, amount, onSuccess, onError, loading]);
+  }, [bookingRequestId, amount, loading, finishSuccess, finishError]);
 
   /* -------------------------
    * Effects
    * ------------------------- */
 
-  // Poll verify endpoint when using hosted fallback (iframe)
+  // Track mount/unmount
   useEffect(() => {
-    if (!paystackUrl || !paystackReference) return;
-
-    let elapsed = 0;
-    const INTERVAL = 5000;
-    const MAX = 60000;
-
-    const tick = async () => {
-      try {
-        const resp = await fetch(
-          apiUrl(
-            `/api/v1/payments/paystack/verify?reference=${encodeURIComponent(paystackReference)}`,
-          ),
-          { credentials: 'include' as RequestCredentials },
-        );
-
-        if (resp.ok) {
-          const v = await resp.json();
-          const pid = v?.payment_id || paystackReference;
-          const receiptUrl = apiUrl(`/api/v1/payments/${pid}/receipt`);
-          try {
-            localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl);
-          } catch {}
-          if (pollTimerRef.current) {
-            clearInterval(pollTimerRef.current);
-            pollTimerRef.current = null;
-          }
-          setPaystackUrl(null);
-          setPaystackReference(null);
-          onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
-          return;
-        }
-      } catch {
-        // ignore network errors; continue polling until timeout
-      }
-
-      elapsed += INTERVAL;
-      if (elapsed >= MAX && pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-
-    tick();
-    pollTimerRef.current = window.setInterval(tick, INTERVAL) as unknown as number;
-
+    isMounted.current = true;
     return () => {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
+      isMounted.current = false;
+      verifyAbortRef.current?.abort();
+      verifyAbortRef.current = null;
     };
-  }, [paystackUrl, paystackReference, bookingRequestId, amount, onSuccess]);
+  }, []);
 
-  // Focus trap + ESC handling when open
+  // Focus trap + ESC
   useEffect(() => {
     if (!open || !modalRef.current) return;
 
     const modal = modalRef.current;
     const focusable = modal.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
 
-    const trap = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCancel();
+      }
       if (e.key === 'Tab') {
+        if (!first || !last) return;
         if (e.shiftKey) {
           if (document.activeElement === first) {
             e.preventDefault();
@@ -245,85 +290,113 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           e.preventDefault();
           (first || last).focus();
         }
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        handleCancel();
       }
     };
 
-    document.addEventListener('keydown', trap as any);
+    document.addEventListener('keydown', onKey as any);
     (first || modal).focus();
 
-    return () => {
-      document.removeEventListener('keydown', trap as any);
-    };
+    return () => document.removeEventListener('keydown', onKey as any);
   }, [open, handleCancel]);
 
-  // Auto-run on open
+  // Auto-start when opened
   useEffect(() => {
     if (!open) {
-      autoRunRef.current = false;
-      setLoading(false);
-      setError(null);
-      setPaystackUrl(null);
-      setPaystackReference(null);
+      resetState();
       return;
     }
-
-    if (autoRunRef.current) return;
-    autoRunRef.current = true;
-
-    handlePay().catch(() => {
+    if (!autoStart || startedRef.current) return;
+    startedRef.current = true;
+    startPayment().catch(() => {
       setLoading(false);
       setPaystackUrl(null);
       setPaystackReference(null);
     });
-  }, [open, handlePay]);
+  }, [open, autoStart, startPayment, resetState]);
 
   /* -------------------------
    * Render
    * ------------------------- */
   if (!open) return null;
 
-  const showStatusBanner = Boolean(error || loading);
+  const showBanner = Boolean(error || loading);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-[999999909]">
+    <div
+      className="fixed inset-0 z-[999999909] bg-black/40 flex items-center justify-center overflow-y-auto"
+      onMouseDown={handleBackdropClick}
+      aria-labelledby="payment-modal-title"
+      aria-modal="true"
+      role="dialog"
+    >
       <div
         ref={modalRef}
-        className="bg-white rounded-lg shadow-lg w-full max-w-sm p-4 mx-2 max-h-[90vh] overflow-y-auto focus:outline-none"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="paystack-modal-heading"
+        className="bg-white rounded-xl shadow-xl w-full max-w-sm p-4 mx-2 max-h-[90vh] overflow-y-auto outline-none"
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        {serviceName && (
-          <div className="flex items-center justify-between text-sm text-gray-700 mb-3">
-            <span>Service</span>
-            <span className="text-gray-900">{serviceName}</span>
+        <header className="mb-3">
+          <h2 id="payment-modal-title" className="text-lg font-semibold text-gray-900">
+            Secure Checkout
+          </h2>
+          {serviceName && (
+            <div className="mt-1 text-sm text-gray-700 flex items-center justify-between">
+              <span>Service</span>
+              <span className="text-gray-900 font-medium">{serviceName}</span>
+            </div>
+          )}
+        </header>
+
+        {showBanner && (
+          <div
+            className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm"
+            role="status"
+            aria-live="polite"
+          >
+            {loading && <span>Opening secure checkout…</span>}
+            {!loading && error && <span className="text-red-600">{error}</span>}
           </div>
         )}
 
-        <div className="space-y-3">
-          {showStatusBanner && (
-            <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">
-              {loading && <span>Opening secure checkout…</span>}
-              {!loading && error && <span className="text-red-600">{error}</span>}
-            </div>
-          )}
+        {paystackUrl ? (
+          <div className="rounded-md border overflow-hidden">
+            <iframe
+              title="Paystack Checkout"
+              src={paystackUrl}
+              className="w-full h-[560px] border-0"
+              allow="payment *; clipboard-write *"
+            />
+          </div>
+        ) : (
+          <div className="text-sm text-gray-600">
+            {!loading && !error && (
+              <p>Preparing checkout… If nothing happens, try again.</p>
+            )}
+          </div>
+        )}
 
-          {paystackUrl && (
-            <div className="rounded-md border overflow-hidden">
-              <iframe
-                title="Paystack Checkout"
-                src={paystackUrl}
-                className="w-full h-[560px] border-0"
-              />
-            </div>
+        <footer className="mt-4 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-3 py-2 rounded-md border text-sm font-medium hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          {!autoStart && (
+            <button
+              type="button"
+              onClick={startPayment}
+              disabled={loading}
+              className="px-3 py-2 rounded-md bg-black text-white text-sm font-semibold disabled:opacity-60"
+            >
+              {loading ? 'Starting…' : 'Pay Now'}
+            </button>
           )}
-        </div>
+        </footer>
       </div>
     </div>
   );
 };
 
 export default PaymentModal;
+  
