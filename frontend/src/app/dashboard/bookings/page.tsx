@@ -15,14 +15,12 @@ import { Booking } from '@/types';
 import { formatCurrency, formatStatus } from '@/lib/utils';
 import { statusChipClass } from '@/components/ui/status';
 import { Spinner } from '@/components/ui';
-import { apiUrl } from '@/lib/api';
 
 export default function ArtistBookingsPage() {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [invoiceIds, setInvoiceIds] = useState<Record<number, number>>({});
 
   const handleStatusChange = async (
     id: number,
@@ -85,28 +83,6 @@ export default function ArtistBookingsPage() {
     }
   }, [user]);
 
-  // Fetch invoice ids for each booking (best-effort)
-  useEffect(() => {
-    if (!bookings || bookings.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      const out: Record<number, number> = {};
-      await Promise.all(
-        bookings.map(async (b) => {
-          try {
-            const resp = await fetch(apiUrl(`/api/v1/invoices/by-booking/${b.id}`), { credentials: 'include' });
-            if (!resp.ok) return;
-            const data = await resp.json();
-            if (data && typeof data.id === 'number') out[b.id] = data.id;
-          } catch {}
-        })
-      );
-      if (!cancelled) setInvoiceIds(out);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [bookings]);
 
   if (!user) {
     return (
@@ -166,9 +142,9 @@ export default function ArtistBookingsPage() {
                   </Link>
                 )}
                 <div className="mt-3 space-x-4">
-                  {invoiceIds[b.id] && (
+                  {b.invoice_id && (
                     <a
-                      href={`/invoices/${invoiceIds[b.id]}`}
+                      href={`/invoices/${b.invoice_id}`}
                       target="_blank"
                       rel="noopener"
                       className="text-brand-dark hover:underline text-sm"

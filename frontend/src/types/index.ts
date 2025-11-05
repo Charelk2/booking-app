@@ -165,6 +165,8 @@ export interface Booking {
   payment_id?: string | null;
   /** Booking request associated with this booking */
   booking_request_id?: number;
+  /** Latest invoice id for this booking (server-provided) */
+  invoice_id?: number | null;
 
   /** Canonical */
   service_provider: ServiceProviderProfile;
