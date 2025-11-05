@@ -145,9 +145,12 @@ export function BookingRequestCard({ req }: BookingRequestCardProps) {
   const displayName = isServiceProvider
     ? (req.client ? `${req.client.first_name} ${req.client.last_name}` : 'Unknown Client')
     : (
+        // Prefer canonical business names; include legacy/alt shapes as fallbacks
         req.service_provider_profile?.business_name ||
         (req.service_provider as any)?.business_name ||
         (req.service?.service_provider as any)?.business_name ||
+        (req.service as any)?.artist?.business_name ||
+        (req.artist_profile as any)?.business_name ||
         (req.service_provider
           ? `${req.service_provider.first_name ?? ''} ${req.service_provider.last_name ?? ''}`.trim()
           : 'Unknown Service Provider')

@@ -125,7 +125,11 @@ export default function ClientDashboardPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">
-                          {booking.service?.service_provider?.business_name || booking.service_provider?.business_name || 'Unknown'}
+                          {booking.service?.service_provider?.business_name ||
+                           (booking.service as any)?.artist?.business_name ||
+                           booking.service_provider?.business_name ||
+                           (booking as any)?.artist?.business_name ||
+                           'Unknown Service Provider'}
                         </div>
                         <div className="mt-0.5 text-sm text-gray-600 truncate">{booking.service?.title || "—"}</div>
                         <div className="mt-1 text-xs text-gray-500">{format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}</div>
