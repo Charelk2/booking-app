@@ -125,14 +125,10 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
     story = []
 
     # Header: Brand + Status badge
-    status_text = str(status).upper()
+    # NOTE: For now, invoices are always rendered as PAID (business rule).
+    # We keep the underlying status untouched for data, but the badge is fixed.
+    status_text = "PAID"
     status_color = success
-    if str(status).lower() in {"unpaid"}:
-        status_color = colors.HexColor("#111827")
-    if str(status).lower() in {"partial"}:
-        status_color = warn
-    if str(status).lower() in {"overdue"}:
-        status_color = danger
 
     header_tbl = Table(
         [
