@@ -170,6 +170,60 @@ def presign_get_for_public_url(public_url: str) -> Optional[str]:
     )
 
 
+def build_receipt_key(payment_id: str) -> str:
+    """Return a stable key for a receipt PDF under the `receipts/` prefix.
+
+    Format: receipts/{yyyy}/{mm}/{payment_id}.pdf
+    """
+    now = dt.datetime.utcnow()
+    y = now.strftime("%Y")
+    m = now.strftime("%m")
+    pid = str(payment_id).strip()
+    return f"receipts/{y}/{m}/{pid}.pdf"
+
+
+def put_bytes(key: str, data: bytes, content_type: Optional[str] = None) -> str:
+    """Upload bytes to R2 at the specified key. Returns the public URL if configured.
+
+    Raises if R2 is not configured or boto3 is not available.
+    """
+    cfg = R2Config()
+    if not cfg.is_configured():
+        raise RuntimeError("R2 is not configured")
+    client = _client(cfg)
+    params = {
+        "Bucket": cfg.bucket,
+        "Key": key,
+        "Body": data,
+    }
+    if content_type:
+        params["ContentType"] = content_type
+    client.put_object(**params)
+    return f"{cfg.public_base_url}/{key}" if cfg.public_base_url else key
+
+
+def presign_get_by_key(key: str, filename: Optional[str] = None, content_type: Optional[str] = None, inline: bool = True) -> str:
+    """Generate a presigned GET URL for an object key with response headers.
+
+    Allows setting ResponseContentType and Content-Disposition (inline/attachment; filename=...).
+    """
+    cfg = R2Config()
+    if not cfg.is_configured():
+        raise RuntimeError("R2 is not configured")
+    client = _client(cfg)
+    params: dict = {"Bucket": cfg.bucket, "Key": key}
+    if content_type:
+        params["ResponseContentType"] = content_type
+    if filename:
+        disp = ("inline" if inline else "attachment") + f"; filename=\"{filename}\""
+        params["ResponseContentDisposition"] = disp
+    return client.generate_presigned_url(
+        ClientMethod="get_object",
+        Params=params,
+        ExpiresIn=cfg.download_ttl_seconds,
+    )
+
+
 def _build_avatar_key(user_id: int, filename: Optional[str], content_type: Optional[str]) -> str:
     now = dt.datetime.utcnow()
     y = now.strftime("%Y")
