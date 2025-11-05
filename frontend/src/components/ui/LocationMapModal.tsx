@@ -21,7 +21,7 @@ export default function LocationMapModal({
   // The modal now manages its own input state
   const [location, setLocation] = useState(initialValue);
 
-  // Reset the input when the modal opens with a new initial value
+  // Reset the input when modal opens with a new initial value
   useEffect(() => {
     if (open) {
       setLocation(initialValue);
@@ -30,7 +30,7 @@ export default function LocationMapModal({
 
   const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
     onSelect(place);
-    onClose(); // Close the modal after selection
+    onClose(); // Close modal after selection
   };
 
   return (
@@ -93,4 +93,3 @@ export default function LocationMapModal({
     </Transition>
   );
 }
-
