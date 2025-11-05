@@ -192,6 +192,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const authorizationUrl: string | undefined = data?.authorization_url || data?.authorizationUrl;
 
       if (!reference) throw new Error('Payment reference missing');
+      // Cache reference for adjacent views that may try to build receipt URLs optimistically
+      try { localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, reference); } catch {}
 
       // Already paid?
       if (!authorizationUrl) {
@@ -232,6 +234,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       // 3) Hosted fallback (iframe) — open instantly
       setPaystackUrl(authorizationUrl);
       setStatus('ready-hosted');
+      // Start verify polling in parallel for hosted checkout as well.
+      // This will complete automatically once Paystack confirms the charge.
+      startVerifyLoop(reference).catch(() => {/* best-effort */});
     } catch (err: any) {
       const statusCode = Number(err?.response?.status || 0);
       let msg = 'Payment failed. Please try again.';
@@ -320,7 +325,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         {/* Banner with spinner */}
         {showBanner && (
           <div
-            className="mb-3 rounded-md bg-white px-3 py-2 text-sm flex flex-col items-center justify-center"
+            className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm flex flex-col items-center justify-center"
             role="status"
             aria-live="polite"
           >

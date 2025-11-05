@@ -10,12 +10,14 @@ import { getBookingDetails, downloadBookingIcs } from "@/lib/api";
 import type { Booking } from "@/types";
 import { formatCurrency, formatStatus } from "@/lib/utils";
 import { Spinner } from "@/components/ui";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function BookingDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const pay = searchParams.get("pay");
   const id = Number(params.id);
+  const { user } = useAuth();
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -158,6 +160,7 @@ export default function BookingDetailsPage() {
         onClose={() => setShowPayment(false)}
         bookingRequestId={booking.booking_request_id as number}
         amount={Number(booking.total_price || 0)}
+        customerEmail={(user as any)?.email || undefined}
         onSuccess={({ paymentId }) => {
           setBooking({
             ...booking,

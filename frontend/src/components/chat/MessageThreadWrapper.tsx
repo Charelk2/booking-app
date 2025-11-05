@@ -804,7 +804,13 @@ export default function MessageThreadWrapper({
                 const amt = Number(quote?.total || 0);
                 const provider = bookingRequest?.artist_profile?.business_name || (bookingRequest as any)?.artist?.first_name || 'Service Provider';
                 const serviceName = bookingRequest?.service?.title || undefined;
-                if (amt > 0) openPaymentModal({ bookingRequestId, amount: amt, providerName: String(provider), serviceName: serviceName as any } as any);
+                if (amt > 0) openPaymentModal({
+                  bookingRequestId,
+                  amount: amt,
+                  providerName: String(provider),
+                  serviceName: serviceName as any,
+                  customerEmail: (user as any)?.email || undefined,
+                } as any);
               } catch {}
             }}
             onContinueEventPrep={async (threadId: number) => {
@@ -898,7 +904,13 @@ export default function MessageThreadWrapper({
                   (bookingRequest as any)?.artist?.first_name ||
                   'Service Provider';
                 const serviceName = bookingRequest?.service?.title || undefined;
-                openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount, providerName: String(provider), serviceName: serviceName as any } as any);
+                openPaymentModal({
+                  bookingRequestId: args.bookingRequestId,
+                  amount: args.amount,
+                  providerName: String(provider),
+                  serviceName: serviceName as any,
+                  customerEmail: (user as any)?.email || undefined,
+                } as any);
               }}
             />
           ) : (

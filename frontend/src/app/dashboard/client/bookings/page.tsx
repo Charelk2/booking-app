@@ -192,6 +192,7 @@ export default function ClientBookingsPage() {
       openPaymentModal({
         bookingRequestId: res.data.booking_request_id ?? 0,
         amount: Number(res.data.total_price || 0),
+        customerEmail: (user as any)?.email || undefined,
       } as any);
     } catch (err) {
       console.error("Failed to load booking details for payment", err);
