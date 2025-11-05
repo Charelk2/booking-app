@@ -88,6 +88,15 @@ function BookingList({
                 View receipt
               </a>
             )}
+            <a
+              href={`/invoices/by-booking/${b.id}`}
+              target="_blank"
+              rel="noopener"
+              className="ml-3 mt-2 text-brand-dark hover:underline text-sm"
+              data-testid="booking-invoice-link"
+            >
+              View invoice
+            </a>
             <div className="flex justify-between text-xs text-gray-500 mt-2">
               {["Requested", "Confirmed", b.status === "cancelled" ? "Cancelled" : "Completed"].map((step, idx) => {
                 const activeIdx =
