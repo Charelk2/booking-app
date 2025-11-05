@@ -28,20 +28,18 @@ export default function usePaymentModal(
     setOpen(true);
   }, []);
 
-  const modal = args ? (
-    <PaymentModal
-      open={open}
-      bookingRequestId={args.bookingRequestId}
-      amount={args.amount}
-      providerName={args.providerName}
-      serviceName={args.serviceName}
-      onClose={() => {
+  const modal = args ? (() => {
+    const modalProps: any = {
+      open,
+      bookingRequestId: args.bookingRequestId,
+      amount: args.amount,
+      onClose: () => {
         // Unmount the modal to reset its internal state (Paystack URL/reference,
         // timers, errors). This prevents being "stuck" on re-open after closing.
         setOpen(false);
         setArgs(null);
-      }}
-      onSuccess={(result) => {
+      },
+      onSuccess: (result: PaymentSuccess) => {
         // Close and unmount so any inline/iframe state and polling are torn down
         setOpen(false);
         setArgs(null);
@@ -51,13 +49,18 @@ export default function usePaymentModal(
           }
         } catch {}
         onSuccess(result);
-      }}
-      onError={(msg) => {
+      },
+      onError: (msg: string) => {
         // Keep modal open so the user can see the error and retry
         onError(msg);
-      }}
-    />
-  ) : null;
+      }
+    };
+
+    if (args.providerName) modalProps.providerName = args.providerName;
+    if (args.serviceName) modalProps.serviceName = args.serviceName;
+
+    return <PaymentModal {...modalProps} />;
+  })() : null;
 
   return { openPaymentModal, paymentModal: modal };
 }

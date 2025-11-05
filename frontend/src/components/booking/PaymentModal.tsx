@@ -1,11 +1,32 @@
-// components/PaymentModal.tsx
+// components/booking/PaymentModal.tsx
+'use client';
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPayment, apiUrl } from '@/lib/api';
-import { BACKOFF_STEPS, verifyPaystack, safeSet, rcptKey, PAYSTACK_ENABLED } from '@/utils/payment';
+import { openPaystackInline } from '@/utils/paystackClient';
 
-type PaymentStatus = 'idle' | 'starting' | 'ready' | 'verifying' | 'verified' | 'error';
+// If you already created these in another file (from your previous code), keep using that.
+// Minimal in-file versions included here for completeness:
+const PAYSTACK_ENABLED = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
+const BACKOFF_STEPS = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000];
 
-interface PaymentSuccess {
+const rcptKey = (bookingRequestId: number) => `receipt_url:br:${bookingRequestId}`;
+const safeSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch {} };
+
+async function verifyPaystack(reference: string, bookingRequestId: number, signal?: AbortSignal) {
+  const url = apiUrl(`/api/v1/payments/paystack/verify?reference=${encodeURIComponent(reference)}`);
+  const resp = await fetch(url, { credentials: 'include', signal });
+  if (!resp.ok) return { ok: false as const };
+  const v = await resp.json();
+  const paymentId = v?.payment_id || reference;
+  const receiptUrl = apiUrl(`/api/v1/payments/${paymentId}/receipt`);
+  safeSet(rcptKey(bookingRequestId), receiptUrl);
+  return { ok: true as const, paymentId, receiptUrl };
+}
+
+type PaymentStatus = 'idle' | 'starting' | 'inline' | 'verifying' | 'ready-hosted' | 'error';
+
+export interface PaymentSuccess {
   status: string;
   amount: number;
   receiptUrl?: string;
@@ -18,10 +39,17 @@ interface PaymentModalProps {
   bookingRequestId: number;
   onSuccess: (result: PaymentSuccess) => void;
   onError: (msg: string) => void;
-  amount: number;
-  providerName?: string;
+  amount: number;                 // major units
   serviceName?: string;
+  /** Try inline popup first (recommended) */
+  preferInline?: boolean;
+  /** Customer email (Paystack requires it for inline). If missing, user can input. */
+  customerEmail?: string;
+  /** Currency code, defaults to NGN */
+  currency?: string;
+  /** Start checkout automatically when opened (default: true) */
   autoStart?: boolean;
+  /** Allow clicking backdrop to close (default: true) */
   dismissOnBackdrop?: boolean;
 }
 
@@ -45,13 +73,18 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   onError,
   amount,
   serviceName,
+  preferInline = true,
+  customerEmail,
+  currency = 'NGN',
   autoStart = true,
   dismissOnBackdrop = true,
 }) => {
   const [status, setStatus] = useState<PaymentStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+
   const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [paystackReference, setPaystackReference] = useState<string | null>(null);
+  const [email, setEmail] = useState(customerEmail || '');
 
   const modalRef = useRef<HTMLDivElement | null>(null);
   const startedRef = useRef(false);
@@ -66,7 +99,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     startedRef.current = false;
     verifyAbortRef.current?.abort();
     verifyAbortRef.current = null;
-  }, []);
+    setEmail(customerEmail || '');
+  }, [customerEmail]);
 
   const closeModal = useCallback(() => {
     resetState();
@@ -74,15 +108,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   }, [resetState, onClose]);
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (dismissOnBackdrop && e.target === e.currentTarget) {
-      closeModal();
-    }
+    if (dismissOnBackdrop && e.target === e.currentTarget) closeModal();
   };
 
   const handleCancel = () => {
     if (typeof window !== 'undefined') {
-      const confirm = window.confirm('Cancel and return? You can restart payment anytime.');
-      if (!confirm) return;
+      const confirmCancel = window.confirm('Cancel and return? You can restart payment anytime.');
+      if (!confirmCancel) return;
     }
     closeModal();
   };
@@ -100,11 +132,51 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     onError(msg);
   };
 
+  const startVerifyLoop = useCallback(
+    async (reference: string) => {
+      verifyAbortRef.current?.abort();
+      const ac = new AbortController();
+      verifyAbortRef.current = ac;
+
+      setStatus('verifying');
+
+      // immediate try
+      try {
+        const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
+        if (out.ok) {
+          finishSuccess({ status: 'paid', amount, paymentId: out.paymentId, receiptUrl: out.receiptUrl });
+          return;
+        }
+      } catch {}
+
+      for (const delay of BACKOFF_STEPS) {
+        if (ac.signal.aborted) return;
+        await new Promise(r => setTimeout(r, delay));
+        try {
+          const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
+          if (out.ok) {
+            finishSuccess({ status: 'paid', amount, paymentId: out.paymentId, receiptUrl: out.receiptUrl });
+            return;
+          }
+        } catch {}
+      }
+
+      if (isMounted.current) {
+        setStatus('error');
+        setError('Still waiting for payment confirmation… If you’ve completed checkout, this will update shortly.');
+      }
+    },
+    [amount, bookingRequestId, finishSuccess]
+  );
+
+  /** Attempt inline checkout, or fall back to hosted URL */
   const startPayment = useCallback(async () => {
-    if (status === 'starting' || status === 'verifying') return;
+    if (status === 'starting' || status === 'inline' || status === 'verifying') return;
 
     setStatus('starting');
     setError(null);
+    setPaystackUrl(null);
+    setPaystackReference(null);
 
     if (!PAYSTACK_ENABLED) {
       finishError('Paystack is not enabled.');
@@ -112,6 +184,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     try {
+      // 1) Ask backend to initiate a transaction (get reference + authorization_url)
       const res = await createPayment({
         booking_request_id: bookingRequestId,
         amount: Number(amount),
@@ -119,55 +192,55 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       });
 
       const data = res?.data || {};
-      const reference = String(data?.reference || data?.payment_id || '').trim();
-      const authorizationUrl = data?.authorization_url || data?.authorizationUrl;
+      const reference: string = String(data?.reference || data?.payment_id || '').trim();
+      const authorizationUrl: string | undefined = data?.authorization_url || data?.authorizationUrl;
 
-      if (!reference) throw new Error('Missing payment reference');
+      if (!reference) throw new Error('Payment reference missing');
 
+      // If backend already marked it paid
       if (!authorizationUrl) {
-        const paymentId = data?.payment_id || data?.id;
-        if (!paymentId) throw new Error('No authorization URL or payment ID');
-        const receiptUrl = apiUrl(`/api/v1/payments/${paymentId}/receipt`);
-        safeSet(rcptKey(bookingRequestId), receiptUrl);
-        finishSuccess({ status: 'paid', amount, paymentId, receiptUrl });
+        const paymentId: string | undefined = data?.payment_id || data?.id || reference;
+        const receiptUrl = paymentId ? apiUrl(`/api/v1/payments/${paymentId}/receipt`) : undefined;
+        if (receiptUrl) safeSet(rcptKey(bookingRequestId), receiptUrl);
+        finishSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl });
         return;
       }
 
       setPaystackReference(reference);
-      setPaystackUrl(authorizationUrl);
-      setStatus('ready');
 
-      verifyAbortRef.current?.abort();
-      const ac = new AbortController();
-      verifyAbortRef.current = ac;
-
-      setStatus('verifying');
-
-      let verified = false;
-
-      const attemptVerify = async () => {
+      // 2) Inline-first path if we have an email (Paystack requires email for inline)
+      if (preferInline && (email && /\S+@\S+\.\S+/.test(email))) {
         try {
-          const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
-          if (out.ok) {
-            verified = true;
-            finishSuccess({ status: 'paid', amount, paymentId: out.paymentId, receiptUrl: out.receiptUrl });
-          }
+          setStatus('inline');
+          await openPaystackInline({
+            email,
+            amountMajor: Number(amount),
+            currency,
+            reference,
+            // enable common channels for a better UX (optional)
+            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
+            metadata: { bookingRequestId, serviceName, source: 'web_inline' },
+            onSuccess: (ref) => {
+              // Inline callback just returns the reference; actual confirmation via backend verify
+              startVerifyLoop(ref);
+            },
+            onClose: () => {
+              // user closed inline; allow retry or switch to hosted
+              // keep modal open; show an option to open hosted
+              setStatus('ready-hosted');
+              setPaystackUrl(authorizationUrl);
+            },
+          });
+          // If it opened, status is handled by callback/onClose above.
+          return;
         } catch {
-          // ignored
+          // Inline failed (script blocked, key missing, popup blocked, etc.) -> fallback
         }
-      };
-
-      await attemptVerify();
-      for (const delay of BACKOFF_STEPS) {
-        if (verified || ac.signal.aborted) return;
-        await new Promise((r) => setTimeout(r, delay));
-        await attemptVerify();
       }
 
-      if (!verified) {
-        setStatus('error');
-        setError('Still waiting for payment confirmation… If you’ve completed checkout, this will update shortly.');
-      }
+      // 3) Hosted fallback (iframe)
+      setPaystackUrl(authorizationUrl);
+      setStatus('ready-hosted');
     } catch (err: any) {
       const statusCode = Number(err?.response?.status || 0);
       let msg = 'Payment failed. Please try again.';
@@ -176,8 +249,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       else if (statusCode === 422) msg = 'Invalid payment attempt. Refresh and try again.';
       finishError(msg);
     }
-  }, [status, amount, bookingRequestId, finishSuccess, finishError]);
+  }, [status, amount, bookingRequestId, preferInline, email, currency, serviceName]);
 
+  // Mount/unmount
   useEffect(() => {
     isMounted.current = true;
     return () => {
@@ -187,17 +261,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (!open) {
-      resetState();
-      return;
-    }
-    if (!autoStart || startedRef.current) return;
-    startedRef.current = true;
-    startPayment();
-  }, [open, autoStart, startPayment, resetState]);
-
-  // Trap focus + ESC
+  // Focus trap + ESC
   useEffect(() => {
     if (!open || !modalRef.current) return;
     const modal = modalRef.current;
@@ -229,16 +293,34 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
+  // Auto-start
+  useEffect(() => {
+    if (!open) {
+      resetState();
+      return;
+    }
+    if (!autoStart || startedRef.current) return;
+    startedRef.current = true;
+    startPayment().catch(() => {
+      setStatus('error');
+      setPaystackUrl(null);
+      setPaystackReference(null);
+      setError('Could not start payment. Please try again.');
+    });
+  }, [open, autoStart, startPayment, resetState]);
+
   if (!open) return null;
 
   const loading = status === 'starting' || status === 'verifying';
+  const showBanner = loading || !!error;
 
   return (
     <div
       className="fixed inset-0 z-[999999909] bg-black/40 flex items-center justify-center overflow-y-auto"
       onMouseDown={handleBackdropClick}
-      role="dialog"
+      aria-labelledby="payment-modal-title"
       aria-modal="true"
+      role="dialog"
     >
       <div
         ref={modalRef}
@@ -246,7 +328,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">Secure Checkout</h2>
+          <h2 id="payment-modal-title" className="text-lg font-semibold text-gray-900">
+            Secure Checkout
+          </h2>
           {serviceName && (
             <div className="mt-1 text-sm text-gray-700 flex items-center justify-between">
               <span>Service</span>
@@ -255,18 +339,56 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           )}
         </header>
 
-        {(loading || error) && (
-          <div className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm" role="status">
-            {loading && <span>{status === 'starting' ? 'Opening secure checkout…' : 'Verifying payment…'}</span>}
+        {/* Inline requires email — show lightweight input if missing */}
+        {preferInline && !customerEmail && (
+          <div className="mb-3">
+            <label className="block text-sm text-gray-700 mb-1">Email for receipt</label>
+            <input
+              type="email"
+              autoComplete="email"
+              className="w-full rounded-md border px-3 py-2 text-sm"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading || status === 'inline'}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Used for Paystack inline checkout. We’ll never share it.
+            </p>
+          </div>
+        )}
+
+        {showBanner && (
+          <div className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm" role="status" aria-live="polite">
+            {status === 'starting' && <span>Opening secure checkout…</span>}
+            {status === 'inline' && <span>Waiting for Paystack popup…</span>}
+            {status === 'verifying' && <span>Verifying payment…</span>}
             {status === 'error' && error && <span className="text-red-600">{error}</span>}
           </div>
         )}
 
-        {paystackUrl ? (
-          <CheckoutFrame src={paystackUrl} />
-        ) : (
+        {/* Hosted fallback UI */}
+        {status === 'ready-hosted' && paystackUrl && (
+          <>
+            <CheckoutFrame src={paystackUrl} />
+            <div className="mt-2 text-xs text-gray-500">
+              Having trouble?{' '}
+              <a
+                href={paystackUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-blue-600 hover:text-blue-800"
+              >
+                Open checkout in a new tab
+              </a>
+            </div>
+          </>
+        )}
+
+        {/* Idle message */}
+        {!loading && !error && !paystackUrl && status !== 'inline' && (
           <div className="text-sm text-gray-600">
-            {!loading && !error && <p>Preparing checkout… If nothing happens, try again.</p>}
+            <p>Preparing checkout… If nothing happens, try again.</p>
           </div>
         )}
 
@@ -282,7 +404,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             <button
               type="button"
               onClick={startPayment}
-              disabled={loading}
+              disabled={loading || (preferInline && !email)}
               className="px-3 py-2 rounded-md bg-black text-white text-sm font-semibold disabled:opacity-60"
             >
               {loading ? 'Starting…' : 'Pay Now'}
