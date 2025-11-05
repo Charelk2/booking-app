@@ -18,13 +18,13 @@ function getInitials(name: string): string {
 }
 
 interface NotificationCardProps {
-  /** Status type controls icon colour */
+  /** Status type controls the icon colour*/
   type: 'confirmed' | 'reminder' | 'due' | string;
-  /** Sender or source name */
+  /** Sender or the source name */
   from: string;
-  /** ISO timestamp */
+  /** the ISO timestamp */
   createdAt: string | number | Date;
-  /** If true, show brand-coloured strip */
+  /** If true, then show brand-coloured strip */
   unread: boolean;
   onClick: () => void;
   avatarUrl?: string | null;
