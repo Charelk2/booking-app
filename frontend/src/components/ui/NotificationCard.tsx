@@ -18,7 +18,7 @@ function getInitials(name: string): string {
 }
 
 interface NotificationCardProps {
-  /** Status type controls the icon colour*/
+  /** Status type controls icon colour*/
   type: 'confirmed' | 'reminder' | 'due' | string;
   /** Sender or the source name */
   from: string;
