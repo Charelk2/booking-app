@@ -1879,17 +1879,28 @@ def list_ledger(request: Request, _: Tuple[User, AdminUser] = Depends(require_ro
 @router.get("/payouts")
 def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_roles("payments", "admin", "superadmin")), db: Session = Depends(get_db)):
     offset, limit, start, end = _get_offset_limit(request.query_params)
-    rows = db.execute(text("SELECT id, provider_id, amount, currency, status, batch_id, created_at FROM payouts ORDER BY created_at DESC LIMIT :lim OFFSET :off"), {"lim": limit, "off": offset}).fetchall()
+    rows = db.execute(text("""
+        SELECT id, booking_id, provider_id, amount, currency, status, type, scheduled_at, paid_at, method, reference, batch_id, created_at
+        FROM payouts
+        ORDER BY created_at DESC
+        LIMIT :lim OFFSET :off
+    """), {"lim": limit, "off": offset}).fetchall()
     total = db.execute(text("SELECT COUNT(*) FROM payouts")).scalar() or 0
     items = [
         {
             "id": str(r[0]),
-            "provider_id": str(r[1]) if r[1] is not None else None,
-            "amount": float(r[2] or 0),
-            "currency": r[3] or "ZAR",
-            "status": r[4] or "queued",
-            "batch_id": r[5],
-            "created_at": r[6],
+            "booking_id": str(r[1]) if r[1] is not None else None,
+            "provider_id": str(r[2]) if r[2] is not None else None,
+            "amount": float(r[3] or 0),
+            "currency": r[4] or "ZAR",
+            "status": r[5] or "queued",
+            "type": r[6],
+            "scheduled_at": r[7],
+            "paid_at": r[8],
+            "method": r[9],
+            "reference": r[10],
+            "batch_id": r[11],
+            "created_at": r[12],
         }
         for r in rows
     ]
@@ -1903,7 +1914,7 @@ def create_payout_batch(payload: Dict[str, Any], current: Tuple[User, AdminUser]
         raise HTTPException(status_code=400, detail="bookingIds required")
     import uuid, json
     batch_id = f"pb_{uuid.uuid4().hex[:10]}"
-    # Naive computation: 80% to provider if charged_total_amount exists else 0
+    # Naive computation: 80% to provider if charged_total_amount exists else 0 (legacy stub)
     created = 0
     for bid in booking_ids:
         try:
@@ -1918,6 +1929,54 @@ def create_payout_batch(payload: Dict[str, Any], current: Tuple[User, AdminUser]
     db.commit()
     _audit(db, current[1].id, "payout_batch", batch_id, "create", {"bookingIds": booking_ids}, {"created": created})
     return {"status": "queued", "batch_id": batch_id, "created": created}
+
+
+@router.post("/payouts/{payout_id}/mark-paid")
+def mark_payout_paid(
+    payout_id: int,
+    payload: Dict[str, Any],
+    current: Tuple[User, AdminUser] = Depends(require_roles("payments", "admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    """Mark a payout as paid (manual disbursement).
+
+    Sets status=paid, paid_at=now, and records method/reference when provided.
+    Also appends a ledger entry provider_payout_out for reconciliation.
+    """
+    method = (payload.get("method") or "manual").strip()
+    reference = (payload.get("reference") or "").strip()
+    # Fetch row
+    row = db.execute(text("SELECT booking_id, amount, currency, status FROM payouts WHERE id=:id"), {"id": payout_id}).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Payout not found")
+    booking_id = int(row[0]) if row[0] is not None else None
+    amount = float(row[1] or 0)
+    currency = row[2] or "ZAR"
+    status_cur = (row[3] or "").lower()
+    if status_cur == "paid":
+        return {"status": "already_paid"}
+    # Update payout
+    try:
+        db.execute(
+            text("UPDATE payouts SET status='paid', paid_at=:ts, method=:m, reference=:r WHERE id=:id"),
+            {"ts": datetime.utcnow(), "m": method, "r": reference, "id": payout_id},
+        )
+        # Ledger entry (best-effort)
+        if booking_id is not None:
+            try:
+                db.execute(
+                    text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_payout_out', :amt, :cur, :meta)"),
+                    {"bid": booking_id, "amt": amount, "cur": currency, "meta": json.dumps({"method": method, "reference": reference})},
+                )
+            except Exception:
+                pass
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Update failed")
+    # Audit
+    _audit(db, current[1].id, "payout", str(payout_id), "mark_paid", {"method": method, "reference": reference}, {"status": "paid"})
+    return {"status": "paid", "payout_id": str(payout_id)}
 
 
 @router.get("/disputes")

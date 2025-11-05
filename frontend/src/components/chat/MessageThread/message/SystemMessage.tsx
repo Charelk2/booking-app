@@ -2,6 +2,7 @@
 import * as React from 'react';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { apiUrl } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { t } from '@/lib/i18n';
 
 type SystemMessageProps = {
@@ -20,6 +21,7 @@ const urlRegex = /(https?:\/\/[^\s]+|\/[^\s]+)/i;
 
 export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQuote = false }: SystemMessageProps) {
   try {
+    const { user } = useAuth() || {} as any;
     const key = String((msg?.system_key || msg?.action || '')).toLowerCase();
     const content = String(msg?.content || '');
     const lower = content.toLowerCase();
@@ -95,15 +97,24 @@ export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQ
       const abs = content.match(absUrlRegex)?.[1] || null;
       const rel = abs ? null : (content.match(relUrlRegex)?.[1] || null);
       const receiptUrl = abs || (rel ? apiUrl(rel) : null);
+      const isProvider = (user?.user_type || '').toLowerCase() === 'service_provider';
       return (
         <div className="my-2 w-full flex justify-center">
           <div className="text-[12px] text-gray-700 bg-green-50 border border-green-200 px-2 py-1 rounded">
             {t('system.paymentReceived', 'Payment received. Your booking is confirmed.')}
-            {receiptUrl ? (
+            {!isProvider && receiptUrl ? (
               <>
                 {' '}
                 <a href={receiptUrl} target="_blank" rel="noreferrer" className="underline text-green-700">
                   {t('system.viewReceipt', 'View receipt')}
+                </a>
+              </>
+            ) : null}
+            {isProvider ? (
+              <>
+                {' '}
+                <a href={'/dashboard/artist'} className="underline text-green-700">
+                  {t('system.viewPayoutDetails', 'View payout details')}
                 </a>
               </>
             ) : null}

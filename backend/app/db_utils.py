@@ -313,11 +313,18 @@ def ensure_payout_tables(engine: Engine) -> None:
             sql = """
                 CREATE TABLE IF NOT EXISTS payouts (
                   id INTEGER PRIMARY KEY,
+                  booking_id INTEGER,
                   provider_id INTEGER,
                   amount NUMERIC(10,2) NOT NULL DEFAULT 0,
                   currency VARCHAR(3) NOT NULL DEFAULT 'ZAR',
                   status VARCHAR NOT NULL DEFAULT 'queued',
+                  type VARCHAR,
+                  scheduled_at DATETIME,
+                  paid_at DATETIME,
+                  method VARCHAR,
+                  reference VARCHAR,
                   batch_id VARCHAR,
+                  meta JSON,
                   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """
@@ -327,6 +334,14 @@ def ensure_payout_tables(engine: Engine) -> None:
             conn.execute(text(sql))
             conn.commit()
     ensure_identity_pk(engine, "payouts", "id")
+    # Ensure columns in case the table existed with an older shape
+    add_column_if_missing(engine, "payouts", "booking_id", "booking_id INTEGER")
+    add_column_if_missing(engine, "payouts", "type", "type VARCHAR")
+    add_column_if_missing(engine, "payouts", "scheduled_at", "scheduled_at DATETIME")
+    add_column_if_missing(engine, "payouts", "paid_at", "paid_at DATETIME")
+    add_column_if_missing(engine, "payouts", "method", "method VARCHAR")
+    add_column_if_missing(engine, "payouts", "reference", "reference VARCHAR")
+    add_column_if_missing(engine, "payouts", "meta", "meta JSON")
 
 
 def ensure_dispute_table(engine: Engine) -> None:

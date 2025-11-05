@@ -41,6 +41,7 @@ import hashlib
 import json
 from sqlalchemy import text
 from ..utils.metrics import incr as metrics_incr, timing_ms as metrics_timing
+from datetime import datetime as _dt
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,109 @@ def _message_to_envelope(db: Session, msg: models.Message) -> dict:
     except Exception:
         data.setdefault("avatar_url", None)
     return data
+
+
+def _compute_final_payout_schedule(db: Session, simple: models.BookingSimple) -> _dt:
+    """Return the next business-day datetime after the event for final payouts.
+
+    Fallback hierarchy for event time: Booking.end_time -> Booking.start_time -> BookingSimple.date -> now.
+    Weekends are skipped; holidays are not modeled here.
+    """
+    when = None
+    try:
+        booking = db.query(models.Booking).filter(models.Booking.quote_id == simple.quote_id).first()
+        if booking and getattr(booking, "end_time", None):
+            when = booking.end_time
+        elif booking and getattr(booking, "start_time", None):
+            when = booking.start_time
+    except Exception:
+        when = None
+    if when is None:
+        try:
+            when = getattr(simple, "date", None)
+        except Exception:
+            when = None
+    if when is None:
+        when = _dt.utcnow()
+    # Next business day at 09:00 UTC
+    d = when + timedelta(days=1)
+    while d.weekday() >= 5:  # 5=Sat, 6=Sun
+        d = d + timedelta(days=1)
+    return d.replace(hour=9, minute=0, second=0, microsecond=0)
+
+
+def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount: Decimal, reference: str, phase: str) -> None:
+    """Create first50 and final50 payout rows if missing (manual payout flow).
+
+    - first50 scheduled now; final50 next business day after event.
+    - Idempotent per (booking_id, type).
+    """
+    try:
+        from decimal import ROUND_HALF_UP
+        half1 = (total_amount / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        half2 = (total_amount - half1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    except Exception:
+        half1 = total_amount
+        half2 = Decimal('0')
+
+    # Query existing for idempotency
+    try:
+        rows = db.execute(
+            text(
+                "SELECT type FROM payouts WHERE booking_id=:bid AND type IN ('first50','final50')"
+            ),
+            {"bid": int(simple.id)},
+        ).fetchall()
+        have = {str(r[0]) for r in rows}
+    except Exception:
+        have = set()
+
+    now = _dt.utcnow()
+    # Insert first50 if missing
+    if 'first50' not in have:
+        try:
+            db.execute(
+                text(
+                    """
+                    INSERT INTO payouts (booking_id, provider_id, amount, currency, status, type, scheduled_at, batch_id, reference, meta)
+                    VALUES (:bid, :pid, :amt, 'ZAR', 'queued', 'first50', :sched, NULL, :ref, :meta)
+                    """
+                ),
+                {
+                    "bid": int(simple.id),
+                    "pid": int(simple.artist_id),
+                    "amt": float(half1),
+                    "sched": now,
+                    "ref": reference,
+                    "meta": json.dumps({"phase": phase, "split": "first50"}),
+                },
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+    # Insert final50 if missing
+    if 'final50' not in have and half2 > Decimal('0'):
+        sched = _compute_final_payout_schedule(db, simple)
+        try:
+            db.execute(
+                text(
+                    """
+                    INSERT INTO payouts (booking_id, provider_id, amount, currency, status, type, scheduled_at, batch_id, reference, meta)
+                    VALUES (:bid, :pid, :amt, 'ZAR', 'queued', 'final50', :sched, NULL, :ref, :meta)
+                    """
+                ),
+                {
+                    "bid": int(simple.id),
+                    "pid": int(simple.artist_id),
+                    "amt": float(half2),
+                    "sched": sched,
+                    "ref": reference,
+                    "meta": json.dumps({"phase": phase, "split": "final50"}),
+                },
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
 
 try:
     # Import the WebSocket manager to broadcast new messages to thread topics
@@ -526,6 +630,12 @@ def paystack_verify(
         db.commit()
     except Exception:
         db.rollback()
+    # Ensure payout rows exist (manual payout flow)
+    try:
+        _ensure_payout_rows(db, simple, amount, reference, phase="verify")
+    except Exception:
+        # Non-blocking
+        pass
     # Metrics (best-effort)
     try:
         dt = (time.perf_counter() - t_start_verify) * 1000.0
@@ -761,6 +871,11 @@ async def paystack_webhook(
         db.commit()
     except Exception:
         db.rollback()
+    # Ensure payout rows exist (manual payout flow)
+    try:
+        _ensure_payout_rows(db, simple, amount, reference, phase="webhook")
+    except Exception:
+        pass
     # Metrics (best-effort)
     try:
         dt = (time.perf_counter() - t_start_webhook) * 1000.0

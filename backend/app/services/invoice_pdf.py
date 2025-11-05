@@ -200,8 +200,10 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
         totals_rows.append([Paragraph("Discount", styles["NormalSmall"]), Paragraph("- " + _zar(discount or 0), styles["NormalSmall"])])
     if total is not None:
         totals_rows.append([Paragraph("Total", styles["Strong"]), Paragraph(_zar(total), styles["Strong"])])
+    # Display rule: show Amount Due as ZAR 0.00 for paid invoices (visual only)
+    display_due = 0.0 if str(status).lower() == "paid" or str(status_text).upper() == "PAID" else amount_due
     if amount_due is not None:
-        totals_rows.append([Paragraph("Amount Due", styles["Strong"]), Paragraph(_zar(amount_due), styles["Strong"])])
+        totals_rows.append([Paragraph("Amount Due", styles["Strong"]), Paragraph(_zar(display_due), styles["Strong"])])
     if totals_rows:
         totals_tbl = Table(totals_rows, colWidths=[doc.width*0.65, doc.width*0.35])
         totals_tbl.setStyle(TableStyle([("ALIGN", (1,0), (1,-1), "RIGHT"), ("TOPPADDING", (0,0), (-1,-1), 2), ("BOTTOMPADDING", (0,0), (-1,-1), 2)]))
