@@ -5,8 +5,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPayment, apiUrl } from '@/lib/api';
 import { openPaystackInline } from '@/utils/paystackClient';
 
-// If you already created these in another file (from your previous code), keep using that.
-// Minimal in-file versions included here for completeness:
+// Minimal inline constants (or import from your utils if you already extracted them)
 const PAYSTACK_ENABLED = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
 const BACKOFF_STEPS = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000];
 
@@ -40,10 +39,10 @@ interface PaymentModalProps {
   onSuccess: (result: PaymentSuccess) => void;
   onError: (msg: string) => void;
   amount: number;                 // major units
-  serviceName?: string;
+  serviceName?: string;           // (still supported; just not displayed)
   /** Try inline popup first (recommended) */
   preferInline?: boolean;
-  /** Customer email (Paystack requires it for inline). If missing, user can input. */
+  /** Customer email (required by Paystack inline). If missing, we immediately fall back to hosted. */
   customerEmail?: string;
   /** Currency code, defaults to NGN */
   currency?: string;
@@ -72,7 +71,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   onSuccess,
   onError,
   amount,
-  serviceName,
+  // serviceName is accepted but no longer displayed in the header
+  serviceName: _unusedServiceName,
   preferInline = true,
   customerEmail,
   currency = 'NGN',
@@ -84,7 +84,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [paystackReference, setPaystackReference] = useState<string | null>(null);
-  const [email, setEmail] = useState(customerEmail || '');
 
   const modalRef = useRef<HTMLDivElement | null>(null);
   const startedRef = useRef(false);
@@ -99,8 +98,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     startedRef.current = false;
     verifyAbortRef.current?.abort();
     verifyAbortRef.current = null;
-    setEmail(customerEmail || '');
-  }, [customerEmail]);
+  }, []);
 
   const closeModal = useCallback(() => {
     resetState();
@@ -169,7 +167,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     [amount, bookingRequestId, finishSuccess]
   );
 
-  /** Attempt inline checkout, or fall back to hosted URL */
+  /** Inline-first (if email provided), otherwise hosted — opens immediately on mount when autoStart */
   const startPayment = useCallback(async () => {
     if (status === 'starting' || status === 'inline' || status === 'verifying') return;
 
@@ -184,7 +182,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     try {
-      // 1) Ask backend to initiate a transaction (get reference + authorization_url)
+      // 1) Ask backend to initiate a transaction (reference + authorization_url)
       const res = await createPayment({
         booking_request_id: bookingRequestId,
         amount: Number(amount),
@@ -208,37 +206,34 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       setPaystackReference(reference);
 
-      // 2) Inline-first path if we have an email (Paystack requires email for inline)
-      if (preferInline && (email && /\S+@\S+\.\S+/.test(email))) {
+      // 2) Inline-first if we have a valid customerEmail, otherwise hosted immediately
+      const hasEmail = Boolean(customerEmail && /\S+@\S+\.\S+/.test(customerEmail));
+      if (preferInline && hasEmail) {
         try {
           setStatus('inline');
           await openPaystackInline({
-            email,
+            email: customerEmail!, // safe due to hasEmail
             amountMajor: Number(amount),
             currency,
             reference,
-            // enable common channels for a better UX (optional)
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
-            metadata: { bookingRequestId, serviceName, source: 'web_inline' },
+            metadata: { bookingRequestId, source: 'web_inline' },
             onSuccess: (ref) => {
-              // Inline callback just returns the reference; actual confirmation via backend verify
               startVerifyLoop(ref);
             },
             onClose: () => {
-              // user closed inline; allow retry or switch to hosted
-              // keep modal open; show an option to open hosted
+              // user closed inline; fall back to hosted checkout instantly
               setStatus('ready-hosted');
               setPaystackUrl(authorizationUrl);
             },
           });
-          // If it opened, status is handled by callback/onClose above.
           return;
         } catch {
-          // Inline failed (script blocked, key missing, popup blocked, etc.) -> fallback
+          // Inline failed (script blocked, etc.) -> use hosted immediately
         }
       }
 
-      // 3) Hosted fallback (iframe)
+      // 3) Hosted fallback (iframe) — open instantly
       setPaystackUrl(authorizationUrl);
       setStatus('ready-hosted');
     } catch (err: any) {
@@ -249,7 +244,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       else if (statusCode === 422) msg = 'Invalid payment attempt. Refresh and try again.';
       finishError(msg);
     }
-  }, [status, amount, bookingRequestId, preferInline, email, currency, serviceName]);
+  }, [status, amount, bookingRequestId, preferInline, customerEmail, currency]);
 
   // Mount/unmount
   useEffect(() => {
@@ -293,7 +288,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
-  // Auto-start
+  // Auto-start (open immediately)
   useEffect(() => {
     if (!open) {
       resetState();
@@ -318,7 +313,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     <div
       className="fixed inset-0 z-[999999909] bg-black/40 flex items-center justify-center overflow-y-auto"
       onMouseDown={handleBackdropClick}
-      aria-labelledby="payment-modal-title"
       aria-modal="true"
       role="dialog"
     >
@@ -327,36 +321,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         className="bg-white rounded-xl shadow-xl w-full max-w-sm p-4 mx-2 max-h-[90vh] overflow-y-auto outline-none"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <header className="mb-3">
-          <h2 id="payment-modal-title" className="text-lg font-semibold text-gray-900">
-            Secure Checkout
-          </h2>
-          {serviceName && (
-            <div className="mt-1 text-sm text-gray-700 flex items-center justify-between">
-              <span>Service</span>
-              <span className="text-gray-900 font-medium">{serviceName}</span>
-            </div>
-          )}
-        </header>
-
-        {/* Inline requires email — show lightweight input if missing */}
-        {preferInline && !customerEmail && (
-          <div className="mb-3">
-            <label className="block text-sm text-gray-700 mb-1">Email for receipt</label>
-            <input
-              type="email"
-              autoComplete="email"
-              className="w-full rounded-md border px-3 py-2 text-sm"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading || status === 'inline'}
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Used for Paystack inline checkout. We’ll never share it.
-            </p>
-          </div>
-        )}
+        {/* Removed header and email UI as requested */}
 
         {showBanner && (
           <div className="mb-3 rounded-md bg-gray-50 px-3 py-2 text-sm" role="status" aria-live="polite">
@@ -385,10 +350,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           </>
         )}
 
-        {/* Idle message */}
+        {/* Idle placeholder (briefly shown if anything is async) */}
         {!loading && !error && !paystackUrl && status !== 'inline' && (
           <div className="text-sm text-gray-600">
-            <p>Preparing checkout… If nothing happens, try again.</p>
+            <p>Preparing checkout…</p>
           </div>
         )}
 
@@ -400,11 +365,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           >
             Cancel
           </button>
+          {/* No manual "Pay Now" needed when autoStart=true, but keep for flexibility */}
           {!autoStart && (
             <button
               type="button"
               onClick={startPayment}
-              disabled={loading || (preferInline && !email)}
+              disabled={loading}
               className="px-3 py-2 rounded-md bg-black text-white text-sm font-semibold disabled:opacity-60"
             >
               {loading ? 'Starting…' : 'Pay Now'}
