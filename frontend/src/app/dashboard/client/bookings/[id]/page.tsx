@@ -102,7 +102,7 @@ export default function BookingDetailsPage() {
         {booking.payment_id && (
           <p>
             <a
-              href={`/api/v1/payments/${booking.payment_id}/receipt`}
+              href={`/receipts/${booking.payment_id}`}
               target="_blank"
               rel="noopener"
               className="text-brand-dark underline text-sm"

@@ -17,7 +17,7 @@ async function verifyPaystack(reference: string, bookingRequestId: number, signa
   if (!resp.ok) return { ok: false as const };
   const v = await resp.json();
   const paymentId = v?.payment_id || reference;
-  const receiptUrl = apiUrl(`/api/v1/payments/${paymentId}/receipt`);
+  const receiptUrl = `/receipts/${paymentId}`;
   safeSet(rcptKey(bookingRequestId), receiptUrl);
   return { ok: true as const, paymentId, receiptUrl };
 }
@@ -185,7 +185,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       // Already paid?
       if (!authorizationUrl) {
         const paymentId: string | undefined = data?.payment_id || data?.id || reference;
-        const receiptUrl = paymentId ? apiUrl(`/api/v1/payments/${paymentId}/receipt`) : undefined;
+        const receiptUrl = paymentId ? `/receipts/${paymentId}` : undefined;
         if (receiptUrl) safeSet(rcptKey(bookingRequestId), receiptUrl);
         finishSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl });
         return;

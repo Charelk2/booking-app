@@ -15,6 +15,7 @@ import time
 from .. import crud
 from .. import schemas, models
 from ..crud import crud_quote_v2
+from ..crud import crud_invoice
 from ..crud import crud_message
 from ..models import (
     User,
@@ -30,6 +31,7 @@ from ..models import (
 from .dependencies import get_db, get_current_active_client, get_current_service_provider
 from ..database import SessionLocal
 from ..core.config import settings
+from ..core.config import FRONTEND_PRIMARY
 from ..utils import error_response
 from ..utils.outbox import enqueue_outbox
 import hmac
@@ -378,9 +380,27 @@ def paystack_verify(
     db.commit()
     db.refresh(simple)
 
+    # Ensure an invoice exists for this booking and mark it paid (best-effort)
+    try:
+        qv2_for_invoice = db.query(QuoteV2).filter(QuoteV2.id == simple.quote_id).first()
+        inv = crud_invoice.ensure_invoice_for_booking(db, qv2_for_invoice, simple)
+        if inv is not None:
+            try:
+                status_val = getattr(inv, "status", None)
+                is_paid = str(getattr(status_val, "value", status_val) or "").lower() == "paid"
+            except Exception:
+                is_paid = False
+            if not is_paid:
+                crud_invoice.mark_paid(db, inv, payment_method="paystack", notes=f"ref {reference}")
+    except Exception:
+        # Do not block verify path on invoice sync failures
+        pass
+
     if br:
         try:
-            receipt_suffix = f" Receipt: /api/v1/payments/{simple.payment_id}/receipt" if simple.payment_id else ""
+            # Prefer friendly frontend URL for receipts
+            receipt_url = f"{FRONTEND_PRIMARY}/receipts/{simple.payment_id}" if simple.payment_id else None
+            receipt_suffix = f" Receipt: {receipt_url}" if receipt_url else ""
             syskey = f"payment_received:{simple.payment_id}" if simple.payment_id else "payment_received"
             # Idempotency: skip if this payment message already exists
             existing = (
@@ -463,6 +483,19 @@ def paystack_verify(
     # Record ledger capture
     try:
         db.execute(text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"), {"bid": simple.id, "amt": float(amount), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify"})})
+        # Provider split (50/50): immediate and held portions recorded as escrow entries
+        try:
+            half = float((amount or Decimal("0")) / Decimal("2"))
+        except Exception:
+            half = float(0)
+        db.execute(
+            text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_in', :amt, 'ZAR', :meta)"),
+            {"bid": simple.id, "amt": half, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify", "split": "first50"})},
+        )
+        db.execute(
+            text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_hold', :amt, 'ZAR', :meta)"),
+            {"bid": simple.id, "amt": half, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify", "split": "held50"})},
+        )
         db.commit()
     except Exception:
         db.rollback()
@@ -567,7 +600,8 @@ async def paystack_webhook(
 
     if br:
         try:
-            receipt_suffix = f" Receipt: /api/v1/payments/{simple.payment_id}/receipt" if simple.payment_id else ""
+            receipt_url = f"{FRONTEND_PRIMARY}/receipts/{simple.payment_id}" if simple.payment_id else None
+            receipt_suffix = f" Receipt: {receipt_url}" if receipt_url else ""
             syskey = f"payment_received:{simple.payment_id}" if simple.payment_id else "payment_received"
             existing = (
                 db.query(models.Message)
@@ -644,9 +678,37 @@ async def paystack_webhook(
         except Exception:
             pass
 
+    # Ensure an invoice exists and mark paid (best-effort)
+    try:
+        qv2_for_invoice = db.query(QuoteV2).filter(QuoteV2.id == simple.quote_id).first()
+        inv = crud_invoice.ensure_invoice_for_booking(db, qv2_for_invoice, simple)
+        if inv is not None:
+            try:
+                status_val = getattr(inv, "status", None)
+                is_paid = str(getattr(status_val, "value", status_val) or "").lower() == "paid"
+            except Exception:
+                is_paid = False
+            if not is_paid:
+                crud_invoice.mark_paid(db, inv, payment_method="paystack", notes=f"ref {reference}")
+    except Exception:
+        pass
+
     # Record ledger capture
     try:
         db.execute(text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"), {"bid": simple.id, "amt": float(amount), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook"})})
+        # Provider split (50/50): immediate and held portions recorded as escrow entries
+        try:
+            half = float((amount or Decimal("0")) / Decimal("2"))
+        except Exception:
+            half = float(0)
+        db.execute(
+            text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_in', :amt, 'ZAR', :meta)"),
+            {"bid": simple.id, "amt": half, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook", "split": "first50"})},
+        )
+        db.execute(
+            text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_hold', :amt, 'ZAR', :meta)"),
+            {"bid": simple.id, "amt": half, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook", "split": "held50"})},
+        )
         db.commit()
     except Exception:
         db.rollback()
@@ -767,47 +829,80 @@ def capture_artist_hold(
 
 
 RECEIPT_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "receipts")
+os.makedirs(RECEIPT_DIR, exist_ok=True)
 
 
 @router.get("/{payment_id}/receipt")
-def get_payment_receipt(payment_id: str, db: Session = Depends(get_db)):
+def get_payment_receipt(
+    payment_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_client),
+):
     """Return the receipt PDF for the given payment id.
 
-    If a static PDF does not exist (e.g., in mock/test environments), serve a simple
-    HTML receipt so the user still gets a believable document.
+    Auth: only the paying client may fetch the receipt.
+    Always return a PDF. If Playwright is unavailable, generate a minimal ReportLab PDF.
     """
+    # Enforce ownership: payment reference must belong to the current client
+    simple = db.query(BookingSimple).filter(BookingSimple.payment_id == payment_id).first()
+    if not simple:
+        raise error_response("Payment reference not recognized", {}, status.HTTP_404_NOT_FOUND)
+    if simple.client_id != current_user.id:
+        raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
+
     path = os.path.abspath(os.path.join(RECEIPT_DIR, f"{payment_id}.pdf"))
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     if os.path.exists(path):
-        return FileResponse(
+        resp = FileResponse(
             path,
             media_type="application/pdf",
             filename=f"{payment_id}.pdf",
         )
+        try:
+            # Hint to search engines not to index
+            resp.headers["X-Robots-Tag"] = "noindex"
+        except Exception:
+            pass
+        return resp
     # On-demand stateless generation: try to build the PDF now. If it
     # succeeds, stream the new file; otherwise fall back to HTML.
     try:
         ok = generate_receipt_pdf(db, payment_id)
         if ok and os.path.exists(path):
-            return FileResponse(
+            resp = FileResponse(
                 path,
                 media_type="application/pdf",
                 filename=f"{payment_id}.pdf",
             )
+            try:
+                resp.headers["X-Robots-Tag"] = "noindex"
+            except Exception:
+                pass
+            return resp
     except Exception:
-        # best-effort only — fall through to HTML
+        # best-effort only — fall through to ReportLab fallback
         pass
 
-    # Fallback HTML receipt (mock, branded)
-    from fastapi.responses import HTMLResponse
-    html = _compose_receipt_html(db, payment_id)
-    return HTMLResponse(
-        content=html,
-        status_code=200,
-        headers={
-            # Allow inline <style> and style attributes for this receipt only
-            "Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'",
-        },
+    # Final fallback: generate a minimal PDF directly (no HTML)
+    try:
+        _generate_receipt_pdf_with_reportlab(db, payment_id, path)
+    except Exception:
+        # Ensure at least a stub PDF exists to satisfy content-type contract
+        try:
+            with open(path, "wb") as f:
+                f.write(b"%PDF-1.4\n% Fallback receipt stub for security\n%%EOF")
+        except Exception:
+            pass
+    resp = FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=f"{payment_id}.pdf",
     )
+    try:
+        resp.headers["X-Robots-Tag"] = "noindex"
+    except Exception:
+        pass
+    return resp
 
 # ————————————————————————————————————————————————————————————————
 # Receipt HTML composition + PDF generation (Playwright, best-effort)
@@ -1041,6 +1136,69 @@ def _generate_receipt_pdf_with_playwright(html: str, output_path: str) -> bool:
         except Exception:
             pass
         return False
+
+
+def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_path: str) -> None:
+    """Minimal PDF generator using ReportLab as a reliable fallback.
+
+    Writes a simple branded receipt PDF with key facts. Raises on hard I/O errors.
+    """
+    try:
+        from reportlab.lib.pagesizes import A4  # type: ignore
+        from reportlab.pdfgen import canvas  # type: ignore
+    except Exception as exc:  # pragma: no cover
+        raise RuntimeError("ReportLab unavailable for receipt fallback") from exc
+
+    # Load context (best-effort)
+    amount = None
+    client_name = None
+    artist_name = None
+    booking_id = None
+    bs: BookingSimple | None = db.query(BookingSimple).filter(BookingSimple.payment_id == payment_id).first()
+    if bs:
+        booking_id = getattr(bs, "id", None)
+        try:
+            amount = float(getattr(bs, "charged_total_amount", 0) or 0)
+        except Exception:
+            amount = None
+        try:
+            client_name = getattr(bs.client, "name", None)
+        except Exception:
+            client_name = None
+        try:
+            artist_name = getattr(bs.artist, "name", None)
+        except Exception:
+            artist_name = None
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    c = canvas.Canvas(output_path, pagesize=A4)
+    width, height = A4
+    y = height - 50
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, y, "Booka Receipt")
+    y -= 24
+    c.setFont("Helvetica", 11)
+    c.drawString(50, y, f"Payment ID: {payment_id}")
+    y -= 16
+    c.drawString(50, y, f"Issued: {datetime.utcnow():%Y-%m-%d %H:%M UTC}")
+    y -= 16
+    if booking_id:
+        c.drawString(50, y, f"Booking: #{booking_id}")
+        y -= 16
+    if client_name:
+        c.drawString(50, y, f"Client: {client_name}")
+        y -= 16
+    if artist_name:
+        c.drawString(50, y, f"Artist: {artist_name}")
+        y -= 16
+    if amount is not None:
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(50, y - 6, f"Total Paid: ZAR {amount:.2f}")
+        y -= 22
+    c.setFont("Helvetica", 10)
+    c.drawString(50, y, "Thank you for booking with Booka.")
+    c.showPage()
+    c.save()
 
 
 def generate_receipt_pdf(db: Session, payment_id: str) -> bool:

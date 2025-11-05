@@ -32,3 +32,41 @@ def mark_paid(db: Session, invoice: models.Invoice, payment_method: str | None =
     db.commit()
     db.refresh(invoice)
     return invoice
+
+
+def get_invoice_by_booking(db: Session, booking_id: int) -> models.Invoice | None:
+    return (
+        db.query(models.Invoice)
+        .filter(models.Invoice.booking_id == int(booking_id))
+        .order_by(models.Invoice.id.desc())
+        .first()
+    )
+
+
+def get_invoice_by_quote(db: Session, quote_id: int) -> models.Invoice | None:
+    return (
+        db.query(models.Invoice)
+        .filter(models.Invoice.quote_id == int(quote_id))
+        .order_by(models.Invoice.id.desc())
+        .first()
+    )
+
+
+def ensure_invoice_for_booking(
+    db: Session, quote: models.QuoteV2 | None, booking: models.BookingSimple
+) -> models.Invoice | None:
+    """Return an existing invoice or create one from the quote/booking.
+
+    Returns None if no quote is available (cannot create line totals reliably).
+    """
+    try:
+        existing = get_invoice_by_booking(db, int(booking.id))
+        if existing:
+            return existing
+        if quote is None:
+            # Best-effort only; caller may handle None
+            return None
+        return create_invoice_from_quote(db, quote, booking)
+    except Exception:
+        # Never block payment flow on invoice creation failures
+        return None

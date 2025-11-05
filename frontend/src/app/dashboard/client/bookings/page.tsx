@@ -79,7 +79,7 @@ function BookingList({
             {/* No deposit flow; full upfront payment only */}
             {b.payment_id && (
               <a
-                href={`/api/v1/payments/${b.payment_id}/receipt`}
+                href={`/receipts/${b.payment_id}`}
                 target="_blank"
                 rel="noopener"
                 className="mt-2 text-brand-dark hover:underline text-sm"

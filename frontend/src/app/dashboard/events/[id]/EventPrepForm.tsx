@@ -891,8 +891,8 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
   const soundNeeded = Boolean((ep as any)?.is_sound_required ?? (booking as any)?.requires_sound ?? false);
   const techOwner = ep.tech_owner === "artist" ? "Artist brings PA" : "Venue system";
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
-  // Build receipt URL: prefer booking.payment_id; else fallback to localStorage (mock payments)
-  let receiptUrl: string | undefined = booking.payment_id ? `${apiBase}/api/v1/payments/${booking.payment_id}/receipt` : undefined;
+  // Build receipt URL: prefer friendly site URL when payment_id exists; fallback to cached API URL for mocks
+  let receiptUrl: string | undefined = booking.payment_id ? `/receipts/${booking.payment_id}` : undefined;
   if (!receiptUrl && booking.booking_request_id) {
     try {
       const stored = localStorage.getItem(`receipt_url:br:${booking.booking_request_id}`);
