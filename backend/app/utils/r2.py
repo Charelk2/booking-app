@@ -182,6 +182,18 @@ def build_receipt_key(payment_id: str) -> str:
     return f"receipts/{y}/{m}/{pid}.pdf"
 
 
+def build_remittance_key(payout_id: int | str) -> str:
+    """Return a stable key for a remittance PDF under the `remittances/` prefix.
+
+    Format: remittances/{yyyy}/{mm}/{payout_id}.pdf
+    """
+    now = dt.datetime.utcnow()
+    y = now.strftime("%Y")
+    m = now.strftime("%m")
+    pid = str(payout_id).strip()
+    return f"remittances/{y}/{m}/{pid}.pdf"
+
+
 def put_bytes(key: str, data: bytes, content_type: Optional[str] = None) -> str:
     """Upload bytes to R2 at the specified key. Returns the public URL if configured.
 

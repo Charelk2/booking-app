@@ -113,11 +113,44 @@ export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQ
             {isProvider ? (
               <>
                 {' '}
-                <a href={'/dashboard/artist'} className="underline text-green-700">
+                <a href={'/dashboard/provider/payouts'} className="underline text-green-700">
                   {t('system.viewPayoutDetails', 'View payout details')}
                 </a>
               </>
             ) : null}
+          </div>
+        </div>
+      );
+    }
+
+    // Client-only receipt link (server emits with system_key payment_receipt_link:*)
+    if (key.includes('payment_receipt_link')) {
+      const abs = content.match(absUrlRegex)?.[1] || null;
+      const rel = abs ? null : (content.match(relUrlRegex)?.[1] || null);
+      const receiptUrl = abs || (rel ? apiUrl(rel) : null);
+      // Only render a link if we have a URL
+      if (!receiptUrl) return null;
+      return (
+        <div className="my-2 w-full flex justify-center">
+          <div className="text-[12px] text-gray-700 bg-green-50 border border-green-200 px-2 py-1 rounded">
+            <a href={receiptUrl} target="_blank" rel="noreferrer" className="underline text-green-700">
+              {t('system.viewReceipt', 'View receipt')}
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    // Provider-only payout notice (server emits with system_key payment_provider_notice:*)
+    if (key.includes('payment_provider_notice')) {
+      return (
+        <div className="my-2 w-full flex justify-center">
+          <div className="text-[12px] text-gray-700 bg-green-50 border border-green-200 px-2 py-1 rounded">
+            {t('system.providerPaidNotice', 'Client paid in full — first payout (50%) processing.')}
+            {' '}
+            <a href={'/dashboard/provider/payouts'} className="underline text-green-700">
+              {t('system.viewPayoutDetails', 'View payout details')}
+            </a>
           </div>
         </div>
       );

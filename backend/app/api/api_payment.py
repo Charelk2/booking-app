@@ -505,51 +505,88 @@ def paystack_verify(
 
     if br:
         try:
-            # Prefer friendly frontend URL for receipts
+            # Build role-scoped messages (no receipt URL leak in BOTH)
             receipt_url = f"{FRONTEND_PRIMARY}/receipts/{simple.payment_id}" if simple.payment_id else None
-            receipt_suffix = f" Receipt: {receipt_url}" if receipt_url else ""
-            syskey = f"payment_received:{simple.payment_id}" if simple.payment_id else "payment_received"
-            # Idempotency: skip if this payment message already exists
-            existing = (
+            k_both = f"payment_confirmed:{simple.payment_id}" if simple.payment_id else "payment_confirmed"
+            k_client = f"payment_receipt_link:{simple.payment_id}" if simple.payment_id else "payment_receipt_link"
+            k_provider = f"payment_provider_notice:{simple.payment_id}" if simple.payment_id else "payment_provider_notice"
+
+            created_msgs: list[models.Message] = []
+
+            # BOTH-visible confirmation
+            exists_both = (
                 db.query(models.Message)
-                .filter(
-                    models.Message.booking_request_id == br.id,
-                    models.Message.system_key == syskey,
-                )
+                .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_both)
                 .first()
             )
-            msg_sys = None
-            if not existing:
-                msg_sys = crud.crud_message.create_message(
+            if not exists_both:
+                m = crud.crud_message.create_message(
                     db=db,
                     booking_request_id=br.id,
                     sender_id=simple.artist_id,
                     sender_type=SenderType.ARTIST,
-                    content=f"Payment received — order #{simple.payment_id}.{receipt_suffix}",
+                    content="Payment received. Booking confirmed.",
                     message_type=MessageType.SYSTEM,
                     visible_to=VisibleTo.BOTH,
                     action=None,
-                    system_key=syskey,
+                    system_key=k_both,
                 )
                 db.commit()
-            # Note: we no longer create a provider-only mirror system line.
-            # The canonical BOTH-visible message above is sufficient, and
-            # bell notifications are emitted below to surface the event.
-            try:
-                if ws_manager and msg_sys is not None:
-                    env = _message_to_envelope(db, msg_sys)
-                    background_tasks.add_task(ws_manager.broadcast, int(br.id), env)
-                    logger.info(
-                        "payment_broadcast_scheduled: request_id=%s msg_id=%s",
-                        int(br.id), int(getattr(msg_sys, "id", 0) or 0),
+                created_msgs.append(m)
+
+            # CLIENT-only receipt link
+            if receipt_url:
+                exists_client = (
+                    db.query(models.Message)
+                    .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_client)
+                    .first()
+                )
+                if not exists_client:
+                    m = crud.crud_message.create_message(
+                        db=db,
+                        booking_request_id=br.id,
+                        sender_id=simple.artist_id,
+                        sender_type=SenderType.ARTIST,
+                        content=f"Receipt: {receipt_url}",
+                        message_type=MessageType.SYSTEM,
+                        visible_to=VisibleTo.CLIENT,
+                        action=None,
+                        system_key=k_client,
                     )
-                # Also enqueue outbox for reliable cross-process delivery
-                if msg_sys is not None:
-                    try:
-                        env = _message_to_envelope(db, msg_sys)
-                        enqueue_outbox(db, topic=f"booking-requests:{int(br.id)}", payload=env)
-                    except Exception:
-                        pass
+                    db.commit()
+                    created_msgs.append(m)
+
+            # PROVIDER-only payout notice
+            exists_provider = (
+                db.query(models.Message)
+                .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_provider)
+                .first()
+            )
+            if not exists_provider:
+                m = crud.crud_message.create_message(
+                    db=db,
+                    booking_request_id=br.id,
+                    sender_id=simple.artist_id,
+                    sender_type=SenderType.ARTIST,
+                    content="Client payment confirmed — first payout (50%) processing.",
+                    message_type=MessageType.SYSTEM,
+                    visible_to=VisibleTo.ARTIST,
+                    action=None,
+                    system_key=k_provider,
+                )
+                db.commit()
+                created_msgs.append(m)
+
+            # Broadcast all newly created messages
+            try:
+                if ws_manager and created_msgs:
+                    for m in created_msgs:
+                        env = _message_to_envelope(db, m)
+                        background_tasks.add_task(ws_manager.broadcast, int(br.id), env)
+                        try:
+                            enqueue_outbox(db, topic=f"booking-requests:{int(br.id)}", payload=env)
+                        except Exception:
+                            pass
             except Exception:
                 pass
             # Retract any stale "Quote expired." system line for this thread (post-payment)
@@ -737,49 +774,86 @@ async def paystack_webhook(
 
     if br:
         try:
+            # Role-scoped messages for webhook path
             receipt_url = f"{FRONTEND_PRIMARY}/receipts/{simple.payment_id}" if simple.payment_id else None
-            receipt_suffix = f" Receipt: {receipt_url}" if receipt_url else ""
-            syskey = f"payment_received:{simple.payment_id}" if simple.payment_id else "payment_received"
-            existing = (
+            k_both = f"payment_confirmed:{simple.payment_id}" if simple.payment_id else "payment_confirmed"
+            k_client = f"payment_receipt_link:{simple.payment_id}" if simple.payment_id else "payment_receipt_link"
+            k_provider = f"payment_provider_notice:{simple.payment_id}" if simple.payment_id else "payment_provider_notice"
+
+            created_msgs: list[models.Message] = []
+
+            exists_both = (
                 db.query(models.Message)
-                .filter(
-                    models.Message.booking_request_id == br.id,
-                    models.Message.system_key == syskey,
-                )
+                .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_both)
                 .first()
             )
-            msg_sys = None
-            if not existing:
-                msg_sys = crud.crud_message.create_message(
+            if not exists_both:
+                m = crud.crud_message.create_message(
                     db=db,
                     booking_request_id=br.id,
                     sender_id=simple.artist_id,
                     sender_type=SenderType.ARTIST,
-                    content=f"Payment received — order #{simple.payment_id}.{receipt_suffix}",
+                    content="Payment received. Booking confirmed.",
                     message_type=MessageType.SYSTEM,
                     visible_to=VisibleTo.BOTH,
                     action=None,
-                    system_key=syskey,
+                    system_key=k_both,
                 )
                 db.commit()
-            try:
-                if ws_manager and msg_sys is not None:
-                    env = _message_to_envelope(db, msg_sys)
-                    t0 = datetime.utcnow()
-                    await ws_manager.broadcast(int(br.id), env)
-                    t1 = datetime.utcnow()
-                    ms = (t1 - t0).total_seconds() * 1000.0
-                    logger.info(
-                        "payment_broadcast_done: request_id=%s msg_id=%s latency_ms=%.1f",
-                        int(br.id), int(getattr(msg_sys, "id", 0) or 0), ms,
+                created_msgs.append(m)
+
+            if receipt_url:
+                exists_client = (
+                    db.query(models.Message)
+                    .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_client)
+                    .first()
+                )
+                if not exists_client:
+                    m = crud.crud_message.create_message(
+                        db=db,
+                        booking_request_id=br.id,
+                        sender_id=simple.artist_id,
+                        sender_type=SenderType.ARTIST,
+                        content=f"Receipt: {receipt_url}",
+                        message_type=MessageType.SYSTEM,
+                        visible_to=VisibleTo.CLIENT,
+                        action=None,
+                        system_key=k_client,
                     )
-                # Enqueue outbox for reliable cross-process delivery
-                if msg_sys is not None:
-                    try:
-                        env = _message_to_envelope(db, msg_sys)
-                        enqueue_outbox(db, topic=f"booking-requests:{int(br.id)}", payload=env)
-                    except Exception:
-                        pass
+                    db.commit()
+                    created_msgs.append(m)
+
+            exists_provider = (
+                db.query(models.Message)
+                .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_provider)
+                .first()
+            )
+            if not exists_provider:
+                m = crud.crud_message.create_message(
+                    db=db,
+                    booking_request_id=br.id,
+                    sender_id=simple.artist_id,
+                    sender_type=SenderType.ARTIST,
+                    content="Client payment confirmed — first payout (50%) processing.",
+                    message_type=MessageType.SYSTEM,
+                    visible_to=VisibleTo.ARTIST,
+                    action=None,
+                    system_key=k_provider,
+                )
+                db.commit()
+                created_msgs.append(m)
+
+            try:
+                if ws_manager and created_msgs:
+                    for m in created_msgs:
+                        env = _message_to_envelope(db, m)
+                        t0 = datetime.utcnow()
+                        await ws_manager.broadcast(int(br.id), env)
+                        try:
+                            enqueue_outbox(db, topic=f"booking-requests:{int(br.id)}", payload=env)
+                        except Exception:
+                            pass
+                # Log total broadcast latency if needed; omitted for brevity
             except Exception as exc:
                 logger.warning("payment_broadcast_failed: request_id=%s err=%s", int(getattr(br, 'id', 0) or 0), exc)
         except Exception:

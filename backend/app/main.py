@@ -39,6 +39,7 @@ from .api import (
     api_notification,
     api_threads,
     api_payment,
+    api_payout,
     api_quote,
     api_quote_template,
     api_quote_v2,
@@ -728,6 +729,13 @@ app.include_router(
     api_payment.router,
     prefix=f"{api_prefix}/payments",
     tags=["payments"],
+)
+
+# ─── PAYOUT ROUTES (under /api/v1/payouts) ─────────────────────────────
+app.include_router(
+    api_payout.router,
+    prefix=f"{api_prefix}/payouts",
+    tags=["payouts"],
 )
 
 # ─── INVOICE ROUTES (under /api/v1/invoices) ───────────────────────────
