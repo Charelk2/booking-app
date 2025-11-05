@@ -39,6 +39,8 @@ class BookingResponse(BookingBase):
     updated_at: datetime
     payment_status: Optional[str] = None
     booking_request_id: Optional[int] = None
+    # New: expose invoice_id to avoid per-row lookups on dashboards
+    invoice_id: Optional[int] = None
 
     # Include nested details for frontend dashboard
     client: Optional[UserResponse] = None

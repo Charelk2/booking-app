@@ -23,6 +23,7 @@ from decimal import Decimal
 from ..database import get_db, engine, Base
 from .. import models
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import func
 from ..models.user import User, UserType
 from ..models.service_provider_profile import ServiceProviderProfile
 from ..models.service import Service
@@ -148,14 +149,23 @@ def read_my_bookings(
     ),
 ) -> Any:
     """Return bookings for the authenticated client, optionally filtered."""
+    # Precompute latest invoice per BookingSimple (if any)
+    inv_subq = (
+        db.query(models.Invoice.booking_id.label("bs_id"), func.max(models.Invoice.id).label("invoice_id"))
+        .group_by(models.Invoice.booking_id)
+        .subquery()
+    )
+
     query = (
         db.query(
             Booking,
             BookingSimple.payment_status,
             QuoteV2.booking_request_id,
+            inv_subq.c.invoice_id,
         )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
         .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
+        .outerjoin(inv_subq, inv_subq.c.bs_id == BookingSimple.id)
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service).selectinload(Service.artist),
@@ -194,10 +204,15 @@ def read_my_bookings(
         booking,
         payment_status,
         booking_request_id,
+        invoice_id,
     ) in rows:
         booking.payment_status = payment_status
         if booking_request_id is not None:
             booking.booking_request_id = booking_request_id
+        try:
+            setattr(booking, "invoice_id", int(invoice_id) if invoice_id is not None else None)
+        except Exception:
+            setattr(booking, "invoice_id", None)
         bookings.append(booking)
 
     # Defensive: ensure timestamps present on legacy rows
@@ -223,8 +238,15 @@ def read_artist_bookings(
     """
     Return all bookings for the currently authenticated artist.
     """
-    bookings = (
-        db.query(Booking)
+    inv_subq = (
+        db.query(models.Invoice.booking_id.label("bs_id"), func.max(models.Invoice.id).label("invoice_id"))
+        .group_by(models.Invoice.booking_id)
+        .subquery()
+    )
+    rows = (
+        db.query(Booking, inv_subq.c.invoice_id)
+        .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
+        .outerjoin(inv_subq, inv_subq.c.bs_id == BookingSimple.id)
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service).selectinload(Service.artist),
@@ -234,6 +256,13 @@ def read_artist_bookings(
         .order_by(Booking.start_time.desc())
         .all()
     )
+    bookings: List[Booking] = []
+    for booking, invoice_id in rows:
+        try:
+            setattr(booking, "invoice_id", int(invoice_id) if invoice_id is not None else None)
+        except Exception:
+            setattr(booking, "invoice_id", None)
+        bookings.append(booking)
     try:
         from datetime import datetime as _dt
         for b in bookings:
@@ -333,14 +362,21 @@ def read_booking_details(
     Return the details of a single booking.  
     Accessible if the current user is either the booking’s client or the booking’s artist.
     """
+    inv_subq = (
+        db.query(models.Invoice.booking_id.label("bs_id"), func.max(models.Invoice.id).label("invoice_id"))
+        .group_by(models.Invoice.booking_id)
+        .subquery()
+    )
     booking_row = (
         db.query(
             Booking,
             BookingSimple.payment_status,
             QuoteV2.booking_request_id,
+            inv_subq.c.invoice_id,
         )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
         .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
+        .outerjoin(inv_subq, inv_subq.c.bs_id == BookingSimple.id)
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service).selectinload(Service.artist),
@@ -364,6 +400,7 @@ def read_booking_details(
         booking,
         payment_status,
         booking_request_id,
+        invoice_id,
     ) = booking_row
 
     # Only the client or the artist may see it:
@@ -383,6 +420,10 @@ def read_booking_details(
 
     if booking_request_id is not None:
         booking.booking_request_id = booking_request_id
+    try:
+        setattr(booking, "invoice_id", int(invoice_id) if invoice_id is not None else None)
+    except Exception:
+        setattr(booking, "invoice_id", None)
 
     return booking
 
