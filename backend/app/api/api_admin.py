@@ -257,16 +257,18 @@ def _with_total(items: List[Dict[str, Any]], total: int, resource: str, start: i
 
 def booking_to_admin(b: Booking) -> Dict[str, Any]:
     # Map to UI expectations
-    try:
-        total_cents = int(float(b.total_price) * 100)
-    except Exception:
-        total_cents = 0
+    def _amount_float(v) -> float:
+        try:
+            return float(v) if v is not None else 0.0
+        except Exception:
+            return 0.0
     return {
         "id": str(b.id),
         "status": str(b.status.value if hasattr(b.status, "value") else b.status),
         "event_date": (b.start_time.isoformat() if getattr(b, "start_time", None) else None),
         "location": getattr(b, "event_city", None),
-        "total_amount": total_cents,
+        # Present amounts in ZAR (not cents) for clarity in Admin.
+        "total_amount": _amount_float(getattr(b, "total_price", None)),
         "created_at": (getattr(b, "created_at", None).isoformat() if getattr(b, "created_at", None) else None),
         "client_id": str(getattr(b, "client_id", "") or ""),
         "provider_id": str(getattr(b, "artist_id", "") or ""),
@@ -1872,7 +1874,20 @@ def list_ledger(request: Request, _: Tuple[User, AdminUser] = Depends(require_ro
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
     rows = db.execute(text(f"SELECT id, booking_id, type, amount, currency, created_at, meta FROM ledger_entries {where_sql} ORDER BY created_at DESC LIMIT :lim OFFSET :off"), params).fetchall()
     total = db.execute(text(f"SELECT COUNT(*) FROM ledger_entries {where_sql}"), {k:v for k,v in params.items() if k in ('type','bid')}).scalar() or 0
-    items = [{"id": str(r[0]), "booking_id": (str(r[1]) if r[1] is not None else None), "type": r[2], "amount": float(r[3] or 0), "currency": r[4], "created_at": r[5], "meta": r[6]} for r in rows]
+    def _iso(dt):
+        try:
+            return dt.isoformat() if dt is not None else None
+        except Exception:
+            return None
+    items = [{
+        "id": str(r[0]),
+        "booking_id": (str(r[1]) if r[1] is not None else None),
+        "type": r[2],
+        "amount": float(r[3] or 0),
+        "currency": r[4],
+        "created_at": _iso(r[5]),
+        "meta": r[6],
+    } for r in rows]
     return _with_total(items, int(total), "ledger", start, start + len(items) - 1)
 
 
@@ -1886,24 +1901,26 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
         LIMIT :lim OFFSET :off
     """), {"lim": limit, "off": offset}).fetchall()
     total = db.execute(text("SELECT COUNT(*) FROM payouts")).scalar() or 0
-    items = [
-        {
-            "id": str(r[0]),
-            "booking_id": str(r[1]) if r[1] is not None else None,
-            "provider_id": str(r[2]) if r[2] is not None else None,
-            "amount": float(r[3] or 0),
-            "currency": r[4] or "ZAR",
-            "status": r[5] or "queued",
-            "type": r[6],
-            "scheduled_at": r[7],
-            "paid_at": r[8],
-            "method": r[9],
-            "reference": r[10],
-            "batch_id": r[11],
-            "created_at": r[12],
-        }
-        for r in rows
-    ]
+    def _iso(dt):
+        try:
+            return dt.isoformat() if dt is not None else None
+        except Exception:
+            return None
+    items = [{
+        "id": str(r[0]),
+        "booking_id": str(r[1]) if r[1] is not None else None,
+        "provider_id": str(r[2]) if r[2] is not None else None,
+        "amount": float(r[3] or 0),
+        "currency": r[4] or "ZAR",
+        "status": r[5] or "queued",
+        "type": r[6],
+        "scheduled_at": _iso(r[7]),
+        "paid_at": _iso(r[8]),
+        "method": r[9],
+        "reference": r[10],
+        "batch_id": r[11],
+        "created_at": _iso(r[12]),
+    } for r in rows]
     return _with_total(items, int(total), "payouts", start, start + len(items) - 1)
 
 

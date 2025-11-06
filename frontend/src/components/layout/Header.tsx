@@ -458,7 +458,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Visual style
   const headerClasses = clsx(
-    'sticky top-0 z-49 border-b',
+    'sticky top-0 z-50 border-b',
     isAuthVariant
       ? 'bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm border-slate-200'
       : 'bg-black supports-[backdrop-filter]:backdrop-blur-md border-black/5'
