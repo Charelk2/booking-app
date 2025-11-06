@@ -368,6 +368,12 @@ export default function BookingSummaryCard({
                     <span>Total</span>
                     <span>{formatCurrency(total)}</span>
                   </div>
+                  {isClient && (
+                    <div className="flex justify-between font-semibold">
+                      <span>Total To Pay</span>
+                      <span>{formatCurrency((best as any)?.client_total_preview ?? (total + feeIncl))}</span>
+                    </div>
+                  )}
                 </div>
 
                 {allowInstantBooking && !accepted && (

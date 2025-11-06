@@ -36,6 +36,13 @@ class QuoteRead(QuoteCreate):
     created_at: datetime
     updated_at: datetime
 
+    # Preview fields for client-facing math (optional; computed server-side)
+    provider_subtotal_preview: Optional[Decimal] = None
+    booka_fee_preview: Optional[Decimal] = None
+    booka_fee_vat_preview: Optional[Decimal] = None
+    client_total_preview: Optional[Decimal] = None
+    rates_preview: Optional[dict] = None
+
     model_config = {"from_attributes": True}
 
 

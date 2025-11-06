@@ -345,6 +345,11 @@ export interface QuoteV2 extends QuoteV2Create {
   booking_id?: number | null;
   subtotal: number;
   total: number;
+  // Server-computed preview fields to avoid UI drift
+  provider_subtotal_preview?: number;
+  booka_fee_preview?: number;
+  booka_fee_vat_preview?: number;
+  client_total_preview?: number;
   status: 'pending' | 'accepted' | 'rejected' | 'expired';
   created_at: string;
   updated_at: string;

@@ -103,7 +103,17 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
       {quote.discount && (
         <p className="text-sm">Discount: {formatCurrency(Number(quote.discount))}</p>
       )}
-      <p className="font-semibold">Total: {formatCurrency(Number(quote.total))}</p>
+      {isClient ? (
+        (() => {
+          const ps = Number(quote.provider_subtotal_preview ?? quote.subtotal) || 0;
+          const fee = Number(quote.booka_fee_preview ?? Math.round(ps * 0.03 * 100) / 100);
+          const feeVat = Number(quote.booka_fee_vat_preview ?? Math.round(fee * 0.15 * 100) / 100);
+          const clientTotal = Number(quote.client_total_preview ?? (Number(quote.total) + fee + feeVat));
+          return <p className="font-semibold">Total To Pay: {formatCurrency(clientTotal)}</p>;
+        })()
+      ) : (
+        <p className="font-semibold">Total: {formatCurrency(Number(quote.total))}</p>
+      )}
       {quote.expires_at && quote.status === 'pending' ? (
         <span
           className={clsx('text-xs', warning ? 'text-orange-600' : 'text-gray-500')}

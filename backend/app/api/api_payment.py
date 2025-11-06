@@ -135,13 +135,11 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
     - first50 scheduled now; final50 next business day after event.
     - Idempotent per (booking_id, type).
     """
-    try:
-        from decimal import ROUND_HALF_UP
-        half1 = (total_amount / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        half2 = (total_amount - half1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-    except Exception:
-        half1 = total_amount
-        half2 = Decimal('0')
+    # We no longer split by charged total. We compute net-to-provider and
+    # split that 50/50 (rounding residual to final) so payouts reflect the
+    # provider's net, not the client's total.
+    half1 = None
+    half2 = None
 
     # Compute fee snapshot (commissionable base, client fee, commission, VAT on commission, pass-through)
     def _snapshot() -> dict:
@@ -220,6 +218,9 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
         return snap
 
     fee_snapshot = _snapshot()
+    # Stage net amounts (floats)
+    stage_first_amt = float(fee_snapshot.get('stage_estimates', {}).get('first50') or 0.0)
+    stage_final_amt = float(fee_snapshot.get('stage_estimates', {}).get('final50') or 0.0)
 
     # Query existing for idempotency
     try:
@@ -235,7 +236,7 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
 
     now = _dt.utcnow()
     # Insert first50 if missing
-    if 'first50' not in have:
+    if 'first50' not in have and stage_first_amt > 0:
         try:
             meta_first = {
                 'phase': phase,
@@ -254,7 +255,7 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
                 {
                     "bid": int(simple.id),
                     "pid": int(simple.artist_id),
-                    "amt": float(half1),
+                    "amt": float(stage_first_amt),
                     "sched": now,
                     "ref": reference,
                     "meta": json.dumps(meta_first),
@@ -264,7 +265,7 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
         except Exception:
             db.rollback()
     # Insert final50 if missing
-    if 'final50' not in have and half2 > Decimal('0'):
+    if 'final50' not in have and stage_final_amt > 0:
         sched = _compute_final_payout_schedule(db, simple)
         try:
             meta_final = {
@@ -284,7 +285,7 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
                 {
                     "bid": int(simple.id),
                     "pid": int(simple.artist_id),
-                    "amt": float(half2),
+                    "amt": float(stage_final_amt),
                     "sched": sched,
                     "ref": reference,
                     "meta": json.dumps(meta_final),
@@ -742,19 +743,54 @@ def paystack_verify(
                 text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"),
                 {"bid": simple.id, "amt": float(amount), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify"})},
             )
-        # Provider split (50/50): deterministic rounding
-        from decimal import ROUND_HALF_UP
-        half1 = (amount / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        half2 = (amount - half1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        # Compute provider net stage amounts to reflect true escrow in/hold
+        # Snapshot (duplicated from payout snapshot for locality)
+        try:
+            qv2 = db.query(QuoteV2).filter(QuoteV2.id == simple.quote_id).first()
+        except Exception:
+            qv2 = None
+        services_total = 0.0
+        try:
+            if qv2 and isinstance(qv2.services, list):
+                for s in qv2.services:
+                    try:
+                        services_total += float(s.get('price') or 0)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        pass_through = 0.0
+        try:
+            if qv2:
+                pass_through += float(qv2.travel_fee or 0)
+                pass_through += float(qv2.sound_fee or 0)
+        except Exception:
+            pass
+        COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
+        VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+        provider_subtotal = round(services_total + pass_through, 2)
+        commission = round(provider_subtotal * COMMISSION_RATE, 2)
+        vat_on_commission = round(commission * VAT_RATE, 2)
+        provider_net_total_estimate = round(provider_subtotal - commission - vat_on_commission, 2)
+        try:
+            from decimal import Decimal as _D, ROUND_HALF_UP as _R
+            _pnet = _D(str(provider_net_total_estimate))
+            _first = (_pnet / _D('2')).quantize(_D('0.01'), rounding=_R)
+            _final = (_pnet - _first).quantize(_D('0.01'), rounding=_R)
+            first_stage_amt = float(_first)
+            final_stage_amt = float(_final)
+        except Exception:
+            first_stage_amt = round(provider_net_total_estimate / 2.0, 2)
+            final_stage_amt = round(provider_net_total_estimate - first_stage_amt, 2)
         if not _meta_has("provider_escrow_in", split="first50"):
             db.execute(
                 text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_in', :amt, 'ZAR', :meta)"),
-                {"bid": simple.id, "amt": float(half1), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify", "split": "first50"})},
+                {"bid": simple.id, "amt": float(first_stage_amt), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify", "split": "first50"})},
             )
         if not _meta_has("provider_escrow_hold", split="held50"):
             db.execute(
                 text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_hold', :amt, 'ZAR', :meta)"),
-                {"bid": simple.id, "amt": float(half2), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify", "split": "held50"})},
+                {"bid": simple.id, "amt": float(final_stage_amt), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify", "split": "held50"})},
             )
         db.commit()
     except Exception:
@@ -1021,18 +1057,53 @@ async def paystack_webhook(
                 text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"),
                 {"bid": simple.id, "amt": float(amount), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook"})},
             )
-        from decimal import ROUND_HALF_UP
-        half1 = (amount / Decimal('2')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        half2 = (amount - half1).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        # Compute provider net stage amounts (first/final)
+        try:
+            qv2 = db.query(QuoteV2).filter(QuoteV2.id == simple.quote_id).first()
+        except Exception:
+            qv2 = None
+        services_total = 0.0
+        try:
+            if qv2 and isinstance(qv2.services, list):
+                for s in qv2.services:
+                    try:
+                        services_total += float(s.get('price') or 0)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        pass_through = 0.0
+        try:
+            if qv2:
+                pass_through += float(qv2.travel_fee or 0)
+                pass_through += float(qv2.sound_fee or 0)
+        except Exception:
+            pass
+        COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
+        VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+        provider_subtotal = round(services_total + pass_through, 2)
+        commission = round(provider_subtotal * COMMISSION_RATE, 2)
+        vat_on_commission = round(commission * VAT_RATE, 2)
+        provider_net_total_estimate = round(provider_subtotal - commission - vat_on_commission, 2)
+        try:
+            from decimal import Decimal as _D, ROUND_HALF_UP as _R
+            _pnet = _D(str(provider_net_total_estimate))
+            _first = (_pnet / _D('2')).quantize(_D('0.01'), rounding=_R)
+            _final = (_pnet - _first).quantize(_D('0.01'), rounding=_R)
+            first_stage_amt = float(_first)
+            final_stage_amt = float(_final)
+        except Exception:
+            first_stage_amt = round(provider_net_total_estimate / 2.0, 2)
+            final_stage_amt = round(provider_net_total_estimate - first_stage_amt, 2)
         if not _meta_has("provider_escrow_in", split="first50"):
             db.execute(
                 text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_in', :amt, 'ZAR', :meta)"),
-                {"bid": simple.id, "amt": float(half1), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook", "split": "first50"})},
+                {"bid": simple.id, "amt": float(first_stage_amt), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook", "split": "first50"})},
             )
         if not _meta_has("provider_escrow_hold", split="held50"):
             db.execute(
                 text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'provider_escrow_hold', :amt, 'ZAR', :meta)"),
-                {"bid": simple.id, "amt": float(half2), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook", "split": "held50"})},
+                {"bid": simple.id, "amt": float(final_stage_amt), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook", "split": "held50"})},
             )
         db.commit()
     except Exception:

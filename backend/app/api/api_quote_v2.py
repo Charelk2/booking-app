@@ -118,7 +118,27 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
                     "Artist sent a quote",
                     models.MessageType.QUOTE,
                 )
-        return quote
+        # Compute client preview fields (to avoid UI drift)
+        try:
+            PS = float(getattr(quote, "subtotal", 0) or 0)
+            total = float(getattr(quote, "total", 0) or 0)
+            COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
+            CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
+            VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+            fee = round(PS * CLIENT_FEE_RATE, 2)
+            fee_vat = round(fee * VAT_RATE, 2)
+            client_total = round(total + fee + fee_vat, 2)
+            payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
+            payload.update({
+                "provider_subtotal_preview": PS,
+                "booka_fee_preview": fee,
+                "booka_fee_vat_preview": fee_vat,
+                "client_total_preview": client_total,
+                "rates_preview": {"commission_rate": COMMISSION_RATE, "client_fee_rate": CLIENT_FEE_RATE, "vat_rate": VAT_RATE},
+            })
+            return payload
+        except Exception:
+            return quote
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - generic failure path
@@ -160,7 +180,27 @@ def read_quote(quote_id: int, db: Session = Depends(get_db)):
         db.refresh(quote)
     except Exception:
         pass
-    return quote
+    # Attach preview fields for client totals
+    try:
+        PS = float(getattr(quote, "subtotal", 0) or 0)
+        total = float(getattr(quote, "total", 0) or 0)
+        COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
+        CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
+        VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+        fee = round(PS * CLIENT_FEE_RATE, 2)
+        fee_vat = round(fee * VAT_RATE, 2)
+        client_total = round(total + fee + fee_vat, 2)
+        payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
+        payload.update({
+            "provider_subtotal_preview": PS,
+            "booka_fee_preview": fee,
+            "booka_fee_vat_preview": fee_vat,
+            "client_total_preview": client_total,
+            "rates_preview": {"commission_rate": COMMISSION_RATE, "client_fee_rate": CLIENT_FEE_RATE, "vat_rate": VAT_RATE},
+        })
+        return payload
+    except Exception:
+        return quote
 
 
 @router.post("/quotes/{quote_id}/accept", response_model=schemas.BookingSimpleRead)
