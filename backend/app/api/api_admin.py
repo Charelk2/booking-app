@@ -262,32 +262,6 @@ def booking_to_admin(b: Booking) -> Dict[str, Any]:
             return float(v) if v is not None else 0.0
         except Exception:
             return 0.0
-    # Best-effort: resolve BookingSimple id via quote_id for downstream lookups (e.g., payouts)
-    simple_id = None
-    try:
-        from ..models import BookingSimple as _BS
-        if getattr(b, 'quote_id', None) is not None:
-            bs = b.__class__.metadata.bind.execute  # placeholder to avoid lint
-        # Use a new session-bound query to avoid unexpected eager loads
-    except Exception:
-        pass
-    # Fallback simple resolution using a dedicated query
-    try:
-        bs = None
-        try:
-            bs = b.__dict__.get('_resolved_simple_id__cache__')
-        except Exception:
-            bs = None
-        if bs is None and getattr(b, 'quote_id', None) is not None:
-            bs = b._sa_instance_state.session.query(BookingSimple).filter(BookingSimple.quote_id == b.quote_id).first()  # type: ignore
-            try:
-                b.__dict__['_resolved_simple_id__cache__'] = bs
-            except Exception:
-                pass
-        simple_id = int(getattr(bs, 'id', 0) or 0) if bs else None
-    except Exception:
-        simple_id = None
-
     return {
         "id": str(b.id),
         "status": str(b.status.value if hasattr(b.status, "value") else b.status),
@@ -300,7 +274,6 @@ def booking_to_admin(b: Booking) -> Dict[str, Any]:
         "provider_id": str(getattr(b, "artist_id", "") or ""),
         "listing_id": str(getattr(b, "service_id", "") or ""),
         "quote_id": (str(getattr(b, 'quote_id', '')) or None),
-        "simple_id": (str(simple_id) if simple_id else None),
     }
 
 
@@ -1288,7 +1261,18 @@ def get_booking(booking_id: int, _: Tuple[User, AdminUser] = Depends(get_current
     b = db.query(Booking).filter(Booking.id == booking_id).first()
     if not b:
         raise HTTPException(status_code=404, detail="Not found")
-    return booking_to_admin(b)
+    data = booking_to_admin(b)
+    # Best-effort: include simple_id for UI payout worksheet
+    try:
+        bs = None
+        if getattr(b, 'quote_id', None) is not None:
+            from ..models import BookingSimple as _BS  # type: ignore
+            bs = db.query(_BS).filter(_BS.quote_id == b.quote_id).first()
+        if bs:
+            data['simple_id'] = str(getattr(bs, 'id', '')) or None
+    except Exception:
+        pass
+    return data
 
 
 @router.post("/bookings/{booking_id}/complete")

@@ -6,7 +6,6 @@ import type { ExtendedDataProvider } from '../dataProvider';
 import MoneyCell from '../components/MoneyCell';
 import TimeCell from '../components/TimeCell';
 import { Card, CardContent, Stack, Typography, Divider } from '@mui/material';
-import { useDataProvider, useRecordContext } from 'react-admin';
 
 const bookingFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
