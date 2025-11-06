@@ -231,10 +231,10 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
         net_to_provider = float(gross_total or 0) - float(platform_fee or 0) - float(vat_on_fee or 0)
     except Exception:
         net_to_provider = 0.0
-    comp_title = Paragraph("Computation (per stages)", styles["Strong"]) 
+    comp_title = Paragraph("Summary", styles["Strong"]) 
     comp_rows = [
-        [Paragraph("Net to Provider (PS − Commission − VAT)", styles["NormalSmall"]), Paragraph(_zar(net_to_provider), styles["NormalSmall"])],
-        [Paragraph("Stage split", styles["NormalSmall"]), Paragraph("50% now, 50% after event", styles["NormalSmall"])],
+        [Paragraph("Net to Provider after deductions", styles["NormalSmall"]), Paragraph(_zar(net_to_provider), styles["NormalSmall"])],
+        [Paragraph("Split", styles["NormalSmall"]), Paragraph("50% now, 50% after event", styles["NormalSmall"])],
     ]
     story.append(comp_title)
     comp_tbl = Table(comp_rows, colWidths=[doc.width*0.65, doc.width*0.35])
@@ -254,14 +254,7 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
     story.append(mm_tbl)
     story.append(Spacer(1, 10))
 
-    # Client service fee context (not part of payout)
-    if 'client_fee' in (meta or {}) or 'client_fee_vat' in (meta or {}):
-      try:
-        cf = _zar(meta.get('client_fee') if isinstance(meta, dict) else 0.0)
-        cfv = _zar(meta.get('client_fee_vat') if isinstance(meta, dict) else 0.0)
-        story.append(Paragraph(f"For reference (charged to client): Service fee {cf} + VAT {cfv}.", styles["Muted"]))
-      except Exception:
-        pass
+    
     story.append(Paragraph("This is a remittance advice from Booka. It is not a client VAT invoice.", styles["Muted"]))
 
     doc.build(story)
