@@ -177,6 +177,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const data = res?.data || {};
       const reference: string = String(data?.reference || data?.payment_id || '').trim();
       const authorizationUrl: string | undefined = data?.authorization_url || data?.authorizationUrl;
+      const accessCode: string | undefined = data?.access_code || data?.accessCode;
 
       if (!reference) throw new Error('Payment reference missing');
       // Cache reference for adjacent views that may try to build receipt URLs optimistically
@@ -202,7 +203,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             email: customerEmail!, // safe due to hasEmail
             amountMajor: Number(amount),
             currency,
-            reference,
+            // Prefer accessCode to bind to initialized transaction and avoid duplicate ref errors
+            accessCode: accessCode,
+            reference: accessCode ? undefined : reference,
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
             metadata: { bookingRequestId, source: 'web_inline' },
             onSuccess: (ref) => startVerifyLoop(ref),

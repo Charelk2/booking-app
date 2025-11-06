@@ -32,6 +32,7 @@ export type OpenInlineOptions = {
   amountMajor: number;        // amount in major units (e.g. 5000 == NGN 5000)
   currency?: string;          // default: NGN
   reference?: string;         // from your backend
+  accessCode?: string;        // prefer this when you initialized server-side
   label?: string;
   channels?: string[];        // e.g. ["card", "bank", "ussd"]
   metadata?: Record<string, any>;
@@ -54,12 +55,15 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
   // Convert to the smallest unit expected by Paystack (kobo for NGN)
   const amountInSubunits = Math.round(opts.amountMajor * 100);
 
-  const handler = window.PaystackPop!.setup({
+  // Prefer binding to an existing initialized transaction via access_code to
+  // avoid duplicate reference errors. If no accessCode, use reference.
+  const config: any = {
     key: PAYSTACK_PUBLIC_KEY,
     email: opts.email,
     amount: amountInSubunits,
     currency,
-    ref: opts.reference,
+    ...(opts.accessCode ? { access_code: opts.accessCode } : {}),
+    ...(opts.accessCode ? {} : (opts.reference ? { ref: opts.reference } : {})),
     label: opts.label,
     channels: opts.channels,
     metadata: opts.metadata,
@@ -70,7 +74,9 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
     onClose: () => {
       opts.onClose();
     },
-  });
+  };
+
+  const handler = window.PaystackPop!.setup(config);
 
   handler.openIframe();
 }
