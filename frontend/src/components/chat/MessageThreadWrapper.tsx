@@ -801,12 +801,22 @@ export default function MessageThreadWrapper({
             onOpenQuote={() => setShowQuoteModal(true)}
             onPayNow={(quote: any) => {
               try {
-                const amt = Number(quote?.total || 0);
+                // Prefer backend preview (Total To Pay); fallback to local 3% + VAT on fee
+                const ps = Number(quote?.provider_subtotal_preview ?? quote?.subtotal ?? 0) || 0;
+                const fee = Number.isFinite(Number(quote?.booka_fee_preview))
+                  ? Number(quote?.booka_fee_preview)
+                  : Math.round(ps * 0.03 * 100) / 100;
+                const feeVat = Number.isFinite(Number(quote?.booka_fee_vat_preview))
+                  ? Number(quote?.booka_fee_vat_preview)
+                  : Math.round(fee * 0.15 * 100) / 100;
+                const clientTotal = Number.isFinite(Number(quote?.client_total_preview))
+                  ? Number(quote?.client_total_preview)
+                  : Math.round(((Number(quote?.total || 0)) + fee + feeVat) * 100) / 100;
                 const provider = bookingRequest?.artist_profile?.business_name || (bookingRequest as any)?.artist?.first_name || 'Service Provider';
                 const serviceName = bookingRequest?.service?.title || undefined;
-                if (amt > 0) openPaymentModal({
+                if (clientTotal > 0) openPaymentModal({
                   bookingRequestId,
-                  amount: amt,
+                  amount: clientTotal,
                   providerName: String(provider),
                   serviceName: serviceName as any,
                   customerEmail: (user as any)?.email || undefined,

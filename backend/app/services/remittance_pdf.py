@@ -211,10 +211,35 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
     ]
     if other_deductions and other_deductions > 0:
         line_rows.append([Paragraph("Other Deductions", styles["NormalSmall"]), Paragraph("- " + _zar(other_deductions), styles["NormalSmall"])])
-    line_rows.append([Paragraph("Net Payout Amount", styles["Strong"]), Paragraph(_zar(net_amount), styles["Strong"])])
+    # Stage-aware label for the payout amount line
+    net_label = "Net Payout Amount"
+    try:
+        if stage == "first50":
+            net_label = "Net Payout Amount (First 50%)"
+        elif stage == "final50":
+            net_label = "Net Payout Amount (Final 50%)"
+    except Exception:
+        pass
+    line_rows.append([Paragraph(net_label, styles["Strong"]), Paragraph(_zar(net_amount), styles["Strong"])])
     fin_tbl = Table(line_rows, colWidths=[doc.width*0.65, doc.width*0.35])
     fin_tbl.setStyle(TableStyle([("ALIGN", (1,0), (1,-1), "RIGHT"), ("BOX", (0,0), (-1,-1), 0.25, border), ("INNERGRID", (0,0), (-1,-1), 0.25, border), ("BACKGROUND", (0, len(line_rows)-1), (-1, len(line_rows)-1), colors.Color(0.95,0.95,0.97))]))
     story.append(fin_tbl)
+    story.append(Spacer(1, 8))
+
+    # Computation (per stages): make the 50/50 split clear
+    try:
+        net_to_provider = float(gross_total or 0) - float(platform_fee or 0) - float(vat_on_fee or 0)
+    except Exception:
+        net_to_provider = 0.0
+    comp_title = Paragraph("Computation (per stages)", styles["Strong"]) 
+    comp_rows = [
+        [Paragraph("Net to Provider (PS − Commission − VAT)", styles["NormalSmall"]), Paragraph(_zar(net_to_provider), styles["NormalSmall"])],
+        [Paragraph("Stage split", styles["NormalSmall"]), Paragraph("50% now, 50% after event", styles["NormalSmall"])],
+    ]
+    story.append(comp_title)
+    comp_tbl = Table(comp_rows, colWidths=[doc.width*0.65, doc.width*0.35])
+    comp_tbl.setStyle(TableStyle([("BOX", (0,0), (-1,-1), 0.25, border), ("INNERGRID", (0,0), (-1,-1), 0.25, border)]))
+    story.append(comp_tbl)
     story.append(Spacer(1, 8))
 
     # Method and references
