@@ -208,7 +208,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             reference: accessCode ? undefined : reference,
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
             metadata: { bookingRequestId, source: 'web_inline' },
-            onSuccess: (ref) => startVerifyLoop(ref),
+            // Important: verify using the initialization reference we stored
+            // (Paystack may return a different transient ref in callback when using access_code)
+            onSuccess: (_cbRef) => startVerifyLoop(reference),
             onClose: () => {
               // User closed popup — treat as cancelled; allow retry.
               setStatus('error');
