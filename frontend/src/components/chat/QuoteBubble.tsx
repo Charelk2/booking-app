@@ -302,7 +302,9 @@ export default function QuotePeek(props: QuotePeekProps) {
 
   // Client-facing fee previews (prefer backend fields; fallback to local math)
   const feeIncl = useMemo(() => {
-    const ps = Number(props.providerSubtotalPreview ?? derivedSubtotal) || 0;
+    const ps = Number.isFinite(props.providerSubtotalPreview as number)
+      ? Number(props.providerSubtotalPreview)
+      : Number(derivedSubtotal);
     const fee = Number.isFinite(props.bookaFeePreview as number)
       ? Number(props.bookaFeePreview)
       : Math.round(ps * 0.03 * 100) / 100;
