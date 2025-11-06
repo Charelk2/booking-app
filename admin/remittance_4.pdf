@@ -1,0 +1,101 @@
+HTTP/2 307 
+date: Thu, 06 Nov 2025 17:48:40 GMT
+content-length: 0
+location: https://9bd25cd5b1880987ed1421fb0341d91c.r2.cloudflarestorage.com/booka-storage/remittances/2025/11/4.pdf?response-content-type=application%2Fpdf&response-content-disposition=inline%3B%20filename%3D%22remittance_4.pdf%22&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=755ee195c188871186cdc39875d2fc92%2F20251106%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20251106T174839Z&X-Amz-Expires=1800&X-Amz-SignedHeaders=host&X-Amz-Signature=131a1b207518a3bbdeaa7795ed948628862cb16048355aa65ead491f4ef1d9a2
+server: cloudflare
+content-security-policy: default-src 'self'
+strict-transport-security: max-age=63072000; includeSubDomains
+x-frame-options: DENY
+via: 1.1 fly.io, 1.1 fly.io
+fly-request-id: 01K9D4HRXE5NEXVQ8JCXJF2F4E-cdg
+cf-cache-status: DYNAMIC
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=YFUVuS%2BH3sXohTKBywQ3mmNTxEgzGLlG2THdLphprlbOJxNm4jvgWZinb06%2BsS7gj8ZN5gxPg%2Fx%2FUlhCVG8SMmYIpeSiYtYgvIq7YPzO70FKUsf4zvfX8o04AA%3D%3D"}]}
+cf-ray: 99a66c3f2b9c9836-MAD
+
+HTTP/1.1 200 OK
+Date: Thu, 06 Nov 2025 17:48:40 GMT
+Content-Type: application/pdf
+Content-Length: 2536
+Connection: keep-alive
+Accept-Ranges: bytes
+Content-Disposition: inline; filename="remittance_4.pdf"
+ETag: "05f4047f98f3f55e444ffadba7870edb"
+Last-Modified: Thu, 06 Nov 2025 17:48:39 GMT
+Server: cloudflare
+CF-RAY: 99a66c4f6be7977c-CPT
+
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document http://www.reportlab.com
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 8 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 7 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/PageMode /UseNone /Pages 7 0 R /Type /Catalog
+>>
+endobj
+6 0 obj
+<<
+/Author (Booka) /CreationDate (D:20251106174838+00'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20251106174838+00'00') /Producer (ReportLab PDF Library - www.reportlab.com) 
+  /Subject (\(unspecified\)) /Title (Payout 4) /Trapped /False
+>>
+endobj
+7 0 obj
+<<
+/Count 1 /Kids [ 4 0 R ] /Type /Pages
+>>
+endobj
+8 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1107
+>>
+stream
+Gb!ks966Rf%)2U?BVpu],d"Pf@X!C[o'A3^G4KTuki>'I*0V4Q!2l$1?NCAk`0a&ClSqW`[!^:L#tYE\oF]dFYn(e9Jrf'r"N"gZ68AkBYAcB<4:T7"U_8W]Tb0tX9GpINIAH"n3k?CI#WtJi2tq)AhVKDJ2oqXf!!pG6!AFW.^N<f!705E)PIS=G,R6#LJC.e_HpsYB\m[(#UG0L+NA+RXdus4s0:<:?>D-Ag2`&U=$e*!%DR47`qGnbP8;9/7"'qD3rmgDhmFc44hf)k*\pO+mD.OJK<OrV(eY]9\>?@QU5Yk<@D1a!8"q4)E$$Jk)/F5nna;-HY9s/;?MUM`+(SPuq,(&cnZY%q8[Nqm$?AJ=Eb?A"IaL%&=,8sO0pMPE@+XMkF[,^W_qV7"g";KaoL"Cjea[Hn-HP8>Qc3<q"ET%%>4:c(RF&$mGk;Wkl^#6Ub.t-&@HV6DC;c7N*m#>:1V7tO?l0(kC3NAba6XdEJ8p8&7A._7J0Rda+S9/E8oB:K&mKJ"\#0aA)DNMIg=-eQ%NWGtn\GeTu'Y?S46^/Sg<D+TO%QBdWf+_=89Oet:<*]jB:nuNckYcOPP\L;G:,Q%<JmMU1CK;sC[Hm.Fq<D5H`*8V_&YgqY@Dmup&YgKKR`/C&dC^AJ,]k(Xb3Y_sU2e#oi`?a>c5c9Gj8AG(iB8HKoBaceT/^'YPIlJ0qWm/E'd.J8q3J`[-.ndCge"AOjMORQqd(7h@6j0QVY2.&_XE)%]O]lR>ou"[d"3?sm_D&I7R33hfEnt;L.<>,Xa"[<68rg$hq\F$]?HC5A[Z.Z/^r)&9'X$M+,&]KX++o/-<;&f8Zhh^H#@\QWPD>kW$k1d'S`b?81G>'/Lh*j[WT`hV><s,)`jBBFMCnA?4ABfN,NSh$R`?I+jeNl2u8oO6`cp?rE@OlGiha:F16kDIGg%^K59Dr-XOQgpM2=HNn;/<50-HlmZ)PZ:>L"LWaGC!Om\5N4jM%kIX'<9T<o#X7NSY\;COH1%#$S-fB!#VX34;^?.^QG@TQG_RX$X7O$a;<mj3fX\Hcc1/c='GoHAX.E>X'pdSiH!d)kh5F+XVDJa!?a+WY-tnd0r`L<@V+~>endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000073 00000 n 
+0000000114 00000 n 
+0000000221 00000 n 
+0000000333 00000 n 
+0000000536 00000 n 
+0000000604 00000 n 
+0000000874 00000 n 
+0000000933 00000 n 
+trailer
+<<
+/ID 
+[<d58d236a0c5fc675efc5eade18b94a5c><d58d236a0c5fc675efc5eade18b94a5c>]
+% ReportLab generated PDF document -- digest (http://www.reportlab.com)
+
+/Info 6 0 R
+/Root 5 0 R
+/Size 9
+>>
+startxref
+2131
+%%EOF

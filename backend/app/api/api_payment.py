@@ -1493,6 +1493,15 @@ def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_pa
         totals_rows.append([Paragraph("Total", styles["Strong"]), Paragraph(_zar(total), styles["Strong"])])
     elif amount is not None:
         totals_rows.append([Paragraph("Total", styles["Strong"]), Paragraph(_zar(amount), styles["Strong"])])
+    # Client service fee (VAT included) — informational; charged to client
+    try:
+        if subtotal is not None:
+            _fee = round(float(subtotal) * 0.03, 2)  # 3%
+            _fee_vat = round(_fee * 0.15, 2)         # 15% VAT
+            _fee_incl = _fee + _fee_vat
+            totals_rows.append([Paragraph("Booka Service Fee (3% — VAT included)", styles["NormalSmall"]), Paragraph(_zar(_fee_incl), styles["NormalSmall"])])
+    except Exception:
+        pass
     if booking_id:
         totals_rows.append([Paragraph("Booking", styles["NormalSmall"]), Paragraph(f"#{booking_id}", styles["NormalSmall"])])
     if totals_rows:

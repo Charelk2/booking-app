@@ -200,6 +200,15 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
         totals_rows.append([Paragraph("Discount", styles["NormalSmall"]), Paragraph("- " + _zar(discount or 0), styles["NormalSmall"])])
     if total is not None:
         totals_rows.append([Paragraph("Total", styles["Strong"]), Paragraph(_zar(total), styles["Strong"])])
+    # Client service fee (VAT included) — informational; charged to client
+    try:
+        if subtotal is not None:
+            _fee = round(float(subtotal) * 0.03, 2)
+            _fee_vat = round(_fee * 0.15, 2)
+            _fee_incl = _fee + _fee_vat
+            totals_rows.append([Paragraph("Booka Service Fee (3% — VAT included)", styles["NormalSmall"]), Paragraph(_zar(_fee_incl), styles["NormalSmall"])])
+    except Exception:
+        pass
     # Display rule: show Amount Due as ZAR 0.00 for paid invoices (visual only)
     display_due = 0.0 if str(status).lower() == "paid" or str(status_text).upper() == "PAID" else amount_due
     if amount_due is not None:

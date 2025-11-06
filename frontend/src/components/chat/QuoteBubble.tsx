@@ -599,6 +599,16 @@ export default function QuotePeek(props: QuotePeekProps) {
                     return <Row label={label} value={money(val)} />;
                   })()}
 
+                  {/* Client-facing platform fee (informational; applied at checkout) */}
+                  {isClientView && (
+                    (() => {
+                      const fee = Math.round(derivedSubtotal * 0.03 * 100) / 100; // 3%
+                      const feeVat = Math.round(fee * 0.15 * 100) / 100;         // 15% VAT
+                      const feeIncl = Math.round((fee + feeVat) * 100) / 100;
+                      return <Row label="Booka Service Fee (3% — VAT included)" value={money(feeIncl)} />;
+                    })()
+                  )}
+
                   {/* Total */}
                   <div className="mt-2 border-t border-b border-gray-300 py-2">
                     <div className="font-semibold">

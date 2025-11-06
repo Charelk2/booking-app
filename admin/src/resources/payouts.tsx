@@ -34,9 +34,22 @@ const Actions = () => {
   };
   const viewPdf = async () => {
     const dp: any = (window as any).raDataProvider;
-    const apiBase = dp.API_URL.replace(/\/admin$/, '');
-    const url = `${apiBase}/api/v1/payouts/${rec.id}/pdf`;
-    window.open(url, '_blank');
+    try {
+      const { json } = await dp.httpClient(`${dp.API_URL}/payouts/${rec.id}/pdf-url`, { method: 'GET' });
+      const url = (json && json.url) ? json.url : null;
+      if (url) {
+        window.open(url, '_blank');
+        return;
+      }
+      throw new Error('No URL returned');
+    } catch (e:any) {
+      // Fallback to direct API (may 403 without headers)
+      try {
+        const apiBase = dp.API_URL.replace(/\/admin$/, '');
+        const url = `${apiBase}/api/v1/payouts/${rec.id}/pdf`;
+        window.open(url, '_blank');
+      } catch {}
+    }
   };
   return (
     <Stack direction="row" spacing={1}>

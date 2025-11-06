@@ -1,0 +1,101 @@
+HTTP/2 307 
+date: Thu, 06 Nov 2025 17:46:08 GMT
+content-length: 0
+location: https://9bd25cd5b1880987ed1421fb0341d91c.r2.cloudflarestorage.com/booka-storage/remittances/2025/11/7.pdf?response-content-type=application%2Fpdf&response-content-disposition=inline%3B%20filename%3D%22remittance_7.pdf%22&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=755ee195c188871186cdc39875d2fc92%2F20251106%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20251106T174607Z&X-Amz-Expires=1800&X-Amz-SignedHeaders=host&X-Amz-Signature=b8d76af03242315451952aff5f3edb827a63453cc08d5bbcf1d134d9621b9361
+server: cloudflare
+content-security-policy: default-src 'self'
+strict-transport-security: max-age=63072000; includeSubDomains
+x-frame-options: DENY
+via: 1.1 fly.io, 1.1 fly.io
+fly-request-id: 01K9D4C9YJZ0CXB1ZK2XGZWPCF-cdg
+cf-cache-status: DYNAMIC
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ijrDTyry8ogNYTxM%2FquypJVMx2aAWa37nLyczyGVbyMtO6NODIpqKJ5puWQBzggstXzfnpN74v7clPbkoGXe6MQm9N3QEGyDpS0mW0MasR%2FGsEc%2F73G8qCIEhg%3D%3D"}]}
+cf-ray: 99a667df5ae32166-MAD
+
+HTTP/1.1 200 OK
+Date: Thu, 06 Nov 2025 17:46:09 GMT
+Content-Type: application/pdf
+Content-Length: 2619
+Connection: keep-alive
+Accept-Ranges: bytes
+Content-Disposition: inline; filename="remittance_7.pdf"
+ETag: "691145f0282792468bae0e6334c58060"
+Last-Modified: Thu, 06 Nov 2025 17:46:07 GMT
+Server: cloudflare
+CF-RAY: 99a668995c540708-CPT
+
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document http://www.reportlab.com
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 8 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 7 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/PageMode /UseNone /Pages 7 0 R /Type /Catalog
+>>
+endobj
+6 0 obj
+<<
+/Author (Booka) /CreationDate (D:20251106174600+00'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20251106174600+00'00') /Producer (ReportLab PDF Library - www.reportlab.com) 
+  /Subject (\(unspecified\)) /Title (Payout 7) /Trapped /False
+>>
+endobj
+7 0 obj
+<<
+/Count 1 /Kids [ 4 0 R ] /Type /Pages
+>>
+endobj
+8 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1190
+>>
+stream
+Gb!Skhf%7=%"@qX6!st[FReaIh^NJ8]+-F$Th12+%!g7eF0*ZM>5=\^s8=@fP%D\>-.PeFj!6"D54TqD,`_uF%kE*)@t;/tr:6E[j"Ql'P=3:KGPH;9qDr)TSVe$%L#uc"-V>eDn"H*aip:qi+j^:A^Ns7>Gl7iIbs6t;!cVO*#N,d$jeqTP](YXW6gnKNpa__ZL<5o)q&Vb)FC>ji3"o[m,p^je=:+kS;/K4F_AEm7'U1BYo/?j.@G?$D>D&F[`))A0^h5I1o_-27b.@,GX>]d$cY-l>QRZ:Qo_sruFeB[;5=&&>2Zl?*[fXRZ.-^C1PcXLJL<(-dP_Q1<LnaZp[J=GOZ\mR7XYDU4$*<3ff%7h:Q_kL`.o%pbr(Jq$pRYZ;hJir4ZKT;:&,L^=KM,/6U(pu:5>Ni9oHfs:luXfR!$36""R_T?,!I$2o?b$@dsn.Rq/fSjYYk$`36m^c/piGP%c1VolYno];rEn@0k4_54.MIT0RC@V17(\LFZ:cIg&-9qDufVWIQrmL%4i6-DEsJp*:bGLF8uidN<oCK^S2iC$LtPMibAd\Kn/UtGU5%Qj8*"c06AN&;O=Q0`V#r@$Vj?p\[Yu0X]E-1[3=1J^AF:8pGI-,L1tKZg=d2lL@)Dd"m+?8D$:mM[]SJ^G?[qAJ*a5Q"cqu!I-RtA5$b>6j0O?0_.V_b>N.lJFIgXIY"n0;&0ik01!\Ah0oS4m*&%p#'3p9@Sn9^i:#e3:XeIX<MMA&;8E]K=U;,F/mm;#M).U`ZZ>1sF@G%i6`;5,dFZTW"[DS**M_87hW%5DtK1se"B_<H.rcB2>A'JkL)0]U4Xb5#.9+_JUbqpa+d$W:Wnep;c&\.+*C?g5&92,Kmb=+dKX%FLV;h1o@J;'aA^t#]a\^Ao5eEDa`VM$"6<uFu<b09Xuq*d>[bm_UEo&;AlKm,%sD"&<CK-$ou2d7q@#G['if@(#f;/em`NE8K-qkl.5@/(;ob&FA3R2bt8`FKMX_9H7L1prBp>HaYT;gu[U_71mVQ#!B9VojeS/_BE:"-^utW8i[bWdk5s]3^rb`3b@\p:oi9bb!W!Hj\>6j:_K7FT^15@.%:I_i1h<;B0WG%U-4C7Z$6&2.O(\;gp@B-];XAp_0D#ETDP8'*r6ITii:$IN&Y$I.6s7,k\[RUf<^%,qg]bh7"7krrZ8mqjm~>endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000073 00000 n 
+0000000114 00000 n 
+0000000221 00000 n 
+0000000333 00000 n 
+0000000536 00000 n 
+0000000604 00000 n 
+0000000874 00000 n 
+0000000933 00000 n 
+trailer
+<<
+/ID 
+[<20590528de7d44997eaf44108c83bf69><20590528de7d44997eaf44108c83bf69>]
+% ReportLab generated PDF document -- digest (http://www.reportlab.com)
+
+/Info 6 0 R
+/Root 5 0 R
+/Size 9
+>>
+startxref
+2214
+%%EOF

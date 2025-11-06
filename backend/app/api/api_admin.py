@@ -1955,6 +1955,45 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
     return _with_total(items, int(total), "payouts", start, start + len(items) - 1)
 
 
+@router.get("/payouts/{payout_id}/pdf-url")
+def get_payout_pdf_url(
+    payout_id: int,
+    current: Tuple[User, AdminUser] = Depends(require_roles("payments", "admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    """Return a presigned, headerless URL to the remittance PDF for Admin UI.
+
+    - Generates the PDF if needed.
+    - Uploads to R2 and returns a presigned GET so the browser can open it
+      without attaching Authorization headers.
+    """
+    try:
+        from ..services import remittance_pdf  # type: ignore
+        from ..utils import r2 as r2utils  # type: ignore
+    except Exception:
+        raise HTTPException(status_code=500, detail="PDF service unavailable")
+
+    # Generate PDF bytes (in-memory) and upload to R2
+    try:
+        data = remittance_pdf.generate_pdf(db, int(payout_id))
+    except Exception:
+        raise HTTPException(status_code=404, detail="Remittance not available")
+
+    try:
+        key = r2utils.build_remittance_key(str(payout_id))
+        r2utils.put_bytes(key, data, content_type="application/pdf")
+        signed = r2utils.presign_get_by_key(
+            key,
+            filename=f"remittance_{payout_id}.pdf",
+            content_type="application/pdf",
+            inline=True,
+        )
+        return {"url": signed}
+    except Exception:
+        # Fallback: no presigned URL available
+        raise HTTPException(status_code=503, detail="presign_failed")
+
+
 @router.post("/payout_batches")
 def create_payout_batch(payload: Dict[str, Any], current: Tuple[User, AdminUser] = Depends(require_roles("payments", "admin", "superadmin")), db: Session = Depends(get_db)):
     booking_ids = payload.get("bookingIds") or []
