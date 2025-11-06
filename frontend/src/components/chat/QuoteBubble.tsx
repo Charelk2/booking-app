@@ -42,6 +42,11 @@ export interface QuotePeekProps {
   discount?: number;
   subtotal?: number;
   total: number;
+  // Server-computed preview fields to avoid UI drift
+  providerSubtotalPreview?: number;
+  bookaFeePreview?: number;
+  bookaFeeVatPreview?: number;
+  clientTotalPreview?: number;
 
   // state/time
   status: QuoteStatus;
@@ -294,6 +299,26 @@ export default function QuotePeek(props: QuotePeekProps) {
     const sum = safeNum(derivedSubtotal) + safeNum(fallbackVat);
     return Math.round(sum * 100) / 100;
   }, [hasExplicitTaxes, total, derivedSubtotal, fallbackVat]);
+
+  // Client-facing fee previews (prefer backend fields; fallback to local math)
+  const feeIncl = useMemo(() => {
+    const ps = Number(props.providerSubtotalPreview ?? derivedSubtotal) || 0;
+    const fee = Number.isFinite(props.bookaFeePreview as number)
+      ? Number(props.bookaFeePreview)
+      : Math.round(ps * 0.03 * 100) / 100;
+    const feeVat = Number.isFinite(props.bookaFeeVatPreview as number)
+      ? Number(props.bookaFeeVatPreview)
+      : Math.round(fee * 0.15 * 100) / 100;
+    return Math.round((fee + feeVat) * 100) / 100;
+  }, [props.providerSubtotalPreview, props.bookaFeePreview, props.bookaFeeVatPreview, derivedSubtotal]);
+
+  const clientTotal = useMemo(() => {
+    if (Number.isFinite(props.clientTotalPreview as number)) {
+      return Number(props.clientTotalPreview);
+    }
+    // Fallback: quote total/VAT + feeIncl
+    return Math.round((displayTotal + feeIncl) * 100) / 100;
+  }, [props.clientTotalPreview, displayTotal, feeIncl]);
 
   // Fetch reviews lazily when the details modal opens (best effort)
   const [peekReviews, setPeekReviews] = useState<Review[]>([]);
@@ -601,18 +626,17 @@ export default function QuotePeek(props: QuotePeekProps) {
 
                   {/* Client-facing platform fee (informational; applied at checkout) */}
                   {isClientView && (
-                    (() => {
-                      const fee = Math.round(derivedSubtotal * 0.03 * 100) / 100; // 3%
-                      const feeVat = Math.round(fee * 0.15 * 100) / 100;         // 15% VAT
-                      const feeIncl = Math.round((fee + feeVat) * 100) / 100;
-                      return <Row label="Booka Service Fee (3% — VAT included)" value={money(feeIncl)} />;
-                    })()
+                    <Row label="Booka Service Fee (3% — VAT included)" value={money(feeIncl)} />
                   )}
 
-                  {/* Total */}
+                  {/* Total / Total To Pay (client) */}
                   <div className="mt-2 border-t border-b border-gray-300 py-2">
                     <div className="font-semibold">
-                      <Row label="Total" value={money(displayTotal)} valueClass="!font-semibold" />
+                      {isClientView ? (
+                        <Row label="Total To Pay" value={money(clientTotal)} valueClass="!font-semibold" />
+                      ) : (
+                        <Row label="Total" value={money(displayTotal)} valueClass="!font-semibold" />
+                      )}
                     </div>
                   </div>
                 </div>

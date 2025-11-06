@@ -291,6 +291,10 @@ export default function GroupRenderer({
                     discount={Number(q?.discount) || undefined}
                     subtotal={Number(q?.subtotal || 0)}
                     total={Number(q?.total || 0)}
+                    providerSubtotalPreview={Number((q as any)?.provider_subtotal_preview ?? NaN)}
+                    bookaFeePreview={Number((q as any)?.booka_fee_preview ?? NaN)}
+                    bookaFeeVatPreview={Number((q as any)?.booka_fee_vat_preview ?? NaN)}
+                    clientTotalPreview={Number((q as any)?.client_total_preview ?? NaN)}
                     status={(q?.status === 'accepted') ? 'Accepted' : (q?.status === 'rejected') ? 'Rejected' : (q?.status === 'expired') ? 'Expired' : 'Pending'}
                     isClientView={String(userType).toLowerCase() === 'client'}
                     isPaid={Boolean(isPaid)}
