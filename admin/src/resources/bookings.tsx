@@ -1,11 +1,12 @@
 import * as React from 'react';
-import {
-  List, Datagrid, TextField, DateField, TextInput, SelectInput, NumberField,
-  Show, SimpleShowLayout, useNotify, useRefresh, Button, useRecordContext, usePermissions
-} from 'react-admin';
+import { List, Datagrid, TextField, DateField, TextInput, SelectInput, Show, SimpleShowLayout, useNotify, useRefresh, Button, useRecordContext, usePermissions } from 'react-admin';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import type { ExtendedDataProvider } from '../dataProvider';
+import MoneyCell from '../components/MoneyCell';
+import TimeCell from '../components/TimeCell';
+import { Card, CardContent, Stack, Typography, Divider } from '@mui/material';
+import { useDataProvider, useRecordContext } from 'react-admin';
 
 const bookingFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
@@ -55,10 +56,12 @@ export const BookingList = () => (
     <Datagrid rowClick="show">
       <TextField source="id" />
       <TextField source="status" />
-      <DateField source="event_date" />
+      <DateField source="event_date" showTime />
       <TextField source="location" />
-      <NumberField source="total_amount" options={{ style:'currency', currency:'ZAR' }} />
-      <DateField source="created_at" showTime />
+      <TextField source="client_id" label="Client" />
+      <TextField source="provider_id" label="Provider" />
+      <MoneyCell source="total_amount" />
+      <TimeCell source="created_at" />
     </Datagrid>
   </List>
 );
@@ -73,10 +76,80 @@ export const BookingShow = () => (
       <TextField source="listing_id" />
       <DateField source="event_date" showTime />
       <TextField source="location" />
-      <NumberField source="total_amount" options={{ style:'currency', currency:'ZAR' }} />
-      <DateField source="created_at" showTime />
+      <MoneyCell source="total_amount" />
+      <TimeCell source="created_at" />
+      <PayoutWorksheet />
     </SimpleShowLayout>
   </Show>
 );
 
 export const attachDPBookings = (dp: ExtendedDataProvider) => { (window as any).raDataProvider = dp; };
+
+function PayoutWorksheet() {
+  const rec = useRecordContext<any>();
+  const dp: any = (window as any).raDataProvider;
+  const [rows, setRows] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  React.useEffect(() => {
+    let mounted = true;
+    async function run() {
+      try {
+        setLoading(true);
+        const simpleId = rec?.simple_id;
+        if (!simpleId) { setRows([]); return; }
+        const res = await (dp as any).getList('payouts', {
+          pagination: { page: 1, perPage: 100 },
+          sort: { field: 'id', order: 'ASC' },
+          filter: { booking_id: simpleId },
+        });
+        if (mounted) setRows(res?.data || []);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    run();
+    return () => { mounted = false; };
+  }, [rec?.id]);
+
+  const meta = React.useMemo(() => {
+    // Prefer meta from final50 or first50
+    const f = rows.find((r) => String(r.type).toLowerCase() === 'final50');
+    const s = rows.find((r) => String(r.type).toLowerCase() === 'first50');
+    return (f?.meta || s?.meta || {}) as any;
+  }, [rows]);
+
+  const Z = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' });
+  const fmt = (v: any) => Z.format(Number(v || 0));
+
+  if (loading) return null;
+  if (!rows.length) return null;
+
+  return (
+    <Card variant="outlined" sx={{ mt: 2 }}>
+      <CardContent>
+        <Stack spacing={1}>
+          <Typography variant="h6">Payout Worksheet</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Computed at payment time. Commission base is provider subtotal (services + travel + sound). Client service fee (3% + VAT) is charged to the client and not paid to the provider.
+          </Typography>
+          <Divider />
+          <Stack direction="row" justifyContent="space-between"><span>Provider Subtotal (PS)</span><strong>{fmt(meta?.provider_subtotal)}</strong></Stack>
+          <Stack direction="row" justifyContent="space-between"><span>Client Service Fee (3% of PS)</span><span>{fmt(meta?.client_fee)}</span></Stack>
+          <Stack direction="row" justifyContent="space-between"><span>VAT on Client Fee (15%)</span><span>{fmt(meta?.client_fee_vat)}</span></Stack>
+          <Divider />
+          <Stack direction="row" justifyContent="space-between"><span>Platform Commission (7.5% of PS)</span><span>- {fmt(meta?.commission)}</span></Stack>
+          <Stack direction="row" justifyContent="space-between"><span>VAT on Commission (15%)</span><span>- {fmt(meta?.vat_on_commission)}</span></Stack>
+          <Stack direction="row" justifyContent="space-between"><span>Provider Net Total (estimate)</span><strong>{fmt(meta?.provider_net_total_estimate)}</strong></Stack>
+          <Divider />
+          <Typography variant="subtitle2">Stages</Typography>
+          {rows.map((r) => (
+            <Stack key={r.id} direction="row" justifyContent="space-between">
+              <span>{String(r.type).toUpperCase()} — Scheduled {r.scheduled_at ? new Date(r.scheduled_at).toLocaleString() : '—'}</span>
+              <strong>{fmt(r.amount)}</strong>
+            </Stack>
+          ))}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}

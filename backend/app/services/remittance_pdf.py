@@ -106,11 +106,54 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
     service_date = _coalesce_event_date(db, booking_id) or "—"
     gross_total = _fetch_gross_total(db, booking_id)
 
-    # Fee + VAT placeholders (can be updated once fee logic is available)
+    # Fee + VAT: prefer payout.meta snapshot if present
     platform_fee = 0.0
     vat_on_fee = 0.0
     other_deductions = 0.0
     net_amount = amount
+    # Try to pull meta from payouts
+    meta_row = db.execute(text("SELECT meta FROM payouts WHERE id=:id"), {"id": payout_id}).first()
+    meta = None
+    try:
+        if meta_row is not None:
+            m = meta_row[0]
+            if isinstance(m, str):
+                import json as _json
+                meta = _json.loads(m)
+            else:
+                meta = m
+    except Exception:
+        meta = None
+    if isinstance(meta, dict):
+        try:
+            platform_fee = float(meta.get('commission') or 0)
+        except Exception:
+            platform_fee = platform_fee
+        try:
+            vat_on_fee = float(meta.get('vat_on_commission') or 0)
+        except Exception:
+            vat_on_fee = vat_on_fee
+        try:
+            # Prefer provider_subtotal from meta; fallback remains gross_total from quote
+            ps = meta.get('provider_subtotal')
+            if ps is not None:
+                gross_total = float(ps or 0)
+        except Exception:
+            pass
+        try:
+            client_fee = float(meta.get('client_fee') or 0)
+        except Exception:
+            client_fee = 0.0
+        try:
+            client_fee_vat = float(meta.get('client_fee_vat') or 0)
+        except Exception:
+            client_fee_vat = 0.0
+        try:
+            cb = float(meta.get('commissionable_base') or 0)
+            pt = float(meta.get('pass_through') or 0)
+            gross_total = cb + pt
+        except Exception:
+            pass
 
     # Document
     buffer = BytesIO()
@@ -162,9 +205,9 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
 
     # Financials
     line_rows = [
-        [Paragraph("Gross Booking Amount", styles["NormalSmall"]), Paragraph(_zar(gross_total), styles["NormalSmall"])],
-        [Paragraph("Platform Service Fee", styles["NormalSmall"]), Paragraph("- " + _zar(platform_fee), styles["NormalSmall"])],
-        [Paragraph("VAT on Service Fee (15%)", styles["NormalSmall"]), Paragraph("- " + _zar(vat_on_fee), styles["NormalSmall"])],
+        [Paragraph("Provider Subtotal (services + travel + sound)", styles["NormalSmall"]), Paragraph(_zar(gross_total), styles["NormalSmall"])],
+        [Paragraph("Platform Commission (7.5% of provider subtotal)", styles["NormalSmall"]), Paragraph("- " + _zar(platform_fee), styles["NormalSmall"])],
+        [Paragraph("VAT on Commission (15%)", styles["NormalSmall"]), Paragraph("- " + _zar(vat_on_fee), styles["NormalSmall"])],
     ]
     if other_deductions and other_deductions > 0:
         line_rows.append([Paragraph("Other Deductions", styles["NormalSmall"]), Paragraph("- " + _zar(other_deductions), styles["NormalSmall"])])
@@ -186,6 +229,14 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
     story.append(mm_tbl)
     story.append(Spacer(1, 10))
 
+    # Client service fee context (not part of payout)
+    if 'client_fee' in (meta or {}) or 'client_fee_vat' in (meta or {}):
+      try:
+        cf = _zar(meta.get('client_fee') if isinstance(meta, dict) else 0.0)
+        cfv = _zar(meta.get('client_fee_vat') if isinstance(meta, dict) else 0.0)
+        story.append(Paragraph(f"For reference (charged to client): Service fee {cf} + VAT {cfv}.", styles["Muted"]))
+      except Exception:
+        pass
     story.append(Paragraph("This is a remittance advice from Booka. It is not a client VAT invoice.", styles["Muted"]))
 
     doc.build(story)

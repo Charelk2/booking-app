@@ -262,6 +262,32 @@ def booking_to_admin(b: Booking) -> Dict[str, Any]:
             return float(v) if v is not None else 0.0
         except Exception:
             return 0.0
+    # Best-effort: resolve BookingSimple id via quote_id for downstream lookups (e.g., payouts)
+    simple_id = None
+    try:
+        from ..models import BookingSimple as _BS
+        if getattr(b, 'quote_id', None) is not None:
+            bs = b.__class__.metadata.bind.execute  # placeholder to avoid lint
+        # Use a new session-bound query to avoid unexpected eager loads
+    except Exception:
+        pass
+    # Fallback simple resolution using a dedicated query
+    try:
+        bs = None
+        try:
+            bs = b.__dict__.get('_resolved_simple_id__cache__')
+        except Exception:
+            bs = None
+        if bs is None and getattr(b, 'quote_id', None) is not None:
+            bs = b._sa_instance_state.session.query(BookingSimple).filter(BookingSimple.quote_id == b.quote_id).first()  # type: ignore
+            try:
+                b.__dict__['_resolved_simple_id__cache__'] = bs
+            except Exception:
+                pass
+        simple_id = int(getattr(bs, 'id', 0) or 0) if bs else None
+    except Exception:
+        simple_id = None
+
     return {
         "id": str(b.id),
         "status": str(b.status.value if hasattr(b.status, "value") else b.status),
@@ -273,6 +299,8 @@ def booking_to_admin(b: Booking) -> Dict[str, Any]:
         "client_id": str(getattr(b, "client_id", "") or ""),
         "provider_id": str(getattr(b, "artist_id", "") or ""),
         "listing_id": str(getattr(b, "service_id", "") or ""),
+        "quote_id": (str(getattr(b, 'quote_id', '')) or None),
+        "simple_id": (str(simple_id) if simple_id else None),
     }
 
 
@@ -1894,13 +1922,31 @@ def list_ledger(request: Request, _: Tuple[User, AdminUser] = Depends(require_ro
 @router.get("/payouts")
 def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_roles("payments", "admin", "superadmin")), db: Session = Depends(get_db)):
     offset, limit, start, end = _get_offset_limit(request.query_params)
-    rows = db.execute(text("""
+    filters = _parse_json_param(request.query_params, 'filter') or {}
+    where = []
+    params: Dict[str, Any] = {"lim": limit, "off": offset}
+    if isinstance(filters, dict):
+        if filters.get('booking_id'):
+            where.append("booking_id = :bid")
+            params['bid'] = filters['booking_id']
+        if filters.get('provider_id'):
+            where.append("provider_id = :pid")
+            params['pid'] = filters['provider_id']
+        if filters.get('status'):
+            where.append("status = :st")
+            params['st'] = filters['status']
+        if filters.get('type'):
+            where.append("type = :tp")
+            params['tp'] = filters['type']
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    rows = db.execute(text(f"""
         SELECT id, booking_id, provider_id, amount, currency, status, type, scheduled_at, paid_at, method, reference, batch_id, created_at
         FROM payouts
+        {where_sql}
         ORDER BY created_at DESC
         LIMIT :lim OFFSET :off
-    """), {"lim": limit, "off": offset}).fetchall()
-    total = db.execute(text("SELECT COUNT(*) FROM payouts")).scalar() or 0
+    """), params).fetchall()
+    total = db.execute(text(f"SELECT COUNT(*) FROM payouts {where_sql}"), {k:v for k,v in params.items() if k in ('bid','pid','st','tp')}).scalar() or 0
     def _iso(dt):
         try:
             return dt.isoformat() if dt is not None else None

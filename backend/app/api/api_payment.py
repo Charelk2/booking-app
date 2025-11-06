@@ -143,6 +143,84 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
         half1 = total_amount
         half2 = Decimal('0')
 
+    # Compute fee snapshot (commissionable base, client fee, commission, VAT on commission, pass-through)
+    def _snapshot() -> dict:
+        snap: dict = {}
+        try:
+            qv2 = db.query(QuoteV2).filter(QuoteV2.id == simple.quote_id).first()
+        except Exception:
+            qv2 = None
+        # Services total: sum of services[].price
+        services_total = 0.0
+        try:
+            if qv2 and isinstance(qv2.services, list):
+                for s in qv2.services:
+                    try:
+                        services_total += float(s.get('price') or 0)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        # Pass-through: travel + sound (accommodation free-text excluded)
+        pass_through = 0.0
+        try:
+            if qv2:
+                try:
+                    pass_through += float(qv2.travel_fee or 0)
+                except Exception:
+                    pass
+                try:
+                    pass_through += float(qv2.sound_fee or 0)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Rates
+        COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
+        CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
+        VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+
+        # Provider subtotal (PS): services + pass-through
+        provider_subtotal = round(services_total + pass_through, 2)
+        # Client fee applied on PS (not part of provider payout)
+        client_fee = round(provider_subtotal * CLIENT_FEE_RATE, 2)
+        client_fee_vat = round(client_fee * VAT_RATE, 2)
+        # Commission withheld on PS (provider-funded)
+        commission = round(provider_subtotal * COMMISSION_RATE, 2)
+        vat_on_commission = round(commission * VAT_RATE, 2)
+        # Provider net estimate (PS - commission - VAT on commission)
+        provider_net_total_estimate = round(provider_subtotal - commission - vat_on_commission, 2)
+        # Stage nets (pro-rata; keep rounding residual on final)
+        try:
+            from decimal import Decimal as _D, ROUND_HALF_UP as _R
+            _pnet = _D(str(provider_net_total_estimate))
+            stage_first = (_pnet / _D('2')).quantize(_D('0.01'), rounding=_R)
+            stage_final = (_pnet - stage_first).quantize(_D('0.01'), rounding=_R)
+            first_est = float(stage_first)
+            final_est = float(stage_final)
+        except Exception:
+            first_est = round(provider_net_total_estimate / 2.0, 2)
+            final_est = round(provider_net_total_estimate - first_est, 2)
+
+        snap.update({
+            'commissionable_base': round(services_total, 2),
+            'pass_through': round(pass_through, 2),
+            'provider_subtotal': provider_subtotal,
+            'rates': {'commission_rate': COMMISSION_RATE, 'client_fee_rate': CLIENT_FEE_RATE, 'vat_rate': VAT_RATE},
+            'commission': commission,
+            'vat_on_commission': vat_on_commission,
+            'client_fee': client_fee,
+            'client_fee_vat': client_fee_vat,
+            'provider_net_total_estimate': provider_net_total_estimate,
+            'reference': reference,
+        })
+        # Stage estimates
+        snap['stage_estimates'] = {'first50': first_est, 'final50': final_est}
+        return snap
+
+    fee_snapshot = _snapshot()
+
     # Query existing for idempotency
     try:
         rows = db.execute(
@@ -159,6 +237,13 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
     # Insert first50 if missing
     if 'first50' not in have:
         try:
+            meta_first = {
+                'phase': phase,
+                'stage': 'first50',
+                'split': 'first50',
+                **fee_snapshot,
+                'stage_net_estimate': fee_snapshot.get('stage_estimates', {}).get('first50'),
+            }
             db.execute(
                 text(
                     """
@@ -172,7 +257,7 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
                     "amt": float(half1),
                     "sched": now,
                     "ref": reference,
-                    "meta": json.dumps({"phase": phase, "split": "first50"}),
+                    "meta": json.dumps(meta_first),
                 },
             )
             db.commit()
@@ -182,6 +267,13 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
     if 'final50' not in have and half2 > Decimal('0'):
         sched = _compute_final_payout_schedule(db, simple)
         try:
+            meta_final = {
+                'phase': phase,
+                'stage': 'final50',
+                'split': 'final50',
+                **fee_snapshot,
+                'stage_net_estimate': fee_snapshot.get('stage_estimates', {}).get('final50'),
+            }
             db.execute(
                 text(
                     """
@@ -195,7 +287,7 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
                     "amt": float(half2),
                     "sched": sched,
                     "ref": reference,
-                    "meta": json.dumps({"phase": phase, "split": "final50"}),
+                    "meta": json.dumps(meta_final),
                 },
             )
             db.commit()
