@@ -86,6 +86,20 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
         <p className="text-sm">Accommodation: {quote.accommodation}</p>
       )}
       <p className="text-sm font-medium">Subtotal: {formatCurrency(Number(quote.subtotal))}</p>
+      {/* Booka Service Fee (3%) — VAT included (informational; applied at checkout)
+          Only clients see this line; providers' view hides client fees. */}
+      {isClient && (() => {
+        const ps = Number(quote.subtotal) || 0;
+        const fee = ps * 0.03;
+        const feeVat = fee * 0.15;
+        const feeIncl = fee + feeVat;
+        return (
+          <p className="text-sm">
+            Booka Service Fee (3% — VAT included): {formatCurrency(feeIncl)}{' '}
+            <span className="text-xs text-gray-500">(added at checkout)</span>
+          </p>
+        );
+      })()}
       {quote.discount && (
         <p className="text-sm">Discount: {formatCurrency(Number(quote.discount))}</p>
       )}

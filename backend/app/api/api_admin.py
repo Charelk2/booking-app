@@ -1924,7 +1924,7 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
             params['tp'] = filters['type']
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
     rows = db.execute(text(f"""
-        SELECT id, booking_id, provider_id, amount, currency, status, type, scheduled_at, paid_at, method, reference, batch_id, created_at
+        SELECT id, booking_id, provider_id, amount, currency, status, type, scheduled_at, paid_at, method, reference, batch_id, created_at, meta
         FROM payouts
         {where_sql}
         ORDER BY created_at DESC
@@ -1950,6 +1950,7 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
         "reference": r[10],
         "batch_id": r[11],
         "created_at": _iso(r[12]),
+        "meta": r[13],
     } for r in rows]
     return _with_total(items, int(total), "payouts", start, start + len(items) - 1)
 

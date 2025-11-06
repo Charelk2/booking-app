@@ -6,6 +6,8 @@ primary_region = "jnb"  # Johannesburg (fallback to ams if not available)
 
 [build]
   dockerfile = "backend/Dockerfile.fly"
+  # Limit build context to backend/ to avoid uploading the entire repo (speeds up deploys)
+  context = "backend"
 
 [env]
   PORT = "8000"

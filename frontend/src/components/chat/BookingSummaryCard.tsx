@@ -315,6 +315,11 @@ export default function BookingSummaryCard({
             const subtotal = Number(best.subtotal || (base + sound + travel - discount));
             const total = Number(best.total || subtotal);
             const vat = Math.max(0, total - subtotal);
+            const isClient = user?.user_type === 'client';
+            // Client-facing informational fee preview (applied at checkout)
+            const fee = subtotal * 0.03; // 3% of provider subtotal (services + travel + sound)
+            const feeVat = fee * 0.15;   // 15% VAT on fee
+            const feeIncl = fee + feeVat;
             return (
               <div className="mt-4">
                 <div className="font-semibold mb-1">Costing</div>
@@ -351,6 +356,12 @@ export default function BookingSummaryCard({
                     <div className="flex justify-between text-gray-700">
                       <span>VAT</span>
                       <span>{formatCurrency(vat)}</span>
+                    </div>
+                  )}
+                  {isClient && (
+                    <div className="flex justify-between text-gray-700">
+                      <span>Booka Service Fee (3% — VAT included)</span>
+                      <span>{formatCurrency(feeIncl)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
