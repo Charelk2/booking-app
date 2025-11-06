@@ -446,7 +446,7 @@ def create_payment(
         )
 
     # Enforce full upfront payment. Ignore client-provided amount/full and
-    # charge the accepted quote's total. This guarantees a single, final charge.
+    # charge the client-facing Total To Pay: quote.total + Booka Service Fee (3%) + VAT on that fee (15%).
     try:
         quote_total = float(booking.quote.total or 0) if booking.quote else 0.0
     except Exception:
@@ -455,8 +455,23 @@ def create_payment(
         logger.warning("Quote total missing or zero for booking %s", booking.id)
         raise error_response("Invalid quote total", {"amount": "invalid"}, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-    amount = quote_total
-    logger.info("Resolved payment amount (full upfront) %s", amount)
+    # Compute client fee on provider subtotal (services + travel + sound)
+    try:
+        CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
+    except Exception:
+        CLIENT_FEE_RATE = 0.03
+    try:
+        VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+    except Exception:
+        VAT_RATE = 0.15
+    try:
+        provider_subtotal_ps = float(getattr(booking.quote, 'subtotal', 0) or 0)
+    except Exception:
+        provider_subtotal_ps = 0.0
+    client_fee = round(provider_subtotal_ps * CLIENT_FEE_RATE, 2)
+    client_fee_vat = round(client_fee * VAT_RATE, 2)
+    amount = round(quote_total + client_fee + client_fee_vat, 2)
+    logger.info("Resolved payment amount (Total To Pay: total + fee + vat) %s (total=%s fee=%s fee_vat=%s)", amount, quote_total, client_fee, client_fee_vat)
     charge_amount = Decimal(str(amount))
 
     # Require Paystack; no fake/direct payments path

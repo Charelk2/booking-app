@@ -60,7 +60,6 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
   const config: any = {
     key: PAYSTACK_PUBLIC_KEY,
     email: opts.email,
-    amount: amountInSubunits,
     currency,
     ...(opts.accessCode ? { access_code: opts.accessCode } : {}),
     ...(opts.accessCode ? {} : (opts.reference ? { ref: opts.reference } : {})),
@@ -75,6 +74,11 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
       opts.onClose();
     },
   };
+
+  // Only include amount if we are NOT passing an access_code (amount comes from initialization when access_code is used)
+  if (!opts.accessCode) {
+    config.amount = amountInSubunits;
+  }
 
   const handler = window.PaystackPop!.setup(config);
 
