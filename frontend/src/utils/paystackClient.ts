@@ -75,10 +75,8 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
     },
   };
 
-  // Only include amount if we are NOT passing an access_code (amount comes from initialization when access_code is used)
-  if (!opts.accessCode) {
-    config.amount = amountInSubunits;
-  }
+  // Always include amount to satisfy inline validation; avoid duplicate issues by NOT sending `ref` when using access_code.
+  config.amount = amountInSubunits;
 
   const handler = window.PaystackPop!.setup(config);
 

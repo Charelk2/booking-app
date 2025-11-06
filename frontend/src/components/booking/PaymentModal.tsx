@@ -194,7 +194,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       setPaystackReference(reference);
 
-      // 2) Inline-only: require a valid email
+      // 2) Inline preferred (if email present); otherwise hosted fallback
       const hasEmail = Boolean(customerEmail && /\S+@\S+\.\S+/.test(customerEmail));
       if (preferInline && hasEmail) {
         try {
@@ -208,25 +208,42 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             reference: accessCode ? undefined : reference,
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
             metadata: { bookingRequestId, source: 'web_inline' },
-            // Important: verify using the initialization reference we stored
-            // (Paystack may return a different transient ref in callback when using access_code)
+            // Important: verify using the initialization reference we stored (DB payment_id)
             onSuccess: (_cbRef) => startVerifyLoop(reference),
             onClose: () => {
-              // User closed popup — treat as cancelled; allow retry.
-              setStatus('error');
-              setError('Checkout closed. Please try again.');
+              // Hosted fallback to avoid inline runtime issues (e.g., Paystack UI errors)
+              if (authorizationUrl) {
+                try { window.open(authorizationUrl, '_blank'); } catch {}
+                setStatus('verifying');
+                startVerifyLoop(reference);
+              } else {
+                setStatus('error');
+                setError('Checkout closed. Please try again.');
+              }
             },
           });
           return;
         } catch {
-          // Inline failed — surface error and allow retry
+          // Inline failed — hosted fallback
+          if (authorizationUrl) {
+            try { window.open(authorizationUrl, '_blank'); } catch {}
+            setStatus('verifying');
+            startVerifyLoop(reference);
+            return;
+          }
           setStatus('error');
           setError('Could not open Paystack popup. Please try again.');
           return;
         }
       }
 
-      // No hosted fallback: require email for inline checkout
+      // Hosted fallback when inline is not available or email invalid
+      if (authorizationUrl) {
+        try { window.open(authorizationUrl, '_blank'); } catch {}
+        setStatus('verifying');
+        startVerifyLoop(reference);
+        return;
+      }
       setStatus('error');
       setError('A valid email is required to start payment.');
     } catch (err: any) {
