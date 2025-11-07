@@ -106,7 +106,7 @@ export function useThreadRealtime({
           if (!isDuplicate) {
             seenSet.add(mid);
             if (seenSet.size > MAX_SEEN_IDS) {
-              const entries = [...seenSet];
+              const entries = Array.from(seenSet);
               seenSet.clear();
               for (let i = MAX_SEEN_IDS / 2; i < entries.length; i++) {
                 seenSet.add(entries[i]);
