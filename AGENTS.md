@@ -214,3 +214,29 @@ The latest message must always appear instantly at the bottom of the open thread
   - Close the socket inside `onerror` (causes unsubscribe/subscribe loops).
 
 See `docs/CHAT_REALTIME_TAIL_RUNBOOK.md` for full context, rationale, and troubleshooting.
+
+---
+
+## Inbox Preview Performance (Nov 2025)
+
+We cut the preview route latency by ≈10× without changing the JSON contract.
+
+- What changed
+  - Single‑query preview composition under `backend/app/api/api_threads.py:get_threads_preview`:
+    - Latest visible message per thread via window function (rn=1) filtered by viewer visibility (BOTH + viewer).
+    - Join directly onto `booking_requests` filtered by the viewer; order by `last_ts` and apply `limit` in the same query.
+    - Load minimal counterparty details via `selectinload` and only `service.service_type` for PV logic.
+    - Removed the follow‑up recent‑messages fetch and the accepted‑quote lookup for preview.
+  - Preserved PV semantics: include only PV threads that have “Payment received”.
+  - Labels/keys: still use `preview_label_for_message`; restored `preview_key`/`preview_args` for booking_details, payment_received, event_reminder.
+  - Kept everything else the same: JSON shape, ETag, Server‑Timing, and orjson serialization.
+
+- Results (Server‑Timing)
+  - Before: `brs≈4355ms` (composition dominated), `ser≈0.1ms`.
+  - After: `brs≈435ms`, `unread≈60ms`, `build≈27ms`, `ser≈0.2ms`. End‑to‑end TTFB now mostly network/TLS.
+
+- Next steps
+  - Client: persist ETag and send `If‑None‑Match` on first load; render from cache immediately.
+  - Server: Redis ephemeral preview cache (per user+role+limit) updated on events; serve cached bytes + stored ETag for near‑instant previews across instances.
+
+See `backend/app/api/THREADS_PREVIEW_OPTIMIZATION.md` for details.
