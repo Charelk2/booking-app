@@ -563,21 +563,20 @@ export default function MessageThreadWrapper({
             return;
           }
         } catch {}
-        // Fetch quotes list to find the accepted quote id
-        const list = await getQuotesForBookingRequest(Number(bookingRequestId || 0));
-        const arr = Array.isArray(list.data) ? (list.data as any[]) : [];
-        const accepted = arr.find((q: any) => String((q?.status || '').toLowerCase()).includes('accept'));
-        const acceptedId = Number(accepted?.id || 0);
-        if (Number.isFinite(acceptedId) && acceptedId > 0) {
-          // Hydrate V2 for booking_id and cache it
-          try {
-            const v2 = await getQuoteV2(acceptedId);
-            const bid = Number((v2.data as any)?.booking_id || 0);
-            if (Number.isFinite(bid) && bid > 0) {
-              try { sessionStorage.setItem(`bookingId:br:${bookingRequestId}`, String(bid)); } catch {}
-            }
-          } catch {}
-        }
+        // Prefer a single booking request read to find accepted quote id
+        try {
+          const r = await getBookingRequestById(Number(bookingRequestId || 0));
+          const acceptedId = Number((r.data as any)?.accepted_quote_id || 0);
+          if (Number.isFinite(acceptedId) && acceptedId > 0) {
+            try {
+              const v2 = await getQuoteV2(acceptedId);
+              const bid = Number((v2.data as any)?.booking_id || 0);
+              if (Number.isFinite(bid) && bid > 0) {
+                try { sessionStorage.setItem(`bookingId:br:${bookingRequestId}`, String(bid)); } catch {}
+              }
+            } catch {}
+          }
+        } catch {}
       } catch {}
     }, [refreshQuotesForThread]),
     useCallback(() => {}, []),

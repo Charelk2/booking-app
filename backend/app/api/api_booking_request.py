@@ -334,9 +334,8 @@ def read_my_artist_booking_requests(
 def read_booking_request(
     request_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(
-        get_current_user
-    ),  # Changed to get_current_user
+    current_user: models.User = Depends(get_current_user),
+    if_none_match: str | None = Header(default=None, convert_underscores=False, alias="If-None-Match"),
 ):
     """
     Retrieve a specific booking request by its ID.
@@ -411,6 +410,24 @@ def read_booking_request(
         db_request.created_at = datetime.utcnow()
     if getattr(db_request, "updated_at", None) is None:
         db_request.updated_at = db_request.created_at
+    # ETag support: generate a weak ETag based on id + updated_at + last_message_timestamp (seconds precision)
+    try:
+        from hashlib import sha1
+        last_ts = getattr(db_request, "last_message_timestamp", None)
+        marker_last = last_ts.isoformat(timespec="seconds") if last_ts else "0"
+        marker_upd = db_request.updated_at.isoformat(timespec="seconds") if db_request.updated_at else "0"
+        etag = f'W/"br:{int(db_request.id)}:{sha1((marker_upd+":"+marker_last).encode()).hexdigest()}"'
+        if if_none_match and if_none_match.strip() == etag:
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag})
+    except Exception:
+        etag = None
+    resp = Response(status_code=status.HTTP_200_OK)
+    try:
+        if etag:
+            resp.headers["ETag"] = etag
+            resp.headers["Cache-Control"] = "no-cache"
+    except Exception:
+        pass
     return db_request
 
 

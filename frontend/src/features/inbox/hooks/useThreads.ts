@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo } from 'react';
-import { getThreadsIndex } from '@/lib/api';
+import { getMessageThreadsPreview } from '@/lib/api';
 import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, subscribe as cacheSubscribe } from '@/lib/chat/threadCache';
 import type { BookingRequest, User } from '@/types';
 import { initCrossTabSync } from '@/features/inbox/state/crossTab';
@@ -91,20 +91,20 @@ export function useThreads(user: User | null | undefined) {
     const role = user.user_type === 'service_provider' ? 'artist' : 'client';
     let prevEtag: string | null = null;
     try { if (typeof window !== 'undefined') prevEtag = sessionStorage.getItem(etagKey); } catch {}
-    const res = await getThreadsIndex(role as any, 100, prevEtag || undefined);
+    const res = await getMessageThreadsPreview(role as any, 100, prevEtag || undefined);
     const status = Number((res as any)?.status ?? 200);
     if (status === 304) return true;
     const items = (res?.data?.items || []) as any[];
     if (!Array.isArray(items)) return false;
     const mapped: BookingRequest[] = items.map((it: any) => ({
-      id: Number(it.booking_request_id || it.thread_id || it.id),
+      id: Number(it.thread_id || it.booking_request_id || it.id),
       client_id: 0 as any,
       service_provider_id: 0 as any,
       status: (it.state as any) || 'pending_quote',
-      created_at: it.last_message_at,
-      updated_at: it.last_message_at,
-      last_message_content: it.last_message_snippet,
-      last_message_timestamp: it.last_message_at,
+      created_at: it.last_ts,
+      updated_at: it.last_ts,
+      last_message_content: it.last_message_preview,
+      last_message_timestamp: it.last_ts,
       is_unread_by_current_user: Number((it.unread_count || 0)) > 0 as any,
       unread_count: Number(it.unread_count || 0) as any,
       message: null,
@@ -117,8 +117,8 @@ export function useThreads(user: User | null | undefined) {
       service_id: undefined,
       service: undefined,
       artist: undefined as any,
-      counterparty_label: (it as any).counterparty_name,
-      counterparty_avatar_url: (it as any).counterparty_avatar_url ?? null,
+      counterparty_label: (it as any).counterparty?.name,
+      counterparty_avatar_url: (it as any).counterparty?.avatar_url ?? null,
       ...(it?.state ? { thread_state: it.state } : {}),
     } as any));
 

@@ -922,8 +922,7 @@ export const getMessagesForBookingRequest = (
   if (!('mode' in qp) || qp.mode == null) {
     qp.mode = 'full';
   }
-  // Always ask backend to include quote summaries so quote bubbles can render without a secondary fetch.
-  (qp as any).include_quotes = true;
+  // Do not include quotes by default; quote details are fetched on-demand when needed.
   // Normalize known_quote_ids param (array → csv string)
   if (Array.isArray(params.known_quote_ids)) {
     (qp as any).known_quote_ids = (params.known_quote_ids as number[])
@@ -954,7 +953,7 @@ export const getMessagesBatch = (
 ) =>
   getDeduped<MessagesBatchEnvelope>(
     `${API_V1}/booking-requests/messages-batch`,
-    { ids: ids.join(','), per, mode, include_quotes: true },
+    { ids: ids.join(','), per, mode },
     etag ? { 'If-None-Match': etag } : undefined,
     (s) => (s >= 200 && s < 300) || s === 304,
   );
@@ -1346,10 +1345,19 @@ export interface ThreadPreviewResponse {
   next_cursor: string | null;
 }
 
-export const getMessageThreadsPreview = (role?: 'artist' | 'client', limit = 50) =>
+export const getMessageThreadsPreview = (
+  role?: 'artist' | 'client',
+  limit = 50,
+  etag?: string,
+) =>
   api.get<ThreadPreviewResponse>(
     `${API_V1}/message-threads/preview`,
-    { params: { role, limit } }
+    {
+      params: { role, limit },
+      headers: etag ? { 'If-None-Match': etag } : undefined,
+      // Accept 200 or 304 to leverage server ETag
+      validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+    }
   );
 
 export const ensureBookaThread = () =>
