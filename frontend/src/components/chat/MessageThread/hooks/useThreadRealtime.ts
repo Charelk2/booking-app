@@ -1,6 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
-import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, setLastRead as cacheSetLastRead, updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
+import {
+  getSummaries as cacheGetSummaries,
+  setSummaries as cacheSetSummaries,
+  setLastRead as cacheSetLastRead,
+  updateSummary as cacheUpdateSummary,
+} from '@/lib/chat/threadCache';
 import { threadStore } from '@/lib/chat/threadStore';
 
 type UseThreadRealtimeOptions = {
@@ -12,11 +17,20 @@ type UseThreadRealtimeOptions = {
   applyReactionEvent?: (evt: { messageId: number; emoji: string; userId: number; kind: 'added' | 'removed' }) => void;
   applyMessageDeleted?: (messageId: number) => void;
   applyDelivered?: (upToId: number, recipientId: number, myUserId?: number | null) => void;
-  // Optional: request a quick delta reconcile after realtime if UI did not visibly update yet
   pokeDelta?: (reason?: string) => void;
 };
 
 const THREAD_TOPIC_PREFIX = 'booking-requests:';
+const MAX_SEEN_IDS = 500;
+
+// Lazy init shared memory-safe map for deduplication
+const getSeenMap = (() => {
+  let map: Map<number, Set<number>> | null = null;
+  return () => {
+    if (!map) map = new Map();
+    return map;
+  };
+})();
 
 export function useThreadRealtime({
   threadId,
@@ -30,97 +44,123 @@ export function useThreadRealtime({
   pokeDelta,
 }: UseThreadRealtimeOptions) {
   const { subscribe } = useRealtimeContext();
-  const seenIdsRef = (typeof window !== 'undefined') ? (window as any).__threadSeenIds ?? new Map<number, Set<number>>() : new Map<number, Set<number>>();
-  if (typeof window !== 'undefined' && !(window as any).__threadSeenIds) {
-    try { (window as any).__threadSeenIds = seenIdsRef; } catch {}
-  }
-  // Debounced delivered ack state
-  const deliveredMaxRef = { current: 0 } as { current: number };
-  const deliveredTimerRef = { current: 0 as any } as { current: any };
+  const seenIdsRef = useRef<Map<number, Set<number>>>(getSeenMap());
+  const deliveredMaxRef = useRef(0);
+  const deliveredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!threadId || !isActive) return;
+
     const topic = `${THREAD_TOPIC_PREFIX}${threadId}`;
-    let typingTimer: number | null = null;
+
+    const clearTypingTimer = () => {
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+        typingTimerRef.current = null;
+      }
+    };
+
     const scheduleTypingClear = () => {
-      try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
-      typingTimer = window.setTimeout(() => {
-        try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
+      clearTypingTimer();
+      typingTimerRef.current = setTimeout(() => {
+        cacheUpdateSummary(threadId, { typing: false });
       }, 3000);
     };
-    const unsubscribe = subscribe(topic, (evt: any) => {
-      if (!evt) return;
-      const type = evt.type;
 
-      // Normalize envelope → message shape for message-like events
+    const onEvent = (evt: any) => {
+      if (!evt) return;
+
+      const type = evt.type;
+      const payload = evt.payload || evt;
+
+      // Normalize message structure
+      const normalizeMessage = (e: any) =>
+        (e?.payload && (e.payload.message || e.payload.data)) || e.message || e.data || e;
+
       if (!type || type === 'message' || type === 'message_new') {
-        const raw = (evt?.payload && (evt.payload.message || evt.payload.data)) || evt.message || evt.data || evt;
+        const raw = normalizeMessage(evt);
+
         try {
           ingestMessage(raw);
         } catch (e) {
-          try { console.warn('[realtime] ingest failed', e, { keys: raw && typeof raw === 'object' ? Object.keys(raw) : [] }); } catch {}
+          console.warn('[realtime] ingest failed', e, {
+            keys: raw && typeof raw === 'object' ? Object.keys(raw) : [],
+          });
         }
-        // Best-effort: nudge a tiny delta fetch shortly after to guarantee visibility.
-        try {
-          if (typeof pokeDelta === 'function') setTimeout(() => {
-            try { pokeDelta('post-ws-message'); } catch {}
-          }, 140);
-        } catch {}
+
+        setTimeout(() => pokeDelta?.('post-ws-message'), 140);
+
         const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
         const mid = Number(raw?.id ?? 0);
-        // Deduplicate by message id to avoid double unread on fast+reliable deliveries
-        let seenSet = seenIdsRef.get(threadId);
-        if (!seenSet) { seenSet = new Set<number>(); seenIdsRef.set(threadId, seenSet); }
-        const isDuplicate = Number.isFinite(mid) && mid > 0 && seenSet.has(mid);
-        if (Number.isFinite(senderId) && senderId > 0 && senderId !== myUserId) {
+
+        if (senderId && mid && senderId !== myUserId) {
+          let seenSet = seenIdsRef.current.get(threadId);
+          if (!seenSet) {
+            seenSet = new Set<number>();
+            seenIdsRef.current.set(threadId, seenSet);
+          }
+
+          const isDuplicate = seenSet.has(mid);
+
           if (!isDuplicate) {
-            try {
-              const list = cacheGetSummaries() as any[];
-              const next = list.map((t) => Number(t?.id) === threadId ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 } : t);
-              cacheSetSummaries(next as any);
-            } catch {}
-            if (Number.isFinite(mid) && mid > 0) {
-              try {
-                seenSet.add(mid);
-                // Simple cap to avoid unbounded growth
-                if (seenSet.size > 500) {
-                  // Drop oldest half (best-effort; Set iteration order is insertion order in modern engines)
-                  const half = Math.floor(seenSet.size / 2);
-                  let i = 0; for (const v of seenSet) { seenSet.delete(v); if (++i >= half) break; }
-                }
-              } catch {}
-            }
-          }
-          // Counterparty sent a message: they are no longer typing
-          try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
-        } else if (Number.isFinite(raw?.id)) {
-          cacheSetLastRead(threadId, Number(raw?.id));
-        }
-        // Delivered ack: if we are the recipient, visible and active, debounce a PUT
-        if (isActive && typeof document !== 'undefined' && document.visibilityState === 'visible') {
-          if (Number.isFinite(senderId) && senderId !== myUserId && Number.isFinite(mid) && mid > 0) {
-            deliveredMaxRef.current = Math.max(deliveredMaxRef.current || 0, mid);
-            try { if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current); } catch {}
-            deliveredTimerRef.current = setTimeout(async () => {
-              const up = deliveredMaxRef.current || 0;
-              deliveredMaxRef.current = 0;
-              if (up > 0) {
-                try {
-                  const mod = await import('@/lib/api');
-                  await mod.putDeliveredUpTo(threadId, up);
-                } catch {}
+            seenSet.add(mid);
+            if (seenSet.size > MAX_SEEN_IDS) {
+              const entries = [...seenSet];
+              seenSet.clear();
+              for (let i = MAX_SEEN_IDS / 2; i < entries.length; i++) {
+                seenSet.add(entries[i]);
               }
-            }, 150);
+            }
+
+            try {
+              const summaries = cacheGetSummaries() as any[];
+              const updated = summaries.map((t) =>
+                Number(t?.id) === threadId
+                  ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 }
+                  : t
+              );
+              cacheSetSummaries(updated as any[]);
+            } catch {}
           }
+
+          cacheUpdateSummary(threadId, { typing: false });
+        } else if (mid) {
+          cacheSetLastRead(threadId, mid);
         }
+
+        // Debounce delivered PUT if visible
+        if (
+          isActive &&
+          typeof document !== 'undefined' &&
+          document.visibilityState === 'visible' &&
+          senderId !== myUserId &&
+          mid > 0
+        ) {
+          deliveredMaxRef.current = Math.max(deliveredMaxRef.current, mid);
+
+          if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current);
+
+          deliveredTimerRef.current = setTimeout(async () => {
+            const up = deliveredMaxRef.current;
+            deliveredMaxRef.current = 0;
+            try {
+              const mod = await import('@/lib/api');
+              await mod.putDeliveredUpTo(threadId, up);
+            } catch (e) {
+              console.warn('[realtime] failed to PUT delivered', e);
+            }
+          }, 150);
+        }
+
         return;
       }
 
       if (type === 'read') {
-        const p = (evt?.payload || evt);
-        const upToId = Number(p.up_to_id ?? p.last_read_id ?? p.message_id ?? 0);
-        const readerId = Number(p.user_id ?? p.reader_id ?? 0);
-        if (!Number.isFinite(upToId) || upToId <= 0 || !Number.isFinite(readerId) || readerId <= 0) return;
+        const upToId = Number(payload.up_to_id ?? payload.last_read_id ?? payload.message_id ?? 0);
+        const readerId = Number(payload.user_id ?? payload.reader_id ?? 0);
+        if (!upToId || !readerId) return;
+
         if (readerId === myUserId) {
           cacheSetLastRead(threadId, upToId);
         } else {
@@ -130,124 +170,124 @@ export function useThreadRealtime({
       }
 
       if (type === 'typing') {
-        const p = (evt?.payload || evt);
-        const users = Array.isArray(p.users) ? p.users : [];
-        const typing = users.some((id: any) => Number(id) !== myUserId);
+        const users = Array.isArray(payload.users) ? payload.users : [];
+        const typing = users.some((id: number | string) => Number(id) !== myUserId);
         cacheUpdateSummary(threadId, { typing });
         if (typing) scheduleTypingClear();
         return;
       }
 
       if (type === 'presence') {
-        try {
-          const p = (evt?.payload || evt);
-          const updates = (p?.updates || {}) as Record<string, string>;
-          // Pick first counterparty status
-          for (const [uid, status] of Object.entries(updates)) {
-            const id = Number(uid);
-            if (!Number.isFinite(id) || id === myUserId) continue;
-            cacheUpdateSummary(threadId, { presence: (status || '').toString(), last_presence_at: Date.now() });
-            break;
-          }
-        } catch {}
+        const updates = payload?.updates || {};
+        for (const [uid, status] of Object.entries(updates)) {
+          const id = Number(uid);
+          if (!Number.isFinite(id) || id === myUserId) continue;
+
+          cacheUpdateSummary(threadId, {
+            presence: String(status ?? ''),
+            last_presence_at: Date.now(),
+          });
+          break;
+        }
         return;
       }
 
       if (type === 'delivered' && applyDelivered) {
-        const p = (evt?.payload || evt);
-        const upToId = Number(p.up_to_id ?? p.last_delivered_id ?? 0);
-        const recipientId = Number(p.user_id ?? p.recipient_id ?? 0);
-        if (Number.isFinite(upToId) && upToId > 0 && Number.isFinite(recipientId) && recipientId > 0) {
-          try { applyDelivered(upToId, recipientId, myUserId); } catch {}
+        const upToId = Number(payload.up_to_id ?? payload.last_delivered_id ?? 0);
+        const recipientId = Number(payload.user_id ?? payload.recipient_id ?? 0);
+        if (upToId && recipientId) {
+          applyDelivered(upToId, recipientId, myUserId);
         }
         return;
       }
 
       if ((type === 'reaction_added' || type === 'reaction_removed') && applyReactionEvent) {
-        try {
-          const p = ((evt?.payload && (evt.payload.payload || evt.payload)) || evt.payload || evt) as any;
-          const mid = Number(p?.message_id ?? 0);
-          const userId = Number(p?.user_id ?? 0);
-          const emoji = (p?.emoji || '').toString();
-          // Skip applying our own reaction event to avoid double-applying
-          if (Number.isFinite(userId) && Number(userId) === Number(myUserId)) return;
-          if (Number.isFinite(mid) && mid > 0 && emoji) {
-            applyReactionEvent({ messageId: mid, emoji, userId, kind: type === 'reaction_added' ? 'added' : 'removed' });
-          }
-        } catch {}
+        const p = payload?.payload || payload;
+        const mid = Number(p?.message_id ?? 0);
+        const userId = Number(p?.user_id ?? 0);
+        const emoji = p?.emoji?.toString();
+
+        if (userId !== myUserId && mid && emoji) {
+          applyReactionEvent({
+            messageId: mid,
+            emoji,
+            userId,
+            kind: type === 'reaction_added' ? 'added' : 'removed',
+          });
+        }
         return;
       }
 
       if (type === 'message_deleted' && applyMessageDeleted) {
-        const p = (evt?.payload || evt);
-        const mid = Number(p?.id ?? p?.message_id ?? 0);
-        if (Number.isFinite(mid) && mid > 0) {
-          try { applyMessageDeleted(mid); } catch {}
-        }
+        const mid = Number(payload?.id ?? payload?.message_id ?? 0);
+        if (mid) applyMessageDeleted(mid);
         return;
       }
 
       if (type === 'thread_tail') {
-        const p = (evt?.payload || evt) as any;
-        const tid = Number(p?.thread_id ?? threadId);
-        const lastId = Number(p?.last_id ?? 0);
-        const lastTs = (p?.last_ts || null) as string | null;
-        const snippet = (p?.snippet || '') as string;
-        // Derive a friendly preview for known system lines to avoid a brief
-        // flicker from raw content (e.g., order numbers) to the normalized
-        // label once the server preview arrives.
-        const rawText = String(snippet || '').trim();
-        const lowText = rawText.toLowerCase();
-        let previewLabel = rawText;
-        if (lowText.startsWith('payment received')) {
-          previewLabel = 'Payment received';
+        const tid = Number(payload?.thread_id ?? threadId);
+        const lastId = Number(payload?.last_id ?? 0);
+        const lastTs = payload?.last_ts ?? null;
+        const snippet = String(payload?.snippet ?? '').trim();
+        const low = snippet.toLowerCase();
+
+        let preview = snippet;
+        if (low.startsWith('payment received')) {
+          preview = 'Payment received';
         }
-        if (Number.isFinite(tid) && tid === Number(threadId)) {
-          try {
-            threadStore.update(tid, {
-              id: tid,
-              last_message_id: Number.isFinite(lastId) && lastId > 0 ? lastId : (undefined as any),
-              last_message_timestamp: (lastTs || undefined) as any,
-              last_message_content: previewLabel || undefined,
-            } as any);
-          } catch {}
-          // Also append a minimal synthetic bubble immediately so the open thread
-          // reflects the latest preview without waiting for the full echo - except for
-          // initial booking requests where this produces a transient duplicate card.
-          try {
-            if (Number.isFinite(lastId) && lastId > 0 && typeof ingestMessage === 'function') {
-              const ts = lastTs || new Date().toISOString();
-              const text = String(snippet || '');
-              const low = text.trim().toLowerCase();
-              const isNewRequest = low.startsWith('booking details:') || low.includes('new booking request') || low.includes('you have a new booking request');
-              if (!isNewRequest) {
-                const synthetic = {
-                  id: lastId,
-                  booking_request_id: tid,
-                  sender_id: 0,
-                  sender_type: 'CLIENT',
-                  content: text,
-                  message_type: 'USER',
-                  timestamp: ts,
-                  _synthetic_preview: true,
-                } as any;
-                if (synthetic.content) ingestMessage(synthetic);
-              }
-            }
-          } catch {}
-          // And nudge a tiny delta fetch to ensure parity if echo is delayed
-          try { if (typeof pokeDelta === 'function') pokeDelta('thread_tail'); } catch {}
-          // No reconcile events otherwise; UI ingests realtime directly
+
+        if (tid === threadId) {
+          threadStore.update(tid, {
+            id: tid,
+            last_message_id: lastId || undefined,
+            last_message_timestamp: lastTs || undefined,
+            last_message_content: preview || undefined,
+          });
+
+          const isNewRequest =
+            low.startsWith('booking details:') ||
+            low.includes('new booking request') ||
+            low.includes('you have a new booking request');
+
+          if (!isNewRequest && lastId > 0) {
+            ingestMessage({
+              id: lastId,
+              booking_request_id: tid,
+              sender_id: 0,
+              sender_type: 'CLIENT',
+              content: snippet,
+              message_type: 'USER',
+              timestamp: lastTs || new Date().toISOString(),
+              _synthetic_preview: true,
+            });
+          }
+
+          pokeDelta?.('thread_tail');
         }
         return;
       }
-    });
+    };
 
-    // Reconcile disabled - rely on realtime + explicit fetches by orchestrator.
+    const unsubscribe = subscribe(topic, onEvent);
 
     return () => {
-      try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
+      clearTypingTimer();
+      if (deliveredTimerRef.current) {
+        clearTimeout(deliveredTimerRef.current);
+        deliveredTimerRef.current = null;
+      }
       unsubscribe();
     };
-  }, [threadId, isActive, subscribe, ingestMessage, applyReadReceipt, myUserId]);
+  }, [
+    threadId,
+    isActive,
+    myUserId,
+    subscribe,
+    ingestMessage,
+    applyReadReceipt,
+    applyDelivered,
+    applyReactionEvent,
+    applyMessageDeleted,
+    pokeDelta,
+  ]);
 }
