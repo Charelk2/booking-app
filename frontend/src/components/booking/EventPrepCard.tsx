@@ -23,6 +23,8 @@ type EventPrepCardProps = {
   onContinuePrep?: (bookingId: number) => void;
   /** If true, show only the compact summary header (no details). */
   summaryOnly?: boolean;
+  /** If true, render a link-only card (no fetch, no WS). */
+  linkOnly?: boolean;
 };
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -123,6 +125,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
   canEdit: _canEdit,
   onContinuePrep,
   summaryOnly,
+  linkOnly = false,
 }) => {
   const router = useRouter();
   const [ep, setEp] = useState<EventPrep | null>(null);
@@ -131,6 +134,10 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
 
   // Bootstrap with stale-while-revalidate using cache
   useEffect(() => {
+    if (linkOnly) {
+      setInitializing(false);
+      return; // link-only: no fetch
+    }
     let mounted = true;
     const cached = EVENT_PREP_CACHE.get(bookingId);
     if (cached) {
@@ -154,10 +161,13 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
     return () => {
       mounted = false;
     };
-  }, [bookingId]);
+  }, [bookingId, linkOnly]);
 
   // Live updates via multiplex realtime topic (single global connection)
   useEffect(() => {
+    if (linkOnly) {
+      return () => {};
+    }
     const topic = `booking-requests:${bookingRequestId}`;
     const unsubscribe = subscribe(topic, (env: any) => {
       try {
@@ -195,7 +205,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
       }
     });
     return () => { try { unsubscribe(); } catch {} };
-  }, [subscribe, bookingRequestId, bookingId]);
+  }, [subscribe, bookingRequestId, bookingId, linkOnly]);
 
   const progress = useMemo(
     () => ({
@@ -226,8 +236,80 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
     } catch {}
   };
 
-  // No skeleton — render a minimal CTA instantly; data hydrates in the background
+  // Link-only mode: render minimal CTA instantly with no data hydration
+  if (linkOnly) {
+    return (
+      <GlassCard
+        role="button"
+        tabIndex={0}
+        summaryOnly={summaryOnly}
+        aria-label="Event preparation"
+        className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-0"
+        onClick={() =>
+          onContinuePrep ? onContinuePrep(bookingId) : router.push(`/dashboard/events/${bookingId}`)
+        }
+        onKeyDown={(e: React.KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onContinuePrep
+              ? onContinuePrep(bookingId)
+              : router.push(`/dashboard/events/${bookingId}`);
+          }
+        }}
+      >
+        <div
+          className={
+            summaryOnly
+              ? "flex items-center justify-between gap-3"
+              : "flex items-start justify-between gap-3"
+          }
+        >
+          <div>
+            {summaryOnly ? (
+              bookingId > 0 ? (
+                <Link
+                  href={`/dashboard/events/${bookingId}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="no-underline"
+                >
+                  <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
+                    Let’s prep your event
+                  </h3>
+                </Link>
+              ) : (
+                <button type="button" onClick={() => onContinuePrep ? onContinuePrep(bookingId) : router.push(`/dashboard/events/${bookingId}`)} className="no-underline">
+                  <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
+                    Let’s prep your event
+                  </h3>
+                </button>
+              )
+            ) : (
+              <h3 className="text-lg font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
+                Let’s prep your event
+              </h3>
+            )}
+            <SecondaryText className="block mt-0.5">
+              A quick checklist to keep the day smooth.
+            </SecondaryText>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span
+              className={
+                summaryOnly
+                  ? "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-white/55 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15 backdrop-blur-sm"
+                  : "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-white/55 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15 backdrop-blur-sm"
+              }
+            >
+              Prep —
+            </span>
+          </div>
+        </div>
+      </GlassCard>
+    );
+  }
 
+  // No skeleton — render a minimal CTA instantly; data hydrates in the background
+  
   // CTA when no prep record exists
   if (!ep) {
     return (

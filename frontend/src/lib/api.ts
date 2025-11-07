@@ -47,6 +47,56 @@ export const apiUrl = (path: string) => {
   return `${API_ORIGIN}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
+// ─── Device Cookie (did) — avoid preflights by not using custom headers ───────
+function _randId(): string {
+  // 128-bit random id, base36 for compactness
+  try {
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    let hex = Array.from(arr).map((b) => b.toString(16).padStart(2, '0')).join('');
+    // base36 from hex chunk
+    const part1 = parseInt(hex.slice(0, 13), 16).toString(36);
+    const part2 = parseInt(hex.slice(13, 26), 16).toString(36);
+    const part3 = parseInt(hex.slice(26), 16).toString(36);
+    return `${part1}${part2}${part3}`.slice(0, 26);
+  } catch {
+    return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+}
+
+function _readCookie(name: string): string | null {
+  try {
+    const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : null;
+  } catch { return null; }
+}
+
+function _setCookie(name: string, value: string, maxAgeSec: number) {
+  try {
+    const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'Secure', 'SameSite=Lax', `Max-Age=${maxAgeSec}`];
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    if (host && /(^|\.)booka\.co\.za$/i.test(host)) parts.push('Domain=.booka.co.za');
+    document.cookie = parts.join('; ');
+  } catch {}
+}
+
+function ensureDeviceCookie() {
+  if (typeof window === 'undefined') return;
+  try {
+    let did = _readCookie('did');
+    if (!did) {
+      // try localStorage for continuity
+      did = localStorage.getItem('booka.trusted_device_id') || '';
+    }
+    if (!did) did = _randId();
+    // Persist both cookie and localStorage copy
+    _setCookie('did', did, 31536000); // 1 year
+    try { localStorage.setItem('booka.trusted_device_id', did); } catch {}
+  } catch {}
+}
+
+try { if (typeof window !== 'undefined') ensureDeviceCookie(); } catch {}
+
 // Create a single axios instance for all requests.
 // Use an absolute origin so the browser talks directly to the API host
 // (avoids an extra proxy hop through the Next.js app/CDN on production).
@@ -124,15 +174,7 @@ api.interceptors.request.use(
     if (config.headers && 'Authorization' in config.headers) {
       delete config.headers.Authorization;
     }
-    // Attach a non-sensitive device identifier to help trusted-device logic
-    try {
-      if (typeof window !== 'undefined') {
-        const did = localStorage.getItem('booka.trusted_device_id');
-        if (did) {
-          (config.headers as any)['X-Device-Id'] = did;
-        }
-      }
-    } catch {}
+    // Do NOT attach any custom device headers (preflight killer): device id lives in a cookie ('did')
     // Do not attach per-instance preference headers
     if (config.headers) {
       try { delete (config.headers as any)['Fly-Prefer-Instance']; } catch {}

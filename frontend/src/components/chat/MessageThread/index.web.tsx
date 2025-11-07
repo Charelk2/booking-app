@@ -1401,6 +1401,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   }, [acceptedQuoteForThread, bookingRequestId]);
 
   const enableEventPrepCard = (process.env.NEXT_PUBLIC_ENABLE_EVENT_PREP_CARD || '1') !== '0';
+  const eventPrepLinkOnly = (process.env.NEXT_PUBLIC_EVENT_PREP_LINK_ONLY || '0') === '1';
   const showEventPrepCard = enableEventPrepCard && isPaid;
 
   return (
@@ -1438,6 +1439,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
                 bookingRequestId={bookingRequestId}
                 canEdit={true}
                 summaryOnly
+                linkOnly={eventPrepLinkOnly}
                 onContinuePrep={() => {
                   if (bookingIdForPrep > 0) {
                     try { window.location.href = `/dashboard/events/${bookingIdForPrep}`; } catch {}
