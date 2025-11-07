@@ -178,7 +178,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     fetchMessages,
     fetchDelta,
     handlers,
-  } = useThreadData(bookingRequestId, { isActiveThread: isActive, onMessagesFetched: () => {} });
+  } = useThreadData(bookingRequestId, { isActiveThread: isActive, onMessagesFetched: () => {}, viewerUserType: userType });
 
   // --- Virtualization selection (stable)
   const ListComponent = React.useMemo(() => {

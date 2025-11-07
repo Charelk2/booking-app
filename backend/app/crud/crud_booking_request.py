@@ -130,6 +130,7 @@ def get_booking_requests_with_last_message(
     skip: int = 0,
     limit: int = 100,
     include_relationships: bool = True,
+    viewer: models.VisibleTo | None = None,
 ) -> List[models.BookingRequest]:
     """Return booking requests with their latest chat message.
 
@@ -333,7 +334,15 @@ def get_booking_requests_with_last_message(
 
     filtered_results: List[models.BookingRequest] = []
     for br in requests:
+        # Choose the newest message visible to the viewer (if provided)
         message_candidates = recent_message_map.get(br.id, [])
+        if viewer is not None:
+            try:
+                vis_allowed = {models.VisibleTo.BOTH, viewer}
+                message_candidates = [m for m in message_candidates if getattr(m, 'visible_to', models.VisibleTo.BOTH) in vis_allowed]
+            except Exception:
+                # On any error, fall back to unfiltered candidates
+                pass
         last_m = message_candidates[0] if message_candidates else None
         state = _state_from_status(br.status)
 

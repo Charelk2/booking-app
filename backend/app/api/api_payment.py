@@ -45,7 +45,7 @@ from datetime import datetime as _dt
 
 logger = logging.getLogger(__name__)
 
-PAYMENT_GATEWAY_FAKE = os.getenv("PAYMENT_GATEWAY_FAKE")
+"""Legacy env flag PAYMENT_GATEWAY_FAKE has been removed."""
 
 router = APIRouter(tags=["payments"])
 

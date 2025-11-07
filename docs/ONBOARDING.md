@@ -10,7 +10,7 @@ Enabling MFA greatly reduces the risk of unauthorized access. Keep your recovery
 
 ## Quickstart Booking Walkthrough
 
-These sample commands demonstrate the basic booking flow using the API. Replace `CLIENT_TOKEN`, `ARTIST_TOKEN`, `ARTIST_ID`, `SERVICE_ID`, `REQUEST_ID`, and `QUOTE_ID` with actual values from your environment. Set `PAYMENT_GATEWAY_FAKE=1` when testing locally so payments use the built-in fake gateway. Configure `PAYMENT_GATEWAY_URL` to point at your real payment processor; the default `https://example.com` only serves as a placeholder.
+These sample commands demonstrate the basic booking flow using the API. Replace `CLIENT_TOKEN`, `ARTIST_TOKEN`, `ARTIST_ID`, `SERVICE_ID`, `REQUEST_ID`, and `QUOTE_ID` with actual values from your environment. Configure `PAYMENT_GATEWAY_URL` to point at your real payment processor; the default `https://example.com` only serves as a placeholder.
 
 1. **Create users**
    ```bash
@@ -58,17 +58,14 @@ These sample commands demonstrate the basic booking flow using the API. Replace 
      -d '{"status":"accepted_by_client"}'
    ```
 
-6. **Pay using the fake gateway (full upfront)**
+6. **Pay for the booking (full upfront)**
+   Use your configured gateway (e.g., Paystack) through the UI or call the API:
    ```bash
-   PAYMENT_GATEWAY_FAKE=1 curl -X POST http://localhost:8000/api/v1/payments \
+   curl -X POST http://localhost:8000/api/v1/payments \
      -H "Authorization: Bearer CLIENT_TOKEN" \
      -H 'Content-Type: application/json' \
      -d '{"booking_request_id":REQUEST_ID}'
    ```
-
-   If testing entirely in the browser, set `NEXT_PUBLIC_FAKE_PAYMENTS=1` in
-   `frontend/.env.local` so the payment modal succeeds without hitting the
-   API.
 
 7. **Check your bookings**
    ```bash

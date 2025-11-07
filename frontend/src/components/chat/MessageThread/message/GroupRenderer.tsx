@@ -272,15 +272,6 @@ export default function GroupRenderer({
               <div key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)} className="my-2 w-full flex justify-center">
                 {q ? (
                   <>
-                    {isClientView && String(q?.status || '').toLowerCase() === 'pending' && (
-                      <div className="my-2">
-                        <div className="flex items-center gap-3 text-gray-500">
-                          <div className="h-px flex-1 bg-gray-200" />
-                          <span className="text-[11px]">New quote from {artistName || 'the artist'}</span>
-                          <div className="h-px flex-1 bg-gray-200" />
-                        </div>
-                      </div>
-                    )}
                     <QuoteBubble
                       quoteId={quoteId}
                       description={(q?.services?.[0]?.description as string) || ''}

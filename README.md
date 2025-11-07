@@ -1332,8 +1332,6 @@ The server charges the full quote total and marks the booking paid on success.
 The endpoint now verifies the booking belongs to the authenticated client and returns **403 Forbidden** if another user attempts payment.
 Duplicate payments are rejected with **400 Bad Request**.
 Payment processing now emits structured logs instead of printing to stdout so transactions can be traced in production.
-Set `PAYMENT_GATEWAY_FAKE=1` in the environment to bypass the real gateway during local testing. When enabled, `/api/v1/payments` returns a dummy `payment_id` and immediately marks the booking paid.
-For the frontend, set `NEXT_PUBLIC_FAKE_PAYMENTS=1` to simulate a successful payment without calling the `/api/v1/payments` endpoint. This lets you test the booking flow entirely offline.
 Set `PAYMENT_GATEWAY_URL` to your payment provider's base URL. The default `https://example.com` triggers a startup warning so you don't accidentally hit a placeholder endpoint.
 
 When a client accepts a quote in the chat thread, the frontend prompts them to pay via this endpoint. Successful payments update the booking's `payment_status` and display a confirmation banner.

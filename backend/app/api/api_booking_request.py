@@ -278,6 +278,7 @@ def read_my_client_booking_requests(
         skip=skip,
         limit=limit,
         include_relationships=not lite,
+        viewer=models.VisibleTo.CLIENT,
     )
     for req in requests:
         # Defensive: ensure timestamps present for response validation
@@ -313,6 +314,7 @@ def read_my_artist_booking_requests(
         artist_id=current_artist.id,
         skip=skip,
         limit=limit,
+        viewer=models.VisibleTo.ARTIST,
     )
     for req in requests:
         if getattr(req, "created_at", None) is None:

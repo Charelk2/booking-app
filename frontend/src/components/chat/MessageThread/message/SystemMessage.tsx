@@ -143,6 +143,9 @@ export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQ
 
     // Provider-only payout notice (server emits with system_key payment_provider_notice:*)
     if (key.includes('payment_provider_notice')) {
+      // Only providers should see this line; clients ignore it to avoid flicker
+      const isProvider = (user?.user_type || '').toLowerCase() === 'service_provider';
+      if (!isProvider) return null;
       return (
         <div className="my-2 w-full flex justify-center">
           <div className="text-[12px] text-gray-700 bg-green-50 border border-green-200 px-2 py-1 rounded">

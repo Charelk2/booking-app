@@ -100,6 +100,8 @@ type HookOpts = {
     subset: ThreadMessage[],
     source: 'fetch' | 'older' | 'delta' | 'cache' | 'hydrate'
   ) => void;
+  /** Viewer role for visibility-aware preview updates: 'client' | 'service_provider' */
+  viewerUserType?: string;
 };
 
 // ---------- helpers ----------
@@ -763,7 +765,15 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       if (!messages.length) lastMessageIdRef.current = null;
       return;
     }
-    const last = messages[messages.length - 1];
+    // Choose the latest message visible to the current viewer for preview updates
+    const viewerRole = String(opts?.viewerUserType || 'client').toLowerCase();
+    const visible = messages.filter(m => {
+      const vt = String((m as any)?.visible_to ?? 'both').toLowerCase();
+      if (vt === 'both') return true;
+      if (viewerRole === 'service_provider') return vt === 'service_provider';
+      return vt === 'client';
+    });
+    const last = visible.length ? visible[visible.length - 1] : messages[messages.length - 1];
     const lastId = Number(last?.id || 0);
     if (Number.isFinite(lastId)) lastMessageIdRef.current = lastId;
 

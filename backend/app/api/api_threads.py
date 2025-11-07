@@ -73,6 +73,7 @@ def get_threads_preview(
         skip=0,
         limit=limit,
         include_relationships=False,
+        viewer=(models.VisibleTo.ARTIST if is_artist else models.VisibleTo.CLIENT),
     )
 
     # Map unread counts using messages table for a single source of truth
@@ -255,6 +256,7 @@ def get_threads_index(
         skip=0,
         limit=limit,
         include_relationships=False,
+        viewer=(models.VisibleTo.ARTIST if is_artist else models.VisibleTo.CLIENT),
     )
     # Map unread counts using messages table
     thread_ids = [int(br.id) for br in brs if getattr(br, 'id', None) is not None]
