@@ -199,7 +199,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             // Skip ephemeral stub for new booking requests only for service providers.
             const isNewRequest = low.startsWith('booking details:') || low.includes('new booking request') || low.includes('you have a new booking request');
             const isProvider = String((user as any)?.user_type || '').toLowerCase() === 'service_provider';
-            if (!(isProvider && isNewRequest)) {
+            // Skip injecting an ephemeral stub for the active thread to avoid
+            // transient left-bubble artifacts and sticky unread in previews.
+            if (!isActive && !(isProvider && isNewRequest)) {
               const stub = {
                 id: -Date.now(),
                 booking_request_id: threadId,
@@ -208,14 +210,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
                 content: text,
                 message_type: isSystem ? 'SYSTEM' : 'USER',
                 visible_to: 'both',
-                is_read: isActive,
+                is_read: false,
                 timestamp: newNotif.timestamp,
                 avatar_url: null,
               } as any;
               // Push stub to ephemeral overlay; persist layer remains clean
               addEphemeralStub(threadId, stub);
             }
-            // If the active thread matches, nudge a delta reconcile to force-tail visibility
+            // If the active thread matches, nudge a delta reconcile only
             if (isActive && typeof window !== 'undefined') {
               try { window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId, source: 'notification' } })); } catch {}
             }

@@ -1106,6 +1106,9 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       const topic = `booking-requests:${bookingRequestId}`;
       publish(topic, { type: 'typing', user_id: myUserId });
     } catch {}
+    // Best-effort: for active thread, nudge a tiny delta reconcile so tail
+    // reflects quickly if the echo is delayed (no synthetic bubble needed).
+    try { if (isActive) fetchDelta?.(); } catch {}
   }, 1200);
 
   // ----------------------------------------------------------------
