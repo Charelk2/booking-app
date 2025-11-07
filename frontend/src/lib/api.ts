@@ -1011,9 +1011,9 @@ export const getMessagesForBookingRequest = (
   const url = `${API_V1}/booking-requests/${bookingRequestId}/messages`;
   if (opts && opts.signal) {
     // When an AbortSignal is provided, bypass global dedupe so this request can be aborted.
-    return api.get<MessageListResponseEnvelope>(url, { params: qp as any, signal: opts.signal });
+    return api.get<MessageListResponseEnvelope>(url, { params: qp as any, signal: opts.signal, headers: _maybeAfterWriteHeaders(undefined) });
   }
-  return getDeduped<MessageListResponseEnvelope>(url, qp as any);
+  return getDeduped<MessageListResponseEnvelope>(url, qp as any, _maybeAfterWriteHeaders(undefined));
 };
 
 // Batch messages by thread ids (breadth-first warmup)
@@ -1033,7 +1033,7 @@ export const getMessagesBatch = (
   getDeduped<MessagesBatchEnvelope>(
     `${API_V1}/booking-requests/messages-batch`,
     { ids: ids.join(','), per, mode },
-    etag ? { 'If-None-Match': etag } : undefined,
+    _maybeAfterWriteHeaders(etag ? { 'If-None-Match': etag } : undefined),
     (s) => (s >= 200 && s < 300) || s === 304,
   );
 

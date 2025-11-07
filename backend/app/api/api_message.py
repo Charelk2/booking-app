@@ -12,6 +12,7 @@ from fastapi import (
     Header,
 )
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional, Literal
 from datetime import datetime, timezone
 import logging
@@ -37,9 +38,20 @@ import uuid
 import shutil
 from pydantic import BaseModel
 try:  # optional for tooling environments
-    import orjson  # type: ignore
+    import orjson as _orjson  # type: ignore
+    def _json_dumps(obj):
+        return _orjson.dumps(obj)
 except Exception:  # pragma: no cover - fallback to stdlib json
-    import json as orjson  # type: ignore
+    import json as _json  # type: ignore
+    def _json_dumps(obj):
+        def _default(o):
+            if isinstance(o, datetime):
+                return o.isoformat()
+            try:
+                return str(o)
+            except Exception:
+                return None
+        return _json.dumps(obj, default=_default).encode("utf-8")
 from ..utils.outbox import enqueue_outbox
 
 router = APIRouter(tags=["messages"])
@@ -101,6 +113,39 @@ ATTACHMENTS_DIR = os.getenv("ATTACHMENTS_DIR", DEFAULT_ATTACHMENTS_DIR)
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 
 
+# ---- ETag / helpers (align with api_threads) --------------------------------
+
+def _coalesce_bool(v: Optional[str]) -> bool:
+    if v is None:
+        return False
+    try:
+        return str(v).strip().lower() in {"1", "true", "yes", "on", "y"}
+    except Exception:
+        return False
+
+
+def _change_token(prefix: str, *parts: object) -> str:
+    try:
+        import hashlib
+        basis = f"{prefix}:" + ":".join(str(int(p)) if isinstance(p, int) else str(p) for p in parts)
+        return f'W/"{hashlib.sha1(basis.encode()).hexdigest()}"'
+    except Exception:
+        return f'W/"{prefix}-0"'
+
+
+def _cheap_snapshot_thread(db: Session, request_id: int, viewer: "models.VisibleTo") -> tuple[int, int]:
+    try:
+        q = (
+            db.query(func.max(models.Message.id), func.count(models.Message.id))
+            .filter(models.Message.booking_request_id == int(request_id))
+            .filter(models.Message.visible_to.in_([models.VisibleTo.BOTH, viewer]))
+        )
+        max_id, cnt = q.first() or (0, 0)
+        return int(max_id or 0), int(cnt or 0)
+    except Exception:
+        return 0, 0
+
+
 @router.get(
     "/booking-requests/{request_id}/messages",
     response_model=schemas.MessageListResponse,
@@ -137,6 +182,8 @@ def read_messages(
         None,
         description="Comma-separated list of quote IDs already known to the client; server will omit these from the quotes map to reduce payload.",
     ),
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
+    x_after_write: Optional[str] = Header(default=None, alias="X-After-Write", convert_underscores=False),
     request: Request = None,
     response: Response = None,
 ):
@@ -187,6 +234,31 @@ def read_messages(
 
     request_start = time.perf_counter()
     db_latency_ms: float = 0.0
+
+    # ETag pre-check using a cheap snapshot (skip when X-After-Write present)
+    try:
+        skip_pre = _coalesce_bool(x_after_write)
+        viewer_label = "artist" if viewer == models.VisibleTo.ARTIST else "client"
+        snap_max_id, snap_count = _cheap_snapshot_thread(db, int(request_id), viewer)
+        etag_pre = _change_token(
+            "msg",
+            int(request_id), viewer_label, normalized_mode,
+            int(after_id) if after_id is not None else "-",
+            int(before_id) if before_id is not None else "-",
+            int(effective_limit), snap_max_id, snap_count,
+        )
+        if (not skip_pre) and if_none_match and if_none_match.strip() == etag_pre:
+            pre_ms = (time.perf_counter() - request_start) * 1000.0
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+                "ETag": etag_pre,
+                "Cache-Control": "no-cache, private",
+                "Vary": "If-None-Match, X-After-Write",
+                "Server-Timing": f"pre;dur={pre_ms:.1f}",
+            })
+    except Exception:
+        etag_pre = None  # type: ignore
+        snap_max_id = 0  # type: ignore
+        snap_count = 0  # type: ignore
 
     try:
         query_start = time.perf_counter()
@@ -605,7 +677,7 @@ def read_messages(
         "requested_since": since.isoformat() if isinstance(since, datetime) else None,
     }
     try:
-        envelope_dict["payload_bytes"] = len(orjson.dumps(payload_probe))
+        envelope_dict["payload_bytes"] = len(_json_dumps(payload_probe))
     except Exception:
         envelope_dict["payload_bytes"] = 0
 
@@ -628,6 +700,34 @@ def read_messages(
             "user_id": current_user.id,
         },
     )
+
+    # Fast ORJSON serialization + consistent ETag (skip heavy re-checks)
+    try:
+        body0 = _json_dumps(envelope_dict)
+        try:
+            envelope_dict["payload_bytes"] = len(body0)
+        except Exception:
+            envelope_dict["payload_bytes"] = 0
+        body = _json_dumps(envelope_dict)
+        viewer_label = "artist" if viewer == models.VisibleTo.ARTIST else "client"
+        etag = etag_pre or _change_token(
+            "msg",
+            int(request_id), viewer_label, normalized_mode,
+            int(after_id) if after_id is not None else "-",
+            int(before_id) if before_id is not None else "-",
+            int(effective_limit), int(snap_max_id) if 'snap_max_id' in locals() else 0, int(snap_count) if 'snap_count' in locals() else 0,
+        )
+    except Exception:
+        body = _json_dumps(envelope_dict)
+        etag = None
+
+    headers = {
+        "Cache-Control": "no-cache, private",
+        "Vary": "If-None-Match, X-After-Write",
+    }
+    if etag:
+        headers["ETag"] = etag
+    return Response(content=body, media_type="application/json", headers=headers)
 
     # Conditional caching: weak ETag + short private cache
     try:
@@ -687,6 +787,7 @@ def read_messages_batch(
     mode: Literal["full", "lite"] = Query("lite"),
     include_quotes: bool = Query(False),
     if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
+    x_after_write: Optional[str] = Header(default=None, alias="X-After-Write", convert_underscores=False),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -731,6 +832,34 @@ def read_messages_batch(
             continue
     if not allowed_ids:
         return schemas.MessagesBatchResponse(mode=mode, threads={}, payload_bytes=0)
+
+    # ETag pre-check (cheap snapshot across requested threads)
+    try:
+        skip_pre = _coalesce_bool(x_after_write)
+        viewer = models.VisibleTo.ARTIST if current_user.user_type == models.UserType.SERVICE_PROVIDER else models.VisibleTo.CLIENT
+        rows = (
+            db.query(models.Message.booking_request_id, func.max(models.Message.id).label("max_id"), func.count(models.Message.id).label("cnt"))
+            .filter(models.Message.booking_request_id.in_(allowed_ids))
+            .filter(models.Message.visible_to.in_([models.VisibleTo.BOTH, viewer]))
+            .group_by(models.Message.booking_request_id)
+            .all()
+        )
+        parts: list[str] = []
+        by_id = {int(getattr(r, "booking_request_id")): (int(getattr(r, "max_id", 0) or 0), int(getattr(r, "cnt", 0) or 0)) for r in rows}
+        for rid in sorted(allowed_ids):
+            mx, ct = by_id.get(int(rid), (0, 0))
+            parts.append(f"{rid}:{mx}:{ct}")
+        import hashlib
+        basis = f"mb:{int(current_user.id)}:{int(per)}:{'|'.join(parts)}"
+        etag_pre = f'W/"{hashlib.sha1(basis.encode()).hexdigest()}"'
+        if (not skip_pre) and if_none_match and if_none_match.strip() == etag_pre:
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+                "ETag": etag_pre,
+                "Cache-Control": "no-cache, private",
+                "Vary": "If-None-Match, X-After-Write",
+            })
+    except Exception:
+        etag_pre = None  # type: ignore
 
     # Fetch recent messages per request (newest first in groups)
     grouped = crud.crud_message.get_recent_messages_for_requests(
@@ -920,15 +1049,16 @@ def read_messages_batch(
 
     # payload byte size probe
     try:
-        envelope["payload_bytes"] = len(orjson.dumps(envelope))
+        envelope["payload_bytes"] = len(_json_dumps(envelope))
     except Exception:
         envelope["payload_bytes"] = 0
 
-    # Cache headers
-    headers = {}
-    if etag:
+    # Cache headers (aligned with threads endpoints)
+    headers = {"Cache-Control": "no-cache, private", "Vary": "If-None-Match, X-After-Write"}
+    if (locals().get('etag_pre') is not None) and not (locals().get('etag') and etag):
+        headers["ETag"] = locals().get('etag_pre')
+    elif etag:
         headers["ETag"] = etag
-        headers["Cache-Control"] = "private, max-age=30, stale-while-revalidate=120"
     try:
         from fastapi.responses import JSONResponse
         return JSONResponse(content=envelope, headers=headers)
