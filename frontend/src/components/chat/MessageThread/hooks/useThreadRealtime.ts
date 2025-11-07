@@ -23,7 +23,6 @@ type UseThreadRealtimeOptions = {
 const THREAD_TOPIC_PREFIX = 'booking-requests:';
 const MAX_SEEN_IDS = 500;
 
-// Lazy init shared memory-safe map for deduplication
 const getSeenMap = (() => {
   let map: Map<number, Set<number>> | null = null;
   return () => {
@@ -31,6 +30,14 @@ const getSeenMap = (() => {
     return map;
   };
 })();
+
+function useSyncRef<T>(value: T) {
+  const ref = useRef(value);
+  useEffect(() => {
+    ref.current = value;
+  }, [value]);
+  return ref;
+}
 
 export function useThreadRealtime({
   threadId,
@@ -44,10 +51,20 @@ export function useThreadRealtime({
   pokeDelta,
 }: UseThreadRealtimeOptions) {
   const { subscribe } = useRealtimeContext();
+
   const seenIdsRef = useRef<Map<number, Set<number>>>(getSeenMap());
   const deliveredMaxRef = useRef(0);
   const deliveredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Stable refs to avoid re-subscribe or stale closures
+  const myUserIdRef = useSyncRef(myUserId);
+  const ingestMessageRef = useSyncRef(ingestMessage);
+  const applyReadReceiptRef = useSyncRef(applyReadReceipt);
+  const applyReactionEventRef = useSyncRef(applyReactionEvent);
+  const applyMessageDeletedRef = useSyncRef(applyMessageDeleted);
+  const applyDeliveredRef = useSyncRef(applyDelivered);
+  const pokeDeltaRef = useSyncRef(pokeDelta);
 
   useEffect(() => {
     if (!threadId || !isActive) return;
@@ -70,11 +87,9 @@ export function useThreadRealtime({
 
     const onEvent = (evt: any) => {
       if (!evt) return;
-
-      const type = evt.type;
+      const type = String(evt.type || '').toLowerCase();
       const payload = evt.payload || evt;
 
-      // Normalize message structure
       const normalizeMessage = (e: any) =>
         (e?.payload && (e.payload.message || e.payload.data)) || e.message || e.data || e;
 
@@ -82,19 +97,19 @@ export function useThreadRealtime({
         const raw = normalizeMessage(evt);
 
         try {
-          ingestMessage(raw);
+          ingestMessageRef.current?.(raw);
         } catch (e) {
           console.warn('[realtime] ingest failed', e, {
             keys: raw && typeof raw === 'object' ? Object.keys(raw) : [],
           });
         }
 
-        setTimeout(() => pokeDelta?.('post-ws-message'), 140);
+        setTimeout(() => pokeDeltaRef.current?.('post-ws-message'), 120);
 
         const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
         const mid = Number(raw?.id ?? 0);
 
-        if (senderId && mid && senderId !== myUserId) {
+        if (senderId && mid && senderId !== myUserIdRef.current) {
           let seenSet = seenIdsRef.current.get(threadId);
           if (!seenSet) {
             seenSet = new Set<number>();
@@ -129,12 +144,11 @@ export function useThreadRealtime({
           cacheSetLastRead(threadId, mid);
         }
 
-        // Debounce delivered PUT if visible
         if (
           isActive &&
           typeof document !== 'undefined' &&
           document.visibilityState === 'visible' &&
-          senderId !== myUserId &&
+          senderId !== myUserIdRef.current &&
           mid > 0
         ) {
           deliveredMaxRef.current = Math.max(deliveredMaxRef.current, mid);
@@ -161,17 +175,17 @@ export function useThreadRealtime({
         const readerId = Number(payload.user_id ?? payload.reader_id ?? 0);
         if (!upToId || !readerId) return;
 
-        if (readerId === myUserId) {
+        if (readerId === myUserIdRef.current) {
           cacheSetLastRead(threadId, upToId);
         } else {
-          applyReadReceipt(upToId, readerId, myUserId);
+          applyReadReceiptRef.current?.(upToId, readerId, myUserIdRef.current);
         }
         return;
       }
 
       if (type === 'typing') {
         const users = Array.isArray(payload.users) ? payload.users : [];
-        const typing = users.some((id: number | string) => Number(id) !== myUserId);
+        const typing = users.some((id: number | string) => Number(id) !== myUserIdRef.current);
         cacheUpdateSummary(threadId, { typing });
         if (typing) scheduleTypingClear();
         return;
@@ -181,7 +195,7 @@ export function useThreadRealtime({
         const updates = payload?.updates || {};
         for (const [uid, status] of Object.entries(updates)) {
           const id = Number(uid);
-          if (!Number.isFinite(id) || id === myUserId) continue;
+          if (!Number.isFinite(id) || id === myUserIdRef.current) continue;
 
           cacheUpdateSummary(threadId, {
             presence: String(status ?? ''),
@@ -192,23 +206,23 @@ export function useThreadRealtime({
         return;
       }
 
-      if (type === 'delivered' && applyDelivered) {
+      if (type === 'delivered' && applyDeliveredRef.current) {
         const upToId = Number(payload.up_to_id ?? payload.last_delivered_id ?? 0);
         const recipientId = Number(payload.user_id ?? payload.recipient_id ?? 0);
         if (upToId && recipientId) {
-          applyDelivered(upToId, recipientId, myUserId);
+          applyDeliveredRef.current(upToId, recipientId, myUserIdRef.current);
         }
         return;
       }
 
-      if ((type === 'reaction_added' || type === 'reaction_removed') && applyReactionEvent) {
+      if ((type === 'reaction_added' || type === 'reaction_removed') && applyReactionEventRef.current) {
         const p = payload?.payload || payload;
         const mid = Number(p?.message_id ?? 0);
         const userId = Number(p?.user_id ?? 0);
         const emoji = p?.emoji?.toString();
 
-        if (userId !== myUserId && mid && emoji) {
-          applyReactionEvent({
+        if (userId !== myUserIdRef.current && mid && emoji) {
+          applyReactionEventRef.current({
             messageId: mid,
             emoji,
             userId,
@@ -218,9 +232,9 @@ export function useThreadRealtime({
         return;
       }
 
-      if (type === 'message_deleted' && applyMessageDeleted) {
+      if (type === 'message_deleted' && applyMessageDeletedRef.current) {
         const mid = Number(payload?.id ?? payload?.message_id ?? 0);
-        if (mid) applyMessageDeleted(mid);
+        if (mid) applyMessageDeletedRef.current(mid);
         return;
       }
 
@@ -249,8 +263,15 @@ export function useThreadRealtime({
             low.includes('new booking request') ||
             low.includes('you have a new booking request');
 
-          if (!isNewRequest && lastId > 0) {
-            ingestMessage({
+          let seenSet = seenIdsRef.current.get(tid);
+          if (!seenSet) {
+            seenSet = new Set<number>();
+            seenIdsRef.current.set(tid, seenSet);
+          }
+
+          if (!isNewRequest && lastId > 0 && !seenSet.has(lastId)) {
+            seenSet.add(lastId);
+            ingestMessageRef.current?.({
               id: lastId,
               booking_request_id: tid,
               sender_id: 0,
@@ -262,7 +283,7 @@ export function useThreadRealtime({
             });
           }
 
-          pokeDelta?.('thread_tail');
+          pokeDeltaRef.current?.('thread_tail');
         }
         return;
       }
@@ -271,23 +292,15 @@ export function useThreadRealtime({
     const unsubscribe = subscribe(topic, onEvent);
 
     return () => {
-      clearTypingTimer();
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+        typingTimerRef.current = null;
+      }
       if (deliveredTimerRef.current) {
         clearTimeout(deliveredTimerRef.current);
         deliveredTimerRef.current = null;
       }
       unsubscribe();
     };
-  }, [
-    threadId,
-    isActive,
-    myUserId,
-    subscribe,
-    ingestMessage,
-    applyReadReceipt,
-    applyDelivered,
-    applyReactionEvent,
-    applyMessageDeleted,
-    pokeDelta,
-  ]);
+  }, [threadId, isActive, subscribe]);
 }
