@@ -131,6 +131,7 @@ def get_booking_requests_with_last_message(
     limit: int = 100,
     include_relationships: bool = True,
     viewer: models.VisibleTo | None = None,
+    per_request_messages: int = 6,
 ) -> List[models.BookingRequest]:
     """Return booking requests with their latest chat message.
 
@@ -283,7 +284,7 @@ def get_booking_requests_with_last_message(
     recent_message_map: Dict[int, List[models.Message]] = crud_message.get_recent_messages_for_requests(
         db,
         request_ids,
-        per_request=6,
+        per_request=max(1, int(per_request_messages or 1)),
     )
 
     pv_ids = [

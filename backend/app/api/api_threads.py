@@ -125,6 +125,7 @@ def get_threads_preview(
         limit=limit,
         include_relationships=False,
         viewer=(models.VisibleTo.ARTIST if is_artist else models.VisibleTo.CLIENT),
+        per_request_messages=1,
     )
 
     # Map unread counts using messages table for a single source of truth
