@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, status, Response, Header
 from fastapi.responses import ORJSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 from typing import Any, Dict, List, Optional
 
@@ -139,46 +139,138 @@ def get_threads_preview(
         # Fall through to full compose on any error
         pass
 
-    # Get booking requests with last message content/timestamp
+    # Single-path composition: latest visible message per thread + BRs in one query
     t_brs_start = time.perf_counter()
-    brs = crud.crud_booking_request.get_booking_requests_with_last_message(
-        db,
-        artist_id=current_user.id if is_artist else None,
-        client_id=current_user.id if not is_artist else None,
-        skip=0,
-        limit=limit,
-        include_relationships=False,
-        viewer=(models.VisibleTo.ARTIST if is_artist else models.VisibleTo.CLIENT),
-        per_request_messages=1,
+    viewer_role = models.VisibleTo.ARTIST if is_artist else models.VisibleTo.CLIENT
+    win = (
+        db.query(
+            models.Message.booking_request_id.label("br_id"),
+            models.Message.id.label("message_id"),
+            models.Message.timestamp.label("msg_ts"),
+            models.Message.content.label("msg_content"),
+            models.Message.message_type.label("msg_type"),
+            models.Message.sender_type.label("sender_type"),
+            models.Message.visible_to.label("visible_to"),
+            models.Message.system_key.label("system_key"),
+            func.row_number()
+            .over(
+                partition_by=models.Message.booking_request_id,
+                order_by=models.Message.timestamp.desc(),
+            )
+            .label("rn"),
+        )
+        .filter(models.Message.visible_to.in_([models.VisibleTo.BOTH, viewer_role]))
+        .subquery()
+    )
+    last_msg = (
+        db.query(
+            win.c.br_id,
+            win.c.message_id,
+            win.c.msg_ts,
+            win.c.msg_content,
+            win.c.msg_type,
+            win.c.sender_type,
+            win.c.visible_to,
+            win.c.system_key,
+        )
+        .filter(win.c.rn == 1)
+        .subquery()
+    )
+    br_query = (
+        db.query(
+            models.BookingRequest,
+            func.coalesce(last_msg.c.msg_ts, models.BookingRequest.created_at).label("last_ts"),
+            last_msg.c.message_id,
+            last_msg.c.msg_content,
+            last_msg.c.msg_type,
+            last_msg.c.sender_type,
+            last_msg.c.visible_to,
+            last_msg.c.system_key,
+        )
+        .outerjoin(last_msg, models.BookingRequest.id == last_msg.c.br_id)
+        .options(
+            selectinload(models.BookingRequest.client).load_only(
+                models.User.id,
+                models.User.first_name,
+                models.User.last_name,
+                models.User.profile_picture_url,
+            ),
+            selectinload(models.BookingRequest.artist)
+            .load_only(
+                models.User.id,
+                models.User.first_name,
+                models.User.last_name,
+                models.User.profile_picture_url,
+            )
+            .selectinload(models.User.artist_profile)
+            .load_only(
+                models.ServiceProviderProfile.user_id,
+                models.ServiceProviderProfile.business_name,
+                models.ServiceProviderProfile.profile_picture_url,
+            ),
+            selectinload(models.BookingRequest.service).load_only(
+                models.Service.id,
+                models.Service.service_type,
+            ),
+        )
+    )
+    if is_artist:
+        br_query = br_query.filter(models.BookingRequest.artist_id == current_user.id)
+    else:
+        br_query = br_query.filter(models.BookingRequest.client_id == current_user.id)
+    rows = (
+        br_query
+        .order_by(func.coalesce(last_msg.c.msg_ts, models.BookingRequest.created_at).desc())
+        .limit(limit)
+        .all()
     )
     t_brs_ms = (time.perf_counter() - t_brs_start) * 1000.0
 
-    # Map unread counts using messages table for a single source of truth
+    # Unread counts for these threads
     t_unread_start = time.perf_counter()
-    thread_ids = [int(br.id) for br in brs if getattr(br, 'id', None) is not None]
+    thread_ids = [int(br.id) for (br, *_rest) in rows]
     unread_by_id = crud.crud_message.get_unread_counts_for_user_threads(db, current_user.id, thread_ids=thread_ids)
     t_unread_ms = (time.perf_counter() - t_unread_start) * 1000.0
 
     # Build plain dict items (avoid Pydantic model construction overhead)
     t_build_start = time.perf_counter()
     items: List[Dict[str, Any]] = []
-    for br in brs:
-        last_m = getattr(br, "_last_message", None)
-        preview_message = getattr(br, "_preview_message", last_m)
-        # Defensive fallback in case legacy rows lack timestamps
-        last_ts = getattr(br, "last_message_timestamp", None) or br.created_at
-        if last_ts is None:
-            last_ts = datetime.utcnow()
-        last_actor = "system"
-        if last_m:
-            if last_m.message_type == models.MessageType.SYSTEM:
-                last_actor = "system"
-            else:
-                last_actor = (
-                    "artist"
-                    if last_m.sender_type == models.SenderType.ARTIST
-                    else "client"
-                )
+    # Preserve PV filtering semantics: show only paid PV threads
+    pv_ids = [int(br.id) for (br, *_r) in rows if ((getattr(br.service, "service_type", "") or "").lower() == "personalized video")]
+    paid_pv_ids: set[int] = set()
+    if pv_ids:
+        try:
+            paid_pv_ids = crud.crud_message.get_payment_received_booking_request_ids(db, pv_ids)
+        except Exception:
+            paid_pv_ids = set()
+    for (br, last_ts, msg_id, msg_content, msg_type, sender_type, visible_to, system_key) in rows:
+        # Defensive fallback for timestamps
+        last_ts = last_ts or br.created_at or datetime.utcnow()
+        # Skip unpaid PV
+        service_type = (getattr(br.service, "service_type", "") or "").lower()
+        if service_type == "personalized video" and int(br.id) not in paid_pv_ids:
+            continue
+        # Coerce enums if raw strings
+        try:
+            if msg_type is not None and not isinstance(msg_type, models.MessageType):
+                msg_type = models.MessageType(str(msg_type))
+        except Exception:
+            pass
+        try:
+            if sender_type is not None and not isinstance(sender_type, models.SenderType):
+                sender_type = models.SenderType(str(sender_type))
+        except Exception:
+            pass
+        # Minimal message stub for label logic
+        class _Msg:
+            __slots__ = ("content", "message_type", "sender_type", "system_key")
+            def __init__(self, c, mt, st, sk):
+                self.content = c or ""
+                self.message_type = mt
+                self.sender_type = st
+                self.system_key = sk
+        last_m = _Msg(msg_content or "", msg_type, sender_type, system_key)
+        last_actor = "system" if msg_type == models.MessageType.SYSTEM else ("artist" if sender_type == models.SenderType.ARTIST else "client")
 
         # Counterparty
         if is_artist:
@@ -201,9 +293,21 @@ def get_threads_preview(
         # State
         state = _state_from_status(br.status)
 
-        preview = getattr(br, "last_message_content", "")
-        preview_key = getattr(br, "_preview_key", None)
-        preview_args = getattr(br, "_preview_args", None) or {}
+        preview = preview_label_for_message(last_m, thread_state=state, sender_display=display) if msg_id else ""
+        preview_key = None
+        preview_args: Dict[str, Any] = {}
+        if system_key:
+            sk = (system_key or "").strip().lower()
+            if sk.startswith("booking_details"):
+                preview_key = preview_key or "new_booking_request"
+            elif sk.startswith("payment_received") or sk == "payment_received":
+                preview_key = "payment_received"
+            elif sk.startswith("event_reminder"):
+                preview_key = "event_reminder"
+                low = (msg_content or "").strip().lower()
+                dm = re.search(r"event\s+in\s+(\d+)\s+days\s*:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})", low, flags=re.IGNORECASE)
+                if dm:
+                    preview_args = {"daysBefore": int(dm.group(1)), "date": dm.group(2)}
 
         # Meta
         meta: Dict[str, Any] = {}
