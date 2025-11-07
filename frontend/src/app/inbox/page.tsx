@@ -254,7 +254,8 @@ export default function InboxPage() {
       const id = Number(detail.threadId || 0);
       if (id && id === selectedThreadId) return;
       const now = Date.now();
-      if (now - lastRefreshAtRef.current > 1000) {
+      const immediate = Boolean((detail as any).immediate);
+      if (immediate || now - lastRefreshAtRef.current > 1000) {
         lastRefreshAtRef.current = now;
         fetchAllRequests();
       }
@@ -285,9 +286,17 @@ export default function InboxPage() {
           try { JSON.parse(String(e.data || '{}')); } catch {}
         });
         es.addEventListener('update', (e: MessageEvent) => {
-          try { JSON.parse(String(e.data || '{}')); } catch {}
+          let snapshot: any = null;
+          try { snapshot = JSON.parse(String(e.data || '{}')); } catch {}
           try { emitThreadsUpdated({ source: 'inbox:sse', immediate: true }, { immediate: true, force: true }); } catch {}
-          try { window.dispatchEvent(new Event('inbox:unread')); } catch {}
+          try {
+            const total = Number(snapshot?.unread_total);
+            if (Number.isFinite(total)) {
+              window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { total } }));
+            } else {
+              window.dispatchEvent(new Event('inbox:unread'));
+            }
+          } catch {}
         });
         es.onerror = () => {
           try { es?.close(); } catch {}

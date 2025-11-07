@@ -63,7 +63,19 @@ export default function useUnreadThreadsCount() {
     const unsub = cacheSubscribe(onCacheChange);
 
     // refresh on badge delta and when tab becomes visible
-    const onBadgeDelta = () => void setFromCompute();
+    const onBadgeDelta = (ev: Event) => {
+      try {
+        const d = (ev as CustomEvent<{ delta?: number; total?: number }>).detail || {};
+        if (typeof d.total === 'number' && Number.isFinite(d.total)) {
+          setCount(Math.max(0, Number(d.total)));
+          return;
+        }
+        if (typeof d.delta === 'number' && Number.isFinite(d.delta)) {
+          setCount((c) => Math.max(0, c + Number(d.delta)));
+        }
+      } catch {}
+      void setFromCompute();
+    };
     const onVisibility = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         void setFromCompute();
