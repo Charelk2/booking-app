@@ -42,6 +42,7 @@ export function useThreadRealtime({
     if (!threadId || !isActive) return;
     const topic = `${THREAD_TOPIC_PREFIX}${threadId}`;
     let typingTimer: number | null = null;
+    let tailWatchdogTimer: number | null = null;
     const scheduleTypingClear = () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
       typingTimer = window.setTimeout(() => {
@@ -214,8 +215,18 @@ export function useThreadRealtime({
           // Do not append a synthetic bubble for thread_tail. We rely on realtime
           // 'message' echoes and a tiny reconcile to ensure parity without
           // introducing a transient left-side bubble.
-          // And nudge a tiny delta fetch to ensure parity if echo is delayed
+          // Nudge a tiny delta fetch to ensure parity if echo is delayed
           try { if (typeof pokeDelta === 'function') pokeDelta('thread_tail'); } catch {}
+          // Watchdog: if no visible update occurs shortly after the tail hint,
+          // schedule a one-shot delta reconcile to compensate for rare missed frames.
+          try {
+            if (typeof window !== 'undefined') {
+              if (tailWatchdogTimer != null) { try { window.clearTimeout(tailWatchdogTimer); } catch {} }
+              tailWatchdogTimer = window.setTimeout(() => {
+                try { if (typeof pokeDelta === 'function') pokeDelta('thread_tail_watchdog'); } catch {}
+              }, 1200);
+            }
+          } catch {}
           // No reconcile events otherwise; UI ingests realtime directly
         }
         return;
@@ -226,6 +237,7 @@ export function useThreadRealtime({
 
     return () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
+      try { if (tailWatchdogTimer != null) window.clearTimeout(tailWatchdogTimer); } catch {}
       unsubscribe();
     };
   }, [threadId, isActive, subscribe, ingestMessage, applyReadReceipt, myUserId]);
