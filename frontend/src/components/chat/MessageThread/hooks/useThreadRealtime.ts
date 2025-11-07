@@ -1,53 +1,27 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
-import {
-  getSummaries as cacheGetSummaries,
-  setSummaries as cacheSetSummaries,
-  setLastRead as cacheSetLastRead,
-  updateSummary as cacheUpdateSummary,
-} from '@/lib/chat/threadCache';
+import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, setLastRead as cacheSetLastRead, updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
 import { threadStore } from '@/lib/chat/threadStore';
-
-type SenderType = 'CLIENT' | 'AGENT';
 
 type UseThreadRealtimeOptions = {
   threadId: number;
   isActive: boolean;
   myUserId: number;
-  myUserType: SenderType; // kept for future use; not required with no synthetic ingest
   ingestMessage: (raw: any) => void;
   applyReadReceipt: (upToId: number, readerId: number, myUserId?: number | null) => void;
   applyReactionEvent?: (evt: { messageId: number; emoji: string; userId: number; kind: 'added' | 'removed' }) => void;
   applyMessageDeleted?: (messageId: number) => void;
   applyDelivered?: (upToId: number, recipientId: number, myUserId?: number | null) => void;
+  // Optional: request a quick delta reconcile after realtime if UI did not visibly update yet
   pokeDelta?: (reason?: string) => void;
 };
 
 const THREAD_TOPIC_PREFIX = 'booking-requests:';
-const MAX_SEEN_IDS = 500;
-
-// Shared map of seen message IDs per thread (cross-hook-instance)
-const getSeenMap = (function () {
-  var map = null as Map<number, Set<number>> | null;
-  return function () {
-    if (!map) map = new Map();
-    return map;
-  };
-})();
-
-function useSyncRef<T>(value: T) {
-  const ref = useRef(value);
-  useEffect(function () {
-    ref.current = value;
-  }, [value]);
-  return ref;
-}
 
 export function useThreadRealtime({
   threadId,
   isActive,
   myUserId,
-  myUserType, // eslint-disable-line @typescript-eslint/no-unused-vars
   ingestMessage,
   applyReadReceipt,
   applyReactionEvent,
@@ -56,237 +30,203 @@ export function useThreadRealtime({
   pokeDelta,
 }: UseThreadRealtimeOptions) {
   const { subscribe } = useRealtimeContext();
+  const seenIdsRef = (typeof window !== 'undefined') ? (window as any).__threadSeenIds ?? new Map<number, Set<number>>() : new Map<number, Set<number>>();
+  if (typeof window !== 'undefined' && !(window as any).__threadSeenIds) {
+    try { (window as any).__threadSeenIds = seenIdsRef; } catch {}
+  }
+  // Debounced delivered ack state
+  const deliveredMaxRef = { current: 0 } as { current: number };
+  const deliveredTimerRef = { current: 0 as any } as { current: any };
 
-  // ES5-safe refs & timers
-  const seenIdsRef = useRef<Map<number, Set<number>>>(getSeenMap());
-  const deliveredMaxRef = useRef(0);
-  const deliveredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Stable refs to avoid stale closures or re-subscribe churn
-  const myUserIdRef = useSyncRef(myUserId);
-  const ingestMessageRef = useSyncRef(ingestMessage);
-  const applyReadReceiptRef = useSyncRef(applyReadReceipt);
-  const applyReactionEventRef = useSyncRef(applyReactionEvent);
-  const applyMessageDeletedRef = useSyncRef(applyMessageDeleted);
-  const applyDeliveredRef = useSyncRef(applyDelivered);
-  const pokeDeltaRef = useSyncRef(pokeDelta);
-
-  useEffect(function () {
+  useEffect(() => {
     if (!threadId || !isActive) return;
-
-    const topic = THREAD_TOPIC_PREFIX + String(threadId);
-
-    function clearTypingTimer() {
-      if (typingTimerRef.current) {
-        clearTimeout(typingTimerRef.current);
-        typingTimerRef.current = null;
-      }
-    }
-
-    function scheduleTypingClear() {
-      clearTypingTimer();
-      typingTimerRef.current = setTimeout(function () {
+    const topic = `${THREAD_TOPIC_PREFIX}${threadId}`;
+    let typingTimer: number | null = null;
+    const scheduleTypingClear = () => {
+      try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
+      typingTimer = window.setTimeout(() => {
         try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
       }, 3000);
-    }
-
-    function onMessageLike(evt: any) {
-      // Normalize payload to a message-like object
-      const raw = (evt && evt.payload && (evt.payload.message || evt.payload.data)) || evt.message || evt.data || evt;
-      const mid = Number(raw && raw.id || 0);
-      const senderId = Number((raw && (raw.sender_id != null ? raw.sender_id : raw.senderId)) || 0);
-
-      // ES5-safe dedup before ingest (prevents double bubbles on reconnects / repeats)
-      if (mid > 0) {
-        let setForThread = seenIdsRef.current.get(threadId);
-        if (!setForThread) {
-          setForThread = new Set<number>();
-          seenIdsRef.current.set(threadId, setForThread);
-        }
-        if (setForThread.has(mid)) {
-          // already processed this message id → skip
-        } else {
-          setForThread.add(mid);
-          // cap memory: drop oldest half when exceeding limit
-          if (setForThread.size > MAX_SEEN_IDS) {
-            var arr = Array.from(setForThread);
-            setForThread.clear();
-            for (var i = Math.floor(arr.length / 2); i < arr.length; i++) setForThread.add(arr[i]);
-          }
-          // Only ingest when not seen
-          try { ingestMessageRef.current && ingestMessageRef.current(raw); } catch (e) { try { console.warn('[realtime] ingest failed', e); } catch {} }
-        }
-      } else {
-        // No id → best-effort ingest (rare)
-        try { ingestMessageRef.current && ingestMessageRef.current(raw); } catch {}
-      }
-
-      // Tiny reconcile nudge for UI parity
-      try { setTimeout(function () { pokeDeltaRef.current && pokeDeltaRef.current('post-ws-message'); }, 120); } catch {}
-
-      // Update unread & typing hints
-      if (senderId && mid && senderId !== myUserIdRef.current) {
-        try {
-          const summaries = cacheGetSummaries() as any[];
-          const updated = summaries.map(function (t: any) {
-            return Number(t && t.id) === threadId
-              ? { ...t, unread_count: Math.max(0, Number(t && t.unread_count || 0)) + 1 }
-              : t;
-          });
-          cacheSetSummaries(updated);
-        } catch {}
-        try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
-      } else if (mid) {
-        // Our own message → keep last read high-water mark locally
-        try { cacheSetLastRead(threadId, mid); } catch {}
-      }
-
-      // Debounced delivered ACK (only when visible + recipient)
-      if (
-        isActive &&
-        typeof document !== 'undefined' &&
-        document.visibilityState === 'visible' &&
-        senderId !== myUserIdRef.current &&
-        mid > 0
-      ) {
-        deliveredMaxRef.current = Math.max(deliveredMaxRef.current, mid);
-        if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current);
-        deliveredTimerRef.current = setTimeout(function () {
-          const up = deliveredMaxRef.current;
-          deliveredMaxRef.current = 0;
-          if (up > 0) {
-            (async function () {
-              try {
-                const mod = await import('@/lib/api');
-                await mod.putDeliveredUpTo(threadId, up);
-              } catch (e) {
-                try { console.warn('[realtime] PUT delivered failed', e); } catch {}
-              }
-            })();
-          }
-        }, 150);
-      }
-    }
-
-    function onEvent(evt: any) {
+    };
+    const unsubscribe = subscribe(topic, (evt: any) => {
       if (!evt) return;
-      const type = String(evt.type || '').toLowerCase();
-      const payload = evt.payload || evt;
+      const type = evt.type;
 
-      // Message-like events
+      // Normalize envelope → message shape for message-like events
       if (!type || type === 'message' || type === 'message_new') {
-        onMessageLike(evt);
+        const raw = (evt?.payload && (evt.payload.message || evt.payload.data)) || evt.message || evt.data || evt;
+        try {
+          ingestMessage(raw);
+        } catch (e) {
+          try { console.warn('[realtime] ingest failed', e, { keys: raw && typeof raw === 'object' ? Object.keys(raw) : [] }); } catch {}
+        }
+        // Best-effort: nudge a tiny delta fetch shortly after to guarantee visibility.
+        try {
+          if (typeof pokeDelta === 'function') setTimeout(() => {
+            try { pokeDelta('post-ws-message'); } catch {}
+          }, 140);
+        } catch {}
+        const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
+        const mid = Number(raw?.id ?? 0);
+        // Deduplicate by message id to avoid double unread on fast+reliable deliveries
+        let seenSet = seenIdsRef.get(threadId);
+        if (!seenSet) { seenSet = new Set<number>(); seenIdsRef.set(threadId, seenSet); }
+        const isDuplicate = Number.isFinite(mid) && mid > 0 && seenSet.has(mid);
+        if (Number.isFinite(senderId) && senderId > 0 && senderId !== myUserId) {
+          if (!isDuplicate) {
+            try {
+              const list = cacheGetSummaries() as any[];
+              const next = list.map((t) => Number(t?.id) === threadId ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 } : t);
+              cacheSetSummaries(next as any);
+            } catch {}
+            if (Number.isFinite(mid) && mid > 0) {
+              try {
+                seenSet.add(mid);
+                // Simple cap to avoid unbounded growth
+                if (seenSet.size > 500) {
+                  // Drop oldest half (best-effort; Set iteration order is insertion order in modern engines)
+                  const half = Math.floor(seenSet.size / 2);
+                  let i = 0; for (const v of seenSet) { seenSet.delete(v); if (++i >= half) break; }
+                }
+              } catch {}
+            }
+          }
+          // Counterparty sent a message: they are no longer typing
+          try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
+        } else if (Number.isFinite(raw?.id)) {
+          cacheSetLastRead(threadId, Number(raw?.id));
+        }
+        // Delivered ack: if we are the recipient, visible and active, debounce a PUT
+        if (isActive && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          if (Number.isFinite(senderId) && senderId !== myUserId && Number.isFinite(mid) && mid > 0) {
+            deliveredMaxRef.current = Math.max(deliveredMaxRef.current || 0, mid);
+            try { if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current); } catch {}
+            deliveredTimerRef.current = setTimeout(async () => {
+              const up = deliveredMaxRef.current || 0;
+              deliveredMaxRef.current = 0;
+              if (up > 0) {
+                try {
+                  const mod = await import('@/lib/api');
+                  await mod.putDeliveredUpTo(threadId, up);
+                } catch {}
+              }
+            }, 150);
+          }
+        }
         return;
       }
 
       if (type === 'read') {
-        const upToId = Number(payload.up_to_id || payload.last_read_id || payload.message_id || 0);
-        const readerId = Number(payload.user_id || payload.reader_id || 0);
-        if (!upToId || !readerId) return;
-        if (readerId === myUserIdRef.current) {
-          try { cacheSetLastRead(threadId, upToId); } catch {}
+        const p = (evt?.payload || evt);
+        const upToId = Number(p.up_to_id ?? p.last_read_id ?? p.message_id ?? 0);
+        const readerId = Number(p.user_id ?? p.reader_id ?? 0);
+        if (!Number.isFinite(upToId) || upToId <= 0 || !Number.isFinite(readerId) || readerId <= 0) return;
+        if (readerId === myUserId) {
+          cacheSetLastRead(threadId, upToId);
         } else {
-          try { applyReadReceiptRef.current && applyReadReceiptRef.current(upToId, readerId, myUserIdRef.current); } catch {}
+          applyReadReceipt(upToId, readerId, myUserId);
         }
         return;
       }
 
       if (type === 'typing') {
-        const users = Array.isArray(payload.users) ? payload.users : [];
-        const typing = users.some(function (id: number | string) { return Number(id) !== myUserIdRef.current; });
-        try { cacheUpdateSummary(threadId, { typing: typing }); } catch {}
+        const p = (evt?.payload || evt);
+        const users = Array.isArray(p.users) ? p.users : [];
+        const typing = users.some((id: any) => Number(id) !== myUserId);
+        cacheUpdateSummary(threadId, { typing });
         if (typing) scheduleTypingClear();
         return;
       }
 
       if (type === 'presence') {
-        const updates = payload && payload.updates ? payload.updates : {};
-        // Pick first counterparty status
-        const entries = Object.entries(updates);
-        for (var i = 0; i < entries.length; i++) {
-          const pair = entries[i];
-          const uid = pair[0];
-          const status = pair[1] as unknown;
-          const id = Number(uid);
-          if (!Number.isFinite(id) || id === myUserIdRef.current) continue;
-          try {
-            cacheUpdateSummary(threadId, {
-              presence: String(status == null ? '' : status),
-              last_presence_at: Date.now(),
-            });
-          } catch {}
-          break;
+        try {
+          const p = (evt?.payload || evt);
+          const updates = (p?.updates || {}) as Record<string, string>;
+          // Pick first counterparty status
+          for (const [uid, status] of Object.entries(updates)) {
+            const id = Number(uid);
+            if (!Number.isFinite(id) || id === myUserId) continue;
+            cacheUpdateSummary(threadId, { presence: (status || '').toString(), last_presence_at: Date.now() });
+            break;
+          }
+        } catch {}
+        return;
+      }
+
+      if (type === 'delivered' && applyDelivered) {
+        const p = (evt?.payload || evt);
+        const upToId = Number(p.up_to_id ?? p.last_delivered_id ?? 0);
+        const recipientId = Number(p.user_id ?? p.recipient_id ?? 0);
+        if (Number.isFinite(upToId) && upToId > 0 && Number.isFinite(recipientId) && recipientId > 0) {
+          try { applyDelivered(upToId, recipientId, myUserId); } catch {}
         }
         return;
       }
 
-      if (type === 'delivered' && applyDeliveredRef.current) {
-        const upToId = Number(payload.up_to_id || payload.last_delivered_id || 0);
-        const recipientId = Number(payload.user_id || payload.recipient_id || 0);
-        if (upToId && recipientId) {
-          try { applyDeliveredRef.current(upToId, recipientId, myUserIdRef.current); } catch {}
-        }
+      if ((type === 'reaction_added' || type === 'reaction_removed') && applyReactionEvent) {
+        try {
+          const p = ((evt?.payload && (evt.payload.payload || evt.payload)) || evt.payload || evt) as any;
+          const mid = Number(p?.message_id ?? 0);
+          const userId = Number(p?.user_id ?? 0);
+          const emoji = (p?.emoji || '').toString();
+          // Skip applying our own reaction event to avoid double-applying
+          if (Number.isFinite(userId) && Number(userId) === Number(myUserId)) return;
+          if (Number.isFinite(mid) && mid > 0 && emoji) {
+            applyReactionEvent({ messageId: mid, emoji, userId, kind: type === 'reaction_added' ? 'added' : 'removed' });
+          }
+        } catch {}
         return;
       }
 
-      if ((type === 'reaction_added' || type === 'reaction_removed') && applyReactionEventRef.current) {
-        const p = (payload && payload.payload) || payload;
-        const mid = Number(p && p.message_id || 0);
-        const userId = Number(p && p.user_id || 0);
-        const emoji = p && p.emoji != null ? String(p.emoji) : '';
-        if (userId !== myUserIdRef.current && mid && emoji) {
-          try {
-            applyReactionEventRef.current({
-              messageId: mid,
-              emoji: emoji,
-              userId: userId,
-              kind: type === 'reaction_added' ? 'added' : 'removed',
-            });
-          } catch {}
+      if (type === 'message_deleted' && applyMessageDeleted) {
+        const p = (evt?.payload || evt);
+        const mid = Number(p?.id ?? p?.message_id ?? 0);
+        if (Number.isFinite(mid) && mid > 0) {
+          try { applyMessageDeleted(mid); } catch {}
         }
-        return;
-      }
-
-      if (type === 'message_deleted' && applyMessageDeletedRef.current) {
-        const mid = Number((payload && (payload.id || payload.message_id)) || 0);
-        if (mid) try { applyMessageDeletedRef.current(mid); } catch {}
         return;
       }
 
       if (type === 'thread_tail') {
-        // ⚠️ DO NOT inject a synthetic bubble (prevents duplicates and flip)
-        const tid = Number((payload && (payload.thread_id != null ? payload.thread_id : threadId)) || threadId);
-        const lastId = Number((payload && payload.last_id) || 0);
-        const lastTs = (payload && payload.last_ts) || null;
-        const snippet = (payload && payload.snippet ? String(payload.snippet) : '').trim();
-        var preview = snippet;
-        if (preview.toLowerCase().indexOf('payment received') === 0) preview = 'Payment received';
-
-        if (tid === threadId) {
+        const p = (evt?.payload || evt) as any;
+        const tid = Number(p?.thread_id ?? threadId);
+        const lastId = Number(p?.last_id ?? 0);
+        const lastTs = (p?.last_ts || null) as string | null;
+        const snippet = (p?.snippet || '') as string;
+        // Derive a friendly preview for known system lines to avoid a brief
+        // flicker from raw content (e.g., order numbers) to the normalized
+        // label once the server preview arrives.
+        const rawText = String(snippet || '').trim();
+        const lowText = rawText.toLowerCase();
+        let previewLabel = rawText;
+        if (lowText.startsWith('payment received')) {
+          previewLabel = 'Payment received';
+        }
+        if (Number.isFinite(tid) && tid === Number(threadId)) {
           try {
             threadStore.update(tid, {
               id: tid,
-              last_message_id: lastId || undefined,
-              last_message_timestamp: lastTs || undefined,
-              last_message_content: preview || undefined,
-            });
+              last_message_id: Number.isFinite(lastId) && lastId > 0 ? lastId : (undefined as any),
+              last_message_timestamp: (lastTs || undefined) as any,
+              last_message_content: previewLabel || undefined,
+            } as any);
           } catch {}
-          try { pokeDeltaRef.current && pokeDeltaRef.current('thread_tail'); } catch {}
+          // Do not append a synthetic bubble for thread_tail. We rely on realtime
+          // 'message' echoes and a tiny reconcile to ensure parity without
+          // introducing a transient left-side bubble.
+          // And nudge a tiny delta fetch to ensure parity if echo is delayed
+          try { if (typeof pokeDelta === 'function') pokeDelta('thread_tail'); } catch {}
+          // No reconcile events otherwise; UI ingests realtime directly
         }
         return;
       }
-    }
+    });
 
-    const unsubscribe = subscribe(topic, onEvent);
+    // Reconcile disabled - rely on realtime + explicit fetches by orchestrator.
 
-    return function cleanup() {
-      clearTypingTimer();
-      if (deliveredTimerRef.current) {
-        clearTimeout(deliveredTimerRef.current);
-        deliveredTimerRef.current = null;
-      }
-      try { unsubscribe && unsubscribe(); } catch {}
+    return () => {
+      try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
+      unsubscribe();
     };
-  }, [threadId, isActive, subscribe]);
+  }, [threadId, isActive, subscribe, ingestMessage, applyReadReceipt, myUserId]);
 }
