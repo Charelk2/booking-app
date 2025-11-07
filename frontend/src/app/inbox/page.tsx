@@ -94,15 +94,8 @@ export default function InboxPage() {
       }
     } catch {}
 
-    // Persist read state server-side immediately to keep remote aggregates in sync
-    // Do this best-effort and tolerate offline by queuing via runWithTransport
-    try {
-      runWithTransport(
-        `thread-read:${id}`,
-        async () => { await markThreadMessagesRead(id); },
-        { metadata: { type: 'markThreadMessagesRead', threadId: id, lastMessageId } },
-      );
-    } catch {}
+    // Do not call the server mark-read here; the active thread view
+    // (useThreadReadManager) will handle a single consolidated mark-read.
   }, []);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [hydratedThreadIds, setHydratedThreadIds] = useState<number[]>([]);

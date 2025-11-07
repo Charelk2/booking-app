@@ -565,7 +565,18 @@ export default function MessageThreadWrapper({
         } catch {}
         // Prefer a single booking request read to find accepted quote id
         try {
-          const r = await getBookingRequestById(Number(bookingRequestId || 0));
+          let prevEtag: string | null = null;
+          try { if (typeof window !== 'undefined') prevEtag = sessionStorage.getItem(`br:etag:${bookingRequestId}`); } catch {}
+          const r = await getBookingRequestById(Number(bookingRequestId || 0), prevEtag || undefined);
+          const status = Number((r as any)?.status ?? 200);
+          if (status === 304) {
+            // No change; nothing to resolve here
+            return;
+          }
+          try {
+            const newTag = (r as any)?.headers?.etag || (r as any)?.headers?.ETag;
+            if (newTag && typeof window !== 'undefined') sessionStorage.setItem(`br:etag:${bookingRequestId}`, String(newTag));
+          } catch {}
           const acceptedId = Number((r.data as any)?.accepted_quote_id || 0);
           if (Number.isFinite(acceptedId) && acceptedId > 0) {
             try {

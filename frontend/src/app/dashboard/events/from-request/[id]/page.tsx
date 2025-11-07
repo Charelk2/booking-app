@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { BookingProvider } from '@/contexts/BookingContext';
-import { getQuotesForBookingRequest, getMyClientBookings, getMyArtistBookings, getBookingDetails } from '@/lib/api';
+import { getBookingIdForRequest, getMyClientBookings, getMyArtistBookings } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function EventFromRequestRedirectPage() {
@@ -17,15 +17,13 @@ export default function EventFromRequestRedirectPage() {
     let cancelled = false;
     if (!requestId || Number.isNaN(requestId)) return;
     (async () => {
-      // 1) Try accepted quote → booking_id
+      // 1) Try booking-id resolver directly
       try {
-        const list = await getQuotesForBookingRequest(requestId);
+        const r = await getBookingIdForRequest(requestId);
         if (cancelled) return;
-        const arr = Array.isArray(list.data) ? list.data : [];
-        const accepted = arr.find((q: any) => q?.status === 'accepted' && Number.isFinite(Number((q as any)?.booking_id)));
-        const qBid = Number((accepted as any)?.booking_id || 0);
-        if (qBid > 0) {
-          router.replace(`/dashboard/events/${qBid}`);
+        const bid = Number((r.data as any)?.booking_id || 0);
+        if (Number.isFinite(bid) && bid > 0) {
+          router.replace(`/dashboard/events/${bid}`);
           return;
         }
       } catch {}
@@ -71,4 +69,3 @@ export default function EventFromRequestRedirectPage() {
     </MainLayout>
   );
 }
-

@@ -802,8 +802,11 @@ export const getDashboardStats = () =>
   }>(`${API_V1}/booking-requests/stats`);
 
 // If you want to fetch a single booking request by ID:
-export const getBookingRequestById = (id: number) =>
-  api.get<BookingRequest>(`${API_V1}/booking-requests/${id}`);
+export const getBookingRequestById = (id: number, etag?: string) =>
+  api.get<BookingRequest>(`${API_V1}/booking-requests/${id}` , {
+    headers: etag ? { 'If-None-Match': etag } : undefined,
+    validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+  });
 
 // Update an existing booking request as the client
 export const updateBookingRequest = (
