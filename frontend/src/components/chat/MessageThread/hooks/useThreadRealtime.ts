@@ -14,7 +14,7 @@ type UseThreadRealtimeOptions = {
   threadId: number;
   isActive: boolean;
   myUserId: number;
-  myUserType: SenderType;
+  myUserType: SenderType; // kept for future use; not required with no synthetic ingest
   ingestMessage: (raw: any) => void;
   applyReadReceipt: (upToId: number, readerId: number, myUserId?: number | null) => void;
   applyReactionEvent?: (evt: { messageId: number; emoji: string; userId: number; kind: 'added' | 'removed' }) => void;
@@ -26,10 +26,10 @@ type UseThreadRealtimeOptions = {
 const THREAD_TOPIC_PREFIX = 'booking-requests:';
 const MAX_SEEN_IDS = 500;
 
-// Shared map of seen message IDs per thread
-const getSeenMap = (() => {
-  let map: Map<number, Set<number>> | null = null;
-  return () => {
+// Shared map of seen message IDs per thread (cross-hook-instance)
+const getSeenMap = (function () {
+  var map = null as Map<number, Set<number>> | null;
+  return function () {
     if (!map) map = new Map();
     return map;
   };
@@ -37,7 +37,7 @@ const getSeenMap = (() => {
 
 function useSyncRef<T>(value: T) {
   const ref = useRef(value);
-  useEffect(() => {
+  useEffect(function () {
     ref.current = value;
   }, [value]);
   return ref;
@@ -47,7 +47,7 @@ export function useThreadRealtime({
   threadId,
   isActive,
   myUserId,
-  myUserType,
+  myUserType, // eslint-disable-line @typescript-eslint/no-unused-vars
   ingestMessage,
   applyReadReceipt,
   applyReactionEvent,
@@ -57,14 +57,14 @@ export function useThreadRealtime({
 }: UseThreadRealtimeOptions) {
   const { subscribe } = useRealtimeContext();
 
+  // ES5-safe refs & timers
   const seenIdsRef = useRef<Map<number, Set<number>>>(getSeenMap());
   const deliveredMaxRef = useRef(0);
   const deliveredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Stable refs to avoid re‑subscription churn
+  // Stable refs to avoid stale closures or re-subscribe churn
   const myUserIdRef = useSyncRef(myUserId);
-  const myUserTypeRef = useSyncRef(myUserType);
   const ingestMessageRef = useSyncRef(ingestMessage);
   const applyReadReceiptRef = useSyncRef(applyReadReceipt);
   const applyReactionEventRef = useSyncRef(applyReactionEvent);
@@ -72,241 +72,221 @@ export function useThreadRealtime({
   const applyDeliveredRef = useSyncRef(applyDelivered);
   const pokeDeltaRef = useSyncRef(pokeDelta);
 
-  useEffect(() => {
+  useEffect(function () {
     if (!threadId || !isActive) return;
 
-    const topic = `${THREAD_TOPIC_PREFIX}${threadId}`;
+    const topic = THREAD_TOPIC_PREFIX + String(threadId);
 
-    const clearTypingTimer = () => {
+    function clearTypingTimer() {
       if (typingTimerRef.current) {
         clearTimeout(typingTimerRef.current);
         typingTimerRef.current = null;
       }
-    };
+    }
 
-    const scheduleTypingClear = () => {
+    function scheduleTypingClear() {
       clearTypingTimer();
-      typingTimerRef.current = setTimeout(() => {
-        cacheUpdateSummary(threadId, { typing: false });
+      typingTimerRef.current = setTimeout(function () {
+        try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
       }, 3000);
-    };
+    }
 
-    const onEvent = (evt: any) => {
+    function onMessageLike(evt: any) {
+      // Normalize payload to a message-like object
+      const raw = (evt && evt.payload && (evt.payload.message || evt.payload.data)) || evt.message || evt.data || evt;
+      const mid = Number(raw && raw.id || 0);
+      const senderId = Number((raw && (raw.sender_id != null ? raw.sender_id : raw.senderId)) || 0);
+
+      // ES5-safe dedup before ingest (prevents double bubbles on reconnects / repeats)
+      if (mid > 0) {
+        let setForThread = seenIdsRef.current.get(threadId);
+        if (!setForThread) {
+          setForThread = new Set<number>();
+          seenIdsRef.current.set(threadId, setForThread);
+        }
+        if (setForThread.has(mid)) {
+          // already processed this message id → skip
+        } else {
+          setForThread.add(mid);
+          // cap memory: drop oldest half when exceeding limit
+          if (setForThread.size > MAX_SEEN_IDS) {
+            var arr = Array.from(setForThread);
+            setForThread.clear();
+            for (var i = Math.floor(arr.length / 2); i < arr.length; i++) setForThread.add(arr[i]);
+          }
+          // Only ingest when not seen
+          try { ingestMessageRef.current && ingestMessageRef.current(raw); } catch (e) { try { console.warn('[realtime] ingest failed', e); } catch {} }
+        }
+      } else {
+        // No id → best-effort ingest (rare)
+        try { ingestMessageRef.current && ingestMessageRef.current(raw); } catch {}
+      }
+
+      // Tiny reconcile nudge for UI parity
+      try { setTimeout(function () { pokeDeltaRef.current && pokeDeltaRef.current('post-ws-message'); }, 120); } catch {}
+
+      // Update unread & typing hints
+      if (senderId && mid && senderId !== myUserIdRef.current) {
+        try {
+          const summaries = cacheGetSummaries() as any[];
+          const updated = summaries.map(function (t: any) {
+            return Number(t && t.id) === threadId
+              ? { ...t, unread_count: Math.max(0, Number(t && t.unread_count || 0)) + 1 }
+              : t;
+          });
+          cacheSetSummaries(updated);
+        } catch {}
+        try { cacheUpdateSummary(threadId, { typing: false }); } catch {}
+      } else if (mid) {
+        // Our own message → keep last read high-water mark locally
+        try { cacheSetLastRead(threadId, mid); } catch {}
+      }
+
+      // Debounced delivered ACK (only when visible + recipient)
+      if (
+        isActive &&
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'visible' &&
+        senderId !== myUserIdRef.current &&
+        mid > 0
+      ) {
+        deliveredMaxRef.current = Math.max(deliveredMaxRef.current, mid);
+        if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current);
+        deliveredTimerRef.current = setTimeout(function () {
+          const up = deliveredMaxRef.current;
+          deliveredMaxRef.current = 0;
+          if (up > 0) {
+            (async function () {
+              try {
+                const mod = await import('@/lib/api');
+                await mod.putDeliveredUpTo(threadId, up);
+              } catch (e) {
+                try { console.warn('[realtime] PUT delivered failed', e); } catch {}
+              }
+            })();
+          }
+        }, 150);
+      }
+    }
+
+    function onEvent(evt: any) {
       if (!evt) return;
-
       const type = String(evt.type || '').toLowerCase();
       const payload = evt.payload || evt;
 
-      // --- MESSAGE / NEW MESSAGE ---
+      // Message-like events
       if (!type || type === 'message' || type === 'message_new') {
-        const raw =
-          (evt?.payload && (evt.payload.message || evt.payload.data)) ||
-          evt.message ||
-          evt.data ||
-          evt;
-
-        try {
-          ingestMessageRef.current?.(raw);
-        } catch (e) {
-          console.warn('[realtime] ingest failed', e);
-        }
-
-        setTimeout(() => pokeDeltaRef.current?.('post-ws-message'), 120);
-
-        const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
-        const mid = Number(raw?.id ?? 0);
-
-        // Update unread + dedup
-        if (senderId && mid && senderId !== myUserIdRef.current) {
-          let seenSet = seenIdsRef.current.get(threadId);
-          if (!seenSet) {
-            seenSet = new Set<number>();
-            seenIdsRef.current.set(threadId, seenSet);
-          }
-
-          const isDuplicate = seenSet.has(mid);
-          if (!isDuplicate) {
-            seenSet.add(mid);
-            if (seenSet.size > MAX_SEEN_IDS) {
-              const entries = Array.from(seenSet);
-              seenSet.clear();
-              for (let i = MAX_SEEN_IDS / 2; i < entries.length; i++) {
-                seenSet.add(entries[i]);
-              }
-            }
-
-            try {
-              const summaries = cacheGetSummaries() as any[];
-              const updated = summaries.map((t) =>
-                Number(t?.id) === threadId
-                  ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 }
-                  : t
-              );
-              cacheSetSummaries(updated);
-            } catch {}
-          }
-
-          cacheUpdateSummary(threadId, { typing: false });
-        } else if (mid) {
-          cacheSetLastRead(threadId, mid);
-        }
-
-        // --- DELIVERED ACK ---
-        if (
-          isActive &&
-          typeof document !== 'undefined' &&
-          document.visibilityState === 'visible' &&
-          senderId !== myUserIdRef.current &&
-          mid > 0
-        ) {
-          deliveredMaxRef.current = Math.max(deliveredMaxRef.current, mid);
-          if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current);
-
-          deliveredTimerRef.current = setTimeout(async () => {
-            const up = deliveredMaxRef.current;
-            deliveredMaxRef.current = 0;
-            try {
-              const mod = await import('@/lib/api');
-              await mod.putDeliveredUpTo(threadId, up);
-            } catch (e) {
-              console.warn('[realtime] PUT delivered failed', e);
-            }
-          }, 150);
-        }
-
+        onMessageLike(evt);
         return;
       }
 
-      // --- READ RECEIPT ---
       if (type === 'read') {
-        const upToId = Number(payload.up_to_id ?? payload.last_read_id ?? payload.message_id ?? 0);
-        const readerId = Number(payload.user_id ?? payload.reader_id ?? 0);
+        const upToId = Number(payload.up_to_id || payload.last_read_id || payload.message_id || 0);
+        const readerId = Number(payload.user_id || payload.reader_id || 0);
         if (!upToId || !readerId) return;
-
         if (readerId === myUserIdRef.current) {
-          cacheSetLastRead(threadId, upToId);
+          try { cacheSetLastRead(threadId, upToId); } catch {}
         } else {
-          applyReadReceiptRef.current?.(upToId, readerId, myUserIdRef.current);
+          try { applyReadReceiptRef.current && applyReadReceiptRef.current(upToId, readerId, myUserIdRef.current); } catch {}
         }
         return;
       }
 
-      // --- TYPING ---
       if (type === 'typing') {
         const users = Array.isArray(payload.users) ? payload.users : [];
-        const typing = users.some((id: number | string) => Number(id) !== myUserIdRef.current);
-        cacheUpdateSummary(threadId, { typing });
+        const typing = users.some(function (id: number | string) { return Number(id) !== myUserIdRef.current; });
+        try { cacheUpdateSummary(threadId, { typing: typing }); } catch {}
         if (typing) scheduleTypingClear();
         return;
       }
 
-      // --- PRESENCE ---
       if (type === 'presence') {
-        const updates = payload?.updates || {};
-        for (const [uid, status] of Object.entries(updates)) {
+        const updates = payload && payload.updates ? payload.updates : {};
+        // Pick first counterparty status
+        const entries = Object.entries(updates);
+        for (var i = 0; i < entries.length; i++) {
+          const pair = entries[i];
+          const uid = pair[0];
+          const status = pair[1] as unknown;
           const id = Number(uid);
           if (!Number.isFinite(id) || id === myUserIdRef.current) continue;
-          cacheUpdateSummary(threadId, {
-            presence: String(status ?? ''),
-            last_presence_at: Date.now(),
-          });
+          try {
+            cacheUpdateSummary(threadId, {
+              presence: String(status == null ? '' : status),
+              last_presence_at: Date.now(),
+            });
+          } catch {}
           break;
         }
         return;
       }
 
-      // --- DELIVERED ---
       if (type === 'delivered' && applyDeliveredRef.current) {
-        const upToId = Number(payload.up_to_id ?? payload.last_delivered_id ?? 0);
-        const recipientId = Number(payload.user_id ?? payload.recipient_id ?? 0);
+        const upToId = Number(payload.up_to_id || payload.last_delivered_id || 0);
+        const recipientId = Number(payload.user_id || payload.recipient_id || 0);
         if (upToId && recipientId) {
-          applyDeliveredRef.current(upToId, recipientId, myUserIdRef.current);
+          try { applyDeliveredRef.current(upToId, recipientId, myUserIdRef.current); } catch {}
         }
         return;
       }
 
-      // --- REACTIONS ---
       if ((type === 'reaction_added' || type === 'reaction_removed') && applyReactionEventRef.current) {
-        const p = payload?.payload || payload;
-        const mid = Number(p?.message_id ?? 0);
-        const userId = Number(p?.user_id ?? 0);
-        const emoji = p?.emoji?.toString();
-
+        const p = (payload && payload.payload) || payload;
+        const mid = Number(p && p.message_id || 0);
+        const userId = Number(p && p.user_id || 0);
+        const emoji = p && p.emoji != null ? String(p.emoji) : '';
         if (userId !== myUserIdRef.current && mid && emoji) {
-          applyReactionEventRef.current({
-            messageId: mid,
-            emoji,
-            userId,
-            kind: type === 'reaction_added' ? 'added' : 'removed',
-          });
+          try {
+            applyReactionEventRef.current({
+              messageId: mid,
+              emoji: emoji,
+              userId: userId,
+              kind: type === 'reaction_added' ? 'added' : 'removed',
+            });
+          } catch {}
         }
         return;
       }
 
-      // --- MESSAGE DELETED ---
       if (type === 'message_deleted' && applyMessageDeletedRef.current) {
-        const mid = Number(payload?.id ?? payload?.message_id ?? 0);
-        if (mid) applyMessageDeletedRef.current(mid);
+        const mid = Number((payload && (payload.id || payload.message_id)) || 0);
+        if (mid) try { applyMessageDeletedRef.current(mid); } catch {}
         return;
       }
 
-      // --- THREAD TAIL (synthetic preview fix) ---
       if (type === 'thread_tail') {
-        const tid = Number(payload?.thread_id ?? threadId);
-        const lastId = Number(payload?.last_id ?? 0);
-        const lastTs = payload?.last_ts ?? null;
-        const snippet = String(payload?.snippet ?? '').trim();
-        const low = snippet.toLowerCase();
-
-        let preview = snippet;
-        if (low.startsWith('payment received')) preview = 'Payment received';
+        // ⚠️ DO NOT inject a synthetic bubble (prevents duplicates and flip)
+        const tid = Number((payload && (payload.thread_id != null ? payload.thread_id : threadId)) || threadId);
+        const lastId = Number((payload && payload.last_id) || 0);
+        const lastTs = (payload && payload.last_ts) || null;
+        const snippet = (payload && payload.snippet ? String(payload.snippet) : '').trim();
+        var preview = snippet;
+        if (preview.toLowerCase().indexOf('payment received') === 0) preview = 'Payment received';
 
         if (tid === threadId) {
-          threadStore.update(tid, {
-            id: tid,
-            last_message_id: lastId || undefined,
-            last_message_timestamp: lastTs || undefined,
-            last_message_content: preview || undefined,
-          });
-
-          const isNewRequest =
-            low.startsWith('booking details:') ||
-            low.includes('new booking request') ||
-            low.includes('you have a new booking request');
-
-          let seenSet = seenIdsRef.current.get(tid);
-          if (!seenSet) {
-            seenSet = new Set<number>();
-            seenIdsRef.current.set(tid, seenSet);
-          }
-
-          // ✅ Correct sender info prevents left/right flip
-          if (!isNewRequest && lastId > 0 && !seenSet.has(lastId)) {
-            seenSet.add(lastId);
-            ingestMessageRef.current?.({
-              id: lastId,
-              booking_request_id: tid,
-              sender_id: myUserIdRef.current,
-              sender_type: myUserTypeRef.current,
-              content: snippet,
-              message_type: 'USER',
-              timestamp: lastTs || new Date().toISOString(),
-              _synthetic_preview: true,
+          try {
+            threadStore.update(tid, {
+              id: tid,
+              last_message_id: lastId || undefined,
+              last_message_timestamp: lastTs || undefined,
+              last_message_content: preview || undefined,
             });
-          }
-
-          pokeDeltaRef.current?.('thread_tail');
+          } catch {}
+          try { pokeDeltaRef.current && pokeDeltaRef.current('thread_tail'); } catch {}
         }
         return;
       }
-    };
+    }
 
     const unsubscribe = subscribe(topic, onEvent);
 
-    return () => {
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-      if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current);
-      unsubscribe();
+    return function cleanup() {
+      clearTypingTimer();
+      if (deliveredTimerRef.current) {
+        clearTimeout(deliveredTimerRef.current);
+        deliveredTimerRef.current = null;
+      }
+      try { unsubscribe && unsubscribe(); } catch {}
     };
   }, [threadId, isActive, subscribe]);
 }
