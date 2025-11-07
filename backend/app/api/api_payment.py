@@ -539,6 +539,7 @@ def create_payment(
 @router.get("/paystack/verify")
 def paystack_verify(
     reference: str = Query(..., min_length=4),
+    booking_request_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_client),
     background_tasks: BackgroundTasks = BackgroundTasks(),
@@ -568,6 +569,22 @@ def paystack_verify(
     # Resolve booking via stored reference; fallback to metadata mapping
     simple = db.query(BookingSimple).filter(BookingSimple.payment_id == reference).first()
     if not simple:
+        # Fallback: client supplied booking_request_id to reconcile reference skew
+        if booking_request_id is not None:
+            try:
+                cand = (
+                    db.query(BookingSimple)
+                    .filter(BookingSimple.booking_request_id == int(booking_request_id))
+                    .first()
+                )
+                if cand and getattr(cand, "client_id", None) == getattr(current_user, "id", None):
+                    cand.payment_id = reference
+                    db.add(cand)
+                    db.commit()
+                    simple = cand
+            except Exception:
+                db.rollback()
+                simple = None
         # Attempt to reconcile using Paystack metadata
         meta = data.get("metadata") if isinstance(data, dict) else None
         if isinstance(meta, str):
