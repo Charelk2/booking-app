@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query, status, Response, Header
+from fastapi.responses import ORJSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Any, Dict, List, Optional
@@ -19,6 +20,20 @@ import json
 from pydantic import BaseModel
 from datetime import datetime
 import hashlib
+import time
+try:
+    import orjson as _orjson
+    def _json_dumps(obj: Any) -> bytes:
+        return _orjson.dumps(obj)
+except Exception:
+    import json as _json
+    def _json_dumps(obj: Any) -> bytes:
+        # Fallback JSON encoder with datetime support
+        def _default(o):
+            if isinstance(o, datetime):
+                return o.isoformat()
+            return str(o)
+        return _json.dumps(obj, default=_default).encode("utf-8")
 
 router = APIRouter(tags=["threads"])
 
@@ -42,7 +57,11 @@ def _state_from_status(status: "models.BookingStatus") -> str:
     return "requested"
 
 
-@router.get("/message-threads/preview", response_model=ThreadPreviewResponse, responses={304: {"description": "Not Modified"}})
+@router.get(
+    "/message-threads/preview",
+    response_model=None,
+    responses={304: {"description": "Not Modified"}},
+)
 def get_threads_preview(
     response: Response,
     role: Optional[str] = Query(None, regex="^(artist|client)$"),
@@ -58,6 +77,9 @@ def get_threads_preview(
     - Computes counterparty name/avatar and a concise last_message_preview
     - Ignores `cursor` for now (placeholder); orders by last_ts desc
     """
+
+    # Measure server-side steps for Server-Timing
+    t_start = time.perf_counter()
 
     is_artist = current_user.user_type == models.UserType.SERVICE_PROVIDER
     if role == "client":
@@ -111,12 +133,14 @@ def get_threads_preview(
 
         etag_pre = f'W/"{hashlib.sha1(f"prev:{current_user.id}:{marker_iso}:{int(total_unread)}:{int(thread_count)}".encode()).hexdigest()}"'
         if if_none_match and if_none_match.strip() == etag_pre:
-            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag_pre})
+            pre_ms = (time.perf_counter() - t_start) * 1000.0
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag_pre, "Server-Timing": f"pre;dur={pre_ms:.1f}"})
     except Exception:
         # Fall through to full compose on any error
         pass
 
     # Get booking requests with last message content/timestamp
+    t_brs_start = time.perf_counter()
     brs = crud.crud_booking_request.get_booking_requests_with_last_message(
         db,
         artist_id=current_user.id if is_artist else None,
@@ -127,12 +151,17 @@ def get_threads_preview(
         viewer=(models.VisibleTo.ARTIST if is_artist else models.VisibleTo.CLIENT),
         per_request_messages=1,
     )
+    t_brs_ms = (time.perf_counter() - t_brs_start) * 1000.0
 
     # Map unread counts using messages table for a single source of truth
+    t_unread_start = time.perf_counter()
     thread_ids = [int(br.id) for br in brs if getattr(br, 'id', None) is not None]
     unread_by_id = crud.crud_message.get_unread_counts_for_user_threads(db, current_user.id, thread_ids=thread_ids)
+    t_unread_ms = (time.perf_counter() - t_unread_start) * 1000.0
 
-    items: List[ThreadPreviewItem] = []
+    # Build plain dict items (avoid Pydantic model construction overhead)
+    t_build_start = time.perf_counter()
+    items: List[Dict[str, Any]] = []
     for br in brs:
         last_m = getattr(br, "_last_message", None)
         preview_message = getattr(br, "_preview_message", last_m)
@@ -177,7 +206,7 @@ def get_threads_preview(
         preview_args = getattr(br, "_preview_args", None) or {}
 
         # Meta
-        meta = {}
+        meta: Dict[str, Any] = {}
         # Include common, safe bits if present
         if getattr(br, "travel_breakdown", None):
             tb = br.travel_breakdown or {}
@@ -187,44 +216,47 @@ def get_threads_preview(
         if getattr(br, "proposed_datetime_1", None):
             meta["event_date"] = br.proposed_datetime_1
 
-        items.append(
-            ThreadPreviewItem(
-                thread_id=br.id,
-                counterparty=Counterparty(name=display, avatar_url=avatar_url),
-                last_message_preview=preview or "",
-                last_actor=last_actor,
-                last_ts=last_ts,
-                unread_count=unread_by_id.get(br.id, 0),
-                state=state,
-                meta=meta or None,
-                pinned=False,
-                preview_key=preview_key,
-                preview_args=(preview_args or None),
-            )
-        )
+        items.append({
+            "thread_id": br.id,
+            "counterparty": {"name": display, "avatar_url": avatar_url},
+            "last_message_preview": (preview or ""),
+            "last_actor": last_actor,
+            "last_ts": last_ts,
+            "unread_count": int(unread_by_id.get(br.id, 0) or 0),
+            "state": state,
+            "meta": (meta or None),
+            "pinned": False,
+            "preview_key": preview_key,
+            "preview_args": (preview_args or None),
+        })
 
-    items.sort(key=lambda i: i.last_ts, reverse=True)
+    items.sort(key=lambda i: i["last_ts"], reverse=True)
+    t_build_ms = (time.perf_counter() - t_build_start) * 1000.0
 
     # Lightweight ETag based on user + last_ts + unread counters
     etag = None
     try:
-        marker = items[0].last_ts.isoformat() if items else "0"
-        unread_sum = sum(int(it.unread_count or 0) for it in items)
+        marker = items[0]["last_ts"].isoformat() if items else "0"
+        unread_sum = sum(int((it.get("unread_count") or 0)) for it in items)
         src = f"prev:{current_user.id}:{marker}:{unread_sum}:{len(items)}"
-        import hashlib
         etag = f'W/"{hashlib.sha1(src.encode()).hexdigest()}"'
     except Exception:
         etag = None
 
-    if etag and if_none_match and if_none_match.strip() == etag:
-        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag})
+    # Serialize with orjson and attach Server-Timing
+    payload: Dict[str, Any] = {"items": items, "next_cursor": None}
+    t_ser_start = time.perf_counter()
+    body = _json_dumps(payload)
+    t_ser_ms = (time.perf_counter() - t_ser_start) * 1000.0
+
+    pre_ms = (t_brs_start - t_start) * 1000.0
+    server_timing = f"pre;dur={pre_ms:.1f}, brs;dur={t_brs_ms:.1f}, unread;dur={t_unread_ms:.1f}, build;dur={t_build_ms:.1f}, ser;dur={t_ser_ms:.1f}"
+
+    headers: Dict[str, str] = {"Server-Timing": server_timing, "Cache-Control": "no-cache"}
     if etag:
-        try:
-            response.headers["ETag"] = etag
-            response.headers["Cache-Control"] = "no-cache"
-        except Exception:
-            pass
-    return ThreadPreviewResponse(items=items, next_cursor=None)
+        headers["ETag"] = etag
+
+    return Response(content=body, media_type="application/json", headers=headers)
 
 
 # Unified threads index: server-side merged list with preview and unread

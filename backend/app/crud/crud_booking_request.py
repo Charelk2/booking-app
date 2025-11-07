@@ -219,36 +219,35 @@ def get_booking_requests_with_last_message(
                 models.ServiceProviderProfile.profile_picture_url,
             ),
         )
-    else:
-        query = query.options(
-            selectinload(models.BookingRequest.client).load_only(
-                models.User.id,
-                models.User.first_name,
-                models.User.last_name,
-                models.User.profile_picture_url,
-            ),
-            selectinload(models.BookingRequest.artist)
-            .load_only(
-                models.User.id,
-                models.User.first_name,
-                models.User.last_name,
-                models.User.profile_picture_url,
+        else:
+            query = query.options(
+                selectinload(models.BookingRequest.client).load_only(
+                    models.User.id,
+                    models.User.first_name,
+                    models.User.last_name,
+                    models.User.profile_picture_url,
+                ),
+                selectinload(models.BookingRequest.artist)
+                .load_only(
+                    models.User.id,
+                    models.User.first_name,
+                    models.User.last_name,
+                    models.User.profile_picture_url,
+                )
+                .selectinload(models.User.artist_profile)
+                .load_only(
+                    models.ServiceProviderProfile.user_id,
+                    models.ServiceProviderProfile.business_name,
+                    models.ServiceProviderProfile.profile_picture_url,
+                    models.ServiceProviderProfile.cancellation_policy,
+                ),
+                # For preview (include_relationships=False), we only need service_type to gate PV threads.
+                # Avoid loading title/price/details to reduce hydration cost.
+                selectinload(models.BookingRequest.service).load_only(
+                    models.Service.id,
+                    models.Service.service_type,
+                ),
             )
-            .selectinload(models.User.artist_profile)
-            .load_only(
-                models.ServiceProviderProfile.user_id,
-                models.ServiceProviderProfile.business_name,
-                models.ServiceProviderProfile.profile_picture_url,
-                models.ServiceProviderProfile.cancellation_policy,
-            ),
-            selectinload(models.BookingRequest.service).load_only(
-                models.Service.id,
-                models.Service.service_type,
-                models.Service.title,
-                models.Service.price,
-                models.Service.details,
-            ),
-        )
 
     query = query.outerjoin(latest_msg, models.BookingRequest.id == latest_msg.c.br_id).add_columns(
         latest_msg.c.last_message_timestamp
