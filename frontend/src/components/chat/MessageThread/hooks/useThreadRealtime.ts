@@ -42,7 +42,6 @@ export function useThreadRealtime({
     if (!threadId || !isActive) return;
     const topic = `${THREAD_TOPIC_PREFIX}${threadId}`;
     let typingTimer: number | null = null;
-    let tailWatchdogTimer: number | null = null;
     const scheduleTypingClear = () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
       typingTimer = window.setTimeout(() => {
@@ -212,21 +211,32 @@ export function useThreadRealtime({
               last_message_content: previewLabel || undefined,
             } as any);
           } catch {}
-          // Do not append a synthetic bubble for thread_tail. We rely on realtime
-          // 'message' echoes and a tiny reconcile to ensure parity without
-          // introducing a transient left-side bubble.
-          // Nudge a tiny delta fetch to ensure parity if echo is delayed
-          try { if (typeof pokeDelta === 'function') pokeDelta('thread_tail'); } catch {}
-          // Watchdog: if no visible update occurs shortly after the tail hint,
-          // schedule a one-shot delta reconcile to compensate for rare missed frames.
+          // Also append a minimal synthetic bubble immediately so the open thread
+          // reflects the latest preview without waiting for the full echo - except for
+          // initial booking requests where this produces a transient duplicate card.
           try {
-            if (typeof window !== 'undefined') {
-              if (tailWatchdogTimer != null) { try { window.clearTimeout(tailWatchdogTimer); } catch {} }
-              tailWatchdogTimer = window.setTimeout(() => {
-                try { if (typeof pokeDelta === 'function') pokeDelta('thread_tail_watchdog'); } catch {}
-              }, 1200);
+            if (Number.isFinite(lastId) && lastId > 0 && typeof ingestMessage === 'function') {
+              const ts = lastTs || new Date().toISOString();
+              const text = String(snippet || '');
+              const low = text.trim().toLowerCase();
+              const isNewRequest = low.startsWith('booking details:') || low.includes('new booking request') || low.includes('you have a new booking request');
+              if (!isNewRequest) {
+                const synthetic = {
+                  id: lastId,
+                  booking_request_id: tid,
+                  sender_id: 0,
+                  sender_type: 'CLIENT',
+                  content: text,
+                  message_type: 'USER',
+                  timestamp: ts,
+                  _synthetic_preview: true,
+                } as any;
+                if (synthetic.content) ingestMessage(synthetic);
+              }
             }
           } catch {}
+          // And nudge a tiny delta fetch to ensure parity if echo is delayed
+          try { if (typeof pokeDelta === 'function') pokeDelta('thread_tail'); } catch {}
           // No reconcile events otherwise; UI ingests realtime directly
         }
         return;
@@ -237,7 +247,6 @@ export function useThreadRealtime({
 
     return () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
-      try { if (tailWatchdogTimer != null) window.clearTimeout(tailWatchdogTimer); } catch {}
       unsubscribe();
     };
   }, [threadId, isActive, subscribe, ingestMessage, applyReadReceipt, myUserId]);
