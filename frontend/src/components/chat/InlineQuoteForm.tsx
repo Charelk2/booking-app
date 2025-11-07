@@ -4,7 +4,7 @@ import { ServiceItem, QuoteV2Create, QuoteCalculationResponse } from '@/types';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from './QuoteBubble';
-import { calculateQuoteBreakdown, getBookingRequestById, getService } from '@/lib/api';
+import { calculateQuoteBreakdown, getBookingRequestById, getService, getBookingRequestCached } from '@/lib/api';
 
 /**
  * InlineQuoteForm (v3.1 - optimized UX + perf)

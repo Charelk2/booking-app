@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Header, Response
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import SQLAlchemyError
 import logging
 import os
+import time
+from datetime import datetime
+import hashlib
 
 from .. import models, schemas
 from ..utils import error_response
@@ -21,6 +24,20 @@ logger = logging.getLogger(__name__)
 
 QUOTE_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "quotes")
 os.makedirs(QUOTE_DIR, exist_ok=True)
+
+# Fast JSON dumps (fallbacks handled in api_threads)
+try:
+    import orjson as _orjson
+    def _json_dumps(obj):
+        return _orjson.dumps(obj)
+except Exception:
+    import json as _json
+    def _json_dumps(obj):
+        def _default(o):
+            if isinstance(o, datetime):
+                return o.isoformat()
+            return str(o)
+        return _json.dumps(obj, default=_default).encode("utf-8")
 
 
 @router.post(
@@ -157,10 +174,41 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
         )
 
 
-@router.get("/quotes/{quote_id}", response_model=schemas.QuoteV2Read)
-def read_quote(quote_id: int, db: Session = Depends(get_db)):
+@router.get("/quotes/{quote_id}", response_model=None)
+def read_quote(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    if_none_match: str | None = Header(default=None, convert_underscores=False, alias="If-None-Match"),
+):
     logger.info("Fetching quote %s", quote_id)
-    quote = crud_quote_v2.get_quote(db, quote_id)
+    t_start = time.perf_counter()
+    # Early ETag pre-check using updated_at marker
+    try:
+        upd = (
+            db.query(models.QuoteV2.updated_at)
+            .filter(models.QuoteV2.id == quote_id)
+            .scalar()
+        )
+        marker = upd.isoformat(timespec="seconds") if isinstance(upd, datetime) else "0"
+        etag_pre = f'W/"q:{int(quote_id)}:{hashlib.sha1(marker.encode()).hexdigest()}"'
+        if if_none_match and if_none_match.strip() == etag_pre:
+            pre_ms = (time.perf_counter() - t_start) * 1000.0
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag_pre, "Server-Timing": f"pre;dur={pre_ms:.1f}"})
+    except Exception:
+        etag_pre = None
+
+    t_comp_start = time.perf_counter()
+    # Compose quote + minimal booking/service context in one roundtrip
+    quote = (
+        db.query(models.QuoteV2)
+        .options(
+            selectinload(models.QuoteV2.booking_request)
+            .selectinload(models.BookingRequest.service)
+            .load_only(models.Service.id, models.Service.service_type, models.Service.price, models.Service.details),
+        )
+        .filter(models.QuoteV2.id == quote_id)
+        .first()
+    )
     if not quote:
         logger.warning("Quote %s not found", quote_id)
         raise error_response(
@@ -170,14 +218,20 @@ def read_quote(quote_id: int, db: Session = Depends(get_db)):
         )
     # Defensive: coalesce timestamps for legacy rows
     try:
-        from datetime import datetime as _dt
         if not getattr(quote, "created_at", None):
-            quote.created_at = getattr(quote, "updated_at", None) or _dt.utcnow()
+            quote.created_at = getattr(quote, "updated_at", None) or datetime.utcnow()
         if not getattr(quote, "updated_at", None):
             quote.updated_at = quote.created_at
-        db.add(quote)
-        db.commit()
-        db.refresh(quote)
+    except Exception:
+        pass
+    # Attach booking_id (if exists)
+    try:
+        bid = (
+            db.query(models.Booking.id)
+            .filter(models.Booking.quote_id == quote_id)
+            .scalar()
+        )
+        setattr(quote, "booking_id", int(bid) if bid else None)
     except Exception:
         pass
     # Attach preview fields for client totals
@@ -198,9 +252,30 @@ def read_quote(quote_id: int, db: Session = Depends(get_db)):
             "client_total_preview": client_total,
             "rates_preview": {"commission_rate": COMMISSION_RATE, "client_fee_rate": CLIENT_FEE_RATE, "vat_rate": VAT_RATE},
         })
-        return payload
+        # Serialize with orjson and attach timing
+        body = _json_dumps(payload)
+        comp_ms = (time.perf_counter() - t_comp_start) * 1000.0
+        ser_ms = 0.0
+        try:
+            # now that we have payload, re-encode once more to measure
+            t_ser = time.perf_counter()
+            body = _json_dumps(payload)
+            ser_ms = (time.perf_counter() - t_ser) * 1000.0
+        except Exception:
+            pass
+        # ETag based on updated_at marker
+        try:
+            marker = quote.updated_at.isoformat(timespec="seconds") if quote.updated_at else "0"
+            etag = f'W/"q:{int(quote.id)}:{hashlib.sha1(marker.encode()).hexdigest()}"'
+        except Exception:
+            etag = etag_pre
+        headers = {"Cache-Control": "no-cache", "Server-Timing": f"compose;dur={comp_ms:.1f}, ser;dur={ser_ms:.1f}"}
+        if etag:
+            headers["ETag"] = etag
+        return Response(content=body, media_type="application/json", headers=headers)
     except Exception:
-        return quote
+        # Fallback to Pydantic path (rare)
+        return schemas.QuoteV2Read.model_validate(quote).model_dump()
 
 
 @router.post("/quotes/{quote_id}/accept", response_model=schemas.BookingSimpleRead)
@@ -342,3 +417,45 @@ def get_quote_pdf(
     with open(path, "wb") as f:
         f.write(pdf_bytes)
     return FileResponse(path, media_type="application/pdf", filename=filename)
+
+
+@router.get("/quotes/prefill", response_model=None)
+def get_quote_prefill(
+    booking_request_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return minimal prefill data for an inline quote form.
+
+    Includes service price/type and travel breakdown/cost so providers can seed
+    the quote form instantly without multiple round-trips.
+    """
+    br = (
+        db.query(models.BookingRequest)
+        .options(
+            selectinload(models.BookingRequest.service).load_only(
+                models.Service.id,
+                models.Service.service_type,
+                models.Service.price,
+                models.Service.details,
+            )
+        )
+        .filter(models.BookingRequest.id == booking_request_id)
+        .first()
+    )
+    if not br or (br.client_id != current_user.id and br.artist_id != current_user.id):
+        raise error_response(
+            "Booking request not found",
+            {"booking_request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    svc = br.service
+    payload = {
+        "booking_request_id": int(br.id),
+        "service_id": int(getattr(svc, "id", 0) or 0) or None,
+        "service_type": getattr(svc, "service_type", None).value if getattr(svc, "service_type", None) else None,
+        "service_price": float(getattr(svc, "price", 0) or 0),
+        "travel_breakdown": getattr(br, "travel_breakdown", None) or None,
+        "travel_cost": float(getattr(br, "travel_cost", 0) or 0),
+    }
+    return Response(content=_json_dumps(payload), media_type="application/json", headers={"Cache-Control": "no-cache"})
