@@ -1,11 +1,11 @@
 // components/chat/MessageThread/index.web.tsx
-// Ultra-optimized thread orchestrator (v2)
-// - Deterministic follow + unread anchor
-// - Resilient typing/presence label (per-user TTL)
-// - Reactions: optimistic, deduped, reconciled
-// - Robust payment detection + local snapshot
-// - Smooth uploads (presign/finalize), blob leak-proof
-// - GC-friendly; stable callbacks; minimal layout thrash
+// Ultra-optimized web orchestrator for chat threads.
+// - Loop-safe, GC-friendly, virtualization-aware
+// - Stable callbacks to prevent adapter churn
+// - Strict anchoring logic + smooth follow behavior
+// - Correct paid-state detection (fixed placement)
+// - Reduced layout thrash (ResizeObserver + batched scroll ops)
+// - Defensive guards around DOM access + realtime health fallbacks
 
 'use client';
 
@@ -40,6 +40,7 @@ import { safeParseDate } from '@/lib/chat/threadStore';
 import { getSummaries as cacheGetSummaries, subscribe as cacheSubscribe } from '@/lib/chat/threadCache';
 
 import { format } from 'date-fns';
+import { readThreadCache } from '@/lib/chat/threadCache';
 import { initAttachmentMessage, finalizeAttachmentMessage, apiUrl } from '@/lib/api';
 import { useDeclineQuote } from '@/hooks/useQuoteActions';
 import useTransportState from '@/hooks/useTransportState';
@@ -47,11 +48,7 @@ import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
 import EventPrepCard from '@/components/booking/EventPrepCard';
 
 // ----------------------------------------------------------------
-// local utils
-
-const absUrlRegex = /(https?:\/\/[^\s]+)/i;
-const relUrlRegex = /(\/api\/[\S]+)/i;
-const paymentIdRegex = /order\s*#\s*([A-Za-z0-9_-]+)/i;
+// Small utilities
 
 function useLatest<T>(value: T) {
   const ref = React.useRef(value);
@@ -69,6 +66,7 @@ function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
+// Light throttle for events like typing so we don’t spam the backend.
 function useThrottled<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   const lastRef = React.useRef(0);
   const fnRef = useLatest(fn);
@@ -83,7 +81,11 @@ function useThrottled<T extends (...args: any[]) => void>(fn: T, ms: number): T 
 }
 
 // ----------------------------------------------------------------
-// Types
+// Types (minimal, local)
+
+const absUrlRegex = /(https?:\/\/[^\s]+)/i;
+const relUrlRegex = /(\/api\/[\S]+)/i;
+const paymentIdRegex = /order\s*#\s*([A-Za-z0-9_-]+)/i;
 
 type ReplyTarget = { id: number; sender_type: string; content: string } | null;
 type GalleryItem = { src: string; type: 'image' | 'video' };
@@ -99,8 +101,11 @@ export type MessageThreadWebProps = {
   onOpenDetailsPanel?: () => void;
   onOpenQuote?: () => void;
   onPresenceUpdate?: (state: { label: string; typing?: boolean; status?: string | null }) => void;
+  // Optional UI hint to mark quotes as Paid (e.g., right after verify)
   isPaidOverride?: boolean;
+  // Optional initial request snapshot (threads list payload)
   initialBookingRequest?: any;
+  // Optional handler to resolve and navigate to Event Prep when booking_id not yet known
   onContinueEventPrep?: (bookingRequestId: number) => void;
   onPaymentStatusChange?: (
     status: string | null,
@@ -108,10 +113,12 @@ export type MessageThreadWebProps = {
     receiptUrl?: string | null,
     reference?: string | null,
   ) => void;
+  // allow passthrough
   [k: string]: any;
 };
 
 // ----------------------------------------------------------------
+// Component
 
 export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const {
@@ -131,16 +138,16 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     onPaymentStatusChange,
   } = props;
 
-  // identity / transport
+  // --- Auth / identity
   const { user } = useAuth();
   const transport = useTransportState();
   const myUserId = Number(user?.id || 0);
   const userType = (user?.user_type as any) || 'client';
 
-  // realtime context (publish for typing)
+  // --- Realtime
   const { publish, status: rtStatus, mode: rtMode, failureCount: rtFailures } = useRealtimeContext();
 
-  // list control + anchoring
+  // --- Anchoring + list control
   const listRef = React.useRef<ChatListHandle | null>(null);
   const {
     setAtBottom,
@@ -153,14 +160,14 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     scheduleScrollToEndSmooth,
   } = useAnchoredChat(listRef);
 
-  // UI state
+  // --- Local UI state
   const composerRef = React.useRef<HTMLDivElement | null>(null);
   const [replyTarget, setReplyTarget] = React.useState<ReplyTarget>(null);
   const [highlightId, setHighlightId] = React.useState<number | null>(null);
   const [isAtBottom, setIsAtBottom] = React.useState(true);
   const [newAnchorId, setNewAnchorId] = React.useState<number | null>(null);
 
-  // server data
+  // --- Server data (messages + helpers)
   const {
     messages,
     setMessages,
@@ -171,19 +178,15 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     fetchMessages,
     fetchDelta,
     handlers,
-  } = useThreadData(bookingRequestId, {
-    isActiveThread: isActive,
-    onMessagesFetched: () => {},
-    viewerUserType: userType,
-  });
+  } = useThreadData(bookingRequestId, { isActiveThread: isActive, onMessagesFetched: () => {}, viewerUserType: userType });
 
-  // virtualization
+  // --- Virtualization selection (stable)
   const ListComponent = React.useMemo(() => {
     const count = Array.isArray(messages) ? messages.length : 0;
     return selectAdapter(count) === 'virtuoso' ? VirtuosoList : PlainList;
   }, [messages]);
 
-  // quotes
+  // --- Quotes
   const { quotesById, ensureQuoteLoaded, setQuote } = useQuotes(bookingRequestId) as any;
   const declineQuote = useDeclineQuote();
   const onDecline = useStableCallback((q: any) => {
@@ -196,14 +199,19 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           try { setQuote?.({ ...(q as any), id: qid, status: 'rejected' }); } catch {}
           try { await ensureQuoteLoaded(qid); } catch {}
           try { emitThreadsUpdated({ threadId: bookingRequestId, reason: 'quote_declined', immediate: true }, { immediate: true, force: true }); } catch {}
-        } catch {/* noop */}
+        } catch {
+          // swallow; UI will remain unchanged and can retry
+        }
       })();
-    } catch {/* noop */}
+    } catch {}
   });
 
-  // ---------------------------
-  // Presence header derived from threadCache + last counterparty msg
+  // ----------------------------------------------------------------
+  // Presence / typing header label derived from threadStore
   const messagesRef = useLatest(messages);
+  // Debounce reaction toggles per message id to avoid rapid double-taps
+  const lastReactionToggleRef = React.useRef<Record<number, number>>({});
+
   React.useEffect(() => {
     if (!onPresenceUpdate) return;
 
@@ -211,20 +219,26 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       try {
         const t = (cacheGetSummaries() as any[]).find((s) => Number(s?.id) === Number(bookingRequestId)) as any;
         const typing = Boolean(t?.typing);
-        const presence: string | null = (t?.presence ?? null) as any;
+        const presence: string | null = (t?.presence ?? null) as any; // e.g., 'online'
         const lastPresenceAt: number | null = (t?.last_presence_at ?? null) as any;
 
+        // 1) Typing overrides everything
         if (typing) {
           onPresenceUpdate({ label: 'typing…', typing: true, status: presence === 'online' ? 'online' : null });
           return;
         }
+
+        // 2) If explicitly online
         if (typeof presence === 'string' && presence.trim().toLowerCase() === 'online') {
           onPresenceUpdate({ label: 'Online', typing: false, status: 'online' });
           return;
         }
 
+        // 3) Last seen fallback (presence timestamp or last counterparty message)
         let base: Date | null = null;
-        if (Number.isFinite(lastPresenceAt) && (lastPresenceAt as any) > 0) base = new Date(Number(lastPresenceAt));
+        if (Number.isFinite(lastPresenceAt) && (lastPresenceAt as any) > 0) {
+          base = new Date(Number(lastPresenceAt));
+        }
         if (!base) {
           const list = messagesRef.current as any[] | undefined;
           if (Array.isArray(list) && list.length) {
@@ -234,44 +248,69 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
               if (!Number.isFinite(senderId) || senderId === myUserId) continue;
               const ts = String(m?.timestamp || '');
               const dt = safeParseDate(ts);
-              if (Number.isFinite(dt.getTime())) { base = dt; break; }
+              if (Number.isFinite(dt.getTime())) {
+                base = dt;
+                break;
+              }
             }
           }
         }
         let label = '';
         if (base && Number.isFinite(base.getTime())) {
           const now = new Date();
-          const sameDay = base.getFullYear() === now.getFullYear() && base.getMonth() === now.getMonth() && base.getDate() === now.getDate();
+          const sameDay =
+            base.getFullYear() === now.getFullYear() &&
+            base.getMonth() === now.getMonth() &&
+            base.getDate() === now.getDate();
           label = sameDay ? `Last seen ${format(base, 'HH:mm')}` : `Last seen ${format(base, 'd LLL HH:mm')}`;
         }
         onPresenceUpdate({ label, typing: false, status: null });
-      } catch {/* noop */}
+      } catch {
+        // no-op
+      }
     };
 
     computePresence();
     const unsub = cacheSubscribe(() => computePresence());
-    return () => { try { unsub?.(); } catch {} };
+    return () => {
+      try {
+        unsub?.();
+      } catch {}
+    };
   }, [bookingRequestId, onPresenceUpdate, myUserId, messagesRef]);
 
-  // ---------------------------
-  // Tail append detection to manage unread anchor & follow
+  // ----------------------------------------------------------------
+  // Track bottom/anchor state + detect tail appends
+
   const switchedUntilRef = React.useRef<number>(0);
   const isAtBottomRef = useLatest(isAtBottom);
+  const lastSwitchAtRef = React.useRef<number>(Date.now());
+
+  React.useEffect(() => {
+    lastSwitchAtRef.current = Date.now();
+  }, [bookingRequestId]);
+
   const lastTailIdRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     const list = messagesRef.current as any[] | undefined;
-    if (!Array.isArray(list) || list.length === 0) { lastTailIdRef.current = null; return; }
-
+    if (!Array.isArray(list) || list.length === 0) {
+      lastTailIdRef.current = null;
+      return;
+    }
     const prevTail = lastTailIdRef.current;
     const currTail = Number((list[list.length - 1] as any)?.id ?? NaN);
 
+    // Append detection: strictly increasing tail id
     if (Number.isFinite(prevTail) && Number.isFinite(currTail) && currTail > (prevTail as number)) {
       const now = Date.now();
+
+      // Within post-switch grace: force follow
       if (now < switchedUntilRef.current) {
         try { setAtBottom(true); scheduleScrollToEndSmooth(); } catch {}
         setNewAnchorId(null);
       } else if (!isAtBottomRef.current) {
+        // Not at bottom → mark first new id for divider
         const firstNew = list.find((m: any) => Number(m?.id) > (prevTail as number));
         const id = Number(firstNew?.id);
         if (Number.isFinite(id) && id > 0) setNewAnchorId((old) => old ?? id);
@@ -281,21 +320,36 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messagesRef.current, rtMode, rtStatus, rtFailures]);
 
-  // ---------------------------
-  // Preview suppression: we always render only real messages for active thread
-  const messagesForView = React.useMemo(() => {
-    try { return Array.isArray(messages) ? messages : []; } catch { return messages; }
-  }, [messages, bookingRequestId]);
+  // ----------------------------------------------------------------
+  // Synthetic tail (preview) - show latest summary as a temporary bubble until real echo arrives
+  const [previewTick, setPreviewTick] = React.useState(0);
+  React.useEffect(() => {
+    // Re-render when thread summaries change
+    const unsub = cacheSubscribe(() => setPreviewTick((v) => v + 1));
+    return () => { try { unsub?.(); } catch {} };
+  }, []);
 
-  // grouping
+  const messagesForView = React.useMemo(() => {
+    // Disable synthetic preview bubbles entirely for the active thread.
+    // Rely on realtime (thread_tail) and fetch to reflect the latest state.
+    try {
+      const base = Array.isArray(messages) ? messages : [];
+      return base;
+    } catch {
+      return messages;
+    }
+  }, [messages, previewTick, bookingRequestId]);
+
+  // ----------------------------------------------------------------
+  // Grouping (pure; only input identity changes should recompute)
   const shouldShowTimestampGroup = React.useCallback(() => true, []);
   const groups = React.useMemo(
     () => groupMessages(messagesForView as any, shouldShowTimestampGroup as any),
     [messagesForView, shouldShowTimestampGroup],
   );
 
-  // ---------------------------
-  // gallery index
+  // ----------------------------------------------------------------
+  // Media gallery (images + videos; exclude voice/audio)
   const galleryItems = React.useMemo<GalleryItem[]>(() => {
     const out: GalleryItem[] = [];
     const seen = new Set<string>();
@@ -308,10 +362,17 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       const text = (m?.content || '').toString().toLowerCase();
       const pathLower = url.toLowerCase();
       const ct = (meta?.content_type || '').toLowerCase().split(';')[0].trim();
+
+      // Protect against mislabeled voice notes
       const looksLikeVoice =
-        filename.includes('voice') || filename.includes('voicenote') ||
-        text.includes('voice') || text.includes('voicenote') ||
-        pathLower.includes('/voice-notes/') || pathLower.includes('/voice/') || pathLower.includes('voicenote');
+        filename.includes('voice') ||
+        filename.includes('voicenote') ||
+        text.includes('voice') ||
+        text.includes('voicenote') ||
+        pathLower.includes('/voice-notes/') ||
+        pathLower.includes('/voice/') ||
+        pathLower.includes('voicenote');
+
       let type: 'image' | 'video' | null = null;
       if (ct.startsWith('image/')) type = 'image';
       else if (ct.startsWith('video/')) type = looksLikeVoice ? null : 'video';
@@ -327,8 +388,8 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     return out;
   }, [messages]);
 
-  // ---------------------------
-  // reply preview resolution
+  // ----------------------------------------------------------------
+  // Local message lookup for reply preview resolution
   const messageLookup = React.useMemo(() => {
     const map = new Map<number, any>();
     try {
@@ -361,24 +422,31 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     [messageLookup],
   );
 
-  // ---------------------------
-  // initial load and visibility refresh (lite)
+  // ----------------------------------------------------------------
+  // Initial + thread switch fetch
   React.useEffect(() => {
+    // Full-load on mount/switch (no delta/lite)
     void fetchMessages({ mode: 'initial', force: true, reason: 'full-load', limit: 120 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingRequestId]);
 
+  // --- Visibility-triggered refresh (throttled)
   const fetchMessagesRef = useLatest(fetchMessages);
   const throttleRef = React.useRef<number>(0);
+  const lastReactionRefreshRef = React.useRef<number>(0);
 
   const onVisible = React.useCallback(() => {
     if (typeof document === 'undefined') return;
     if (document.visibilityState !== 'visible') return;
+
     const now = Date.now();
-    if (now - throttleRef.current < 1000) return;
+    if (now - lastSwitchAtRef.current < 1500) return; // avoid immediately after thread switch
+    if (now - throttleRef.current < 1000) return; // 1s guard
     throttleRef.current = now;
+
+    // Full refresh when visible
     void fetchMessagesRef.current({ mode: 'initial', force: true, reason: 'orchestrator-visible', limit: 120 });
-  }, [fetchMessagesRef]);
+  }, [messagesRef, fetchMessagesRef]);
 
   React.useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -386,26 +454,39 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [onVisible]);
 
-  // ensure we land at bottom after switch
+  // Disable reconcile fetches; rely on realtime + full load only
+  React.useEffect(() => { return () => {}; }, [bookingRequestId]);
+
+  // One-shot reconcile disabled
+  React.useEffect(() => { return () => {}; }, [bookingRequestId, fetchMessagesRef, messagesRef]);
+
+  // --- Ensure we land at the bottom when switching to an active thread
   React.useEffect(() => {
     if (!isActive) return;
     try {
       setAtBottom(true);
+      // Defer so measurements settle
       requestAnimationFrame(() => {
         try {
           const scroller = listRef.current?.getScroller?.();
-          const alreadyAtBottom = scroller ? isAtBottomUtil(scroller) : false;
-          if (!alreadyAtBottom) scheduleScrollToEndSmooth();
+          if (scroller) {
+            const alreadyAtBottom = isAtBottomUtil(scroller);
+            if (!alreadyAtBottom) scheduleScrollToEndSmooth();
+          } else {
+            scheduleScrollToEndSmooth();
+          }
         } catch {}
       });
+      // Late-arriving first append will auto-follow within this window
       switchedUntilRef.current = Date.now() + 1500;
     } catch {}
   }, [bookingRequestId, isActive, setAtBottom, scheduleScrollToEndSmooth]);
 
-  // ---------------------------
-  // Booking details → idempotent side panel hydration
+  // ----------------------------------------------------------------
+  // Booking details → immediate side panel update (idempotent)
   const onParsedCbRef = useLatest((props as any)?.onBookingDetailsParsed as undefined | ((parsed: any) => void));
   const lastParsedMsgIdRef = React.useRef<number | null>(null);
+
   React.useEffect(() => {
     try {
       const cb = onParsedCbRef.current;
@@ -417,17 +498,17 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         const text = String(m?.content || '');
         if (!text.startsWith(BOOKING_DETAILS_PREFIX)) continue;
         const mid = Number(m?.id || 0);
-        if (Number.isFinite(mid) && lastParsedMsgIdRef.current === mid) return;
+        if (Number.isFinite(mid) && lastParsedMsgIdRef.current === mid) return; // already parsed
         const parsed = parseBookingDetailsFromMessage(text);
         lastParsedMsgIdRef.current = Number.isFinite(mid) ? mid : lastParsedMsgIdRef.current;
         cb(parsed);
         break;
       }
-    } catch {/* noop */}
+    } catch {}
   }, [messages, onParsedCbRef]);
 
-  // ---------------------------
-  // Payment state (single source of truth + cache)
+  // ----------------------------------------------------------------
+  // Paid state (FIX: must be inside component; previously out-of-scope)
   const paymentMeta = React.useMemo(() => {
     try {
       const list = Array.isArray(messages) ? messages : [];
@@ -451,7 +532,9 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         };
       }
       return null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }, [messages]);
 
   const [cachedReceiptUrl, setCachedReceiptUrl] = React.useState<string | null>(null);
@@ -459,22 +542,42 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
-    try { setCachedReceiptUrl(window.localStorage.getItem(`receipt_url:br:${bookingRequestId}`) || null); } catch {}
+    try {
+      const stored = window.localStorage.getItem(`receipt_url:br:${bookingRequestId}`);
+      setCachedReceiptUrl(stored ? stored : null);
+    } catch {
+      setCachedReceiptUrl(null);
+    }
   }, [bookingRequestId]);
+
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
-    try { setCachedReceiptRef(window.localStorage.getItem(`receipt_ref:br:${bookingRequestId}`) || null); } catch {}
+    try {
+      const stored = window.localStorage.getItem(`receipt_ref:br:${bookingRequestId}`);
+      setCachedReceiptRef(stored ? stored : null);
+    } catch {
+      setCachedReceiptRef(null);
+    }
   }, [bookingRequestId]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
     const url = paymentMeta?.receiptUrl;
-    if (url) { try { window.localStorage.setItem(`receipt_url:br:${bookingRequestId}`, url); setCachedReceiptUrl(url);} catch {} }
+    if (!url) return;
+    try {
+      window.localStorage.setItem(`receipt_url:br:${bookingRequestId}`, url);
+      setCachedReceiptUrl(url);
+    } catch {}
   }, [paymentMeta?.receiptUrl, bookingRequestId]);
+
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
     const ref = paymentMeta?.paymentId;
-    if (ref) { try { window.localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, ref); setCachedReceiptRef(ref);} catch {} }
+    if (!ref) return;
+    try {
+      window.localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, ref);
+      setCachedReceiptRef(ref);
+    } catch {}
   }, [paymentMeta?.paymentId, bookingRequestId]);
 
   const initialPaymentStatus = React.useMemo(() => {
@@ -485,26 +588,30 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         (snapshot as any)?.latest_payment_status,
         (snapshot as any)?.booking?.payment_status,
       ];
-      for (const c of candidates) {
-        if (c == null) continue;
-        const s = String(c).trim();
-        if (s.length) return s;
+      for (const candidate of candidates) {
+        if (candidate == null) continue;
+        const str = String(candidate).trim();
+        if (str.length) return str;
       }
       return null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }, [initialBookingRequest]);
 
   const initialPaymentAmount = React.useMemo(() => {
     try {
       const snapshot = initialBookingRequest || {};
-      const c =
+      const candidate =
         (snapshot as any)?.payment_amount ??
         (snapshot as any)?.latest_payment_amount ??
         (snapshot as any)?.booking?.payment_amount;
-      if (c == null) return null;
-      const n = Number(c);
-      return Number.isFinite(n) ? n : null;
-    } catch { return null; }
+      if (candidate == null) return null;
+      const num = Number(candidate);
+      return Number.isFinite(num) ? num : null;
+    } catch {
+      return null;
+    }
   }, [initialBookingRequest]);
 
   const initialReceiptFromSnapshot = React.useMemo(() => {
@@ -516,15 +623,17 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         (snapshot as any)?.latest_receipt_url,
         (snapshot as any)?.booking?.receipt_url,
       ];
-      for (const c of candidates) {
-        if (!c) continue;
-        const str = String(c).trim();
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        const str = String(candidate).trim();
         if (!str) continue;
         if (/^https?:\/\//i.test(str)) return str;
         return apiUrl(str);
       }
       return null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }, [initialBookingRequest]);
 
   const initialPaymentReference = React.useMemo(() => {
@@ -537,13 +646,15 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         (snapshot as any)?.booking?.payment_reference,
         (snapshot as any)?.booking?.payment_id,
       ];
-      for (const c of candidates) {
-        if (!c) continue;
-        const str = String(c).trim();
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        const str = String(candidate).trim();
         if (str.length) return str;
       }
       return null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }, [initialBookingRequest]);
 
   const resolvedPaymentStatus = React.useMemo(() => {
@@ -571,7 +682,9 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     const signature = `${status ?? ''}|${amount ?? ''}|${url ?? ''}|${reference ?? ''}`;
     if (lastPaymentPayloadRef.current === signature) return;
     lastPaymentPayloadRef.current = signature;
-    try { cb(status, amount, url, reference); } catch {}
+    try {
+      cb(status, amount, url, reference);
+    } catch {}
   }, [
     resolvedPaymentStatus,
     resolvedPaymentAmount,
@@ -582,8 +695,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
   const isPaid = String(resolvedPaymentStatus || '').toLowerCase() === 'paid';
 
-  // ---------------------------
-  // client-side "request new quote"
+  // --- Request new quote (client CTA when a quote is expired)
   const requestNewQuote = useStableCallback(() => {
     try {
       (handlers as any).send(
@@ -598,6 +710,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     } catch {}
   });
 
+  // Disable "Request new quote" when already requested today
   const disableRequestNewQuote = React.useMemo(() => {
     try {
       const list = Array.isArray(messages) ? messages : [];
@@ -609,16 +722,24 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         if (!sys) continue;
         if (text !== 'new quote requested') continue;
         const ts = safeParseDate(String(m?.timestamp || ''));
-        if (!Number.isFinite(ts.getTime())) break;
-        if (ts.getFullYear() === now.getFullYear() && ts.getMonth() === now.getMonth() && ts.getDate() === now.getDate()) return true;
-        break;
+        if (!Number.isFinite(ts.getTime())) break; // older items may lack ts; stop search
+        if (
+          ts.getFullYear() === now.getFullYear() &&
+          ts.getMonth() === now.getMonth() &&
+          ts.getDate() === now.getDate()
+        ) {
+          return true; // already requested today
+        }
+        break; // found an older request from a previous day
       }
       return false;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }, [messages]);
 
-  // ---------------------------
-  // Realtime wire-up (now includes reaction-op dedupe + reconcile)
+  // ----------------------------------------------------------------
+  // Realtime wire-up
   useThreadRealtime({
     threadId: bookingRequestId,
     isActive,
@@ -627,7 +748,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     applyReadReceipt: (useStableCallback as any)(handlers.applyReadReceipt),
     applyDelivered: (useStableCallback as any)(handlers.applyDelivered),
     pokeDelta: () => { try { (fetchDelta as any)('post-ws'); } catch {} },
-    applyReactionEvent: (evt) => {
+    applyReactionEvent: (evt: { messageId: number; emoji: string; userId: number; kind: 'added' | 'removed' }) => {
       const { messageId, emoji, userId, kind } = evt || ({} as any);
       setMessages((prev: any[]) =>
         prev.map((m: any) => {
@@ -636,11 +757,12 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           const agg: Record<string, number> = { ...(m.reactions || {}) };
           const mine = new Set<string>((m.my_reactions || []) as string[]);
           if (kind === 'added') {
-            agg[emoji] = Math.max(0, Number(agg[emoji] || 0)) + 1;
+            agg[emoji] = Number(agg[emoji] || 0) + 1;
             if (Number(userId) === Number(myUserId)) mine.add(emoji);
           } else {
-            const curr = Math.max(0, Number(agg[emoji] || 0) - 1);
-            if (curr > 0) agg[emoji] = curr; else delete agg[emoji];
+            const curr = Number(agg[emoji] || 0) - 1;
+            if (curr > 0) agg[emoji] = curr;
+            else delete agg[emoji];
             if (Number(userId) === Number(myUserId) && mine.has(emoji)) mine.delete(emoji);
           }
           next.reactions = agg;
@@ -648,6 +770,8 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           return next;
         }),
       );
+
+      // No reconcile fetches for reactions; rely on realtime only
     },
     applyMessageDeleted: (messageId: number) => {
       setMessages((prev: any[]) =>
@@ -660,10 +784,10 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     },
   });
 
-  // read receipts
+  // --- Read receipts (after realtime hookup so applyReadReceipt exists)
   useThreadReadManager({ threadId: bookingRequestId, messages, isActive, myUserId });
 
-  // ---------------------------
+  // ----------------------------------------------------------------
   // Scrolling helpers
 
   const smoothScrollIntoView = React.useCallback((el: HTMLElement, scroller: HTMLElement) => {
@@ -671,18 +795,25 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       const elRect = el.getBoundingClientRect();
       const scRect = scroller.getBoundingClientRect();
       const offsetWithin = elRect.top - scRect.top;
-      const targetTop = (scroller.scrollTop || 0) + offsetWithin - Math.max(0, (scroller.clientHeight - elRect.height) / 2);
+      const targetTop =
+        (scroller.scrollTop || 0) + offsetWithin - Math.max(0, (scroller.clientHeight - elRect.height) / 2);
       const top = clamp(targetTop, 0, Math.max(0, scroller.scrollHeight - scroller.clientHeight));
       scroller.scrollTo({ top, behavior: 'smooth' });
     } catch {
-      try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
+      try {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      } catch {}
     }
   }, []);
 
   const jumpToMessage = useStableCallback(async (rid: number) => {
     const id = Number(rid);
     if (!Number.isFinite(id) || id <= 0) return;
-    try { suppressFollowFor(800); setAtBottom(false); } catch {}
+
+    try {
+      suppressFollowFor(800);
+      setAtBottom(false);
+    } catch {}
 
     const scroller = listRef.current?.getScroller?.();
     if (!scroller) return;
@@ -690,10 +821,18 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     const tryFindAndScroll = () => {
       const node = document.getElementById(`msg-${id}`);
       if (!node) return false;
-      smoothScrollIntoView(node as HTMLElement, scroller);
-      try { setHighlightId(id); } catch {}
-      window.setTimeout(() => { try { setHighlightId((cur) => (cur === id ? null : cur)); } catch {} }, 2200);
-      try { (node as HTMLElement).focus({ preventScroll: true }); } catch {}
+      smoothScrollIntoView(node, scroller);
+      try {
+        setHighlightId(id);
+      } catch {}
+      window.setTimeout(() => {
+        try {
+          setHighlightId((cur) => (cur === id ? null : cur));
+        } catch {}
+      }, 2200);
+      try {
+        (node as HTMLElement).focus({ preventScroll: true });
+      } catch {}
       return true;
     };
 
@@ -701,7 +840,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
     // Load older pages until found or history start reached (bounded)
     let guard = 0;
-    while (guard < 16 && !reachedHistoryStart) {
+    while (guard < 20 && !reachedHistoryStart) {
       guard += 1;
       try {
         const wasAtBottom = isAtBottomRef.current === true;
@@ -709,29 +848,53 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         if (!wasAtBottom) preserveAnchorOnce();
         suppressFollowFor(600);
         const res = await fetchOlder();
-        await new Promise<void>((resolve) => requestAnimationFrame(() => { onAfterPrepend(); resolve(); }));
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            onAfterPrepend();
+            resolve();
+          });
+        });
         if (tryFindAndScroll()) return;
         if (!res || (res as any).added === 0) {
-          await new Promise((r) => setTimeout(r, 40));
+          await new Promise((r) => setTimeout(r, 50));
           if (tryFindAndScroll()) return;
         }
-      } catch { break; }
+      } catch {
+        break; // avoid infinite loops on errors
+      }
     }
+    // Not found → silent no-op (optionally toast)
   });
 
-  // list events
+  // ----------------------------------------------------------------
+  // List events
+
   const loadOlderWithAnchor = useStableCallback(() => {
     if (loadingOlder || reachedHistoryStart) return;
     const wasAtBottom = isAtBottomRef.current === true;
+
     onBeforePrepend();
-    if (!wasAtBottom) { try { preserveAnchorOnce(); } catch {} }
-    try { suppressFollowFor(300); } catch {}
+    if (!wasAtBottom) {
+      try {
+        preserveAnchorOnce();
+      } catch {}
+    }
+    try {
+      suppressFollowFor(300);
+    } catch {}
     if (!wasAtBottom) setAtBottom(false);
+
     void (async () => {
-      try { await fetchOlder(); }
-      finally { requestAnimationFrame(() => onAfterPrepend()); }
+      try {
+        await fetchOlder();
+      } finally {
+        requestAnimationFrame(() => onAfterPrepend());
+      }
     })();
   });
+
+  // Disable top-prepend loading; we fetch full history upfront
+  const onStartReached = undefined as unknown as (() => void);
 
   const onAtBottomStateChange = useStableCallback((atBottom: boolean) => {
     setAtBottom(atBottom);
@@ -739,20 +902,17 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     if (atBottom && newAnchorId != null) setNewAnchorId(null);
   });
 
-  // ---------------------------
-  // sending (text)
-
-  const lastReactionToggleRef = React.useRef<Record<number, number>>({});
+  // ----------------------------------------------------------------
+  // Composer (stable + resilient optimistic flow)
 
   const sendText = useStableCallback((text: string) => {
     if (!text) return;
     const tempId = -Date.now() - Math.floor(Math.random() * 1000);
     const nowIso = new Date().toISOString();
     const idempotencyKey = `msg:${bookingRequestId}:${Math.abs(tempId)}`;
-    const clientRequestId =
-      (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
-        ? (crypto as any).randomUUID()
-        : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
+    const clientRequestId = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+      ? (crypto as any).randomUUID()
+      : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
 
     setMessages((prev: any[]) => [
       ...prev,
@@ -771,9 +931,12 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       },
     ]);
 
-    try { setAtBottom(true); scheduleScrollToEndSmooth(); } catch {}
+    try {
+      setAtBottom(true);
+      scheduleScrollToEndSmooth();
+    } catch {}
 
-    // flip to 'sent' after a tiny grace (if echo is slow)
+    // Fallback: if echo is slightly delayed, flip temp to 'sent' after a short grace
     let flipTimer: any = null;
     try {
       flipTimer = setTimeout(() => {
@@ -790,6 +953,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       async () => (handlers as any).send({ content: text, reply_to_message_id: replyTarget?.id }, { idempotencyKey, clientRequestId }),
       (real: any) => {
         try { if (flipTimer) clearTimeout(flipTimer); } catch {}
+        // Preserve visual order: update the temp bubble in place with real data
         setMessages((prev: any[]) => prev.map((m: any) => (
           Number(m?.id) === Number(tempId)
             ? { ...m, ...real, id: Number(real?.id), timestamp: m.timestamp, status: 'sent' }
@@ -802,15 +966,18 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     );
   });
 
-  // ---------------------------
-  // uploads (file/image/video/voice)
+  // Track created blob URLs to revoke later if needed (avoid leaks on unmount)
   const createdBlobUrlsRef = React.useRef<Set<string>>(new Set());
+
   React.useEffect(() => {
     return () => {
-      createdBlobUrlsRef.current.forEach((url) => { try { URL.revokeObjectURL(url); } catch {} });
+      // Revoke any leftover previews when component unmounts / thread switches
+      // Use Set#forEach to support ES5 targets without --downlevelIteration.
+      createdBlobUrlsRef.current.forEach((url) => {
+        try { URL.revokeObjectURL(url); } catch {}
+      });
       createdBlobUrlsRef.current.clear();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingRequestId]);
 
   const uploadFiles = useStableCallback(async (files: File[]) => {
@@ -820,6 +987,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       createdBlobUrlsRef.current.add(previewUrl);
 
       const nowIso = new Date().toISOString();
+      const idempotencyKey = `file:${bookingRequestId}:${Math.abs(tempId)}`;
 
       // Optimistic bubble
       setMessages((prev: any[]) => [
@@ -839,10 +1007,13 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         },
       ]);
 
-      try { setAtBottom(true); scheduleScrollToEndSmooth(); } catch {}
+      try {
+        setAtBottom(true);
+        scheduleScrollToEndSmooth();
+      } catch {}
 
       try {
-        // 1) server placeholder + presign
+        // 1) Create server placeholder and get presign
         const kind = file.type.startsWith('audio/') ? 'voice' : file.type.startsWith('video/') ? 'video' : file.type.startsWith('image/') ? 'image' : 'file';
         const initRes = await initAttachmentMessage(bookingRequestId, { kind, filename: file.name, content_type: file.type, size: file.size });
         const serverMsg = (initRes.data as any)?.message;
@@ -851,8 +1022,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         if (Number.isFinite(mid) && mid > 0) {
           setMessages((prev: any[]) => prev.map((m: any) => (m.id === tempId ? { ...m, id: mid, content: String(serverMsg?.content || file.name), status: transport.online ? 'sending' : 'queued' } : m)));
         }
-
-        // 2) upload to presigned url (or legacy helper)
+        // 2) Upload to presigned URL (fallback to legacy helper if not available)
         let finalUrl: string | null = null;
         if (presign && presign.put_url) {
           const headers = presign.headers && Object.keys(presign.headers).length ? presign.headers : (file.type ? { 'Content-Type': file.type } : {});
@@ -873,13 +1043,12 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           });
           finalUrl = String(uploaded?.url || '');
         }
-
+        // Save URL for retry if needed
         if (finalUrl) {
           const messageKeyId = Number.isFinite(mid) && mid > 0 ? mid : tempId;
           setMessages((prev: any[]) => prev.map((m: any) => (Number(m?.id) === messageKeyId ? { ...m, _r2_url: finalUrl } : m)));
         }
-
-        // 3) finalize
+        // 3) Finalize via queued runner
         const messageKeyId = Number.isFinite(mid) && mid > 0 ? mid : tempId;
         const meta = { original_filename: file.name || null, content_type: file.type || null, size: Number.isFinite(file.size) ? file.size : null } as any;
         void (handlers as any).sendWithQueue(
@@ -892,7 +1061,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           (real: any) => {
             setMessages((prev: any[]) => prev.map((m: any) => (
               Number(m?.id) === (mid || messageKeyId)
-                ? { ...m, ...real, id: Number(real?.id), timestamp: m.timestamp, status: 'sent', _upload_pct: undefined }
+                ? { ...m, ...real, id: Number(real?.id), timestamp: m.timestamp, status: 'sent' }
                 : m
             )));
             try { URL.revokeObjectURL(previewUrl); createdBlobUrlsRef.current.delete(previewUrl); } catch {}
@@ -902,13 +1071,13 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           },
           { kind: (file.type && file.type.startsWith('audio/')) ? 'voice' : 'file' },
         );
-      } catch {
-        // Legacy one-shot fallback
+      } catch (err) {
+        // Fallback to legacy one-shot upload+send
         const execLegacy = async () => {
           const uploaded = await (handlers as any)?.upload?.(file, (pct: number) => {
             setMessages((prev: any[]) => prev.map((m: any) => (m.id === tempId ? { ...m, _upload_pct: pct } : m)));
           });
-          const real = await (handlers as any)?.send?.({ content: '', attachment_url: uploaded.url, attachment_meta: uploaded.metadata });
+          const real = await (handlers as any)?.send?.({ content: '', attachment_url: uploaded.url, attachment_meta: uploaded.metadata }, { idempotencyKey });
           return real;
         };
         void (handlers as any).sendWithQueue(
@@ -931,12 +1100,16 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     }
   });
 
-  // typing (rate-limit)
+  // --- Typing (throttled to 1 event / 1.2s for hygiene)
   const throttledTyping = useThrottled(() => {
-    try { publish(`booking-requests:${bookingRequestId}`, { type: 'typing', user_id: myUserId }); } catch {}
+    try {
+      const topic = `booking-requests:${bookingRequestId}`;
+      publish(topic, { type: 'typing', user_id: myUserId });
+    } catch {}
   }, 1200);
 
-  // composer resize → anchor delta
+  // ----------------------------------------------------------------
+  // Composer resize → adjust anchoring minimally
   React.useEffect(() => {
     const el = composerRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
@@ -953,62 +1126,8 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     return () => observer.disconnect();
   }, [applyComposerDelta]);
 
-  // ---------------------------
-  // Render
-
-  const hasQueued = React.useMemo(() => {
-    try { return (Array.isArray(messages) ? messages : []).some((m: any) => String(m?.status || '').toLowerCase() === 'queued'); } catch { return false; }
-  }, [messages]);
-
-  const acceptedQuoteIdFromProps = React.useMemo(() => {
-    try {
-      const id = Number((initialBookingRequest as any)?.accepted_quote_id || 0);
-      return Number.isFinite(id) && id > 0 ? id : 0;
-    } catch { return 0; }
-  }, [initialBookingRequest]);
-
-  React.useEffect(() => { if (acceptedQuoteIdFromProps > 0) { try { void ensureQuoteLoaded?.(acceptedQuoteIdFromProps); } catch {} } }, [acceptedQuoteIdFromProps, ensureQuoteLoaded]);
-
-  const acceptedQuoteForThread = React.useMemo(() => {
-    try {
-      if (acceptedQuoteIdFromProps > 0) {
-        const q = quotesById?.[acceptedQuoteIdFromProps];
-        if (q && Number(q?.id) === acceptedQuoteIdFromProps) return q;
-      }
-      const values = Object.values((quotesById || {})) as any[];
-      const found = values.find(
-        (q: any) => Number(q?.booking_request_id) === Number(bookingRequestId) && String(q?.status || '').toLowerCase() === 'accepted',
-      );
-      return found || null;
-    } catch { return null; }
-  }, [quotesById, acceptedQuoteIdFromProps, bookingRequestId]);
-
-  React.useEffect(() => {
-    try {
-      const q: any = acceptedQuoteForThread;
-      const qid = Number(q?.id || 0);
-      const hasBookingId = Number.isFinite(Number(q?.booking_id || 0)) && Number(q?.booking_id) > 0;
-      if (qid > 0 && !hasBookingId) { void ensureQuoteLoaded?.(qid); }
-    } catch {}
-  }, [acceptedQuoteForThread, ensureQuoteLoaded]);
-
-  const bookingIdForPrep = React.useMemo(() => {
-    try {
-      const bid = Number((acceptedQuoteForThread as any)?.booking_id || 0);
-      if (Number.isFinite(bid) && bid > 0) return bid;
-      try {
-        const cached = sessionStorage.getItem(`bookingId:br:${bookingRequestId}`);
-        const cachedBid = cached ? Number(cached) : 0;
-        if (Number.isFinite(cachedBid) && cachedBid > 0) return cachedBid;
-      } catch {}
-      return 0;
-    } catch { return 0; }
-  }, [acceptedQuoteForThread, bookingRequestId]);
-
-  const enableEventPrepCard = (process.env.NEXT_PUBLIC_ENABLE_EVENT_PREP_CARD || '1') !== '0';
-  const eventPrepLinkOnly = (process.env.NEXT_PUBLIC_EVENT_PREP_LINK_ONLY || '0') === '1';
-  const showEventPrepCard = enableEventPrepCard && isPaid;
-
+  // ----------------------------------------------------------------
+  // Item renderer (stable)
   const renderGroupAtIndex = useStableCallback((index: number) => {
     const group = (groups as any)[index];
     if (!group) return null;
@@ -1072,6 +1191,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
             if (attMeta) payload.attachment_meta = attMeta;
           }
 
+          // Retry via queued runner (queues when offline, sends immediately when online)
           void (handlers as any).sendWithQueue(
             mid,
             async () => (handlers as any)?.send?.(payload),
@@ -1085,14 +1205,18 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           );
         }}
         onMediaLoad={() => {
-          try { listRef.current?.refreshMeasurements(); } catch {}
-          try { suppressFollowFor(200); } catch {}
+          try {
+            listRef.current?.refreshMeasurements();
+          } catch {}
+          try {
+            suppressFollowFor(200);
+          } catch {}
         }}
         onToggleReaction={(id, emoji, hasNow) => {
           try {
             const now = Date.now();
             const last = lastReactionToggleRef.current[id] || 0;
-            if (now - last < 260) return;
+            if (now - last < 300) return;
             lastReactionToggleRef.current[id] = now;
             (handlers as any)?.reactToggle?.(id, emoji, hasNow);
           } catch {}
@@ -1101,7 +1225,9 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           try {
             const snippet = (target?.content || '').toString().slice(0, 140);
             setReplyTarget({ id: Number(target.id), sender_type: (target?.sender_type || '') as any, content: snippet });
-            try { composerRef.current?.querySelector('textarea')?.focus(); } catch {}
+            try {
+              composerRef.current?.querySelector('textarea')?.focus();
+            } catch {}
           } catch {}
         }}
         onDeleteMessage={(id) => {
@@ -1117,8 +1243,11 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
                   : m,
               );
             });
-            try { await (handlers as any)?.deleteMessage?.(mid); }
-            catch { if (snapshot) setMessages(snapshot); }
+            try {
+              await (handlers as any)?.deleteMessage?.(mid);
+            } catch {
+              if (snapshot) setMessages(snapshot);
+            }
           })();
         }}
         newMessageAnchorId={newAnchorId}
@@ -1128,14 +1257,87 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     );
   });
 
+  // Stable computeItemKey to avoid re-renders under virtualization
   const computeItemKey = useStableCallback((index: number) => {
     try {
       const group: any = (groups as any)[index];
       const first = group?.messages?.[0];
       const keyParts = [first?.id ?? index, first?.timestamp ?? '', first?.sender_id ?? ''];
       return keyParts.join(':');
-    } catch { return String(index); }
+    } catch {
+      return String(index);
+    }
   });
+
+  // ----------------------------------------------------------------
+  // Render
+
+  const hasQueued = React.useMemo(() => {
+    try {
+      const list = Array.isArray(messages) ? messages : [];
+      return list.some((m: any) => String(m?.status || '').toLowerCase() === 'queued');
+    } catch { return false; }
+  }, [messages]);
+
+  // Compute accepted quote and booking id (for Event Prep)
+  const acceptedQuoteIdFromProps = React.useMemo(() => {
+    try {
+      const id = Number((initialBookingRequest as any)?.accepted_quote_id || 0);
+      return Number.isFinite(id) && id > 0 ? id : 0;
+    } catch { return 0; }
+  }, [initialBookingRequest]);
+
+  React.useEffect(() => {
+    if (acceptedQuoteIdFromProps > 0) {
+      try { void ensureQuoteLoaded?.(acceptedQuoteIdFromProps); } catch {}
+    }
+  }, [acceptedQuoteIdFromProps, ensureQuoteLoaded]);
+
+  const acceptedQuoteForThread = React.useMemo(() => {
+    try {
+      if (acceptedQuoteIdFromProps > 0) {
+        const q = quotesById?.[acceptedQuoteIdFromProps];
+        if (q && Number(q?.id) === acceptedQuoteIdFromProps) return q;
+      }
+      // Fallback: scan for any accepted quote tied to this thread
+      const values = Object.values((quotesById || {})) as any[];
+      const found = values.find(
+        (q: any) => Number(q?.booking_request_id) === Number(bookingRequestId) && String(q?.status || '').toLowerCase() === 'accepted',
+      );
+      return found || null;
+    } catch { return null; }
+  }, [quotesById, acceptedQuoteIdFromProps, bookingRequestId]);
+
+  // If we found an accepted quote but it lacks booking_id (e.g., legacy shape),
+  // fetch the canonical v2 quote to hydrate booking_id for Event Prep.
+  React.useEffect(() => {
+    try {
+      const q: any = acceptedQuoteForThread;
+      const qid = Number(q?.id || 0);
+      const hasBookingId = Number.isFinite(Number(q?.booking_id || 0)) && Number(q?.booking_id) > 0;
+      if (qid > 0 && !hasBookingId) {
+        void ensureQuoteLoaded?.(qid);
+      }
+    } catch {}
+  }, [acceptedQuoteForThread, ensureQuoteLoaded]);
+
+  const bookingIdForPrep = React.useMemo(() => {
+    try {
+      const bid = Number((acceptedQuoteForThread as any)?.booking_id || 0);
+      if (Number.isFinite(bid) && bid > 0) return bid;
+      // Fallback to cached booking id if present
+      try {
+        const cached = sessionStorage.getItem(`bookingId:br:${bookingRequestId}`);
+        const cachedBid = cached ? Number(cached) : 0;
+        if (Number.isFinite(cachedBid) && cachedBid > 0) return cachedBid;
+      } catch {}
+      return 0;
+    } catch { return 0; }
+  }, [acceptedQuoteForThread, bookingRequestId]);
+
+  const enableEventPrepCard = (process.env.NEXT_PUBLIC_ENABLE_EVENT_PREP_CARD || '1') !== '0';
+  const eventPrepLinkOnly = (process.env.NEXT_PUBLIC_EVENT_PREP_LINK_ONLY || '0') === '1';
+  const showEventPrepCard = enableEventPrepCard && isPaid;
 
   return (
     <ThreadView
@@ -1147,6 +1349,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           computeItemKey={computeItemKey}
           itemContent={(index: number) => <div className="w-full">{renderGroupAtIndex(index)}</div>}
           renderHeader={() => {
+            // Show an inline spinner during first load when no messages are present yet
             const empty = !Array.isArray(messages) || messages.length === 0;
             if (!loading || !empty) return null;
             return (
@@ -1155,6 +1358,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
               </div>
             );
           }}
+          // keep handlers stable to avoid Virtuoso churn
           followOutput={followOutput}
           style={{ height: '100%', width: '100%' }}
           startReached={undefined}
@@ -1172,7 +1376,10 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
                 summaryOnly
                 linkOnly={eventPrepLinkOnly}
                 onContinuePrep={() => {
-                  if (bookingIdForPrep > 0) { try { window.location.href = `/dashboard/events/${bookingIdForPrep}`; } catch {} return; }
+                  if (bookingIdForPrep > 0) {
+                    try { window.location.href = `/dashboard/events/${bookingIdForPrep}`; } catch {}
+                    return;
+                  }
                   try { onContinueEventPrep?.(bookingRequestId); } catch {}
                 }}
               />
@@ -1187,7 +1394,10 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           )}
           {replyTarget && (
             <div className="px-2 pt-1">
-              <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-2 py-1 flex items-center justify-between gap-2" aria-live="polite">
+              <div
+                className="rounded-xl border border-gray-200 bg-white shadow-sm px-2 py-1 flex items-center justify-between gap-2"
+                aria-live="polite"
+              >
                 <div className="min-w-0 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis">
                   <span className="font-semibold">
                     Replying to {replyTarget.sender_type === 'client' ? 'Client' : 'You'}:{' '}
@@ -1207,7 +1417,12 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
               </div>
             </div>
           )}
-          <Composer disabled={false} onSend={sendText} onUploadFiles={uploadFiles} onTyping={throttledTyping} />
+          <Composer
+            disabled={false}
+            onSend={sendText}
+            onUploadFiles={uploadFiles}
+            onTyping={throttledTyping}
+          />
         </div>
       }
     />
