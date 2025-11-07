@@ -631,6 +631,15 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
 
     setMessages(prev => {
       const prior = prev.find(m => Number(m.id) === Number(incoming.id));
+      const isSynthetic = Boolean((raw as any)?._synthetic_preview || (incoming as any)?._synthetic_preview);
+
+      // If a real message already exists for this id, do not let a synthetic
+      // preview overwrite core fields like sender_id/sender_type that drive
+      // bubble alignment and status ticks. Simply ignore the synthetic.
+      if (prior && isSynthetic) {
+        return prev;
+      }
+
       let safeIncoming = incoming;
       if (prior && prior.attachment_url && !incoming.attachment_url) {
         safeIncoming = { ...incoming, attachment_url: prior.attachment_url, _upload_pct: (prior as any)._upload_pct };
