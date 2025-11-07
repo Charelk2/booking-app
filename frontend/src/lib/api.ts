@@ -109,6 +109,25 @@ const api = axios.create({
   },
 });
 
+// One-shot after-write flag: when true, the next preview/threads/unread GETs
+// will include X-After-Write: 1 to force a fresh compute (skip premature 304).
+let _afterWriteBudget = 0; // number of subsequent GETs to tag
+export function noteAfterWrite(count: number = 2) {
+  try {
+    _afterWriteBudget = Math.max(_afterWriteBudget, Math.max(1, Math.floor(count)));
+  } catch { _afterWriteBudget = 1; }
+}
+function _maybeAfterWriteHeaders(extra?: Record<string, string> | undefined) {
+  const headers: Record<string, string> = { ...(extra || {}) };
+  try {
+    if (_afterWriteBudget > 0) {
+      headers['X-After-Write'] = '1';
+      _afterWriteBudget = Math.max(0, _afterWriteBudget - 1);
+    }
+  } catch {}
+  return headers;
+}
+
 const STATIC_API_ORIGIN = getApiOrigin();
 const withApiOrigin = (path: string) => {
   if (!path || /^https?:/i.test(path)) return path;
@@ -1027,11 +1046,13 @@ export const postMessageToBookingRequest = (
   if (opts?.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
   if (opts?.clientRequestId) headers['X-Client-Request-Id'] = opts.clientRequestId;
   const config = Object.keys(headers).length ? { headers } : undefined;
-  return api.post<Message>(
+  const p = api.post<Message>(
     `${API_V1}/booking-requests/${bookingRequestId}/messages`,
     data,
     config,
   );
+  try { noteAfterWrite(2); } catch {}
+  return p;
 };
 
 // Attempt to delete a message. If the backend doesn't support it, callers should handle errors gracefully.
@@ -1041,9 +1062,9 @@ export const deleteMessageForBookingRequest = (
 ) => api.delete(`${API_V1}/booking-requests/${bookingRequestId}/messages/${messageId}`);
 
 export const markMessagesRead = (bookingRequestId: number) =>
-  api.put<{ updated: number }>(
+  (function(){ const p = api.put<{ updated: number }>(
     `${API_V1}/booking-requests/${bookingRequestId}/messages/read`
-  );
+  ); try { noteAfterWrite(2); } catch {} return p; })();
 
 export const uploadMessageAttachment = async (
   bookingRequestId: number,
@@ -1139,31 +1160,31 @@ export const finalizeAttachmentMessage = (
   messageId: number,
   url: string,
   metadata?: AttachmentMeta,
-) => api.post<Message>(
+) => (function(){ const p = api.post<Message>(
   `${API_V1}/booking-requests/${bookingRequestId}/messages/${messageId}/attachments/finalize`,
   { url, metadata },
-);
+); try { noteAfterWrite(2); } catch {} return p; })();
 
 // Delivered signal (ephemeral): flips sender bubbles to 'delivered'
 export const putDeliveredUpTo = (
   bookingRequestId: number,
   upToId: number,
-) => api.put<{ ok: boolean }>(
+) => (function(){ const p = api.put<{ ok: boolean }>(
   `${API_V1}/booking-requests/${bookingRequestId}/messages/delivered`,
   { up_to_id: upToId },
-);
+); try { noteAfterWrite(1); } catch {} return p; })();
 
 export const addMessageReaction = (
   bookingRequestId: number,
   messageId: number,
   emoji: string,
-) => api.post(`${API_V1}/booking-requests/${bookingRequestId}/messages/${messageId}/reactions`, { emoji });
+) => (function(){ const p = api.post(`${API_V1}/booking-requests/${bookingRequestId}/messages/${messageId}/reactions`, { emoji }); try { noteAfterWrite(1); } catch {} return p; })();
 
 export const removeMessageReaction = (
   bookingRequestId: number,
   messageId: number,
   emoji: string,
-) => api.delete(`${API_V1}/booking-requests/${bookingRequestId}/messages/${messageId}/reactions`, { data: { emoji } });
+) => (function(){ const p = api.delete(`${API_V1}/booking-requests/${bookingRequestId}/messages/${messageId}/reactions`, { data: { emoji } }); try { noteAfterWrite(1); } catch {} return p; })();
 
 export const uploadBookingAttachment = (
   formData: FormData,
@@ -1383,21 +1404,26 @@ export const markThreadRead = (bookingRequestId: number) =>
     `${API_NOTIFICATIONS}/notifications/message-threads/${bookingRequestId}/read`,
   );
 
-export const markThreadMessagesRead = (bookingRequestId: number) =>
-  api.put(`${API_V1}/booking-requests/${bookingRequestId}/messages/read`);
+export const markThreadMessagesRead = (bookingRequestId: number) => (function(){
+  const p = api.put(`${API_V1}/booking-requests/${bookingRequestId}/messages/read`);
+  try { noteAfterWrite(2); } catch {}
+  return p;
+})();
 
 // ─── INBOX UNREAD (aggregate) ───────────────────────────────────────────────
-export const getInboxUnread = (config?: AxiosRequestConfig) =>
-  api.get<{ total?: number; count?: number }>(
+export const getInboxUnread = (config?: AxiosRequestConfig) => {
+  const baseHeaders = (config && (config as any).headers) || undefined;
+  const headers = _maybeAfterWriteHeaders(baseHeaders as any);
+  return api.get<{ total?: number; count?: number }>(
     `${API_V1}/inbox/unread`,
     {
-      // Accept 200 or 304 when caller supplies If-None-Match
       validateStatus: (s) => s === 200 || s === 304,
-      // Include a cache buster param similar to prior implementation
       params: { _: Date.now() },
       ...(config || {}),
+      headers,
     },
   );
+};
 
 // ─── MESSAGE THREADS PREVIEW (atomic previews + unread counts) ─────────────
 export interface ThreadPreviewResponse {
@@ -1414,8 +1440,7 @@ export const getMessageThreadsPreview = (
     `${API_V1}/message-threads/preview`,
     {
       params: { role, limit },
-      headers: etag ? { 'If-None-Match': etag } : undefined,
-      // Accept 200 or 304 to leverage server ETag
+      headers: _maybeAfterWriteHeaders(etag ? { 'If-None-Match': etag } : undefined),
       validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
     }
   );
@@ -1450,7 +1475,7 @@ export const getThreadsIndex = (
   getDeduped<ThreadsIndexResponse>(
     `${API_V1}/threads`,
     { role, limit },
-    etag ? { 'If-None-Match': etag } : undefined,
+    _maybeAfterWriteHeaders(etag ? { 'If-None-Match': etag } : undefined),
     (s) => (s >= 200 && s < 300) || s === 304,
   );
 
@@ -1486,7 +1511,7 @@ export const startMessageThread = (payload: {
   proposed_date?: string; // YYYY-MM-DD or ISO datetime
   guests?: number;
   service_id?: number;
-}) => api.post<{ booking_request_id: number }>(`${API_V1}/message-threads/start`, payload);
+}) => (function(){ const p = api.post<{ booking_request_id: number }>(`${API_V1}/message-threads/start`, payload); try { noteAfterWrite(2); } catch {} return p; })();
 
 // ─── GOOGLE CALENDAR ─────────────────────────────────────────────────────────
 export const getGoogleCalendarStatus = () =>

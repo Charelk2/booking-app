@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { type ThreadsUpdatedDetail } from '@/lib/chat/threadsEvents';
+import { type ThreadsUpdatedDetail, emitThreadsUpdated } from '@/lib/chat/threadsEvents';
 import { Spinner } from '@/components/ui';
 // list + thread panes moved to features/inbox
 import ReviewFormModal from '@/components/review/ReviewFormModal';
@@ -268,6 +268,39 @@ export default function InboxPage() {
       window.removeEventListener('threads:updated', onThreadsUpdated as any);
     };
   }, [fetchAllRequests, selectedThreadId]);
+
+  // Realtime inbox updates via SSE: /api/v1/inbox/stream
+  useEffect(() => {
+    if (!user) return;
+    let es: EventSource | null = null;
+    let closed = false;
+    const role = user.user_type === 'service_provider' ? 'artist' : 'client';
+    const connect = () => {
+      if (closed) return;
+      try {
+        // Use relative path so cookies flow and no CORS preflight
+        es = new EventSource(`/api/v1/inbox/stream?role=${role}`);
+        es.addEventListener('hello', (e: MessageEvent) => {
+          // Snapshot token is available if needed; no-op here
+          try { JSON.parse(String(e.data || '{}')); } catch {}
+        });
+        es.addEventListener('update', (e: MessageEvent) => {
+          try { JSON.parse(String(e.data || '{}')); } catch {}
+          try { emitThreadsUpdated({ source: 'inbox:sse', immediate: true }, { immediate: true, force: true }); } catch {}
+          try { window.dispatchEvent(new Event('inbox:unread')); } catch {}
+        });
+        es.onerror = () => {
+          try { es?.close(); } catch {}
+          es = null;
+          setTimeout(connect, 2000);
+        };
+      } catch {
+        setTimeout(connect, 2000);
+      }
+    };
+    connect();
+    return () => { closed = true; try { es?.close(); } catch {}; };
+  }, [user]);
 
   // Select conversation based on URL param after requests load; if none, restore persisted selection
   useEffect(() => {

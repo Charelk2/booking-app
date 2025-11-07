@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query, status, Response, Header
 from fastapi.responses import ORJSONResponse
+from starlette.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 from typing import Any, Dict, List, Optional, Tuple
@@ -22,7 +23,7 @@ from datetime import datetime
 import hashlib
 import time
 
-# ---- JSON encoder (orjson if available) -------------------------------------
+# ---- JSON encoder (prefers orjson) ------------------------------------------
 
 try:
     import orjson as _orjson
@@ -62,13 +63,9 @@ def _state_from_status(status: "models.BookingStatus") -> str:
     return "requested"
 
 
-def _change_token(prefix: str, user_id: int, last_msg_id: int, last_br_id: int, unread_total_or_sum: int, thread_count_or_items: int) -> str:
-    """Monotonic, unified ETag token based on IDs and key counters.
-
-    Using IDs avoids timestamp precision traps and guarantees change on inserts.
-    Falls back to 0 where not available.
-    """
-    basis = f"{prefix}:{int(user_id)}:{int(last_msg_id)}:{int(last_br_id)}:{int(unread_total_or_sum)}:{int(thread_count_or_items)}"
+def _change_token(prefix: str, user_id: int, last_msg_id: int, last_br_id: int, unread_total: int, thread_count: int) -> str:
+    """Monotonic, unified ETag token based on IDs and counters."""
+    basis = f"{prefix}:{int(user_id)}:{int(last_msg_id)}:{int(last_br_id)}:{int(unread_total)}:{int(thread_count)}"
     return f'W/"{hashlib.sha1(basis.encode()).hexdigest()}"'
 
 
@@ -77,6 +74,50 @@ def _coalesce_bool(v: Optional[str]) -> bool:
         return False
     v = v.strip().lower()
     return v in ("1", "true", "yes", "y", "on")
+
+
+def _cheap_snapshot(db: Session, user_id: int, is_artist: bool) -> Tuple[int, int, int, int]:
+    """Return (max_msg_id, max_br_id, unread_total, thread_count) for the user's inbox.
+
+    Cheap aggregates only. This is used consistently for:
+    - ETag pre-check
+    - Final ETag
+    - SSE change detection
+    """
+    # thread_count
+    q_threads = db.query(models.BookingRequest.id)
+    if is_artist:
+        q_threads = q_threads.filter(models.BookingRequest.artist_id == user_id)
+    else:
+        q_threads = q_threads.filter(models.BookingRequest.client_id == user_id)
+    thread_count = int(q_threads.count())
+
+    # max_msg_id across user threads
+    q_max_msg_id = (
+        db.query(func.max(models.Message.id))
+        .join(models.BookingRequest, models.Message.booking_request_id == models.BookingRequest.id)
+    )
+    if is_artist:
+        q_max_msg_id = q_max_msg_id.filter(models.BookingRequest.artist_id == user_id)
+    else:
+        q_max_msg_id = q_max_msg_id.filter(models.BookingRequest.client_id == user_id)
+    max_msg_id = int(q_max_msg_id.scalar() or 0)
+
+    # max_br_id (captures threads with no messages)
+    q_max_br_id = db.query(func.max(models.BookingRequest.id))
+    if is_artist:
+        q_max_br_id = q_max_br_id.filter(models.BookingRequest.artist_id == user_id)
+    else:
+        q_max_br_id = q_max_br_id.filter(models.BookingRequest.client_id == user_id)
+    max_br_id = int(q_max_br_id.scalar() or 0)
+
+    # total_unread (other-party messages only)
+    try:
+        unread_total, _ = crud.crud_message.get_unread_message_totals_for_user(db, int(user_id))
+    except Exception:
+        unread_total = 0
+
+    return max_msg_id, max_br_id, int(unread_total), thread_count
 
 
 # ---- /message-threads/preview -----------------------------------------------
@@ -88,7 +129,7 @@ def _coalesce_bool(v: Optional[str]) -> bool:
 )
 def get_threads_preview(
     response: Response,
-    role: Optional[str] = Query(None, pattern="^(artist|client)$"),
+    role: Optional[str] = Query(None, regex="^(artist|client)$"),
     limit: int = Query(50, ge=1, le=200),
     cursor: Optional[str] = None,
     if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
@@ -99,12 +140,11 @@ def get_threads_preview(
     """Return atomic thread previews with unread counts (fast & consistent).
 
     Improvements:
-    - Unified ETag based on IDs (no seconds truncation)
+    - Unified ID-based ETag (no seconds truncation)
     - Identical ETag formula for pre-check and final response
-    - Optional X-After-Write header to skip 304 pre-check right after writes
+    - Optional X-After-Write header to skip 304 right after writes
     """
     t_start = time.perf_counter()
-
     is_artist = current_user.user_type == models.UserType.SERVICE_PROVIDER
     if role == "client":
         is_artist = False
@@ -113,67 +153,28 @@ def get_threads_preview(
 
     skip_precheck = _coalesce_bool(x_after_write)
 
+    # Always compute the cheap snapshot once (shared by pre-check and final ETag)
+    snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count = _cheap_snapshot(db, int(current_user.id), is_artist)
+
     # ---- ETag pre-check (cheap) --------------------------------------------
-    etag_pre: Optional[str] = None
-    if not skip_precheck:
-        try:
-            # Count threads for this user
-            q_threads = db.query(models.BookingRequest.id)
-            if is_artist:
-                q_threads = q_threads.filter(models.BookingRequest.artist_id == current_user.id)
-            else:
-                q_threads = q_threads.filter(models.BookingRequest.client_id == current_user.id)
-            thread_count = q_threads.count()
-
-            # Max message id across user threads (finer than timestamp seconds)
-            q_max_msg_id = (
-                db.query(func.max(models.Message.id))
-                .join(models.BookingRequest, models.Message.booking_request_id == models.BookingRequest.id)
-            )
-            if is_artist:
-                q_max_msg_id = q_max_msg_id.filter(models.BookingRequest.artist_id == current_user.id)
-            else:
-                q_max_msg_id = q_max_msg_id.filter(models.BookingRequest.client_id == current_user.id)
-            max_msg_id = int(q_max_msg_id.scalar() or 0)
-
-            # Max booking request id across user's threads (captures new threads without messages)
-            q_max_br_id = db.query(func.max(models.BookingRequest.id))
-            if is_artist:
-                q_max_br_id = q_max_br_id.filter(models.BookingRequest.artist_id == current_user.id)
-            else:
-                q_max_br_id = q_max_br_id.filter(models.BookingRequest.client_id == current_user.id)
-            max_br_id = int(q_max_br_id.scalar() or 0)
-
-            # Unread total for this user
-            try:
-                total_unread, _ = crud.crud_message.get_unread_message_totals_for_user(db, int(current_user.id))
-            except Exception:
-                total_unread = 0
-
-            etag_pre = _change_token(
-                "prev",
-                current_user.id,
-                max_msg_id,
-                max_br_id,
-                int(total_unread),
-                int(thread_count),
-            )
-
-            if if_none_match and if_none_match.strip() == etag_pre:
-                pre_ms = (time.perf_counter() - t_start) * 1000.0
-                return Response(
-                    status_code=status.HTTP_304_NOT_MODIFIED,
-                    headers={"ETag": etag_pre, "Server-Timing": f"pre;dur={pre_ms:.1f}"}
-                )
-        except Exception:
-            # Fall through to full compose on any error
-            pass
+    etag_pre = _change_token("prev", int(current_user.id), snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count)
+    if (not skip_precheck) and if_none_match and if_none_match.strip() == etag_pre:
+        pre_ms = (time.perf_counter() - t_start) * 1000.0
+        return Response(
+            status_code=status.HTTP_304_NOT_MODIFIED,
+            headers={
+                "ETag": etag_pre,
+                "Server-Timing": f"pre;dur={pre_ms:.1f}",
+                "Cache-Control": "no-cache, private",
+                "Vary": "If-None-Match, X-After-Write",
+            }
+        )
 
     # ---- Main composition ---------------------------------------------------
     t_brs_start = time.perf_counter()
     viewer_role = models.VisibleTo.ARTIST if is_artist else models.VisibleTo.CLIENT
 
-    # Windowed last message per thread (visible to viewer)
+    # Windowed last visible message per thread
     win = (
         db.query(
             models.Message.booking_request_id.label("br_id"),
@@ -271,7 +272,7 @@ def get_threads_preview(
     t_build_start = time.perf_counter()
     items: List[Dict[str, Any]] = []
 
-    # Paid PV filter (kept; consider denormalizing if hot)
+    # Paid PV filter (consider denormalizing off hot path)
     pv_ids = [int(br.id) for (br, *_r) in rows if ((getattr(br.service, "service_type", "") or "").lower() == "personalized video")]
     paid_pv_ids: set[int] = set()
     if pv_ids:
@@ -280,15 +281,9 @@ def get_threads_preview(
         except Exception:
             paid_pv_ids = set()
 
-    # Determine first-row IDs for final ETag after build
-    first_last_msg_id: int = 0
-    first_last_br_id: int = 0
-
-    for idx, (br, last_ts, msg_id, msg_content, msg_type, sender_type, visible_to, system_key) in enumerate(rows):
-        # Defensive timestamp
+    for (br, last_ts, msg_id, msg_content, msg_type, sender_type, visible_to, system_key) in rows:
         last_ts = last_ts or br.created_at or datetime.utcnow()
 
-        # Skip unpaid PV
         service_type = (getattr(br.service, "service_type", "") or "").lower()
         if service_type == "personalized video" and int(br.id) not in paid_pv_ids:
             continue
@@ -339,7 +334,7 @@ def get_threads_preview(
         # State
         state = _state_from_status(br.status)
 
-        # Preview content
+        # Preview label
         preview = preview_label_for_message(last_m, thread_state=state, sender_display=display) if msg_id else ""
         preview_key = None
         preview_args: Dict[str, Any] = {}
@@ -380,44 +375,13 @@ def get_threads_preview(
             "preview_args": (preview_args or None),
         })
 
-        # Track first-row ids for ETag (based on sorted order below; collect for idx==0 pre-sort alternative)
-        if idx == 0:
-            first_last_msg_id = int(msg_id or 0)
-            first_last_br_id = int(br.id)
-
-    # Sort by last_ts desc (kept)
     items.sort(key=lambda i: i["last_ts"], reverse=True)
     t_build_ms = (time.perf_counter() - t_build_start) * 1000.0
 
-    # ---- Final ETag (same formula as pre-check) -----------------------------
-    try:
-        # We prefer the IDs from the *first* (latest) item; if empty, fall back to 0s
-        if rows:
-            # If sorting changed the first element, recompute IDs accordingly:
-            top_thread_id = int(items[0]["thread_id"]) if items else 0
-            # Find corresponding msg_id from rows for that thread
-            top_msg_id = 0
-            for (br, _lts, msg_id, *_rest) in rows:
-                if int(br.id) == top_thread_id:
-                    top_msg_id = int(msg_id or 0)
-                    break
-        else:
-            top_thread_id = 0
-            top_msg_id = 0
+    # ---- Final ETag (same token as pre-check) --------------------------------
+    etag = _change_token("prev", int(current_user.id), snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count)
 
-        unread_sum = sum(int((it.get("unread_count") or 0)) for it in items)
-        etag = _change_token(
-            "prev",
-            current_user.id,
-            int(top_msg_id),
-            int(top_thread_id),
-            int(unread_sum),
-            int(len(items)),
-        )
-    except Exception:
-        etag = None
-
-    # ---- Serialize + headers ------------------------------------------------
+    # ---- Serialize + headers -------------------------------------------------
     payload: Dict[str, Any] = {"items": items, "next_cursor": None}
     t_ser_start = time.perf_counter()
     body = _json_dumps(payload)
@@ -426,9 +390,12 @@ def get_threads_preview(
     pre_ms = (t_brs_start - t_start) * 1000.0
     server_timing = f"pre;dur={pre_ms:.1f}, brs;dur={t_brs_ms:.1f}, unread;dur={t_unread_ms:.1f}, build;dur={t_build_ms:.1f}, ser;dur={t_ser_ms:.1f}"
 
-    headers: Dict[str, str] = {"Server-Timing": server_timing, "Cache-Control": "no-cache"}
-    if etag:
-        headers["ETag"] = etag
+    headers: Dict[str, str] = {
+        "Server-Timing": server_timing,
+        "Cache-Control": "no-cache, private",
+        "Vary": "If-None-Match, X-After-Write",
+        "ETag": etag,
+    }
 
     return Response(content=body, media_type="application/json", headers=headers)
 
@@ -438,7 +405,7 @@ def get_threads_preview(
 @router.get("/threads", response_model=ThreadsIndexResponse, responses={304: {"description": "Not Modified"}})
 def get_threads_index(
     response: Response,
-    role: Optional[str] = Query(None, pattern="^(artist|client)$"),
+    role: Optional[str] = Query(None, regex="^(artist|client)$"),
     limit: int = Query(50, ge=1, le=200),
     if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
     x_after_write: Optional[str] = Header(default=None, alias="X-After-Write", convert_underscores=False),
@@ -454,57 +421,16 @@ def get_threads_index(
 
     skip_precheck = _coalesce_bool(x_after_write)
 
-    # ---- ETag pre-check (cheap) --------------------------------------------
-    etag_pre: Optional[str] = None
-    if not skip_precheck:
-        try:
-            # Count threads
-            q_threads = db.query(models.BookingRequest.id)
-            if is_artist:
-                q_threads = q_threads.filter(models.BookingRequest.artist_id == current_user.id)
-            else:
-                q_threads = q_threads.filter(models.BookingRequest.client_id == current_user.id)
-            thread_count = q_threads.count()
+    # Cheap snapshot used both for pre-check and final ETag
+    snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count = _cheap_snapshot(db, int(current_user.id), is_artist)
+    etag_pre = _change_token("idx", int(current_user.id), snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count)
+    if (not skip_precheck) and if_none_match and if_none_match.strip() == etag_pre:
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+            "ETag": etag_pre,
+            "Cache-Control": "no-cache, private",
+            "Vary": "If-None-Match, X-After-Write",
+        })
 
-            # Max message id
-            q_max_msg_id = (
-                db.query(func.max(models.Message.id))
-                .join(models.BookingRequest, models.Message.booking_request_id == models.BookingRequest.id)
-            )
-            if is_artist:
-                q_max_msg_id = q_max_msg_id.filter(models.BookingRequest.artist_id == current_user.id)
-            else:
-                q_max_msg_id = q_max_msg_id.filter(models.BookingRequest.client_id == current_user.id)
-            max_msg_id = int(q_max_msg_id.scalar() or 0)
-
-            # Max booking request id
-            q_max_br_id = db.query(func.max(models.BookingRequest.id))
-            if is_artist:
-                q_max_br_id = q_max_br_id.filter(models.BookingRequest.artist_id == current_user.id)
-            else:
-                q_max_br_id = q_max_br_id.filter(models.BookingRequest.client_id == current_user.id)
-            max_br_id = int(q_max_br_id.scalar() or 0)
-
-            # Unread total
-            try:
-                total_unread, _ = crud.crud_message.get_unread_message_totals_for_user(db, int(current_user.id))
-            except Exception:
-                total_unread = 0
-
-            etag_pre = _change_token(
-                "idx",
-                current_user.id,
-                max_msg_id,
-                max_br_id,
-                int(total_unread),
-                int(thread_count),
-            )
-            if if_none_match and if_none_match.strip() == etag_pre:
-                return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag_pre})
-        except Exception:
-            pass
-
-    # ---- Compose ------------------------------------------------------------
     brs = crud.crud_booking_request.get_booking_requests_with_last_message(
         db,
         artist_id=current_user.id if is_artist else None,
@@ -576,41 +502,20 @@ def get_threads_index(
 
     items.sort(key=lambda i: i.last_message_at, reverse=True)
 
-    # ---- Final ETag (same as pre-check) ------------------------------------
+    etag_final = _change_token("idx", int(current_user.id), snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count)
+    if if_none_match and if_none_match.strip() == etag_final:
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+            "ETag": etag_final,
+            "Cache-Control": "no-cache, private",
+            "Vary": "If-None-Match, X-After-Write",
+        })
+
     try:
-        if items:
-            top_br_id = int(items[0].booking_request_id)
-            # Need the latest message id for that thread; fetch cheaply
-            latest_msg_id_q = (
-                db.query(func.max(models.Message.id))
-                .filter(models.Message.booking_request_id == top_br_id)
-            )
-            latest_msg_id = int(latest_msg_id_q.scalar() or 0)
-        else:
-            top_br_id = 0
-            latest_msg_id = 0
-
-        unread_sum = sum(int(it.unread_count or 0) for it in items)
-        etag = _change_token(
-            "idx",
-            current_user.id,
-            latest_msg_id,
-            top_br_id,
-            int(unread_sum),
-            int(len(items)),
-        )
+        response.headers["ETag"] = etag_final
+        response.headers["Cache-Control"] = "no-cache, private"
+        response.headers["Vary"] = "If-None-Match, X-After-Write"
     except Exception:
-        etag = None
-
-    if etag and if_none_match and if_none_match.strip() == etag:
-        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag})
-
-    if etag:
-        try:
-            response.headers["ETag"] = etag
-            response.headers["Cache-Control"] = "no-cache"
-        except Exception:
-            pass
+        pass
 
     return ThreadsIndexResponse(items=items, next_cursor=None)
 
@@ -854,21 +759,87 @@ def get_inbox_unread(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Return total unread message notifications with lightweight ETag support.
-
-    Improved to avoid seconds truncation and allow skipping pre-check after writes.
-    """
+    """Return total unread message notifications with lightweight ETag support."""
     skip_precheck = _coalesce_bool(x_after_write)
 
-    # Compute total and marker timestamp (we only have ts from CRUD here)
     total, latest_ts = crud.crud_message.get_unread_message_totals_for_user(db, current_user.id)
-    # Use full-precision ISO (microseconds) when available
+    # full precision iso (no timespec truncation)
     marker = latest_ts.isoformat() if latest_ts else "0"
+    etag_value = f'W/"{hashlib.sha1(f"{current_user.id}:{int(total)}:{marker}".encode()).hexdigest()}"'
 
-    etag_value = _change_token("unread", current_user.id, 0, 0, int(total), 1 if marker != "0" else 0)
-
-    if not skip_precheck and if_none_match and if_none_match.strip() == etag_value:
-        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag_value})
+    if (not skip_precheck) and if_none_match and if_none_match.strip() == etag_value:
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+            "ETag": etag_value,
+            "Cache-Control": "no-cache, private",
+            "Vary": "If-None-Match, X-After-Write",
+        })
 
     response.headers["ETag"] = etag_value
+    response.headers["Cache-Control"] = "no-cache, private"
+    response.headers["Vary"] = "If-None-Match, X-After-Write"
     return InboxUnreadResponse(total=int(total))
+
+
+# ---- Realtime: Server-Sent Events (SSE) -------------------------------------
+
+@router.get("/inbox/stream")
+def inbox_stream(
+    role: Optional[str] = Query(None, regex="^(artist|client)$"),
+    heartbeat: float = Query(20.0, ge=5.0, le=120.0, description="Heartbeat seconds to keep proxy connections alive"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Push minimal change events when the user's inbox state changes.
+
+    Implementation: cheap polling of the snapshot every ~1s (non-blocking for clients).
+    For ultra-low latency & scale, pair this with Postgres NOTIFY triggers (see SQL below).
+    """
+    is_artist = current_user.user_type == models.UserType.SERVICE_PROVIDER
+    if role == "client":
+        is_artist = False
+    elif role == "artist":
+        is_artist = True
+
+    user_id = int(current_user.id)
+
+    def _iter_events():
+        # Initial snapshot/token
+        max_msg_id, max_br_id, unread_total, thread_count = _cheap_snapshot(db, user_id, is_artist)
+        token = _change_token("snap", user_id, max_msg_id, max_br_id, unread_total, thread_count)
+        last_emit_ts = time.time()
+
+        # Send an initial event
+        first_payload = {"token": token, "max_msg_id": max_msg_id, "max_br_id": max_br_id, "unread_total": unread_total, "thread_count": thread_count}
+        yield f"event: hello\ndata: {json.dumps(first_payload)}\n\n"
+
+        while True:
+            # Heartbeat for proxies (Nginx/Cloudflare)
+            now = time.time()
+            if (now - last_emit_ts) >= heartbeat:
+                yield f": keepalive {int(now)}\n\n"
+                last_emit_ts = now
+
+            # Poll snapshot cheaply
+            new_max_msg_id, new_max_br_id, new_unread_total, new_thread_count = _cheap_snapshot(db, user_id, is_artist)
+            new_token = _change_token("snap", user_id, new_max_msg_id, new_max_br_id, new_unread_total, new_thread_count)
+
+            if new_token != token:
+                payload = {
+                    "token": new_token,
+                    "max_msg_id": new_max_msg_id,
+                    "max_br_id": new_max_br_id,
+                    "unread_total": new_unread_total,
+                    "thread_count": new_thread_count,
+                }
+                yield f"event: update\ndata: {json.dumps(payload)}\n\n"
+                token = new_token
+                last_emit_ts = time.time()
+
+            time.sleep(1.0)  # Poll interval (tune between 0.5–2.0)
+
+    return StreamingResponse(_iter_events(), media_type="text/event-stream", headers={
+        "Cache-Control": "no-cache, private",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",  # Nginx: disable response buffering
+        "Vary": "Authorization, Cookie",  # Per-user stream
+    })
