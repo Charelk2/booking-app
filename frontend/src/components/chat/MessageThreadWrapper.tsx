@@ -567,7 +567,7 @@ export default function MessageThreadWrapper({
         try {
           let prevEtag: string | null = null;
           try { if (typeof window !== 'undefined') prevEtag = sessionStorage.getItem(`br:etag:${bookingRequestId}`); } catch {}
-          const r = await getBookingRequestById(Number(bookingRequestId || 0), prevEtag || undefined);
+          const r = await api.getBookingRequestById(Number(bookingRequestId || 0), prevEtag || undefined);
           const status = Number((r as any)?.status ?? 200);
           if (status === 304) {
             // No change; nothing to resolve here
@@ -866,7 +866,7 @@ export default function MessageThreadWrapper({
                 }
                 if (!acceptedId) {
                   try {
-                    const br = await getBookingRequestCached(Number(threadId || 0));
+                    const br = await api.getBookingRequestCached(Number(threadId || 0));
                     acceptedId = Number((br as any)?.accepted_quote_id || 0);
                   } catch {}
                 }
