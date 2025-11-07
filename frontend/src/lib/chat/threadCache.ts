@@ -103,7 +103,7 @@ async function writeThreadToIndexedDb(id: number, messages: any[], maxThreads = 
   const sliceRaw = Array.isArray(messages)
     ? messages.slice(Math.max(0, messages.length - IDB_MESSAGE_LIMIT))
     : [];
-  // Base committed slice (server-confirmed ids only)
+  // Committed slice only (server-confirmed ids)
   const committed = sliceRaw.filter((m: any) => {
     const idNum = Number((m?.id ?? m?.message_id) || 0);
     const status = String(m?.status || '').toLowerCase();
@@ -111,18 +111,7 @@ async function writeThreadToIndexedDb(id: number, messages: any[], maxThreads = 
     if (status === 'sending' || status === 'queued') return false;
     return true;
   });
-  // Keep up to the last 2 queued/sending messages (including negative ids) so a hard refresh
-  // immediately after send does not lose the in-flight bubbles on first paint.
-  const queuedTail: any[] = [];
-  for (let i = sliceRaw.length - 1; i >= 0 && queuedTail.length < 2; i -= 1) {
-    const m = sliceRaw[i];
-    const status = String(m?.status || '').toLowerCase();
-    const idNum = Number((m?.id ?? m?.message_id) || 0);
-    if ((status === 'sending' || status === 'queued') || (!Number.isFinite(idNum) || idNum <= 0)) {
-      queuedTail.unshift(m);
-    }
-  }
-  const slice = [...committed, ...queuedTail];
+  const slice = committed;
   const record: ThreadRecord = {
     id,
     messages: slice,
@@ -259,7 +248,7 @@ export function writeThreadCache(id: number, messages: any[], maxThreads = MAX_T
     const sliceRaw = Array.isArray(messages)
       ? messages.slice(Math.max(0, messages.length - IDB_MESSAGE_LIMIT))
       : [];
-    // Base committed slice (confirmed ids only)
+    // Committed slice only (confirmed ids)
     const committed = sliceRaw.filter((m: any) => {
       const idNum = Number((m?.id ?? m?.message_id) || 0);
       const status = String(m?.status || '').toLowerCase();
@@ -267,17 +256,7 @@ export function writeThreadCache(id: number, messages: any[], maxThreads = MAX_T
       if (status === 'sending' || status === 'queued') return false;
       return true;
     });
-    // Keep last 2 queued/sending messages so hard-refresh preserves recent outgoing bubbles
-    const queuedTail: any[] = [];
-    for (let i = sliceRaw.length - 1; i >= 0 && queuedTail.length < 2; i -= 1) {
-      const m = sliceRaw[i];
-      const status = String(m?.status || '').toLowerCase();
-      const idNum = Number((m?.id ?? m?.message_id) || 0);
-      if ((status === 'sending' || status === 'queued') || (!Number.isFinite(idNum) || idNum <= 0)) {
-        queuedTail.unshift(m);
-      }
-    }
-    const slice = [...committed, ...queuedTail];
+    const slice = committed;
     writeJSON(cacheKeyForThread(id), slice);
     touchLRU(id, maxThreads);
     pruneLRU(maxThreads);
