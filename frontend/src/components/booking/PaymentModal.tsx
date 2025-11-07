@@ -12,7 +12,7 @@ const rcptKey = (bookingRequestId: number) => `receipt_url:br:${bookingRequestId
 const safeSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch {} };
 
 async function verifyPaystack(reference: string, bookingRequestId: number, signal?: AbortSignal) {
-  const url = apiUrl(`/api/v1/payments/paystack/verify?reference=${encodeURIComponent(reference)}&booking_request_id=${encodeURIComponent(String(bookingRequestId))}`);
+  const url = apiUrl(`/api/v1/payments/paystack/verify?reference=${encodeURIComponent(reference)}`);
   const resp = await fetch(url, { credentials: 'include', signal });
   if (!resp.ok) return { ok: false as const };
   const v = await resp.json();
