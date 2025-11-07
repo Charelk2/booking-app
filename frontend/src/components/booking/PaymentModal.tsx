@@ -203,13 +203,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             email: customerEmail!, // safe due to hasEmail
             amountMajor: Number(amount),
             currency,
-            // Prefer accessCode to bind to initialized transaction and avoid duplicate ref errors
-            accessCode: accessCode,
-            reference: accessCode ? undefined : reference,
+            // Bind popup to the server-initialized transaction reference
+            reference: reference,
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
             metadata: { bookingRequestId, source: 'web_inline' },
-            // Prefer verifying with the callback ref first; fallback to init ref inside loop
-            onSuccess: (cbRef) => startVerifyLoop(cbRef || reference),
+            // Verify with the initialization reference we stored (DB payment_id)
+            onSuccess: (_cbRef) => startVerifyLoop(reference),
             onClose: () => {
               // Hosted fallback to avoid inline runtime issues (e.g., Paystack UI errors)
               if (authorizationUrl) {
