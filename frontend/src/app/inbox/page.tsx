@@ -297,6 +297,13 @@ export default function InboxPage() {
               window.dispatchEvent(new Event('inbox:unread'));
             }
           } catch {}
+          // Best-effort: if a thread is active, poke its delta fetch so the
+          // new message appears immediately even if WS is flapping.
+          try {
+            if (selectedThreadId && Number.isFinite(selectedThreadId)) {
+              window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId: selectedThreadId } }));
+            }
+          } catch {}
         });
         es.onerror = () => {
           try { es?.close(); } catch {}
@@ -309,7 +316,7 @@ export default function InboxPage() {
     };
     connect();
     return () => { closed = true; try { es?.close(); } catch {}; };
-  }, [user]);
+  }, [user, selectedThreadId]);
 
   // Select conversation based on URL param after requests load; if none, restore persisted selection
   useEffect(() => {
