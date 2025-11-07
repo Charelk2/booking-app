@@ -6,23 +6,11 @@ import { safeParseDate } from '@/lib/chat/threadStore';
  * Normalize inbound messages so legacy payloads using 'artist' don't break the UI.
  */
 export function normalizeMessage(raw: any): Message {
-  // sender_type can arrive in many casings or legacy labels ('artist'). Normalize robustly.
-  const stRaw = (raw?.sender_type ?? '').toString().trim().toLowerCase();
   const sender_type =
-    stRaw === 'artist' || stRaw === 'service_provider' || stRaw === 'provider'
-      ? 'service_provider'
-      : stRaw === 'client'
-      ? 'client'
-      : (raw?.sender_type ?? 'client');
+    raw?.sender_type === 'artist' ? 'service_provider' : (raw?.sender_type ?? 'client');
 
-  // visible_to can be BOTH/CLIENT/ARTIST or lowercase; map artist→service_provider for UI consistency
-  const vtRaw = (raw?.visible_to ?? '').toString().trim().toLowerCase();
   const visible_to =
-    vtRaw === 'artist' || vtRaw === 'service_provider'
-      ? 'service_provider'
-      : vtRaw === 'client'
-      ? 'client'
-      : (raw?.visible_to ?? 'both');
+    raw?.visible_to === 'artist' ? 'service_provider' : (raw?.visible_to ?? 'both');
 
   const status: Message['status'] =
     raw?.status === 'queued' || raw?.status === 'sending' || raw?.status === 'failed'
