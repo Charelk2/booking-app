@@ -219,7 +219,7 @@ def get_booking_requests_with_last_message(
                 models.ServiceProviderProfile.profile_picture_url,
             ),
         )
-        else:
+    else:
             query = query.options(
                 selectinload(models.BookingRequest.client).load_only(
                     models.User.id,
