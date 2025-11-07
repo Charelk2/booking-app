@@ -8,13 +8,12 @@ import SafeImage from '@/components/ui/SafeImage';
 import type { Booking, BookingRequest, Quote, QuoteV2 } from '@/types';
 import * as api from '@/lib/api';
 import { useAuth as useContextAuth } from '@/contexts/AuthContext';
-import { getFullImageUrl } from '@/lib/utils';
 
 import MessageThread from '@/components/chat/MessageThread/index.web';
 import BookingDetailsPanel from '@/components/chat/BookingDetailsPanel';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import InlineQuoteForm from '@/components/chat/InlineQuoteForm';
-import { createQuoteV2, getQuotesForBookingRequest, getQuoteV2, getBookingIdForRequest } from '@/lib/api';
+import { createQuoteV2, getQuoteV2, getBookingIdForRequest } from '@/lib/api';
 import BookingSummarySkeleton from '@/components/chat/BookingSummarySkeleton';
 
 import { XMarkIcon } from '@heroicons/react/24/outline';
@@ -23,6 +22,9 @@ import { useQuotes, prefetchQuotesByIds, toQuoteV2FromLegacy } from '@/hooks/use
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
 
+/** ---------------------------
+ * Local types / helpers
+ * ---------------------------- */
 interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
@@ -36,18 +38,26 @@ interface ParsedBookingDetails {
 
 const DETAILS_CACHE_PREFIX = 'inbox:bookingDetails:v1';
 const parsedDetailsCache = new Map<number, ParsedBookingDetails | null>();
-
-const detailKeys: (keyof ParsedBookingDetails)[] = ['eventType', 'description', 'date', 'location', 'guests', 'venueType', 'soundNeeded', 'notes'];
+const detailKeys: (keyof ParsedBookingDetails)[] = [
+  'eventType',
+  'description',
+  'date',
+  'location',
+  'guests',
+  'venueType',
+  'soundNeeded',
+  'notes',
+];
 
 function normalizeDetails(details: ParsedBookingDetails | null | undefined): ParsedBookingDetails | null {
   if (!details) return null;
   const normalized: ParsedBookingDetails = {};
-  detailKeys.forEach((key) => {
-    const value = details[key];
-    if (value == null) return;
-    const trimmed = String(value).trim();
-    if (trimmed.length > 0) normalized[key] = trimmed;
-  });
+  for (const key of detailKeys) {
+    const v = details[key];
+    if (v == null) continue;
+    const s = String(v).trim();
+    if (s) normalized[key] = s;
+  }
   return Object.keys(normalized).length ? normalized : null;
 }
 
@@ -74,28 +84,28 @@ function writeCachedDetails(id: number, details: ParsedBookingDetails | null) {
   const normalized = normalizeDetails(details);
   parsedDetailsCache.set(id, normalized);
   if (typeof window === 'undefined') return;
-  const key = detailsCacheKey(id);
   try {
+    const key = detailsCacheKey(id);
     if (normalized) sessionStorage.setItem(key, JSON.stringify(normalized));
     else sessionStorage.removeItem(key);
   } catch {}
 }
 
 function mergeDetails(base: ParsedBookingDetails | null, incoming: ParsedBookingDetails | null): ParsedBookingDetails | null {
-  const normalizedIncoming = normalizeDetails(incoming);
-  if (!normalizedIncoming) return normalizeDetails(base);
-  const normalizedBase = normalizeDetails(base) ?? {};
-  const merged: ParsedBookingDetails = { ...normalizedBase };
-  detailKeys.forEach((key) => {
-    if (!merged[key] && normalizedIncoming[key]) merged[key] = normalizedIncoming[key];
-  });
-  return Object.keys(merged).length ? merged : null;
+  const inc = normalizeDetails(incoming);
+  if (!inc) return normalizeDetails(base);
+  const out: ParsedBookingDetails = { ...(normalizeDetails(base) ?? {}) };
+  for (const k of detailKeys) if (!out[k] && inc[k]) out[k] = inc[k];
+  return Object.keys(out).length ? out : null;
 }
 
 function detailsEqual(a: ParsedBookingDetails | null, b: ParsedBookingDetails | null) {
-  return detailKeys.every((key) => (a ?? {})[key] === (b ?? {})[key]);
+  return detailKeys.every((k) => (a ?? {})[k] === (b ?? {})[k]);
 }
 
+/** ---------------------------
+ * Props
+ * ---------------------------- */
 interface MessageThreadWrapperProps {
   bookingRequestId: number | null;
   bookingRequest: BookingRequest | null;
@@ -103,39 +113,48 @@ interface MessageThreadWrapperProps {
   isActive?: boolean;
 }
 
+/** ---------------------------
+ * Component
+ * ---------------------------- */
 export default function MessageThreadWrapper({
   bookingRequestId,
   bookingRequest,
   setShowReviewModal,
   isActive = true,
 }: MessageThreadWrapperProps) {
+  const router = useRouter();
+  const { user } = useContextAuth();
+
+  // role-awareness
+  const isUserArtist = useMemo(() => Boolean(user && user.user_type === 'service_provider'), [user]);
+
+  // booking confirmation
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [confirmedBookingDetails, setConfirmedBookingDetails] = useState<Booking | null>(null);
 
+  // payment state snapshot (single source pushed by child)
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
 
+  // details cache
   const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(() => {
     if (!bookingRequestId) return null;
     return readCachedDetails(bookingRequestId) ?? null;
   });
+
+  // header presence label (fed by MessageThread presence callback)
   const [presenceHeader, setPresenceHeader] = useState<string>('');
 
-  const [isUserArtist, setIsUserArtist] = useState(false);
-  const { user } = useContextAuth();
-  const router = useRouter();
-
+  // hydrate details cache when thread changes
   useEffect(() => {
-    if (!bookingRequestId) {
-      setParsedDetails(null);
-      return;
-    }
+    if (!bookingRequestId) { setParsedDetails(null); return; }
     const cached = readCachedDetails(bookingRequestId);
     setParsedDetails((prev) => (detailsEqual(prev, cached) ? prev : cached));
   }, [bookingRequestId]);
 
+  // detail handlers (stable)
   const handleParsedDetails = useCallback((details: ParsedBookingDetails | null) => {
     if (!bookingRequestId) return;
     const normalized = normalizeDetails(details);
@@ -154,10 +173,7 @@ export default function MessageThreadWrapper({
     });
   }, [bookingRequestId]);
 
-  useEffect(() => {
-    setIsUserArtist(Boolean(user && user.user_type === 'service_provider'));
-  }, [user]);
-
+  // cached receipt + reference preload
   useEffect(() => {
     if (!bookingRequestId || typeof window === 'undefined') return;
     try {
@@ -172,80 +188,75 @@ export default function MessageThreadWrapper({
     } catch {}
   }, [bookingRequestId, receiptUrl, paymentReference]);
 
+  // seed initial payment info from bookingRequest (one-time-ish)
   useEffect(() => {
     if (!bookingRequest) return;
+
     if (!paymentStatus) {
       const candidates = [
         (bookingRequest as any)?.payment_status,
         (bookingRequest as any)?.latest_payment_status,
         (bookingRequest as any)?.booking?.payment_status,
       ];
-      for (const candidate of candidates) {
-        if (!candidate) continue;
-        const str = String(candidate).trim();
-        if (!str) continue;
-        setPaymentStatus(str);
-        break;
+      for (const c of candidates) {
+        if (!c) continue;
+        const s = String(c).trim();
+        if (s) { setPaymentStatus(s); break; }
       }
     }
+
     if (paymentAmount == null) {
-      const amountCandidates = [
+      const cands = [
         (bookingRequest as any)?.payment_amount,
         (bookingRequest as any)?.latest_payment_amount,
         (bookingRequest as any)?.booking?.payment_amount,
       ];
-      for (const candidate of amountCandidates) {
-        if (candidate == null) continue;
-        const num = Number(candidate);
-        if (Number.isFinite(num)) {
-          setPaymentAmount(num);
-          break;
-        }
+      for (const c of cands) {
+        if (c == null) continue;
+        const n = Number(c);
+        if (Number.isFinite(n)) { setPaymentAmount(n); break; }
       }
     }
-    if (!receiptUrl || !paymentReference) {
-      const receiptCandidates = [
+
+    if (!receiptUrl) {
+      const cands = [
         (bookingRequest as any)?.receipt_url,
         (bookingRequest as any)?.payment_receipt_url,
         (bookingRequest as any)?.latest_receipt_url,
         (bookingRequest as any)?.booking?.receipt_url,
       ];
-      for (const candidate of receiptCandidates) {
-        if (!candidate) continue;
-        const str = String(candidate).trim();
-        if (!str) continue;
-        const absolute = /^https?:\/\//i.test(str) ? str : api.apiUrl(str);
-        if (!receiptUrl) {
-          setReceiptUrl(absolute);
-          try {
-            if (typeof window !== 'undefined' && bookingRequestId) {
-              window.localStorage.setItem(`receipt_url:br:${bookingRequestId}`, absolute);
-            }
-          } catch {}
-        }
+      for (const c of cands) {
+        if (!c) continue;
+        const s = String(c).trim();
+        if (!s) continue;
+        const absolute = /^https?:\/\//i.test(s) ? s : api.apiUrl(s);
+        setReceiptUrl((prev) => {
+          if (!prev) {
+            try { if (typeof window !== 'undefined' && bookingRequestId) window.localStorage.setItem(`receipt_url:br:${bookingRequestId}`, absolute); } catch {}
+            return absolute;
+          }
+          return prev;
+        });
         break;
       }
     }
+
     if (!paymentReference) {
-      const referenceCandidates = [
+      const cands = [
         (bookingRequest as any)?.payment_reference,
         (bookingRequest as any)?.latest_payment_reference,
         (bookingRequest as any)?.payment_id,
         (bookingRequest as any)?.booking?.payment_reference,
         (bookingRequest as any)?.booking?.payment_id,
       ];
-      for (const candidate of referenceCandidates) {
-        if (!candidate) continue;
-        const str = String(candidate).trim();
-        if (!str) continue;
+      for (const c of cands) {
+        if (!c) continue;
+        const s = String(c).trim();
+        if (!s) continue;
         setPaymentReference((prev) => {
           if (!prev) {
-            try {
-              if (typeof window !== 'undefined' && bookingRequestId) {
-                window.localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, str);
-              }
-            } catch {}
-            return str;
+            try { if (typeof window !== 'undefined' && bookingRequestId) window.localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, s); } catch {}
+            return s;
           }
           return prev;
         });
@@ -254,54 +265,42 @@ export default function MessageThreadWrapper({
     }
   }, [bookingRequest, paymentStatus, paymentAmount, receiptUrl, paymentReference, bookingRequestId]);
 
-  /** Mobile details sheet visibility (defaults open on desktop widths) */
-  const [showSidePanel, setShowSidePanel] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(min-width: 768px)').matches;
-  });
-  const [showQuoteModal, setShowQuoteModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-
-  /** Quotes for totals in the side panel */
+  /** ---------------------------
+   * Quotes
+   * ---------------------------- */
   const initialQuotes = useMemo(() => {
     if (!bookingRequest) return [] as QuoteV2[];
     const arr = Array.isArray((bookingRequest as any)?.quotes) ? (bookingRequest as any).quotes : [];
+    const seen = new Set<number>();
     const normalized: QuoteV2[] = [];
-      const seen = new Set<number>();
-      for (const raw of arr) {
-        if (!raw) continue;
-        let q: QuoteV2 | null = null;
-        if (Array.isArray((raw as any)?.services)) {
-          q = raw as QuoteV2;
-        } else {
-          try {
-            q = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id });
-          } catch {
-            q = null;
-          }
-        }
-        const qid = Number(q?.id || 0);
-        if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
-        seen.add(qid);
-        const bookingId = Number(q?.booking_request_id ?? bookingRequest?.id ?? bookingRequestId ?? 0) || Number(bookingRequestId || 0);
-        normalized.push({ ...q, booking_request_id: bookingId } as QuoteV2);
+    for (const raw of arr) {
+      if (!raw) continue;
+      let q: QuoteV2 | null = null;
+      if (Array.isArray((raw as any)?.services)) {
+        q = raw as QuoteV2;
+      } else {
+        try { q = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id }); }
+        catch { q = null; }
       }
-      return normalized;
-  }, [bookingRequest]);
+      const qid = Number(q?.id || 0);
+      if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
+      seen.add(qid);
+      const bookingId =
+        Number(q?.booking_request_id ?? bookingRequest?.id ?? bookingRequestId ?? 0) ||
+        Number(bookingRequestId || 0);
+      normalized.push({ ...q, booking_request_id: bookingId } as QuoteV2);
+    }
+    return normalized;
+  }, [bookingRequest, bookingRequestId]);
 
   const { quotesById, ensureQuotesLoaded, setQuote } = useQuotes(Number(bookingRequestId || 0), initialQuotes);
   const [quotesLoading, setQuotesLoading] = useState(initialQuotes.length === 0);
   const canonicalHydrateAttemptedRef = useRef(false);
   const historyFetchTriggeredRef = useRef(false);
 
-  useEffect(() => {
-    setQuotesLoading(initialQuotes.length === 0);
-  }, [initialQuotes]);
-
-  useEffect(() => {
-    canonicalHydrateAttemptedRef.current = false;
-    historyFetchTriggeredRef.current = false;
-  }, [bookingRequestId]);
+  useEffect(() => { setQuotesLoading(initialQuotes.length === 0); }, [initialQuotes]);
+  useEffect(() => { canonicalHydrateAttemptedRef.current = false; historyFetchTriggeredRef.current = false; }, [bookingRequestId]);
+  useEffect(() => { if (Object.keys(quotesById).length) setQuotesLoading(false); }, [quotesById]);
 
   const refreshQuotesForThread = useCallback(async () => {
     try {
@@ -309,141 +308,20 @@ export default function MessageThreadWrapper({
       const arr = Array.isArray(res.data) ? (res.data as any[]) : [];
       for (const raw of arr) {
         let normalized: QuoteV2 | null = null;
-        if (Array.isArray((raw as any)?.services)) {
-          normalized = raw as QuoteV2;
-        } else {
-          try {
-            normalized = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id });
-          } catch {
-            normalized = null;
-          }
+        if (Array.isArray((raw as any)?.services)) normalized = raw as QuoteV2;
+        else {
+          try { normalized = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id }); }
+          catch { normalized = null; }
         }
         if (normalized && typeof normalized.id === 'number') {
           const bookingId = Number(normalized.booking_request_id ?? bookingRequestId ?? 0) || Number(bookingRequestId || 0);
           setQuote({ ...normalized, booking_request_id: bookingId } as QuoteV2);
         }
       }
-    } catch { /* ignore */ }
+    } catch {}
   }, [bookingRequestId, setQuote, bookingRequest]);
 
-  const handleHydratedBookingRequest = useCallback((request: BookingRequest) => {
-    canonicalHydrateAttemptedRef.current = true;
-    let seededQuotes = false;
-    try {
-      const arr = Array.isArray((request as any)?.quotes) ? (request as any).quotes : [];
-      const normalized: QuoteV2[] = [];
-      const seen = new Set<number>();
-      for (const raw of arr) {
-        if (!raw) continue;
-        let q: QuoteV2 | null = null;
-        if (Array.isArray((raw as any)?.services)) {
-          q = raw as QuoteV2;
-        } else {
-          try {
-            q = toQuoteV2FromLegacy(raw as Quote, { clientId: (request as any)?.client_id });
-          } catch {
-            q = null;
-          }
-        }
-        const qid = Number(q?.id || 0);
-        if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
-        seen.add(qid);
-        const bookingId = Number(q?.booking_request_id ?? request.id ?? bookingRequestId ?? 0) || Number(bookingRequestId || 0);
-        normalized.push({ ...q, booking_request_id: bookingId } as QuoteV2);
-      }
-      if (normalized.length) {
-        normalized.forEach((q) => setQuote(q));
-        seededQuotes = true;
-        setQuotesLoading(false);
-      }
-    } catch {
-      // ignore enrich failures
-    }
-
-    const acceptedId = Number((request as any)?.accepted_quote_id || 0);
-    const rawQuotesCount = Array.isArray((request as any)?.quotes) ? (request as any).quotes.length : 0;
-    if (!seededQuotes && (acceptedId > 0 || rawQuotesCount > 0)) {
-      setQuotesLoading(true);
-      (async () => {
-        try {
-          await refreshQuotesForThread();
-        } finally {
-          setQuotesLoading(false);
-        }
-      })();
-    } else if (!seededQuotes) {
-      setQuotesLoading(false);
-    }
-
-    try {
-      const detailsMessage = (request as any)?.booking_details_message;
-      if (typeof detailsMessage === 'string' && detailsMessage.trim().length) {
-        const text = detailsMessage.trim();
-        if (text.startsWith(BOOKING_DETAILS_PREFIX) || text.includes(BOOKING_DETAILS_PREFIX)) {
-          const parsed = parseBookingDetailsFromMessage(text);
-          if (Object.keys(parsed).length) {
-            handleParsedDetails(parsed);
-          }
-        }
-      }
-    } catch {
-      // ignore parse errors; fallback fetch covers it
-    }
-
-    try {
-      const eventType = (request as any)?.event_type || (request as any)?.event?.event_type;
-      const guests = (request as any)?.guests_count;
-      const soundContext = (request as any)?.sound_context;
-      const locationName =
-        (request as any)?.event_location_name ||
-        (request as any)?.venue_name ||
-        null;
-      const location =
-        (request as any)?.event_location ||
-        (request as any)?.location ||
-        (request as any)?.event_address ||
-        (request as any)?.venue_address ||
-        null;
-      const city = (request as any)?.event_city || (request as any)?.city || null;
-      const region = (request as any)?.event_region || (request as any)?.event_province || (request as any)?.province || null;
-      const proposedDate =
-        (request as any)?.proposed_datetime_1 ||
-        (request as any)?.event_date ||
-        (request as any)?.proposed_datetime_2 ||
-        null;
-      const rawSoundNeeded =
-        (request as any)?.sound_needed ??
-        (request as any)?.sound_required ??
-        (soundContext ? soundContext.sound_required : undefined);
-      const fallback: ParsedBookingDetails = {};
-      if (eventType) fallback.eventType = String(eventType);
-      if (location) {
-        fallback.location = String(location);
-      } else if (city || region) {
-        fallback.location = [city, region].filter(Boolean).map((part) => String(part).trim()).filter(Boolean).join(', ');
-      }
-      if (locationName) {
-        (fallback as any).location_name = String(locationName);
-      }
-      if (Number.isFinite(guests)) fallback.guests = String(guests);
-      else if (typeof guests === 'string' && guests.trim().length) fallback.guests = guests.trim();
-      if (typeof rawSoundNeeded === 'string' && rawSoundNeeded.trim().length) {
-        fallback.soundNeeded = String(rawSoundNeeded);
-      } else if (typeof rawSoundNeeded === 'boolean') {
-        fallback.soundNeeded = rawSoundNeeded ? 'Yes' : 'No';
-      } else if (soundContext?.mode && typeof soundContext.mode === 'string' && soundContext.mode !== 'none') {
-        fallback.soundNeeded = 'Yes';
-      }
-      if (typeof proposedDate === 'string' && proposedDate.trim().length) {
-        fallback.date = proposedDate.trim();
-      }
-      if (Object.keys(fallback).length) {
-        handleFallbackDetails(fallback);
-      }
-    } catch {
-      // ignore fallback merge issues
-    }
-  }, [bookingRequestId, refreshQuotesForThread, handleFallbackDetails, handleParsedDetails, setQuote]);
+  // prefetch/hydrate quotes
   useEffect(() => {
     const ids: number[] = [];
     try {
@@ -467,44 +345,140 @@ export default function MessageThreadWrapper({
       }
       return;
     }
-    // Prefetch to global cache for fast subsequent loads, then ensure this
-    // component's local state is hydrated so the side panel totals render.
     (async () => {
       const shouldShowLoading = !initialQuotes.length;
       if (shouldShowLoading) setQuotesLoading(true);
       try { await prefetchQuotesByIds(ids); } catch {}
       try { await ensureQuotesLoaded(ids); } catch {}
-      finally {
-        if (shouldShowLoading) setQuotesLoading(false);
-      }
+      finally { if (shouldShowLoading) setQuotesLoading(false); }
     })();
-  }, [bookingRequest, ensureQuotesLoaded, initialQuotes.length, refreshQuotesForThread, bookingRequestId]);
+  }, [bookingRequest, ensureQuotesLoaded, initialQuotes.length, refreshQuotesForThread, bookingRequestId, initialQuotes]);
 
-  useEffect(() => {
-    if (Object.keys(quotesById).length) setQuotesLoading(false);
-  }, [quotesById]);
+  // hydrate on parent-provided bookingRequest
+  const handleHydratedBookingRequest = useCallback((request: BookingRequest) => {
+    canonicalHydrateAttemptedRef.current = true;
 
+    // seed quotes if present
+    let seededQuotes = false;
+    try {
+      const arr = Array.isArray((request as any)?.quotes) ? (request as any).quotes : [];
+      const seen = new Set<number>();
+      const normalized: QuoteV2[] = [];
+      for (const raw of arr) {
+        if (!raw) continue;
+        let q: QuoteV2 | null = null;
+        if (Array.isArray((raw as any)?.services)) q = raw as QuoteV2;
+        else {
+          try { q = toQuoteV2FromLegacy(raw as Quote, { clientId: (request as any)?.client_id }); }
+          catch { q = null; }
+        }
+        const qid = Number(q?.id || 0);
+        if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
+        seen.add(qid);
+        const bookingId =
+          Number(q?.booking_request_id ?? request.id ?? bookingRequestId ?? 0) ||
+          Number(bookingRequestId || 0);
+        normalized.push({ ...q, booking_request_id: bookingId } as QuoteV2);
+      }
+      if (normalized.length) {
+        normalized.forEach((q) => setQuote(q));
+        seededQuotes = true;
+        setQuotesLoading(false);
+      }
+    } catch {}
+
+    const acceptedId = Number((request as any)?.accepted_quote_id || 0);
+    const rawQuotesCount = Array.isArray((request as any)?.quotes) ? (request as any).quotes.length : 0;
+    if (!seededQuotes && (acceptedId > 0 || rawQuotesCount > 0)) {
+      setQuotesLoading(true);
+      (async () => {
+        try { await refreshQuotesForThread(); }
+        finally { setQuotesLoading(false); }
+      })();
+    } else if (!seededQuotes) {
+      setQuotesLoading(false);
+    }
+
+    // parse booking details from canonical message if present
+    try {
+      const detailsMessage = (request as any)?.booking_details_message;
+      if (typeof detailsMessage === 'string' && detailsMessage.trim()) {
+        const text = detailsMessage.trim();
+        if (text.startsWith(BOOKING_DETAILS_PREFIX) || text.includes(BOOKING_DETAILS_PREFIX)) {
+          const parsed = parseBookingDetailsFromMessage(text);
+          if (Object.keys(parsed).length) handleParsedDetails(parsed);
+        }
+      }
+    } catch {}
+
+    // fallback field merge (non-canonical attributes)
+    try {
+      const eventType = (request as any)?.event_type || (request as any)?.event?.event_type;
+      const guests = (request as any)?.guests_count;
+      const soundContext = (request as any)?.sound_context;
+      const locationName = (request as any)?.event_location_name || (request as any)?.venue_name || null;
+      const location =
+        (request as any)?.event_location ||
+        (request as any)?.location ||
+        (request as any)?.event_address ||
+        (request as any)?.venue_address ||
+        null;
+      const city = (request as any)?.event_city || (request as any)?.city || null;
+      const region = (request as any)?.event_region || (request as any)?.event_province || (request as any)?.province || null;
+      const proposedDate =
+        (request as any)?.proposed_datetime_1 ||
+        (request as any)?.event_date ||
+        (request as any)?.proposed_datetime_2 ||
+        null;
+      const rawSoundNeeded =
+        (request as any)?.sound_needed ??
+        (request as any)?.sound_required ??
+        (soundContext ? soundContext.sound_required : undefined);
+
+      const fallback: ParsedBookingDetails = {};
+      if (eventType) fallback.eventType = String(eventType);
+      if (location) fallback.location = String(location);
+      else if (city || region) fallback.location = [city, region].filter(Boolean).map(String).map((s) => s.trim()).filter(Boolean).join(', ');
+      if (locationName) (fallback as any).location_name = String(locationName);
+      if (Number.isFinite(guests)) fallback.guests = String(guests);
+      else if (typeof guests === 'string' && guests.trim()) fallback.guests = guests.trim();
+
+      if (typeof rawSoundNeeded === 'string' && rawSoundNeeded.trim()) {
+        fallback.soundNeeded = String(rawSoundNeeded);
+      } else if (typeof rawSoundNeeded === 'boolean') {
+        fallback.soundNeeded = rawSoundNeeded ? 'Yes' : 'No';
+      } else if (soundContext?.mode && typeof soundContext.mode === 'string' && soundContext.mode !== 'none') {
+        fallback.soundNeeded = 'Yes';
+      }
+
+      if (typeof proposedDate === 'string' && proposedDate.trim()) fallback.date = proposedDate.trim();
+
+      if (Object.keys(fallback).length) handleFallbackDetails(fallback);
+    } catch {}
+  }, [bookingRequestId, refreshQuotesForThread, handleFallbackDetails, handleParsedDetails, setQuote]);
+
+  // details deep scan (bounded) when needed & when canonical hydrate already attempted
   useEffect(() => {
     if (!bookingRequestId) return;
     if (!canonicalHydrateAttemptedRef.current) return;
     if (historyFetchTriggeredRef.current) return;
+
     const normalized = normalizeDetails(parsedDetails);
     const needHistoricalScan =
-      !normalized ||
-      detailKeys.every((key) => {
-        const value = normalized?.[key];
-        return value == null || String(value).trim().length === 0;
+      !normalized || detailKeys.every((k) => {
+        const v = normalized?.[k];
+        return v == null || String(v).trim().length === 0;
       });
     if (!needHistoricalScan) return;
+
     historyFetchTriggeredRef.current = true;
+
     (async () => {
       let cursor: number | null = null;
       for (let attempts = 0; attempts < 3; attempts += 1) {
         try {
           const params: any = { limit: 400, mode: 'full' as const };
-          if (Number.isFinite(cursor) && cursor != null && cursor > 0) {
-            params.before_id = cursor;
-          }
+          if (Number.isFinite(cursor as any) && cursor != null && (cursor as any) > 0) params.before_id = cursor;
           const res = await api.getMessagesForBookingRequest(Number(bookingRequestId), params as any);
           const payload: any = res?.data ?? {};
           const rows = Array.isArray(payload.items)
@@ -515,11 +489,11 @@ export default function MessageThreadWrapper({
                 ? payload
                 : [];
           if (!rows.length && !payload.has_more) break;
+
           let found = false;
-          for (let i = rows.length - 1; i >= 0; i -= 1) {
+          for (let i = rows.length - 1; i >= 0; i--) {
             const row = rows[i];
-            const type = String((row as any)?.message_type || '').toUpperCase();
-            if (type !== 'SYSTEM') continue;
+            if (String((row as any)?.message_type || '').toUpperCase() !== 'SYSTEM') continue;
             const content = String((row as any)?.content || '').trim();
             if (!content.startsWith(BOOKING_DETAILS_PREFIX)) continue;
             const parsed = parseBookingDetailsFromMessage(content);
@@ -531,9 +505,8 @@ export default function MessageThreadWrapper({
             }
           }
           if (found) break;
-          const ids = rows
-            .map((row: any) => Number((row as any)?.id || 0))
-            .filter((id: number) => Number.isFinite(id) && id > 0);
+
+          const ids = rows.map((r: any) => Number((r as any)?.id || 0)).filter((id: number) => Number.isFinite(id) && id > 0);
           if (!payload.has_more || !ids.length) break;
           cursor = Math.min(...ids);
         } catch {
@@ -543,86 +516,92 @@ export default function MessageThreadWrapper({
     })();
   }, [bookingRequestId, parsedDetails, handleFallbackDetails, handleParsedDetails]);
 
-  /** Payment modal */
+  /** ---------------------------
+   * Payment modal integration
+   * ---------------------------- */
   const { openPaymentModal, paymentModal } = usePaymentModal(
     useCallback(async ({ status, amount, receiptUrl: url }) => {
       setPaymentStatus(status ?? null);
       setPaymentAmount(amount ?? null);
       setReceiptUrl(url ?? null);
-      // Refresh quotes and proactively hydrate booking_id for the accepted quote
+
+      // After payment, refresh quotes and try to resolve booking_id for prep
       try {
         await refreshQuotesForThread();
         if (!bookingRequestId) return;
-        // First, attempt a direct booking-id resolve for this thread
+
+        // direct resolver
         try {
           const res = await getBookingIdForRequest(Number(bookingRequestId));
           const bid = Number((res.data as any)?.booking_id || 0);
           if (Number.isFinite(bid) && bid > 0) {
             try { sessionStorage.setItem(`bookingId:br:${bookingRequestId}`, String(bid)); } catch {}
-            // We can stop here; no need to find accepted quote
             return;
           }
         } catch {}
-        // Prefer a single booking request read to find accepted quote id
+
+        // fallback via BR + accepted quote + quote v2
         try {
           let prevEtag: string | null = null;
           try { if (typeof window !== 'undefined') prevEtag = sessionStorage.getItem(`br:etag:${bookingRequestId}`); } catch {}
           const r = await api.getBookingRequestById(Number(bookingRequestId || 0), prevEtag || undefined);
-          const status = Number((r as any)?.status ?? 200);
-          if (status === 304) {
-            // No change; nothing to resolve here
-            return;
-          }
-          try {
-            const newTag = (r as any)?.headers?.etag || (r as any)?.headers?.ETag;
-            if (newTag && typeof window !== 'undefined') sessionStorage.setItem(`br:etag:${bookingRequestId}`, String(newTag));
-          } catch {}
-          const acceptedId = Number((r.data as any)?.accepted_quote_id || 0);
-          if (Number.isFinite(acceptedId) && acceptedId > 0) {
+          const httpStatus = Number((r as any)?.status ?? 200);
+          if (httpStatus !== 304) {
             try {
-              const v2 = await getQuoteV2(acceptedId);
-              const bid = Number((v2.data as any)?.booking_id || 0);
-              if (Number.isFinite(bid) && bid > 0) {
-                try { sessionStorage.setItem(`bookingId:br:${bookingRequestId}`, String(bid)); } catch {}
-              }
+              const newTag = (r as any)?.headers?.etag || (r as any)?.headers?.ETag;
+              if (newTag && typeof window !== 'undefined') sessionStorage.setItem(`br:etag:${bookingRequestId}`, String(newTag));
             } catch {}
+            const acceptedId = Number((r.data as any)?.accepted_quote_id || 0);
+            if (Number.isFinite(acceptedId) && acceptedId > 0) {
+              try {
+                const v2 = await getQuoteV2(acceptedId);
+                const bid = Number((v2.data as any)?.booking_id || 0);
+                if (Number.isFinite(bid) && bid > 0) {
+                  try { sessionStorage.setItem(`bookingId:br:${bookingRequestId}`, String(bid)); } catch {}
+                }
+              } catch {}
+            }
           }
         } catch {}
       } catch {}
-    }, [refreshQuotesForThread]),
+    }, [refreshQuotesForThread, bookingRequestId]),
     useCallback(() => {}, []),
   );
 
-  /** Close on ESC (mobile) */
+  /** ---------------------------
+   * Overlays / panels plumbing
+   * ---------------------------- */
+  const [showSidePanel, setShowSidePanel] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(min-width: 768px)').matches;
+  });
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  // ESC closes mobile sheet
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowSidePanel(false);
-    };
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowSidePanel(false); };
     if (showSidePanel) window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showSidePanel]);
 
-  /** Back button closes the sheet first (mobile) */
+  // back button closes sheet first (mobile)
   useEffect(() => {
-    const handlePopState = () => {
-      if (showSidePanel) setShowSidePanel(false);
-      else router.back();
-    };
+    const handlePopState = () => { if (showSidePanel) setShowSidePanel(false); else router.back(); };
     window.addEventListener('popstate', handlePopState);
     if (showSidePanel) window.history.pushState(null, '');
     return () => window.removeEventListener('popstate', handlePopState);
   }, [showSidePanel, router]);
 
-  /** Lock background scroll while any overlay is open */
+  // lock body scroll when any overlay is open
   useEffect(() => {
     const prev = document.body.style.overflow;
-    if (showSidePanel || showQuoteModal || showDetailsModal) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = prev || '';
-    return () => {
-      document.body.style.overflow = prev || '';
-    };
+    const wantLock = showSidePanel || showQuoteModal || showDetailsModal;
+    document.body.style.overflow = wantLock ? 'hidden' : prev || '';
+    return () => { document.body.style.overflow = prev || ''; };
   }, [showSidePanel, showQuoteModal, showDetailsModal]);
 
+  // ICS download (kept as-is)
   const handleDownloadCalendar = useCallback(async () => {
     if (!confirmedBookingDetails?.id) return;
     try {
@@ -641,6 +620,14 @@ export default function MessageThreadWrapper({
     }
   }, [confirmedBookingDetails]);
 
+  // Booka moderation detection (memoized & resilient)
+  const isBookaModeration = useMemo(() => {
+    const text = (bookingRequest?.last_message_content || '').toString();
+    const synthetic = Boolean((bookingRequest as any)?.is_booka_synthetic);
+    const label = (bookingRequest as any)?.counterparty_label || '';
+    return synthetic || label === 'Booka' || /^\s*listing\s+(approved|rejected)\s*:/i.test(text);
+  }, [bookingRequest]);
+
   if (!bookingRequestId) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
@@ -649,17 +636,12 @@ export default function MessageThreadWrapper({
     );
   }
 
-  // Detect Booka moderation system message
-  const isBookaModeration = (() => {
-    const text = (bookingRequest?.last_message_content || '').toString();
-    const synthetic = Boolean((bookingRequest as any)?.is_booka_synthetic);
-    const label = (bookingRequest as any)?.counterparty_label || '';
-    return synthetic || label === 'Booka' || /^\s*listing\s+(approved|rejected)\s*:/i.test(text);
-  })();
-
+  /** ---------------------------
+   * Render
+   * ---------------------------- */
   return (
     <div className="flex flex-col h-full w-full relative">
-      {/* Unified header */}
+      {/* Header */}
       <header className="sticky top-0 z-10 bg-white text-gray-900 px-3 py-2 sm:px-5 sm:py-3 flex items-center justify-between border-b border-gray-200 md:min-h-[64px]">
         <div className="flex items-center gap-3">
           {/* Avatar */}
@@ -763,40 +745,57 @@ export default function MessageThreadWrapper({
             initialBookingRequest={bookingRequest}
             isActive={isActive}
             serviceId={bookingRequest?.service_id ?? undefined}
-            clientName={isUserArtist
-              ? (counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'Client') || 'Client')
-              : (user?.first_name ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` : 'Client')}
-            artistName={!isUserArtist
-              ? (counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'Service Provider') || 'Service Provider')
-              : (bookingRequest?.artist_profile?.business_name || (bookingRequest as any)?.artist?.business_name || (bookingRequest as any)?.artist?.first_name || 'Service Provider')}
-            artistAvatarUrl={!isUserArtist
-              ? ((bookingRequest?.artist_profile?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ?? null)
-              : (bookingRequest?.artist_profile?.profile_picture_url ?? null)}
-            clientAvatarUrl={isUserArtist
-              ? ((bookingRequest?.client?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ?? null)
-              : (bookingRequest?.client?.profile_picture_url ?? null)}
+            clientName={
+              isUserArtist
+                ? (counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'Client') || 'Client')
+                : (user?.first_name ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` : 'Client')
+            }
+            artistName={
+              !isUserArtist
+                ? (counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'Service Provider') || 'Service Provider')
+                : (bookingRequest?.artist_profile?.business_name || (bookingRequest as any)?.artist?.business_name || (bookingRequest as any)?.artist?.first_name || 'Service Provider')
+            }
+            artistAvatarUrl={
+              !isUserArtist
+                ? ((bookingRequest?.artist_profile?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ?? null)
+                : (bookingRequest?.artist_profile?.profile_picture_url ?? null)
+            }
+            clientAvatarUrl={
+              isUserArtist
+                ? ((bookingRequest?.client?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ?? null)
+                : (bookingRequest?.client?.profile_picture_url ?? null)
+            }
             serviceName={bookingRequest?.service?.title}
             initialNotes={bookingRequest?.message ?? null}
             artistCancellationPolicy={bookingRequest?.artist_profile?.cancellation_policy ?? null}
             initialBaseFee={bookingRequest?.service?.price ? Number(bookingRequest.service.price) : undefined}
-            initialTravelCost={bookingRequest && bookingRequest.travel_cost !== null && bookingRequest.travel_cost !== undefined ? Number(bookingRequest.travel_cost) : undefined}
+            initialTravelCost={
+              bookingRequest && bookingRequest.travel_cost !== null && bookingRequest.travel_cost !== undefined
+                ? Number(bookingRequest.travel_cost)
+                : undefined
+            }
             initialSoundNeeded={parsedDetails?.soundNeeded?.toLowerCase() === 'yes'}
             onBookingDetailsParsed={handleParsedDetails}
             onBookingConfirmedChange={(confirmed: boolean, booking: any) => {
               setBookingConfirmed(confirmed);
               setConfirmedBookingDetails(booking);
             }}
-            onPaymentStatusChange={(status: string | null, amount?: number | null, url?: string | null, reference?: string | null) => {
+            onPaymentStatusChange={(
+              status: string | null,
+              amount?: number | null,
+              url?: string | null,
+              reference?: string | null,
+            ) => {
+              // Single source from child; cache idempotently
               setPaymentStatus(status ?? null);
               setPaymentAmount(amount ?? null);
-              setReceiptUrl(url ?? null);
-              if (url) {
-                try {
-                  if (typeof window !== 'undefined' && bookingRequestId) {
-                    window.localStorage.setItem(`receipt_url:br:${bookingRequestId}`, url);
-                  }
-                } catch {}
-              }
+              setReceiptUrl((prev) => {
+                const next = url ?? null;
+                if (next && next !== prev && typeof window !== 'undefined' && bookingRequestId) {
+                  try { window.localStorage.setItem(`receipt_url:br:${bookingRequestId}`, next); } catch {}
+                }
+                return next ?? prev ?? null;
+              });
               if (reference) {
                 setPaymentReference(reference);
                 try {
@@ -811,7 +810,7 @@ export default function MessageThreadWrapper({
             onOpenQuote={() => setShowQuoteModal(true)}
             onPayNow={(quote: any) => {
               try {
-                // Prefer backend preview (Total To Pay); fallback to local 3% + VAT on fee
+                // Prefer backend previews; fallback to local client total calc
                 const ps = Number(quote?.provider_subtotal_preview ?? quote?.subtotal ?? 0) || 0;
                 const fee = Number.isFinite(Number(quote?.booka_fee_preview))
                   ? Number(quote?.booka_fee_preview)
@@ -822,21 +821,29 @@ export default function MessageThreadWrapper({
                 const clientTotal = Number.isFinite(Number(quote?.client_total_preview))
                   ? Number(quote?.client_total_preview)
                   : Math.round(((Number(quote?.total || 0)) + fee + feeVat) * 100) / 100;
-                const provider = bookingRequest?.artist_profile?.business_name || (bookingRequest as any)?.artist?.first_name || 'Service Provider';
+
+                const provider =
+                  bookingRequest?.artist_profile?.business_name ||
+                  (bookingRequest as any)?.artist?.first_name ||
+                  'Service Provider';
                 const serviceName = bookingRequest?.service?.title || undefined;
-                if (clientTotal > 0) openPaymentModal({
-                  bookingRequestId,
-                  amount: clientTotal,
-                  providerName: String(provider),
-                  serviceName: serviceName as any,
-                  customerEmail: (user as any)?.email || undefined,
-                } as any);
+
+                if (clientTotal > 0) {
+                  openPaymentModal({
+                    bookingRequestId,
+                    amount: clientTotal,
+                    providerName: String(provider),
+                    serviceName: serviceName as any,
+                    customerEmail: (user as any)?.email || undefined,
+                  } as any);
+                }
               } catch {}
             }}
             onContinueEventPrep={async (threadId: number) => {
               try {
                 const key = `bookingId:br:${threadId}`;
-                // 1) Use cached booking id if available
+
+                // 1) cached
                 try {
                   const cached = sessionStorage.getItem(key);
                   const bid = cached ? Number(cached) : 0;
@@ -845,7 +852,8 @@ export default function MessageThreadWrapper({
                     return;
                   }
                 } catch {}
-                // 2) Try direct resolver endpoint (fast path)
+
+                // 2) direct resolver
                 try {
                   const res = await getBookingIdForRequest(Number(threadId));
                   const bid = Number((res.data as any)?.booking_id || 0);
@@ -855,7 +863,8 @@ export default function MessageThreadWrapper({
                     return;
                   }
                 } catch {}
-                // 3) Find accepted quote from local cache or fetch list
+
+                // 3) accepted quote from cache or light fetch
                 const values = Object.values(quotesById || {}) as any[];
                 let acceptedId = 0;
                 for (const q of values) {
@@ -871,7 +880,7 @@ export default function MessageThreadWrapper({
                   } catch {}
                 }
                 if (!Number.isFinite(acceptedId) || acceptedId <= 0) return;
-                // 4) Hydrate V2 to obtain booking_id
+
                 const v2 = await getQuoteV2(acceptedId);
                 const bid = Number((v2.data as any)?.booking_id || 0);
                 if (Number.isFinite(bid) && bid > 0) {
@@ -882,9 +891,7 @@ export default function MessageThreadWrapper({
             }}
             isPaidOverride={paymentStatus === 'paid'}
             onPresenceUpdate={isBookaModeration ? undefined : (s) => setPresenceHeader(s.label)}
-            /** KEY: hide composer on mobile when details sheet is open */
             isDetailsPanelOpen={showSidePanel}
-            /** Disable composer for Booka system-only threads */
             disableComposer={isBookaModeration}
           />
         </div>
@@ -940,7 +947,7 @@ export default function MessageThreadWrapper({
           )}
         </section>
 
-        {/* Mobile overlay backdrop */}
+        {/* Mobile overlay */}
         {showSidePanel && (
           <div
             className="md:hidden fixed inset-0 z-[70] bg-black/30"
@@ -956,13 +963,10 @@ export default function MessageThreadWrapper({
           aria-modal="true"
           className={`md:hidden fixed inset-x-0 bottom-0 z-[80] w-full bg-white shadow-2xl transform transition-transform duration-300 ease-out rounded-t-2xl text-sm leading-6 ${
             showSidePanel ? 'translate-y-0' : 'translate-y-full'
-          } max-h-[85vh] h-[85vh] overflow-y-auto`}
+          } max-h=[85vh] h-[85vh] overflow-y-auto`}
         >
           <div className="sticky top-0 z-10 bg-white rounded-t-2xl px-4 pt-3 pb-2 border-b border-gray-100 flex items-center justify-between">
-            <div
-              className="mx-auto h-1.5 w-10 rounded-full bg-gray-300"
-              aria-hidden="true"
-            />
+            <div className="mx-auto h-1.5 w-10 rounded-full bg-gray-300" aria-hidden="true" />
             <button
               type="button"
               onClick={() => setShowSidePanel(false)}
@@ -991,7 +995,11 @@ export default function MessageThreadWrapper({
                 onBookingDetailsHydrated={handleFallbackDetails}
                 onHydratedBookingRequest={handleHydratedBookingRequest}
                 openPaymentModal={(args: { bookingRequestId: number; amount: number }) =>
-                  openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount, customerEmail: (user as any)?.email || undefined } as any)
+                  openPaymentModal({
+                    bookingRequestId: args.bookingRequestId,
+                    amount: args.amount,
+                    customerEmail: (user as any)?.email || undefined,
+                  } as any)
                 }
               />
             ) : (
@@ -1004,9 +1012,7 @@ export default function MessageThreadWrapper({
       {/* Create Quote modal */}
       {showQuoteModal && bookingRequest && (
         <div className="fixed inset-0 z-[90]">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowQuoteModal(false)} aria-hidden="true" />
-          {/* Centered container */}
           <div className="absolute inset-0 flex items-center justify-center p-0 sm:p-4 sm:pt-[calc(var(--app-header-height,64px)+8px)] sm:items-start">
             <div
               role="dialog"
@@ -1133,6 +1139,7 @@ export default function MessageThreadWrapper({
           </div>
         </div>
       )}
+
       {/* Always mount payment modal at root */}
       {paymentModal}
     </div>
