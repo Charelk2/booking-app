@@ -490,6 +490,15 @@ def create_payment(
             "email": client_email,
             "amount": amount_int,
             "currency": settings.DEFAULT_CURRENCY or "ZAR",
+            # Attach metadata so webhook/verify can reconcile bookings even if
+            # Paystack emits a different final reference in inline flow
+            "metadata": {
+                "booking_request_id": int(getattr(booking, "booking_request_id", 0) or 0),
+                "simple_id": int(getattr(booking, "id", 0) or 0),
+                "quote_id": int(getattr(booking, "quote_id", 0) or 0),
+                "user_id": int(getattr(current_user, "id", 0) or 0),
+                "source": "web_inline",
+            },
         }
         if callback:
             payload["callback_url"] = callback
@@ -556,10 +565,35 @@ def paystack_verify(
     if status_str != "success":
         raise error_response("Payment not successful", {"status": status_str}, status.HTTP_400_BAD_REQUEST)
 
-    # Resolve booking via reference stored in payment_id
+    # Resolve booking via stored reference; fallback to metadata mapping
     simple = db.query(BookingSimple).filter(BookingSimple.payment_id == reference).first()
     if not simple:
-        raise error_response("Payment reference not recognized", {}, status.HTTP_404_NOT_FOUND)
+        # Attempt to reconcile using Paystack metadata
+        meta = data.get("metadata") if isinstance(data, dict) else None
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except Exception:
+                meta = None
+        br_id = None
+        if isinstance(meta, dict):
+            try:
+                br_id = int(meta.get("booking_request_id") or 0) or None
+            except Exception:
+                br_id = None
+        if br_id:
+            cand = (
+                db.query(BookingSimple)
+                .filter(BookingSimple.booking_request_id == br_id)
+                .first()
+            )
+            if cand and getattr(cand, "client_id", None) == getattr(current_user, "id", None):
+                cand.payment_id = reference
+                db.add(cand)
+                db.commit()
+                simple = cand
+        if not simple:
+            raise error_response("Payment reference not recognized", {}, status.HTTP_404_NOT_FOUND)
     if simple.client_id != current_user.id:
         raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
 
@@ -890,6 +924,27 @@ async def paystack_webhook(
 
     # Correlate with pending BookingSimple using reference
     simple = db.query(BookingSimple).filter(BookingSimple.payment_id == reference).first()
+    if not simple:
+        # Attempt to reconcile using Paystack metadata
+        meta = data.get("metadata") if isinstance(data, dict) else None
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except Exception:
+                meta = None
+        br_id = None
+        if isinstance(meta, dict):
+            try:
+                br_id = int(meta.get("booking_request_id") or 0) or None
+            except Exception:
+                br_id = None
+        if br_id:
+            cand = db.query(BookingSimple).filter(BookingSimple.booking_request_id == br_id).first()
+            if cand:
+                cand.payment_id = reference
+                db.add(cand)
+                db.commit()
+                simple = cand
     if not simple:
         # Not a fatal condition; acknowledge to avoid retries
         return Response(status_code=status.HTTP_200_OK)

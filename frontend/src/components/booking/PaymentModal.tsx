@@ -208,8 +208,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             reference: accessCode ? undefined : reference,
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
             metadata: { bookingRequestId, source: 'web_inline' },
-            // Important: verify using the initialization reference we stored (DB payment_id)
-            onSuccess: (_cbRef) => startVerifyLoop(reference),
+            // Prefer verifying with the callback ref first; fallback to init ref inside loop
+            onSuccess: (cbRef) => startVerifyLoop(cbRef || reference),
             onClose: () => {
               // Hosted fallback to avoid inline runtime issues (e.g., Paystack UI errors)
               if (authorizationUrl) {
