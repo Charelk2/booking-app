@@ -865,10 +865,10 @@ export default function MessageThreadWrapper({
                   }
                 }
                 if (!acceptedId) {
-                  const list = await getQuotesForBookingRequest(Number(threadId || 0));
-                  const arr = Array.isArray(list.data) ? (list.data as any[]) : [];
-                  const accepted = arr.find((q: any) => String((q?.status || '').toLowerCase()).includes('accept'));
-                  acceptedId = Number(accepted?.id || 0);
+                  try {
+                    const br = await getBookingRequestCached(Number(threadId || 0));
+                    acceptedId = Number((br as any)?.accepted_quote_id || 0);
+                  } catch {}
                 }
                 if (!Number.isFinite(acceptedId) || acceptedId <= 0) return;
                 // 4) Hydrate V2 to obtain booking_id

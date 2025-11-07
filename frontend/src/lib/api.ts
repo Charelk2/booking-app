@@ -808,6 +808,63 @@ export const getBookingRequestById = (id: number, etag?: string) =>
     validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
   });
 
+// Single-flight + TTL cache for booking requests (to avoid repeated 200s)
+type BrCacheEntry = { ts: number; etag?: string | null; data: BookingRequest };
+const brInflight = new Map<number, Promise<BookingRequest>>();
+
+export async function getBookingRequestCached(id: number, ttlMs = 60_000): Promise<BookingRequest> {
+  if (!Number.isFinite(id) || id <= 0) throw new Error('invalid id');
+  const sKey = `br:etag:${id}`;
+  const cKey = `br:cache:${id}`;
+  // TTL memory via sessionStorage (persists across tabs for the session lifetime)
+  try {
+    const raw = sessionStorage.getItem(cKey);
+    if (raw) {
+      const obj = JSON.parse(raw) as BrCacheEntry;
+      if (obj && typeof obj.ts === 'number' && Date.now() - obj.ts < ttlMs && obj.data) {
+        return obj.data;
+      }
+    }
+  } catch {}
+  const existing = brInflight.get(id);
+  if (existing) return existing;
+  const p = (async () => {
+    let etag: string | null = null;
+    try { etag = sessionStorage.getItem(sKey); } catch {}
+    const res = await getBookingRequestById(id, etag || undefined);
+    const status = Number((res as any)?.status ?? 200);
+    if (status === 304) {
+      // Use cached body on 304
+      try {
+        const raw = sessionStorage.getItem(cKey);
+        if (raw) {
+          const obj = JSON.parse(raw) as BrCacheEntry;
+          if (obj?.data) return obj.data;
+        }
+      } catch {}
+      // No cache: fall back to a fresh GET without ETag
+      const res2 = await getBookingRequestById(id, undefined);
+      const body2 = res2.data as BookingRequest;
+      try {
+        const newTag = (res2 as any)?.headers?.etag || (res2 as any)?.headers?.ETag;
+        if (newTag) sessionStorage.setItem(sKey, String(newTag));
+        sessionStorage.setItem(cKey, JSON.stringify({ ts: Date.now(), etag: newTag || null, data: body2 }));
+      } catch {}
+      return body2;
+    }
+    const body = res.data as BookingRequest;
+    try {
+      const newTag = (res as any)?.headers?.etag || (res as any)?.headers?.ETag;
+      if (newTag) sessionStorage.setItem(sKey, String(newTag));
+      sessionStorage.setItem(cKey, JSON.stringify({ ts: Date.now(), etag: newTag || null, data: body }));
+    } catch {}
+    return body;
+  })()
+    .finally(() => { brInflight.delete(id); });
+  brInflight.set(id, p);
+  return p;
+}
+
 // Update an existing booking request as the client
 export const updateBookingRequest = (
   id: number,

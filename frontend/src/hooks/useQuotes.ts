@@ -223,18 +223,7 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
       return;
     } catch {}
 
-    // Legacy fallback: fetch list and convert the matching quote
-    try {
-      const list = await getQuotesForBookingRequest(bookingRequestId);
-      const arr = Array.isArray(list.data) ? list.data : [];
-      const legacy = arr.find((q: any) => Number(q?.id) === Number(quoteId));
-      if (legacy) {
-        const adapted = toQuoteV2FromLegacy(legacy as Quote);
-        try { GLOBAL_QUOTES.set(quoteId, adapted); } catch {}
-        setQuotesById((prev) => ({ ...prev, [quoteId]: adapted }));
-        emitQuoteUpdate();
-      }
-    } catch {}
+    // Legacy fallback removed: avoid br/quotes list. If direct fetch failed, leave missing; UI will retry.
     finally {
       pendingRef.current.delete(quoteId);
     }

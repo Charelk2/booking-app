@@ -376,19 +376,19 @@ export default function BookingDetailsPanel({
     let cancelled = false;
     (async () => {
       try {
-        const res = await getBookingRequestById(requestId);
+        const data = await getBookingRequestCached(requestId);
         if (cancelled) return;
         canonicalFetchedRef.current = true;
         const profile =
-          (res?.data as any)?.service_provider_profile ||
-          (res?.data as any)?.artist_profile ||
+          (data as any)?.service_provider_profile ||
+          (data as any)?.artist_profile ||
           null;
         const responseIdentity = {
           profile,
-          service_provider_profile: (res?.data as any)?.service_provider_profile,
-          artist_profile: (res?.data as any)?.artist_profile,
-          service_provider: (res?.data as any)?.service_provider,
-          service: (res?.data as any)?.service,
+          service_provider_profile: (data as any)?.service_provider_profile,
+          artist_profile: (data as any)?.artist_profile,
+          service_provider: (data as any)?.service_provider,
+          service: (data as any)?.service,
         } as Record<string, any>;
 
         const canonicalNameCandidates: Array<unknown> = [

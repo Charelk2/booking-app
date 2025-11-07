@@ -231,9 +231,8 @@ const InlineQuoteForm: React.FC<Props> = ({
     let active = true;
     (async () => {
       try {
-        const res = await getBookingRequestById(bookingRequestId);
+        const br: any = await getBookingRequestCached(bookingRequestId);
         if (!active) return;
-        const br: any = res.data || {};
         const tb: any = br.travel_breakdown || {};
         const svcId = Number(br.service_id || 0);
         const svcPrice = Number(br?.service?.price);
