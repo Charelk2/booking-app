@@ -144,11 +144,27 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
     # Summary grid
     issue_str = f"{issue_date:%Y-%m-%d}" if issue_date else "—"
     due_str = f"{due_date:%Y-%m-%d}" if due_date else "—"
+    # Compute Booka fee (3%) + VAT on fee and Total To Pay for header visibility
+    try:
+        _fee = round(float(subtotal or 0.0) * 0.03, 2)
+        _fee_vat = round(_fee * 0.15, 2)
+        _fee_incl = round(_fee + _fee_vat, 2)
+    except Exception:
+        _fee_incl = 0.0
+    total_to_pay = None
+    try:
+        if total is not None:
+            total_to_pay = round(float(total or 0) + float(_fee_incl or 0), 2)
+        elif amount_due is not None:
+            total_to_pay = float(amount_due or 0)
+    except Exception:
+        total_to_pay = None
     summary_data = [
         [Paragraph("<font color='#6b7280'>Invoice #</font>", styles["NormalSmall"]), Paragraph(str(inv_id or "—"), styles["Strong"]),
          Paragraph("<font color='#6b7280'>Issued</font>", styles["NormalSmall"]), Paragraph(issue_str, styles["NormalSmall"])],
         [Paragraph("<font color='#6b7280'>Currency</font>", styles["NormalSmall"]), Paragraph("ZAR", styles["NormalSmall"]),
-         Paragraph("<font color='#6b7280'>Due</font>", styles["NormalSmall"]), Paragraph(due_str, styles["NormalSmall"])],
+         Paragraph("<font color='#6b7280'>Amount</font>", styles["NormalSmall"]), Paragraph(_zar(total_to_pay if total_to_pay is not None else (amount_due if amount_due is not None else total)), styles["Strong"])],
+        [Paragraph("<font color='#6b7280'>Due</font>", styles["NormalSmall"]), Paragraph(due_str, styles["NormalSmall"]), Paragraph("", styles["NormalSmall"]), Paragraph("", styles["NormalSmall"])],
     ]
     if payment_method:
         summary_data.append([Paragraph("<font color='#6b7280'>Payment Method</font>", styles["NormalSmall"]), Paragraph(payment_method, styles["NormalSmall"]), Paragraph("", styles["NormalSmall"]), Paragraph("", styles["NormalSmall"])])
@@ -198,17 +214,34 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
         totals_rows.append([Paragraph("Subtotal", styles["NormalSmall"]), Paragraph(_zar(subtotal), styles["NormalSmall"])])
     if (discount or 0) > 0:
         totals_rows.append([Paragraph("Discount", styles["NormalSmall"]), Paragraph("- " + _zar(discount or 0), styles["NormalSmall"])])
-    if total is not None:
-        totals_rows.append([Paragraph("Total", styles["Strong"]), Paragraph(_zar(total), styles["Strong"])])
-    # Client service fee (VAT included) — informational; charged to client
+    # Provider VAT (15%) for visibility
     try:
-        if subtotal is not None:
-            _fee = round(float(subtotal) * 0.03, 2)
-            _fee_vat = round(_fee * 0.15, 2)
-            _fee_incl = _fee + _fee_vat
-            totals_rows.append([Paragraph("Booka Service Fee (3% — VAT included)", styles["NormalSmall"]), Paragraph(_zar(_fee_incl), styles["NormalSmall"])])
+        if total is not None:
+            vat_provider = round(float(total or 0) - float((subtotal or 0) - (discount or 0)), 2)
+            if vat_provider > 0:
+                totals_rows.append([Paragraph("VAT (15%)", styles["NormalSmall"]), Paragraph(_zar(vat_provider), styles["NormalSmall"])])
     except Exception:
         pass
+    # Booka Service Fee (VAT included) as one line
+    try:
+        fee = round(float(subtotal or 0.0) * 0.03, 2)
+        fee_vat = round(fee * 0.15, 2)
+        fee_incl = round(fee + fee_vat, 2)
+        if fee_incl > 0:
+            totals_rows.append([Paragraph("Booka Service Fee (3% — VAT included)", styles["NormalSmall"]), Paragraph(_zar(fee_incl), styles["NormalSmall"])])
+    except Exception:
+        fee_incl = 0.0
+    # Total To Pay (provider total + Booka fee incl)
+    total_to_pay = None
+    try:
+        if total is not None:
+            total_to_pay = round(float(total or 0) + float(fee_incl or 0), 2)
+        elif amount_due is not None:
+            total_to_pay = float(amount_due or 0)
+    except Exception:
+        total_to_pay = None
+    if total_to_pay is not None:
+        totals_rows.append([Paragraph("Total To Pay", styles["Strong"]), Paragraph(_zar(total_to_pay), styles["Strong"])])
     # Display rule: show Amount Due as ZAR 0.00 for paid invoices (visual only)
     display_due = 0.0 if str(status).lower() == "paid" or str(status_text).upper() == "PAID" else amount_due
     if amount_due is not None:

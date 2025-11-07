@@ -693,6 +693,7 @@ def paystack_verify(
                         message_type=MessageType.SYSTEM,
                         visible_to=VisibleTo.CLIENT,
                         action=None,
+                        attachment_url=receipt_url,
                         system_key=k_client,
                     )
                     db.commit()
@@ -1572,11 +1573,28 @@ def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_pa
 
     # Summary grid
     issued_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    # Compute Booka fee (3% of provider subtotal) with VAT included and Total To Pay
+    try:
+        _fee = round(float(subtotal or 0.0) * 0.03, 2)
+        _fee_vat = round(_fee * 0.15, 2)
+        _fee_incl = round(_fee + _fee_vat, 2)
+    except Exception:
+        _fee = 0.0
+        _fee_vat = 0.0
+        _fee_incl = 0.0
+    total_to_pay = None
+    try:
+        if amount is not None and float(amount or 0) > 0:
+            total_to_pay = float(amount)
+        elif total is not None:
+            total_to_pay = round(float(total or 0) + _fee_incl, 2)
+    except Exception:
+        total_to_pay = None
     summary_data = [
         [Paragraph("<font color='#6b7280'>Payment ID</font>", styles["NormalSmall"]), Paragraph(str(payment_id), styles["Strong"]),
          Paragraph("<font color='#6b7280'>Issued</font>", styles["NormalSmall"]), Paragraph(issued_str, styles["NormalSmall"])],
         [Paragraph("<font color='#6b7280'>Currency</font>", styles["NormalSmall"]), Paragraph("ZAR", styles["NormalSmall"]),
-         Paragraph("<font color='#6b7280'>Amount</font>", styles["NormalSmall"]), Paragraph(_zar(total if (total is not None and (total or 0) > 0) else amount), styles["Strong"])],
+         Paragraph("<font color='#6b7280'>Amount</font>", styles["NormalSmall"]), Paragraph(_zar(total_to_pay if total_to_pay is not None else (amount if amount is not None else total)), styles["Strong"])],
     ]
     summary_tbl = Table(summary_data, colWidths=[doc.width*0.15, doc.width*0.35, doc.width*0.15, doc.width*0.35])
     summary_tbl.setStyle(
@@ -1630,19 +1648,23 @@ def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_pa
         totals_rows.append([Paragraph("Subtotal", styles["NormalSmall"]), Paragraph(_zar(subtotal), styles["NormalSmall"])])
     if (discount or 0) > 0:
         totals_rows.append([Paragraph("Discount", styles["NormalSmall"]), Paragraph("- " + _zar(discount or 0), styles["NormalSmall"])])
-    if total is not None:
-        totals_rows.append([Paragraph("Total", styles["Strong"]), Paragraph(_zar(total), styles["Strong"])])
-    elif amount is not None:
-        totals_rows.append([Paragraph("Total", styles["Strong"]), Paragraph(_zar(amount), styles["Strong"])])
-    # Client service fee (VAT included) — informational; charged to client
+    # Provider VAT for visibility: total - (subtotal - discount)
     try:
-        if subtotal is not None:
-            _fee = round(float(subtotal) * 0.03, 2)  # 3%
-            _fee_vat = round(_fee * 0.15, 2)         # 15% VAT
-            _fee_incl = _fee + _fee_vat
+        if total is not None:
+            _vat_provider = round(float(total or 0) - float((subtotal or 0) - (discount or 0)), 2)
+            if _vat_provider > 0:
+                totals_rows.append([Paragraph("VAT (15%)", styles["NormalSmall"]), Paragraph(_zar(_vat_provider), styles["NormalSmall"])])
+    except Exception:
+        pass
+    # Booka service fee (VAT included) as a single line
+    try:
+        if _fee_incl > 0:
             totals_rows.append([Paragraph("Booka Service Fee (3% — VAT included)", styles["NormalSmall"]), Paragraph(_zar(_fee_incl), styles["NormalSmall"])])
     except Exception:
         pass
+    # Final: Total To Pay equals amount charged if present, else total + fee incl
+    if total_to_pay is not None:
+        totals_rows.append([Paragraph("Total To Pay", styles["Strong"]), Paragraph(_zar(total_to_pay), styles["Strong"])])
     if booking_id:
         totals_rows.append([Paragraph("Booking", styles["NormalSmall"]), Paragraph(f"#{booking_id}", styles["NormalSmall"])])
     if totals_rows:

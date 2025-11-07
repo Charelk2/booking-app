@@ -320,6 +320,7 @@ export default function BookingSummaryCard({
             const fee = subtotal * 0.03; // 3% of provider subtotal (services + travel + sound)
             const feeVat = fee * 0.15;   // 15% VAT on fee
             const feeIncl = fee + feeVat;
+            const clientTotal = Number((best as any)?.client_total_preview ?? (total + feeIncl));
             return (
               <div className="mt-4">
                 <div className="font-semibold mb-1">Costing</div>
@@ -366,14 +367,8 @@ export default function BookingSummaryCard({
                   )}
                   <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
                     <span>Total</span>
-                    <span>{formatCurrency(total)}</span>
+                    <span>{formatCurrency(isClient ? clientTotal : total)}</span>
                   </div>
-                  {isClient && (
-                    <div className="flex justify-between font-semibold">
-                      <span>Total To Pay</span>
-                      <span>{formatCurrency((best as any)?.client_total_preview ?? (total + feeIncl))}</span>
-                    </div>
-                  )}
                 </div>
 
                 {allowInstantBooking && !accepted && (
