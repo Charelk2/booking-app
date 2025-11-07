@@ -341,6 +341,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       const summary = Array.isArray(summaries) ? summaries.find((s: any) => Number(s?.id) === Number(bookingRequestId)) : null;
       const sumTs = String((summary as any)?.last_message_timestamp || '') || '';
       const sumTextRaw = (summary as any)?.last_message_content ?? '';
+      const lastSenderId = Number((summary as any)?.last_sender_id ?? 0);
       // Collapse booking details like ConversationList does
       const sumText = (() => {
         const t = String(sumTextRaw || '');
@@ -350,6 +351,9 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         try { return new Date(sumTs).getTime() > new Date(lastTs || 0).getTime(); } catch { return false; }
       })();
       if (!newer || !sumText) return base;
+      // Do not synthesize an incoming bubble if the latest summary belongs to me.
+      // This avoids a brief flip where my outgoing bubble appears to switch sides.
+      if (Number.isFinite(lastSenderId) && lastSenderId === Number(myUserId)) return base;
       // Suppress synthetic preview for initial booking requests for providers only
       // to avoid a brief flicker. Clients still benefit from the preview.
       try {
