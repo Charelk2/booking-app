@@ -953,11 +953,12 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       async () => (handlers as any).send({ content: text, reply_to_message_id: replyTarget?.id }, { idempotencyKey, clientRequestId }),
       (real: any) => {
         try { if (flipTimer) clearTimeout(flipTimer); } catch {}
-        setMessages((prev: any[]) => {
-          const withoutTemp = prev.filter((m: any) => m.id !== tempId);
-          const already = withoutTemp.some((m: any) => m.id === real.id);
-          return already ? withoutTemp : [...withoutTemp, { ...real, status: 'sent' }];
-        });
+        // Preserve visual order: update the temp bubble in place with real data
+        setMessages((prev: any[]) => prev.map((m: any) => (
+          Number(m?.id) === Number(tempId)
+            ? { ...m, ...real, id: Number(real?.id), timestamp: m.timestamp, status: 'sent' }
+            : m
+        )));
         try { setReplyTarget(null); } catch {}
       },
       () => {},
@@ -1058,7 +1059,11 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
             return fin.data as any;
           },
           (real: any) => {
-            setMessages((prev: any[]) => prev.map((m: any) => (Number(m?.id) === (mid || messageKeyId) ? { ...real, status: 'sent' } : m)));
+            setMessages((prev: any[]) => prev.map((m: any) => (
+              Number(m?.id) === (mid || messageKeyId)
+                ? { ...m, ...real, id: Number(real?.id), timestamp: m.timestamp, status: 'sent' }
+                : m
+            )));
             try { URL.revokeObjectURL(previewUrl); createdBlobUrlsRef.current.delete(previewUrl); } catch {}
           },
           () => {

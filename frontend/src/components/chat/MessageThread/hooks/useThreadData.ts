@@ -616,12 +616,31 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       const tempId = cidToTempRef.current.get(clientReqId);
       if (Number.isFinite(tempId)) {
         setMessages(prev => {
-          const withoutTemp = prev.filter(m => Number(m.id) !== Number(tempId));
-          const already = withoutTemp.some(m => Number(m.id) === Number(incoming.id));
-          const merged = already ? withoutTemp : mergeMessages(withoutTemp, [incoming]);
-          const last = merged[merged.length - 1];
+          // Preserve the visual position by updating the temp bubble in place
+          // with the real echo, carrying over the temp timestamp.
+          let found = false;
+          const next = prev.map((m) => {
+            if (Number(m.id) !== Number(tempId)) return m;
+            found = true;
+            const preservedTs = (m as any)?.timestamp;
+            return {
+              ...m,
+              ...incoming,
+              id: Number(incoming.id),
+              timestamp: preservedTs || incoming.timestamp,
+              status: (incoming as any)?.status || 'sent',
+            } as any;
+          });
+          if (!found) {
+            // Fallback: if we somehow lost the temp, merge normally
+            const merged = mergeMessages(prev, [incoming]);
+            const last = merged[merged.length - 1];
+            if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
+            return merged;
+          }
+          const last = next[next.length - 1];
           if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
-          return merged;
+          return next;
         });
         try { cidToTempRef.current.delete(clientReqId); } catch {}
         try { import('@/lib/chat/threadsEvents').then(({ emitThreadsUpdated }) => emitThreadsUpdated({ threadId, reason: 'message', immediate: true }, { immediate: true, force: true })); } catch {}
