@@ -330,85 +330,11 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   }, []);
 
   const messagesForView = React.useMemo(() => {
+    // Disable synthetic preview bubbles entirely for the active thread.
+    // Rely on realtime (thread_tail) and fetch to reflect the latest state.
     try {
       const base = Array.isArray(messages) ? messages : [];
-      // Find latest message timestamp in the thread
-      const lastTs = (() => {
-        try { return String((base[base.length - 1] as any)?.timestamp || '') || ''; } catch { return ''; }
-      })();
-      // Look up summary for this thread
-      const summaries = cacheGetSummaries() as any[];
-      const summary = Array.isArray(summaries) ? summaries.find((s: any) => Number(s?.id) === Number(bookingRequestId)) : null;
-      const sumTs = String((summary as any)?.last_message_timestamp || '') || '';
-      const sumTextRaw = (summary as any)?.last_message_content ?? '';
-      const lastSenderId = Number((summary as any)?.last_sender_id ?? 0);
-      // Collapse booking details like ConversationList does
-      const sumText = (() => {
-        const t = String(sumTextRaw || '');
-        return t.startsWith(BOOKING_DETAILS_PREFIX) ? 'New Booking Request' : t;
-      })();
-      const newer = (() => {
-        try { return new Date(sumTs).getTime() > new Date(lastTs || 0).getTime(); } catch { return false; }
-      })();
-      if (!newer || !sumText) return base;
-      // Do not synthesize an incoming bubble if the latest summary belongs to me.
-      // This avoids a brief flip where my outgoing bubble appears to switch sides.
-      if (Number.isFinite(lastSenderId) && lastSenderId === Number(myUserId)) return base;
-      // Suppress synthetic preview for initial booking requests for providers only
-      // to avoid a brief flicker. Clients still benefit from the preview.
-      try {
-        const low = String(sumText || '').trim().toLowerCase();
-        const isNewRequest = (
-          low === 'new booking request' ||
-          low.includes('new booking request') ||
-          low.startsWith('you have a new booking request') ||
-          low.startsWith('booking details:')
-        );
-        if (userType === 'service_provider' && isNewRequest) return base;
-      } catch {}
-      // Try to detect attachments from the local thread cache (best-effort)
-      let attachmentLabel: string | null = null;
-      let attachmentUrl: string | null = null;
-      let attachmentMeta: Record<string, any> | null = null;
-      try {
-        const cached = readThreadCache(bookingRequestId) || [];
-        const last = Array.isArray(cached) && cached.length ? cached[cached.length - 1] : null;
-        if (last && (last.attachment_url || (last.attachment_meta && last.attachment_meta.content_type))) {
-          const url = String(last.attachment_url || '') || '';
-          const meta = (last.attachment_meta || {}) as { content_type?: string; original_filename?: string };
-          const ct = String(meta?.content_type || '').toLowerCase().split(';')[0].trim();
-          const filename = String(meta?.original_filename || '').toLowerCase();
-          const pathLower = url.toLowerCase();
-          const looksVoice = filename.includes('voice') || pathLower.includes('/voice') || pathLower.includes('voicenote');
-          if (ct.startsWith('image/') || isImage(url)) {
-            attachmentLabel = 'Photo';
-            if (url) { attachmentUrl = url; attachmentMeta = meta; }
-          } else if (ct.startsWith('video/') || (!ct && isVideo(url))) {
-            if (looksVoice) attachmentLabel = 'Voice note';
-            else {
-              attachmentLabel = 'Video';
-              if (url) { attachmentUrl = url; attachmentMeta = meta; }
-            }
-          } else if (ct.startsWith('audio/') || looksVoice) {
-            attachmentLabel = 'Voice note';
-          }
-        }
-      } catch {}
-
-      const synthetic = {
-        id: -Math.abs(Date.now()),
-        booking_request_id: bookingRequestId,
-        sender_id: 0, // treat as incoming
-        sender_type: 'CLIENT',
-        content: attachmentLabel ? `${attachmentLabel}${sumText ? ` · ${sumText}` : ''}` : sumText,
-        message_type: 'USER',
-        timestamp: sumTs || new Date().toISOString(),
-        status: 'sent',
-        _synthetic_preview: true,
-        ...(attachmentUrl ? { attachment_url: attachmentUrl } : {}),
-        ...(attachmentMeta ? { attachment_meta: attachmentMeta } : {}),
-      } as any;
-      return [...base, synthetic];
+      return base;
     } catch {
       return messages;
     }
