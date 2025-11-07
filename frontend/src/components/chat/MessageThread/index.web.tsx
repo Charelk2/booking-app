@@ -744,6 +744,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     threadId: bookingRequestId,
     isActive,
     myUserId,
+    myUserType: userType === 'client' ? 'CLIENT' : 'AGENT',
     ingestMessage: (useStableCallback as any)(handlers.ingestExternalMessage),
     applyReadReceipt: (useStableCallback as any)(handlers.applyReadReceipt),
     applyDelivered: (useStableCallback as any)(handlers.applyDelivered),

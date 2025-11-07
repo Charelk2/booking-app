@@ -8,10 +8,13 @@ import {
 } from '@/lib/chat/threadCache';
 import { threadStore } from '@/lib/chat/threadStore';
 
+type SenderType = 'CLIENT' | 'AGENT';
+
 type UseThreadRealtimeOptions = {
   threadId: number;
   isActive: boolean;
   myUserId: number;
+  myUserType: SenderType;
   ingestMessage: (raw: any) => void;
   applyReadReceipt: (upToId: number, readerId: number, myUserId?: number | null) => void;
   applyReactionEvent?: (evt: { messageId: number; emoji: string; userId: number; kind: 'added' | 'removed' }) => void;
@@ -23,6 +26,7 @@ type UseThreadRealtimeOptions = {
 const THREAD_TOPIC_PREFIX = 'booking-requests:';
 const MAX_SEEN_IDS = 500;
 
+// Shared map of seen message IDs per thread
 const getSeenMap = (() => {
   let map: Map<number, Set<number>> | null = null;
   return () => {
@@ -43,6 +47,7 @@ export function useThreadRealtime({
   threadId,
   isActive,
   myUserId,
+  myUserType,
   ingestMessage,
   applyReadReceipt,
   applyReactionEvent,
@@ -57,8 +62,9 @@ export function useThreadRealtime({
   const deliveredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Stable refs to avoid re-subscribe or stale closures
+  // Stable refs to avoid re‑subscription churn
   const myUserIdRef = useSyncRef(myUserId);
+  const myUserTypeRef = useSyncRef(myUserType);
   const ingestMessageRef = useSyncRef(ingestMessage);
   const applyReadReceiptRef = useSyncRef(applyReadReceipt);
   const applyReactionEventRef = useSyncRef(applyReactionEvent);
@@ -87,21 +93,22 @@ export function useThreadRealtime({
 
     const onEvent = (evt: any) => {
       if (!evt) return;
+
       const type = String(evt.type || '').toLowerCase();
       const payload = evt.payload || evt;
 
-      const normalizeMessage = (e: any) =>
-        (e?.payload && (e.payload.message || e.payload.data)) || e.message || e.data || e;
-
+      // --- MESSAGE / NEW MESSAGE ---
       if (!type || type === 'message' || type === 'message_new') {
-        const raw = normalizeMessage(evt);
+        const raw =
+          (evt?.payload && (evt.payload.message || evt.payload.data)) ||
+          evt.message ||
+          evt.data ||
+          evt;
 
         try {
           ingestMessageRef.current?.(raw);
         } catch (e) {
-          console.warn('[realtime] ingest failed', e, {
-            keys: raw && typeof raw === 'object' ? Object.keys(raw) : [],
-          });
+          console.warn('[realtime] ingest failed', e);
         }
 
         setTimeout(() => pokeDeltaRef.current?.('post-ws-message'), 120);
@@ -109,6 +116,7 @@ export function useThreadRealtime({
         const senderId = Number(raw?.sender_id ?? raw?.senderId ?? 0);
         const mid = Number(raw?.id ?? 0);
 
+        // Update unread + dedup
         if (senderId && mid && senderId !== myUserIdRef.current) {
           let seenSet = seenIdsRef.current.get(threadId);
           if (!seenSet) {
@@ -117,7 +125,6 @@ export function useThreadRealtime({
           }
 
           const isDuplicate = seenSet.has(mid);
-
           if (!isDuplicate) {
             seenSet.add(mid);
             if (seenSet.size > MAX_SEEN_IDS) {
@@ -135,7 +142,7 @@ export function useThreadRealtime({
                   ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 }
                   : t
               );
-              cacheSetSummaries(updated as any[]);
+              cacheSetSummaries(updated);
             } catch {}
           }
 
@@ -144,6 +151,7 @@ export function useThreadRealtime({
           cacheSetLastRead(threadId, mid);
         }
 
+        // --- DELIVERED ACK ---
         if (
           isActive &&
           typeof document !== 'undefined' &&
@@ -152,7 +160,6 @@ export function useThreadRealtime({
           mid > 0
         ) {
           deliveredMaxRef.current = Math.max(deliveredMaxRef.current, mid);
-
           if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current);
 
           deliveredTimerRef.current = setTimeout(async () => {
@@ -162,7 +169,7 @@ export function useThreadRealtime({
               const mod = await import('@/lib/api');
               await mod.putDeliveredUpTo(threadId, up);
             } catch (e) {
-              console.warn('[realtime] failed to PUT delivered', e);
+              console.warn('[realtime] PUT delivered failed', e);
             }
           }, 150);
         }
@@ -170,6 +177,7 @@ export function useThreadRealtime({
         return;
       }
 
+      // --- READ RECEIPT ---
       if (type === 'read') {
         const upToId = Number(payload.up_to_id ?? payload.last_read_id ?? payload.message_id ?? 0);
         const readerId = Number(payload.user_id ?? payload.reader_id ?? 0);
@@ -183,6 +191,7 @@ export function useThreadRealtime({
         return;
       }
 
+      // --- TYPING ---
       if (type === 'typing') {
         const users = Array.isArray(payload.users) ? payload.users : [];
         const typing = users.some((id: number | string) => Number(id) !== myUserIdRef.current);
@@ -191,12 +200,12 @@ export function useThreadRealtime({
         return;
       }
 
+      // --- PRESENCE ---
       if (type === 'presence') {
         const updates = payload?.updates || {};
         for (const [uid, status] of Object.entries(updates)) {
           const id = Number(uid);
           if (!Number.isFinite(id) || id === myUserIdRef.current) continue;
-
           cacheUpdateSummary(threadId, {
             presence: String(status ?? ''),
             last_presence_at: Date.now(),
@@ -206,6 +215,7 @@ export function useThreadRealtime({
         return;
       }
 
+      // --- DELIVERED ---
       if (type === 'delivered' && applyDeliveredRef.current) {
         const upToId = Number(payload.up_to_id ?? payload.last_delivered_id ?? 0);
         const recipientId = Number(payload.user_id ?? payload.recipient_id ?? 0);
@@ -215,6 +225,7 @@ export function useThreadRealtime({
         return;
       }
 
+      // --- REACTIONS ---
       if ((type === 'reaction_added' || type === 'reaction_removed') && applyReactionEventRef.current) {
         const p = payload?.payload || payload;
         const mid = Number(p?.message_id ?? 0);
@@ -232,12 +243,14 @@ export function useThreadRealtime({
         return;
       }
 
+      // --- MESSAGE DELETED ---
       if (type === 'message_deleted' && applyMessageDeletedRef.current) {
         const mid = Number(payload?.id ?? payload?.message_id ?? 0);
         if (mid) applyMessageDeletedRef.current(mid);
         return;
       }
 
+      // --- THREAD TAIL (synthetic preview fix) ---
       if (type === 'thread_tail') {
         const tid = Number(payload?.thread_id ?? threadId);
         const lastId = Number(payload?.last_id ?? 0);
@@ -246,9 +259,7 @@ export function useThreadRealtime({
         const low = snippet.toLowerCase();
 
         let preview = snippet;
-        if (low.startsWith('payment received')) {
-          preview = 'Payment received';
-        }
+        if (low.startsWith('payment received')) preview = 'Payment received';
 
         if (tid === threadId) {
           threadStore.update(tid, {
@@ -269,13 +280,14 @@ export function useThreadRealtime({
             seenIdsRef.current.set(tid, seenSet);
           }
 
+          // ✅ Correct sender info prevents left/right flip
           if (!isNewRequest && lastId > 0 && !seenSet.has(lastId)) {
             seenSet.add(lastId);
             ingestMessageRef.current?.({
               id: lastId,
               booking_request_id: tid,
-              sender_id: 0,
-              sender_type: 'CLIENT',
+              sender_id: myUserIdRef.current,
+              sender_type: myUserTypeRef.current,
               content: snippet,
               message_type: 'USER',
               timestamp: lastTs || new Date().toISOString(),
@@ -292,14 +304,8 @@ export function useThreadRealtime({
     const unsubscribe = subscribe(topic, onEvent);
 
     return () => {
-      if (typingTimerRef.current) {
-        clearTimeout(typingTimerRef.current);
-        typingTimerRef.current = null;
-      }
-      if (deliveredTimerRef.current) {
-        clearTimeout(deliveredTimerRef.current);
-        deliveredTimerRef.current = null;
-      }
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current);
       unsubscribe();
     };
   }, [threadId, isActive, subscribe]);
