@@ -90,7 +90,11 @@ export function useThreads(user: User | null | undefined) {
     if (!user) return false;
     const role = user.user_type === 'service_provider' ? 'artist' : 'client';
     let prevEtag: string | null = null;
-    try { if (typeof window !== 'undefined') prevEtag = sessionStorage.getItem(etagKey); } catch {}
+    try {
+      if (typeof window !== 'undefined') {
+        prevEtag = sessionStorage.getItem(etagKey) || localStorage.getItem(etagKey);
+      }
+    } catch {}
     const res = await getMessageThreadsPreview(role as any, 100, prevEtag || undefined);
     const status = Number((res as any)?.status ?? 200);
     if (status === 304) return true;
@@ -125,7 +129,10 @@ export function useThreads(user: User | null | undefined) {
     cacheSetSummaries(mapped as any);
     try {
       const newTag = (res as any)?.headers?.etag || (res as any)?.headers?.ETag;
-      if (newTag && typeof window !== 'undefined') sessionStorage.setItem(etagKey, String(newTag));
+      if (newTag && typeof window !== 'undefined') {
+        sessionStorage.setItem(etagKey, String(newTag));
+        try { localStorage.setItem(etagKey, String(newTag)); } catch {}
+      }
     } catch {}
     return true;
   }, [user, etagKey]);
