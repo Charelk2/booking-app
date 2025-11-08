@@ -170,6 +170,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         booking_request_id: bookingRequestId,
         amount: Number(amount),
         full: true,
+        inline: true,
       });
 
       const data = res?.data || {};
@@ -181,8 +182,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       // Cache reference for adjacent views that may try to build receipt URLs optimistically
       try { localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, reference); } catch {}
 
-      // Note: Do NOT assume missing authorizationUrl means "already paid".
-      // We can still open Inline using the server-generated reference.
+      // Inline-only flow: missing authorizationUrl is expected in inline mode.
       setPaystackReference(reference);
 
       // 2) Inline preferred (if email present); otherwise hosted fallback

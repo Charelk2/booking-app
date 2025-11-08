@@ -57,6 +57,12 @@ class PaymentCreate(BaseModel):
     # They are retained in the schema for backward compatibility with clients.
     amount: Optional[float] = Field(default=None, gt=0)
     full: Optional[bool] = False
+    # Inline-only flow: when true, the server will not call Paystack
+    # initialize. It will accept/prepare the booking, generate a unique
+    # reference, persist it on the BookingSimple, and return it so the
+    # client can open the inline popup directly. Verification still
+    # happens via /payments/paystack/verify.
+    inline: Optional[bool] = False
 
 
 # ————————————————————————————————————————————————————————————————
@@ -482,6 +488,39 @@ def create_payment(
     amount = round(quote_total + client_fee + client_fee_vat, 2)
     logger.info("Resolved payment amount (Total To Pay: total + fee + vat) %s (total=%s fee=%s fee_vat=%s)", amount, quote_total, client_fee, client_fee_vat)
     charge_amount = Decimal(str(amount))
+
+    # Inline-only mode: do not call Paystack initialize. Generate a fresh
+    # reference and persist it so the client can start an inline checkout
+    # bound to this reference. This avoids duplicate-reference errors from
+    # mixing server-init with inline flows while preserving server-side
+    # acceptance and amount computation.
+    try:
+        if bool(getattr(payment_in, "inline", False)):
+            # Generate a short, unique reference. Prefix with br id for traceability
+            short = uuid.uuid4().hex[:12]
+            reference = f"br{int(getattr(booking, 'booking_request_id', 0) or 0)}_{short}"
+            # Rotate the pending reference if not yet paid
+            if str(getattr(booking, "payment_status", "")).lower() != "paid":
+                booking.payment_id = reference
+                booking.payment_status = "pending"
+                db.add(booking)
+                db.commit()
+            result = {
+                "status": "inline",
+                "reference": reference,
+                "currency": settings.DEFAULT_CURRENCY or "ZAR",
+                "amount": amount,
+            }
+            try:
+                hdr = timer.header()
+                if hdr and response is not None:
+                    response.headers['Server-Timing'] = hdr
+            except Exception:
+                pass
+            return result
+    except Exception as exc:
+        logger.error("Inline prepare error: %s", exc, exc_info=True)
+        # Fall through to server-init path
 
     # Require Paystack; no fake/direct payments path
     if not settings.PAYSTACK_SECRET_KEY:

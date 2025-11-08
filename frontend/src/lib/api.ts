@@ -1346,6 +1346,7 @@ export const createPayment =  (data: {
   booking_request_id: number;
   amount: number;
   full?: boolean;
+  inline?: boolean;
 }) => api.post(`${API_V1}/payments`, data);
 
 // ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
