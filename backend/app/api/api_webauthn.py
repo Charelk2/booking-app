@@ -22,6 +22,7 @@ from app.api.auth import (
     SECRET_KEY,
 )
 from fastapi.responses import JSONResponse
+from fastapi import Response
 
 router = APIRouter(prefix="/webauthn", tags=["auth"])
 
@@ -313,7 +314,16 @@ def authentication_verify(payload: dict, request: Request, db: Session = Depends
     access = create_access_token({"sub": user.email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     refresh, r_exp = _create_refresh_token(user.email)
     _store_refresh_token(db, user, refresh, r_exp)
-    resp = JSONResponse({"ok": True})
+    resp = Response(content=_json_dumps({"ok": True}), media_type="application/json")
     _set_access_cookie(resp, access)
     _set_refresh_cookie(resp, refresh, r_exp)
     return resp
+# Local orjson serializer
+try:
+    import orjson as _orjson  # type: ignore
+    def _json_dumps(obj) -> bytes:
+        return _orjson.dumps(obj)
+except Exception:  # pragma: no cover
+    import json as _json  # type: ignore
+    def _json_dumps(obj) -> bytes:
+        return _json.dumps(obj).encode('utf-8')

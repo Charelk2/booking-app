@@ -293,8 +293,9 @@ try:
 except Exception as _exc:
     logger.warning("Default admin bootstrap skipped: %s", _exc)
 
-_DEFAULT_RESPONSE = JSONResponse if os.getenv("OPENAPI_MINIMAL", "0") == "1" else ORJSONResponse
-app = FastAPI(title="Artist Booking API", default_response_class=_DEFAULT_RESPONSE)
+# Always use ORJSONResponse for JSON payloads to ensure consistent, fast
+# serialization across all endpoints.
+app = FastAPI(title="Artist Booking API", default_response_class=ORJSONResponse)
 setup_tracer(app)
 
 

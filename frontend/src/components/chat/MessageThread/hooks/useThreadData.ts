@@ -538,6 +538,9 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
 
   // Reaction toggle with optimistic UI + rollback on failure
   const reactionInflightRef = React.useRef<Set<string>>(new Set());
+  // For single-selection UX: remember which emojis we removed so we can restore
+  // them on rollback if the transport fails.
+  const reactionSwapRemovedRef = React.useRef<Map<string, string[]>>(new Map());
   const reactToggle = React.useCallback(
     async (messageId: number, emoji: string, hasNow: boolean) => {
       const inflightKey = `${threadId}:${messageId}:${emoji}`;
@@ -552,13 +555,39 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
             const agg: Record<string, number> = { ...(m.reactions || {}) };
             const mine = new Set<string>(m.my_reactions || []);
             const doAdd = reverse ? hasNow : !hasNow;
+            const swapKey = `${threadId}:${messageId}:${emoji}`;
             if (doAdd) {
+              // Single-selection: remove any other emoji we had on this message
+              // and adjust their counts immediately.
+              const removed: string[] = [];
+              for (const e of Array.from(mine)) {
+                if (e !== emoji) {
+                  mine.delete(e);
+                  removed.push(e);
+                  const curr = Number(agg[e] || 0) - 1;
+                  if (curr > 0) agg[e] = curr; else delete agg[e];
+                }
+              }
+              if (!reverse && removed.length) {
+                reactionSwapRemovedRef.current.set(swapKey, removed);
+              }
               mine.add(emoji);
               agg[emoji] = Number(agg[emoji] || 0) + 1;
             } else {
               if (mine.has(emoji)) mine.delete(emoji);
               const curr = Number(agg[emoji] || 0) - 1;
               if (curr > 0) agg[emoji] = curr; else delete agg[emoji];
+              // Rollback: restore any previously removed emojis for this swap
+              if (reverse) {
+                const removed = reactionSwapRemovedRef.current.get(swapKey) || [];
+                if (removed.length) {
+                  for (const e of removed) {
+                    mine.add(e);
+                    agg[e] = Number(agg[e] || 0) + 1;
+                  }
+                  reactionSwapRemovedRef.current.delete(swapKey);
+                }
+              }
             }
             next.reactions = agg;
             next.my_reactions = Array.from(mine);

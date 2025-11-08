@@ -243,8 +243,8 @@ def _paginate_offset(query, offset: int, limit: int):
     return total, items
 
 
-def _with_total(items: List[Dict[str, Any]], total: int, resource: str, start: int, end: int) -> JSONResponse:
-    resp = JSONResponse(items)
+def _with_total(items: List[Dict[str, Any]], total: int, resource: str, start: int, end: int) -> Response:
+    resp = Response(content=_json_dumps(items), media_type="application/json")
     # Expose both headers for compatibility with different RA providers
     resp.headers["Access-Control-Expose-Headers"] = "X-Total-Count, Content-Range"
     resp.headers["X-Total-Count"] = str(total)
@@ -2171,3 +2171,19 @@ def _audit(db: Session, actor_admin_id: int, entity: str, entity_id: str, action
         db.commit()
     except Exception:
         db.rollback()
+# Local orjson serializer (fallback to stdlib json)
+try:
+    import orjson as _orjson  # type: ignore
+    def _json_dumps(obj) -> bytes:  # bytes
+        return _orjson.dumps(obj)
+except Exception:  # pragma: no cover
+    import json as _json  # type: ignore
+    def _json_dumps(obj) -> bytes:
+        def _default(o):
+            if isinstance(o, datetime):
+                return o.isoformat()
+            try:
+                return str(o)
+            except Exception:
+                return None
+        return _json.dumps(obj, default=_default).encode('utf-8')

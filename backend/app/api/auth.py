@@ -75,6 +75,16 @@ except Exception:
 
 router = APIRouter(tags=["auth"])
 
+# Local orjson serializer for explicit responses
+try:
+    import orjson as _orjson  # type: ignore
+    def _json_dumps(obj) -> bytes:
+        return _orjson.dumps(obj)
+except Exception:  # pragma: no cover
+    import json as _json  # type: ignore
+    def _json_dumps(obj) -> bytes:
+        return _json.dumps(obj).encode('utf-8')
+
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "a_default_fallback_secret_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
@@ -392,7 +402,7 @@ def login(
         },
         "refresh_token": refresh_token,
     }
-    resp = JSONResponse(payload)
+    resp = Response(content=_json_dumps(payload), media_type="application/json")
     _set_access_cookie(resp, access_token)
     _set_refresh_cookie(resp, refresh_token, r_exp)
     # Prevent any intermediary from caching or normalizing this Set-Cookie response
@@ -504,7 +514,7 @@ def verify_mfa(data: MFAVerify, db: Session = Depends(get_db)):
         },
         "refresh_token": refresh_token,
     }
-    resp = JSONResponse(payload)
+    resp = Response(content=_json_dumps(payload), media_type="application/json")
     _set_access_cookie(resp, access_token)
     _set_refresh_cookie(resp, refresh_token, r_exp)
     # Set non-HttpOnly device cookie to help future requests include device id even without JS
@@ -757,7 +767,7 @@ def refresh_token(
                 # Issue a fresh access token and set the current refresh cookie to the latest value
                 access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
                 payload = {"access_token": access, "token_type": "bearer", "refresh_token": mapped}
-                resp = JSONResponse(payload)
+                resp = Response(content=_json_dumps(payload), media_type="application/json")
                 _set_access_cookie(resp, access)
                 # Use DB expiry; if missing, default to configured days
                 exp = user.refresh_token_expires_at or (datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
@@ -783,7 +793,7 @@ def refresh_token(
     # Issue a fresh access token
     access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     payload = {"access_token": access, "token_type": "bearer", "refresh_token": new_refresh}
-    resp = JSONResponse(payload)
+    resp = Response(content=_json_dumps(payload), media_type="application/json")
     _set_access_cookie(resp, access)
     _set_refresh_cookie(resp, new_refresh, r_exp)
     try:
@@ -804,7 +814,7 @@ def logout(
     current_user.refresh_token_hash = None
     current_user.refresh_token_expires_at = None
     db.commit()
-    resp = JSONResponse({"message": "logged out"})
+    resp = Response(content=_json_dumps({"message": "logged out"}), media_type="application/json")
     _clear_auth_cookies(resp)
     try:
         resp.headers["Cache-Control"] = "no-store"

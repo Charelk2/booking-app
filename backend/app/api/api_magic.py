@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -24,6 +23,16 @@ from .auth import (
 )
 
 router = APIRouter(tags=["auth"])
+
+# Local orjson serializer
+try:
+    import orjson as _orjson  # type: ignore
+    def _json_dumps(obj) -> bytes:
+        return _orjson.dumps(obj)
+except Exception:  # pragma: no cover
+    import json as _json  # type: ignore
+    def _json_dumps(obj) -> bytes:
+        return _json.dumps(obj).encode('utf-8')
 
 
 class MagicLinkRequest(BaseModel):
@@ -91,8 +100,7 @@ def consume_magic_link(data: MagicLinkConsume, db: Session = Depends(get_db)):
     access = jwt.encode({"sub": user.email, "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)}, SECRET_KEY, algorithm=ALGORITHM)
     refresh, r_exp = _create_refresh_token(user.email)
     _store_refresh_token(db, user, refresh, r_exp)
-    resp = JSONResponse({"ok": True, "next": next_url or settings.FRONTEND_URL})
+    resp = Response(content=_json_dumps({"ok": True, "next": next_url or settings.FRONTEND_URL}), media_type="application/json")
     _set_access_cookie(resp, access)
     _set_refresh_cookie(resp, refresh, r_exp)
     return resp
-

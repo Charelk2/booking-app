@@ -1060,10 +1060,11 @@ def read_messages_batch(
     elif etag:
         headers["ETag"] = etag
     try:
-        from fastapi.responses import JSONResponse
-        return JSONResponse(content=envelope, headers=headers)
+        body = _json_dumps(envelope)
+        return Response(content=body, media_type="application/json", headers=headers)
     except Exception:
-        return envelope
+        # Last-resort fallback
+        return Response(content=_json_dumps({"mode": mode, "threads": threads_out, "payload_bytes": 0}), media_type="application/json", headers=headers)
 
 
 @router.put("/booking-requests/{request_id}/messages/read")

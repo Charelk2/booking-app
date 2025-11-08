@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, Depends, status, HTTPException
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse
+from fastapi import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -526,7 +527,7 @@ async def google_onetap(request: Request, db: Session = Depends(get_db)):
     db.refresh(user)
 
     # Optionally remember trusted device (skip MFA for password logins)
-    resp = JSONResponse({"ok": True})
+    resp = Response(content=_json_dumps({"ok": True}), media_type="application/json")
     if device_id and isinstance(device_id, str) and len(device_id) <= 255:
         try:
             existing = (
@@ -723,3 +724,19 @@ async def apple_callback(request: Request, db: Session = Depends(get_db)):
     _set_access_cookie(resp, access_token)
     _set_refresh_cookie(resp, refresh_token, r_exp)
     return resp
+# Local orjson serializer (fallback to stdlib json)
+try:
+    import orjson as _orjson  # type: ignore
+    def _json_dumps(obj) -> bytes:
+        return _orjson.dumps(obj)
+except Exception:  # pragma: no cover
+    import json as _json  # type: ignore
+    def _json_dumps(obj) -> bytes:
+        def _default(o):
+            if isinstance(o, datetime):
+                return o.isoformat()
+            try:
+                return str(o)
+            except Exception:
+                return None
+        return _json.dumps(obj, default=_default).encode('utf-8')

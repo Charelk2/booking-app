@@ -401,7 +401,7 @@ def get_threads_preview(
 
 # ---- /threads (unified index) -----------------------------------------------
 
-@router.get("/threads", response_model=ThreadsIndexResponse, responses={304: {"description": "Not Modified"}})
+@router.get("/threads", response_model=None, responses={304: {"description": "Not Modified"}})
 def get_threads_index(
     response: Response,
     role: Optional[str] = Query(None, regex="^(artist|client)$"),
@@ -509,14 +509,32 @@ def get_threads_index(
             "Vary": "If-None-Match, X-After-Write",
         })
 
-    try:
-        response.headers["ETag"] = etag_final
-        response.headers["Cache-Control"] = "no-cache, private"
-        response.headers["Vary"] = "If-None-Match, X-After-Write"
-    except Exception:
-        pass
-
-    return ThreadsIndexResponse(items=items, next_cursor=None)
+    payload = {
+        "items": [
+            {
+                "thread_id": it.thread_id,
+                "booking_request_id": it.booking_request_id,
+                "state": it.state,
+                "counterparty_name": it.counterparty_name,
+                "counterparty_avatar_url": it.counterparty_avatar_url,
+                "last_message_snippet": it.last_message_snippet,
+                "last_message_at": it.last_message_at,
+                "unread_count": it.unread_count,
+                "meta": it.meta,
+                "preview_key": getattr(it, "preview_key", None),
+                "preview_args": getattr(it, "preview_args", None),
+            }
+            for it in items
+        ],
+        "next_cursor": None,
+    }
+    headers = {
+        "ETag": etag_final,
+        "Cache-Control": "no-cache, private",
+        "Vary": "If-None-Match, X-After-Write",
+    }
+    body = _json_dumps(payload)
+    return Response(content=body, media_type="application/json", headers=headers)
 
 
 # ---- /message-threads/ensure-booka-thread -----------------------------------
@@ -750,7 +768,7 @@ class InboxUnreadResponse(BaseModel):
     total: int
 
 
-@router.get("/inbox/unread", response_model=InboxUnreadResponse, responses={304: {"description": "Not Modified"}})
+@router.get("/inbox/unread", response_model=None, responses={304: {"description": "Not Modified"}})
 def get_inbox_unread(
     response: Response,
     if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
@@ -773,10 +791,13 @@ def get_inbox_unread(
             "Vary": "If-None-Match, X-After-Write",
         })
 
-    response.headers["ETag"] = etag_value
-    response.headers["Cache-Control"] = "no-cache, private"
-    response.headers["Vary"] = "If-None-Match, X-After-Write"
-    return InboxUnreadResponse(total=int(total))
+    payload = {"total": int(total)}
+    headers = {
+        "ETag": etag_value,
+        "Cache-Control": "no-cache, private",
+        "Vary": "If-None-Match, X-After-Write",
+    }
+    return Response(content=_json_dumps(payload), media_type="application/json", headers=headers)
 
 
 # ---- Realtime: Server-Sent Events (SSE) -------------------------------------
