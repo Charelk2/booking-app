@@ -548,7 +548,7 @@ def create_payment(
                 response.headers['Server-Timing'] = hdr
         except Exception:
             pass
-        return {"data": result}
+        return result
     except Exception as exc:
         logger.error("Paystack init error: %s", exc, exc_info=True)
         raise error_response("Payment initialization failed", {}, status.HTTP_502_BAD_GATEWAY)

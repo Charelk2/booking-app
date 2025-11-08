@@ -819,14 +819,16 @@ export default function MessageThreadWrapper({
                 const feeVat = Number.isFinite(Number(quote?.booka_fee_vat_preview))
                   ? Number(quote?.booka_fee_vat_preview)
                   : Math.round(fee * 0.15 * 100) / 100;
-                const clientTotal = Number.isFinite(Number(quote?.client_total_preview))
+                const computed = Number.isFinite(Number(quote?.client_total_preview))
                   ? Number(quote?.client_total_preview)
                   : Math.round(((Number(quote?.total || 0)) + fee + feeVat) * 100) / 100;
+                const amount = Number.isFinite(computed) && computed > 0 ? computed : Number(quote?.total || 0) || 0;
                 const provider = bookingRequest?.artist_profile?.business_name || (bookingRequest as any)?.artist?.first_name || 'Service Provider';
                 const serviceName = bookingRequest?.service?.title || undefined;
-                if (clientTotal > 0) openPaymentModal({
+                // Always invoke payment; backend computes authoritative amount and will 422 if invalid
+                openPaymentModal({
                   bookingRequestId,
-                  amount: clientTotal,
+                  amount,
                   providerName: String(provider),
                   serviceName: serviceName as any,
                   customerEmail: (user as any)?.email || undefined,
