@@ -64,7 +64,7 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
     label: opts.label,
     channels: opts.channels,
     metadata: opts.metadata,
-    callback: (response) => {
+    callback: (response: { reference?: string }) => {
       // response.reference is your ref
       if (response?.reference) opts.onSuccess(response.reference);
     },
