@@ -8,6 +8,8 @@ import { RealtimeProvider } from '@/contexts/chat/RealtimeContext';
 import MobileTelemetry from '@/components/analytics/MobileTelemetry';
 import RouteProgress from '@/components/layout/RouteProgress';
 import './globals.css';
+// Base styles for react-phone-number-input components (import once globally)
+import 'react-phone-number-input/style.css';
 
 
 const inter = Inter({
