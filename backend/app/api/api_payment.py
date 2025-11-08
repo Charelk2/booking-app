@@ -309,6 +309,7 @@ def create_payment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_client),
     background_tasks: BackgroundTasks = BackgroundTasks(),
+    response: Response = None,
 ):
     logger.info(
         "Process payment for request %s amount %s full=%s",
@@ -317,22 +318,27 @@ def create_payment(
         payment_in.full,
     )
     t_start_direct = time.perf_counter()
+    timer = ServerTimer()
 
+    t0_db = ServerTimer.start()
     booking = (
         db.query(BookingSimple)
         .join(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
         .filter(QuoteV2.booking_request_id == payment_in.booking_request_id)
         .first()
     )
+    timer.stop('db', t0_db)
     if not booking:
         # Accept-and-create on first payment attempt so clients can pay immediately after a quote is sent.
         # Find the most recent quote for this request (prefer PENDING, fallback to ACCEPTED if already accepted elsewhere).
+        t0_db2 = ServerTimer.start()
         candidate = (
             db.query(QuoteV2)
             .filter(QuoteV2.booking_request_id == payment_in.booking_request_id)
             .order_by(QuoteV2.id.desc())
             .first()
         )
+        timer.stop('db', t0_db2)
         if candidate is not None:
             status_val = getattr(candidate.status, "value", candidate.status)
             # Block paying expired quotes (and those past expiry unless already accepted)
@@ -368,11 +374,13 @@ def create_payment(
                         status.HTTP_422_UNPROCESSABLE_ENTITY,
                     )
             # Re-query booking after acceptance or if already accepted
+            t0_db3 = ServerTimer.start()
             booking = (
                 db.query(BookingSimple)
                 .filter(BookingSimple.quote_id == candidate.id)
                 .first()
             )
+            timer.stop('db', t0_db3)
         if not booking:
             logger.warning(
                 "Booking not found for request %s", payment_in.booking_request_id
@@ -503,10 +511,12 @@ def create_payment(
         }
         if callback:
             payload["callback_url"] = callback
+        t0_ext = ServerTimer.start()
         with httpx.Client(timeout=10.0) as client:
             r = client.post("https://api.paystack.co/transaction/initialize", json=payload, headers=headers)
             r.raise_for_status()
             data = r.json().get("data", {})
+        timer.stop('ext', t0_ext)
         auth_url = data.get("authorization_url")
         reference = data.get("reference")
         access_code = data.get("access_code")
@@ -525,13 +535,20 @@ def create_payment(
             db.commit()
         except Exception:
             db.rollback()
-        return {
+        result = {
             "status": "redirect",
             "authorization_url": auth_url,
             "reference": reference,
             "payment_id": reference,
             "access_code": access_code,
         }
+        try:
+            hdr = timer.header()
+            if hdr and response is not None:
+                response.headers['Server-Timing'] = hdr
+        except Exception:
+            pass
+        return result
     except Exception as exc:
         logger.error("Paystack init error: %s", exc, exc_info=True)
         raise error_response("Payment initialization failed", {}, status.HTTP_502_BAD_GATEWAY)
@@ -543,6 +560,7 @@ def paystack_verify(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_client),
     background_tasks: BackgroundTasks = BackgroundTasks(),
+    response: Response = None,
 ):
     if not settings.PAYSTACK_SECRET_KEY:
         raise error_response("Paystack not configured", {}, status.HTTP_400_BAD_REQUEST)
@@ -551,11 +569,14 @@ def paystack_verify(
         "Content-Type": "application/json",
     }
     t_start_verify = time.perf_counter()
+    timer = ServerTimer()
     try:
+        t0_ext = ServerTimer.start()
         with httpx.Client(timeout=10.0) as client:
             r = client.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
             r.raise_for_status()
             data = r.json().get("data", {})
+        timer.stop('ext', t0_ext)
         status_str = str(data.get("status", "")).lower()
         amount_kobo = int(data.get("amount", 0) or 0)
         amount = Decimal(str(amount_kobo / 100.0))
@@ -567,7 +588,9 @@ def paystack_verify(
         raise error_response("Payment not successful", {"status": status_str}, status.HTTP_400_BAD_REQUEST)
 
     # Resolve booking via stored reference; fallback to metadata mapping
+    t0_db = ServerTimer.start()
     simple = db.query(BookingSimple).filter(BookingSimple.payment_id == reference).first()
+    timer.stop('db', t0_db)
     if not simple:
         # Attempt to reconcile using Paystack metadata
         meta = data.get("metadata") if isinstance(data, dict) else None
@@ -583,11 +606,13 @@ def paystack_verify(
             except Exception:
                 br_id = None
         if br_id:
+            t0_db2 = ServerTimer.start()
             cand = (
                 db.query(BookingSimple)
                 .filter(BookingSimple.booking_request_id == br_id)
                 .first()
             )
+            timer.stop('db', t0_db2)
             if cand and getattr(cand, "client_id", None) == getattr(current_user, "id", None):
                 cand.payment_id = reference
                 db.add(cand)
@@ -609,17 +634,23 @@ def paystack_verify(
         br = simple.quote.booking_request
         if br.status != BookingStatus.REQUEST_CONFIRMED:
             br.status = BookingStatus.REQUEST_CONFIRMED
+    t0_db3 = ServerTimer.start()
     formal_booking = db.query(Booking).filter(Booking.quote_id == simple.quote_id).first()
+    timer.stop('db', t0_db3)
     # Enforce payment = acceptance: ensure a formal Booking exists. If quote is still pending, accept now (idempotent).
     try:
         if formal_booking is None and getattr(simple, "quote_id", None):
+            t0_db4 = ServerTimer.start()
             qv2 = db.query(QuoteV2).filter(QuoteV2.id == simple.quote_id).first()
+            timer.stop('db', t0_db4)
             if qv2 is not None:
                 status_val = getattr(qv2.status, "value", qv2.status)
                 if str(status_val).lower() == "pending":
                     try:
                         crud_quote_v2.accept_quote(db, int(qv2.id))
+                        t0_db5 = ServerTimer.start()
                         formal_booking = db.query(Booking).filter(Booking.quote_id == qv2.id).first()
+                        timer.stop('db', t0_db5)
                     except Exception as exc:
                         logger.error("Quote accept during verify failed for quote %s: %s", qv2.id, exc, exc_info=True)
     except Exception:
@@ -865,7 +896,14 @@ def paystack_verify(
             background_tasks.add_task(_background_generate_receipt_pdf, str(simple.payment_id))
     except Exception:
         logger.debug("schedule receipt pdf failed (verify)", exc_info=True)
-    return {"status": "ok", "payment_id": simple.payment_id}
+    result = {"status": "ok", "payment_id": simple.payment_id}
+    try:
+        hdr = timer.header()
+        if hdr and response is not None:
+            response.headers['Server-Timing'] = hdr
+    except Exception:
+        pass
+    return result
 
 
 ## Removed plaintext receipt endpoint; PDF receipt (ReportLab-only) implemented below.
