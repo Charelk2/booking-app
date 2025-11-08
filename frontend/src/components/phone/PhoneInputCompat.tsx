@@ -16,6 +16,9 @@ export type PhoneInputProps = {
   international?: boolean;
   addInternationalOption?: boolean;
   disabled?: boolean;
+  // Optional flags mapping to bundle icons locally and avoid external CDN.
+  // Usage: import flags from 'react-phone-number-input/flags'; <PhoneInput flags={flags} />
+  flags?: any;
   numberInputProps?: React.InputHTMLAttributes<HTMLInputElement> & Record<string, any>;
   className?: string;
 };

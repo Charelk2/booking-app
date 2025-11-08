@@ -2,6 +2,9 @@
 
 import React from 'react';
 import PhoneInput, { type PhoneInputProps } from '@/components/phone/PhoneInputCompat';
+// Bundle flags locally to avoid loading from external CDN.
+// This prevents failures when github.io is blocked by network/CSP.
+import flags from 'react-phone-number-input/flags';
 
 type Props = {
   id?: string;
@@ -42,6 +45,7 @@ export default function PhoneNumberField({
           defaultCountry="ZA"
           countries={['ZA']}             // ZA only
           addInternationalOption={false} // lock to +27
+          flags={flags}
           value={value}
           onChange={onChange}
           disabled={disabled}
