@@ -180,15 +180,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       // Cache reference for adjacent views that may try to build receipt URLs optimistically
       try { localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, reference); } catch {}
 
-      // Already paid?
-      if (!authorizationUrl) {
-        const paymentId: string | undefined = data?.payment_id || data?.id || reference;
-        const receiptUrl = paymentId ? `/receipts/${paymentId}` : undefined;
-        if (receiptUrl) safeSet(rcptKey(bookingRequestId), receiptUrl);
-        finishSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl });
-        return;
-      }
-
+      // Note: Do NOT assume missing authorizationUrl means "already paid".
+      // We can still open Inline using the server-generated reference.
       setPaystackReference(reference);
 
       // 2) Inline preferred (if email present); otherwise hosted fallback
