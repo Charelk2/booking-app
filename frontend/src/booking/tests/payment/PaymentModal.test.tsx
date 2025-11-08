@@ -47,7 +47,7 @@ describe('PaymentModal (inline only)', () => {
 
     // Inline was invoked with ZAR and subunits via openPaystackInline
     expect(openPaystackInline).toHaveBeenCalled();
-    expect(api.createPayment).toHaveBeenCalledWith({ booking_request_id: 45, amount: 500, full: true });
+    expect(api.createPayment).toHaveBeenCalledWith(expect.objectContaining({ booking_request_id: 45, amount: 500, full: true }));
 
     // Verify completes immediately (global.fetch returns ok=true with empty JSON → falls back to reference)
     await act(async () => {});
@@ -141,5 +141,51 @@ describe('PaymentModal (inline only)', () => {
     expect(div.textContent).toContain('Could not open Paystack popup. Please try again.');
     act(() => { root.unmount(); });
   });
-});
 
+  it('opens inline when server returns inline status (no authorization_url)', async () => {
+    // Server indicates inline-only path: provide a reference but no hosted URL
+    (api.createPayment as jest.Mock).mockResolvedValue({
+      data: { status: 'inline', reference: 'ref_inline' },
+    });
+
+    const onSuccess = jest.fn();
+    const div = document.createElement('div');
+    const root = createRoot(div);
+
+    // Prevent any accidental hosted fallback
+    const wOpen = jest.spyOn(window, 'open').mockImplementation(() => null as any);
+    // Allow verify to succeed immediately
+    const fetchSpy = jest.spyOn(global as any, 'fetch').mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+
+    await act(async () => {
+      root.render(
+        <PaymentModal
+          open
+          onClose={() => {}}
+          bookingRequestId={77}
+          amount={250}
+          customerEmail="inline@example.com"
+          onSuccess={onSuccess}
+          onError={() => {}}
+        />
+      );
+    });
+
+    // Inline was invoked
+    expect(openPaystackInline).toHaveBeenCalled();
+    // No hosted fallback attempted
+    expect(wOpen).not.toHaveBeenCalled();
+
+    // Let verify complete
+    await act(async () => {});
+    expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'paid',
+      amount: 250,
+      paymentId: 'ref_inline',
+    }));
+
+    wOpen.mockRestore();
+    fetchSpy.mockRestore();
+    act(() => { root.unmount(); });
+  });
+});

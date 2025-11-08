@@ -718,75 +718,36 @@ def paystack_verify(
 
     if br:
         try:
-            # Build role-scoped messages (no receipt URL leak in BOTH)
+            # Build single BOTH-visible message. Include receipt URL inline so the
+            # client renderer can show an underlined "View receipt" without a
+            # separate client-only message. Providers will render a payout link.
             receipt_url = f"{FRONTEND_PRIMARY}/receipts/{simple.payment_id}" if simple.payment_id else None
             k_both = f"payment_confirmed:{simple.payment_id}" if simple.payment_id else "payment_confirmed"
-            k_client = f"payment_receipt_link:{simple.payment_id}" if simple.payment_id else "payment_receipt_link"
-            k_provider = f"payment_provider_notice:{simple.payment_id}" if simple.payment_id else "payment_provider_notice"
 
             created_msgs: list[models.Message] = []
 
-            # BOTH-visible confirmation
+            # BOTH-visible confirmation (with embedded receipt URL when available)
             exists_both = (
                 db.query(models.Message)
                 .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_both)
                 .first()
             )
             if not exists_both:
+                content_text = (
+                    f"Payment received. Booking confirmed. Receipt: {receipt_url}"
+                    if receipt_url
+                    else "Payment received. Booking confirmed."
+                )
                 m = crud.crud_message.create_message(
                     db=db,
                     booking_request_id=br.id,
                     sender_id=simple.artist_id,
                     sender_type=SenderType.ARTIST,
-                    content="Payment received. Booking confirmed.",
+                    content=content_text,
                     message_type=MessageType.SYSTEM,
                     visible_to=VisibleTo.BOTH,
                     action=None,
                     system_key=k_both,
-                )
-                db.commit()
-                created_msgs.append(m)
-
-            # CLIENT-only receipt link
-            if receipt_url:
-                exists_client = (
-                    db.query(models.Message)
-                    .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_client)
-                    .first()
-                )
-                if not exists_client:
-                    m = crud.crud_message.create_message(
-                        db=db,
-                        booking_request_id=br.id,
-                        sender_id=simple.artist_id,
-                        sender_type=SenderType.ARTIST,
-                        content=f"Receipt: {receipt_url}",
-                        message_type=MessageType.SYSTEM,
-                        visible_to=VisibleTo.CLIENT,
-                        action=None,
-                        attachment_url=receipt_url,
-                        system_key=k_client,
-                    )
-                    db.commit()
-                    created_msgs.append(m)
-
-            # PROVIDER-only payout notice
-            exists_provider = (
-                db.query(models.Message)
-                .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_provider)
-                .first()
-            )
-            if not exists_provider:
-                m = crud.crud_message.create_message(
-                    db=db,
-                    booking_request_id=br.id,
-                    sender_id=simple.artist_id,
-                    sender_type=SenderType.ARTIST,
-                    content="Client payment confirmed — first payout (50%) processing.",
-                    message_type=MessageType.SYSTEM,
-                    visible_to=VisibleTo.ARTIST,
-                    action=None,
-                    system_key=k_provider,
                 )
                 db.commit()
                 created_msgs.append(m)
@@ -1110,11 +1071,9 @@ async def paystack_webhook(
 
     if br:
         try:
-            # Role-scoped messages for webhook path
+            # Role-agnostic single message for webhook path; embed receipt URL
             receipt_url = f"{FRONTEND_PRIMARY}/receipts/{simple.payment_id}" if simple.payment_id else None
             k_both = f"payment_confirmed:{simple.payment_id}" if simple.payment_id else "payment_confirmed"
-            k_client = f"payment_receipt_link:{simple.payment_id}" if simple.payment_id else "payment_receipt_link"
-            k_provider = f"payment_provider_notice:{simple.payment_id}" if simple.payment_id else "payment_provider_notice"
 
             created_msgs: list[models.Message] = []
 
@@ -1124,57 +1083,21 @@ async def paystack_webhook(
                 .first()
             )
             if not exists_both:
+                content_text = (
+                    f"Payment received. Booking confirmed. Receipt: {receipt_url}"
+                    if receipt_url
+                    else "Payment received. Booking confirmed."
+                )
                 m = crud.crud_message.create_message(
                     db=db,
                     booking_request_id=br.id,
                     sender_id=simple.artist_id,
                     sender_type=SenderType.ARTIST,
-                    content="Payment received. Booking confirmed.",
+                    content=content_text,
                     message_type=MessageType.SYSTEM,
                     visible_to=VisibleTo.BOTH,
                     action=None,
                     system_key=k_both,
-                )
-                db.commit()
-                created_msgs.append(m)
-
-            if receipt_url:
-                exists_client = (
-                    db.query(models.Message)
-                    .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_client)
-                    .first()
-                )
-                if not exists_client:
-                    m = crud.crud_message.create_message(
-                        db=db,
-                        booking_request_id=br.id,
-                        sender_id=simple.artist_id,
-                        sender_type=SenderType.ARTIST,
-                        content=f"Receipt: {receipt_url}",
-                        message_type=MessageType.SYSTEM,
-                        visible_to=VisibleTo.CLIENT,
-                        action=None,
-                        system_key=k_client,
-                    )
-                    db.commit()
-                    created_msgs.append(m)
-
-            exists_provider = (
-                db.query(models.Message)
-                .filter(models.Message.booking_request_id == br.id, models.Message.system_key == k_provider)
-                .first()
-            )
-            if not exists_provider:
-                m = crud.crud_message.create_message(
-                    db=db,
-                    booking_request_id=br.id,
-                    sender_id=simple.artist_id,
-                    sender_type=SenderType.ARTIST,
-                    content="Client payment confirmed — first payout (50%) processing.",
-                    message_type=MessageType.SYSTEM,
-                    visible_to=VisibleTo.ARTIST,
-                    action=None,
-                    system_key=k_provider,
                 )
                 db.commit()
                 created_msgs.append(m)
