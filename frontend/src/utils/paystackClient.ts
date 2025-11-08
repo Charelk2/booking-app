@@ -32,6 +32,7 @@ export type OpenInlineOptions = {
   amountMajor: number;        // amount in major units (e.g. 5000 == NGN 5000)
   currency?: string;          // default: NGN
   reference: string;          // server init reference (binds popup to init txn)
+  accessCode?: string;        // server init access_code; prefer this over ref to avoid duplicate init
   label?: string;
   channels?: string[];        // e.g. ["card", "bank", "ussd"]
   metadata?: Record<string, any>;
@@ -60,7 +61,6 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
     key: PAYSTACK_PUBLIC_KEY,
     email: opts.email,
     currency,
-    ref: opts.reference,
     label: opts.label,
     channels: opts.channels,
     metadata: opts.metadata,
@@ -72,6 +72,13 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
       opts.onClose();
     },
   };
+  // Prefer using server-provided access_code to attach to existing initialized transaction.
+  // If not available, fall back to client-side initialization using a unique ref.
+  if (opts.accessCode) {
+    config.access_code = opts.accessCode;
+  } else {
+    config.ref = opts.reference;
+  }
 
   // Always include amount to satisfy inline validation; avoid duplicate issues by NOT sending `ref` when using access_code.
   config.amount = amountInSubunits;

@@ -195,6 +195,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             currency,
             // Bind popup to the server-initialized transaction reference
             reference: reference,
+            accessCode: accessCode,
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
             metadata: { bookingRequestId, source: 'web_inline' },
             // Verify with the initialization reference we stored (DB payment_id)
