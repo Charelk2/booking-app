@@ -1745,11 +1745,16 @@ def add_reaction(
     msg = db.query(models.Message).filter(models.Message.id == message_id).first()
     if not msg or msg.booking_request_id != request_id:
         raise error_response("Message not found", {"message_id": "not_found"}, status.HTTP_404_NOT_FOUND)
-    crud.crud_message_reaction.add_reaction(db, message_id, current_user.id, payload.emoji)
-    # Broadcast minimal reaction update
+    # Replace existing reaction(s) from this user with the new emoji
+    removed, added = crud.crud_message_reaction.set_reaction(db, message_id, current_user.id, payload.emoji)
+    # Broadcast removals first, then addition
     try:
-        data = {"v": 1, "type": "reaction_added", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
-        background_tasks.add_task(manager.broadcast, request_id, data)
+        for old in removed:
+            evt = {"v": 1, "type": "reaction_removed", "payload": {"message_id": message_id, "emoji": old, "user_id": current_user.id}}
+            background_tasks.add_task(manager.broadcast, request_id, evt)
+        if added:
+            evt = {"v": 1, "type": "reaction_added", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
+            background_tasks.add_task(manager.broadcast, request_id, evt)
     except Exception:
         pass
     return

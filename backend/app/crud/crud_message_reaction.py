@@ -21,13 +21,14 @@ def add_reaction(db: Session, message_id: int, user_id: int, emoji: str) -> bool
     db.add(rec)
     try:
         db.commit()
+        return True
     except Exception:
         # Handle unique race or transient DB errors gracefully
         try:
             db.rollback()
         except Exception:
             pass
-    return True
+        return False
 
 
 def remove_reaction(db: Session, message_id: int, user_id: int, emoji: str) -> bool:
@@ -40,8 +41,69 @@ def remove_reaction(db: Session, message_id: int, user_id: int, emoji: str) -> b
         )
     )
     count = q.delete()
-    db.commit()
-    return count > 0
+    try:
+        db.commit()
+        return count > 0
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return False
+
+
+def set_reaction(db: Session, message_id: int, user_id: int, emoji: str) -> tuple[list[str], bool]:
+    """Replace any existing reaction(s) for (message_id, user_id) with the given emoji.
+
+    Returns (removed_emojis, added)
+      - removed_emojis: list of emojis that were removed (could be empty)
+      - added: True if a new record for the target emoji was inserted (False if it already existed)
+    """
+    # Load all existing reactions for this user on this message
+    rows = (
+        db.query(models.MessageReaction)
+        .filter(
+            models.MessageReaction.message_id == message_id,
+            models.MessageReaction.user_id == user_id,
+        )
+        .all()
+    )
+
+    removed: list[str] = []
+    has_target = False
+    for r in rows:
+        if str(r.emoji) == str(emoji):
+            has_target = True
+        else:
+            removed.append(str(r.emoji))
+
+    # Delete all non-target emojis in one go
+    if removed:
+        (
+            db.query(models.MessageReaction)
+            .filter(
+                models.MessageReaction.message_id == message_id,
+                models.MessageReaction.user_id == user_id,
+                models.MessageReaction.emoji.in_(removed),
+            )
+            .delete(synchronize_session=False)
+        )
+
+    added = False
+    if not has_target:
+        db.add(models.MessageReaction(message_id=message_id, user_id=user_id, emoji=emoji))
+        added = True
+
+    try:
+        db.commit()
+        return removed, added
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        # Signal no change on failure
+        return [], False
 
 
 def get_reaction_aggregates(db: Session, message_ids: list[int]):
