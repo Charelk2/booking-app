@@ -32,7 +32,6 @@ export type OpenInlineOptions = {
   amountMajor: number;        // amount in major units (e.g. 5000 == NGN 5000)
   currency?: string;          // default: NGN
   reference: string;          // server init reference (binds popup to init txn)
-  accessCode?: string;        // server init access_code; prefer this over ref to avoid duplicate init
   label?: string;
   channels?: string[];        // e.g. ["card", "bank", "ussd"]
   metadata?: Record<string, any>;
@@ -55,8 +54,9 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
   // Convert to the smallest unit expected by Paystack (kobo for NGN)
   const amountInSubunits = Math.round(opts.amountMajor * 100);
 
-  // Bind popup to the server-initialized transaction via `ref`.
-  // Do not attempt to use access_code here — Paystack Inline expects `ref`.
+  // Avoid passing a fixed `ref` here to prevent duplicate-reference errors when
+  // the transaction has already been initialized server-side. Let Paystack
+  // generate a fresh reference and return it via the callback.
   const config: any = {
     key: PAYSTACK_PUBLIC_KEY,
     email: opts.email,
@@ -72,15 +72,7 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
       opts.onClose();
     },
   };
-  // Prefer using server-provided access_code to attach to existing initialized transaction.
-  // If not available, fall back to client-side initialization using a unique ref.
-  if (opts.accessCode) {
-    config.access_code = opts.accessCode;
-  } else {
-    config.ref = opts.reference;
-  }
-
-  // Always include amount to satisfy inline validation; avoid duplicate issues by NOT sending `ref` when using access_code.
+  // Always include amount to satisfy inline validation.
   config.amount = amountInSubunits;
 
   const handler = window.PaystackPop!.setup(config);

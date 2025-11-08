@@ -174,7 +174,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const data = res?.data || {};
       const reference: string = String(data?.reference || data?.payment_id || '').trim();
       const authorizationUrl: string | undefined = data?.authorization_url || data?.authorizationUrl;
-      const accessCode: string | undefined = data?.access_code || data?.accessCode;
+      const accessCode: string | undefined = data?.access_code || data?.accessCode; // not used (inline avoids ref/access_code)
 
       if (!reference) throw new Error('Payment reference missing');
       // Cache reference for adjacent views that may try to build receipt URLs optimistically
@@ -195,11 +195,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             currency,
             // Bind popup to the server-initialized transaction reference
             reference: reference,
-            accessCode: accessCode,
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
-            metadata: { bookingRequestId, source: 'web_inline' },
+            // Use snake_case key so backend verify/webhook can reconcile by metadata
+            metadata: { booking_request_id: bookingRequestId, source: 'web_inline' },
             // Verify with the initialization reference we stored (DB payment_id)
-            onSuccess: (_cbRef) => startVerifyLoop(reference),
+            onSuccess: (cbRef) => startVerifyLoop(cbRef || reference),
             onClose: () => {
               // Hosted fallback to avoid inline runtime issues (e.g., Paystack UI errors)
               if (authorizationUrl) {
