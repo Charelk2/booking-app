@@ -54,13 +54,13 @@ export async function openPaystackInline(opts: OpenInlineOptions): Promise<void>
   // Convert to the smallest unit expected by Paystack (kobo for NGN)
   const amountInSubunits = Math.round(opts.amountMajor * 100);
 
-  // Avoid passing a fixed `ref` here to prevent duplicate-reference errors when
-  // the transaction has already been initialized server-side. Let Paystack
-  // generate a fresh reference and return it via the callback.
   const config: any = {
     key: PAYSTACK_PUBLIC_KEY,
     email: opts.email,
     currency,
+    // Bind popup to the intended transaction reference when using inline-only flows
+    // or server did not provide a hosted authorization_url.
+    ref: opts.reference,
     label: opts.label,
     channels: opts.channels,
     metadata: opts.metadata,

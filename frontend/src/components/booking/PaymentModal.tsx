@@ -62,7 +62,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   amount,
   serviceName: _unusedServiceName,
   // Disable inline by default to avoid duplicate reference errors; use hosted checkout
-  preferInline = false,
+  preferInline = true,
   customerEmail,
   currency = 'ZAR',
   autoStart = true,
@@ -227,7 +227,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           return;
         }
       }
-
       // Hosted fallback when inline is not available or email invalid
       if (authorizationUrl) {
         try { window.open(authorizationUrl, '_blank'); } catch {}
