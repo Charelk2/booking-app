@@ -403,7 +403,7 @@ export default function AuthPage() {
           <header className="text-left">
             <h1 className="text-2xl font-bold tracking-tight">Welcome</h1>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              Sign in or create an account to access bookings, messages, and payments.
+              Sign in or create an account.
             </p>
             <p ref={liveRef} aria-live="polite" className="sr-only" />
           </header>
@@ -446,7 +446,7 @@ export default function AuthPage() {
                   id="si-email"
                   type="email"
                   label="Email address"
-                  placeholder="you@company.com"
+                  placeholder="youw@ntobooka.co.za"
                   autoComplete="username email"
                   registration={regSignIn('email', {
                     required: 'Email is required',
