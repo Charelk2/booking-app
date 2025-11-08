@@ -161,10 +161,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     setError(null);
     setPaystackReference(null);
 
-    if (!PAYSTACK_ENABLED) {
-      finishError('Paystack is not enabled.');
-      return;
-    }
+    // Do not gate on env; rely on backend configuration to decide availability
 
     try {
       // 1) Backend init: get reference + authorization_url

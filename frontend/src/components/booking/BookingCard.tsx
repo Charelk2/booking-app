@@ -51,18 +51,34 @@ export default function BookingCard({
       </div>
       {children}
       <div className="mt-4 flex flex-wrap items-center space-x-2">
-        {actions.map((a) => (
-          <a
-            key={a.label}
-            href={a.href ?? '#'}
-            onClick={a.onClick}
-            aria-label={a.ariaLabel}
-            data-testid={a.dataTestId}
-            className={`inline-flex items-center px-3 py-1.5 mx-1 rounded-full text-sm font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 ${a.primary ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-          >
-            {a.label}
-          </a>
-        ))}
+        {actions.map((a) => {
+          const common = {
+            key: a.label,
+            'aria-label': a.ariaLabel,
+            'data-testid': a.dataTestId,
+            className: `inline-flex items-center px-3 py-1.5 mx-1 rounded-full text-sm font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 ${a.primary ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`,
+          } as const;
+          if (a.href) {
+            return (
+              <a {...common} href={a.href}>
+                {a.label}
+              </a>
+            );
+          }
+          return (
+            <button
+              {...common}
+              type="button"
+              onClick={(e) => {
+                try { e.preventDefault(); } catch {}
+                try { e.stopPropagation(); } catch {}
+                a.onClick && a.onClick();
+              }}
+            >
+              {a.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
