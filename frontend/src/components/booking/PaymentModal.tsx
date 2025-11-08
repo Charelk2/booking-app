@@ -61,7 +61,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   onError,
   amount,
   serviceName: _unusedServiceName,
-  preferInline = true,
+  // Disable inline by default to avoid duplicate reference errors; use hosted checkout
+  preferInline = false,
   customerEmail,
   currency = 'ZAR',
   autoStart = true,
@@ -198,8 +199,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],
             // Use snake_case key so backend verify/webhook can reconcile by metadata
             metadata: { booking_request_id: bookingRequestId, source: 'web_inline' },
-            // Verify with the initialization reference we stored (DB payment_id)
-            onSuccess: (cbRef) => startVerifyLoop(cbRef || reference),
+            // Verify the initialized server reference; hosted fallback uses same reference
+            onSuccess: (_cbRef) => startVerifyLoop(reference),
             onClose: () => {
               // Hosted fallback to avoid inline runtime issues (e.g., Paystack UI errors)
               if (authorizationUrl) {
