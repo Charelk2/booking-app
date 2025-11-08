@@ -41,6 +41,7 @@ import hashlib
 import json
 from sqlalchemy import text
 from ..utils.metrics import incr as metrics_incr, timing_ms as metrics_timing
+from ..utils.server_timing import ServerTimer
 from datetime import datetime as _dt
 
 logger = logging.getLogger(__name__)
@@ -883,8 +884,16 @@ async def paystack_webhook(
     - On `charge.success`, marks the matching booking paid and emits the system message.
     - Idempotent: if already marked paid, returns 200 OK.
     """
+    timer = ServerTimer()
     if not settings.PAYSTACK_SECRET_KEY:
-        return Response(status_code=status.HTTP_200_OK)
+        resp = Response(status_code=status.HTTP_200_OK)
+        try:
+            hdr = timer.header()
+            if hdr:
+                resp.headers['Server-Timing'] = hdr
+        except Exception:
+            pass
+        return resp
 
     raw = await request.body()
     t_start_webhook = time.perf_counter()
@@ -900,15 +909,38 @@ async def paystack_webhook(
                 metrics_incr("paystack.webhook_signature_mismatch_total")
             except Exception:
                 pass
-            return Response(status_code=status.HTTP_400_BAD_REQUEST)
+            resp = Response(status_code=status.HTTP_400_BAD_REQUEST)
+            try:
+                hdr = timer.header()
+                if hdr:
+                    resp.headers['Server-Timing'] = hdr
+            except Exception:
+                pass
+            return resp
     except Exception as exc:
         logger.error("Webhook signature verification failed: %s", exc)
-        return Response(status_code=status.HTTP_400_BAD_REQUEST)
+        resp = Response(status_code=status.HTTP_400_BAD_REQUEST)
+        try:
+            hdr = timer.header()
+            if hdr:
+                resp.headers['Server-Timing'] = hdr
+        except Exception:
+            pass
+        return resp
 
     try:
+        t0 = ServerTimer.start()
         payload = json.loads(raw.decode("utf-8"))
+        timer.stop('parse', t0)
     except Exception:
-        return Response(status_code=status.HTTP_400_BAD_REQUEST)
+        resp = Response(status_code=status.HTTP_400_BAD_REQUEST)
+        try:
+            hdr = timer.header()
+            if hdr:
+                resp.headers['Server-Timing'] = hdr
+        except Exception:
+            pass
+        return resp
 
     event = str(payload.get("event", "")).lower()
     data = payload.get("data", {}) or {}
@@ -918,10 +950,24 @@ async def paystack_webhook(
     amount = Decimal(str(amount_kobo / 100.0))
 
     if event != "charge.success" and status_str != "success":
-        return Response(status_code=status.HTTP_200_OK)
+        resp = Response(status_code=status.HTTP_200_OK)
+        try:
+            hdr = timer.header()
+            if hdr:
+                resp.headers['Server-Timing'] = hdr
+        except Exception:
+            pass
+        return resp
 
     if not reference:
-        return Response(status_code=status.HTTP_200_OK)
+        resp = Response(status_code=status.HTTP_200_OK)
+        try:
+            hdr = timer.header()
+            if hdr:
+                resp.headers['Server-Timing'] = hdr
+        except Exception:
+            pass
+        return resp
 
     # Correlate with pending BookingSimple using reference
     simple = db.query(BookingSimple).filter(BookingSimple.payment_id == reference).first()
@@ -948,11 +994,25 @@ async def paystack_webhook(
                 simple = cand
     if not simple:
         # Not a fatal condition; acknowledge to avoid retries
-        return Response(status_code=status.HTTP_200_OK)
+        resp = Response(status_code=status.HTTP_200_OK)
+        try:
+            hdr = timer.header()
+            if hdr:
+                resp.headers['Server-Timing'] = hdr
+        except Exception:
+            pass
+        return resp
 
     # Idempotency
     if (str(simple.payment_status or "").lower() == "paid") or (getattr(simple, "charged_total_amount", 0) or 0) > 0:
-        return Response(status_code=status.HTTP_200_OK)
+        resp = Response(status_code=status.HTTP_200_OK)
+        try:
+            hdr = timer.header()
+            if hdr:
+                resp.headers['Server-Timing'] = hdr
+        except Exception:
+            pass
+        return resp
 
     # Mark paid and propagate (same as manual verify path)
     simple.payment_status = "paid"
@@ -1197,7 +1257,16 @@ async def paystack_webhook(
             background_tasks.add_task(_background_generate_receipt_pdf, str(simple.payment_id))
     except Exception:
         logger.debug("schedule receipt pdf failed (webhook)", exc_info=True)
-    return Response(status_code=status.HTTP_200_OK)
+    resp = Response(status_code=status.HTTP_200_OK)
+    try:
+        # Total handler time (approximate)
+        timer.add('build', (time.perf_counter() - t_start_webhook) * 1000.0)
+        hdr = timer.header()
+        if hdr:
+            resp.headers['Server-Timing'] = hdr
+    except Exception:
+        pass
+    return resp
 
 
 class PaymentAuthorizeIn(BaseModel):

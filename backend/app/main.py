@@ -12,7 +12,7 @@ from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse, ORJSONResponse
+from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 from routes import distance
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -495,18 +495,18 @@ async def catch_exceptions(request: Request, call_next):
         logger.error(
             "HTTP error %s at %s: %s", exc.status_code, request.url.path, exc.detail
         )
-        response = JSONResponse(
+        response = ORJSONResponse(
             status_code=exc.status_code, content={"detail": exc.detail}
         )
     except SA_TimeoutError as exc:  # DB pool timeout -> 503 to reduce retry storms
         logger.error("DB timeout at %s: %s", request.url.path, str(exc))
-        response = JSONResponse(
+        response = ORJSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"detail": "Database busy, please retry"},
         )
     except Exception as exc:  # pragma: no cover - generic handler
         logger.exception("Unhandled error: %s", exc)
-        response = JSONResponse(
+        response = ORJSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"detail": "Internal Server Error"},
         )
@@ -540,7 +540,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     # Customize missing file errors for attachment uploads
     for err in errors:
         if err.get("loc") == ("body", "file"):
-            return JSONResponse(
+            return ORJSONResponse(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 content={
                     "detail": {
@@ -550,7 +550,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 },
             )
 
-    return JSONResponse(
+    return ORJSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": errors},
     )
@@ -937,7 +937,7 @@ async def favicon():
     path = os.path.join(APP_STATIC_DIR, "default-avatar.svg")
     if os.path.exists(path):
         return FileResponse(path, media_type="image/svg+xml")
-    return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content={})
+    return ORJSONResponse(status_code=status.HTTP_204_NO_CONTENT, content={})
 
 
 @app.on_event("shutdown")

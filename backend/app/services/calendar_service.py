@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 import base64
 import hashlib
 import hmac
-import json
+from ..utils.json import dumps_bytes as _json_dumps
 import time
 
 try:  # optional in minimal environments
@@ -123,7 +123,7 @@ def _encode_signed_calendar_state(user_id: int) -> str:
     Payload shape: {"uid": <int>, "exp": epochSeconds}
     """
     exp = int(time.time()) + _CALENDAR_STATE_TTL
-    payload = json.dumps({"uid": int(user_id), "exp": exp}, separators=(",", ":")).encode("utf-8")
+    payload = _json_dumps({"uid": int(user_id), "exp": exp})
     secret = settings.SECRET_KEY.encode("utf-8")
     digest = hmac.new(secret, payload, hashlib.sha256).digest()
     return f"{_SIGNED_STATE_PREFIX}{_b64_encode(payload)}.{_b64_encode(digest)}"

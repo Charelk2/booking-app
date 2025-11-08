@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, asc, desc
 from typing import Any, Dict, List, Tuple
@@ -1866,7 +1865,7 @@ def delete_admin_user(admin_id: int, _: Tuple[User, AdminUser] = Depends(require
 # ────────────────────────────────────────────────────────────────────────────────
 # Stub resources for future wiring: ledger, payouts, disputes, email_events, sms_events, audit_events
 
-def _empty_list_response(resource: str) -> JSONResponse:
+def _empty_list_response(resource: str) -> Response:
     return _with_total([], 0, resource, 0, 0)
 
 
@@ -2171,19 +2170,4 @@ def _audit(db: Session, actor_admin_id: int, entity: str, entity_id: str, action
         db.commit()
     except Exception:
         db.rollback()
-# Local orjson serializer (fallback to stdlib json)
-try:
-    import orjson as _orjson  # type: ignore
-    def _json_dumps(obj) -> bytes:  # bytes
-        return _orjson.dumps(obj)
-except Exception:  # pragma: no cover
-    import json as _json  # type: ignore
-    def _json_dumps(obj) -> bytes:
-        def _default(o):
-            if isinstance(o, datetime):
-                return o.isoformat()
-            try:
-                return str(o)
-            except Exception:
-                return None
-        return _json.dumps(obj, default=_default).encode('utf-8')
+from ..utils.json import dumps_bytes as _json_dumps

@@ -2,7 +2,7 @@ import os
 import logging
 import httpx
 from fastapi import APIRouter, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import ORJSONResponse
 
 router = APIRouter(tags=["distance"])
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ def get_distance(from_location: str, to_location: str, includeDuration: bool = F
     api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     if not api_key:
         logger.error("GOOGLE_MAPS_API_KEY is not configured")
-        return JSONResponse(
+        return ORJSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"error": "GOOGLE_MAPS_API_KEY not set"},
         )
@@ -47,7 +47,7 @@ def get_distance(from_location: str, to_location: str, includeDuration: bool = F
         return data
     except Exception as exc:  # pragma: no cover - network failure
         logger.error("Distance Matrix request failed: %s", exc, exc_info=True)
-        return JSONResponse(
+        return ORJSONResponse(
             status_code=status.HTTP_502_BAD_GATEWAY,
             content={"error": "Failed to fetch distance"},
         )

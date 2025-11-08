@@ -3,7 +3,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pathlib import Path
 import base64
-from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -33,6 +32,7 @@ from ..schemas.user import (
 from ..utils.auth import get_password_hash, verify_password, normalize_email
 from ..utils.email import send_email
 from ..utils.redis_cache import get_redis_client
+from ..utils.server_timing import ServerTimer
 from app.core.config import settings
 import redis
 
@@ -402,7 +402,10 @@ def login(
         },
         "refresh_token": refresh_token,
     }
-    resp = Response(content=_json_dumps(payload), media_type="application/json")
+    t = ServerTimer(); t0 = ServerTimer.start()
+    body = _json_dumps(payload)
+    t.stop('ser', t0)
+    resp = Response(content=body, media_type="application/json")
     _set_access_cookie(resp, access_token)
     _set_refresh_cookie(resp, refresh_token, r_exp)
     # Prevent any intermediary from caching or normalizing this Set-Cookie response
@@ -410,6 +413,12 @@ def login(
         resp.headers["Cache-Control"] = "no-store"
         resp.headers["Pragma"] = "no-cache"
         resp.headers["Vary"] = "Origin, Accept-Encoding"
+    except Exception:
+        pass
+    try:
+        hdr = t.header()
+        if hdr:
+            resp.headers['Server-Timing'] = hdr
     except Exception:
         pass
     return resp
@@ -514,7 +523,10 @@ def verify_mfa(data: MFAVerify, db: Session = Depends(get_db)):
         },
         "refresh_token": refresh_token,
     }
-    resp = Response(content=_json_dumps(payload), media_type="application/json")
+    t = ServerTimer(); t0 = ServerTimer.start()
+    body = _json_dumps(payload)
+    t.stop('ser', t0)
+    resp = Response(content=body, media_type="application/json")
     _set_access_cookie(resp, access_token)
     _set_refresh_cookie(resp, refresh_token, r_exp)
     # Set non-HttpOnly device cookie to help future requests include device id even without JS
@@ -533,6 +545,12 @@ def verify_mfa(data: MFAVerify, db: Session = Depends(get_db)):
         resp.headers["Cache-Control"] = "no-store"
         resp.headers["Pragma"] = "no-cache"
         resp.headers["Vary"] = "Origin, Accept-Encoding"
+    except Exception:
+        pass
+    try:
+        hdr = t.header()
+        if hdr:
+            resp.headers['Server-Timing'] = hdr
     except Exception:
         pass
     return resp
@@ -767,11 +785,20 @@ def refresh_token(
                 # Issue a fresh access token and set the current refresh cookie to the latest value
                 access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
                 payload = {"access_token": access, "token_type": "bearer", "refresh_token": mapped}
-                resp = Response(content=_json_dumps(payload), media_type="application/json")
+                t = ServerTimer(); t0 = ServerTimer.start()
+                body = _json_dumps(payload)
+                t.stop('ser', t0)
+                resp = Response(content=body, media_type="application/json")
                 _set_access_cookie(resp, access)
                 # Use DB expiry; if missing, default to configured days
                 exp = user.refresh_token_expires_at or (datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
                 _set_refresh_cookie(resp, mapped, exp)
+                try:
+                    hdr = t.header()
+                    if hdr:
+                        resp.headers['Server-Timing'] = hdr
+                except Exception:
+                    pass
                 return resp
         except Exception:
             pass
@@ -793,13 +820,22 @@ def refresh_token(
     # Issue a fresh access token
     access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     payload = {"access_token": access, "token_type": "bearer", "refresh_token": new_refresh}
-    resp = Response(content=_json_dumps(payload), media_type="application/json")
+    t = ServerTimer(); t0 = ServerTimer.start()
+    body = _json_dumps(payload)
+    t.stop('ser', t0)
+    resp = Response(content=body, media_type="application/json")
     _set_access_cookie(resp, access)
     _set_refresh_cookie(resp, new_refresh, r_exp)
     try:
         resp.headers["Cache-Control"] = "no-store"
         resp.headers["Pragma"] = "no-cache"
         resp.headers["Vary"] = "Origin, Accept-Encoding"
+    except Exception:
+        pass
+    try:
+        hdr = t.header()
+        if hdr:
+            resp.headers['Server-Timing'] = hdr
     except Exception:
         pass
     return resp
@@ -814,12 +850,21 @@ def logout(
     current_user.refresh_token_hash = None
     current_user.refresh_token_expires_at = None
     db.commit()
-    resp = Response(content=_json_dumps({"message": "logged out"}), media_type="application/json")
+    t = ServerTimer(); t0 = ServerTimer.start()
+    body = _json_dumps({"message": "logged out"})
+    t.stop('ser', t0)
+    resp = Response(content=body, media_type="application/json")
     _clear_auth_cookies(resp)
     try:
         resp.headers["Cache-Control"] = "no-store"
         resp.headers["Pragma"] = "no-cache"
         resp.headers["Vary"] = "Origin, Accept-Encoding"
+    except Exception:
+        pass
+    try:
+        hdr = t.header()
+        if hdr:
+            resp.headers['Server-Timing'] = hdr
     except Exception:
         pass
     return resp

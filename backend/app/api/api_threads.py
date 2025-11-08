@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, Query, status, Response, Header
-from fastapi.responses import ORJSONResponse
 from starlette.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
@@ -23,20 +22,7 @@ from datetime import datetime
 import hashlib
 import time
 
-# ---- JSON encoder (prefers orjson) ------------------------------------------
-
-try:
-    import orjson as _orjson
-    def _json_dumps(obj: Any) -> bytes:
-        return _orjson.dumps(obj)
-except Exception:  # pragma: no cover
-    import json as _json
-    def _json_dumps(obj: Any) -> bytes:
-        def _default(o):
-            if isinstance(o, datetime):
-                return o.isoformat()
-            return str(o)
-        return _json.dumps(obj, default=_default).encode("utf-8")
+from ..utils.json import dumps_bytes as _json_dumps
 
 
 router = APIRouter(tags=["threads"])

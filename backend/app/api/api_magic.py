@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from ..utils.json import dumps_bytes as _json_dumps
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -23,16 +24,6 @@ from .auth import (
 )
 
 router = APIRouter(tags=["auth"])
-
-# Local orjson serializer
-try:
-    import orjson as _orjson  # type: ignore
-    def _json_dumps(obj) -> bytes:
-        return _orjson.dumps(obj)
-except Exception:  # pragma: no cover
-    import json as _json  # type: ignore
-    def _json_dumps(obj) -> bytes:
-        return _json.dumps(obj).encode('utf-8')
 
 
 class MagicLinkRequest(BaseModel):

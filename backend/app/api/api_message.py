@@ -37,21 +37,7 @@ import mimetypes
 import uuid
 import shutil
 from pydantic import BaseModel
-try:  # optional for tooling environments
-    import orjson as _orjson  # type: ignore
-    def _json_dumps(obj):
-        return _orjson.dumps(obj)
-except Exception:  # pragma: no cover - fallback to stdlib json
-    import json as _json  # type: ignore
-    def _json_dumps(obj):
-        def _default(o):
-            if isinstance(o, datetime):
-                return o.isoformat()
-            try:
-                return str(o)
-            except Exception:
-                return None
-        return _json.dumps(obj, default=_default).encode("utf-8")
+from ..utils.json import dumps_bytes as _json_dumps
 from ..utils.outbox import enqueue_outbox
 
 router = APIRouter(tags=["messages"])

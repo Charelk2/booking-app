@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Depends, status, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi import Response
+from ..utils.json import dumps_bytes as _json_dumps
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -724,19 +725,4 @@ async def apple_callback(request: Request, db: Session = Depends(get_db)):
     _set_access_cookie(resp, access_token)
     _set_refresh_cookie(resp, refresh_token, r_exp)
     return resp
-# Local orjson serializer (fallback to stdlib json)
-try:
-    import orjson as _orjson  # type: ignore
-    def _json_dumps(obj) -> bytes:
-        return _orjson.dumps(obj)
-except Exception:  # pragma: no cover
-    import json as _json  # type: ignore
-    def _json_dumps(obj) -> bytes:
-        def _default(o):
-            if isinstance(o, datetime):
-                return o.isoformat()
-            try:
-                return str(o)
-            except Exception:
-                return None
-        return _json.dumps(obj, default=_default).encode('utf-8')
+from ..utils.json import dumps_bytes as _json_dumps

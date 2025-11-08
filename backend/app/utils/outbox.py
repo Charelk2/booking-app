@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+from app.utils.json import dumps_bytes as _json_dumps
 from datetime import datetime, timedelta
 import logging
 from typing import Any, Optional
@@ -33,10 +33,10 @@ def enqueue_outbox(db: Session, topic: str, payload: dict[str, Any], due_at: Opt
         return str(o)
 
     try:
-        payload_str = json.dumps(payload, default=_json_default, separators=(",", ":"))
+        payload_str = _json_dumps(payload).decode("utf-8")
     except Exception:
         # Fallback: attempt to coerce
-        payload_str = json.dumps({"_error": "non-serializable-payload"})
+        payload_str = _json_dumps({"_error": "non-serializable-payload"}).decode("utf-8")
     try:
         sql = text(
             """
