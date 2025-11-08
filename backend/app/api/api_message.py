@@ -1071,6 +1071,7 @@ async def mark_messages_read(
     request_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """Mark messages in the thread as read by the current user."""
     booking_request = crud.crud_booking_request.get_booking_request(
@@ -1101,18 +1102,17 @@ async def mark_messages_read(
     except Exception:
         pass
     if updated > 0 and last_unread:
-        try:
-            await manager.broadcast(
-                request_id,
-                {"v": 1, "type": "read", "up_to_id": last_unread, "user_id": current_user.id},
-            )
-        except Exception:  # pragma: no cover - broadcast best effort
-            logger.exception("Failed to broadcast read receipt", extra={"request_id": request_id, "user_id": current_user.id})
+        background_tasks.add_task(
+            manager.broadcast,
+            request_id,
+            {"v": 1, "type": "read", "up_to_id": int(last_unread), "user_id": int(current_user.id)},
+        )
 
     # Push updated aggregate unread total to the user's notifications channel so header can refresh outside Inbox
     try:
         total, _ = crud.crud_message.get_unread_message_totals_for_user(db, int(current_user.id))
-        await notifications_manager.broadcast(
+        background_tasks.add_task(
+            notifications_manager.broadcast,
             int(current_user.id),
             {"v": 1, "type": "unread_total", "payload": {"total": int(total)}},
         )
@@ -1498,23 +1498,11 @@ def create_message(
             data["client_request_id"] = client_req_id
         except Exception:
             pass
-    # Broadcast new message to thread ASAP (best-effort). Prefer in-band scheduling
-    # over BackgroundTasks so the echo can reach clients before the HTTP response
-    # fully completes, reducing perceived latency. Commit has already occurred.
+    # Broadcast new message to thread via BackgroundTasks (post-commit, non-blocking)
     try:
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            loop.create_task(manager.broadcast(request_id, data))
-        except RuntimeError:
-            # Fallback in environments without a running loop context
-            asyncio.run(manager.broadcast(request_id, data))
+        background_tasks.add_task(manager.broadcast, request_id, data)
     except Exception:
-        # As a last resort, fall back to background task to avoid dropping the event
-        try:
-            background_tasks.add_task(manager.broadcast, request_id, data)
-        except Exception:
-            pass
+        pass
     # Also broadcast a lightweight thread_tail hint so clients can reconcile gaps deterministically
     try:
         snippet = preview_label_for_message(msg)
@@ -1537,18 +1525,9 @@ def create_message(
             env.type = "thread_tail"
             env.payload = tail_payload  # type: ignore
         try:
-            # in-band scheduling similar to message broadcast
-            import asyncio
-            try:
-                loop = asyncio.get_event_loop()
-                loop.create_task(manager.broadcast(request_id, env))
-            except RuntimeError:
-                asyncio.run(manager.broadcast(request_id, env))
+            background_tasks.add_task(manager.broadcast, request_id, env)
         except Exception:
-            try:
-                background_tasks.add_task(manager.broadcast, request_id, env)
-            except Exception:
-                pass
+            pass
     except Exception:
         pass
     # Optional reliable fanout for attachments/system messages
@@ -1589,6 +1568,16 @@ def create_message(
             notifications_manager.broadcast,
             int(other_user_id),
             {"v": 1, "type": "unread_total", "payload": {"total": int(total_for_other)}},
+        )
+    except Exception:
+        pass
+    # Also push unread_total to the sender in case opportunistic read changed their total
+    try:
+        total_for_self, _ = crud.crud_message.get_unread_message_totals_for_user(db, int(current_user.id))
+        background_tasks.add_task(
+            notifications_manager.broadcast,
+            int(current_user.id),
+            {"v": 1, "type": "unread_total", "payload": {"total": int(total_for_self)}},
         )
     except Exception:
         pass

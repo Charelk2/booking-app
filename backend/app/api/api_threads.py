@@ -79,45 +79,44 @@ def _coalesce_bool(v: Optional[str]) -> bool:
 def _cheap_snapshot(db: Session, user_id: int, is_artist: bool) -> Tuple[int, int, int, int]:
     """Return (max_msg_id, max_br_id, unread_total, thread_count) for the user's inbox.
 
-    Cheap aggregates only. This is used consistently for:
-    - ETag pre-check
-    - Final ETag
-    - SSE change detection
+    Uses a single aggregate query for max_msg_id, max_br_id, and thread_count.
+    Unread total uses the existing optimized helper for correctness.
     """
-    # thread_count
-    q_threads = db.query(models.BookingRequest.id)
-    if is_artist:
-        q_threads = q_threads.filter(models.BookingRequest.artist_id == user_id)
-    else:
-        q_threads = q_threads.filter(models.BookingRequest.client_id == user_id)
-    thread_count = int(q_threads.count())
+    viewer_role = models.VisibleTo.ARTIST if is_artist else models.VisibleTo.CLIENT
+    br = models.BookingRequest
+    msg = models.Message
 
-    # max_msg_id across user threads
-    q_max_msg_id = (
-        db.query(func.max(models.Message.id))
-        .join(models.BookingRequest, models.Message.booking_request_id == models.BookingRequest.id)
+    q = (
+        db.query(
+            func.coalesce(func.max(msg.id), 0),
+            func.coalesce(func.max(br.id), 0),
+            func.count(func.distinct(br.id)),
+        )
+        .select_from(br)
+        .outerjoin(
+            msg,
+            (msg.booking_request_id == br.id)
+            & (msg.visible_to.in_([models.VisibleTo.BOTH, viewer_role])),
+        )
     )
     if is_artist:
-        q_max_msg_id = q_max_msg_id.filter(models.BookingRequest.artist_id == user_id)
+        q = q.filter(br.artist_id == user_id)
     else:
-        q_max_msg_id = q_max_msg_id.filter(models.BookingRequest.client_id == user_id)
-    max_msg_id = int(q_max_msg_id.scalar() or 0)
+        q = q.filter(br.client_id == user_id)
+    try:
+        max_msg_id, max_br_id, thread_count = q.one()
+        max_msg_id = int(max_msg_id or 0)
+        max_br_id = int(max_br_id or 0)
+        thread_count = int(thread_count or 0)
+    except Exception:
+        max_msg_id, max_br_id, thread_count = 0, 0, 0
 
-    # max_br_id (captures threads with no messages)
-    q_max_br_id = db.query(func.max(models.BookingRequest.id))
-    if is_artist:
-        q_max_br_id = q_max_br_id.filter(models.BookingRequest.artist_id == user_id)
-    else:
-        q_max_br_id = q_max_br_id.filter(models.BookingRequest.client_id == user_id)
-    max_br_id = int(q_max_br_id.scalar() or 0)
-
-    # total_unread (other-party messages only)
     try:
         unread_total, _ = crud.crud_message.get_unread_message_totals_for_user(db, int(user_id))
     except Exception:
         unread_total = 0
 
-    return max_msg_id, max_br_id, int(unread_total), thread_count
+    return int(max_msg_id), int(max_br_id), int(unread_total), int(thread_count)
 
 
 # ---- /message-threads/preview -----------------------------------------------
