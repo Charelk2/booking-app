@@ -157,6 +157,7 @@ export default function ServiceProvidersPage() {
           maxPrice: debouncedMaxPrice,
           page: pageNumber,
           limit: LIMIT,
+          // Full payload used for hydration after initial fast paint
           fields: [
             'id','business_name','custom_subtitle','profile_picture_url','portfolio_urls','hourly_rate','price_visible','rating','rating_count','location','service_categories','service_price','user.first_name','user.last_name'
           ] as string[],
@@ -179,7 +180,28 @@ export default function ServiceProvidersPage() {
           setPriceDistribution(cached.price_distribution || []);
         }
 
-        // Fetch list first (cacheable in backend). Price histogram is fetched lazily below.
+        // Fast path: for first page (non-append), fetch minimal fields to hit
+        // the backend's tiny fast path, then hydrate with full fields.
+        if (!append && Number(pageNumber) === 1) {
+          try {
+            const fast = await getServiceProviders({
+              category: serviceName,
+              location: location || undefined,
+              when: when || undefined,
+              sort,
+              minPrice: debouncedMinPrice,
+              maxPrice: debouncedMaxPrice,
+              page: 1,
+              limit: LIMIT,
+              fields: ['id','business_name','profile_picture_url'],
+            });
+            const fastItems = fast.data.filter((a: ServiceProviderProfile) => !!a.business_name);
+            setHasMore(fastItems.length === LIMIT);
+            setArtists(fastItems as any);
+          } catch {}
+        }
+
+        // Hydration fetch (full payload). Price histogram is fetched lazily below.
         const res = await getServiceProviders({ ...cacheParams });
 
         // Filter client-side to guard against any backend responses that

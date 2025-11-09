@@ -19,12 +19,12 @@ router = APIRouter(tags=["ops"])
 
 
 @router.post("/ops/scheduler/tick", status_code=status.HTTP_202_ACCEPTED)
-def ops_tick(db: Session = Depends(get_db)):
+def ops_tick():
     """Run maintenance tasks once and return a summary.
 
     Useful for manual testing or external cron when background tasks are disabled.
     """
-    summary = run_maintenance(db)
+    summary = run_maintenance()
     return {"status": "ok", **summary}
 
 

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from ..database import SessionLocal
 
 from .. import models
 from ..crud import crud_message
@@ -285,11 +286,25 @@ def handle_pre_event_reminders(db: Session) -> int:
     return sent
 
 
-def run_maintenance(db: Session) -> dict:
-    """Run all operational maintenance tasks once and return a summary."""
-    so = handle_sound_outreach_nudges_and_expiry(db)
-    pre = handle_pre_event_reminders(db)
-    artist_timeouts = handle_artist_accept_timeouts(db)
+def run_maintenance() -> dict:
+    """Run all operational maintenance tasks once and return a summary.
+
+    Each task gets its own short-lived DB session to minimize how long a
+    connection is held. This avoids tying up a connection for the entire
+    maintenance cycle.
+    """
+    # Sound outreach nudges/expiry
+    with SessionLocal() as db:
+        so = handle_sound_outreach_nudges_and_expiry(db)
+
+    # Pre-event reminders
+    with SessionLocal() as db:
+        pre = handle_pre_event_reminders(db)
+
+    # Artist accept timeouts
+    with SessionLocal() as db:
+        artist_timeouts = handle_artist_accept_timeouts(db)
+
     return {**so, "pre_event_messages": pre, **artist_timeouts}
 
 

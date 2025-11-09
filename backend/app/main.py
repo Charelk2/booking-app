@@ -872,9 +872,8 @@ async def ops_maintenance_loop() -> None:
         max_retries = 5
         for attempt in range(max_retries):
             try:
-                with SessionLocal() as db:
-                    summary = run_maintenance(db)
-                    logger.info("Maintenance summary: %s", summary)
+                summary = run_maintenance()
+                logger.info("Maintenance summary: %s", summary)
                 break
             except OperationalError as exc:  # pragma: no cover - transient DB outage
                 alert_scheduler_failure(exc)
