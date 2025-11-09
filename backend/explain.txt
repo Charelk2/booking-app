@@ -1,0 +1,199 @@
+-[ RECORD 1 ]---------------------------------------------------------------------------------------
+indexname | services_pkey
+indexdef  | CREATE UNIQUE INDEX services_pkey ON public.services USING btree (id)
+-[ RECORD 2 ]---------------------------------------------------------------------------------------
+indexname | idx_services_artist_price
+indexdef  | CREATE INDEX idx_services_artist_price ON public.services USING btree (artist_id, price)
+
+-[ RECORD 1 ]-----------------------------------------------------------------------------------------------------------
+indexname | service_provider_profiles_pkey
+indexdef  | CREATE UNIQUE INDEX service_provider_profiles_pkey ON public.service_provider_profiles USING btree (user_id)
+-[ RECORD 2 ]-----------------------------------------------------------------------------------------------------------
+indexname | idx_spp_user_id
+indexdef  | CREATE INDEX idx_spp_user_id ON public.service_provider_profiles USING btree (user_id)
+-[ RECORD 3 ]-----------------------------------------------------------------------------------------------------------
+indexname | idx_spp_updated_at
+indexdef  | CREATE INDEX idx_spp_updated_at ON public.service_provider_profiles USING btree (updated_at)
+-[ RECORD 4 ]-----------------------------------------------------------------------------------------------------------
+indexname | idx_spp_location
+indexdef  | CREATE INDEX idx_spp_location ON public.service_provider_profiles USING btree (location)
+
+ROLLBACK
+-[ RECORD 1 ]------------------------------------------------------------------
+indexname | reviews_pkey
+indexdef  | CREATE UNIQUE INDEX reviews_pkey ON public.reviews USING btree (id)
+
+-[ RECORD 1 ]-------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN | Nested Loop  (cost=4.71..18.14 rows=1 width=96) (actual time=0.069..0.101 rows=2 loops=1)
+-[ RECORD 2 ]-------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |   Buffers: shared hit=51
+-[ RECORD 3 ]-------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |   ->  Nested Loop  (cost=4.44..17.50 rows=1 width=4) (actual time=0.021..0.024 rows=2 loops=1)
+-[ RECORD 4 ]-------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |         Buffers: shared hit=6
+-[ RECORD 5 ]-------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |         ->  Index Scan using pg_class_relname_nsp_index on pg_class c  (cost=0.28..8.30 rows=1 width=8) (actual time=0.010..0.011 rows=1 loops=1)
+-[ RECORD 6 ]-------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |               Index Cond: (relname = 'services'::name)
+-[ RECORD 7 ]-------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |               Filter: (relkind = ANY ('{r,m,p}'::"char"[]))
+-[ RECORD 8 ]-------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |               Buffers: shared hit=3
+-[ RECORD 9 ]-------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |         ->  Bitmap Heap Scan on pg_index x  (cost=4.16..9.19 rows=2 width=8) (actual time=0.008..0.010 rows=2 loops=1)
+-[ RECORD 10 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |               Recheck Cond: (indrelid = c.oid)
+-[ RECORD 11 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |               Heap Blocks: exact=2
+-[ RECORD 12 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |               Buffers: shared hit=3
+-[ RECORD 13 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |               ->  Bitmap Index Scan on pg_index_indrelid_index  (cost=0.00..4.16 rows=2 width=0) (actual time=0.004..0.004 rows=2 loops=1)
+-[ RECORD 14 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |                     Index Cond: (indrelid = c.oid)
+-[ RECORD 15 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |                     Buffers: shared hit=1
+-[ RECORD 16 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |   ->  Index Scan using pg_class_oid_index on pg_class i  (cost=0.28..0.63 rows=1 width=72) (actual time=0.003..0.003 rows=1 loops=2)
+-[ RECORD 17 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |         Index Cond: (oid = x.indexrelid)
+-[ RECORD 18 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |         Filter: (relkind = ANY ('{i,I}'::"char"[]))
+-[ RECORD 19 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |         Buffers: shared hit=6
+-[ RECORD 20 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN | Planning:
+-[ RECORD 21 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN |   Buffers: shared hit=25
+-[ RECORD 22 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN | Planning Time: 0.540 ms
+-[ RECORD 23 ]------------------------------------------------------------------------------------------------------------------------------------------------
+QUERY PLAN | Execution Time: 0.153 ms
+
+-[ RECORD 1 ]-----------------------------------------------------------------------------------------------------------
+indexname | service_provider_profiles_pkey
+indexdef  | CREATE UNIQUE INDEX service_provider_profiles_pkey ON public.service_provider_profiles USING btree (user_id)
+-[ RECORD 2 ]-----------------------------------------------------------------------------------------------------------
+indexname | idx_spp_user_id
+indexdef  | CREATE INDEX idx_spp_user_id ON public.service_provider_profiles USING btree (user_id)
+-[ RECORD 3 ]-----------------------------------------------------------------------------------------------------------
+indexname | idx_spp_updated_at
+indexdef  | CREATE INDEX idx_spp_updated_at ON public.service_provider_profiles USING btree (updated_at)
+-[ RECORD 4 ]-----------------------------------------------------------------------------------------------------------
+indexname | idx_spp_location
+indexdef  | CREATE INDEX idx_spp_location ON public.service_provider_profiles USING btree (location)
+
+-[ RECORD 1 ]------------------------------------------------------------------------------
+indexname | ix_bookings_status
+indexdef  | CREATE INDEX ix_bookings_status ON public.bookings USING btree (status)
+-[ RECORD 2 ]------------------------------------------------------------------------------
+indexname | bookings_pkey
+indexdef  | CREATE UNIQUE INDEX bookings_pkey ON public.bookings USING btree (id)
+-[ RECORD 3 ]------------------------------------------------------------------------------
+indexname | ix_bookings_start_time
+indexdef  | CREATE INDEX ix_bookings_start_time ON public.bookings USING btree (start_time)
+-[ RECORD 4 ]------------------------------------------------------------------------------
+indexname | ix_bookings_artist_id
+indexdef  | CREATE INDEX ix_bookings_artist_id ON public.bookings USING btree (artist_id)
+
+-[ RECORD 1 ]------------------------------------------------------------------
+indexname | reviews_pkey
+indexdef  | CREATE UNIQUE INDEX reviews_pkey ON public.reviews USING btree (id)
+
+-[ RECORD 1 ]----------------------------------------------------------------------
+indexname | users_pkey
+indexdef  | CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
+-[ RECORD 2 ]----------------------------------------------------------------------
+indexname | users_email_key
+indexdef  | CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
+
+List of indexes
+-[ RECORD 1 ]-+--------------
+Schema        | public
+Name          | services_pkey
+Type          | index
+Owner         | appuser
+Table         | services
+Persistence   | permanent
+Access method | btree
+Size          | 16 kB
+Description   | 
+
+List of indexes
+-[ RECORD 1 ]-+-------------------------------
+Schema        | public
+Name          | service_provider_profiles_pkey
+Type          | index
+Owner         | appuser
+Table         | service_provider_profiles
+Persistence   | permanent
+Access method | btree
+Size          | 16 kB
+Description   | 
+
+List of indexes
+-[ RECORD 1 ]-+---------------------
+Schema        | public
+Name          | bookings_pkey
+Type          | index
+Owner         | appuser
+Table         | bookings
+Persistence   | permanent
+Access method | btree
+Size          | 16 kB
+Description   | 
+-[ RECORD 2 ]-+---------------------
+Schema        | public
+Name          | bookings_simple_pkey
+Type          | index
+Owner         | appuser
+Table         | bookings_simple
+Persistence   | permanent
+Access method | btree
+Size          | 16 kB
+Description   | 
+
+List of indexes
+-[ RECORD 1 ]-+-------------
+Schema        | public
+Name          | reviews_pkey
+Type          | index
+Owner         | appuser
+Table         | reviews
+Persistence   | permanent
+Access method | btree
+Size          | 8192 bytes
+Description   | 
+
+List of indexes
+-[ RECORD 1 ]-+----------------
+Schema        | public
+Name          | users_email_key
+Type          | index
+Owner         | appuser
+Table         | users
+Persistence   | permanent
+Access method | btree
+Size          | 16 kB
+Description   | 
+-[ RECORD 2 ]-+----------------
+Schema        | public
+Name          | users_pkey
+Type          | index
+Owner         | appuser
+Table         | users
+Persistence   | permanent
+Access method | btree
+Size          | 16 kB
+Description   | 
+
+CREATE EXTENSION
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX

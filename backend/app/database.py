@@ -3,6 +3,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 import os
+import time
+import logging
+from collections import deque
 
 if os.getenv("PYTEST_RUN") == "1":
     SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -73,7 +76,56 @@ Base = declarative_base()
 # Dependency
 def get_db():
     db = SessionLocal()
+    # Optional pool acquire-wait telemetry (off by default).
+    # When enabled, we eagerly materialize a connection and time the checkout.
+    try:
+        if os.getenv("DB_POOL_METRICS", "0").strip().lower() in {"1", "true", "yes"}:
+            _t0 = time.perf_counter()
+            # Force a checkout; do not hold the result beyond this scope
+            conn = db.connection()
+            try:
+                # Cheap no-op roundtrip to validate the connection
+                conn.exec_driver_sql("SELECT 1")
+            finally:
+                # Session holds the connection; we'll release on close()
+                pass
+            _dt_ms = (time.perf_counter() - _t0) * 1000.0
+            _record_pool_wait_ms(_dt_ms)
+    except Exception:
+        # Never fail request due to metrics
+        pass
     try:
         yield db
     finally:
         db.close()
+
+
+# ─── Pool wait metrics (best‑effort) ───────────────────────────────────────────
+_POOL_LOGGER = logging.getLogger(__name__)
+_POOL_SAMPLES = deque(maxlen=2000)
+_POOL_COUNT = 0
+
+
+def _record_pool_wait_ms(ms: float) -> None:
+    global _POOL_COUNT
+    try:
+        _POOL_SAMPLES.append(float(ms))
+        _POOL_COUNT += 1
+        # Log periodically to keep overhead tiny
+        if _POOL_COUNT % 200 == 0 and len(_POOL_SAMPLES) >= 50:
+            vals = sorted(_POOL_SAMPLES)
+            def pct(p: float) -> float:
+                idx = min(len(vals) - 1, max(0, int(round(p * (len(vals) - 1)))))
+                return vals[idx]
+            p95 = pct(0.95)
+            p99 = pct(0.99)
+            p50 = pct(0.50)
+            _POOL_LOGGER.info(
+                "db_pool_wait_ms p50=%.1f p95=%.1f p99=%.1f n=%d",
+                p50,
+                p95,
+                p99,
+                len(vals),
+            )
+    except Exception:
+        pass

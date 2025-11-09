@@ -96,28 +96,42 @@ export default function ArtistsSection({
       setLoading(true);
       try {
         const params = JSON.parse(serializedQuery) as Record<string, unknown>;
-        const res = await getServiceProviders({
-          ...(params as object),
-          limit,
-          // Trim payload for homepage carousels to reduce backend work
-          fields: [
-            'id',
-            'business_name',
-            'profile_picture_url',
-            'custom_subtitle',
-            'hourly_rate',
-            'price_visible',
-            'rating',
-            'rating_count',
-            'location',
-            'service_categories',
-            'user.first_name',
-            'user.last_name',
-          ],
-        });
-        if (isMounted) {
-          setArtists(res.data.filter((a) => a.business_name || a.user));
-        }
+        // Phase 1: minimal fields to hit backend fast path
+        try {
+          const fast = await getServiceProviders({
+            ...(params as object),
+            limit,
+            fields: ['id','business_name','profile_picture_url'],
+          });
+          if (isMounted) {
+            setArtists(fast.data.filter((a) => a.business_name));
+          }
+        } catch {}
+
+        // Phase 2: hydrate with full details (best‑effort)
+        try {
+          const full = await getServiceProviders({
+            ...(params as object),
+            limit,
+            fields: [
+              'id',
+              'business_name',
+              'profile_picture_url',
+              'custom_subtitle',
+              'hourly_rate',
+              'price_visible',
+              'rating',
+              'rating_count',
+              'location',
+              'service_categories',
+              'user.first_name',
+              'user.last_name',
+            ],
+          });
+          if (isMounted) {
+            setArtists(full.data.filter((a) => a.business_name || a.user));
+          }
+        } catch {}
       } catch (err) {
         // Swallow noisy network errors to avoid console spam on first load
       } finally {
