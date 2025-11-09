@@ -23,6 +23,8 @@ import hashlib
 import time
 
 from ..utils.json import dumps_bytes as _json_dumps
+from threading import BoundedSemaphore
+import os
 
 
 router = APIRouter(tags=["threads"])
@@ -239,12 +241,19 @@ def get_threads_preview(
     else:
         br_query = br_query.filter(models.BookingRequest.client_id == current_user.id)
 
-    rows: List[Tuple] = (
-        br_query
-        .order_by(func.coalesce(last_msg.c.msg_ts, models.BookingRequest.created_at).desc())
-        .limit(limit)
-        .all()
-    )
+    # Protect DB from preview storms under load
+    _sem = _get_preview_sem()
+    _sem.acquire()
+    try:
+        rows: List[Tuple] = (
+            br_query
+            .order_by(func.coalesce(last_msg.c.msg_ts, models.BookingRequest.created_at).desc())
+            .limit(limit)
+            .all()
+        )
+    finally:
+        try: _sem.release()
+        except Exception: pass
     t_brs_ms = (time.perf_counter() - t_brs_start) * 1000.0
 
     # Unread counts for these threads
@@ -849,3 +858,17 @@ def inbox_stream(
         "X-Accel-Buffering": "no",  # Nginx: disable response buffering
         "Vary": "Authorization, Cookie",  # Per-user stream
     })
+_PREVIEW_SEM: BoundedSemaphore | None = None
+
+
+def _get_preview_sem() -> BoundedSemaphore:
+    global _PREVIEW_SEM
+    if _PREVIEW_SEM is None:
+        try:
+            limit = int(os.getenv("THREADS_PREVIEW_CONCURRENCY") or 8)
+            if limit <= 0:
+                limit = 8
+        except Exception:
+            limit = 8
+        _PREVIEW_SEM = BoundedSemaphore(limit)
+    return _PREVIEW_SEM

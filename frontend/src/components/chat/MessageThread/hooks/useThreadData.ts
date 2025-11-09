@@ -308,19 +308,24 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
 
       fetchInFlightRef.current = true;
 
-      // Disable delta/lite; always perform a full fetch.
-      // Server caps non-delta pages to ~120 rows, so we chunk in full mode
-      // until history is exhausted.
-      const FULL_LIMIT = Math.min(options.limit != null ? options.limit : 120, 120);
+      // Prefer smaller first page and deltas for refreshes
+      const FULL_LIMIT = Math.min(options.limit != null ? options.limit : 60, 60);
       setLoading(true);
 
       const params: MessageListParams = {
         // Load everything up to FULL_LIMIT in one shot
         limit: FULL_LIMIT,
       } as MessageListParams;
-      // Always request full mode; include fields for UI richness
-      params.mode = 'full' as any;
-      params.fields = 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions';
+      // Choose mode based on whether we have a last id
+      const lastId = lastMessageIdRef.current ? Number(lastMessageIdRef.current) : 0;
+      if (Number.isFinite(lastId) && lastId > 0) {
+        (params as any).after_id = lastId;
+        params.mode = 'delta' as any;
+      } else {
+        params.mode = 'full' as any;
+      }
+      // Trim fields to avoid heavy per-row server work on initial loads
+      params.fields = 'attachment_meta,quote_id,reactions,my_reactions';
 
       const queueRetry = (reason: 'offline' | 'transient') => {
         runWithTransport(

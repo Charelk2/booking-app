@@ -39,10 +39,41 @@ import shutil
 from pydantic import BaseModel
 from ..utils.json import dumps_bytes as _json_dumps
 from ..utils.outbox import enqueue_outbox
+from threading import BoundedSemaphore
+from contextlib import contextmanager
 
 router = APIRouter(tags=["messages"])
 
 logger = logging.getLogger(__name__)
+
+# ─── Concurrency limiter for message list (DB protection) ─────────────────────
+_MSG_LIST_SEM: BoundedSemaphore | None = None
+
+
+def _get_msg_list_sem() -> BoundedSemaphore:
+    global _MSG_LIST_SEM
+    if _MSG_LIST_SEM is None:
+        try:
+            limit = int(os.getenv("MESSAGE_LIST_CONCURRENCY") or 12)
+            if limit <= 0:
+                limit = 12
+        except Exception:
+            limit = 12
+        _MSG_LIST_SEM = BoundedSemaphore(limit)
+    return _MSG_LIST_SEM
+
+
+@contextmanager
+def _acquire_msg_gate():
+    sem = _get_msg_list_sem()
+    sem.acquire()
+    try:
+        yield
+    finally:
+        try:
+            sem.release()
+        except Exception:
+            pass
 
 # In-memory idempotency cache for message create
 _IDEMPOTENCY_CACHE: dict[str, tuple[int, float]] = {}
@@ -247,20 +278,21 @@ def read_messages(
         snap_count = 0  # type: ignore
 
     try:
-        query_start = time.perf_counter()
-        newest_first = after_id is None and before_id is None and since is None
-        db_messages = crud.crud_message.get_messages_for_request(
-            db,
-            request_id,
-            viewer,
-            skip=skip,
-            limit=query_limit,
-            after_id=after_id,
-            before_id=before_id,
-            since=since,
-            newest_first=newest_first,
-        )
-        db_latency_ms = (time.perf_counter() - query_start) * 1000.0
+        with _acquire_msg_gate():
+            query_start = time.perf_counter()
+            newest_first = after_id is None and before_id is None and since is None
+            db_messages = crud.crud_message.get_messages_for_request(
+                db,
+                request_id,
+                viewer,
+                skip=skip,
+                limit=query_limit,
+                after_id=after_id,
+                before_id=before_id,
+                since=since,
+                newest_first=newest_first,
+            )
+            db_latency_ms = (time.perf_counter() - query_start) * 1000.0
     except Exception as exc:
         # Defensive logging to diagnose unexpected DB shape mismatches in the field
         from sqlalchemy import inspect
@@ -441,6 +473,30 @@ def read_messages(
             pass
         return val
 
+    # Batch load reply previews to avoid per-row queries when requested
+    parent_preview_by_id: dict[int, str] = {}
+    include_reply_preview = normalized_mode == "full"
+    if fields:
+        extras = {f.strip() for f in fields.split(",") if f.strip()}
+        if "reply_to_preview" in extras:
+            include_reply_preview = True
+    if include_reply_preview:
+        try:
+            parent_ids = sorted({int(m.reply_to_message_id) for m in db_messages if getattr(m, "reply_to_message_id", None)})
+        except Exception:
+            parent_ids = []
+        if parent_ids:
+            try:
+                rows = (
+                    db.query(models.Message)
+                    .with_entities(models.Message.id, models.Message.content)
+                    .filter(models.Message.id.in_(parent_ids))
+                    .all()
+                )
+                parent_preview_by_id = {int(i): (c or "")[:160] for (i, c) in rows if i is not None}
+            except Exception:
+                parent_preview_by_id = {}
+
     result: List[dict] = []
     for m in db_messages:
         avatar_url = None
@@ -500,15 +556,15 @@ def read_messages(
                 data.pop("preview_args", None)
 
         if include_reply_preview and m.reply_to_message_id:
-            parent = (
-                db.query(models.Message)
-                .with_entities(models.Message.id, models.Message.content)
-                .filter(models.Message.id == m.reply_to_message_id)
-                .first()
-            )
-            if parent:
-                data["reply_to_message_id"] = parent.id
-                data["reply_to_preview"] = (parent.content or "")[:160]
+            try:
+                pid = int(m.reply_to_message_id)
+                if pid in parent_preview_by_id:
+                    data["reply_to_message_id"] = pid
+                    data["reply_to_preview"] = parent_preview_by_id.get(pid) or None
+                else:
+                    data.pop("reply_to_preview", None)
+            except Exception:
+                data.pop("reply_to_preview", None)
         else:
             data.pop("reply_to_preview", None)
 
