@@ -283,7 +283,7 @@ api.interceptors.response.use(
       const shouldSkipRefresh =
         isAuthEndpoint ||
         originalRequest?._skipRefresh ||
-        ['Missing refresh token', 'Incorrect email or password', 'Session expired', 'Token has been rotated'].some(
+        ['Missing refresh token', 'Incorrect email or password', 'Session expired'].some(
           (msg) => detailText.includes(msg),
         );
 

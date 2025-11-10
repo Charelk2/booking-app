@@ -67,3 +67,17 @@ class User(BaseModel):
         back_populates="artist",
         cascade="all, delete-orphan"
     )
+
+    # Per-session refresh model (new). Keep legacy columns for shim.
+    sessions = relationship(
+        "Session",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+# Ensure the Session model is registered with SQLAlchemy metadata even in test
+# environments that only import this module before calling create_all().
+try:
+    from . import session as _session  # noqa: F401
+except Exception:
+    pass

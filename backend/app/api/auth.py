@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 
 from ..database import get_db
 from ..models.user import User, UserType
+from ..models.session import Session as AuthSession
 from ..models.trusted_device import TrustedDevice
 from ..models.service_provider_profile import ServiceProviderProfile
 from ..models.email_token import EmailToken
@@ -146,6 +147,72 @@ def _store_refresh_token(db: Session, user: User, token: str, exp: datetime) -> 
     db.add(user)
     db.commit()
     db.refresh(user)
+
+
+def _create_session(db: Session, user: User) -> tuple[AuthSession, str, datetime]:
+    refresh_plain, r_exp = _create_refresh_token(user.email)
+    sess = AuthSession(
+        user_id=user.id,
+        refresh_token_hash=_hash_token(refresh_plain),
+        refresh_token_expires_at=r_exp,
+        last_used_at=datetime.utcnow(),
+    )
+    db.add(sess)
+    db.commit()
+    db.refresh(sess)
+    try:
+        logger.info("session_created user_id=%s session_id=%s", user.id, sess.id)
+    except Exception:
+        pass
+    return sess, refresh_plain, r_exp
+
+
+def _find_session_for_refresh(db: Session, user: User, refresh_plain: str) -> Optional[AuthSession]:
+    now = datetime.utcnow()
+    h = _hash_token(refresh_plain)
+    sess: Optional[AuthSession] = (
+        db.query(AuthSession)
+        .filter(
+            AuthSession.user_id == user.id,
+            AuthSession.refresh_token_hash == h,
+            AuthSession.revoked_at.is_(None),
+        )
+        .first()
+    )
+    if sess:
+        return sess
+    # DB-only grace window for previous hash
+    sess_prev: Optional[AuthSession] = (
+        db.query(AuthSession)
+        .filter(
+            AuthSession.user_id == user.id,
+            AuthSession.prev_refresh_token_hash == h,
+            AuthSession.revoked_at.is_(None),
+            AuthSession.prev_rotated_at.isnot(None),
+        )
+        .first()
+    )
+    if sess_prev and sess_prev.prev_rotated_at and (now - sess_prev.prev_rotated_at).total_seconds() <= 60:
+        return sess_prev
+    # Legacy shim: migrate user-level hash to a session on the fly
+    if user.refresh_token_hash and h == user.refresh_token_hash and (
+        not user.refresh_token_expires_at or user.refresh_token_expires_at >= now
+    ):
+        sess2 = AuthSession(
+            user_id=user.id,
+            refresh_token_hash=user.refresh_token_hash,
+            refresh_token_expires_at=user.refresh_token_expires_at,
+            last_used_at=now,
+        )
+        db.add(sess2)
+        db.commit()
+        db.refresh(sess2)
+        try:
+            logger.info("refresh_legacy_migrated user_id=%s session_id=%s", user.id, sess2.id)
+        except Exception:
+            pass
+        return sess2
+    return None
 
 
 def _is_secure_cookie() -> bool:
@@ -412,13 +479,14 @@ def login(
         logger.warning("Could not reset login counters: %s", exc)
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=access_token_expires,
-    )
-
-    refresh_token, r_exp = _create_refresh_token(user.email)
-    _store_refresh_token(db, user, refresh_token, r_exp)
+    access_token = create_access_token({"sub": user.email}, access_token_expires)
+    try:
+        _, refresh_token, r_exp = _create_session(db, user)
+    except Exception as exc:
+        # Fallback to legacy per-user token if sessions table is not available
+        logger.warning("_create_session failed, falling back to legacy refresh: %s", exc)
+        refresh_token, r_exp = _create_refresh_token(user.email)
+        _store_refresh_token(db, user, refresh_token, r_exp)
 
     # Set HttpOnly cookies for access + refresh, but still return JSON for compatibility
     payload = {
@@ -536,12 +604,13 @@ def verify_mfa(data: MFAVerify, db: Session = Depends(get_db)):
         db.rollback()
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=access_token_expires,
-    )
-    refresh_token, r_exp = _create_refresh_token(user.email)
-    _store_refresh_token(db, user, refresh_token, r_exp)
+    access_token = create_access_token({"sub": user.email}, access_token_expires)
+    try:
+        _, refresh_token, r_exp = _create_session(db, user)
+    except Exception as exc:
+        logger.warning("_create_session failed, falling back to legacy refresh (mfa): %s", exc)
+        refresh_token, r_exp = _create_refresh_token(user.email)
+        _store_refresh_token(db, user, refresh_token, r_exp)
     payload = {
         "access_token": access_token,
         "token_type": "bearer",
@@ -797,91 +866,175 @@ def refresh_token(
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user = get_user_by_email(db, email)
-    if not user or not user.refresh_token_hash:
+    if not user:
         raise HTTPException(status_code=401, detail="Session expired")
-    if user.refresh_token_expires_at and user.refresh_token_expires_at < datetime.utcnow():
-        # Expired in DB
-        user.refresh_token_hash = None
+
+    # Find the matching session via current or previous hash (short grace window)
+    try:
+        sess = _find_session_for_refresh(db, user, refresh_jwt)
+    except Exception as exc:
+        # Fallback to legacy behavior if sessions table is unavailable
+        logger.warning("_find_session_for_refresh failed, using legacy user hash: %s", exc)
+        if not user.refresh_token_hash:
+            raise HTTPException(status_code=401, detail="Session expired")
+        if user.refresh_token_expires_at and user.refresh_token_expires_at < datetime.utcnow():
+            user.refresh_token_hash = None
+            db.commit()
+            raise HTTPException(status_code=401, detail="Session expired")
+        provided_hash_legacy = _hash_token(refresh_jwt)
+        if provided_hash_legacy != user.refresh_token_hash:
+            # Soft legacy mapping via Redis if present
+            try:
+                client = get_redis_client()
+                mapped = client.get(f"auth:refresh:prev:{provided_hash_legacy}")
+                if mapped:
+                    access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+                    resp = Response(content=_json_dumps({"access_token": access, "token_type": "bearer", "refresh_token": mapped}), media_type="application/json")
+                    _set_access_cookie(resp, access)
+                    exp = user.refresh_token_expires_at or (datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+                    _set_refresh_cookie(resp, mapped, exp)
+                    return resp
+            except Exception:
+                pass
+            raise HTTPException(status_code=401, detail="Session expired")
+        # Rotate legacy
+        new_refresh, r_exp = _create_refresh_token(email)
+        try:
+            client = get_redis_client()
+            client.setex(f"auth:refresh:prev:{provided_hash_legacy}", 60, new_refresh)
+        except Exception:
+            pass
+        _store_refresh_token(db, user, new_refresh, r_exp)
+        access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+        resp = Response(content=_json_dumps({"access_token": access, "token_type": "bearer", "refresh_token": new_refresh}), media_type="application/json")
+        _set_access_cookie(resp, access)
+        _set_refresh_cookie(resp, new_refresh, r_exp)
+        return resp
+    if not sess or sess.revoked_at:
+        raise HTTPException(status_code=401, detail="Session expired")
+    if sess.refresh_token_expires_at and sess.refresh_token_expires_at < datetime.utcnow():
+        sess.revoked_at = datetime.utcnow()
         db.commit()
         raise HTTPException(status_code=401, detail="Session expired")
 
     provided_hash = _hash_token(refresh_jwt)
-    if provided_hash != user.refresh_token_hash:
-        # Idempotent refresh window: accept a duplicate refresh using the previous token
+    # Redis per-session idempotency map
+    mapped: Optional[str] = None
+    try:
+        client = get_redis_client()
+        mapped = client.get(f"rtmap:{sess.id}:{provided_hash}")
+    except Exception:
+        mapped = None
+    if mapped:
+        access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+        payload = {"access_token": access, "token_type": "bearer", "refresh_token": mapped}
+        t = ServerTimer(); t0 = ServerTimer.start()
+        body = _json_dumps(payload)
+        t.stop('ser', t0)
+        resp = Response(content=body, media_type="application/json")
+        _set_access_cookie(resp, access)
+        exp = sess.refresh_token_expires_at or (datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+        _set_refresh_cookie(resp, mapped, exp)
         try:
-            client = get_redis_client()
-            # Map from previous hash -> latest refresh token (plaintext) for a short grace window
-            key = f"auth:refresh:prev:{provided_hash}"
-            mapped = client.get(key)
-            if mapped:
-                # Issue a fresh access token and set the current refresh cookie to the latest value
-                access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-                payload = {"access_token": access, "token_type": "bearer", "refresh_token": mapped}
-                t = ServerTimer(); t0 = ServerTimer.start()
-                body = _json_dumps(payload)
-                t.stop('ser', t0)
-                resp = Response(content=body, media_type="application/json")
-                _set_access_cookie(resp, access)
-                # Use DB expiry; if missing, default to configured days
-                exp = user.refresh_token_expires_at or (datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
-                _set_refresh_cookie(resp, mapped, exp)
-                try:
-                    hdr = t.header()
-                    if hdr:
-                        resp.headers['Server-Timing'] = hdr
-                except Exception:
-                    pass
-                return resp
+            hdr = t.header()
+            if hdr:
+                resp.headers['Server-Timing'] = hdr
         except Exception:
             pass
-        # Outside grace window or no mapping: treat as rotated/expired
-        raise HTTPException(status_code=401, detail="Token has been rotated")
+        return resp
 
-    # Rotate refresh token
-    new_refresh, r_exp = _create_refresh_token(email)
-    # Store a grace mapping from the previous valid hash to the newly rotated token
-    try:
-        prev_hash = provided_hash
-        client = get_redis_client()
-        if isinstance(client, redis.Redis):
-            client.setex(f"auth:refresh:prev:{prev_hash}", 60, new_refresh)
-    except Exception:
-        pass
-    _store_refresh_token(db, user, new_refresh, r_exp)
+    now = datetime.utcnow()
+    # Current token => rotate
+    if provided_hash == sess.refresh_token_hash:
+        sess.prev_refresh_token_hash = provided_hash
+        sess.prev_rotated_at = now
+        new_refresh, r_exp = _create_refresh_token(email)
+        sess.refresh_token_hash = _hash_token(new_refresh)
+        sess.refresh_token_expires_at = r_exp
+        sess.last_used_at = now
+        db.commit()
+        # Publish mapping for idempotent repeats
+        try:
+            client = get_redis_client()
+            client.setex(f"rtmap:{sess.id}:{provided_hash}", 60, new_refresh)
+        except Exception:
+            pass
+        access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+        payload = {"access_token": access, "token_type": "bearer", "refresh_token": new_refresh}
+        t = ServerTimer(); t0 = ServerTimer.start()
+        body = _json_dumps(payload)
+        t.stop('ser', t0)
+        resp = Response(content=body, media_type="application/json")
+        _set_access_cookie(resp, access)
+        _set_refresh_cookie(resp, new_refresh, r_exp)
+        try:
+            resp.headers["Cache-Control"] = "no-store"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Vary"] = "Origin, Accept-Encoding"
+        except Exception:
+            pass
+        try:
+            hdr = t.header()
+            if hdr:
+                resp.headers['Server-Timing'] = hdr
+        except Exception:
+            pass
+        try:
+            logger.info("session_rotated user_id=%s session_id=%s", user.id, sess.id)
+        except Exception:
+            pass
+        return resp
 
-    # Issue a fresh access token
-    access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    payload = {"access_token": access, "token_type": "bearer", "refresh_token": new_refresh}
-    t = ServerTimer(); t0 = ServerTimer.start()
-    body = _json_dumps(payload)
-    t.stop('ser', t0)
-    resp = Response(content=body, media_type="application/json")
-    _set_access_cookie(resp, access)
-    _set_refresh_cookie(resp, new_refresh, r_exp)
-    try:
-        resp.headers["Cache-Control"] = "no-store"
-        resp.headers["Pragma"] = "no-cache"
-        resp.headers["Vary"] = "Origin, Accept-Encoding"
-    except Exception:
-        pass
-    try:
-        hdr = t.header()
-        if hdr:
-            resp.headers['Server-Timing'] = hdr
-    except Exception:
-        pass
-    return resp
+    # Previous token path within DB grace window → reissue latest tokens
+    if (
+        sess.prev_refresh_token_hash
+        and provided_hash == sess.prev_refresh_token_hash
+        and sess.prev_rotated_at
+        and (now - sess.prev_rotated_at).total_seconds() <= 60
+    ):
+        access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+        # We no longer have the old plaintext; return current cookies/tokens
+        # by rotating again to a new refresh to avoid ambiguity
+        new_refresh, r_exp = _create_refresh_token(email)
+        sess.refresh_token_hash = _hash_token(new_refresh)
+        sess.refresh_token_expires_at = r_exp
+        sess.last_used_at = now
+        db.commit()
+        resp = Response(content=_json_dumps({"access_token": access, "token_type": "bearer", "refresh_token": new_refresh}), media_type="application/json")
+        _set_access_cookie(resp, access)
+        _set_refresh_cookie(resp, new_refresh, r_exp)
+        return resp
+
+    # Otherwise, token is not current nor recent for this session
+    raise HTTPException(status_code=401, detail="Session expired")
 
 
 @router.post("/logout")
 def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
-    """Invalidate the current session's refresh token."""
-    current_user.refresh_token_hash = None
-    current_user.refresh_token_expires_at = None
-    db.commit()
+    """Invalidate the current session's refresh token (session-scoped)."""
+    try:
+        rt = request.cookies.get("refresh_token") if request else None
+        if rt:
+            h = _hash_token(rt)
+            try:
+                db.query(AuthSession).filter(
+                    AuthSession.user_id == current_user.id,
+                    AuthSession.refresh_token_hash == h,
+                    AuthSession.revoked_at.is_(None),
+                ).update({AuthSession.revoked_at: datetime.utcnow()})
+                db.commit()
+                logger.info("session_revoked user_id=%s", current_user.id)
+            except Exception:
+                # Legacy fallback: clear user-level fields
+                current_user.refresh_token_hash = None
+                current_user.refresh_token_expires_at = None
+                db.commit()
+    except Exception:
+        db.rollback()
     t = ServerTimer(); t0 = ServerTimer.start()
     body = _json_dumps({"message": "logged out"})
     t.stop('ser', t0)
@@ -897,6 +1050,38 @@ def logout(
         hdr = t.header()
         if hdr:
             resp.headers['Server-Timing'] = hdr
+    except Exception:
+        pass
+    return resp
+
+
+@router.post("/logout-all")
+def logout_all(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Revoke all active sessions for the current user and clear cookies."""
+    try:
+        try:
+            n = db.query(AuthSession).filter(
+                AuthSession.user_id == current_user.id,
+                AuthSession.revoked_at.is_(None),
+            ).update({AuthSession.revoked_at: datetime.utcnow()})
+            db.commit()
+            logger.info("logout_all user_id=%s revoked=%s", current_user.id, n)
+        except Exception:
+            # Legacy fallback: clear user-level token
+            current_user.refresh_token_hash = None
+            current_user.refresh_token_expires_at = None
+            db.commit()
+    except Exception:
+        db.rollback()
+    resp = Response(content=_json_dumps({"message": "logged out all"}), media_type="application/json")
+    _clear_auth_cookies(resp)
+    try:
+        resp.headers["Cache-Control"] = "no-store"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Vary"] = "Origin, Accept-Encoding"
     except Exception:
         pass
     return resp
