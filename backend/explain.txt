@@ -291,3 +291,137 @@ QUERY PLAN | Planning Time: 0.258 ms
 -[ RECORD 10 ]-------------------------------------------------------------------------------------------------------------------------------------------
 QUERY PLAN | Execution Time: 0.033 ms
 
+List of tables
+-[ RECORD 1 ]-+----------
+Schema        | public
+Name          | sessions
+Type          | table
+Owner         | appuser
+Persistence   | permanent
+Access method | heap
+Size          | 0 bytes
+Description   | 
+
+                                                                          Table "public.sessions"
+          Column          |            Type             | Collation | Nullable |               Default                | Storage  | Compression | Stats target | Description 
+--------------------------+-----------------------------+-----------+----------+--------------------------------------+----------+-------------+--------------+-------------
+ id                       | integer                     |           | not null | nextval('sessions_id_seq'::regclass) | plain    |             |              | 
+ user_id                  | integer                     |           | not null |                                      | plain    |             |              | 
+ refresh_token_hash       | character varying(128)      |           |          |                                      | extended |             |              | 
+ refresh_token_expires_at | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ refresh_jti              | character varying(64)       |           |          |                                      | extended |             |              | 
+ prev_refresh_token_hash  | character varying(128)      |           |          |                                      | extended |             |              | 
+ prev_rotated_at          | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ revoked_at               | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ last_used_at             | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ created_at               | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ updated_at               | timestamp without time zone |           |          |                                      | plain    |             |              | 
+Indexes:
+    "sessions_pkey" PRIMARY KEY, btree (id)
+    "ix_sessions_refresh_hash" btree (refresh_token_hash)
+    "ix_sessions_refresh_jti" UNIQUE, btree (refresh_jti)
+    "ix_sessions_revoked_at" btree (revoked_at)
+    "ix_sessions_user_id" btree (user_id)
+Foreign-key constraints:
+    "sessions_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+Access method: heap
+
+List of tables
+-[ RECORD 1 ]-+-----------
+Schema        | public
+Name          | sessions
+Type          | table
+Owner         | appuser
+Persistence   | permanent
+Access method | heap
+Size          | 8192 bytes
+Description   | 
+
+                                                                          Table "public.sessions"
+          Column          |            Type             | Collation | Nullable |               Default                | Storage  | Compression | Stats target | Description 
+--------------------------+-----------------------------+-----------+----------+--------------------------------------+----------+-------------+--------------+-------------
+ id                       | integer                     |           | not null | nextval('sessions_id_seq'::regclass) | plain    |             |              | 
+ user_id                  | integer                     |           | not null |                                      | plain    |             |              | 
+ refresh_token_hash       | character varying(128)      |           |          |                                      | extended |             |              | 
+ refresh_token_expires_at | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ refresh_jti              | character varying(64)       |           |          |                                      | extended |             |              | 
+ prev_refresh_token_hash  | character varying(128)      |           |          |                                      | extended |             |              | 
+ prev_rotated_at          | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ revoked_at               | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ last_used_at             | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ created_at               | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ updated_at               | timestamp without time zone |           |          |                                      | plain    |             |              | 
+Indexes:
+    "sessions_pkey" PRIMARY KEY, btree (id)
+    "ix_sessions_refresh_hash" btree (refresh_token_hash)
+    "ix_sessions_refresh_jti" UNIQUE, btree (refresh_jti)
+    "ix_sessions_revoked_at" btree (revoked_at)
+    "ix_sessions_user_id" btree (user_id)
+Foreign-key constraints:
+    "sessions_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+Access method: heap
+
+List of tables
+-[ RECORD 1 ]-+-----------
+Schema        | public
+Name          | sessions
+Type          | table
+Owner         | appuser
+Persistence   | permanent
+Access method | heap
+Size          | 8192 bytes
+Description   | 
+
+ROLLBACK
+List of tables
+-[ RECORD 1 ]-+-----------
+Schema        | public
+Name          | sessions
+Type          | table
+Owner         | appuser
+Persistence   | permanent
+Access method | heap
+Size          | 8192 bytes
+Description   | 
+
+                                                                          Table "public.sessions"
+          Column          |            Type             | Collation | Nullable |               Default                | Storage  | Compression | Stats target | Description 
+--------------------------+-----------------------------+-----------+----------+--------------------------------------+----------+-------------+--------------+-------------
+ id                       | integer                     |           | not null | nextval('sessions_id_seq'::regclass) | plain    |             |              | 
+ user_id                  | integer                     |           | not null |                                      | plain    |             |              | 
+ refresh_token_hash       | character varying(128)      |           |          |                                      | extended |             |              | 
+ refresh_token_expires_at | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ refresh_jti              | character varying(64)       |           |          |                                      | extended |             |              | 
+ prev_refresh_token_hash  | character varying(128)      |           |          |                                      | extended |             |              | 
+ prev_rotated_at          | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ revoked_at               | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ last_used_at             | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ created_at               | timestamp without time zone |           |          |                                      | plain    |             |              | 
+ updated_at               | timestamp without time zone |           |          |                                      | plain    |             |              | 
+Indexes:
+    "sessions_pkey" PRIMARY KEY, btree (id)
+    "ix_sessions_refresh_hash" btree (refresh_token_hash)
+    "ix_sessions_refresh_jti" UNIQUE, btree (refresh_jti)
+    "ix_sessions_revoked_at" btree (revoked_at)
+    "ix_sessions_user_id" btree (user_id)
+Foreign-key constraints:
+    "sessions_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+Access method: heap
+
+-[ RECORD 1 ]--+-------
+current_schema | public
+
+-[ RECORD 1 ]-------
+search_path | public
+
+-[ RECORD 1 ]--+-------
+current_schema | public
+
+-[ RECORD 1 ]--------
+schemaname | public
+tablename  | sessions
+
+-[ RECORD 1 ]+---------
+table_schema | public
+table_name   | sessions
+
