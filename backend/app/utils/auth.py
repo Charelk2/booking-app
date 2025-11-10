@@ -1,6 +1,14 @@
 from passlib.context import CryptContext
+import os
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Configure bcrypt rounds explicitly for predictable performance.
+# Defaults to 11 rounds unless overridden via BCRYPT_ROUNDS env var.
+_BCRYPT_ROUNDS = int(os.getenv("BCRYPT_ROUNDS", "11") or 11)
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=_BCRYPT_ROUNDS,
+)
 
 
 def get_password_hash(password: str) -> str:
@@ -9,6 +17,21 @@ def get_password_hash(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
+
+
+def bcrypt_rounds_from_hash(hashed_password: str) -> int | None:
+    """Return the cost factor encoded in a bcrypt hash, or None if unknown.
+
+    Bcrypt hashes typically look like: $2b$12$<salt+hash> where 12 is the rounds.
+    """
+    try:
+        parts = hashed_password.split("$")
+        # ['', '2b', '12', '...'] – cost is parts[2]
+        if len(parts) >= 3 and parts[1] and parts[2].isdigit():
+            return int(parts[2])
+    except Exception:
+        pass
+    return None
 
 
 def normalize_email(email: str) -> str:

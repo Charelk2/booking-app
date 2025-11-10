@@ -30,7 +30,7 @@ from ..schemas.user import (
     MFACode,
     EmailConfirmRequest,
 )
-from ..utils.auth import get_password_hash, verify_password, normalize_email
+from ..utils.auth import get_password_hash, verify_password, normalize_email, bcrypt_rounds_from_hash
 from ..utils.email import send_email
 from ..utils.redis_cache import get_redis_client
 from ..utils.server_timing import ServerTimer
@@ -447,6 +447,18 @@ def login(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Optional: rehash-on-login to align with current bcrypt rounds policy.
+    # This can also reduce future login verify cost when rounds were higher.
+    try:
+        desired = int(os.getenv("BCRYPT_ROUNDS", "11") or 11)
+        current = bcrypt_rounds_from_hash(user.password) if user and isinstance(user.password, str) else None
+        if current is not None and current > desired:
+            user.password = get_password_hash(form_data.password)
+            # No explicit commit here; _create_session() will commit this change.
+    except Exception:
+        # Never fail login due to rehash issues
+        pass
 
     # Skip MFA if a recognized trusted device is present
     device_id_hdr = request.headers.get("x-device-id") or request.headers.get("X-Device-Id")
