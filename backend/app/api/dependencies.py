@@ -26,8 +26,9 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
     # Eager load artist_profile if it exists, to potentially save queries in dependent functions
+    # Compare using normalized equality so the email index can be used
     user = db.query(User).options(joinedload(User.artist_profile)).filter(
-        func.lower(User.email) == normalize_email(email)
+        User.email == normalize_email(email)
     ).first()
     if user is None:
         raise credentials_exception

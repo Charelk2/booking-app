@@ -329,7 +329,8 @@ def register(
     db: Session = Depends(get_db),
 ):
     email = normalize_email(user_data.email)
-    existing_user = db.query(User).filter(func.lower(User.email) == email).first()
+    # Compare against normalized email directly so the index on users.email is usable
+    existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
         # Use a precise, user-friendly message and 409 Conflict
         raise HTTPException(
@@ -422,7 +423,8 @@ def login(
     except redis.exceptions.ConnectionError as exc:
         logger.warning("Redis unavailable for login tracking: %s", exc)
 
-    user = db.query(User).filter(func.lower(User.email) == email).first()
+    # Use normalized equality to benefit from the email index
+    user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(form_data.password, user.password):
         try:
             client.incr(user_key)
@@ -526,7 +528,8 @@ def login(
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     email = normalize_email(email)
-    return db.query(User).filter(func.lower(User.email) == email).first()
+    # Avoid wrapping the column in lower(); normalized equality keeps index usage
+    return db.query(User).filter(User.email == email).first()
 
 
 def get_current_user(
@@ -797,7 +800,8 @@ def email_status(
     {"exists": true, "providers": ["password", "google", "apple"], "locked": false}
     """
     norm = normalize_email(email)
-    user = db.query(User).filter(func.lower(User.email) == norm).first()
+    # Normalized equality keeps index usage for existence checks
+    user = db.query(User).filter(User.email == norm).first()
 
     # Determine supported providers — password is always supported. OAuth providers
     # are included when configured so the UI can surface the relevant CTAs.
@@ -1107,7 +1111,8 @@ def forgot_password(
     db: Session = Depends(get_db),
 ):
     email = normalize_email(data.email)
-    user = db.query(User).filter(func.lower(User.email) == email).first()
+    # Normalized equality for indexed lookup
+    user = db.query(User).filter(User.email == email).first()
     # Respond 200 regardless to avoid account enumeration; only send email if user exists
     reset_link = None
     if user:

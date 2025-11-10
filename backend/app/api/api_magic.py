@@ -43,7 +43,8 @@ def request_magic_link(
 ):
     email = normalize_email(data.email)
     # Do not leak user existence via errors
-    user = db.query(User).filter(func.lower(User.email) == email).first()
+    # Use normalized equality to leverage the email index
+    user = db.query(User).filter(User.email == email).first()
     if not user:
         # Auto-provision minimal client account (pattern common with magic links)
         user = User(
@@ -93,7 +94,8 @@ def consume_magic_link(data: MagicLinkConsume, db: Session = Depends(get_db)):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    user = db.query(User).filter(func.lower(User.email) == normalize_email(email)).first()
+    # Normalized equality keeps index usage
+    user = db.query(User).filter(User.email == normalize_email(email)).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
