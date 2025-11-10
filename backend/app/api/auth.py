@@ -1,6 +1,6 @@
 # backend/app/api/auth.py
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status, BackgroundTasks
 from pathlib import Path
 import base64
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -116,6 +116,28 @@ def _create_refresh_token(email: str) -> Tuple[str, datetime]:
     jti = secrets.token_urlsafe(16)
     token = jwt.encode({"sub": email, "typ": "refresh", "jti": jti, "exp": expires}, SECRET_KEY, algorithm=ALGORITHM)
     return token, expires
+
+
+def _sanitize_bearer_token(val: str | None) -> str | None:
+    """Leniently clean Authorization Bearer/cookie tokens.
+
+    Trims whitespace, surrounding quotes, and common trailing punctuation
+    such as ';', ',' or '.' that are sometimes appended by tools or
+    copy/paste. Keeps the Base64URL token content intact.
+    """
+    if val is None:
+        return None
+    try:
+        s = str(val).strip()
+        # Strip surrounding quotes once
+        if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+            s = s[1:-1].strip()
+        # Remove stray trailing punctuation
+        while s and s[-1] in {";", ",", "."}:
+            s = s[:-1]
+        return s
+    except Exception:
+        return val
 
 
 def _store_refresh_token(db: Session, user: User, token: str, exp: datetime) -> None:
@@ -234,7 +256,11 @@ def _clear_auth_cookies(response: Response) -> None:
 
 
 @router.post("/register", response_model=UserResponse)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+def register(
+    user_data: UserCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     email = normalize_email(user_data.email)
     existing_user = db.query(User).filter(func.lower(User.email) == email).first()
     if existing_user:
@@ -282,11 +308,17 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         db.commit()
 
         verify_link = f"{settings.FRONTEND_URL}/confirm-email?token={token_value}"
-        send_email(
-            db_user.email,
-            "Confirm your email",
-            f"Click the link to verify your account: {verify_link}",
-        )
+        # Send verification email out-of-band so DB connection is released quickly
+        try:
+            background_tasks.add_task(
+                send_email,
+                db_user.email,
+                "Confirm your email",
+                f"Click the link to verify your account: {verify_link}",
+            )
+        except Exception:
+            # Never block registration on email scheduling
+            pass
 
         return db_user
     except Exception as e:
@@ -440,9 +472,9 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     # Prefer Authorization header; fall back to access_token cookie if missing
-    jwt_token = token
+    jwt_token = _sanitize_bearer_token(token)
     if (not jwt_token) and request is not None:
-        jwt_token = request.cookies.get("access_token")
+        jwt_token = _sanitize_bearer_token(request.cookies.get("access_token"))
     if not jwt_token:
         raise credentials_exception
     try:
@@ -884,7 +916,11 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/forgot-password")
-def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+def forgot_password(
+    data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     email = normalize_email(data.email)
     user = db.query(User).filter(func.lower(User.email) == email).first()
     # Respond 200 regardless to avoid account enumeration; only send email if user exists
@@ -896,9 +932,14 @@ def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
         )
         reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
         try:
-            send_email(user.email, "Reset your password", f"Click the link to reset your password: {reset_link}")
+            background_tasks.add_task(
+                send_email,
+                user.email,
+                "Reset your password",
+                f"Click the link to reset your password: {reset_link}",
+            )
         except Exception as exc:  # pragma: no cover
-            logger.warning("Failed to send reset email: %s", exc)
+            logger.warning("Failed to enqueue reset email: %s", exc)
     # In dev mode, surface the link to the client to ease testing
     if settings.EMAIL_DEV_MODE and reset_link:
         logger.info("Password reset link for %s: %s", email, reset_link)

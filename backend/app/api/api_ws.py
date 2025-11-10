@@ -17,10 +17,13 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from starlette.exceptions import WebSocketException
 from jose import JWTError, jwt
 
-from ..database import SessionLocal
+from ..database import get_db_session
 from ..models.user import User
 from .. import crud
 from .auth import ALGORITHM, SECRET_KEY, get_user_by_email
+from threading import BoundedSemaphore
+from fastapi.concurrency import run_in_threadpool
+import os
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -70,6 +73,22 @@ class Envelope:
             return self.to_json().encode("utf-8")
         except Exception:
             return b"{}"
+
+# ─── WS DB concurrency limiter ───────────────────────────────────────────────
+_WS_DB_SEM: BoundedSemaphore | None = None
+
+
+def _get_ws_db_sem() -> BoundedSemaphore:
+    global _WS_DB_SEM
+    if _WS_DB_SEM is None:
+        try:
+            cap = int(os.getenv("WS_DB_CONCURRENCY") or 8)
+            if cap <= 0:
+                cap = 8
+        except Exception:
+            cap = 8
+        _WS_DB_SEM = BoundedSemaphore(cap)
+    return _WS_DB_SEM
 
 class NoiseWS:
     def __init__(self, websocket: WebSocket) -> None:
@@ -194,7 +213,40 @@ def _extract_bearer_token(ws: WebSocket) -> Optional[str]:
         pass
     return None
 
-def _current_user_from_token(token: str) -> Optional[User]:
+def _sanitize_bearer(val: Optional[str]) -> Optional[str]:
+    if val is None:
+        return None
+    try:
+        s = str(val).strip()
+        if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+            s = s[1:-1].strip()
+        while s and s[-1] in {";", ",", "."}:
+            s = s[:-1]
+        return s
+    except Exception:
+        return val
+
+def _call_with_session(fn, *args, **kwargs):
+    """Run a DB function with a short‑lived session (sync)."""
+    with get_db_session() as db:
+        return fn(db, *args, **kwargs)
+
+
+async def _ws_db_call(fn, *args, **kwargs):
+    """Guard DB calls behind the WS semaphore and offload to thread pool."""
+    sem = _get_ws_db_sem()
+    sem.acquire()
+    try:
+        return await run_in_threadpool(_call_with_session, fn, *args, **kwargs)
+    finally:
+        try:
+            sem.release()
+        except Exception:
+            pass
+
+
+async def _current_user_from_token(token: str) -> Optional[User]:
+    token = _sanitize_bearer(token)
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"leeway": 60})
     except JWTError:
@@ -202,11 +254,7 @@ def _current_user_from_token(token: str) -> Optional[User]:
     email = payload.get("sub")
     if not email:
         return None
-    db = SessionLocal()
-    try:
-        return get_user_by_email(db, email)
-    finally:
-        db.close()
+    return await _ws_db_call(get_user_by_email, email)
 
 # -------- presence & topic mux --------
 
@@ -316,16 +364,12 @@ async def booking_request_ws(
     token = _extract_bearer_token(websocket)
     if not token:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
-    user = _current_user_from_token(token)
+    user = await _current_user_from_token(token)
     if not user:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
 
     # Authorization
-    db = SessionLocal()
-    try:
-        br = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
-    finally:
-        db.close()
+    br = await _ws_db_call(crud.crud_booking_request.get_booking_request, request_id=request_id)
     if not br or int(user.id) not in {int(br.client_id), int(br.artist_id)}:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Unauthorized")
 
@@ -420,7 +464,7 @@ async def multiplex_ws(
     token = _extract_bearer_token(websocket)
     if not token:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
-    user = _current_user_from_token(token)
+    user = await _current_user_from_token(token)
     if not user:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
 
@@ -491,11 +535,7 @@ async def multiplex_ws(
                         except Exception:
                             continue
                         # authorize
-                        db = SessionLocal()
-                        try:
-                            br = crud.crud_booking_request.get_booking_request(db, request_id=req_id)
-                        finally:
-                            db.close()
+                        br = await _ws_db_call(crud.crud_booking_request.get_booking_request, request_id=req_id)
                         if not br or int(user.id) not in {int(br.client_id), int(br.artist_id)}:
                             continue
                         await mux.subscribe(conn, topic)
@@ -592,7 +632,7 @@ async def notifications_ws(
     token = _extract_bearer_token(websocket)
     if not token:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
-    user = _current_user_from_token(token)
+    user = await _current_user_from_token(token)
     if not user:
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
 

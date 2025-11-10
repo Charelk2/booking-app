@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, BackgroundTasks
 from ..utils.json import dumps_bytes as _json_dumps
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -36,7 +36,11 @@ class MagicLinkConsume(BaseModel):
 
 
 @router.post("/magic-link/request")
-def request_magic_link(data: MagicLinkRequest, db: Session = Depends(get_db)):
+def request_magic_link(
+    data: MagicLinkRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     email = normalize_email(data.email)
     # Do not leak user existence via errors
     user = db.query(User).filter(func.lower(User.email) == email).first()
@@ -62,7 +66,12 @@ def request_magic_link(data: MagicLinkRequest, db: Session = Depends(get_db)):
     link = f"{settings.FRONTEND_URL.rstrip('/')}/magic?token={token}"
 
     try:
-        send_email(user.email, "Your sign-in link", f"Click to sign in: {link}")
+        background_tasks.add_task(
+            send_email,
+            user.email,
+            "Your sign-in link",
+            f"Click to sign in: {link}",
+        )
     except Exception:
         # Non-fatal in dev; continue
         pass

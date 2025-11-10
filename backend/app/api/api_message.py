@@ -17,6 +17,7 @@ from typing import List, Optional, Literal
 from datetime import datetime, timezone
 import logging
 import time
+from fastapi.concurrency import run_in_threadpool
 
 from .. import crud, models, schemas
 from ..schemas.storage import PresignIn, PresignOut
@@ -45,6 +46,135 @@ from contextlib import contextmanager
 router = APIRouter(tags=["messages"])
 
 logger = logging.getLogger(__name__)
+
+# ---- CPU-bound message serialization helper (pure sync) ----------------------
+def process_messages_sync(
+    db_messages: List["models.Message"],
+    *,
+    include: Optional[set[str]],
+    include_attachment_meta: bool,
+    include_preview_args: bool,
+    include_reply_preview: bool,
+    include_reactions: bool,
+    parent_preview_by_id: dict[int, str],
+    aggregates: dict[int, dict],
+    my: dict[int, list],
+    scrub_avatar,
+    scrub_attachment_meta,
+    maybe_sign_attachment_url,
+) -> List[dict]:
+    """Build the response items from Message rows without touching the DB.
+
+    This function intentionally performs no database I/O so it can be safely
+    offloaded to a thread pool if needed.
+    """
+    from datetime import datetime as _dt
+    from .. import models as _models, schemas as _schemas  # localize for speed
+    from ..utils.messages import preview_label_for_message as _preview_label
+
+    out: List[dict] = []
+    for m in db_messages:
+        # Derive avatar
+        avatar_url = None
+        sender = getattr(m, "sender", None)
+        if sender:
+            try:
+                if sender.user_type == _models.UserType.SERVICE_PROVIDER:
+                    profile = getattr(sender, "artist_profile", None)
+                    if profile and getattr(profile, "profile_picture_url", None):
+                        avatar_url = profile.profile_picture_url
+                elif getattr(sender, "profile_picture_url", None):
+                    avatar_url = sender.profile_picture_url
+            except Exception:
+                avatar_url = None
+        avatar_url = scrub_avatar(avatar_url)
+
+        data = _schemas.MessageResponse.model_validate(m).model_dump()
+        data["avatar_url"] = avatar_url
+
+        # Attachment URL signing for private objects (skip images)
+        if data.get("attachment_url"):
+            data["attachment_url"] = maybe_sign_attachment_url(
+                str(data.get("attachment_url") or ""),
+                data.get("attachment_meta") if include_attachment_meta else None,
+            )
+
+        if include_attachment_meta:
+            if data.get("attachment_meta"):
+                data["attachment_meta"] = scrub_attachment_meta(data.get("attachment_meta"))
+        else:
+            data.pop("attachment_meta", None)
+
+        # Preview label + key
+        try:
+            data["preview_label"] = _preview_label(m)
+            key = None
+            if m.message_type == _models.MessageType.QUOTE:
+                key = "quote"
+            elif m.system_key:
+                low = (m.system_key or "").strip().lower()
+                if low.startswith("booking_details"):
+                    key = "new_booking_request"
+                elif low.startswith("payment_received") or low == "payment_received":
+                    key = "payment_received"
+                elif low.startswith("event_reminder"):
+                    key = "event_reminder"
+                else:
+                    key = low
+            data["preview_key"] = key
+            if include_preview_args:
+                data["preview_args"] = {}
+            else:
+                data.pop("preview_args", None)
+        except Exception:
+            data["preview_label"] = None
+            if include_preview_args:
+                data["preview_args"] = {}
+            else:
+                data.pop("preview_args", None)
+
+        # Reply preview (pre-batched)
+        if include_reply_preview and getattr(m, "reply_to_message_id", None):
+            try:
+                pid = int(m.reply_to_message_id)
+                if pid in parent_preview_by_id:
+                    data["reply_to_message_id"] = pid
+                    data["reply_to_preview"] = parent_preview_by_id.get(pid) or None
+                else:
+                    data.pop("reply_to_preview", None)
+            except Exception:
+                data.pop("reply_to_preview", None)
+        else:
+            data.pop("reply_to_preview", None)
+
+        # Reactions (pre-fetched)
+        if include_reactions:
+            if m.id in aggregates:
+                data["reactions"] = aggregates[m.id]
+            else:
+                data.pop("reactions", None)
+            if m.id in my:
+                data["my_reactions"] = my[m.id]
+            else:
+                data.pop("my_reactions", None)
+        else:
+            data.pop("reactions", None)
+            data.pop("my_reactions", None)
+
+        if include is not None:
+            data = {k: v for k, v in data.items() if k in include}
+
+        out.append(data)
+
+    # Compute cursors (client expects oldest→newest)
+    if out:
+        last = out[-1]
+        ts_val = last.get("timestamp")
+        if isinstance(ts_val, _dt):
+            last["_next_ts_iso"] = ts_val.isoformat()
+        elif isinstance(ts_val, str):
+            last["_next_ts_iso"] = ts_val
+    return out
 
 # ─── Concurrency limiter for message list (DB protection) ─────────────────────
 _MSG_LIST_SEM: BoundedSemaphore | None = None
@@ -167,7 +297,7 @@ def _cheap_snapshot_thread(db: Session, request_id: int, viewer: "models.Visible
     "/booking-requests/{request_id}/messages",
     response_model=schemas.MessageListResponse,
 )
-def read_messages(
+async def read_messages_async(
     request_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -240,12 +370,18 @@ def read_messages(
 
     # Clamp heavy pages to keep p95 low and avoid starving health checks
     requested_limit = int(limit)
-    if normalized_mode == "delta":
+    # Page sizing policy:
+    # - For explicit history loads (before_id): allow a larger cap (<=120)
+    # - For deltas (after_id/since): keep small pages (<=100)
+    # - For initial full/lite loads: enforce a smaller first page (<=60)
+    if before_id is not None:
+        effective_limit = min(requested_limit, 120)
+    elif normalized_mode == "delta":
         # Delta pages should be small; align with (booking_request_id, id) index
         effective_limit = min(requested_limit, 100)
     else:
-        # Initial/lite/full pages: cap to a reasonable window
-        effective_limit = min(requested_limit, 120)
+        # Initial/lite/full pages: cap to a smaller window to protect tail latency
+        effective_limit = min(requested_limit, 60)
     # Always over-fetch by 1 so we can compute has_more uniformly across modes
     query_limit = effective_limit + 1
 
@@ -497,94 +633,24 @@ def read_messages(
             except Exception:
                 parent_preview_by_id = {}
 
-    result: List[dict] = []
-    for m in db_messages:
-        avatar_url = None
-        sender = m.sender  # sender may be None if the user was deleted
-        if sender:
-            if sender.user_type == models.UserType.SERVICE_PROVIDER:
-                profile = sender.artist_profile
-                if profile and profile.profile_picture_url:
-                    avatar_url = profile.profile_picture_url
-            elif sender.profile_picture_url:
-                avatar_url = sender.profile_picture_url
-        avatar_url = _scrub_avatar(avatar_url)
-
-        data = schemas.MessageResponse.model_validate(m).model_dump()
-        data["avatar_url"] = avatar_url
-
-        # Sign attachment URL on the fly when pointing at private R2.
-        # For images, keep the original (public) URL to maximize cache hits.
-        if data.get("attachment_url"):
-            data["attachment_url"] = _maybe_sign_attachment_url(
-                str(data.get("attachment_url") or ""),
-                data.get("attachment_meta") if include_attachment_meta else None,
-            )
-
-        if include_attachment_meta:
-            if data.get("attachment_meta"):
-                data["attachment_meta"] = _scrub_attachment_meta(data.get("attachment_meta"))
-        else:
-            data.pop("attachment_meta", None)
-
-        # Server-computed preview label for uniform clients
-        try:
-            data["preview_label"] = preview_label_for_message(m)
-            key = None
-            if m.message_type == models.MessageType.QUOTE:
-                key = "quote"
-            elif m.system_key:
-                low = (m.system_key or "").strip().lower()
-                if low.startswith("booking_details"):
-                    key = "new_booking_request"
-                elif low.startswith("payment_received") or low == "payment_received":
-                    key = "payment_received"
-                elif low.startswith("event_reminder"):
-                    key = "event_reminder"
-                else:
-                    key = low
-            data["preview_key"] = key
-            if include_preview_args:
-                data["preview_args"] = {}
-            else:
-                data.pop("preview_args", None)
-        except Exception:
-            data["preview_label"] = None
-            if include_preview_args:
-                data["preview_args"] = {}
-            else:
-                data.pop("preview_args", None)
-
-        if include_reply_preview and m.reply_to_message_id:
-            try:
-                pid = int(m.reply_to_message_id)
-                if pid in parent_preview_by_id:
-                    data["reply_to_message_id"] = pid
-                    data["reply_to_preview"] = parent_preview_by_id.get(pid) or None
-                else:
-                    data.pop("reply_to_preview", None)
-            except Exception:
-                data.pop("reply_to_preview", None)
-        else:
-            data.pop("reply_to_preview", None)
-
-        if include_reactions:
-            if m.id in aggregates:
-                data["reactions"] = aggregates[m.id]
-            else:
-                data.pop("reactions", None)
-            if m.id in my:
-                data["my_reactions"] = my[m.id]
-            else:
-                data.pop("my_reactions", None)
-        else:
-            data.pop("reactions", None)
-            data.pop("my_reactions", None)
-
-        if include is not None:
-            data = {k: v for k, v in data.items() if k in include}
-
-        result.append(data)
+    # CPU-heavy serialization step offloaded to a thread pool.
+    # Keep all DB work above on the main path; only the transformation runs off-thread.
+    # Offload CPU-bound per-row transformation to a worker thread.
+    result: List[dict] = await run_in_threadpool(
+        process_messages_sync,
+        db_messages,
+        include=include,
+        include_attachment_meta=include_attachment_meta,
+        include_preview_args=include_preview_args,
+        include_reply_preview=include_reply_preview,
+        include_reactions=include_reactions,
+        parent_preview_by_id=parent_preview_by_id,
+        aggregates=aggregates,
+        my=my,
+        scrub_avatar=_scrub_avatar,
+        scrub_attachment_meta=_scrub_attachment_meta,
+        maybe_sign_attachment_url=_maybe_sign_attachment_url,
+    )
 
     delta_cursor = None
     next_cursor = None
@@ -743,6 +809,11 @@ def read_messages(
         },
     )
 
+    # If we're not in a real HTTP request context (e.g., called directly in tests),
+    # return the Pydantic model to preserve back-compat expectations.
+    if request is None and response is None:
+        return schemas.MessageListResponse(**envelope_dict)
+
     # Fast ORJSON serialization + consistent ETag (skip heavy re-checks)
     try:
         body0 = _json_dumps(envelope_dict)
@@ -816,6 +887,50 @@ def read_messages(
         pass
 
     return schemas.MessageListResponse(**envelope_dict)
+
+# Back-compat wrapper for tests and internal callers that import read_messages
+def read_messages(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=5000),
+    after_id: Optional[int] = Query(None),
+    before_id: Optional[int] = Query(None),
+    fields: Optional[str] = Query(None),
+    mode: Literal["full", "lite", "delta"] = Query("full"),
+    since: Optional[datetime] = Query(None),
+    include_quotes: bool = Query(False),
+    known_quote_ids: Optional[str] = Query(None),
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
+    x_after_write: Optional[str] = Header(default=None, alias="X-After-Write", convert_underscores=False),
+    request: Request = None,
+    response: Response = None,
+):
+    # Execute the async route implementation in a private event loop
+    import anyio
+
+    async def _run():
+        return await read_messages_async(
+            request_id,
+            db,
+            current_user,
+            skip,
+            limit,
+            after_id,
+            before_id,
+            fields,
+            mode,
+            since,
+            include_quotes,
+            known_quote_ids,
+            if_none_match,
+            x_after_write,
+            request,
+            response,
+        )
+
+    return anyio.run(_run)
 
 
 @router.get(

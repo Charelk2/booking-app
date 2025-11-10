@@ -21,9 +21,12 @@ from pydantic import BaseModel
 from datetime import datetime
 import hashlib
 import time
+import asyncio
 
 from ..utils.json import dumps_bytes as _json_dumps
 from threading import BoundedSemaphore
+from fastapi.concurrency import run_in_threadpool
+from ..database import get_db_session
 import os
 
 
@@ -798,10 +801,9 @@ def get_inbox_unread(
 # ---- Realtime: Server-Sent Events (SSE) -------------------------------------
 
 @router.get("/inbox/stream")
-def inbox_stream(
+async def inbox_stream(
     role: Optional[str] = Query(None, regex="^(artist|client)$"),
     heartbeat: float = Query(20.0, ge=5.0, le=120.0, description="Heartbeat seconds to keep proxy connections alive"),
-    db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     """Push minimal change events when the user's inbox state changes.
@@ -817,9 +819,27 @@ def inbox_stream(
 
     user_id = int(current_user.id)
 
-    def _iter_events():
+    # Concurrency guard for stream snapshot DB touches
+    global _STREAM_SEM
+    sem = _get_stream_sem()
+
+    def _snapshot_once(uid: int, as_artist: bool) -> Tuple[int, int, int, int]:
+        with get_db_session() as _db:
+            return _cheap_snapshot(_db, uid, as_artist)
+
+    async def _poll_snapshot(uid: int, as_artist: bool) -> Tuple[int, int, int, int]:
+        sem.acquire()
+        try:
+            return await run_in_threadpool(_snapshot_once, uid, as_artist)
+        finally:
+            try:
+                sem.release()
+            except Exception:
+                pass
+
+    async def _aiter_events():
         # Initial snapshot/token
-        max_msg_id, max_br_id, unread_total, thread_count = _cheap_snapshot(db, user_id, is_artist)
+        max_msg_id, max_br_id, unread_total, thread_count = await _poll_snapshot(user_id, is_artist)
         token = _change_token("snap", user_id, max_msg_id, max_br_id, unread_total, thread_count)
         last_emit_ts = time.time()
 
@@ -828,14 +848,14 @@ def inbox_stream(
         yield f"event: hello\ndata: {json.dumps(first_payload)}\n\n"
 
         while True:
-            # Heartbeat for proxies (Nginx/Cloudflare)
+            # Heartbeat for proxies (Cloudflare/Fly/Nginx)
             now = time.time()
             if (now - last_emit_ts) >= heartbeat:
                 yield f": keepalive {int(now)}\n\n"
                 last_emit_ts = now
 
             # Poll snapshot cheaply
-            new_max_msg_id, new_max_br_id, new_unread_total, new_thread_count = _cheap_snapshot(db, user_id, is_artist)
+            new_max_msg_id, new_max_br_id, new_unread_total, new_thread_count = await _poll_snapshot(user_id, is_artist)
             new_token = _change_token("snap", user_id, new_max_msg_id, new_max_br_id, new_unread_total, new_thread_count)
 
             if new_token != token:
@@ -850,14 +870,31 @@ def inbox_stream(
                 token = new_token
                 last_emit_ts = time.time()
 
-            time.sleep(1.0)  # Poll interval (tune between 0.5–2.0)
+            # Non-blocking delay between polls
+            await asyncio.sleep(1.0)  # tune between 0.5–2.0
 
-    return StreamingResponse(_iter_events(), media_type="text/event-stream", headers={
+    return StreamingResponse(_aiter_events(), media_type="text/event-stream", headers={
         "Cache-Control": "no-cache, private",
         "Connection": "keep-alive",
         "X-Accel-Buffering": "no",  # Nginx: disable response buffering
         "Vary": "Authorization, Cookie",  # Per-user stream
     })
+
+# Stream DB semaphore (protects pool under many open streams)
+_STREAM_SEM: BoundedSemaphore | None = None
+
+
+def _get_stream_sem() -> BoundedSemaphore:
+    global _STREAM_SEM
+    if _STREAM_SEM is None:
+        try:
+            limit = int(os.getenv("INBOX_STREAM_CONCURRENCY") or 16)
+            if limit <= 0:
+                limit = 16
+        except Exception:
+            limit = 16
+        _STREAM_SEM = BoundedSemaphore(limit)
+    return _STREAM_SEM
 _PREVIEW_SEM: BoundedSemaphore | None = None
 
 

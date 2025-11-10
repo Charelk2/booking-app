@@ -276,11 +276,25 @@ export default function InboxPage() {
     let es: EventSource | null = null;
     let closed = false;
     const role = user.user_type === 'service_provider' ? 'artist' : 'client';
+    // Prefer API origin for SSE to avoid site proxy buffering/closures
+    const API_BASE = (() => {
+      try {
+        const raw = (process.env.NEXT_PUBLIC_API_URL || '').trim();
+        if (!raw) return '';
+        const u = new URL(raw);
+        return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`.replace(/\/+$/, '');
+      } catch {
+        return '';
+      }
+    })();
     const connect = () => {
       if (closed) return;
       try {
-        // Use relative path so cookies flow and no CORS preflight
-        es = new EventSource(`/api/v1/inbox/stream?role=${role}`);
+        // Build absolute URL to api.booka.co.za when configured; else same-origin fallback
+        const url = API_BASE
+          ? `${API_BASE}/api/v1/inbox/stream?role=${role}`
+          : `/api/v1/inbox/stream?role=${role}`;
+        es = new EventSource(url, { withCredentials: true });
         es.addEventListener('hello', (e: MessageEvent) => {
           // Snapshot token is available if needed; no-op here
           try { JSON.parse(String(e.data || '{}')); } catch {}

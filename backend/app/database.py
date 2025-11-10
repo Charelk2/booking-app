@@ -4,8 +4,10 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 import os
 import time
+import random
 import logging
 from collections import deque
+from contextlib import contextmanager
 
 if os.getenv("PYTEST_RUN") == "1":
     SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -76,21 +78,25 @@ Base = declarative_base()
 # Dependency
 def get_db():
     db = SessionLocal()
-    # Optional pool acquire-wait telemetry (off by default).
-    # When enabled, we eagerly materialize a connection and time the checkout.
+    # Optional pool acquire-wait telemetry sampling (off by default).
+    # When enabled, sample a small fraction of requests and measure checkout
+    # using a temporary engine.connect() so we don't tie up the session's
+    # connection before it's actually needed.
     try:
         if os.getenv("DB_POOL_METRICS", "0").strip().lower() in {"1", "true", "yes"}:
-            _t0 = time.perf_counter()
-            # Force a checkout; do not hold the result beyond this scope
-            conn = db.connection()
             try:
-                # Cheap no-op roundtrip to validate the connection
-                conn.exec_driver_sql("SELECT 1")
-            finally:
-                # Session holds the connection; we'll release on close()
-                pass
-            _dt_ms = (time.perf_counter() - _t0) * 1000.0
-            _record_pool_wait_ms(_dt_ms)
+                rate = float(os.getenv("DB_POOL_METRICS_SAMPLE", "0.05"))
+            except Exception:
+                rate = 0.05
+            if rate > 0 and random.random() < max(0.0, min(1.0, rate)):
+                _t0 = time.perf_counter()
+                with engine.connect() as _conn:
+                    try:
+                        _conn.exec_driver_sql("SELECT 1")
+                    except Exception:
+                        pass
+                _dt_ms = (time.perf_counter() - _t0) * 1000.0
+                _record_pool_wait_ms(_dt_ms)
     except Exception:
         # Never fail request due to metrics
         pass
@@ -129,3 +135,21 @@ def _record_pool_wait_ms(ms: float) -> None:
             )
     except Exception:
         pass
+
+
+# ─── Simple context manager for ad‑hoc DB sessions (WS, background tasks) ────
+@contextmanager
+def get_db_session():
+    """Provide a short‑lived SessionLocal with guaranteed close.
+
+    Use in places where FastAPI Depends is unavailable (e.g., WebSockets) to
+    ensure connections are promptly returned to the pool.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass

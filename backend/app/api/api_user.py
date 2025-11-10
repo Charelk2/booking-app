@@ -6,7 +6,7 @@ import base64
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, status, UploadFile, File
+from fastapi import APIRouter, Depends, status, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session, selectinload
 from pydantic import BaseModel
 
@@ -161,6 +161,7 @@ def delete_me(
     payload: DeleteMeRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> None:
     """Delete the current user's account after password confirmation."""
     if not verify_password(payload.password, current_user.password):
@@ -174,11 +175,14 @@ def delete_me(
     db.delete(current_user)
     db.commit()
     try:
-        send_email(
-            email, "Account deleted", "Your account has been permanently deleted."
+        background_tasks.add_task(
+            send_email,
+            email,
+            "Account deleted",
+            "Your account has been permanently deleted.",
         )
     except Exception as exc:  # pragma: no cover - email failure shouldn't block
-        logger.error("Failed to send deletion email: %s", exc)
+        logger.error("Failed to enqueue deletion email: %s", exc)
     return None
 
 
