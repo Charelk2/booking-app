@@ -1,0 +1,6 @@
+Method,Name,Error,Occurrences
+GET,/threads/preview,HTTPError('504 Server Error: Gateway Timeout for url: /threads/preview'),25
+POST,/auth/login,HTTPError('504 Server Error: Gateway Timeout for url: /auth/login'),1
+GET,/inbox/unread,HTTPError('502 Server Error: Bad Gateway for url: /inbox/unread'),5
+GET,/inbox/unread,HTTPError('504 Server Error: Gateway Timeout for url: /inbox/unread'),8
+GET,/threads/preview,HTTPError('502 Server Error: Bad Gateway for url: /threads/preview'),7

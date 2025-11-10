@@ -40,6 +40,7 @@ import shutil
 from pydantic import BaseModel
 from ..utils.json import dumps_bytes as _json_dumps
 from ..utils.outbox import enqueue_outbox
+from ..utils.redis_cache import invalidate_preview_cache_for_user
 from threading import BoundedSemaphore
 from contextlib import contextmanager
 
@@ -1276,6 +1277,11 @@ async def mark_messages_read(
         )
     except Exception:
         logger.exception("Failed to push unread_total notification", extra={"user_id": current_user.id})
+    # Invalidate preview cache for the reader so unread counts update immediately
+    try:
+        invalidate_preview_cache_for_user(int(current_user.id))
+    except Exception:
+        pass
     return {"updated": updated}
 
 
@@ -1745,6 +1751,17 @@ def create_message(
             _idemp_cache_put(id_key, int(msg.id))
     except Exception:
         pass
+    # Invalidate preview cache for both participants to keep previews fresh
+    try:
+        invalidate_preview_cache_for_user(int(current_user.id))
+        try:
+            other_user = db.query(models.User).filter(models.User.id == other_user_id).first()
+        except Exception:
+            other_user = None
+        if other_user:
+            invalidate_preview_cache_for_user(int(other_user.id))
+    except Exception:
+        pass
     return data
 
 
@@ -1826,6 +1843,12 @@ def delete_message(
         )
     except Exception:
         # Best-effort only; deletion is already persisted.
+        pass
+    # Invalidate preview cache for both participants (snippet/last message may change)
+    try:
+        invalidate_preview_cache_for_user(int(booking_request.client_id))
+        invalidate_preview_cache_for_user(int(booking_request.artist_id))
+    except Exception:
         pass
     # No content response
     return
@@ -2070,6 +2093,16 @@ def init_attachment_message(
         metrics_incr("message.attachment_init_total")
     except Exception:
         pass
+    # Invalidate preview cache for both participants (new placeholder message affects previews)
+    try:
+        invalidate_preview_cache_for_user(int(current_user.id))
+        try:
+            other_user_id = booking_request.artist_id if current_user.id == booking_request.client_id else booking_request.client_id
+            invalidate_preview_cache_for_user(int(other_user_id))
+        except Exception:
+            pass
+    except Exception:
+        pass
     return {"message": data, "presign": info}
 
 
@@ -2144,6 +2177,16 @@ def finalize_attachment_message(
         pass
     try:
         metrics_incr("message.attachment_finalize_total")
+    except Exception:
+        pass
+    # Invalidate preview cache for both participants (attachment update may affect snippets)
+    try:
+        invalidate_preview_cache_for_user(int(current_user.id))
+        try:
+            other_user_id = booking_request.artist_id if current_user.id == booking_request.client_id else booking_request.client_id
+            invalidate_preview_cache_for_user(int(other_user_id))
+        except Exception:
+            pass
     except Exception:
         pass
     return data

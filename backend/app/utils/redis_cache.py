@@ -3,7 +3,7 @@ import logging
 import random
 import base64
 from datetime import date
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Iterable
 
 import redis
 import os
@@ -236,6 +236,44 @@ def cache_weather(data: dict, location: str, expire: int = 1800) -> None:
 def _availability_key(artist_id: int, when: Optional[date]) -> str:
     day = when.isoformat() if when else "all"
     return f"{AVAILABILITY_KEY_PREFIX}:{artist_id}:{day}"
+
+
+# ─── PREVIEW CACHE INVALIDATION ───────────────────────────────────────────────
+def invalidate_preview_cache_for_user(user_id: int, role: Optional[str] = None, limit: Optional[int] = None) -> int:
+    """Delete cached preview entries for a user.
+
+    Keys are of the form: preview:{user_id}:{role}:{limit}:{suffix}
+    where role ∈ {artist, client} and suffix ∈ {etag, body}.
+
+    When role/limit are omitted, all roles/limits for the user are cleared.
+
+    Returns the number of keys deleted (best‑effort; 0 on Redis unavailability).
+    """
+    client = get_redis_client()
+    try:
+        r = (role or "*").strip()
+        l = str(limit) if limit is not None else "*"
+        pattern = f"preview:{int(user_id)}:{r}:{l}:*"
+        deleted = 0
+        for key in client.scan_iter(pattern):
+            try:
+                deleted += int(client.delete(key) or 0)
+            except Exception:
+                continue
+        return deleted
+    except Exception:
+        return 0
+
+
+def invalidate_preview_cache_for_users(user_ids: Iterable[int]) -> int:
+    """Delete cached preview entries for multiple users. Returns total keys deleted."""
+    total = 0
+    for uid in user_ids:
+        try:
+            total += invalidate_preview_cache_for_user(int(uid))
+        except Exception:
+            continue
+    return total
 
 
 def get_cached_availability(

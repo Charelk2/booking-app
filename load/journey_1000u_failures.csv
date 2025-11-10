@@ -1,0 +1,16 @@
+Method,Name,Error,Occurrences
+POST,/auth/login,HTTPError('503 Server Error: Service Unavailable for url: /auth/login'),12
+GET,/threads/preview,HTTPError('503 Server Error: Service Unavailable for url: /threads/preview'),78
+GET,/inbox/unread,HTTPError('503 Server Error: Service Unavailable for url: /inbox/unread'),47
+POST,/auth/login,HTTPError('524 Server Error: <none> for url: /auth/login'),179
+POST,/auth/login,HTTPError('502 Server Error: Bad Gateway for url: /auth/login'),2
+GET,/inbox/unread,HTTPError('500 Server Error: Internal Server Error for url: /inbox/unread'),39
+GET,/threads/preview,HTTPError('500 Server Error: Internal Server Error for url: /threads/preview'),84
+GET,/inbox/unread,HTTPError('502 Server Error: Bad Gateway for url: /inbox/unread'),9
+GET,/inbox/unread,HTTPError('524 Server Error: <none> for url: /inbox/unread'),575
+GET,/threads/preview,HTTPError('524 Server Error: <none> for url: /threads/preview'),1104
+GET,/inbox/unread,HTTPError('520 Server Error: <none> for url: /inbox/unread'),382
+GET,/threads/preview,HTTPError('502 Server Error: Bad Gateway for url: /threads/preview'),26
+GET,/threads/preview,HTTPError('520 Server Error: <none> for url: /threads/preview'),731
+POST,/auth/login,HTTPError('500 Server Error: Internal Server Error for url: /auth/login'),1
+POST,/auth/login,HTTPError('520 Server Error: <none> for url: /auth/login'),270

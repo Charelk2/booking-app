@@ -46,3 +46,25 @@ End‑to‑end TTFB improves drastically; residual time largely reflects TLS and
 - Client: render from cache immediately (use cached summaries for the left pane) while preview fetch runs in the background.
 - Server: add a Redis‑backed ephemeral preview cache (per `user+role+limit`) updated on chat/payment/status events. Serve cached bytes with stored ETag and 304 when unchanged for “always fast” previews across instances.
 
+## Preview Cache + Invalidation (Implemented)
+
+- Keys: `preview:{user_id}:{role}:{limit}:{suffix}` where `suffix ∈ {etag, body}`.
+- Early cache: check runs before DB work; returns 304 if `If‑None‑Match` matches cached ETag, or 200 with cached body on hit.
+- TTL: `PREVIEW_CACHE_TTL` (default 30s) with jitter; toggled via `PREVIEW_CACHE_ENABLED=1`.
+- Invalidation hooks (best‑effort, Redis‑only):
+  - On message create (user/system, attachments init/finalize): clear both participants’ preview keys.
+  - On mark‑read: clear the reader’s preview keys so `unread_total` reflects immediately.
+  - On message delete: clear both participants’ preview keys.
+- Helper APIs: `invalidate_preview_cache_for_user(user_id, role?, limit?)` and batch variant live in `backend/app/utils/redis_cache.py`.
+
+## Concurrency + DB Pooling (Recommended)
+
+- Preview composition guard: `THREADS_PREVIEW_CONCURRENCY` (default 32). Increase if DB pool has headroom.
+- DB pools per instance (env):
+  - `DB_POOL_SIZE=12`
+  - `DB_MAX_OVERFLOW=12`
+  - `DB_POOL_RECYCLE=300`
+- App workers:
+  - `UVICORN_WORKERS=4` on ≥4 vCPU (else keep 2).
+
+These values reduce queueing under 500–1000 VUs and keep p95 steady while cache hit/304 rates are high.

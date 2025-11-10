@@ -24,10 +24,12 @@ import time
 import asyncio
 
 from ..utils.json import dumps_bytes as _json_dumps
+from ..utils.redis_cache import get_redis_client, cache_bytes, get_cached_bytes
 from threading import BoundedSemaphore
 from fastapi.concurrency import run_in_threadpool
 from ..database import get_db_session
 import os
+import random
 
 
 router = APIRouter(tags=["threads"])
@@ -143,6 +145,59 @@ def get_threads_preview(
 
     skip_precheck = _coalesce_bool(x_after_write)
 
+    # ---- EARLY cache check (avoid any DB work on hits) ---------------------
+    # If preview cache is enabled and we have a cached ETag/body for this
+    # viewer/role/limit, try to satisfy the request immediately. This allows
+    # 304 revalidation and 200 cached body responses without touching the DB.
+    # Clients that just wrote can send X-After-Write to force a fresh check.
+    try:
+        cache_on_early = (os.getenv("PREVIEW_CACHE_ENABLED", "0").strip().lower() in {"1", "true", "yes"})
+    except Exception:
+        cache_on_early = False
+    if cache_on_early and not skip_precheck:
+        try:
+            role_key_early = "artist" if is_artist else "client"
+            base_key_early = f"preview:{int(current_user.id)}:{role_key_early}:{int(limit)}"
+            etag_key_early = f"{base_key_early}:etag"
+            body_key_early = f"{base_key_early}:body"
+            client_early = get_redis_client()
+            cached_etag_early = None
+            try:
+                cached_etag_early = client_early.get(etag_key_early)
+            except Exception:
+                cached_etag_early = None
+
+            # If client's If-None-Match matches cached ETag, return 304 now.
+            if if_none_match and cached_etag_early and if_none_match.strip() == str(cached_etag_early).strip():
+                pre_ms = (time.perf_counter() - t_start) * 1000.0
+                return Response(
+                    status_code=status.HTTP_304_NOT_MODIFIED,
+                    headers={
+                        "ETag": str(cached_etag_early),
+                        "Cache-Control": "no-cache, private",
+                        "Vary": "If-None-Match, X-After-Write",
+                        "Server-Timing": f"pre;dur={pre_ms:.1f}, pcache;desc=pre304",
+                    },
+                )
+
+            # Otherwise, if we have a cached body, serve it immediately.
+            cached_body_early = get_cached_bytes(body_key_early)
+            if cached_etag_early and cached_body_early:
+                pre_ms = (time.perf_counter() - t_start) * 1000.0
+                return Response(
+                    content=cached_body_early,
+                    media_type="application/json",
+                    headers={
+                        "ETag": str(cached_etag_early),
+                        "Cache-Control": "no-cache, private",
+                        "Vary": "If-None-Match, X-After-Write",
+                        "Server-Timing": f"pre;dur={pre_ms:.1f}, pcache;desc=hit-early",
+                    },
+                )
+        except Exception:
+            # Cache must never break the request path
+            pass
+
     # Always compute the cheap snapshot once (shared by pre-check and final ETag)
     snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count = _cheap_snapshot(db, int(current_user.id), is_artist)
 
@@ -159,6 +214,38 @@ def get_threads_preview(
                 "Vary": "If-None-Match, X-After-Write",
             }
         )
+
+    # ---- Preview cache (read-fast path) ------------------------------------
+    try:
+        cache_on = (os.getenv("PREVIEW_CACHE_ENABLED", "0").strip().lower() in {"1", "true", "yes"})
+    except Exception:
+        cache_on = False
+    if cache_on and not skip_precheck:
+        try:
+            role_key = "artist" if is_artist else "client"
+            base_key = f"preview:{int(current_user.id)}:{role_key}:{int(limit)}"
+            etag_key = f"{base_key}:etag"
+            body_key = f"{base_key}:body"
+            client = get_redis_client()
+            cached_etag = None
+            try:
+                cached_etag = client.get(etag_key)
+            except Exception:
+                cached_etag = None
+            if cached_etag and str(cached_etag).strip() == etag_pre:
+                cached_body = get_cached_bytes(body_key)
+                if cached_body:
+                    pre_ms = (time.perf_counter() - t_start) * 1000.0
+                    headers = {
+                        "ETag": etag_pre,
+                        "Cache-Control": "no-cache, private",
+                        "Vary": "If-None-Match, X-After-Write",
+                        "Server-Timing": f"pre;dur={pre_ms:.1f}, pcache;desc=hit",
+                    }
+                    return Response(content=cached_body, media_type="application/json", headers=headers)
+        except Exception:
+            # Cache must never break the request path
+            pass
 
     # ---- Main composition ---------------------------------------------------
     t_brs_start = time.perf_counter()
@@ -393,6 +480,35 @@ def get_threads_preview(
         "Vary": "If-None-Match, X-After-Write",
         "ETag": etag,
     }
+
+    # Write to cache for subsequent requests (best-effort)
+    try:
+        if cache_on:
+            role_key = "artist" if is_artist else "client"
+            base_key = f"preview:{int(current_user.id)}:{role_key}:{int(limit)}"
+            etag_key = f"{base_key}:etag"
+            body_key = f"{base_key}:body"
+            # TTL with small jitter to avoid cache stampedes
+            try:
+                ttl = int(os.getenv("PREVIEW_CACHE_TTL", "30") or 30)
+            except Exception:
+                ttl = 30
+            try:
+                jitter = float(os.getenv("PREVIEW_CACHE_JITTER", "0.1") or 0.1)
+            except Exception:
+                jitter = 0.1
+            ttl_j = max(5, int(ttl + random.uniform(-ttl * jitter, ttl * jitter)))
+            client = get_redis_client()
+            try:
+                client.setex(etag_key, ttl_j, etag)
+            except Exception:
+                pass
+            try:
+                cache_bytes(body_key, body, ttl_j)
+            except Exception:
+                pass
+    except Exception:
+        pass
 
     return Response(content=body, media_type="application/json", headers=headers)
 
@@ -902,10 +1018,10 @@ def _get_preview_sem() -> BoundedSemaphore:
     global _PREVIEW_SEM
     if _PREVIEW_SEM is None:
         try:
-            limit = int(os.getenv("THREADS_PREVIEW_CONCURRENCY") or 8)
+            limit = int(os.getenv("THREADS_PREVIEW_CONCURRENCY") or 32)
             if limit <= 0:
-                limit = 8
+                limit = 32
         except Exception:
-            limit = 8
+            limit = 32
         _PREVIEW_SEM = BoundedSemaphore(limit)
     return _PREVIEW_SEM

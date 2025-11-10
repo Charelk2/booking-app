@@ -26,6 +26,7 @@ import os
 import random
 import time
 from typing import Dict, List, Optional, Tuple
+from pathlib import Path
 
 from locust import HttpUser, task, between, events
 import logging
@@ -45,6 +46,23 @@ DEFAULT_USERS = [
 def _load_users() -> List[Tuple[str, str]]:
     raw = os.getenv("BOOKA_TEST_USERS", "").strip()
     if not raw:
+        # If no env is provided, look for load/test_users.csv and parse it.
+        csv_path = Path(__file__).resolve().parent / "test_users.csv"
+        if csv_path.exists():
+            out: List[Tuple[str, str]] = []
+            try:
+                for line in csv_path.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if not line or ":" not in line:
+                        continue
+                    email, pwd = line.split(":", 1)
+                    email = email.strip(); pwd = pwd.strip()
+                    if email and pwd:
+                        out.append((email, pwd))
+            except Exception:
+                out = []
+            if out:
+                return out
         return DEFAULT_USERS
     out: List[Tuple[str, str]] = []
     for piece in raw.split(","):
@@ -65,8 +83,17 @@ MESSAGES_LIMIT = int(os.getenv("BOOKA_MESSAGES_LIMIT", "60") or 60)
 
 # --- Helpers ------------------------------------------------------------------
 
+def _normalize_token(token: Optional[str]) -> str:
+    t = (token or "").strip()
+    # Accept both raw token and values prefixed with "Bearer "
+    if t.lower().startswith("bearer "):
+        return t[7:].strip()
+    return t
+
+
 def _auth_header(token: Optional[str]) -> Dict[str, str]:
-    return {"Authorization": f"Bearer {token}"} if token else {}
+    t = _normalize_token(token)
+    return {"Authorization": f"Bearer {t}"} if t else {}
 
 
 def _safe_json(resp) -> Dict:
@@ -144,7 +171,7 @@ class InboxUser(HttpUser):
         # Allow override via env to avoid login storms
         bearer = os.getenv("BOOKA_BEARER", "").strip()
         if bearer:
-            self.token = bearer
+            self.token = _normalize_token(bearer)
             return True
         if self.token:
             return True

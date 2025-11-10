@@ -31,7 +31,7 @@ primary_region = "jnb"  # Johannesburg (fallback to ams if not available)
   force_https = true
   auto_stop_machines = false
   auto_start_machines = true
-  min_machines_running = 2
+  min_machines_running = 3
   processes = ["app"]
   # WebSockets are supported automatically over the same service
 

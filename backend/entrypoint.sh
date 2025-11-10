@@ -70,6 +70,55 @@ wait_for_port() {
   done
 }
 
+write_pgbouncer_cfg() {
+  # Defaults; can be overridden via env
+  local listen_addr="${PGBOUNCER_LISTEN_ADDR:-127.0.0.1}"
+  local listen_port="${PGBOUNCER_LISTEN_PORT:-6432}"
+  local db_host="${PGBOUNCER_DB_HOST:-127.0.0.1}"
+  local db_port="${PGBOUNCER_DB_PORT:-${PROXY_PORT}}"
+  local db_name="${PGBOUNCER_DB_NAME:-appdb}"
+  local db_user="${PGBOUNCER_DB_USER:-appuser}"
+  local auth_type="${PGBOUNCER_AUTH_TYPE:-md5}"
+  local default_pool_size="${PGBOUNCER_DEFAULT_POOL_SIZE:-20}"
+  local reserve_pool_size="${PGBOUNCER_RESERVE_POOL_SIZE:-5}"
+  local max_client_conn="${PGBOUNCER_MAX_CLIENT_CONN:-2000}"
+
+  mkdir -p /etc/pgbouncer
+
+  cat >/etc/pgbouncer/pgbouncer.ini <<INI
+[databases]
+${db_name} = host=${db_host} port=${db_port} dbname=${db_name} user=${db_user}
+
+[pgbouncer]
+listen_addr = ${listen_addr}
+listen_port = ${listen_port}
+pool_mode = transaction
+default_pool_size = ${default_pool_size}
+reserve_pool_size = ${reserve_pool_size}
+max_client_conn = ${max_client_conn}
+server_login_retry = 5
+server_reset_query = DISCARD ALL
+ignore_startup_parameters = extra_float_digits
+auth_type = ${auth_type}
+auth_file = /etc/pgbouncer/userlist.txt
+INI
+
+  # Write userlist for md5 auth if provided; otherwise allow trust auth locally
+  : "${PGBOUNCER_DB_USER:=${db_user}}"
+  if [[ "${auth_type}" == "md5" ]]; then
+    if [[ -n "${PGBOUNCER_AUTH_MD5:-}" ]]; then
+      echo "\"${PGBOUNCER_DB_USER}\" \"${PGBOUNCER_AUTH_MD5}\"" >/etc/pgbouncer/userlist.txt
+    else
+      log "WARNING: PGBOUNCER_AUTH_MD5 not set; falling back to trust auth"
+      sed -i 's/^auth_type = .*/auth_type = trust/' /etc/pgbouncer/pgbouncer.ini || true
+      echo "\"${PGBOUNCER_DB_USER}\" \"md5placeholder\"" >/etc/pgbouncer/userlist.txt
+    fi
+  else
+    # trust or other types; create an empty userlist
+    : > /etc/pgbouncer/userlist.txt
+  fi
+}
+
 start_refresh_loop() {
   (
     while true; do
@@ -100,6 +149,19 @@ main() {
   wait_for_port "${PROXY_PORT}"
   log "Proxy is ready"
 
+  # Configure and start PgBouncer on 127.0.0.1:6432
+  if command -v pgbouncer >/dev/null 2>&1; then
+    log "Writing PgBouncer config"
+    write_pgbouncer_cfg
+    log "Starting PgBouncer on 127.0.0.1:${PGBOUNCER_LISTEN_PORT:-6432}"
+    pgbouncer -u root /etc/pgbouncer/pgbouncer.ini &
+    log "Waiting for PgBouncer readiness"
+    wait_for_port "${PGBOUNCER_LISTEN_PORT:-6432}"
+    log "PgBouncer is ready"
+  else
+    log "WARNING: PgBouncer not installed; continuing without local pooling"
+  fi
+
   start_refresh_loop
 
   trap 'log "Shutting down"; kill ${PROXY_PID} 2>/dev/null || true' INT TERM
@@ -120,4 +182,3 @@ main() {
 }
 
 main "$@"
-
