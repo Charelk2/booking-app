@@ -46,7 +46,22 @@ def get_redis_client() -> redis.Redis:
             _redis_client = _NullRedis()  # type: ignore[assignment]
             return _redis_client
         try:
-            _redis_client = redis.from_url(url, decode_responses=True)
+            # Apply conservative socket timeouts so slow Redis does not
+            # significantly impact auth/login paths that consult counters.
+            try:
+                conn_to = float(os.getenv("REDIS_CONNECT_TIMEOUT", "0.5"))
+            except Exception:
+                conn_to = 0.5
+            try:
+                read_to = float(os.getenv("REDIS_SOCKET_TIMEOUT", "0.5"))
+            except Exception:
+                read_to = 0.5
+            _redis_client = redis.from_url(
+                url,
+                decode_responses=True,
+                socket_connect_timeout=conn_to,
+                socket_timeout=read_to,
+            )
         except Exception:
             # Fall back to no-op client if creation fails
             _redis_client = _NullRedis()  # type: ignore[assignment]

@@ -278,3 +278,52 @@ def on_test_start(environment, **kwargs):
 @events.test_stop.add_listener
 def on_test_stop(environment, **kwargs):
     logging.getLogger("locust").info("Test finished")
+
+
+# --- Login-only profile -------------------------------------------------------
+
+class LoginOnlyUser(HttpUser):
+    """User class that only performs login to isolate /auth/login latency.
+
+    Use this in Locust UI by selecting this user class or via CLI
+    class selection. It performs a single login in on_start and then idles.
+    """
+
+    wait_time = between(1, 1)
+    token: Optional[str] = None
+    auth_failures: int = 0
+    login_cooldown_until: float = 0.0
+
+    def on_start(self):
+        idx = (self.environment.runner.user_count if self.environment and self.environment.runner else random.randint(0, 10)) % len(BOOKA_USERS)
+        email, password = BOOKA_USERS[idx]
+        self._login(email, password)
+
+    def _login(self, email: str, password: str) -> None:
+        try:
+            r = self.client.post("/auth/login", data={"username": email, "password": password}, name="/auth/login")
+            if r.status_code != 200:
+                self.token = None
+                self.auth_failures += 1
+                if r.status_code == 429:
+                    try:
+                        ra = r.headers.get("Retry-After")
+                        wait = float(ra) if ra is not None and str(ra).strip().isdigit() else 30.0
+                    except Exception:
+                        wait = 30.0
+                else:
+                    wait = min(120.0, (2 ** min(self.auth_failures, 5)))
+                self.login_cooldown_until = time.time() + wait
+                return
+            body = _safe_json(r)
+            self.token = body.get("access_token")
+            self.auth_failures = 0
+        except Exception:
+            self.token = None
+            self.auth_failures += 1
+            self.login_cooldown_until = time.time() + min(120.0, (2 ** min(self.auth_failures, 5)))
+
+    @task(1)
+    def idle(self):
+        # No-op task to keep the user active after login
+        return

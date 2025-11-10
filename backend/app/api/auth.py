@@ -16,7 +16,7 @@ import hashlib
 from dotenv import load_dotenv
 from urllib.parse import urlparse
 
-from ..database import get_db
+from ..database import get_db, get_db_session
 from ..models.user import User, UserType
 from ..models.session import Session as AuthSession
 from ..models.trusted_device import TrustedDevice
@@ -404,14 +404,17 @@ def register(
 def login(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None,
 ):
+    t = ServerTimer()
     ip = request.client.host if request.client else "unknown"
     email = normalize_email(form_data.username)
     user_key = f"login_fail:user:{email}"
     ip_key = f"login_fail:ip:{ip}"
     client = get_redis_client()
     try:
+        t0r = ServerTimer.start()
         user_attempts = int(client.get(user_key) or 0)
         ip_attempts = int(client.get(ip_key) or 0)
         if user_attempts >= settings.MAX_LOGIN_ATTEMPTS or ip_attempts >= settings.MAX_LOGIN_ATTEMPTS:
@@ -420,12 +423,18 @@ def login(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many login attempts. Try again later.",
             )
+        t.stop('authredis', t0r)
     except redis.exceptions.ConnectionError as exc:
         logger.warning("Redis unavailable for login tracking: %s", exc)
 
     # Use normalized equality to benefit from the email index
+    t0db = ServerTimer.start()
     user = db.query(User).filter(User.email == email).first()
-    if not user or not verify_password(form_data.password, user.password):
+    t.stop('authdb', t0db)
+    t0hash = ServerTimer.start()
+    valid_pwd = bool(user) and verify_password(form_data.password, user.password)
+    t.stop('authhash', t0hash)
+    if not user or not valid_pwd:
         try:
             client.incr(user_key)
             client.expire(user_key, settings.LOGIN_ATTEMPT_WINDOW)
@@ -454,9 +463,20 @@ def login(
             )
             if rec and rec.expires_at and rec.expires_at > datetime.utcnow():
                 trusted_ok = True
-                rec.last_seen_at = datetime.utcnow()
-                db.add(rec)
-                db.commit()
+                # Defer last_seen_at update to a background task
+                if background_tasks and rec.id:
+                    def _update_trusted_device_last_seen(rec_id: int) -> None:
+                        try:
+                            from datetime import datetime as _dt
+                            with get_db_session() as _db:
+                                r = _db.query(TrustedDevice).filter(TrustedDevice.id == rec_id).first()
+                                if r:
+                                    r.last_seen_at = _dt.utcnow()
+                                    _db.add(r)
+                                    _db.commit()
+                        except Exception:
+                            pass
+                    background_tasks.add_task(_update_trusted_device_last_seen, rec.id)
         except Exception:
             db.rollback()
             trusted_ok = False
@@ -466,12 +486,16 @@ def login(
             {"sub": user.email, "mfa": True},
             expires_delta=timedelta(minutes=5),
         )
-        try:
-            from ..utils.notifications import _send_sms
-            code = pyotp.TOTP(user.mfa_secret).now()
-            _send_sms(user.phone_number, f"Your verification code is {code}")
-        except Exception as exc:  # pragma: no cover - SMS failures shouldn't crash
-            logger.warning("Unable to send MFA code: %s", exc)
+        # Send MFA SMS asynchronously
+        if background_tasks:
+            def _send_mfa_code_async(phone_number: str, secret: str) -> None:
+                try:
+                    from ..utils.notifications import _send_sms as __send_sms  # type: ignore
+                    code = pyotp.TOTP(secret).now()
+                    __send_sms(phone_number, f"Your verification code is {code}")
+                except Exception as exc:  # pragma: no cover - SMS failures shouldn't crash
+                    logger.warning("Unable to send MFA code: %s", exc)
+            background_tasks.add_task(_send_mfa_code_async, user.phone_number, user.mfa_secret)
         return {"mfa_required": True, "mfa_token": temp_token}
 
     try:
@@ -504,7 +528,7 @@ def login(
         },
         "refresh_token": refresh_token,
     }
-    t = ServerTimer(); t0 = ServerTimer.start()
+    t0 = ServerTimer.start()
     body = _json_dumps(payload)
     t.stop('ser', t0)
     resp = Response(content=body, media_type="application/json")
