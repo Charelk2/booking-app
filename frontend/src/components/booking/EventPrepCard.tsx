@@ -53,8 +53,8 @@ function GlassCard({
     "relative rounded-xl transition-all " +
     "backdrop-blur-xl backdrop-saturate-150 " +
     "bg-white/30 dark:bg-zinc-900/35 " + // more opaque = better text contrast
-    "ring-1 ring-black/10 dark:ring-white/10 " +
-    "hover:bg-[#D9FDD3] ring-0 " +
+    // Subtle base ring; on hover match ring to bg so border visually disappears
+    "ring-1 ring-black/10 dark:ring-white/10 hover:bg-[#D9FDD3] hover:ring-[#D9FDD3] " +
     (summaryOnly ? "px-3 py-2" : "p-3");
 
   // Subtle gradient rim (normal blend; won’t wash text)
