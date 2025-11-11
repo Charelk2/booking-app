@@ -8,6 +8,9 @@ import { getFullImageUrl, formatCurrency, buildReceiptUrl } from '@/lib/utils';
 import { Booking, QuoteV2 } from '@/types';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
+import { Calendar, MapPin, Users, Music, DollarSign, CheckCircle } from 'lucide-react';
+
+// --- Interfaces (Copied from original) ---
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -65,6 +68,89 @@ interface BookingSummaryCardProps {
   belowHeader?: React.ReactNode;
 }
 
+// --- New Header Component (For better separation) ---
+
+const EnhancedBookingHeader: React.FC<
+  Pick<
+    BookingSummaryCardProps,
+    'imageUrl' | 'serviceName' | 'artistName' | 'bookingConfirmed' | 'parsedBookingDetails'
+  >
+> = ({ imageUrl, serviceName, artistName, bookingConfirmed, parsedBookingDetails }) => {
+  const fullImageUrl = (getFullImageUrl(imageUrl || null) || imageUrl) as string | undefined;
+  const eventDate = parsedBookingDetails?.date;
+  const formattedDate =
+    eventDate && isValid(new Date(eventDate))
+      ? format(new Date(eventDate), 'EEE, MMM d, yyyy')
+      : 'Date TBD';
+  const formattedTime =
+    eventDate && isValid(new Date(eventDate))
+      ? format(new Date(eventDate), 'h:mm a')
+      : 'Time TBD';
+
+  return (
+    <div className="relative w-full h-64 overflow-hidden rounded-t-xl shadow-2xl">
+      {/* Background Image (Full-width, left-to-right) */}
+      <SafeImage
+        src={fullImageUrl}
+        alt="Service background image"
+        fill
+        className="object-cover transition-transform duration-500 hover:scale-105"
+        sizes="(max-width: 768px) 100vw, 50vw"
+        placeholder="blur"
+        blurDataURL={BLUR_PLACEHOLDER}
+      />
+
+      {/* Gradient Overlay (Darkens image for text readability) */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+
+      {/* Content Overlay */}
+      <div className="absolute inset-0 p-6 flex flex-col justify-end text-white">
+        {/* Confirmation Status Badge */}
+        {bookingConfirmed && (
+          <div className="mb-2 inline-flex items-center rounded-full bg-green-500/90 px-3 py-1 text-xs font-semibold uppercase tracking-wider shadow-lg">
+            <CheckCircle className="w-4 h-4 mr-1" />
+            Booking Confirmed
+          </div>
+        )}
+
+        {/* Service Name (Main Title) */}
+        <h1 className="text-3xl md:text-4xl font-extrabold leading-tight drop-shadow-lg">
+          {serviceName || 'Booking Details'}
+        </h1>
+
+        {/* Artist Name (Subtitle) */}
+        {artistName && (
+          <p className="text-lg font-medium text-gray-200 drop-shadow-md">
+            with {artistName}
+          </p>
+        )}
+
+        {/* Key Details Bar */}
+        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-gray-300">
+          <div className="flex items-center">
+            <Calendar className="w-4 h-4 mr-2 text-primary-400" />
+            <span>{formattedDate} at {formattedTime}</span>
+          </div>
+          {parsedBookingDetails?.location && (
+            <div className="flex items-center">
+              <MapPin className="w-4 h-4 mr-2 text-primary-400" />
+              <span>{parsedBookingDetails.location.split(',')[0].trim()}</span>
+            </div>
+          )}
+          {parsedBookingDetails?.guests && (
+            <div className="flex items-center">
+              <Users className="w-4 h-4 mr-2 text-primary-400" />
+              <span>{parsedBookingDetails.guests} Guests</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Main Component ---
+
 export default function BookingSummaryCard({
   hideHeader = false,
   hideHeaderText = false,
@@ -120,120 +206,109 @@ export default function BookingSummaryCard({
     };
   }, [bookingRequestId]);
 
+  // Helper function to parse location details (copied from original)
+  const getLocationLabel = () => {
+    const locName = (parsedBookingDetails as any)?.location_name as string | undefined;
+    const raw = (parsedBookingDetails?.location || '').trim();
+    let name = (locName || '').trim();
+    let addr = '';
+    if (!name && raw) {
+      const parts = raw.split(',');
+      const first = (parts[0] || '').trim();
+      if (first && !/^\d/.test(first)) {
+        name = first;
+        addr = parts.slice(1).join(',').trim();
+      } else {
+        addr = raw;
+      }
+    } else if (name) {
+      addr = raw;
+    }
+    return name ? (addr ? `${name} - ${addr}` : name) : (addr || '');
+  };
+
   return (
-    <>
+    <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
       {!hideHeader && (
         <>
-          <div className="px-4 mt-3 mb-3 flex items-center gap-3">
-            <div className="relative h-16 w-16 rounded-xl overflow-hidden shrink-0">
-              <SafeImage
-                src={(getFullImageUrl(imageUrl || null) || imageUrl) as string | undefined}
-                alt="Service image"
-                fill
-                className="object-cover"
-                sizes="64px"
-                placeholder="blur"
-                blurDataURL={BLUR_PLACEHOLDER}
-              />
-            </div>
-            {!hideHeaderText && (
-              <div>
-                <div className="text-base font-semibold">
-                  {serviceName || 'Service'}
-                </div>
-                {artistName ? (
-                  <div className="text-sm text-gray-600">{artistName}</div>
-                ) : null}
-              </div>
-            )}
-          </div>
-
+          {/* New Enhanced Header */}
+          <EnhancedBookingHeader
+            imageUrl={imageUrl}
+            serviceName={serviceName}
+            artistName={artistName}
+            bookingConfirmed={bookingConfirmed}
+            parsedBookingDetails={parsedBookingDetails}
+          />
+          
+          {/* Content below the header image, if any */}
           {belowHeader && (
-            <div className="px-4 mt-2">
+            <div className="px-6 py-4 border-b border-gray-100">
               {belowHeader}
             </div>
           )}
-
-          <div className="mt-4 border-t border-gray-200" />
         </>
       )}
 
-      <div className="px-4 pb-4 overflow-y-auto max-h-[60vh] text-sm leading-6">
-        {/* Booking details list */}
-        <ul className="divide-y divide-gray-100">
+      <div className="p-6 overflow-y-auto max-h-[calc(60vh+100px)] text-sm leading-relaxed">
+        {/* Booking details list - Enhanced Styling */}
+        <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Event Details</h2>
+        <ul className="space-y-3">
           {showEventDetails && parsedBookingDetails?.eventType && (
-            <li className="py-2">
-              <span className="font-semibold">Event Type:</span>{' '}
-              {parsedBookingDetails.eventType}
+            <li className="flex items-start">
+              <span className="font-semibold w-24 text-gray-600 shrink-0">Event Type:</span>
+              <span className="text-gray-800">{parsedBookingDetails.eventType}</span>
             </li>
           )}
           {showEventDetails && parsedBookingDetails?.date && (
-            <li className="py-2">
-              <span className="font-semibold">Date:</span>{' '}
-              {isValid(new Date(parsedBookingDetails.date))
-                ? format(new Date(parsedBookingDetails.date), 'PPP p')
-                : parsedBookingDetails.date}
+            <li className="flex items-start">
+              <span className="font-semibold w-24 text-gray-600 shrink-0">Date & Time:</span>
+              <span className="text-gray-800">
+                {isValid(new Date(parsedBookingDetails.date))
+                  ? format(new Date(parsedBookingDetails.date), 'PPP p')
+                  : parsedBookingDetails.date}
+              </span>
             </li>
           )}
-          {showEventDetails && (() => {
-            const locName = (parsedBookingDetails as any)?.location_name as string | undefined;
-            const raw = (parsedBookingDetails?.location || '').trim();
-            let name = (locName || '').trim();
-            let addr = '';
-            if (!name && raw) {
-              const parts = raw.split(',');
-              const first = (parts[0] || '').trim();
-              if (first && !/^\d/.test(first)) {
-                name = first;
-                addr = parts.slice(1).join(',').trim();
-              } else {
-                addr = raw;
-              }
-            } else if (name) {
-              addr = raw;
-            }
-            const label = name ? (addr ? `${name} - ${addr}` : name) : (addr || '');
-            return label ? (
-              <li className="py-2">
-                <span className="font-semibold">Location:</span>{' '}
-                {label}
-              </li>
-            ) : null;
-          })()}
+          {showEventDetails && getLocationLabel() && (
+            <li className="flex items-start">
+              <span className="font-semibold w-24 text-gray-600 shrink-0">Location:</span>
+              <span className="text-gray-800">{getLocationLabel()}</span>
+            </li>
+          )}
           {showEventDetails && parsedBookingDetails?.guests && (
-            <li className="py-2">
-              <span className="font-semibold">Guests:</span>{' '}
-              {parsedBookingDetails.guests}
+            <li className="flex items-start">
+              <span className="font-semibold w-24 text-gray-600 shrink-0">Guests:</span>
+              <span className="text-gray-800">{parsedBookingDetails.guests}</span>
             </li>
           )}
           {showEventDetails && parsedBookingDetails?.venueType && (
-            <li className="py-2">
-              <span className="font-semibold">Venue Type:</span>{' '}
-              {parsedBookingDetails.venueType}
+            <li className="flex items-start">
+              <span className="font-semibold w-24 text-gray-600 shrink-0">Venue Type:</span>
+              <span className="text-gray-800">{parsedBookingDetails.venueType}</span>
             </li>
           )}
           {showSound && showEventDetails && parsedBookingDetails?.soundNeeded && (
-            <li className="py-2">
-              <span className="font-semibold">Sound:</span>{' '}
-              {parsedBookingDetails.soundNeeded}
+            <li className="flex items-start">
+              <span className="font-semibold w-24 text-gray-600 shrink-0">Sound:</span>
+              <span className="text-gray-800">{parsedBookingDetails.soundNeeded}</span>
             </li>
           )}
           {showEventDetails && parsedBookingDetails?.notes && (
-            <li className="py-2">
-              <span className="font-semibold">Notes:</span>{' '}
-              {parsedBookingDetails.notes}
+            <li className="flex items-start">
+              <span className="font-semibold w-24 text-gray-600 shrink-0">Notes:</span>
+              <span className="text-gray-800 italic">{parsedBookingDetails.notes}</span>
             </li>
           )}
         </ul>
 
         {/* Order & receipt */}
         {(bookingConfirmed || paymentInfo.status) && (
-          <div className="mt-4">
-            <div className="font-semibold mb-1">Order</div>
-            <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 mb-3">Order Information</h2>
+            <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-gray-700">Order number</span>
-                <span className="font-medium flex items-center gap-2">
+                <span className="text-gray-700 font-medium">Order Number</span>
+                <span className="font-semibold flex items-center gap-2 text-gray-900">
                   {bookingDetails?.id != null ? `#${bookingDetails.id}` : ''}
                   {(() => {
                     const reference =
@@ -242,7 +317,7 @@ export default function BookingSummaryCard({
                     if (!reference) return null;
                     return (
                       <span className="text-xs font-normal text-gray-500">
-                       {reference}
+                       ({reference})
                       </span>
                     );
                   })()}
@@ -254,14 +329,14 @@ export default function BookingSummaryCard({
                   bookingDetails?.payment_id ?? null
                 );
                 return url ? (
-                  <div className="mt-2 text-right">
+                  <div className="pt-2 border-t border-gray-100 text-right">
                     <a
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm font-medium underline text-gray-700"
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition duration-150"
                     >
-                      View receipt
+                      View Receipt &rarr;
                     </a>
                   </div>
                 ) : null;
@@ -275,13 +350,13 @@ export default function BookingSummaryCard({
           const isClient = user?.user_type === 'client';
           const isProvider = user?.user_type === 'service_provider';
           const canShow = !!briefLink && (isClient || (isProvider && briefComplete));
-          const label = briefComplete ? 'View brief' : 'Finish brief';
+          const label = briefComplete ? 'View Brief' : 'Finish Brief';
           if (!canShow) return null;
           return (
-          <div className="mt-4">
+          <div className="mt-6">
             <a
               href={briefLink}
-              className="block text-center bg-black text-white font-semibold rounded-lg border border-gray-200 px-3 py-2 hover:bg-black hover:text-white hover:no-underline"
+              className="block text-center bg-indigo-600 text-white font-semibold rounded-lg px-4 py-3 shadow-lg hover:bg-indigo-700 transition duration-150"
             >
               {label}
             </a>
@@ -298,9 +373,9 @@ export default function BookingSummaryCard({
               (q?.booking_request ? (q as any).booking_request.id : null);
             return Number(qBookingId) === Number(bookingRequestId);
           });
-          const loadingQuotes = Boolean(quotesLoading) && quoteList.length === 0;
-          // Tolerate variant status strings (e.g., 'accepted_by_client', 'pending_client_action')
-          const accepted = quoteList.find((q: any) => String(q?.status || '').toLowerCase().includes('accept'));
+          const accepted = quoteList.find((q: any) =>
+            String(q?.status || '').toLowerCase().includes('accepted')
+          );
           const pending = quoteList.filter((q: any) => {
             const s = String(q?.status || '').toLowerCase();
             return s === 'pending' || s.includes('pending');
@@ -308,15 +383,15 @@ export default function BookingSummaryCard({
           const latestPending = pending.sort((a, b) => (a.id || 0) - (b.id || 0)).slice(-1)[0];
           const best = accepted || latestPending;
 
-          if (loadingQuotes) {
+          if (quotesLoading && quoteList.length === 0) {
             return (
-              <div className="mt-4">
-                <div className="font-semibold mb-1">Costing</div>
-                <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-2 animate-pulse">
-                  <div className="h-3 w-1/2 rounded bg-gray-200" />
-                  <div className="h-3 w-1/3 rounded bg-gray-200" />
-                  <div className="h-3 w-5/12 rounded bg-gray-200" />
-                  <div className="h-3 w-1/2 rounded bg-gray-200" />
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <h2 className="text-xl font-bold text-gray-800 mb-3">Costing</h2>
+                <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 space-y-2 animate-pulse">
+                  <div className="h-4 w-1/2 rounded bg-gray-200" />
+                  <div className="h-4 w-1/3 rounded bg-gray-200" />
+                  <div className="h-4 w-5/12 rounded bg-gray-200" />
+                  <div className="h-4 w-1/2 rounded bg-gray-200" />
                 </div>
               </div>
             );
@@ -338,23 +413,26 @@ export default function BookingSummaryCard({
             const feeVat = fee * 0.15;   // 15% VAT on fee
             const feeIncl = fee + feeVat;
             const clientTotal = Number((best as any)?.client_total_preview ?? (total + feeIncl));
+            
+            const totalAmount = isClient ? clientTotal : total;
+
             return (
-              <div className="mt-4">
-                <div className="font-semibold mb-1">Costing</div>
-                <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-1">
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <h2 className="text-xl font-bold text-gray-800 mb-3">Cost Summary</h2>
+                <div className="rounded-lg bg-white border border-gray-200 p-4 space-y-2 shadow-inner">
                   <div className="flex justify-between text-gray-700">
-                    <span>Base fee</span>
+                    <span>Base Service Fee</span>
                     <span>{formatCurrency(base)}</span>
                   </div>
                   {showSound && (
                     <div className="flex justify-between text-gray-700">
-                      <span>Sound</span>
+                      <span>Sound Equipment</span>
                       <span>{formatCurrency(sound)}</span>
                     </div>
                   )}
                   {showTravel && (
                     <div className="flex justify-between text-gray-700">
-                      <span>Travel</span>
+                      <span>Travel Cost</span>
                       <span>{formatCurrency(travel)}</span>
                     </div>
                   )}
@@ -365,31 +443,34 @@ export default function BookingSummaryCard({
                     </div>
                   )}
                   {discount > 0 && (
-                    <div className="flex justify-between text-gray-700">
-                      <span>Discount</span>
+                    <div className="flex justify-between text-green-600 font-medium">
+                      <span>Discount Applied</span>
                       <span>-{formatCurrency(discount)}</span>
                     </div>
                   )}
                   {vat > 0 && (
                     <div className="flex justify-between text-gray-700">
-                      <span>VAT</span>
+                      <span>VAT/Tax</span>
                       <span>{formatCurrency(vat)}</span>
                     </div>
                   )}
                   {isClient && (
-                    <div className="flex justify-between text-gray-700">
-                      <span>Booka Service Fee (3% — VAT included)</span>
+                    <div className="flex justify-between text-indigo-600">
+                      <span>Platform Service Fee (incl. VAT)</span>
                       <span>{formatCurrency(feeIncl)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
-                    <span>Total</span>
-                    <span>{formatCurrency(isClient ? clientTotal : total)}</span>
+                  <div className="flex justify-between font-extrabold text-lg mt-3 pt-3 border-t border-gray-300">
+                    <span className="flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-indigo-600" />
+                      Final Total
+                    </span>
+                    <span>{formatCurrency(totalAmount)}</span>
                   </div>
                 </div>
 
                 {allowInstantBooking && !accepted && (
-                  <div className="mt-3 text-right">
+                  <div className="mt-4 text-right">
                     <Button
                       type="button"
                       onClick={() =>
@@ -399,9 +480,9 @@ export default function BookingSummaryCard({
                           customerEmail: (user as any)?.email || undefined,
                         })
                       }
-                      className="bg-gray-900 text-white hover:bg-black"
+                      className="bg-indigo-600 text-white hover:bg-indigo-700 px-6 py-3 text-base font-semibold rounded-lg shadow-xl transition duration-150"
                     >
-                      Reserve now
+                      Reserve Now &rarr;
                     </Button>
                   </div>
                 )}
@@ -410,10 +491,10 @@ export default function BookingSummaryCard({
           }
 
           return (
-            <div className="mt-4">
-              <div className="font-semibold mb-1">Costing</div>
-              <div className="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600">
-                No quote is available yet for this request.
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h2 className="text-xl font-bold text-gray-800 mb-3">Costing</h2>
+              <div className="rounded-lg border border-dashed border-gray-400 bg-gray-50 p-4 text-sm text-gray-600 text-center italic">
+                No quote is available yet for this request. Awaiting provider response.
               </div>
             </div>
           );
@@ -421,32 +502,31 @@ export default function BookingSummaryCard({
 
         {/* Policy */}
         {showPolicy && (
-        <div className="mt-5">
-          <div className="font-semibold mb-1">Cancellation policy</div>
-          <p className="text-gray-600 text-sm">
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <h2 className="text-xl font-bold text-gray-800 mb-3">Cancellation Policy</h2>
+          <p className="text-gray-700 text-sm leading-relaxed">
             {artistCancellationPolicy?.trim() ||
-              'Free cancellation within 48 hours of booking. 50% refund up to 7 days before the event. Policies may vary by provider.'}
+              'Free cancellation within 48 hours of booking. 50% refund up to 7 days before the event. Policies may vary by provider. Please review the full terms before confirming.'}
           </p>
         </div>
         )}
 
         {/* Links */}
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="mt-6 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <a
             href={currentArtistId ? `/service-providers/${currentArtistId}` : '#'}
-            className="block text-center bg-black text-white font-semibold rounded-lg border border-gray-200 px-3 py-2 hover:bg-black hover:text-white hover:no-underline"
+            className="block text-center bg-gray-800 text-white font-semibold rounded-lg px-4 py-3 shadow-md hover:bg-gray-900 transition duration-150"
           >
-            View service
+            View Service Profile
           </a>
           <a
             href="/support"
-            className="block text-center bg-black text-white font-semibold rounded-lg border border-gray-200 px-3 py-2 hover:bg-black hover:text-white hover:no-underline"
+            className="block text-center bg-white text-gray-800 font-semibold rounded-lg px-4 py-3 border border-gray-300 shadow-md hover:bg-gray-50 transition duration-150"
           >
-            Get support
+            Get Support
           </a>
         </div>
       </div>
-    </>
+    </div>
   );
 }
-// moved to chat folder
