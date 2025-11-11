@@ -290,7 +290,7 @@ export default function BookingSummaryCard({
             parsedBookingDetails={parsedBookingDetails}
           />
           {belowHeader && (
-            <div className="px-6 py-4 sm:px-8  max-w-full overflow-x-hidden">
+            <div className="px-6 py-2 sm:px-8  max-w-full overflow-x-hidden">
               {belowHeader}
             </div>
           )}
