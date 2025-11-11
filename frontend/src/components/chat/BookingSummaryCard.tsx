@@ -83,7 +83,7 @@ const AvatarHeader: React.FC<
 
   return (
     <header
-      className="relative w-full bg-gradient-to-b from-indigo-50 via-white to-white border-b border-gray-200"
+      className="relative w-full bg-gradient-to-b from-indigo-50 via-white to-white border-b border-gray-200 overflow-x-hidden"
       aria-label="Booking header"
     >
       <div
@@ -147,7 +147,7 @@ const AvatarHeader: React.FC<
           {parsedBookingDetails?.location && (
             <div className="flex items-center">
               <MapPin className="w-4 h-4 mr-2 text-indigo-600" />
-              <span>{parsedBookingDetails.location.split(',')[0].trim()}</span>
+              <span className="truncate">{parsedBookingDetails.location.split(',')[0].trim()}</span>
             </div>
           )}
           {parsedBookingDetails?.guests && (
@@ -237,7 +237,7 @@ export default function BookingSummaryCard({
     return name ? (addr ? `${name} - ${addr}` : name) : addr || '';
   };
 
-  // Compute quote candidates
+  // Quote selection (accepted > latest pending)
   const bestState = React.useMemo(() => {
     const list = Object.values(quotes || {}).filter((q: any) => {
       const qBookingId =
@@ -259,7 +259,7 @@ export default function BookingSummaryCard({
 
   const isClient = user?.user_type === 'client';
 
-  // ---------- NEW: dynamic bottom padding so sticky CTA never hides bottom content ----------
+  // Sticky mobile CTA height measurement to create safe bottom space
   const stickyRef = React.useRef<HTMLDivElement | null>(null);
   const [stickyH, setStickyH] = React.useState(0);
   const stickyPresent = !!(allowInstantBooking && !bestState.accepted && bestState.best);
@@ -277,14 +277,17 @@ export default function BookingSummaryCard({
     return () => ro.disconnect();
   }, [stickyPresent]);
 
-  // Prep button target: prefer brief if available, else provider profile (or support)
+  // Small prep button: brief > provider profile > support
   const prepHref =
     briefLink ||
     (currentArtistId ? `/service-providers/${currentArtistId}#prep` : '/support');
 
   return (
-    // Important: no overflow-hidden here — let the page scroll.
-    <section className="w-full bg-white" aria-label="Booking summary">
+    // NO horizontal scroll: overflow-x-hidden; also clip overscroll
+    <section
+      className="w-full bg-white overflow-x-hidden overscroll-x-none"
+      aria-label="Booking summary"
+    >
       {!hideHeader && (
         <>
           <AvatarHeader
@@ -295,233 +298,230 @@ export default function BookingSummaryCard({
             parsedBookingDetails={parsedBookingDetails}
           />
           {belowHeader && (
-            <div className="px-6 py-4 sm:px-8 border-b border-gray-100">{belowHeader}</div>
+            <div className="px-6 py-4 sm:px-8 border-b border-gray-100 max-w-full overflow-x-hidden">
+              {belowHeader}
+            </div>
           )}
         </>
       )}
 
-      {/* CONTENT GRID */}
+      {/* CONTENT (single column; cost now directly after Event Details) */}
       <div
         className={[
-          'px-6 sm:px-8 py-6',
+          'px-6 sm:px-8 py-6 max-w-full overflow-x-hidden',
           stickyPresent
             ? 'pb-[calc(var(--sticky-h,64px)+env(safe-area-inset-bottom,0px)+24px)]'
             : 'pb-6',
         ].join(' ')}
         style={stickyPresent ? ({ ['--sticky-h' as any]: `${stickyH}px` } as React.CSSProperties) : undefined}
       >
-        <div className="grid lg:grid-cols-12 gap-8">
-          {/* LEFT COLUMN */}
-          <div className="lg:col-span-7 xl:col-span-8 space-y-8">
-            {/* Event Details */}
-            <section id="event-details" className="scroll-mt-20" aria-labelledby="event-details-h">
-              <h2 id="event-details-h" className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
-                Event Details
-              </h2>
+        {/* Event Details */}
+        <section id="event-details" className="scroll-mt-20" aria-labelledby="event-details-h">
+          <h2 id="event-details-h" className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
+            Event Details
+          </h2>
 
-              <ul className="space-y-3 text-sm leading-relaxed">
-                {showEventDetails && parsedBookingDetails?.eventType && (
-                  <li className="flex items-start">
-                    <span className="font-semibold w-28 text-gray-600 shrink-0">Event Type:</span>
-                    <span className="text-gray-800">{parsedBookingDetails.eventType}</span>
-                  </li>
-                )}
-                {showEventDetails && parsedBookingDetails?.date && (
-                  <li className="flex items-start">
-                    <span className="font-semibold w-28 text-gray-600 shrink-0">Date &amp; Time:</span>
-                    <span className="text-gray-800">
-                      {isValid(new Date(parsedBookingDetails.date))
-                        ? format(new Date(parsedBookingDetails.date), 'PPP p')
-                        : parsedBookingDetails.date}
-                    </span>
-                  </li>
-                )}
-                {showEventDetails && getLocationLabel() && (
-                  <li className="flex items-start">
-                    <span className="font-semibold w-28 text-gray-600 shrink-0">Location:</span>
-                    <span className="text-gray-800">{getLocationLabel()}</span>
-                  </li>
-                )}
-                {showEventDetails && parsedBookingDetails?.guests && (
-                  <li className="flex items-start">
-                    <span className="font-semibold w-28 text-gray-600 shrink-0">Guests:</span>
-                    <span className="text-gray-800">{parsedBookingDetails.guests}</span>
-                  </li>
-                )}
-                {showEventDetails && parsedBookingDetails?.venueType && (
-                  <li className="flex items-start">
-                    <span className="font-semibold w-28 text-gray-600 shrink-0">Venue Type:</span>
-                    <span className="text-gray-800">{parsedBookingDetails.venueType}</span>
-                  </li>
-                )}
-                {showSound && showEventDetails && parsedBookingDetails?.soundNeeded && (
-                  <li className="flex items-start">
-                    <span className="font-semibold w-28 text-gray-600 shrink-0">Sound:</span>
-                    <span className="text-gray-800">{parsedBookingDetails.soundNeeded}</span>
-                  </li>
-                )}
-                {showEventDetails && parsedBookingDetails?.notes && (
-                  <li className="flex items-start">
-                    <span className="font-semibold w-28 text-gray-600 shrink-0">Notes:</span>
-                    <span className="text-gray-800 italic">{parsedBookingDetails.notes}</span>
-                  </li>
-                )}
-              </ul>
-
-              {/* NEW: Small, not-full-width prep button right below Event Details */}
-              <div className="mt-3">
-                <a
-                  href={prepHref}
-                  className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                  Let’s prep your event
-                </a>
-              </div>
-            </section>
-
-            {/* Order Info */}
-            {(bookingConfirmed || paymentInfo.status) && (
-              <section id="order-information" className="scroll-mt-20" aria-labelledby="order-info-h">
-                <h2 id="order-info-h" className="text-xl font-bold text-gray-900 mb-3">
-                  Order Information
-                </h2>
-                <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700 font-medium">Order Number</span>
-                    <span className="font-semibold flex items-center gap-2 text-gray-900">
-                      {bookingDetails?.id != null ? `#${bookingDetails.id}` : ''}
-                      {(() => {
-                        const reference =
-                          paymentInfo.reference ||
-                          (bookingDetails?.payment_id ? String(bookingDetails.payment_id) : null);
-                        if (!reference) return null;
-                        return <span className="text-xs font-normal text-gray-500">({reference})</span>;
-                      })()}
-                    </span>
-                  </div>
-                  {(() => {
-                    const url = buildReceiptUrl(
-                      paymentInfo.receiptUrl,
-                      bookingDetails?.payment_id ?? null
-                    );
-                    return url ? (
-                      <div className="pt-2 border-t border-gray-100 text-right">
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
-                        >
-                          View Receipt &rarr;
-                        </a>
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              </section>
+          <ul className="space-y-3 text-sm leading-relaxed break-words">
+            {showEventDetails && parsedBookingDetails?.eventType && (
+              <li className="flex items-start">
+                <span className="font-semibold w-28 text-gray-600 shrink-0">Event Type:</span>
+                <span className="text-gray-800 break-words">{parsedBookingDetails.eventType}</span>
+              </li>
             )}
-
-            {/* Optional brief link (unchanged behavior) */}
-            {(() => {
-              const isProvider = user?.user_type === 'service_provider';
-              const canShow = !!briefLink && (isClient || (isProvider && briefComplete));
-              const label = briefComplete ? 'View Brief' : 'Finish Brief';
-              if (!canShow) return null;
-              return (
-                <div className="pt-2">
-                  <a
-                    href={briefLink}
-                    className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-indigo-600 text-white font-semibold rounded-lg px-5 py-3 shadow-lg hover:bg-indigo-700 transition"
-                  >
-                    {label}
-                  </a>
-                </div>
-              );
-            })()}
-
-            {/* Policy */}
-            {showPolicy && (
-              <section id="cancellation-policy" className="scroll-mt-20" aria-labelledby="policy-h">
-                <h2 id="policy-h" className="text-xl font-bold text-gray-900 mb-3">
-                  Cancellation Policy
-                </h2>
-                <p className="text-gray-700 text-sm leading-relaxed">
-                  {artistCancellationPolicy?.trim() ||
-                    'Free cancellation within 48 hours of booking. 50% refund up to 7 days before the event. Policies may vary by provider. Please review the full terms before confirming.'}
-                </p>
-              </section>
+            {showEventDetails && parsedBookingDetails?.date && (
+              <li className="flex items-start">
+                <span className="font-semibold w-28 text-gray-600 shrink-0">Date &amp; Time:</span>
+                <span className="text-gray-800 break-words">
+                  {isValid(new Date(parsedBookingDetails.date))
+                    ? format(new Date(parsedBookingDetails.date), 'PPP p')
+                    : parsedBookingDetails.date}
+                </span>
+              </li>
             )}
+            {showEventDetails && getLocationLabel() && (
+              <li className="flex items-start">
+                <span className="font-semibold w-28 text-gray-600 shrink-0">Location:</span>
+                <span className="text-gray-800 break-words">{getLocationLabel()}</span>
+              </li>
+            )}
+            {showEventDetails && parsedBookingDetails?.guests && (
+              <li className="flex items-start">
+                <span className="font-semibold w-28 text-gray-600 shrink-0">Guests:</span>
+                <span className="text-gray-800 break-words">{parsedBookingDetails.guests}</span>
+              </li>
+            )}
+            {showEventDetails && parsedBookingDetails?.venueType && (
+              <li className="flex items-start">
+                <span className="font-semibold w-28 text-gray-600 shrink-0">Venue Type:</span>
+                <span className="text-gray-800 break-words">{parsedBookingDetails.venueType}</span>
+              </li>
+            )}
+            {showSound && showEventDetails && parsedBookingDetails?.soundNeeded && (
+              <li className="flex items-start">
+                <span className="font-semibold w-28 text-gray-600 shrink-0">Sound:</span>
+                <span className="text-gray-800 break-words">{parsedBookingDetails.soundNeeded}</span>
+              </li>
+            )}
+            {showEventDetails && parsedBookingDetails?.notes && (
+              <li className="flex items-start">
+                <span className="font-semibold w-28 text-gray-600 shrink-0">Notes:</span>
+                <span className="text-gray-800 italic break-words">{parsedBookingDetails.notes}</span>
+              </li>
+            )}
+          </ul>
 
-            {/* Bottom links */}
-            <section aria-label="Helpful links">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <a
-                  href={currentArtistId ? `/service-providers/${currentArtistId}` : '#'}
-                  className="block text-center bg-gray-900 text-white font-semibold rounded-lg px-4 py-3 shadow-md hover:bg-black transition"
-                >
-                  View Service Profile
-                </a>
-                <a
-                  href="/support"
-                  className="block text-center bg-white text-gray-800 font-semibold rounded-lg px-4 py-3 border border-gray-300 shadow-md hover:bg-gray-50 transition"
-                >
-                  Get Support
-                </a>
-              </div>
-            </section>
+          {/* Small, not-full-width prep button under Event Details */}
+          <div className="mt-3">
+            <a
+              href={prepHref}
+              className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            >
+              Let’s prep your event
+            </a>
           </div>
+        </section>
 
-          {/* RIGHT COLUMN (sticky cost summary on desktop) */}
-          <aside
-            id="cost-summary"
-            className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-4 self-start scroll-mt-24"
-            aria-labelledby="cost-summary-h"
-          >
-            <h2 id="cost-summary-h" className="text-xl font-bold text-gray-900 mb-3">
-              {bestState.accepted ? 'Final Total' : 'Cost Summary'}
+        {/* COST SUMMARY — NOW IMMEDIATELY BELOW EVENT DETAILS */}
+        <section
+          id="cost-summary"
+          className="mt-8 scroll-mt-20"
+          aria-labelledby="cost-summary-h"
+        >
+          <h2 id="cost-summary-h" className="text-xl font-bold text-gray-900 mb-3">
+            {bestState.accepted ? 'Final Total' : 'Cost Summary'}
+          </h2>
+
+          {quotesLoading && (bestState.list?.length ?? 0) === 0 && (
+            <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 space-y-2 animate-pulse">
+              <div className="h-4 w-1/2 rounded bg-gray-200" />
+              <div className="h-4 w-1/3 rounded bg-gray-200" />
+              <div className="h-4 w-5/12 rounded bg-gray-200" />
+              <div className="h-4 w-1/2 rounded bg-gray-200" />
+            </div>
+          )}
+
+          {bestState.best && !quotesLoading && (
+            <CostBreakdown
+              quote={bestState.best as any}
+              isClient={isClient}
+              showSound={showSound}
+              showTravel={showTravel}
+              allowInstantBooking={!!allowInstantBooking && !bestState.accepted}
+              onReserve={() =>
+                openPaymentModal({
+                  bookingRequestId,
+                  amount: Number((bestState.best as any).total || 0),
+                  customerEmail: (user as any)?.email || undefined,
+                })
+              }
+              showReceiptBelowTotal={showReceiptBelowTotal}
+            />
+          )}
+
+          {!bestState.best && !quotesLoading && (
+            <div className="rounded-lg border border-dashed border-gray-400 bg-gray-50 p-4 text-sm text-gray-600 text-center italic">
+              No quote is available yet for this request. Awaiting provider response.
+            </div>
+          )}
+        </section>
+
+        {/* Order Info */}
+        {(bookingConfirmed || paymentInfo.status) && (
+          <section id="order-information" className="mt-8 scroll-mt-20" aria-labelledby="order-info-h">
+            <h2 id="order-info-h" className="text-xl font-bold text-gray-900 mb-3">
+              Order Information
             </h2>
-
-            {quotesLoading && (bestState.list?.length ?? 0) === 0 && (
-              <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 space-y-2 animate-pulse">
-                <div className="h-4 w-1/2 rounded bg-gray-200" />
-                <div className="h-4 w-1/3 rounded bg-gray-200" />
-                <div className="h-4 w-5/12 rounded bg-gray-200" />
-                <div className="h-4 w-1/2 rounded bg-gray-200" />
+            <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-700 font-medium">Order Number</span>
+                <span className="font-semibold flex items-center gap-2 text-gray-900">
+                  {bookingDetails?.id != null ? `#${bookingDetails.id}` : ''}
+                  {(() => {
+                    const reference =
+                      paymentInfo.reference ||
+                      (bookingDetails?.payment_id ? String(bookingDetails.payment_id) : null);
+                    if (!reference) return null;
+                    return <span className="text-xs font-normal text-gray-500">({reference})</span>;
+                  })()}
+                </span>
               </div>
-            )}
+              {(() => {
+                const url = buildReceiptUrl(
+                  paymentInfo.receiptUrl,
+                  bookingDetails?.payment_id ?? null
+                );
+                return url ? (
+                  <div className="pt-2 border-t border-gray-100 text-right">
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
+                    >
+                      View Receipt &rarr;
+                    </a>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          </section>
+        )}
 
-            {bestState.best && !quotesLoading && (
-              <CostBreakdown
-                quote={bestState.best as any}
-                isClient={isClient}
-                showSound={showSound}
-                showTravel={showTravel}
-                allowInstantBooking={!!allowInstantBooking && !bestState.accepted}
-                onReserve={() =>
-                  openPaymentModal({
-                    bookingRequestId,
-                    amount: Number((bestState.best as any).total || 0),
-                    customerEmail: (user as any)?.email || undefined,
-                  })
-                }
-                showReceiptBelowTotal={showReceiptBelowTotal}
-              />
-            )}
+        {/* Optional brief button (unchanged logic) */}
+        {(() => {
+          const isProvider = user?.user_type === 'service_provider';
+          const canShow = !!briefLink && (isClient || (isProvider && briefComplete));
+          const label = briefComplete ? 'View Brief' : 'Finish Brief';
+          if (!canShow) return null;
+          return (
+            <div className="pt-4">
+              <a
+                href={briefLink}
+                className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-indigo-600 text-white font-semibold rounded-lg px-5 py-3 shadow-lg hover:bg-indigo-700 transition"
+              >
+                {label}
+              </a>
+            </div>
+          );
+        })()}
 
-            {!bestState.best && !quotesLoading && (
-              <div className="rounded-lg border border-dashed border-gray-400 bg-gray-50 p-4 text-sm text-gray-600 text-center italic">
-                No quote is available yet for this request. Awaiting provider response.
-              </div>
-            )}
-          </aside>
-        </div>
+        {/* Policy */}
+        {showPolicy && (
+          <section id="cancellation-policy" className="mt-8 scroll-mt-20" aria-labelledby="policy-h">
+            <h2 id="policy-h" className="text-xl font-bold text-gray-900 mb-3">
+              Cancellation Policy
+            </h2>
+            <p className="text-gray-700 text-sm leading-relaxed break-words">
+              {artistCancellationPolicy?.trim() ||
+                'Free cancellation within 48 hours of booking. 50% refund up to 7 days before the event. Policies may vary by provider. Please review the full terms before confirming.'}
+            </p>
+          </section>
+        )}
+
+        {/* Helpful links */}
+        <section aria-label="Helpful links" className="mt-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <a
+              href={currentArtistId ? `/service-providers/${currentArtistId}` : '#'}
+              className="block text-center bg-gray-900 text-white font-semibold rounded-lg px-4 py-3 shadow-md hover:bg-black transition"
+            >
+              View Service Profile
+            </a>
+            <a
+              href="/support"
+              className="block text-center bg-white text-gray-800 font-semibold rounded-lg px-4 py-3 border border-gray-300 shadow-md hover:bg-gray-50 transition"
+            >
+              Get Support
+            </a>
+          </div>
+        </section>
       </div>
 
-      {/* Mobile sticky CTA (height is measured to create safe bottom space in content) */}
+      {/* Mobile sticky CTA; measured height ensures the last buttons are never hidden */}
       {stickyPresent && (
         <div
           ref={stickyRef}
-          className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-white/90 backdrop-blur p-3 pb-[env(safe-area-inset-bottom)]"
+          className="lg:hidden fixed left-0 right-0 bottom-0 z-30 border-t bg-white/90 backdrop-blur p-3 pb-[env(safe-area-inset-bottom)]"
         >
           <Button
             type="button"
@@ -542,7 +542,7 @@ export default function BookingSummaryCard({
   );
 }
 
-/* ---- Cost breakdown (unchanged, no share / no add-to-calendar) ---- */
+/* ---- Cost breakdown (reused) ---- */
 function CostBreakdown({
   quote,
   isClient,
@@ -578,7 +578,7 @@ function CostBreakdown({
   const finalAmount = isClient ? clientTotal : total;
 
   return (
-    <div className="rounded-lg bg-white border border-gray-200 p-4 space-y-2 shadow-sm">
+    <div className="rounded-lg bg-white border border-gray-200 p-4 space-y-2 shadow-sm overflow-x-hidden">
       <div className="flex justify-between text-gray-700">
         <span>Base Service Fee</span>
         <span>{formatCurrency(base)}</span>
@@ -598,7 +598,7 @@ function CostBreakdown({
       {quote.accommodation && (
         <div className="flex justify-between text-gray-700">
           <span>Accommodation</span>
-          <span>{quote.accommodation}</span>
+          <span className="break-words">{quote.accommodation}</span>
         </div>
       )}
       {discount > 0 && (
