@@ -10,14 +10,12 @@ import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar, MapPin, Users, DollarSign, CheckCircle, User } from 'lucide-react';
 
-// --- Interfaces (as provided) ---
-
 interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
   date?: string;
-  location?: string; // may be "Name, Address" after selection
-  location_name?: string; // optional explicit venue name if available
+  location?: string;
+  location_name?: string;
   guests?: string;
   venueType?: string;
   soundNeeded?: string;
@@ -66,8 +64,6 @@ interface BookingSummaryCardProps {
   belowHeader?: React.ReactNode;
 }
 
-// --- Header (avatar-focused) ---
-
 const AvatarHeader: React.FC<
   Pick<
     BookingSummaryCardProps,
@@ -90,16 +86,15 @@ const AvatarHeader: React.FC<
       className="relative w-full bg-gradient-to-b from-indigo-50 via-white to-white border-b border-gray-200"
       aria-label="Booking header"
     >
-      {/* Subtle grid pattern */}
       <div
-        className="absolute inset-0 opacity-50 pointer-events-none"
+        className="absolute inset-0 opacity-40 pointer-events-none"
         style={{
-          maskImage:
-            'linear-gradient(to bottom, rgba(0,0,0,0.25), rgba(0,0,0,1) 30%, rgba(0,0,0,1) 80%, rgba(0,0,0,0))',
-          WebkitMaskImage:
-            'linear-gradient(to bottom, rgba(0,0,0,0.25), rgba(0,0,0,1) 30%, rgba(0,0,0,1) 80%, rgba(0,0,0,0))',
           backgroundImage: 'radial-gradient(#e5e7eb 1px, transparent 1px)',
           backgroundSize: '18px 18px',
+          maskImage:
+            'linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,1) 30%, rgba(0,0,0,1) 80%, rgba(0,0,0,0))',
+          WebkitMaskImage:
+            'linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,1) 30%, rgba(0,0,0,1) 80%, rgba(0,0,0,0))',
         }}
       />
       <div className="relative px-6 py-6 sm:px-8">
@@ -142,11 +137,7 @@ const AvatarHeader: React.FC<
           </div>
         </div>
 
-        {/* Key details row */}
-        <nav
-          className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-gray-700"
-          aria-label="Event quick facts"
-        >
+        <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-gray-700">
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2 text-indigo-600" />
             <span>
@@ -165,17 +156,15 @@ const AvatarHeader: React.FC<
               <span>{parsedBookingDetails.guests} Guests</span>
             </div>
           )}
-        </nav>
+        </div>
       </div>
     </header>
   );
 };
 
-// --- Main Component ---
-
 export default function BookingSummaryCard({
   hideHeader = false,
-  hideHeaderText = false, // kept for compatibility
+  hideHeaderText = false,
   parsedBookingDetails,
   imageUrl,
   serviceName,
@@ -205,7 +194,6 @@ export default function BookingSummaryCard({
   const [briefLink, setBriefLink] = React.useState<string | null>(null);
   const [briefComplete, setBriefComplete] = React.useState<boolean>(false);
 
-  // Local storage linkage (kept)
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
     const update = () => {
@@ -229,7 +217,6 @@ export default function BookingSummaryCard({
     };
   }, [bookingRequestId]);
 
-  // Parse location nicely
   const getLocationLabel = () => {
     const locName = (parsedBookingDetails as any)?.location_name as string | undefined;
     const raw = (parsedBookingDetails?.location || '').trim();
@@ -250,58 +237,54 @@ export default function BookingSummaryCard({
     return name ? (addr ? `${name} - ${addr}` : name) : addr || '';
   };
 
-  // Derive the “best” quote (accepted > latest pending)
-  const bestQuote = React.useMemo(() => {
-    const all = Object.values(quotes || {}).filter((q: any) => {
+  // Compute quote candidates
+  const bestState = React.useMemo(() => {
+    const list = Object.values(quotes || {}).filter((q: any) => {
       const qBookingId =
         q?.booking_request_id ??
         (q as any)?.booking_requestId ??
         (q?.booking_request ? (q as any).booking_request.id : null);
       return Number(qBookingId) === Number(bookingRequestId);
     });
-
-    const accepted = all.find((q: any) =>
+    const accepted = list.find((q: any) =>
       String(q?.status || '').toLowerCase().includes('accepted')
     );
-    const pending = all.filter((q: any) => {
+    const pending = list.filter((q: any) => {
       const s = String(q?.status || '').toLowerCase();
       return s === 'pending' || s.includes('pending');
     });
-    const latestPending = pending.sort((a, b) => (a.id || 0) - (b.id || 0)).slice(-1)[0];
-
-    return {
-      accepted,
-      latestPending,
-      best: accepted || latestPending,
-      count: all.length,
-    };
+    const latestPending = pending.sort((a, b) => (a.id || 0) - (b.id || 0)).slice(-1)[0] || null;
+    return { list, accepted: accepted || null, latestPending, best: accepted || latestPending || null };
   }, [quotes, bookingRequestId]);
-
-  // Section ids for anchor nav
-  const sectionIds = {
-    details: 'event-details',
-    cost: 'cost-summary',
-    order: 'order-information',
-    policy: 'cancellation-policy',
-  } as const;
-
-  // Smooth anchor scroll (respects user pref for reduced motion)
-  const smoothScroll = (id: string) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' });
-  };
 
   const isClient = user?.user_type === 'client';
 
+  // ---------- NEW: dynamic bottom padding so sticky CTA never hides bottom content ----------
+  const stickyRef = React.useRef<HTMLDivElement | null>(null);
+  const [stickyH, setStickyH] = React.useState(0);
+  const stickyPresent = !!(allowInstantBooking && !bestState.accepted && bestState.best);
+
+  React.useLayoutEffect(() => {
+    if (!stickyPresent || !stickyRef.current || typeof ResizeObserver === 'undefined') {
+      setStickyH(0);
+      return;
+    }
+    const el = stickyRef.current;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) setStickyH(e.contentRect.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [stickyPresent]);
+
+  // Prep button target: prefer brief if available, else provider profile (or support)
+  const prepHref =
+    briefLink ||
+    (currentArtistId ? `/service-providers/${currentArtistId}#prep` : '/support');
+
   return (
-    // IMPORTANT: Do NOT hide overflow here; allow page to scroll.
-    // Provide a semantic region and spacing that adapts across screens.
-    <section
-      className="w-full bg-white"
-      aria-label="Booking summary"
-    >
+    // Important: no overflow-hidden here — let the page scroll.
+    <section className="w-full bg-white" aria-label="Booking summary">
       {!hideHeader && (
         <>
           <AvatarHeader
@@ -311,70 +294,28 @@ export default function BookingSummaryCard({
             bookingConfirmed={bookingConfirmed}
             parsedBookingDetails={parsedBookingDetails}
           />
-
           {belowHeader && (
             <div className="px-6 py-4 sm:px-8 border-b border-gray-100">{belowHeader}</div>
           )}
-
-          {/* In-page quick nav pills */}
-          <div className="px-6 sm:px-8 py-3 border-b border-gray-100 bg-white sticky top-0 z-20">
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => smoothScroll(sectionIds.details)}
-                className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition"
-                aria-label="Jump to event details"
-              >
-                Event Details
-              </button>
-              <button
-                type="button"
-                onClick={() => smoothScroll(sectionIds.cost)}
-                className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition"
-                aria-label="Jump to cost summary"
-              >
-                Cost Summary
-              </button>
-              {(bookingConfirmed || paymentInfo.status) && (
-                <button
-                  type="button"
-                  onClick={() => smoothScroll(sectionIds.order)}
-                  className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition"
-                  aria-label="Jump to order information"
-                >
-                  Order Info
-                </button>
-              )}
-              {showPolicy && (
-                <button
-                  type="button"
-                  onClick={() => smoothScroll(sectionIds.policy)}
-                  className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition"
-                  aria-label="Jump to cancellation policy"
-                >
-                  Policy
-                </button>
-              )}
-            </div>
-          </div>
         </>
       )}
 
-      {/* CONTENT GRID: left = details; right = sticky cost summary on desktop */}
-      <div className="px-6 sm:px-8 py-6">
+      {/* CONTENT GRID */}
+      <div
+        className={[
+          'px-6 sm:px-8 py-6',
+          stickyPresent
+            ? 'pb-[calc(var(--sticky-h,64px)+env(safe-area-inset-bottom,0px)+24px)]'
+            : 'pb-6',
+        ].join(' ')}
+        style={stickyPresent ? ({ ['--sticky-h' as any]: `${stickyH}px` } as React.CSSProperties) : undefined}
+      >
         <div className="grid lg:grid-cols-12 gap-8">
           {/* LEFT COLUMN */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-8">
             {/* Event Details */}
-            <section
-              id={sectionIds.details}
-              className="scroll-mt-20"
-              aria-labelledby="event-details-heading"
-            >
-              <h2
-                id="event-details-heading"
-                className="text-xl font-bold text-gray-900 mb-4 border-b pb-2"
-              >
+            <section id="event-details" className="scroll-mt-20" aria-labelledby="event-details-h">
+              <h2 id="event-details-h" className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
                 Event Details
               </h2>
 
@@ -385,7 +326,6 @@ export default function BookingSummaryCard({
                     <span className="text-gray-800">{parsedBookingDetails.eventType}</span>
                   </li>
                 )}
-
                 {showEventDetails && parsedBookingDetails?.date && (
                   <li className="flex items-start">
                     <span className="font-semibold w-28 text-gray-600 shrink-0">Date &amp; Time:</span>
@@ -396,35 +336,30 @@ export default function BookingSummaryCard({
                     </span>
                   </li>
                 )}
-
                 {showEventDetails && getLocationLabel() && (
                   <li className="flex items-start">
                     <span className="font-semibold w-28 text-gray-600 shrink-0">Location:</span>
                     <span className="text-gray-800">{getLocationLabel()}</span>
                   </li>
                 )}
-
                 {showEventDetails && parsedBookingDetails?.guests && (
                   <li className="flex items-start">
                     <span className="font-semibold w-28 text-gray-600 shrink-0">Guests:</span>
                     <span className="text-gray-800">{parsedBookingDetails.guests}</span>
                   </li>
                 )}
-
                 {showEventDetails && parsedBookingDetails?.venueType && (
                   <li className="flex items-start">
                     <span className="font-semibold w-28 text-gray-600 shrink-0">Venue Type:</span>
                     <span className="text-gray-800">{parsedBookingDetails.venueType}</span>
                   </li>
                 )}
-
                 {showSound && showEventDetails && parsedBookingDetails?.soundNeeded && (
                   <li className="flex items-start">
                     <span className="font-semibold w-28 text-gray-600 shrink-0">Sound:</span>
                     <span className="text-gray-800">{parsedBookingDetails.soundNeeded}</span>
                   </li>
                 )}
-
                 {showEventDetails && parsedBookingDetails?.notes && (
                   <li className="flex items-start">
                     <span className="font-semibold w-28 text-gray-600 shrink-0">Notes:</span>
@@ -432,22 +367,24 @@ export default function BookingSummaryCard({
                   </li>
                 )}
               </ul>
+
+              {/* NEW: Small, not-full-width prep button right below Event Details */}
+              <div className="mt-3">
+                <a
+                  href={prepHref}
+                  className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  Let’s prep your event
+                </a>
+              </div>
             </section>
 
-            {/* Order Info (if applicable) */}
+            {/* Order Info */}
             {(bookingConfirmed || paymentInfo.status) && (
-              <section
-                id={sectionIds.order}
-                className="scroll-mt-20"
-                aria-labelledby="order-information-heading"
-              >
-                <h2
-                  id="order-information-heading"
-                  className="text-xl font-bold text-gray-900 mb-3"
-                >
+              <section id="order-information" className="scroll-mt-20" aria-labelledby="order-info-h">
+                <h2 id="order-info-h" className="text-xl font-bold text-gray-900 mb-3">
                   Order Information
                 </h2>
-
                 <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-700 font-medium">Order Number</span>
@@ -458,20 +395,16 @@ export default function BookingSummaryCard({
                           paymentInfo.reference ||
                           (bookingDetails?.payment_id ? String(bookingDetails.payment_id) : null);
                         if (!reference) return null;
-                        return (
-                          <span className="text-xs font-normal text-gray-500">({reference})</span>
-                        );
+                        return <span className="text-xs font-normal text-gray-500">({reference})</span>;
                       })()}
                     </span>
                   </div>
-
                   {(() => {
                     const url = buildReceiptUrl(
                       paymentInfo.receiptUrl,
                       bookingDetails?.payment_id ?? null
                     );
-                    if (!url) return null;
-                    return (
+                    return url ? (
                       <div className="pt-2 border-t border-gray-100 text-right">
                         <a
                           href={url}
@@ -482,13 +415,13 @@ export default function BookingSummaryCard({
                           View Receipt &rarr;
                         </a>
                       </div>
-                    );
+                    ) : null;
                   })()}
                 </div>
               </section>
             )}
 
-            {/* Personalized Video Brief Link */}
+            {/* Optional brief link (unchanged behavior) */}
             {(() => {
               const isProvider = user?.user_type === 'service_provider';
               const canShow = !!briefLink && (isClient || (isProvider && briefComplete));
@@ -508,12 +441,8 @@ export default function BookingSummaryCard({
 
             {/* Policy */}
             {showPolicy && (
-              <section
-                id={sectionIds.policy}
-                className="scroll-mt-20"
-                aria-labelledby="cancellation-policy-heading"
-              >
-                <h2 id="cancellation-policy-heading" className="text-xl font-bold text-gray-900 mb-3">
+              <section id="cancellation-policy" className="scroll-mt-20" aria-labelledby="policy-h">
+                <h2 id="policy-h" className="text-xl font-bold text-gray-900 mb-3">
                   Cancellation Policy
                 </h2>
                 <p className="text-gray-700 text-sm leading-relaxed">
@@ -523,7 +452,7 @@ export default function BookingSummaryCard({
               </section>
             )}
 
-            {/* Useful links */}
+            {/* Bottom links */}
             <section aria-label="Helpful links">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <a
@@ -542,18 +471,17 @@ export default function BookingSummaryCard({
             </section>
           </div>
 
-          {/* RIGHT COLUMN (Sticky Summary) */}
+          {/* RIGHT COLUMN (sticky cost summary on desktop) */}
           <aside
-            id={sectionIds.cost}
+            id="cost-summary"
             className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-4 self-start scroll-mt-24"
-            aria-labelledby="cost-summary-heading"
+            aria-labelledby="cost-summary-h"
           >
-            <h2 id="cost-summary-heading" className="text-xl font-bold text-gray-900 mb-3">
-              {bestQuote.accepted ? 'Final Total' : 'Cost Summary'}
+            <h2 id="cost-summary-h" className="text-xl font-bold text-gray-900 mb-3">
+              {bestState.accepted ? 'Final Total' : 'Cost Summary'}
             </h2>
 
-            {/* Loading skeleton */}
-            {quotesLoading && bestQuote.count === 0 && (
+            {quotesLoading && (bestState.list?.length ?? 0) === 0 && (
               <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 space-y-2 animate-pulse">
                 <div className="h-4 w-1/2 rounded bg-gray-200" />
                 <div className="h-4 w-1/3 rounded bg-gray-200" />
@@ -562,18 +490,17 @@ export default function BookingSummaryCard({
               </div>
             )}
 
-            {/* Has a quote */}
-            {bestQuote.best && !quotesLoading && (
+            {bestState.best && !quotesLoading && (
               <CostBreakdown
-                quote={bestQuote.best as any}
+                quote={bestState.best as any}
                 isClient={isClient}
                 showSound={showSound}
                 showTravel={showTravel}
-                allowInstantBooking={!!allowInstantBooking && !bestQuote.accepted}
+                allowInstantBooking={!!allowInstantBooking && !bestState.accepted}
                 onReserve={() =>
                   openPaymentModal({
                     bookingRequestId,
-                    amount: Number((bestQuote.best as any).total || 0),
+                    amount: Number((bestState.best as any).total || 0),
                     customerEmail: (user as any)?.email || undefined,
                   })
                 }
@@ -581,8 +508,7 @@ export default function BookingSummaryCard({
               />
             )}
 
-            {/* No quote yet */}
-            {!bestQuote.best && !quotesLoading && (
+            {!bestState.best && !quotesLoading && (
               <div className="rounded-lg border border-dashed border-gray-400 bg-gray-50 p-4 text-sm text-gray-600 text-center italic">
                 No quote is available yet for this request. Awaiting provider response.
               </div>
@@ -591,15 +517,18 @@ export default function BookingSummaryCard({
         </div>
       </div>
 
-      {/* Mobile sticky CTA (only when instant booking is allowed and no accepted quote yet) */}
-      {allowInstantBooking && !bestQuote.accepted && bestQuote.best && (
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-white/90 backdrop-blur p-3">
+      {/* Mobile sticky CTA (height is measured to create safe bottom space in content) */}
+      {stickyPresent && (
+        <div
+          ref={stickyRef}
+          className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-white/90 backdrop-blur p-3 pb-[env(safe-area-inset-bottom)]"
+        >
           <Button
             type="button"
             onClick={() =>
               openPaymentModal({
                 bookingRequestId,
-                amount: Number((bestQuote.best as any).total || 0),
+                amount: Number((bestState.best as any).total || 0),
                 customerEmail: (user as any)?.email || undefined,
               })
             }
@@ -613,9 +542,7 @@ export default function BookingSummaryCard({
   );
 }
 
-/** -------------------------------
- * Cost breakdown (pulled out for clarity)
- * -------------------------------- */
+/* ---- Cost breakdown (unchanged, no share / no add-to-calendar) ---- */
 function CostBreakdown({
   quote,
   isClient,
@@ -644,9 +571,8 @@ function CostBreakdown({
   const total = Number(quote.total || subtotal);
   const vat = Math.max(0, total - subtotal);
 
-  // Client-facing service fee preview
-  const fee = subtotal * 0.03; // 3%
-  const feeVat = fee * 0.15; // 15% VAT on fee
+  const fee = subtotal * 0.03;
+  const feeVat = fee * 0.15;
   const feeIncl = fee + feeVat;
   const clientTotal = Number((quote as any)?.client_total_preview ?? total + feeIncl);
   const finalAmount = isClient ? clientTotal : total;
@@ -657,49 +583,42 @@ function CostBreakdown({
         <span>Base Service Fee</span>
         <span>{formatCurrency(base)}</span>
       </div>
-
       {showSound && (
         <div className="flex justify-between text-gray-700">
           <span>Sound Equipment</span>
           <span>{formatCurrency(sound)}</span>
         </div>
       )}
-
       {showTravel && (
         <div className="flex justify-between text-gray-700">
           <span>Travel Cost</span>
           <span>{formatCurrency(travel)}</span>
         </div>
       )}
-
       {quote.accommodation && (
         <div className="flex justify-between text-gray-700">
           <span>Accommodation</span>
           <span>{quote.accommodation}</span>
         </div>
       )}
-
       {discount > 0 && (
         <div className="flex justify-between text-green-600 font-medium">
           <span>Discount Applied</span>
           <span>-{formatCurrency(discount)}</span>
         </div>
       )}
-
       {vat > 0 && (
         <div className="flex justify-between text-gray-700">
           <span>VAT/Tax</span>
           <span>{formatCurrency(vat)}</span>
         </div>
       )}
-
       {isClient && (
         <div className="flex justify-between text-indigo-600">
           <span>Platform Service Fee (incl. VAT)</span>
           <span>{formatCurrency(feeIncl)}</span>
         </div>
       )}
-
       <div className="flex justify-between items-center font-extrabold text-lg mt-3 pt-3 border-t border-gray-300">
         <span className="flex items-center gap-2">
           <DollarSign className="w-5 h-5 text-indigo-600" />
@@ -717,12 +636,6 @@ function CostBreakdown({
           >
             Reserve Now &rarr;
           </Button>
-        </div>
-      )}
-
-      {showReceiptBelowTotal && (quote?.paymentInfo?.receiptUrl || quote?.payment_id) && (
-        <div className="pt-2 text-right">
-          {/* Note: parent passes proper receipt via main component. Kept here for API parity. */}
         </div>
       )}
     </div>
