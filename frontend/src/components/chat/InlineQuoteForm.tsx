@@ -73,16 +73,31 @@ const MoneyInput = React.memo(function MoneyInput({
   className?: string;
   'aria-describedby'?: string;
 }) {
+  // Displayed text mirrors the user's typing while focused; we only format on blur
   const [text, setText] = useState<string>(() => formatCurrency(Number.isFinite(value) ? value : 0));
   const lastValueRef = useRef<number>(value);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // When value changes externally, update the visible text only if not focused
   useEffect(() => {
     if (lastValueRef.current !== value) {
       lastValueRef.current = value;
-      setText(formatCurrency(Number.isFinite(value) ? value : 0));
+      const el = inputRef.current;
+      const isFocused = typeof document !== 'undefined' && el && document.activeElement === el;
+      if (!isFocused) {
+        setText(formatCurrency(Number.isFinite(value) ? value : 0));
+      }
     }
   }, [value]);
+
+  const toPlainNumericString = (n: number) => {
+    if (!Number.isFinite(n)) return '';
+    // Start with 2dp then trim trailing zeros/dot for a clean edit state
+    return n
+      .toFixed(2)
+      .replace(/\.([0-9]*?)0+$/, (m, p1) => (p1.length ? `.${p1}` : ''))
+      .replace(/\.$/, '');
+  };
 
   return (
     <input
@@ -100,7 +115,11 @@ const MoneyInput = React.memo(function MoneyInput({
       ].join(' ')}
       placeholder={placeholder ?? '0.00'}
       value={text}
-      onFocus={(e) => e.currentTarget.select()}
+      onFocus={(e) => {
+        // Switch to a plain numeric representation while editing, select for easy overwrite
+        setText(toPlainNumericString(Number.isFinite(value) ? value : 0));
+        e.currentTarget.select();
+      }}
       onChange={(e) => {
         const raw = e.target.value;
         setText(raw);
