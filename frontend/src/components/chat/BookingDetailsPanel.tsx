@@ -754,11 +754,11 @@ export default function BookingDetailsPanel({
             initialSound={String(parsedBookingDetails?.soundNeeded || '').trim().toLowerCase() === 'yes'}
             artistCancellationPolicy={cancellationPolicy}
             currentArtistId={Number(currentArtistId) || 0}
-            // Adapt panel for service type
-            showTravel={!isPersonalized}
-            showSound={!isPersonalized}
-            showPolicy={!isPersonalized}
-            showEventDetails={!isPersonalized}
+            // Always render all sections for clarity
+            showTravel={true}
+            showSound={true}
+            showPolicy={true}
+            showEventDetails={true}
             showReceiptBelowTotal={isPersonalized}
             belowHeader={showPrep ? (
               <EventPrepCard

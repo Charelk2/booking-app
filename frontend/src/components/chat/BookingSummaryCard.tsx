@@ -286,7 +286,12 @@ export default function BookingSummaryCard({
             imageUrl={imageUrl}
             serviceName={serviceName}
             artistName={artistName}
-            bookingConfirmed={bookingConfirmed}
+            bookingConfirmed={(() => {
+              const paid = String(paymentInfo?.status || '').toLowerCase() === 'paid';
+              const status = String(bookingDetails?.status || '').toLowerCase();
+              const statusConfirmed = status.includes('confirmed') || status === 'completed';
+              return Boolean(bookingConfirmed || paid || statusConfirmed);
+            })()}
             parsedBookingDetails={parsedBookingDetails}
           />
           {belowHeader && (
