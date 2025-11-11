@@ -156,7 +156,7 @@ const AvatarHeader: React.FC<
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="truncate"
+                  className="truncate no-underline hover:no-underline hover:cursor-pointer text-gray-700 visited:text-gray-700"
                   title={rawLocation}
                 >
                   {parsedBookingDetails.location.split(',')[0].trim()}
@@ -365,7 +365,7 @@ export default function BookingSummaryCard({
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-indigo-600 hover:text-indigo-800 break-words"
+                      className="text-gray-800 visited:text-gray-800 no-underline hover:no-underline hover:cursor-pointer break-words"
                       title={raw}
                     >
                       {label}
