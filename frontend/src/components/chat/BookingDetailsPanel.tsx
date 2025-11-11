@@ -549,7 +549,7 @@ export default function BookingDetailsPanel({
 
     return (
       <div className="w-full flex flex-col h-full">
-        <h4 className="mb-3 text-base font-semibold text-gray-900">Booka Updates</h4>
+        <h4 className="px-4 text-base font-semibold text-gray-900">Booka Updates</h4>
 
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <p className="text-sm text-gray-700 leading-6">
@@ -686,7 +686,7 @@ export default function BookingDetailsPanel({
 
   return (
     <div className="w-full flex flex-col h-full">
-      <h4 className="mb-3 text-base font-semibold text-gray-900">Booking Details</h4>
+      <h4 className="px-4 text-base font-semibold text-gray-900">Booking Details</h4>
 
       {/* Removed the compact event glance to avoid duplication with the scrollable details */}
       {(() => {

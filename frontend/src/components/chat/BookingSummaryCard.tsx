@@ -124,7 +124,7 @@ export default function BookingSummaryCard({
     <>
       {!hideHeader && (
         <>
-          <div className="px-4 mt-3 flex items-center gap-3">
+          <div className="px-4 mt-3 mb-3 flex items-center gap-3">
             <div className="relative h-16 w-16 rounded-xl overflow-hidden shrink-0">
               <SafeImage
                 src={(getFullImageUrl(imageUrl || null) || imageUrl) as string | undefined}
@@ -154,7 +154,7 @@ export default function BookingSummaryCard({
             </div>
           )}
 
-          <div className="my-4 mt-4 border-t border-gray-200" />
+          <div className="mt-4 border-t border-gray-200" />
         </>
       )}
 
