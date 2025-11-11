@@ -483,9 +483,9 @@ export default function BookingSummaryCard({
           </section>
         )}
 
-        {/* Helpful links */}
+        {/* Helpful links: stack vertically full width on all viewports */}
         <section aria-label="Helpful links" className="mt-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <a
               href={currentArtistId ? `/service-providers/${currentArtistId}` : '#'}
               className="block text-center bg-gray-900 text-white font-semibold rounded-lg px-4 py-3 shadow-md hover:bg-black transition"
