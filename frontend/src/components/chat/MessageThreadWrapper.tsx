@@ -897,7 +897,7 @@ export default function MessageThreadWrapper({
           role="complementary"
           className={`hidden md:flex flex-col bg-white text-sm leading-6 transform transition-all duration-300 ease-in-out flex-shrink-0 md:static md:translate-x-0 md:overflow-y-auto ${
             showSidePanel
-              ? 'border-l border-gray-200 md:w-[300px] lg:w-[360px] md:p-5 lg:p-6'
+              ? 'border-l border-gray-200 md:w-[300px] lg:w-[360px] md:p-4 lg:p-4'
               : 'md:w-0 md:p-0 md:overflow-hidden'
           }`}
         >
