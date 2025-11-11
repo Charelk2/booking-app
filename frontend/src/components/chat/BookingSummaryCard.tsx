@@ -83,7 +83,7 @@ const AvatarHeader: React.FC<
 
   return (
     <header
-      className="relative w-full bg-gradient-to-b from-indigo-50 via-white to-white border-b border-gray-200 overflow-x-hidden"
+      className="relative w-full bg-gradient-to-b from-indigo-50 via-white to-white  overflow-x-hidden"
       aria-label="Booking header"
     >
       <div
