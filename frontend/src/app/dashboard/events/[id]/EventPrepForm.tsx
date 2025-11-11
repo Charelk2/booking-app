@@ -943,7 +943,10 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
   return (
     <div className="mx-auto max-w-[1180px] px-4 py-6 text-gray-900">
       {/* Sticky Header */}
-      <div className="sticky md:top-[72px] z-40 mb-4 rounded-2xl border border-gray-200 bg-white/80 px-4 py-3 backdrop-blur">
+      <div
+        className="sticky z-40 mb-4 rounded-2xl border border-gray-200 bg-white/80 px-4 py-3 backdrop-blur"
+        style={{ top: 'var(--app-header-height, 64px)' }}
+      >
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-base font-bold">{booking.service?.title || "Event Preparation"} - {eventDate ? format(eventDate, "EEE, d MMM yyyy") : "Date TBA"}</div>
