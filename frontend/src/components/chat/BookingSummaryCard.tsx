@@ -97,7 +97,7 @@ const AvatarHeader: React.FC<
             'linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,1) 30%, rgba(0,0,0,1) 80%, rgba(0,0,0,0))',
         }}
       />
-      <div className="relative px-6 py-6 sm:px-8">
+      <div className="relative px-6 py-3 sm:px-8">
         <div className="flex items-center gap-4">
           <div className="relative h-16 w-16 rounded-full overflow-hidden shrink-0 ring-4 ring-white shadow-md">
             {fullImageUrl ? (
@@ -141,19 +141,13 @@ const AvatarHeader: React.FC<
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2 text-indigo-600" />
             <span>
-              {formattedDate} at {formattedTime}
+              {formattedDate}
             </span>
           </div>
           {parsedBookingDetails?.location && (
             <div className="flex items-center">
               <MapPin className="w-4 h-4 mr-2 text-indigo-600" />
               <span className="truncate">{parsedBookingDetails.location.split(',')[0].trim()}</span>
-            </div>
-          )}
-          {parsedBookingDetails?.guests && (
-            <div className="flex items-center">
-              <Users className="w-4 h-4 mr-2 text-indigo-600" />
-              <span>{parsedBookingDetails.guests} Guests</span>
             </div>
           )}
         </div>
@@ -296,7 +290,7 @@ export default function BookingSummaryCard({
             parsedBookingDetails={parsedBookingDetails}
           />
           {belowHeader && (
-            <div className="px-6 py-4 sm:px-8 border-b border-gray-100 max-w-full overflow-x-hidden">
+            <div className="px-6 py-4 sm:px-8  max-w-full overflow-x-hidden">
               {belowHeader}
             </div>
           )}
