@@ -99,7 +99,7 @@ const AvatarHeader: React.FC<
       />
       <div className="relative px-6 py-3 sm:px-8">
         <div className="flex items-center gap-4">
-          <div className="relative h-16 w-16 rounded-full overflow-hidden shrink-0 ring-4 ring-white shadow-md">
+          <div className="relative h-16 w-16 rounded-lg overflow-hidden shrink-0 ring-4 ring-white shadow-md">
             {fullImageUrl ? (
               <SafeImage
                 src={fullImageUrl}
