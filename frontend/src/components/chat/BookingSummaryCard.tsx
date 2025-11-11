@@ -488,13 +488,13 @@ export default function BookingSummaryCard({
           <div className="grid grid-cols-1 gap-4">
             <a
               href={currentArtistId ? `/service-providers/${currentArtistId}` : '#'}
-              className="block text-center bg-gray-900 text-white font-semibold rounded-lg px-4 py-3 shadow-md hover:bg-black transition"
+              className="block text-center bg-gray-900 text-white hover:text-white focus:text-white active:text-white visited:text-white font-semibold rounded-lg px-4 py-3 hover:bg-black transition"
             >
               View Service Profile
             </a>
             <a
               href="/support"
-              className="block text-center bg-white text-gray-800 font-semibold rounded-lg px-4 py-3 border border-gray-300 shadow-md hover:bg-gray-50 transition"
+              className="block text-center bg-white text-gray-800 font-semibold rounded-lg px-4 py-3 border border-gray-300  hover:bg-gray-50 transition"
             >
               Get Support
             </a>
