@@ -754,11 +754,10 @@ export default function InboxPage() {
         style={{ top: isMobile && !showList ? 0 : 'var(--app-header-height, 64px)', zIndex: isMobile && !showList ? 60 : undefined }}
       >
         {!transport.online && <OfflineBanner />}
-        {/* Centered container with rounded card that holds both panes */}
+        {/* Full-width container holding both panes (edge-to-edge below header) */}
         <div className="flex-1 overflow-hidden">
-          <div className="max-w-full sm:max-w-screen-2xl mx-auto w-full px-0 sm:px-4 md:px-6 lg:px-8 py-2 md:py-4 h-full">
-            <div className="rounded-none sm:rounded-2xl border border-gray-200 bg-white shadow-sm h-full min-h-0
-                            flex flex-col md:grid md:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="w-full h-full">
+            <div className="bg-white h-full min-h-0 flex flex-col md:grid md:grid-cols-[320px_minmax(0,1fr)]">
               {(!isMobile || showList) && (
                 <ConversationPane
                   threads={filteredRequests}
