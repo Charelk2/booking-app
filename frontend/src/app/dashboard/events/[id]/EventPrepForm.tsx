@@ -944,7 +944,7 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
     <div className="mx-auto max-w-[1180px] px-4 py-6 text-gray-900">
       {/* Sticky Header */}
       <div
-        className="sticky top-0 z-40 mb-4 rounded-2xl border border-gray-200 bg-white/80 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/60"
+        className="sticky top-0 z-40 mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 inset-x-0"
         style={{ top: 'var(--app-header-height, 64px)' }}
       >
         <div className="flex items-center justify-between gap-3">
