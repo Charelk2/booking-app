@@ -470,6 +470,23 @@ body.no-scroll {
   #app-header[data-hide-on-mobile="true"] {
     transform: translateY(-100%);
   }
+  /* Event Prep lock: keep header visible even if attribute toggles */
+  html[data-lock-header="true"] #app-header[data-hide-on-mobile="true"] {
+    transform: none !important;
+  }
+}
+
+/* Event Prep lock: prevent compaction visuals so main nav stays visible */
+html[data-lock-header="true"] #app-header[data-header-state="compacted"] {
+  height: auto !important;
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+}
+html[data-lock-header="true"] #app-header[data-header-state="compacted"] .header-nav-links,
+html[data-lock-header="true"] #app-header[data-header-state="compacted"] .header-full-search-bar {
+  max-height: 100px !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 /* iOS: prevent focus zoom by ensuring 16px on interactive fields */
 @media (max-width: 767px), (pointer: coarse) {

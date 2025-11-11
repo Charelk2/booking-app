@@ -324,6 +324,17 @@ export default function MainLayout({
     }
   }, [isEventPrep]);
 
+  // Add a global CSS lock to disable mobile auto-hide/compaction visuals on Event Prep
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (isEventPrep) {
+      root.setAttribute('data-lock-header', 'true');
+      return () => { try { root.removeAttribute('data-lock-header'); } catch {} };
+    }
+    return;
+  }, [isEventPrep]);
+
   // Body scroll lock for desktop expanded overlay only
   useEffect(() => {
     if (showSearchOverlay) {
