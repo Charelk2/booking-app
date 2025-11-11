@@ -21,6 +21,14 @@ interface ParsedBookingDetails {
   notes?: string;
 }
 
+type PaymentInitArgs = {
+  bookingRequestId: number;
+  amount: number;
+  customerEmail?: string;
+  providerName?: string;
+  serviceName?: string;
+};
+
 interface BookingSummaryCardProps {
   hideHeader?: boolean;
   hideHeaderText?: boolean;
@@ -39,7 +47,7 @@ interface BookingSummaryCardProps {
   bookingDetails: Booking | null;
   quotes: Record<number, QuoteV2>;
   allowInstantBooking?: boolean;
-  openPaymentModal: (args: { bookingRequestId: number; amount: number }) => void;
+  openPaymentModal: (args: PaymentInitArgs) => void;
   bookingRequestId: number;
   baseFee: number;
   travelFee: number;
@@ -53,6 +61,8 @@ interface BookingSummaryCardProps {
   showPolicy?: boolean;
   showReceiptBelowTotal?: boolean;
   showEventDetails?: boolean;
+  /** Optional content to render directly under the header/avatar area */
+  belowHeader?: React.ReactNode;
 }
 
 export default function BookingSummaryCard({
@@ -81,6 +91,7 @@ export default function BookingSummaryCard({
   showPolicy = true,
   showReceiptBelowTotal = false,
   showEventDetails = true,
+  belowHeader,
 }: BookingSummaryCardProps) {
   const { user } = useAuth();
   const [briefLink, setBriefLink] = React.useState<string | null>(null);
@@ -136,6 +147,12 @@ export default function BookingSummaryCard({
               </div>
             )}
           </div>
+
+          {belowHeader && (
+            <div className="px-4 mt-2">
+              {belowHeader}
+            </div>
+          )}
 
           <div className="my-4 mt-4 border-t border-gray-200" />
         </>

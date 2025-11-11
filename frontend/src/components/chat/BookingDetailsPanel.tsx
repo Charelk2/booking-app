@@ -12,10 +12,14 @@ import {
   getMyServices,
   getBookingRequestById,
   getServiceProviderProfileMe,
+  getBookingIdForRequest,
+  getBookingRequestCached,
+  getQuoteV2,
 } from '@/lib/api';
 import { AddServiceCategorySelector } from '@/components/dashboard';
 import { useRouter } from 'next/navigation';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
+import EventPrepCard from '@/components/booking/EventPrepCard';
 
 const providerIdentityCache = new Map<number, { name: string | null; avatar: string | null }>();
 
@@ -53,6 +57,8 @@ const DETAIL_KEYS: (keyof ParsedBookingDetails)[] = [
   'notes',
 ];
 
+type PaymentInitArgs = { bookingRequestId: number; amount: number; customerEmail?: string; providerName?: string; serviceName?: string };
+
 interface BookingDetailsPanelProps {
   bookingRequest: BookingRequest;
   parsedBookingDetails: ParsedBookingDetails | null;
@@ -66,7 +72,7 @@ interface BookingDetailsPanelProps {
   paymentAmount: number | null;
   receiptUrl: string | null;
   paymentReference: string | null;
-  openPaymentModal: (args: { bookingRequestId: number; amount: number }) => void;
+  openPaymentModal: (args: PaymentInitArgs) => void;
   onBookingDetailsParsed?: (details: ParsedBookingDetails | null) => void;
   onBookingDetailsHydrated?: (details: ParsedBookingDetails) => void;
   onHydratedBookingRequest?: (request: BookingRequest) => void;
@@ -451,7 +457,7 @@ export default function BookingDetailsPanel({
             avatar: canonicalAvatar ?? null,
           });
         }
-        const detailsMessage = (res?.data as any)?.booking_details_message;
+        const detailsMessage = (data as any)?.booking_details_message;
         if (detailsMessage) {
           try {
             const parsed = parseBookingDetailsFromMessage(detailsMessage);
@@ -459,7 +465,7 @@ export default function BookingDetailsPanel({
             onBookingDetailsParsed?.(parsed);
           } catch {}
         }
-        try { onHydratedBookingRequest?.(res.data as BookingRequest); } catch {}
+        try { onHydratedBookingRequest?.(data as BookingRequest); } catch {}
       } catch {
         // leave placeholders; upstream data must be fixed
       }
@@ -712,6 +718,17 @@ export default function BookingDetailsPanel({
           (bookingRequest as any)?.artist_profile?.cancellation_policy ??
           null;
 
+        const isPaid = String(paymentStatus || '').toLowerCase() === 'paid';
+        // Determine acceptance from quotes map
+        const accepted = (() => {
+          try {
+            const values = Object.values(quotes || {}) as any[];
+            const threadId = Number(bookingRequest?.id || 0);
+            return values.some((q: any) => Number(q?.booking_request_id) === threadId && String(q?.status || '').toLowerCase().includes('accept'));
+          } catch { return false; }
+        })();
+        const showPrep = isPaid || accepted;
+
         return (
           <BookingSummaryCard
             parsedBookingDetails={parsedBookingDetails ?? undefined}
@@ -744,6 +761,72 @@ export default function BookingDetailsPanel({
             showPolicy={!isPersonalized}
             showEventDetails={!isPersonalized}
             showReceiptBelowTotal={isPersonalized}
+            belowHeader={showPrep ? (
+              <EventPrepCard
+                bookingId={Number(confirmedBookingDetails?.id || 0) || 0}
+                bookingRequestId={Number(bookingRequest.id)}
+                canEdit={true}
+                summaryOnly
+                linkOnly
+                headlineOnly
+                onContinuePrep={async (bidFromProp: number) => {
+                  try {
+                    if (Number.isFinite(bidFromProp) && bidFromProp > 0) {
+                      try { window.location.href = `/dashboard/events/${bidFromProp}`; } catch {}
+                      return;
+                    }
+                    const threadId = Number(bookingRequest.id) || 0;
+                    if (!threadId) return;
+                    // 1) Cached mapping
+                    try {
+                      const cached = sessionStorage.getItem(`bookingId:br:${threadId}`);
+                      const bid = cached ? Number(cached) : 0;
+                      if (Number.isFinite(bid) && bid > 0) {
+                        try { window.location.href = `/dashboard/events/${bid}`; } catch {}
+                        return;
+                      }
+                    } catch {}
+                    // 2) Direct resolver
+                    try {
+                      const res = await getBookingIdForRequest(threadId);
+                      const bid = Number((res as any)?.data?.booking_id || 0);
+                      if (Number.isFinite(bid) && bid > 0) {
+                        try { sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid)); } catch {}
+                        try { window.location.href = `/dashboard/events/${bid}`; } catch {}
+                        return;
+                      }
+                    } catch {}
+                    // 3) Look for accepted quote locally or via cached request
+                    try {
+                      const values = Object.values(quotes || {}) as any[];
+                      let acceptedId = 0;
+                      for (const q of values) {
+                        const s = String(q?.status || '').toLowerCase();
+                        if (Number(q?.booking_request_id) === threadId && s.includes('accept')) {
+                          acceptedId = Number(q?.id || 0);
+                          break;
+                        }
+                      }
+                      if (!acceptedId) {
+                        try {
+                          const br = await getBookingRequestCached(threadId);
+                          acceptedId = Number((br as any)?.accepted_quote_id || 0);
+                        } catch {}
+                      }
+                      if (acceptedId > 0) {
+                        const v2 = await getQuoteV2(acceptedId);
+                        const bid = Number((v2 as any)?.data?.booking_id || 0);
+                        if (Number.isFinite(bid) && bid > 0) {
+                          try { sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid)); } catch {}
+                          try { window.location.href = `/dashboard/events/${bid}`; } catch {}
+                          return;
+                        }
+                      }
+                    } catch {}
+                  } catch {}
+                }}
+              />
+            ) : null}
           />
         );
       })()}

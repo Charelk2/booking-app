@@ -45,7 +45,7 @@ import { initAttachmentMessage, finalizeAttachmentMessage, apiUrl } from '@/lib/
 import { useDeclineQuote } from '@/hooks/useQuoteActions';
 import useTransportState from '@/hooks/useTransportState';
 import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
-import EventPrepCard from '@/components/booking/EventPrepCard';
+// EventPrepCard previously rendered in the composer; now lives in Booking Details panel only.
 
 // ----------------------------------------------------------------
 // Small utilities
@@ -1324,23 +1324,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     } catch {}
   }, [acceptedQuoteForThread, ensureQuoteLoaded]);
 
-  const bookingIdForPrep = React.useMemo(() => {
-    try {
-      const bid = Number((acceptedQuoteForThread as any)?.booking_id || 0);
-      if (Number.isFinite(bid) && bid > 0) return bid;
-      // Fallback to cached booking id if present
-      try {
-        const cached = sessionStorage.getItem(`bookingId:br:${bookingRequestId}`);
-        const cachedBid = cached ? Number(cached) : 0;
-        if (Number.isFinite(cachedBid) && cachedBid > 0) return cachedBid;
-      } catch {}
-      return 0;
-    } catch { return 0; }
-  }, [acceptedQuoteForThread, bookingRequestId]);
-
-  const enableEventPrepCard = (process.env.NEXT_PUBLIC_ENABLE_EVENT_PREP_CARD || '1') !== '0';
-  const eventPrepLinkOnly = (process.env.NEXT_PUBLIC_EVENT_PREP_LINK_ONLY || '0') === '1';
-  const showEventPrepCard = enableEventPrepCard && isPaid;
+  // Event prep inline card is no longer shown in the composer.
 
   return (
     <ThreadView
@@ -1370,24 +1354,6 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       }
       composer={
         <div ref={composerRef}>
-          {showEventPrepCard && (
-            <div className="px-2 pt-2" aria-label="Event preparation">
-              <EventPrepCard
-                bookingId={bookingIdForPrep > 0 ? bookingIdForPrep : 0}
-                bookingRequestId={bookingRequestId}
-                canEdit={true}
-                summaryOnly
-                linkOnly={eventPrepLinkOnly}
-                onContinuePrep={() => {
-                  if (bookingIdForPrep > 0) {
-                    try { window.location.href = `/dashboard/events/${bookingIdForPrep}`; } catch {}
-                    return;
-                  }
-                  try { onContinueEventPrep?.(bookingRequestId); } catch {}
-                }}
-              />
-            </div>
-          )}
           {(!transport.online && hasQueued) && (
             <div className="px-2 pt-1" aria-live="polite" role="status">
               <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-900 px-2 py-1 text-[12px] shadow-sm">

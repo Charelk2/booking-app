@@ -79,15 +79,22 @@ write_pgbouncer_cfg() {
   local db_name="${PGBOUNCER_DB_NAME:-appdb}"
   local db_user="${PGBOUNCER_DB_USER:-appuser}"
   local auth_type="${PGBOUNCER_AUTH_TYPE:-md5}"
+  local db_password="${PGBOUNCER_DB_PASSWORD:-}"
   local default_pool_size="${PGBOUNCER_DEFAULT_POOL_SIZE:-20}"
   local reserve_pool_size="${PGBOUNCER_RESERVE_POOL_SIZE:-5}"
   local max_client_conn="${PGBOUNCER_MAX_CLIENT_CONN:-2000}"
 
   mkdir -p /etc/pgbouncer
 
+  if [[ -n "${db_password}" ]]; then
+    local db_line="${db_name} = host=${db_host} port=${db_port} dbname=${db_name} user=${db_user} password=${db_password}"
+  else
+    local db_line="${db_name} = host=${db_host} port=${db_port} dbname=${db_name} user=${db_user}"
+  fi
+
   cat >/etc/pgbouncer/pgbouncer.ini <<INI
 [databases]
-${db_name} = host=${db_host} port=${db_port} dbname=${db_name} user=${db_user}
+${db_line}
 
 [pgbouncer]
 listen_addr = ${listen_addr}
@@ -116,6 +123,38 @@ INI
   else
     # trust or other types; create an empty userlist
     : > /etc/pgbouncer/userlist.txt
+  fi
+
+  # Masked diagnostics to help with future debugging (no secrets leaked)
+  # Construct a masked password preview (first + last char only)
+  local masked_pw="(none)"
+  if [[ -n "${db_password}" ]]; then
+    local __pw="${db_password}"
+    local __len=${#__pw}
+    if (( __len <= 2 )); then
+      masked_pw="***"
+    else
+      masked_pw="${__pw:0:1}***${__pw: -1}"
+    fi
+  fi
+  log "PgBouncer databases: ${db_name} -> host=${db_host} port=${db_port} dbname=${db_name} user=${db_user} password=${masked_pw}"
+
+  if [[ "${auth_type}" == "md5" ]]; then
+    # Show a masked view of the md5 hash (prefix + last 4)
+    local __hash="${PGBOUNCER_AUTH_MD5:-}"
+    if [[ -n "${__hash}" ]]; then
+      local __mask_hash
+      if (( ${#__hash} > 10 )); then
+        __mask_hash="${__hash:0:6}***${__hash: -4}"
+      else
+        __mask_hash="***"
+      fi
+      log "PgBouncer userlist: user=${PGBOUNCER_DB_USER} hash=${__mask_hash}"
+    else
+      log "PgBouncer userlist: user=${PGBOUNCER_DB_USER} hash=(not set; auth will be trust)"
+    fi
+  else
+    log "PgBouncer auth_type=${auth_type}; userlist empty/ignored"
   fi
 }
 
@@ -153,8 +192,9 @@ main() {
   if command -v pgbouncer >/dev/null 2>&1; then
     log "Writing PgBouncer config"
     write_pgbouncer_cfg
-    log "Starting PgBouncer on 127.0.0.1:${PGBOUNCER_LISTEN_PORT:-6432}"
-    pgbouncer -u root /etc/pgbouncer/pgbouncer.ini &
+    local run_user="${PGBOUNCER_RUN_USER:-nobody}"
+    log "Starting PgBouncer on 127.0.0.1:${PGBOUNCER_LISTEN_PORT:-6432} as ${run_user}"
+    pgbouncer -u "${run_user}" /etc/pgbouncer/pgbouncer.ini &
     log "Waiting for PgBouncer readiness"
     wait_for_port "${PGBOUNCER_LISTEN_PORT:-6432}"
     log "PgBouncer is ready"

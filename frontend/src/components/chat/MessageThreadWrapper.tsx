@@ -918,7 +918,7 @@ export default function MessageThreadWrapper({
               onBookingDetailsParsed={handleParsedDetails}
               onBookingDetailsHydrated={handleFallbackDetails}
               onHydratedBookingRequest={handleHydratedBookingRequest}
-              openPaymentModal={(args: { bookingRequestId: number; amount: number }) => {
+              openPaymentModal={(args) => {
                 const provider =
                   (bookingRequest as any)?.service_provider_profile?.business_name ||
                   (bookingRequest as any)?.service_provider?.business_name ||
@@ -992,7 +992,7 @@ export default function MessageThreadWrapper({
                 onBookingDetailsParsed={handleParsedDetails}
                 onBookingDetailsHydrated={handleFallbackDetails}
                 onHydratedBookingRequest={handleHydratedBookingRequest}
-                openPaymentModal={(args: { bookingRequestId: number; amount: number }) =>
+                openPaymentModal={(args) =>
                   openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount, customerEmail: (user as any)?.email || undefined } as any)
                 }
               />

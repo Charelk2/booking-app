@@ -25,6 +25,8 @@ type EventPrepCardProps = {
   summaryOnly?: boolean;
   /** If true, render a link-only card (no fetch, no WS). */
   linkOnly?: boolean;
+  /** If true, render just the headline (hide subtext and pills). */
+  headlineOnly?: boolean;
 };
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -126,6 +128,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
   onContinuePrep,
   summaryOnly,
   linkOnly = false,
+  headlineOnly = false,
 }) => {
   const router = useRouter();
   const [ep, setEp] = useState<EventPrep | null>(null);
@@ -259,9 +262,9 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
       >
         <div
           className={
-            summaryOnly
-              ? "flex items-center justify-between gap-3"
-              : "flex items-start justify-between gap-3"
+            headlineOnly
+              ? (summaryOnly ? "flex items-center justify-start gap-3" : "flex items-start justify-start gap-3")
+              : (summaryOnly ? "flex items-center justify-between gap-3" : "flex items-start justify-between gap-3")
           }
         >
           <div>
@@ -273,36 +276,40 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
                   className="no-underline"
                 >
                   <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-                    Let’s prep your event
+                    {headlineOnly ? "Let's Prep Your Event" : "Let’s prep your event"}
                   </h3>
                 </Link>
               ) : (
                 <button type="button" onClick={() => onContinuePrep ? onContinuePrep(bookingId) : router.push(`/dashboard/events/${bookingId}`)} className="no-underline">
                   <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-                    Let’s prep your event
+                    {headlineOnly ? "Let's Prep Your Event" : "Let’s prep your event"}
                   </h3>
                 </button>
               )
             ) : (
               <h3 className="text-lg font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-                Let’s prep your event
+                {headlineOnly ? "Let's Prep Your Event" : "Let’s prep your event"}
               </h3>
             )}
-            <SecondaryText className="block mt-0.5">
-              A quick checklist to keep the day smooth.
-            </SecondaryText>
+            {!headlineOnly && (
+              <SecondaryText className="block mt-0.5">
+                A quick checklist to keep the day smooth.
+              </SecondaryText>
+            )}
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <span
-              className={
-                summaryOnly
-                  ? "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-white/55 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15 backdrop-blur-sm"
-                  : "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-white/55 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15 backdrop-blur-sm"
-              }
-            >
-              Prep —
-            </span>
-          </div>
+          {!headlineOnly && (
+            <div className="flex flex-col items-end gap-1">
+              <span
+                className={
+                  summaryOnly
+                    ? "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-white/55 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15 backdrop-blur-sm"
+                    : "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-white/55 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15 backdrop-blur-sm"
+                }
+              >
+                Prep —
+              </span>
+            </div>
+          )}
         </div>
       </GlassCard>
     );
@@ -333,9 +340,9 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
       >
         <div
           className={
-            summaryOnly
-              ? "flex items-center justify-between gap-3"
-              : "flex items-start justify-between gap-3"
+            headlineOnly
+              ? (summaryOnly ? "flex items-center justify-start gap-3" : "flex items-start justify-start gap-3")
+              : (summaryOnly ? "flex items-center justify-between gap-3" : "flex items-start justify-between gap-3")
           }
         >
           <div>
@@ -347,36 +354,40 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
                   className="no-underline"
                 >
                   <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-                    Let’s prep your event
+                    {headlineOnly ? "Let's Prep Your Event" : "Let’s prep your event"}
                   </h3>
                 </Link>
               ) : (
                 <button type="button" onClick={handleHeaderClick} className="no-underline">
                   <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-                    Let’s prep your event
+                    {headlineOnly ? "Let's Prep Your Event" : "Let’s prep your event"}
                   </h3>
                 </button>
               )
             ) : (
               <h3 className="text-lg font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-                Let’s prep your event
+                {headlineOnly ? "Let's Prep Your Event" : "Let’s prep your event"}
               </h3>
             )}
-            <SecondaryText className="block mt-0.5">
-              A quick checklist to keep the day smooth.
-            </SecondaryText>
+            {!headlineOnly && (
+              <SecondaryText className="block mt-0.5">
+                A quick checklist to keep the day smooth.
+              </SecondaryText>
+            )}
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <span
-              className={
-                summaryOnly
-                  ? "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-white/55 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15 backdrop-blur-sm"
-                  : "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-white/55 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15 backdrop-blur-sm"
-              }
-            >
-              Prep —
-            </span>
-          </div>
+          {!headlineOnly && (
+            <div className="flex flex-col items-end gap-1">
+              <span
+                className={
+                  summaryOnly
+                    ? "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-white/55 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15 backdrop-blur-sm"
+                    : "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-white/55 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15 backdrop-blur-sm"
+                }
+              >
+                Prep —
+              </span>
+            </div>
+          )}
         </div>
       </GlassCard>
     );
@@ -403,9 +414,9 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
     >
       <div
         className={
-          summaryOnly
-            ? "flex items-center justify-between gap-3"
-            : "flex items-start justify-between gap-3"
+          headlineOnly
+            ? (summaryOnly ? "flex items-center justify-start gap-3" : "flex items-start justify-start gap-3")
+            : (summaryOnly ? "flex items-center justify-between gap-3" : "flex items-start justify-between gap-3")
         }
       >
         <div>
@@ -417,41 +428,44 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
                 className="no-underline"
               >
                 <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-                  Let’s prep your event
+                  {headlineOnly ? "Let's Prep Your Event" : "Let’s prep your event"}
                 </h3>
               </Link>
             ) : (
               <button type="button" onClick={handleHeaderClick} className="no-underline">
                 <h3 className="text-sm font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-                  Let’s prep your event
+                  {headlineOnly ? "Let's Prep Your Event" : "Let’s prep your event"}
                 </h3>
               </button>
             )
           ) : (
             <h3 className="text-lg font-semibold tracking-tight !text-zinc-900 dark:!text-zinc-50">
-              Let’s prep your event
+              {headlineOnly ? "Let's Prep Your Event" : "Let’s prep your event"}
             </h3>
           )}
-          <SecondaryText className="block mt-0.5">
-            A quick checklist to keep the day smooth.
-          </SecondaryText>
-        </div>
-
-        <div className="flex flex-col items-end gap-1">
-          <ProgressPill done={progress.done} total={progress.total} />
-          {daysToGo !== null && (
-            <span
-              className={
-                summaryOnly
-                  ? "text-[10px] text-zinc-800/90 dark:text-zinc-200/90"
-                  : "text-xs text-zinc-800/90 dark:text-zinc-200/90"
-              }
-              aria-label={`In ${daysToGo} days`}
-            >
-              In {daysToGo} days
-            </span>
+          {!headlineOnly && (
+            <SecondaryText className="block mt-0.5">
+              A quick checklist to keep the day smooth.
+            </SecondaryText>
           )}
         </div>
+        {!headlineOnly && (
+          <div className="flex flex-col items-end gap-1">
+            <ProgressPill done={progress.done} total={progress.total} />
+            {daysToGo !== null && (
+              <span
+                className={
+                  summaryOnly
+                    ? "text-[10px] text-zinc-800/90 dark:text-zinc-200/90"
+                    : "text-xs text-zinc-800/90 dark:text-zinc-200/90"
+                }
+                aria-label={`In ${daysToGo} days`}
+              >
+                In {daysToGo} days
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </GlassCard>
   );
