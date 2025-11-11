@@ -8,7 +8,7 @@ import { getFullImageUrl, formatCurrency, buildReceiptUrl } from '@/lib/utils';
 import { Booking, QuoteV2 } from '@/types';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, MapPin, Users, Music, DollarSign, CheckCircle } from 'lucide-react';
+import { Calendar, MapPin, Users, DollarSign, CheckCircle, User } from 'lucide-react';
 
 // --- Interfaces (Copied from original) ---
 
@@ -68,9 +68,9 @@ interface BookingSummaryCardProps {
   belowHeader?: React.ReactNode;
 }
 
-// --- New Header Component (For better separation) ---
+// --- NEW Header Component (Shorter, Avatar-focused) ---
 
-const EnhancedBookingHeader: React.FC<
+const AvatarHeader: React.FC<
   Pick<
     BookingSummaryCardProps,
     'imageUrl' | 'serviceName' | 'artistName' | 'bookingConfirmed' | 'parsedBookingDetails'
@@ -88,62 +88,76 @@ const EnhancedBookingHeader: React.FC<
       : 'Time TBD';
 
   return (
-    <div className="relative w-full h-64 overflow-hidden rounded-t-xl shadow-2xl">
-      {/* Background Image (Full-width, left-to-right) */}
-      <SafeImage
-        src={fullImageUrl}
-        alt="Service background image"
-        fill
-        className="object-cover transition-transform duration-500 hover:scale-105"
-        sizes="(max-width: 768px) 100vw, 50vw"
-        placeholder="blur"
-        blurDataURL={BLUR_PLACEHOLDER}
-      />
+    <div className="relative w-full bg-gray-50 border-b border-gray-200 p-6">
+      {/* Background Element (Cool, subtle pattern) */}
+      <div className="absolute inset-0 opacity-10" style={{
+        backgroundImage: 'radial-gradient(#e5e7eb 1px, transparent 1px)',
+        backgroundSize: '20px 20px',
+      }} />
 
-      {/* Gradient Overlay (Darkens image for text readability) */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-
-      {/* Content Overlay */}
-      <div className="absolute inset-0 p-6 flex flex-col justify-end text-white">
-        {/* Confirmation Status Badge */}
-        {bookingConfirmed && (
-          <div className="mb-2 inline-flex items-center rounded-full bg-green-500/90 px-3 py-1 text-xs font-semibold uppercase tracking-wider shadow-lg">
-            <CheckCircle className="w-4 h-4 mr-1" />
-            Booking Confirmed
-          </div>
-        )}
-
-        {/* Service Name (Main Title) */}
-        <h1 className="text-3xl md:text-4xl font-extrabold leading-tight drop-shadow-lg">
-          {serviceName || 'Booking Details'}
-        </h1>
-
-        {/* Artist Name (Subtitle) */}
-        {artistName && (
-          <p className="text-lg font-medium text-gray-200 drop-shadow-md">
-            with {artistName}
-          </p>
-        )}
-
-        {/* Key Details Bar */}
-        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-gray-300">
-          <div className="flex items-center">
-            <Calendar className="w-4 h-4 mr-2 text-primary-400" />
-            <span>{formattedDate} at {formattedTime}</span>
-          </div>
-          {parsedBookingDetails?.location && (
-            <div className="flex items-center">
-              <MapPin className="w-4 h-4 mr-2 text-primary-400" />
-              <span>{parsedBookingDetails.location.split(',')[0].trim()}</span>
-            </div>
-          )}
-          {parsedBookingDetails?.guests && (
-            <div className="flex items-center">
-              <Users className="w-4 h-4 mr-2 text-primary-400" />
-              <span>{parsedBookingDetails.guests} Guests</span>
+      {/* Content */}
+      <div className="relative flex items-center gap-4">
+        {/* Avatar/Image */}
+        <div className="relative h-16 w-16 rounded-full overflow-hidden shrink-0 ring-4 ring-white shadow-lg">
+          {fullImageUrl ? (
+            <SafeImage
+              src={fullImageUrl}
+              alt="Service image"
+              fill
+              className="object-cover"
+              sizes="64px"
+              placeholder="blur"
+              blurDataURL={BLUR_PLACEHOLDER}
+            />
+          ) : (
+            <div className="w-full h-full bg-indigo-500 flex items-center justify-center">
+              <User className="w-8 h-8 text-white" />
             </div>
           )}
         </div>
+
+        {/* Text Content */}
+        <div className="flex-1 min-w-0">
+          {/* Confirmation Status Badge */}
+          {bookingConfirmed && (
+            <div className="mb-1 inline-flex items-center rounded-full bg-green-500/90 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-white shadow-md">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Confirmed
+            </div>
+          )}
+
+          {/* Service Name (Main Title) */}
+          <h1 className="text-xl font-extrabold leading-tight text-gray-900 truncate">
+            {serviceName || 'Booking Details'}
+          </h1>
+
+          {/* Artist Name (Subtitle) */}
+          {artistName && (
+            <p className="text-sm font-medium text-gray-600 truncate">
+              with {artistName}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Key Details Bar - Moved below the main content for better flow */}
+      <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-gray-700">
+        <div className="flex items-center">
+          <Calendar className="w-4 h-4 mr-2 text-indigo-500" />
+          <span>{formattedDate} at {formattedTime}</span>
+        </div>
+        {parsedBookingDetails?.location && (
+          <div className="flex items-center">
+            <MapPin className="w-4 h-4 mr-2 text-indigo-500" />
+            <span>{parsedBookingDetails.location.split(',')[0].trim()}</span>
+          </div>
+        )}
+        {parsedBookingDetails?.guests && (
+          <div className="flex items-center">
+            <Users className="w-4 h-4 mr-2 text-indigo-500" />
+            <span>{parsedBookingDetails.guests} Guests</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -228,11 +242,12 @@ export default function BookingSummaryCard({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
+    // Removed rounded-xl and shadow-2xl from the main container to allow for full-width content
+    <div className="bg-white overflow-hidden"> 
       {!hideHeader && (
         <>
-          {/* New Enhanced Header */}
-          <EnhancedBookingHeader
+          {/* New Avatar-focused Header */}
+          <AvatarHeader
             imageUrl={imageUrl}
             serviceName={serviceName}
             artistName={artistName}
@@ -249,7 +264,8 @@ export default function BookingSummaryCard({
         </>
       )}
 
-      <div className="p-6 overflow-y-auto max-h-[calc(60vh+100px)] text-sm leading-relaxed">
+      {/* Removed max-h and overflow-y-auto to fix scrolling issue. Changed p-6 to px-6 py-4 to reduce vertical padding. */}
+      <div className="px-6 py-4 text-sm leading-relaxed"> 
         {/* Booking details list - Enhanced Styling */}
         <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Event Details</h2>
         <ul className="space-y-3">
@@ -511,7 +527,7 @@ export default function BookingSummaryCard({
         </div>
         )}
 
-        {/* Links */}
+        {/* Links - Now visible due to scrolling fix */}
         <div className="mt-6 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <a
             href={currentArtistId ? `/service-providers/${currentArtistId}` : '#'}
