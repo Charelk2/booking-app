@@ -52,6 +52,8 @@ export default function MainLayout({
     pathname.startsWith('/service-providers') || pathname.startsWith('/category');
   const isArtistView =
     user?.user_type === 'service_provider' && artistViewActive;
+  // Keep header fully visible on Event Prep pages to avoid focus/scroll flicker
+  const isEventPrep = pathname.startsWith('/dashboard/events/');
 
   const [headerState, setHeaderState] = useState<HeaderState>('initial');
 
@@ -89,13 +91,20 @@ export default function MainLayout({
       setHeaderState('initial');
       return;
     }
+    // Route guard: Event Prep keeps header visible and non-compacted
+    if (isEventPrep) {
+      setHeaderState('initial');
+      // Also ensure any mobile-hide attribute is cleared immediately
+      try { headerRef.current?.removeAttribute('data-hide-on-mobile'); } catch {}
+      return;
+    }
     if (isMobile) {
       setHeaderState('initial');
     } else {
       setHeaderState(isArtistsRoot ? 'compacted' : 'initial');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, isArtistsRoot, isArtistView, pathname]);
+  }, [isMobile, isArtistsRoot, isArtistView, isEventPrep, pathname]);
 
   // Watch data-lock-compact from Header (mobile search)
   useEffect(() => {
@@ -210,6 +219,8 @@ export default function MainLayout({
   // Main scroll handler
   const handleScroll = useCallback(() => {
     if (isArtistView) return;
+    // Route guard: skip auto-hide/compact on Event Prep pages
+    if (isEventPrep) return;
 
     // Guard period after manual expand
     if (isAdjustingScroll.current) return;
@@ -284,7 +295,7 @@ export default function MainLayout({
         }
       }
     }
-  }, [headerState, isArtistsPage, isArtistView, isMobile]);
+  }, [headerState, isArtistsPage, isArtistView, isMobile, isEventPrep]);
 
   // rAF scroll listener
   const optimizedScrollHandler = useCallback(() => {
@@ -294,7 +305,7 @@ export default function MainLayout({
 
   // Attach/detach scroll listener
   useEffect(() => {
-    if (isArtistDetail || isArtistView) return;
+    if (isArtistDetail || isArtistView || isEventPrep) return;
 
     window.addEventListener('scroll', optimizedScrollHandler, { passive: true });
     if (typeof window !== 'undefined' && window.scrollY > 0) {
@@ -304,7 +315,14 @@ export default function MainLayout({
       window.removeEventListener('scroll', optimizedScrollHandler);
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
     };
-  }, [isArtistDetail, isArtistView, optimizedScrollHandler, handleScroll]);
+  }, [isArtistDetail, isArtistView, isEventPrep, optimizedScrollHandler, handleScroll]);
+
+  // Ensure header is forced visible on Event Prep immediately on route entry
+  useEffect(() => {
+    if (isEventPrep) {
+      try { headerRef.current?.removeAttribute('data-hide-on-mobile'); } catch {}
+    }
+  }, [isEventPrep]);
 
   // Body scroll lock for desktop expanded overlay only
   useEffect(() => {
