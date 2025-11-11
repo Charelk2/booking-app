@@ -80,6 +80,10 @@ const AvatarHeader: React.FC<
     eventDate && isValid(new Date(eventDate))
       ? format(new Date(eventDate), 'h:mm a')
       : 'Time TBD';
+  const rawLocation = String(parsedBookingDetails?.location || '').trim();
+  const mapsUrl = rawLocation
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawLocation)}`
+    : '';
 
   return (
     <header
@@ -147,7 +151,19 @@ const AvatarHeader: React.FC<
           {parsedBookingDetails?.location && (
             <div className="flex items-center">
               <MapPin className="w-4 h-4 mr-2" />
-              <span className="truncate">{parsedBookingDetails.location.split(',')[0].trim()}</span>
+              {mapsUrl ? (
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate text-indigo-600 hover:text-indigo-800"
+                  title={rawLocation}
+                >
+                  {parsedBookingDetails.location.split(',')[0].trim()}
+                </a>
+              ) : (
+                <span className="truncate">{parsedBookingDetails.location.split(',')[0].trim()}</span>
+              )}
             </div>
           )}
         </div>
@@ -338,7 +354,26 @@ export default function BookingSummaryCard({
             {showEventDetails && getLocationLabel() && (
               <li className="flex items-start">
                 <span className="font-semibold w-28 text-gray-600 shrink-0">Location:</span>
-                <span className="text-gray-800 break-words">{getLocationLabel()}</span>
+                {(() => {
+                  const raw = String(parsedBookingDetails?.location || '').trim();
+                  const url = raw
+                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`
+                    : '';
+                  const label = getLocationLabel();
+                  return url ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 hover:text-indigo-800 break-words"
+                      title={raw}
+                    >
+                      {label}
+                    </a>
+                  ) : (
+                    <span className="text-gray-800 break-words">{label}</span>
+                  );
+                })()}
               </li>
             )}
             {showEventDetails && parsedBookingDetails?.guests && (
