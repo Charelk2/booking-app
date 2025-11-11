@@ -50,7 +50,7 @@ function GlassCard({
   { as?: any; summaryOnly?: boolean; className?: string } & React.HTMLAttributes<HTMLElement>
 >) {
   const base =
-    "relative rounded-2xl transition-all " +
+    "relative rounded-xl transition-all " +
     "backdrop-blur-xl backdrop-saturate-150 " +
     "bg-white/30 dark:bg-zinc-900/35 " + // more opaque = better text contrast
     "ring-1 ring-black/10 dark:ring-white/10 " +
