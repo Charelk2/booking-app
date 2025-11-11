@@ -8,7 +8,7 @@ import { getFullImageUrl, formatCurrency, buildReceiptUrl } from '@/lib/utils';
 import { Booking, QuoteV2 } from '@/types';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, MapPin, Users, DollarSign, CheckCircle, User } from 'lucide-react';
+import { Calendar, MapPin, Users, CheckCircle, User } from 'lucide-react';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -278,9 +278,7 @@ export default function BookingSummaryCard({
   }, [stickyPresent]);
 
   // Small prep button: brief > provider profile > support
-  const prepHref =
-    briefLink ||
-    (currentArtistId ? `/service-providers/${currentArtistId}#prep` : '/support');
+
 
   return (
     // NO horizontal scroll: overflow-x-hidden; also clip overscroll
@@ -371,14 +369,7 @@ export default function BookingSummaryCard({
           </ul>
 
           {/* Small, not-full-width prep button under Event Details */}
-          <div className="mt-3">
-            <a
-              href={prepHref}
-              className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-            >
-              Let’s prep your event
-            </a>
-          </div>
+
         </section>
 
         {/* COST SUMMARY — NOW IMMEDIATELY BELOW EVENT DETAILS */}
@@ -621,7 +612,6 @@ function CostBreakdown({
       )}
       <div className="flex justify-between items-center font-extrabold text-lg mt-3 pt-3 border-t border-gray-300">
         <span className="flex items-center gap-2">
-          <DollarSign className="w-5 h-5 text-indigo-600" />
           Final Total
         </span>
         <span>{formatCurrency(finalAmount)}</span>
