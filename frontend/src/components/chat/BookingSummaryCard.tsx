@@ -156,7 +156,7 @@ const AvatarHeader: React.FC<
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="truncate text-indigo-600 hover:text-indigo-800"
+                  className="truncate"
                   title={rawLocation}
                 >
                   {parsedBookingDetails.location.split(',')[0].trim()}
