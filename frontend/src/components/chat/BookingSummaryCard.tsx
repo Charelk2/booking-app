@@ -137,7 +137,7 @@ const AvatarHeader: React.FC<
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-gray-700">
+        <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-gray-700">
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2" />
             <span>
