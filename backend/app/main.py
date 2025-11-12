@@ -123,6 +123,8 @@ from .db_utils import (
     ensure_rider_tables,
     ensure_service_provider_contact_columns,
     ensure_service_provider_onboarding_columns,
+    ensure_service_provider_vat_columns,
+    ensure_invoice_agent_columns,
     ensure_performance_indexes,
     ensure_message_system_key_index,
     ensure_message_core_indexes,
@@ -238,6 +240,8 @@ ensure_service_category_id_column(engine)
 seed_service_categories(engine)
 ensure_service_provider_contact_columns(engine)
 ensure_service_provider_onboarding_columns(engine)
+ensure_service_provider_vat_columns(engine)
+ensure_invoice_agent_columns(engine)
 ensure_performance_indexes(engine)
 ensure_message_system_key_index(engine)
 ensure_message_core_indexes(engine)

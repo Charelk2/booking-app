@@ -124,9 +124,13 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
                 meta = m
     except Exception:
         meta = None
+    supplier_vat_rate = 0.0
+    supplier_vat_amount = 0.0
+    commissionable_base = None
+    discount_ex = 0.0
     if isinstance(meta, dict):
         try:
-            platform_fee = float(meta.get('commission') or 0)
+            platform_fee = float(meta.get('commission_ex') or meta.get('commission') or 0)
         except Exception:
             platform_fee = platform_fee
         try:
@@ -134,24 +138,24 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
         except Exception:
             vat_on_fee = vat_on_fee
         try:
-            # Prefer provider_subtotal from meta; fallback remains gross_total from quote
-            ps = meta.get('provider_subtotal')
-            if ps is not None:
-                gross_total = float(ps or 0)
+            commissionable_base = float(meta.get('commissionable_base') or meta.get('commissionable_base_ex') or 0)
         except Exception:
-            pass
+            commissionable_base = None
         try:
-            client_fee = float(meta.get('client_fee') or 0)
+            discount_ex = float(meta.get('discount_ex') or 0)
         except Exception:
-            client_fee = 0.0
+            discount_ex = 0.0
         try:
-            client_fee_vat = float(meta.get('client_fee_vat') or 0)
+            supplier_vat_rate = float(meta.get('supplier_vat_rate') or 0)
         except Exception:
-            client_fee_vat = 0.0
+            supplier_vat_rate = 0.0
         try:
-            cb = float(meta.get('commissionable_base') or 0)
-            pt = float(meta.get('pass_through') or 0)
-            gross_total = cb + pt
+            supplier_vat_amount = float(meta.get('supplier_vat_amount') or 0)
+        except Exception:
+            supplier_vat_amount = 0.0
+        try:
+            if commissionable_base is not None:
+                gross_total = commissionable_base
         except Exception:
             pass
 
@@ -203,12 +207,15 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
     story.append(summary_tbl)
     story.append(Spacer(1, 8))
 
-    # Financials
-    line_rows = [
-        [Paragraph("Provider Subtotal (services + travel + sound)", styles["NormalSmall"]), Paragraph(_zar(gross_total), styles["NormalSmall"])],
-        [Paragraph("Platform Commission (7.5% of provider subtotal)", styles["NormalSmall"]), Paragraph("- " + _zar(platform_fee), styles["NormalSmall"])],
-        [Paragraph("VAT on Commission (15%)", styles["NormalSmall"]), Paragraph("- " + _zar(vat_on_fee), styles["NormalSmall"])],
-    ]
+    # Financials (vendor-aware if meta provided)
+    line_rows = []
+    line_rows.append([Paragraph("Provider Subtotal (EX VAT)", styles["NormalSmall"]), Paragraph(_zar(gross_total), styles["NormalSmall"])])
+    if discount_ex and discount_ex > 0:
+        line_rows.append([Paragraph("Discount (−)", styles["NormalSmall"]), Paragraph("- " + _zar(discount_ex), styles["NormalSmall"])])
+    if supplier_vat_rate and supplier_vat_rate > 0:
+        line_rows.append([Paragraph(f"VAT on Provider Supply ({int(round(supplier_vat_rate*100))}%)", styles["NormalSmall"]), Paragraph("+ " + _zar(supplier_vat_amount), styles["NormalSmall"])])
+    line_rows.append([Paragraph("Platform Commission (EX)", styles["NormalSmall"]), Paragraph("- " + _zar(platform_fee), styles["NormalSmall"])])
+    line_rows.append([Paragraph("VAT on Commission (15%)", styles["NormalSmall"]), Paragraph("- " + _zar(vat_on_fee), styles["NormalSmall"])])
     if other_deductions and other_deductions > 0:
         line_rows.append([Paragraph("Other Deductions", styles["NormalSmall"]), Paragraph("- " + _zar(other_deductions), styles["NormalSmall"])])
     # Stage-aware label for the payout amount line
@@ -228,7 +235,7 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
 
     # Computation (per stages): make the 50/50 split clear
     try:
-        net_to_provider = float(gross_total or 0) - float(platform_fee or 0) - float(vat_on_fee or 0)
+        net_to_provider = float((gross_total or 0)) + float(supplier_vat_amount or 0) - float(platform_fee or 0) - float(vat_on_fee or 0)
     except Exception:
         net_to_provider = 0.0
     comp_title = Paragraph("Summary", styles["Strong"]) 

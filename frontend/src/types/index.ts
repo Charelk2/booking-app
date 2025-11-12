@@ -57,6 +57,21 @@ export interface ServiceProviderProfile {
   service_price?: number | string | null;
   /** Names of service categories offered by the service provider */
   service_categories?: string[];
+
+  // Business & VAT
+  legal_name?: string | null;
+  trading_name?: string | null;
+  billing_address_line1?: string | null;
+  billing_address_line2?: string | null;
+  billing_city?: string | null;
+  billing_region?: string | null;
+  billing_postal_code?: string | null;
+  billing_country?: string | null;
+  invoice_email?: string | null;
+  vat_registered?: boolean | null;
+  vat_number?: string | null;
+  vat_rate?: number | string | null;
+  agent_invoicing_consent?: boolean | null;
   user: User;
   created_at: string;
   updated_at: string;

@@ -204,6 +204,20 @@ class Settings(BaseSettings):
             pass
         return values
 
+    # VAT / payouts feature flags (agent + escrow rollout)
+    # Include supplier VAT in provider payouts when enabled.
+    ENABLE_AGENT_PAYOUT_VAT: bool = False
+    # When true, compute both legacy and new payout math and log deltas; do not change persisted amounts.
+    AGENT_PAYOUT_SHADOW_MODE: bool = True
+    # Enable generation of agent-compliant invoice types (provider tax, commission, client-fee)
+    ENABLE_SPLIT_INVOICING: bool = False
+    # Commission invoice mode: per_booking or monthly (monthly implies monthly set-off tax point)
+    COMMISSION_INVOICE_MODE: str = "per_booking"
+    # Client fee base for 3%: 'ex' (provider EX VAT subtotal) or 'inc' (consumer INC view)
+    CLIENT_FEE_BASE: str = "ex"
+    # Remittance renderer versioning (v1 legacy, v2 supplier-VAT aware)
+    RENDERER_VERSION: str = "v2"
+
 model_config = SettingsConfigDict(
     extra="forbid",
     env_file=os.getenv(

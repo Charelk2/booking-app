@@ -1455,6 +1455,41 @@ def ensure_service_provider_onboarding_columns(engine: Engine) -> None:
         "cancellation_policy TEXT",
     )
 
+def ensure_service_provider_vat_columns(engine: Engine) -> None:
+    """Ensure VAT/legal/agent invoicing columns exist on service_provider_profiles.
+
+    All columns are nullable and added additively for safe rollout without full migrations.
+    """
+    add_column_if_missing(engine, "service_provider_profiles", "legal_name", "legal_name VARCHAR")
+    add_column_if_missing(engine, "service_provider_profiles", "trading_name", "trading_name VARCHAR")
+    add_column_if_missing(engine, "service_provider_profiles", "billing_address_line1", "billing_address_line1 VARCHAR")
+    add_column_if_missing(engine, "service_provider_profiles", "billing_address_line2", "billing_address_line2 VARCHAR")
+    add_column_if_missing(engine, "service_provider_profiles", "billing_city", "billing_city VARCHAR")
+    add_column_if_missing(engine, "service_provider_profiles", "billing_region", "billing_region VARCHAR")
+    add_column_if_missing(engine, "service_provider_profiles", "billing_postal_code", "billing_postal_code VARCHAR")
+    add_column_if_missing(engine, "service_provider_profiles", "billing_country", "billing_country VARCHAR")
+    add_column_if_missing(engine, "service_provider_profiles", "invoice_email", "invoice_email VARCHAR")
+    add_column_if_missing(engine, "service_provider_profiles", "vat_registered", "vat_registered BOOLEAN")
+    add_column_if_missing(engine, "service_provider_profiles", "vat_number", "vat_number VARCHAR")
+    add_column_if_missing(engine, "service_provider_profiles", "vat_rate", "vat_rate NUMERIC(5,4)")
+    add_column_if_missing(engine, "service_provider_profiles", "agent_invoicing_consent", "agent_invoicing_consent BOOLEAN")
+    add_column_if_missing(engine, "service_provider_profiles", "agent_invoicing_consent_date", "agent_invoicing_consent_date DATETIME")
+
+def ensure_invoice_agent_columns(engine: Engine) -> None:
+    """Ensure invoice fields for agent-mode are present.
+
+    Adds: invoice_type, invoice_number, series_key, issuer_snapshot, recipient_snapshot,
+    supersedes_id, hash_snapshot, vat_breakdown_snapshot.
+    """
+    add_column_if_missing(engine, "invoices", "invoice_type", "invoice_type VARCHAR")
+    add_column_if_missing(engine, "invoices", "invoice_number", "invoice_number VARCHAR")
+    add_column_if_missing(engine, "invoices", "series_key", "series_key VARCHAR")
+    add_column_if_missing(engine, "invoices", "issuer_snapshot", "issuer_snapshot JSON")
+    add_column_if_missing(engine, "invoices", "recipient_snapshot", "recipient_snapshot JSON")
+    add_column_if_missing(engine, "invoices", "supersedes_id", "supersedes_id INTEGER")
+    add_column_if_missing(engine, "invoices", "hash_snapshot", "hash_snapshot VARCHAR(64)")
+    add_column_if_missing(engine, "invoices", "vat_breakdown_snapshot", "vat_breakdown_snapshot JSON")
+
 
 def ensure_rider_tables(engine: Engine) -> None:
     """Ensure rider and supplier pricebook tables exist (created by Base.metadata)."""

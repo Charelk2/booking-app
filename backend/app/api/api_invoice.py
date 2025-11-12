@@ -102,8 +102,33 @@ def get_invoice_pdf(
             status.HTTP_404_NOT_FOUND,
         )
     # Lazy import to avoid heavy deps during OpenAPI generation
-    from ..services import invoice_pdf  # type: ignore
-    pdf_bytes = invoice_pdf.generate_pdf(invoice)
+    # Select renderer based on invoice_type when available
+    try:
+        inv_type = getattr(invoice, "invoice_type", None)
+    except Exception:
+        inv_type = None
+    pdf_bytes = None
+    if inv_type and str(inv_type).lower() in {"provider_tax", "provider_invoice"}:
+        try:
+            from ..services import provider_invoice_pdf as _prov_pdf  # type: ignore
+            pdf_bytes = _prov_pdf.generate_pdf(invoice)
+        except Exception:
+            pdf_bytes = None
+    elif inv_type and str(inv_type).lower() == "commission_tax":
+        try:
+            from ..services import commission_invoice_pdf as _com_pdf  # type: ignore
+            pdf_bytes = _com_pdf.generate_pdf(invoice)
+        except Exception:
+            pdf_bytes = None
+    elif inv_type and str(inv_type).lower() == "client_fee_tax":
+        try:
+            from ..services import client_fee_invoice_pdf as _fee_pdf  # type: ignore
+            pdf_bytes = _fee_pdf.generate_pdf(invoice)
+        except Exception:
+            pdf_bytes = None
+    if pdf_bytes is None:
+        from ..services import invoice_pdf  # type: ignore
+        pdf_bytes = invoice_pdf.generate_pdf(invoice)
     filename = f"invoice_{invoice.id}.pdf"
     path = os.path.join(INVOICE_DIR, filename)
     try:

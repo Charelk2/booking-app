@@ -1994,27 +1994,10 @@ def get_payout_pdf_url(
 
 
 @router.post("/payout_batches")
-def create_payout_batch(payload: Dict[str, Any], current: Tuple[User, AdminUser] = Depends(require_roles("payments", "admin", "superadmin")), db: Session = Depends(get_db)):
-    booking_ids = payload.get("bookingIds") or []
-    if not isinstance(booking_ids, list) or not booking_ids:
-        raise HTTPException(status_code=400, detail="bookingIds required")
-    import uuid, json
-    batch_id = f"pb_{uuid.uuid4().hex[:10]}"
-    # Naive computation: 80% to provider if charged_total_amount exists else 0 (legacy stub)
-    created = 0
-    for bid in booking_ids:
-        try:
-            row = db.execute(text("SELECT charged_total_amount, artist_id FROM bookings_simple WHERE id=:id"), {"id": bid}).first()
-            amount = float(row[0] or 0) * 0.8 if row else 0.0
-            provider_id = int(row[1]) if row and row[1] is not None else None
-            db.execute(text("INSERT INTO payouts (provider_id, amount, currency, status, batch_id) VALUES (:pid, :amt, 'ZAR', 'queued', :bid)"), {"pid": provider_id, "amt": amount, "bid": batch_id})
-            created += 1
-        except Exception:
-            db.rollback()
-            continue
-    db.commit()
-    _audit(db, current[1].id, "payout_batch", batch_id, "create", {"bookingIds": booking_ids}, {"created": created})
-    return {"status": "queued", "batch_id": batch_id, "created": created}
+def create_payout_batch(_: Dict[str, Any], __: Tuple[User, AdminUser] = Depends(require_roles("payments", "admin", "superadmin")), ___: Session = Depends(get_db)):
+    # Legacy batch payout endpoint (80% stub) is disabled to prevent incorrect payouts.
+    # Use verified payout creation paths via payment verification and scheduled releases instead.
+    raise HTTPException(status_code=410, detail="payout_batch_legacy_disabled")
 
 
 @router.post("/payouts/{payout_id}/mark-paid")

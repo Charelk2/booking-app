@@ -55,6 +55,22 @@ class ServiceProviderProfile(BaseModel):
     bank_account_number = Column(String, nullable=True)
     bank_branch_code = Column(String, nullable=True)
 
+    # Business & VAT details (agent invoicing)
+    legal_name = Column(String, nullable=True)
+    trading_name = Column(String, nullable=True)
+    billing_address_line1 = Column(String, nullable=True)
+    billing_address_line2 = Column(String, nullable=True)
+    billing_city = Column(String, nullable=True)
+    billing_region = Column(String, nullable=True)
+    billing_postal_code = Column(String, nullable=True)
+    billing_country = Column(String, nullable=True)
+    invoice_email = Column(String, nullable=True)
+    vat_registered = Column(Boolean, nullable=True)
+    vat_number = Column(String, nullable=True)
+    vat_rate = Column(Numeric(5, 4), nullable=True)
+    agent_invoicing_consent = Column(Boolean, nullable=True)
+    agent_invoicing_consent_date = Column(String, nullable=True)
+
     # Relationships
     user = relationship("User", back_populates="artist_profile")
     services = relationship(

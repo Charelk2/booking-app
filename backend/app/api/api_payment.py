@@ -144,7 +144,8 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
     """
     # We no longer split by charged total. We compute net-to-provider and
     # split that 50/50 (rounding residual to final) so payouts reflect the
-    # provider's net, not the client's total.
+    # provider's net, not the client's total. Supplier VAT is included when
+    # the provider is VAT-registered (agent model).
     half1 = None
     half2 = None
 
@@ -180,22 +181,47 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
                     pass
         except Exception:
             pass
+        # Discount (EX VAT) applied to base
+        discount_ex = 0.0
+        try:
+            if qv2 and getattr(qv2, 'discount', None) is not None:
+                discount_ex = float(qv2.discount or 0)
+        except Exception:
+            discount_ex = 0.0
 
         # Rates
         COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
         CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
         VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
 
-        # Provider subtotal (PS): services + pass-through
-        provider_subtotal = round(services_total + pass_through, 2)
-        # Client fee applied on PS (not part of provider payout)
-        client_fee = round(provider_subtotal * CLIENT_FEE_RATE, 2)
+        # Commissionable base (EX): services + travel + sound − discount
+        commissionable_base = round(max(0.0, (services_total + pass_through) - discount_ex), 2)
+        # Client fee applied on EX base (not part of provider payout)
+        client_fee = round(commissionable_base * CLIENT_FEE_RATE, 2)
         client_fee_vat = round(client_fee * VAT_RATE, 2)
-        # Commission withheld on PS (provider-funded)
-        commission = round(provider_subtotal * COMMISSION_RATE, 2)
+        # Commission withheld on EX base (provider-funded)
+        commission = round(commissionable_base * COMMISSION_RATE, 2)
         vat_on_commission = round(commission * VAT_RATE, 2)
-        # Provider net estimate (PS - commission - VAT on commission)
-        provider_net_total_estimate = round(provider_subtotal - commission - vat_on_commission, 2)
+
+        # Supplier VAT: include if provider VAT-registered (fallback 0%)
+        supplier_vat_rate = 0.0
+        supplier_vat_amount = 0.0
+        try:
+            prof = db.query(models.ServiceProviderProfile).filter(models.ServiceProviderProfile.user_id == int(simple.artist_id)).first()
+            if settings.ENABLE_AGENT_PAYOUT_VAT and prof and bool(getattr(prof, 'vat_registered', False)):
+                try:
+                    supplier_vat_rate = float(getattr(prof, 'vat_rate', VAT_RATE) or VAT_RATE)
+                except Exception:
+                    supplier_vat_rate = VAT_RATE
+        except Exception:
+            supplier_vat_rate = 0.0
+        try:
+            supplier_vat_amount = round(commissionable_base * supplier_vat_rate, 2)
+        except Exception:
+            supplier_vat_amount = 0.0
+
+        # Provider net estimate incl supplier VAT
+        provider_net_total_estimate = round((commissionable_base + supplier_vat_amount) - commission - vat_on_commission, 2)
         # Stage nets (pro-rata; keep rounding residual on final)
         try:
             from decimal import Decimal as _D, ROUND_HALF_UP as _R
@@ -209,14 +235,16 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
             final_est = round(provider_net_total_estimate - first_est, 2)
 
         snap.update({
-            'commissionable_base': round(services_total, 2),
+            'commissionable_base': round(commissionable_base, 2),
+            'discount_ex': round(discount_ex, 2),
             'pass_through': round(pass_through, 2),
-            'provider_subtotal': provider_subtotal,
             'rates': {'commission_rate': COMMISSION_RATE, 'client_fee_rate': CLIENT_FEE_RATE, 'vat_rate': VAT_RATE},
-            'commission': commission,
+            'commission_ex': commission,
             'vat_on_commission': vat_on_commission,
             'client_fee': client_fee,
             'client_fee_vat': client_fee_vat,
+            'supplier_vat_rate': supplier_vat_rate,
+            'supplier_vat_amount': supplier_vat_amount,
             'provider_net_total_estimate': provider_net_total_estimate,
             'reference': reference,
         })
@@ -848,12 +876,31 @@ def paystack_verify(
                 pass_through += float(qv2.sound_fee or 0)
         except Exception:
             pass
+        # Discount
+        discount_ex = 0.0
+        try:
+            if qv2 and getattr(qv2, 'discount', None) is not None:
+                discount_ex = float(qv2.discount or 0)
+        except Exception:
+            discount_ex = 0.0
         COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
         VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-        provider_subtotal = round(services_total + pass_through, 2)
-        commission = round(provider_subtotal * COMMISSION_RATE, 2)
+        commissionable_base = round(max(0.0, (services_total + pass_through) - discount_ex), 2)
+        commission = round(commissionable_base * COMMISSION_RATE, 2)
         vat_on_commission = round(commission * VAT_RATE, 2)
-        provider_net_total_estimate = round(provider_subtotal - commission - vat_on_commission, 2)
+        # Supplier VAT include when provider VAT-registered
+        supplier_vat_rate = 0.0
+        try:
+            prof = db.query(models.ServiceProviderProfile).filter(models.ServiceProviderProfile.user_id == int(simple.artist_id)).first()
+            if settings.ENABLE_AGENT_PAYOUT_VAT and prof and bool(getattr(prof, 'vat_registered', False)):
+                try:
+                    supplier_vat_rate = float(getattr(prof, 'vat_rate', VAT_RATE) or VAT_RATE)
+                except Exception:
+                    supplier_vat_rate = VAT_RATE
+        except Exception:
+            supplier_vat_rate = 0.0
+        supplier_vat_amount = round(commissionable_base * supplier_vat_rate, 2)
+        provider_net_total_estimate = round((commissionable_base + supplier_vat_amount) - commission - vat_on_commission, 2)
         try:
             from decimal import Decimal as _D, ROUND_HALF_UP as _R
             _pnet = _D(str(provider_net_total_estimate))
@@ -1210,12 +1257,31 @@ async def paystack_webhook(
                 pass_through += float(qv2.sound_fee or 0)
         except Exception:
             pass
+        # Discount
+        discount_ex = 0.0
+        try:
+            if qv2 and getattr(qv2, 'discount', None) is not None:
+                discount_ex = float(qv2.discount or 0)
+        except Exception:
+            discount_ex = 0.0
         COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
         VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-        provider_subtotal = round(services_total + pass_through, 2)
-        commission = round(provider_subtotal * COMMISSION_RATE, 2)
+        commissionable_base = round(max(0.0, (services_total + pass_through) - discount_ex), 2)
+        commission = round(commissionable_base * COMMISSION_RATE, 2)
         vat_on_commission = round(commission * VAT_RATE, 2)
-        provider_net_total_estimate = round(provider_subtotal - commission - vat_on_commission, 2)
+        # Supplier VAT include when provider VAT-registered
+        supplier_vat_rate = 0.0
+        try:
+            prof = db.query(models.ServiceProviderProfile).filter(models.ServiceProviderProfile.user_id == int(simple.artist_id)).first()
+            if prof and bool(getattr(prof, 'vat_registered', False)):
+                try:
+                    supplier_vat_rate = float(getattr(prof, 'vat_rate', VAT_RATE) or VAT_RATE)
+                except Exception:
+                    supplier_vat_rate = VAT_RATE
+        except Exception:
+            supplier_vat_rate = 0.0
+        supplier_vat_amount = round(commissionable_base * supplier_vat_rate, 2)
+        provider_net_total_estimate = round((commissionable_base + supplier_vat_amount) - commission - vat_on_commission, 2)
         try:
             from decimal import Decimal as _D, ROUND_HALF_UP as _R
             _pnet = _D(str(provider_net_total_estimate))

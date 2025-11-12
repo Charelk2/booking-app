@@ -165,6 +165,13 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
   const [bankAccountNameInput, setBankAccountNameInput] = useState('');
   const [bankAccountNumberInput, setBankAccountNumberInput] = useState('');
   const [bankBranchCodeInput, setBankBranchCodeInput] = useState('');
+  // Business & VAT details (agent invoicing)
+  const [legalNameInput, setLegalNameInput] = useState('');
+  const [vatRegisteredInput, setVatRegisteredInput] = useState(false);
+  const [vatNumberInput, setVatNumberInput] = useState('');
+  const [vatRateInput, setVatRateInput] = useState('15.0');
+  const [invoiceEmailInput, setInvoiceEmailInput] = useState('');
+  const [agentConsentInput, setAgentConsentInput] = useState(false);
   const [specialtiesInput, setSpecialtiesInput] = useState('');
   const [portfolioUrlsInput, setPortfolioUrlsInput] = useState('');
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
@@ -406,6 +413,17 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
         setImagePreviewUrl(getFullImageUrl(currentRelativePic));
 
         setCoverPhotoUrl(getFullImageUrl(fetchedProfile.cover_photo_url));
+
+        // VAT/business details
+        try {
+          setLegalNameInput(((fetchedProfile as any).legal_name || fetchedProfile.business_name || '').toString());
+          setVatRegisteredInput(!!(fetchedProfile as any).vat_registered);
+          setVatNumberInput(((fetchedProfile as any).vat_number || '').toString());
+          const rate = (fetchedProfile as any).vat_rate;
+          setVatRateInput(rate !== undefined && rate !== null ? String(rate) : '15.0');
+          setInvoiceEmailInput(((fetchedProfile as any).invoice_email || (fetchedProfile as any).contact_email || '').toString());
+          setAgentConsentInput(!!(fetchedProfile as any).agent_invoicing_consent);
+        } catch {}
 
         setShowCropper(false);
         setOriginalImageSrc(null);

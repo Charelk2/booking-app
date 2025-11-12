@@ -40,6 +40,21 @@ class ArtistProfileBase(BaseModel):
     bank_account_number: Optional[str] = None
     bank_branch_code: Optional[str] = None
 
+    # Business & VAT (agent invoicing)
+    legal_name: Optional[str] = None
+    trading_name: Optional[str] = None
+    billing_address_line1: Optional[str] = None
+    billing_address_line2: Optional[str] = None
+    billing_city: Optional[str] = None
+    billing_region: Optional[str] = None
+    billing_postal_code: Optional[str] = None
+    billing_country: Optional[str] = None
+    invoice_email: Optional[str] = None
+    vat_registered: Optional[bool] = None
+    vat_number: Optional[str] = None
+    vat_rate: Optional[Decimal] = None
+    agent_invoicing_consent: Optional[bool] = None
+
     model_config = {
         # Still needed so that Pydantic can work with ORM objects, but we override below
         "from_attributes": True,
