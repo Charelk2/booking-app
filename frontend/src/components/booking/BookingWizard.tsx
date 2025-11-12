@@ -375,7 +375,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       try {
         const [availabilityRes, svcRes] = await Promise.all([
           getServiceProviderAvailability(artistId),
-          serviceId ? fetch(apiUrl(`/api/v1/services/${serviceId}`), { cache: 'force-cache' }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null),
+          serviceId ? fetch(apiUrl(`/api/v1/services/${serviceId}`), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null),
         ]);
         setUnavailable(availabilityRes.data.unavailable_dates);
         // Derive location and VAT from service details when available

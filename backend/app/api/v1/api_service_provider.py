@@ -229,6 +229,26 @@ def update_current_artist_profile(
     ):
         update_data["profile_picture_url"] = str(update_data["profile_picture_url"])
 
+    # Validation: if resulting state is vat_registered==True, require vat_number
+    try:
+        effective_vat_registered = (
+            update_data.get("vat_registered")
+            if "vat_registered" in update_data
+            else bool(getattr(artist_profile, "vat_registered", False))
+        )
+        effective_vat_number = (
+            update_data.get("vat_number")
+            if "vat_number" in update_data
+            else getattr(artist_profile, "vat_number", None)
+        )
+        if effective_vat_registered and (not effective_vat_number or not str(effective_vat_number).strip()):
+            raise HTTPException(status_code=422, detail={"vat_number": "required_when_vat_registered"})
+    except HTTPException:
+        raise
+    except Exception:
+        # Be conservative: do not block updates on unexpected validation errors
+        pass
+
     for field, value in update_data.items():
         setattr(artist_profile, field, value)
 
