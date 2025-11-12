@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     String,
     Numeric,
+    JSON,
 )
 from sqlalchemy.orm import relationship
 
@@ -33,6 +34,13 @@ class BookingSimple(BaseModel):
     sound_hold_id = Column(String, nullable=True)
     sound_hold_status = Column(String, nullable=True)   # authorized|captured|released
     sound_hold_amount = Column(Numeric(10, 2), nullable=True)
+
+    # Agent-mode snapshots (optional JSON for immutable billing/provider state)
+    provider_profile_snapshot = Column(JSON, nullable=True)
+    client_billing_snapshot = Column(JSON, nullable=True)
+    # Time-of-supply helper fields (optional)
+    payment_classification = Column(String, nullable=True)  # standard_payment|security_deposit
+    supply_date = Column(DateTime, nullable=True)
 
     quote = relationship("QuoteV2")
     artist = relationship("User", foreign_keys=[artist_id])

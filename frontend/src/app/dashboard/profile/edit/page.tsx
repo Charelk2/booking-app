@@ -420,7 +420,13 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
           setVatRegisteredInput(!!(fetchedProfile as any).vat_registered);
           setVatNumberInput(((fetchedProfile as any).vat_number || '').toString());
           const rate = (fetchedProfile as any).vat_rate;
-          setVatRateInput(rate !== undefined && rate !== null ? String(rate) : '15.0');
+          if (rate !== undefined && rate !== null) {
+            const num = Number(rate);
+            const pct = Number.isFinite(num) ? (num <= 1 ? num * 100 : num) : 15;
+            setVatRateInput(String(pct));
+          } else {
+            setVatRateInput('15.0');
+          }
           setInvoiceEmailInput(((fetchedProfile as any).invoice_email || (fetchedProfile as any).contact_email || '').toString());
           setAgentConsentInput(!!(fetchedProfile as any).agent_invoicing_consent);
         } catch {}
@@ -1555,10 +1561,45 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
             </div>
           </section>
 
-        
+          {/* Business & VAT Details */}
+          <section className="pt-8 relative bg-white rounded-2xl border border-gray-200 p-5 pb-8 shadow-sm mt-8">
+            <div className="absolute right-4 top-4"><SavedPill saving={profHint.saving} saved={profHint.saved} /></div>
+            <h2 className="text-xl font-medium text-gray-700 mb-6">Business & VAT Details</h2>
+            <p className="text-xs text-gray-600 mb-3">Used for tax invoices (agent invoicing). Optional, but required if you need VAT invoices issued to clients.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClasses}>Legal name</label>
+                <input type="text" className={inputClasses} value={legalNameInput} onChange={(e)=>{ const v=e.target.value; setLegalNameInput(v); if (profTimerRef.current) clearTimeout(profTimerRef.current); profHint.startSaving(); profTimerRef.current = setTimeout(async ()=>{ try { await updateMyServiceProviderProfile({ legal_name: v.trim() || undefined } as any); profHint.doneSaving(); } catch { profHint.stopSaving(); } }, 800); }} placeholder="e.g., ABC Photography (Pty) Ltd" />
+              </div>
+              <div>
+                <label className={labelClasses}>Invoice email</label>
+                <input type="email" className={inputClasses} value={invoiceEmailInput} onChange={(e)=>{ const v=e.target.value; setInvoiceEmailInput(v); if (profTimerRef.current) clearTimeout(profTimerRef.current); profHint.startSaving(); profTimerRef.current = setTimeout(async ()=>{ try { await updateMyServiceProviderProfile({ invoice_email: v.trim() || undefined } as any); profHint.doneSaving(); } catch { profHint.stopSaving(); } }, 800); }} placeholder="invoices@yourcompany.co.za" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input type="checkbox" className="h-4 w-4" checked={vatRegisteredInput} onChange={(e)=>{ const v=e.target.checked; setVatRegisteredInput(v); if (profTimerRef.current) clearTimeout(profTimerRef.current); profHint.startSaving(); profTimerRef.current = setTimeout(async ()=>{ try { await updateMyServiceProviderProfile({ vat_registered: v } as any); profHint.doneSaving(); } catch { profHint.stopSaving(); } }, 400); }} />
+                  VAT registered
+                </label>
+              </div>
+              <div>
+                <label className={labelClasses}>VAT number</label>
+                <input type="text" className={inputClasses} value={vatNumberInput} onChange={(e)=>{ const v=e.target.value; setVatNumberInput(v); if (profTimerRef.current) clearTimeout(profTimerRef.current); profHint.startSaving(); profTimerRef.current = setTimeout(async ()=>{ try { await updateMyServiceProviderProfile({ vat_number: v.trim() || undefined } as any); profHint.doneSaving(); } catch { profHint.stopSaving(); } }, 800); }} placeholder="4XXXXXXXXX" />
+              </div>
+              <div>
+                <label className={labelClasses}>VAT rate (%)</label>
+                <input type="number" min={0} max={100} step={0.01} className={inputClasses} value={vatRateInput} onChange={(e)=>{ const v=e.target.value; setVatRateInput(v); if (profTimerRef.current) clearTimeout(profTimerRef.current); profHint.startSaving(); const rate = parseFloat(v); profTimerRef.current = setTimeout(async ()=>{ try { await updateMyServiceProviderProfile({ vat_rate: isFinite(rate) ? (rate/100) : undefined } as any); profHint.doneSaving(); } catch { profHint.stopSaving(); } }, 800); }} placeholder="15.00" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input type="checkbox" className="h-4 w-4" checked={agentConsentInput} onChange={(e)=>{ const v=e.target.checked; setAgentConsentInput(v); if (profTimerRef.current) clearTimeout(profTimerRef.current); profHint.startSaving(); profTimerRef.current = setTimeout(async ()=>{ try { await updateMyServiceProviderProfile({ agent_invoicing_consent: v } as any); profHint.doneSaving(); } catch { profHint.stopSaving(); } }, 400); }} />
+                  I authorize Booka to issue tax invoices on my behalf as agent (s20(4)/s54 ZA)
+                </label>
+              </div>
+            </div>
+          </section>
 
 
-            <section className="pt-8 relative bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <section className="pt-8 relative bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
               {/* Card counter */}
               <div className={`${(calendarConnected) ? 'text-green-800 bg-green-100 border-green-300' : 'text-gray-600 bg-gray-100 border-gray-200'} absolute bottom-3 right-3 text-xs border rounded-full px-2 py-0.5`}>6/6</div>
               <h2 className="text-xl font-medium text-gray-700 mb-6">Sync Google Calendar</h2>

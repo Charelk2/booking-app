@@ -29,7 +29,7 @@ import { calculateTravelMode, getDrivingMetricsCached, geocodeCached, findNeares
 import { BookingRequestCreate } from '@/types';
 import './wizard/wizard.css';
 import toast from '../ui/Toast';
-import { apiUrl } from '@/lib/api';
+import { apiUrl, setClientBillingByBookingRequest } from '@/lib/api';
 // 404-aware service cache (tombstones)
 const svcCache = new Map<number, any | null>();
 type ServiceJson = any | null; // null = tombstone (missing)
@@ -206,6 +206,24 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [soundMode, setSoundMode] = useState<string | null>(null);
   const [soundModeOverridden, setSoundModeOverridden] = useState(false);
   const [selectedSupplierName, setSelectedSupplierName] = useState<string | undefined>(undefined);
+  const [artistVatRegistered, setArtistVatRegistered] = useState<boolean | null>(null);
+  const [providerName, setProviderName] = useState<string | null>(null);
+
+  // Business billing (client)
+  const [needTaxInvoice, setNeedTaxInvoice] = useState(false);
+  const [clientCompanyName, setClientCompanyName] = useState('');
+  const [clientVatNumber, setClientVatNumber] = useState('');
+  const [clientBillingAddress, setClientBillingAddress] = useState('');
+  const billingDebounce = useRef<any>(null);
+
+  const persistBillingSnapshot = useCallback((brId: number) => {
+    const payload: Record<string, any> = {
+      legal_name: clientCompanyName.trim() || undefined,
+      vat_number: clientVatNumber.trim() || undefined,
+      billing_address_line1: clientBillingAddress.trim() || undefined,
+    };
+    setClientBillingByBookingRequest(brId, payload).catch(()=>{});
+  }, [clientCompanyName, clientVatNumber, clientBillingAddress]);
 
   // Calculation orchestration to reduce flicker and duplicate runs
   const calcSeqRef = useRef(0);
@@ -350,23 +368,32 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     return () => formEl.removeEventListener('focusin', focusHandler);
   }, [step]);
 
-  // Effect to fetch artist availability and base location from API
+  // Effect to fetch artist availability and provider info (location, VAT) from API
   useEffect(() => {
     if (!artistId) return;
     const fetchArtistData = async () => {
       try {
-        const [availabilityRes, artistRes] = await Promise.all([
+        const [availabilityRes, svcRes] = await Promise.all([
           getServiceProviderAvailability(artistId),
-          fetch(apiUrl(`/api/v1/service-provider-profiles/${artistId}`), { cache: 'force-cache' }).then((res) => res.json()),
+          serviceId ? fetch(apiUrl(`/api/v1/services/${serviceId}`), { cache: 'force-cache' }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null),
         ]);
         setUnavailable(availabilityRes.data.unavailable_dates);
-        setArtistLocation(artistRes.location || null);
+        // Derive location and VAT from service details when available
+        try {
+          const loc = (svcRes?.artist?.artist_profile?.location || svcRes?.details?.base_location || '').toString().trim();
+          setArtistLocation(loc || null);
+        } catch { /* ignore */ }
+        try { setArtistVatRegistered(!!(svcRes?.artist?.artist_profile?.vat_registered)); } catch {}
+        try {
+          const name = (svcRes?.artist?.artist_profile?.legal_name || svcRes?.artist?.artist_profile?.business_name || svcRes?.title || '').toString().trim();
+          setProviderName(name || null);
+        } catch { setProviderName(null); }
       } catch (err) {
         console.error('Failed to fetch artist data:', err);
       }
     };
     void fetchArtistData();
-  }, [artistId]);
+  }, [artistId, serviceId]);
 
   // Effect to prompt to restore saved progress only when the wizard first opens
   useEffect(() => {
@@ -392,6 +419,18 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   useEffect(() => {
     if (serviceId) setServiceIdInContext(serviceId);
   }, [serviceId, setServiceIdInContext]);
+
+  // Persist client business billing snapshot when toggled/edited
+  useEffect(() => {
+    if (!needTaxInvoice || !requestId) return;
+    if (billingDebounce.current) clearTimeout(billingDebounce.current);
+    billingDebounce.current = setTimeout(() => {
+      try {
+        persistBillingSnapshot(requestId as number);
+      } catch {}
+    }, 600);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needTaxInvoice, clientCompanyName, clientVatNumber, clientBillingAddress, requestId]);
 
   // Resolve selected supplier name for Review step
   useEffect(() => {
@@ -1281,6 +1320,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       setValidationError('Review data is not ready. Please wait or check for errors before submitting.');
       return;
     }
+    // Gating: if client needs Tax Invoice but provider is not VAT-registered, block submit
+    if (needTaxInvoice && artistVatRegistered === false) {
+      setValidationError('This provider is not VAT-registered and cannot issue a Tax Invoice. Please choose a VAT-registered provider or untick the Tax Invoice option.');
+      return;
+    }
 
     setSubmitting(true);
     const payload: BookingRequestCreate = {
@@ -1467,6 +1511,17 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   <div>
                     <p className="text-[11px] uppercase tracking-wide text-neutral-500">Step {step + 1} of {steps.length}</p>
                     <h2 className="text-base font-semibold text-neutral-900">{steps[step]}</h2>
+                    {providerName && (
+                      <div className="mt-1 flex items-center gap-2 text-[11px] text-neutral-600">
+                        <span className="truncate max-w-[50vw]" title={providerName}>Provider: {providerName}</span>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${artistVatRegistered ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}
+                          title={artistVatRegistered ? 'This provider is VAT-registered' : 'This provider is not VAT-registered'}
+                        >
+                          {artistVatRegistered ? 'VAT registered' : 'Not VAT-registered'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -1498,6 +1553,37 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 className="flex-1 overflow-y-auto px-6 pt-2 pb-5"
               >
                 {renderStep()}
+                {/* Business billing details (client) on Review step */}
+                {step === steps.length - 1 && (
+                  <div className="mt-6 rounded-xl border border-gray-200 p-4">
+                    <h3 className="text-sm font-semibold mb-2">Business billing (optional)</h3>
+                    <p className="text-xs text-gray-600 mb-3">Provide your company details if you need a Tax Invoice from the supplier. These details will be attached to your booking.</p>
+                    <label className="inline-flex items-center gap-2 text-sm mb-3">
+                      <input type="checkbox" className="h-4 w-4" checked={needTaxInvoice} onChange={(e)=>{ const v=e.target.checked; setNeedTaxInvoice(v); }} />
+                      I need a Tax Invoice for my business
+                    </label>
+                    {needTaxInvoice && artistVatRegistered === false && (
+                      <div className="mb-3 text-xs text-red-600">This provider is not VAT-registered and cannot issue a Tax Invoice. Please choose a VAT-registered provider or untick this option.</div>
+                    )}
+                    {needTaxInvoice && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-600">Company name</label>
+                          <input className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={clientCompanyName} onChange={(e)=> setClientCompanyName(e.target.value)} placeholder="XYZ Corp (Pty) Ltd" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600">Company VAT number</label>
+                          <input className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={clientVatNumber} onChange={(e)=> setClientVatNumber(e.target.value)} placeholder="4XXXXXXXXX" />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs text-gray-600">Billing address</label>
+                          <input className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={clientBillingAddress} onChange={(e)=> setClientBillingAddress(e.target.value)} placeholder="456 Business Park, Sandton, 2196" />
+                        </div>
+                        <div className="sm:col-span-2 text-xs text-gray-500">We’ll attach these details to your booking and pass them to the supplier’s Tax Invoice.</div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
               </form>
 

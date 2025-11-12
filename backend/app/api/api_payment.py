@@ -944,6 +944,16 @@ def paystack_verify(
     except Exception:
         logger.debug("schedule receipt pdf failed (verify)", exc_info=True)
     result = {"status": "ok", "payment_id": simple.payment_id}
+    # Best-effort: generate provider invoice (agent) on set-off (per-booking)
+    try:
+        # Avoid duplicates: check for existing provider invoice
+        rows = db.execute(text("SELECT id FROM invoices WHERE booking_id=:bid AND invoice_type IN ('provider_tax','provider_invoice') ORDER BY id DESC LIMIT 1"), {"bid": int(simple.id)}).fetchone()
+        if not rows:
+            prof = db.query(models.ServiceProviderProfile).filter(models.ServiceProviderProfile.user_id == int(simple.artist_id)).first()
+            is_vendor = bool(getattr(prof, 'vat_registered', False))
+            crud_invoice.create_provider_invoice(db, simple, vendor=is_vendor)
+    except Exception:
+        pass
     try:
         hdr = timer.header()
         if hdr and response is not None:
@@ -1308,6 +1318,15 @@ async def paystack_webhook(
     # Ensure payout rows exist (manual payout flow)
     try:
         _ensure_payout_rows(db, simple, amount, reference, phase="webhook")
+    except Exception:
+        pass
+    # Best-effort: generate provider invoice (agent) on webhook set-off
+    try:
+        row = db.execute(text("SELECT id FROM invoices WHERE booking_id=:bid AND invoice_type IN ('provider_tax','provider_invoice') ORDER BY id DESC LIMIT 1"), {"bid": int(simple.id)}).fetchone()
+        if not row:
+            prof = db.query(models.ServiceProviderProfile).filter(models.ServiceProviderProfile.user_id == int(simple.artist_id)).first()
+            is_vendor = bool(getattr(prof, 'vat_registered', False))
+            crud_invoice.create_provider_invoice(db, simple, vendor=is_vendor)
     except Exception:
         pass
     # Metrics (best-effort)

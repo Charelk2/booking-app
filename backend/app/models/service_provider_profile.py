@@ -9,6 +9,7 @@ from sqlalchemy import (
     JSON,
     Integer,
     Boolean,
+    DateTime,
 )
 from sqlalchemy.orm import relationship
 
@@ -69,7 +70,7 @@ class ServiceProviderProfile(BaseModel):
     vat_number = Column(String, nullable=True)
     vat_rate = Column(Numeric(5, 4), nullable=True)
     agent_invoicing_consent = Column(Boolean, nullable=True)
-    agent_invoicing_consent_date = Column(String, nullable=True)
+    agent_invoicing_consent_date = Column(DateTime, nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="artist_profile")

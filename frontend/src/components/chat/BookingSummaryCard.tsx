@@ -328,6 +328,34 @@ export default function BookingSummaryCard({
         ].join(' ')}
         style={stickyPresent ? ({ ['--sticky-h' as any]: `${stickyH}px` } as React.CSSProperties) : undefined}
       >
+        {/* Provider Invoice download (when available) */}
+        {(() => {
+          try {
+            const paid = String(paymentInfo?.status || '').toLowerCase() === 'paid';
+            const status = String(bookingDetails?.status || '').toLowerCase();
+            const statusConfirmed = status.includes('confirmed') || status === 'completed';
+            const invoiceHref = bookingDetails?.invoice_id
+              ? `/invoices/${bookingDetails.invoice_id}`
+              : (bookingDetails?.id ? `/invoices/by-booking/${bookingDetails.id}` : null);
+            if ((paid || statusConfirmed) && invoiceHref) {
+              return (
+                <div className="mb-4">
+                  <a
+                    href={invoiceHref}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900"
+                    title="Download Provider Invoice"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                      <path d="M12 16.5l4-4h-3V3h-2v9.5H8l4 4z" /><path d="M5 18h14v2H5z" />
+                    </svg>
+                    Download Provider Invoice
+                  </a>
+                </div>
+              );
+            }
+          } catch {}
+          return null;
+        })()}
         {/* Event Details */}
         <section id="event-details" className="scroll-mt-20" aria-labelledby="event-details-h">
           <h2 id="event-details-h" className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">

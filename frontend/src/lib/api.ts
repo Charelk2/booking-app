@@ -652,6 +652,13 @@ export const updateMyServiceProviderPortfolioImageOrder = (urls: string[]) =>
     portfolio_image_urls: urls,
   });
 
+// Client billing snapshots for invoices
+export const setClientBillingByBooking = (bookingId: number, payload: Record<string, any>) =>
+  api.post(`${API_V1}/invoices/booking/${bookingId}/client-billing`, payload);
+
+export const setClientBillingByBookingRequest = (bookingRequestId: number, payload: Record<string, any>) =>
+  api.post(`${API_V1}/invoices/booking-request/${bookingRequestId}/client-billing`, payload);
+
 // Presign direct R2 avatar upload for current user (Option A)
 export const presignMyAvatar = (args: { filename?: string; content_type?: string }) =>
   api.post<{

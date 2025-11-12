@@ -1,6 +1,7 @@
 import os
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
+from sqlalchemy import Table, MetaData, Column, String as SAString, Integer as SAInteger
 
 
 def add_column_if_missing(engine: Engine, table: str, column: str, ddl: str) -> None:
@@ -1489,6 +1490,48 @@ def ensure_invoice_agent_columns(engine: Engine) -> None:
     add_column_if_missing(engine, "invoices", "supersedes_id", "supersedes_id INTEGER")
     add_column_if_missing(engine, "invoices", "hash_snapshot", "hash_snapshot VARCHAR(64)")
     add_column_if_missing(engine, "invoices", "vat_breakdown_snapshot", "vat_breakdown_snapshot JSON")
+
+def ensure_invoice_sequences_table(engine: Engine) -> None:
+    """Ensure the invoice_sequences table exists for per-series numbering.
+
+    Columns:
+      - series_key VARCHAR PRIMARY KEY
+      - current_seq INTEGER NOT NULL DEFAULT 0
+    """
+    inspector = inspect(engine)
+    if "invoice_sequences" in inspector.get_table_names():
+        return
+    metadata = MetaData()
+    table = Table(
+        "invoice_sequences",
+        metadata,
+        Column("series_key", SAString, primary_key=True),
+        Column("current_seq", SAInteger, nullable=False, default=0),
+    )
+    metadata.create_all(engine)
+
+def ensure_invoice_number_unique_index(engine: Engine) -> None:
+    """Ensure a UNIQUE index on invoices.invoice_number exists (best-effort).
+
+    - On Postgres/SQLite: CREATE UNIQUE INDEX IF NOT EXISTS ...
+    - Other dialects: no-op.
+    """
+    try:
+        if engine.dialect.name not in {"postgresql", "sqlite"}:
+            return
+        with engine.connect() as conn:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS invoices_number_uidx ON invoices (invoice_number)"))
+            conn.commit()
+    except Exception:
+        # Non-fatal; uniqueness still enforced at allocator level by low contention
+        pass
+
+def ensure_booking_simple_agent_columns(engine: Engine) -> None:
+    """Ensure agent-mode columns exist on bookings_simple."""
+    add_column_if_missing(engine, "bookings_simple", "provider_profile_snapshot", "provider_profile_snapshot JSON")
+    add_column_if_missing(engine, "bookings_simple", "client_billing_snapshot", "client_billing_snapshot JSON")
+    add_column_if_missing(engine, "bookings_simple", "payment_classification", "payment_classification VARCHAR")
+    add_column_if_missing(engine, "bookings_simple", "supply_date", "supply_date DATETIME")
 
 
 def ensure_rider_tables(engine: Engine) -> None:

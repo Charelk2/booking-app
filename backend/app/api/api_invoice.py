@@ -5,6 +5,8 @@ import os
 import logging
 
 from .. import models, schemas, crud
+from ..core.config import settings
+from ..crud import crud_invoice as inv
 from ..database import get_db
 from .dependencies import get_current_user
 from ..utils import error_response
@@ -226,3 +228,132 @@ def get_invoice_by_quote(
     except Exception:
         pass
     return schemas.InvoiceRead.model_validate(inv)
+
+
+# ─── Creation Endpoints (basic) ───────────────────────────────────────────────
+
+@router.post("/provider/{booking_id}")
+def create_provider_invoice(booking_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if not settings.ENABLE_SPLIT_INVOICING:
+        raise error_response("Feature disabled", {}, status.HTTP_403_FORBIDDEN)
+    b = db.query(models.BookingSimple).filter(models.BookingSimple.id == int(booking_id)).first()
+    if not b:
+        raise error_response("Booking not found", {"booking_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    try:
+        is_admin = db.query(models.AdminUser).filter(models.AdminUser.user_id == current_user.id).first() is not None
+    except Exception:
+        is_admin = False
+    if not (is_admin or current_user.id == b.artist_id):
+        raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
+    # Vendor detection via provider profile (best-effort)
+    prof = db.query(models.ServiceProviderProfile).filter(models.ServiceProviderProfile.user_id == int(b.artist_id)).first()
+    vendor = bool(getattr(prof, 'vat_registered', False))
+    row = inv.create_provider_invoice(db, b, vendor=vendor)
+    return {"id": int(row.id), "invoice_number": row.invoice_number, "invoice_type": row.invoice_type}
+
+
+@router.post("/commission/{booking_id}")
+def create_commission_invoice(booking_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if not settings.ENABLE_SPLIT_INVOICING:
+        raise error_response("Feature disabled", {}, status.HTTP_403_FORBIDDEN)
+    b = db.query(models.BookingSimple).filter(models.BookingSimple.id == int(booking_id)).first()
+    if not b:
+        raise error_response("Booking not found", {"booking_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    # Admin-only
+    try:
+        is_admin = db.query(models.AdminUser).filter(models.AdminUser.user_id == current_user.id).first() is not None
+    except Exception:
+        is_admin = False
+    if not is_admin:
+        raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
+    row = inv.create_commission_invoice(db, b)
+    return {"id": int(row.id), "invoice_number": row.invoice_number, "invoice_type": row.invoice_type}
+
+
+@router.post("/client-fee/{booking_id}")
+def create_client_fee_invoice(booking_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if not settings.ENABLE_SPLIT_INVOICING:
+        raise error_response("Feature disabled", {}, status.HTTP_403_FORBIDDEN)
+    b = db.query(models.BookingSimple).filter(models.BookingSimple.id == int(booking_id)).first()
+    if not b:
+        raise error_response("Booking not found", {"booking_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    # Admin-only
+    try:
+        is_admin = db.query(models.AdminUser).filter(models.AdminUser.user_id == current_user.id).first() is not None
+    except Exception:
+        is_admin = False
+    if not is_admin:
+        raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
+    row = inv.create_client_fee_invoice(db, b)
+    return {"id": int(row.id), "invoice_number": row.invoice_number, "invoice_type": row.invoice_type}
+
+
+@router.post("/booking/{booking_id}/client-billing")
+def set_client_billing_snapshot(booking_id: int, payload: dict, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Set or update client billing snapshot for a booking's BookingSimple.
+
+    Payload may include company_name, vat_number, and address fields.
+    """
+    if not settings.ENABLE_SPLIT_INVOICING:
+        raise error_response("Feature disabled", {}, status.HTTP_403_FORBIDDEN)
+    b = db.query(models.BookingSimple).filter(models.BookingSimple.id == int(booking_id)).first()
+    if not b:
+        raise error_response("Booking not found", {"booking_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    try:
+        is_admin = db.query(models.AdminUser).filter(models.AdminUser.user_id == current_user.id).first() is not None
+    except Exception:
+        is_admin = False
+    if not (is_admin or current_user.id == b.client_id):
+        raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
+    try:
+        snap = dict(payload or {})
+        b.client_billing_snapshot = snap
+        db.add(b)
+        db.commit()
+        db.refresh(b)
+        return {"status": "ok"}
+    except Exception:
+        db.rollback()
+        raise error_response("Update failed", {"client_billing_snapshot": "invalid"}, status.HTTP_400_BAD_REQUEST)
+
+
+@router.post("/booking-request/{booking_request_id}/client-billing")
+def set_client_billing_snapshot_by_request(booking_request_id: int, payload: dict, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Set/update client billing snapshot for the BookingSimple associated to a booking request.
+
+    Resolves QuoteV2 via booking_request_id then finds/creates the BookingSimple shell.
+    """
+    qv2 = (
+        db.query(models.QuoteV2)
+        .filter(models.QuoteV2.booking_request_id == int(booking_request_id))
+        .order_by(models.QuoteV2.id.desc())
+        .first()
+    )
+    if not qv2:
+        raise error_response("Quote not found", {"booking_request_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    try:
+        is_admin = db.query(models.AdminUser).filter(models.AdminUser.user_id == current_user.id).first() is not None
+    except Exception:
+        is_admin = False
+    bs = db.query(models.BookingSimple).filter(models.BookingSimple.quote_id == qv2.id).first()
+    if not bs:
+        # Create a lightweight shell if missing (best-effort)
+        bs = models.BookingSimple(
+            quote_id=qv2.id,
+            artist_id=qv2.artist_id,
+            client_id=qv2.client_id,
+            confirmed=False,
+            payment_status="pending",
+        )
+    try:
+        if not (is_admin or current_user.id == qv2.client_id):
+            raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
+        snap = dict(payload or {})
+        bs.client_billing_snapshot = snap
+        db.add(bs)
+        db.commit()
+        db.refresh(bs)
+        return {"status": "ok"}
+    except Exception:
+        db.rollback()
+        raise error_response("Update failed", {"client_billing_snapshot": "invalid"}, status.HTTP_400_BAD_REQUEST)
