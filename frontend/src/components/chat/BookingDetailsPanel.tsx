@@ -17,6 +17,7 @@ import {
   getQuoteV2,
 } from '@/lib/api';
 import { AddServiceCategorySelector } from '@/components/dashboard';
+import { getBookingDetails } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
 import EventPrepCard from '@/components/booking/EventPrepCard';
@@ -191,6 +192,47 @@ export default function BookingDetailsPanel({
 
   const derivedProviderName = derivedProviderIdentity.name;
   const derivedProviderAvatar = derivedProviderIdentity.avatar;
+
+  // Hydrate a missing Booking object after payment/confirmation so the summary card
+  // can render invoice links via /invoices/{invoice_id} or /invoices/by-booking/{id}.
+  const [hydratedBooking, setHydratedBooking] = React.useState<Booking | null>(null);
+  React.useEffect(() => {
+    const alreadyHave = Boolean(confirmedBookingDetails && confirmedBookingDetails.id);
+    const paid = String(paymentStatus || '').toLowerCase() === 'paid';
+    const confirmed = Boolean(bookingConfirmed);
+    const threadId = Number(bookingRequest?.id || 0);
+    if (alreadyHave || !threadId) return;
+    if (!(paid || confirmed)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        // 1) Try cached mapping first
+        let bid = 0;
+        try {
+          const cached = sessionStorage.getItem(`bookingId:br:${threadId}`);
+          bid = cached ? Number(cached) : 0;
+        } catch {}
+        // 2) Resolve via API if needed
+        if (!Number.isFinite(bid) || bid <= 0) {
+          try {
+            const res = await getBookingIdForRequest(threadId);
+            bid = Number((res as any)?.data?.booking_id || 0);
+          } catch {}
+        }
+        if (!Number.isFinite(bid) || bid <= 0) return;
+        // 3) Fetch the booking details
+        const r = await getBookingDetails(bid);
+        if (!cancelled) {
+          setHydratedBooking(r.data as Booking);
+          try { sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid)); } catch {}
+        }
+      } catch {
+        // best-effort only
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmedBookingDetails, bookingConfirmed, paymentStatus, bookingRequest?.id]);
 
   React.useEffect(() => {
     if (!viewerIsProvider) return;
@@ -744,7 +786,7 @@ export default function BookingDetailsPanel({
                 ? String(confirmedBookingDetails.payment_id)
                 : null),
             }}
-            bookingDetails={confirmedBookingDetails}
+            bookingDetails={confirmedBookingDetails || hydratedBooking}
             quotes={quotes}
             allowInstantBooking={false}
             openPaymentModal={openPaymentModal}
