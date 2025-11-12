@@ -11,6 +11,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 from .. import models
+from ..core.config import settings
 from sqlalchemy import text
 
 
@@ -212,7 +213,8 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
     line_rows.append([Paragraph("Provider Subtotal (EX VAT)", styles["NormalSmall"]), Paragraph(_zar(gross_total), styles["NormalSmall"])])
     if discount_ex and discount_ex > 0:
         line_rows.append([Paragraph("Discount (−)", styles["NormalSmall"]), Paragraph("- " + _zar(discount_ex), styles["NormalSmall"])])
-    if supplier_vat_rate and supplier_vat_rate > 0:
+    # Renderer versioning: v2 shows supplier VAT when available; v1 suppresses it
+    if settings.RENDERER_VERSION.lower() == 'v2' and supplier_vat_rate and supplier_vat_rate > 0:
         line_rows.append([Paragraph(f"VAT on Provider Supply ({int(round(supplier_vat_rate*100))}%)", styles["NormalSmall"]), Paragraph("+ " + _zar(supplier_vat_amount), styles["NormalSmall"])])
     line_rows.append([Paragraph("Platform Commission (EX)", styles["NormalSmall"]), Paragraph("- " + _zar(platform_fee), styles["NormalSmall"])])
     line_rows.append([Paragraph("VAT on Commission (15%)", styles["NormalSmall"]), Paragraph("- " + _zar(vat_on_fee), styles["NormalSmall"])])
@@ -235,7 +237,8 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
 
     # Computation (per stages): make the 50/50 split clear
     try:
-        net_to_provider = float((gross_total or 0)) + float(supplier_vat_amount or 0) - float(platform_fee or 0) - float(vat_on_fee or 0)
+        v2 = settings.RENDERER_VERSION.lower() == 'v2'
+        net_to_provider = float((gross_total or 0)) + (float(supplier_vat_amount or 0) if v2 else 0.0) - float(platform_fee or 0) - float(vat_on_fee or 0)
     except Exception:
         net_to_provider = 0.0
     comp_title = Paragraph("Summary", styles["Strong"]) 
@@ -262,7 +265,10 @@ def generate_pdf(db: Session, payout_id: int) -> bytes:
     story.append(Spacer(1, 10))
 
     
-    story.append(Paragraph("This is a remittance advice from Booka. It is not a client VAT invoice.", styles["Muted"]))
+    footer_note = "This is a remittance advice from Booka. It is not a client VAT invoice."
+    if settings.RENDERER_VERSION.lower() != 'v2':
+        footer_note += " (legacy calculation)"
+    story.append(Paragraph(footer_note, styles["Muted"]))
 
     doc.build(story)
     buffer.seek(0)

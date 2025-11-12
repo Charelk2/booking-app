@@ -3,7 +3,7 @@
 Guards heavy Google imports so OpenAPI generation can run without optional deps.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 import logging
 
@@ -283,12 +283,22 @@ def fetch_events(user_id: int, start: datetime, end: datetime, db: Session) -> L
             db.add(account)
             db.commit()
         service = build("calendar", "v3", credentials=creds)
+        def _rfc3339_z(dt: datetime) -> str:
+            try:
+                if dt.tzinfo is None or dt.utcoffset() is None:
+                    # Treat as UTC if naive
+                    return dt.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+                return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+            except Exception:
+                # Fallback to naive with Z
+                return dt.isoformat() + "Z"
+
         events = (
             service.events()
             .list(
                 calendarId="primary",
-                timeMin=start.isoformat() + "Z",
-                timeMax=end.isoformat() + "Z",
+                timeMin=_rfc3339_z(start),
+                timeMax=_rfc3339_z(end),
                 singleEvents=True,
                 orderBy="startTime",
             )

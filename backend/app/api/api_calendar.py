@@ -37,6 +37,10 @@ def google_calendar_status(
 
 
 def _effective_redirect_uri(request: Request) -> str:
+    # Allow explicit override when running behind proxies/subdomains where
+    # request.url_for may not reflect the authorized Google redirect exactly.
+    if settings.GOOGLE_OAUTH_REDIRECT_URI:
+        return settings.GOOGLE_OAUTH_REDIRECT_URI
     candidate = str(request.url_for("google_calendar_callback"))
     parsed = urlparse(candidate)
     host = (parsed.hostname or "").lower()
