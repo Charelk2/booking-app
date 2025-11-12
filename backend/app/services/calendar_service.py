@@ -10,6 +10,7 @@ import logging
 from fastapi import HTTPException
 import os
 from typing import TYPE_CHECKING, Any
+import json
 import base64
 import hashlib
 import hmac

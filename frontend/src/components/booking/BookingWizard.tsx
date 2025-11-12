@@ -378,16 +378,18 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           serviceId ? fetch(apiUrl(`/api/v1/services/${serviceId}`), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null),
         ]);
         setUnavailable(availabilityRes.data.unavailable_dates);
-        // Derive location and VAT from service details when available
+        // Derive location, VAT, and provider name from the service's nested artist profile
         try {
-          const loc = (svcRes?.artist?.artist_profile?.location || svcRes?.details?.base_location || '').toString().trim();
+          const artistProf: any = svcRes?.artist || null;
+          const loc = (artistProf?.location || svcRes?.details?.base_location || '').toString().trim();
           setArtistLocation(loc || null);
-        } catch { /* ignore */ }
-        try { setArtistVatRegistered(!!(svcRes?.artist?.artist_profile?.vat_registered)); } catch {}
-        try {
-          const name = (svcRes?.artist?.artist_profile?.legal_name || svcRes?.artist?.artist_profile?.business_name || svcRes?.title || '').toString().trim();
+          const vatVal = typeof artistProf?.vat_registered === 'boolean' ? artistProf.vat_registered : null;
+          setArtistVatRegistered(vatVal);
+          const name = (artistProf?.legal_name || artistProf?.business_name || svcRes?.title || '').toString().trim();
           setProviderName(name || null);
-        } catch { setProviderName(null); }
+        } catch {
+          // Leave prior values; do not force false on unknown
+        }
       } catch (err) {
         console.error('Failed to fetch artist data:', err);
       }
