@@ -204,16 +204,32 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
         except Exception:
             discount_ex = 0.0
 
-        # Rates
+        # Rates (commission/env) and canonical client-fee snapshot
         COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
-        CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
         VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+        # Prefer centralized Booka fee math from compute_quote_totals_snapshot
+        snap_cf = None
+        try:
+            if qv2 is not None:
+                snap_cf = compute_quote_totals_snapshot(qv2)
+        except Exception:
+            snap_cf = None
 
         # Commissionable base (EX): services + travel + sound − discount
         commissionable_base = round(max(0.0, (services_total + pass_through) - discount_ex), 2)
-        # Client fee applied on EX base (not part of provider payout)
-        client_fee = round(commissionable_base * CLIENT_FEE_RATE, 2)
-        client_fee_vat = round(client_fee * VAT_RATE, 2)
+        # Client fee (Booka) — source from canonical snapshot when available
+        if snap_cf is not None:
+            try:
+                client_fee = float(snap_cf.platform_fee_ex_vat)
+                client_fee_vat = float(snap_cf.platform_fee_vat)
+            except Exception:
+                client_fee = 0.0
+                client_fee_vat = 0.0
+        else:
+            # Fallback (legacy): derive from env rates if snapshot missing
+            CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
+            client_fee = round(commissionable_base * CLIENT_FEE_RATE, 2)
+            client_fee_vat = round(client_fee * VAT_RATE, 2)
         # Commission withheld on EX base (provider-funded)
         commission = round(commissionable_base * COMMISSION_RATE, 2)
         vat_on_commission = round(commission * VAT_RATE, 2)
@@ -253,7 +269,19 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
             'commissionable_base': round(commissionable_base, 2),
             'discount_ex': round(discount_ex, 2),
             'pass_through': round(pass_through, 2),
-            'rates': {'commission_rate': COMMISSION_RATE, 'client_fee_rate': CLIENT_FEE_RATE, 'vat_rate': VAT_RATE},
+            'rates': {
+                'commission_rate': COMMISSION_RATE,
+                'client_fee_rate': (
+                    snap_cf.rates.get('client_fee_rate')
+                    if (snap_cf and getattr(snap_cf, 'rates', None) and (snap_cf.rates.get('client_fee_rate') is not None))
+                    else float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
+                ),
+                'vat_rate': (
+                    snap_cf.rates.get('vat_rate')
+                    if (snap_cf and getattr(snap_cf, 'rates', None) and (snap_cf.rates.get('vat_rate') is not None))
+                    else VAT_RATE
+                ),
+            },
             'commission_ex': commission,
             'vat_on_commission': vat_on_commission,
             'client_fee': client_fee,

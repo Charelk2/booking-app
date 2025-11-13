@@ -1448,9 +1448,11 @@ export function ReviewStep(props: {
     let cancelled = false;
     (async () => {
       try {
-        // Use provider EX subtotal; if provider is VAT-registered, include provider VAT in total for a closer estimate
-        const subtotal = Number(subtotalBeforeTaxes);
-        let total = Number(subtotalBeforeTaxes);
+        // Use the best available subtotal snapshot for preview.
+        // Prefer calculatedPrice when provided (includes async travel/discounts),
+        // otherwise fall back to the basic subtotal we have locally.
+        const subtotal = Number(subtotalForPreview);
+        let total = Number(subtotalForPreview);
         const vatRate = (props.providerVatRegistered && typeof props.providerVatRate === 'number' && props.providerVatRate > 0)
           ? (props.providerVatRate! > 1 ? (props.providerVatRate! / 100) : props.providerVatRate!)
           : (props.providerVatRegistered ? 0.15 : 0);
@@ -1477,7 +1479,7 @@ export function ReviewStep(props: {
       }
     })();
     return () => { cancelled = true; };
-  }, [subtotalBeforeTaxes, props.providerVatRegistered, props.providerVatRate]);
+  }, [subtotalForPreview, props.providerVatRegistered, props.providerVatRate]);
   const isProcessing = submitting || isLoadingReviewData;
 
   // Tiny sound-context summary
@@ -1603,7 +1605,7 @@ export function ReviewStep(props: {
         {props.providerVatRegistered && (
           <div className="flex justify-between items-center">
             <span>Provider VAT</span>
-            <span>{formatCurrency(subtotalBeforeTaxes * ((typeof props.providerVatRate === 'number' && props.providerVatRate > 0) ? (props.providerVatRate > 1 ? (props.providerVatRate / 100) : props.providerVatRate) : 0.15))}</span>
+            <span>{formatCurrency(subtotalForPreview * ((typeof props.providerVatRate === 'number' && props.providerVatRate > 0) ? (props.providerVatRate > 1 ? (props.providerVatRate / 100) : props.providerVatRate) : 0.15))}</span>
           </div>
         )}
         <div className="flex justify-between items-center">
