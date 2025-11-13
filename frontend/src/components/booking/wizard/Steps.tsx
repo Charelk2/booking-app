@@ -1466,11 +1466,15 @@ export function ReviewStep(props: {
         }
         const pv = await getQuoteTotalsPreview({ subtotal, total });
         if (cancelled) return;
-        const feeEx = typeof pv?.platform_fee_ex_vat === 'number' ? pv.platform_fee_ex_vat : undefined;
-        const feeVat = typeof pv?.platform_fee_vat === 'number' ? pv.platform_fee_vat : undefined;
-        const feeIncl = typeof feeEx === 'number' && typeof feeVat === 'number' ? feeEx + feeVat : null;
+        const toNum = (v: unknown): number | undefined => {
+          const n = Number(v as any);
+          return Number.isFinite(n) ? n : undefined;
+        };
+        const feeEx = toNum((pv as any)?.platform_fee_ex_vat);
+        const feeVat = toNum((pv as any)?.platform_fee_vat);
+        const feeIncl = (typeof feeEx === 'number' && typeof feeVat === 'number') ? (feeEx + feeVat) : null;
         setPlatformFeeIncl(Number.isFinite(feeIncl as number) ? (feeIncl as number) : null);
-        const clientTotal = typeof pv?.client_total_incl_vat === 'number' ? pv.client_total_incl_vat : null;
+        const clientTotal = toNum((pv as any)?.client_total_incl_vat) ?? null;
         setEstimatedTotal(Number.isFinite(clientTotal as number) ? (clientTotal as number) : null);
       } catch {
         if (cancelled) return;
