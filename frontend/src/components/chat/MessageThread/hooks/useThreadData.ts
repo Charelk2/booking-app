@@ -259,13 +259,13 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
   }, []);
 
   const buildRequestParams = React.useCallback(
-    (base: MessageListParams): MessageListParams & { include_quotes: boolean; known_quote_ids?: number[] } => {
+    (base: MessageListParams): MessageListParams & { include_quotes: boolean; known_quote_ids?: string } => {
       const params = { ...base, include_quotes: true } as MessageListParams & {
         include_quotes: boolean;
-        known_quote_ids?: number[];
+        known_quote_ids?: string;
       };
       const known = Array.from(knownQuoteIdsRef.current.values()).filter((id) => Number.isFinite(id) && id > 0);
-      if (known.length) params.known_quote_ids = known;
+      if (known.length) params.known_quote_ids = known.join(',');
       return params;
     },
     [],
