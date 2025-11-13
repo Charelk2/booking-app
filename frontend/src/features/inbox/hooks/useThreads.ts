@@ -105,10 +105,10 @@ export function useThreads(user: User | null | undefined) {
       client_id: 0 as any,
       service_provider_id: 0 as any,
       status: (it.state as any) || 'pending_quote',
-      created_at: it.last_ts,
-      updated_at: it.last_ts,
-      last_message_content: it.last_message_preview,
-      last_message_timestamp: it.last_ts,
+      created_at: it.last_ts || it.last_message_at,
+      updated_at: it.last_ts || it.last_message_at,
+      last_message_content: it.last_message_preview ?? it.last_message_snippet,
+      last_message_timestamp: it.last_ts || it.last_message_at,
       is_unread_by_current_user: Number((it.unread_count || 0)) > 0 as any,
       unread_count: Number(it.unread_count || 0) as any,
       message: null,
@@ -124,6 +124,9 @@ export function useThreads(user: User | null | undefined) {
       counterparty_label: (it as any).counterparty?.name,
       counterparty_avatar_url: (it as any).counterparty?.avatar_url ?? null,
       ...(it?.state ? { thread_state: it.state } : {}),
+      // Surface preview_key/args for richer client tags without extra heuristics
+      ...(it?.preview_key ? { last_message_preview_key: it.preview_key } : {}),
+      ...(it?.preview_args ? { last_message_preview_args: it.preview_args } : {}),
     } as any));
 
     cacheSetSummaries(mapped as any);

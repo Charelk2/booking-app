@@ -162,9 +162,15 @@ function detectTags(
   const showQuote = (() => {
     const state = String(((thread as any).thread_state ?? "") || "").toLowerCase();
     if (state === "quoted") return true;
-    if (thread.accepted_quote_id) return true;
-    const text = (thread.last_message_content || "").toString();
-    return /(sent a quote|quote sent|provided a quote|new quote)/i.test(text);
+    if ((thread as any).accepted_quote_id) return true;
+    // Prefer explicit preview key provided by the server
+    const pk = String(((thread as any).last_message_preview_key || (thread as any).preview_key || '') || '').toLowerCase();
+    if (pk === 'quote') return true;
+    // Prefer preview text which already normalizes system/user messages server-side
+    const text = ((thread as any).last_message_content || "").toString();
+    // Match common phrasing and the server's stable preview label for quote messages
+    // e.g., "Artist sent a quote", "Quote sent", "New quote", and "Quote from <name>"
+    return /(sent a quote|quote sent|provided a quote|new quote|^quote\b|^quote from\b)/i.test(text);
   })();
 
   const showInquiry = (() => {
