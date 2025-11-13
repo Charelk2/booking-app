@@ -125,6 +125,7 @@ from .db_utils import (
     ensure_service_provider_onboarding_columns,
     ensure_service_provider_vat_columns,
     ensure_invoice_agent_columns,
+    ensure_invoice_booking_type_unique_index,
     ensure_invoice_sequences_table,
     ensure_booking_simple_agent_columns,
     ensure_invoice_number_unique_index,
