@@ -1134,6 +1134,17 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const renderGroupAtIndex = useStableCallback((index: number) => {
     const group = (groups as any)[index];
     if (!group) return null;
+    // Thread-wide quote presence hint: scan the current messages list once
+    let threadHasQuote = false;
+    try {
+      const list = messagesRef.current as any[] | undefined;
+      if (Array.isArray(list)) {
+        for (let i = 0; i < list.length; i += 1) {
+          const qid = Number((list[i] as any)?.quote_id || 0);
+          if (Number.isFinite(qid) && qid > 0) { threadHasQuote = true; break; }
+        }
+      }
+    } catch {}
     return (
       <GroupRenderer
         group={group as any}
@@ -1154,6 +1165,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         isPaid={isPaid}
         galleryItems={galleryItems}
         resolveReplyPreview={resolveReplyPreview}
+        threadHasQuote={threadHasQuote}
         onJumpToMessage={jumpToMessage}
         onRetryMessage={(id) => {
           const mid = Number(id);

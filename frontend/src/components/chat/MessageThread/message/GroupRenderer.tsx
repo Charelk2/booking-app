@@ -51,6 +51,8 @@ export type GroupRendererProps = {
   resolveReplyPreview?: (id: number) => string | null | undefined;
   /** Optional global paid state for the thread */
   isPaid?: boolean;
+  /** Thread-wide hint: there is at least one quote message in this thread */
+  threadHasQuote?: boolean;
 };
 
 export default function GroupRenderer({
@@ -81,6 +83,7 @@ export default function GroupRenderer({
   onJumpToMessage,
   resolveReplyPreview,
   isPaid = false,
+  threadHasQuote = false,
 }: GroupRendererProps) {
   if (!group || !Array.isArray(group.messages) || group.messages.length === 0) return null;
 
@@ -113,11 +116,20 @@ export default function GroupRenderer({
       if (!values.length) return false;
       const brId = Number(bookingRequestId || 0);
       if (!Number.isFinite(brId) || brId <= 0) return false;
-      return values.some((q) => Number((q as any)?.booking_request_id) === brId);
+      const viaCache = values.some((q) => Number((q as any)?.booking_request_id) === brId);
+      if (viaCache) return true;
+      // Fallback: if caller detected a quote message anywhere in the thread, honor it
+      if (threadHasQuote) return true;
+      // Last resort: check this group for a quote-id (helps hide CTA quickly after send)
+      for (const mm of (group?.messages || []) as any[]) {
+        const qid = Number(mm?.quote_id || 0);
+        if (Number.isFinite(qid) && qid > 0) return true;
+      }
+      return false;
     } catch {
       return false;
     }
-  }, [quotesById, bookingRequestId]);
+  }, [quotesById, bookingRequestId, threadHasQuote, group]);
 
   // Pre-compute any quote IDs that are referenced but missing in cache
   const missingQuoteIds = React.useMemo(() => {

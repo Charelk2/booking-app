@@ -83,9 +83,33 @@ export function resolveQuoteTotalsPreview(source?: Partial<QuoteV2> | null): Quo
     typeof resolved.platformFeeVat === 'number' &&
     typeof resolved.clientTotalInclVat === 'number';
   if (!hasAllPreview) {
-    const subtotal = sanitizeMoney((source as any)?.subtotal ?? legacy?.price);
-    const total = sanitizeMoney((source as any)?.total ?? legacy?.price ?? legacy?.amount);
-    const fallback = computeQuoteTotalsFromAmounts({ subtotal, total });
+    // Derive sensible subtotal/total when missing using services + fees
+    const services = Array.isArray((source as any)?.services)
+      ? ((source as any)?.services as Array<{ price?: number | string }>)
+      : [];
+    const baseFromServices = services.reduce<number>((sum, s) => {
+      const p = toNumber(s?.price);
+      return sum + (typeof p === 'number' ? p : 0);
+    }, 0);
+    const soundFee = toNumber((source as any)?.sound_fee) ?? 0;
+    const travelFee = toNumber((source as any)?.travel_fee) ?? 0;
+    const discount = toNumber((source as any)?.discount) ?? 0;
+
+    const derivedSubtotal = (() => {
+      const s = toNumber((source as any)?.subtotal);
+      if (typeof s === 'number' && s > 0) return s;
+      const calc = baseFromServices + soundFee + travelFee - discount;
+      return calc > 0 ? calc : undefined;
+    })();
+
+    const derivedTotal = (() => {
+      const t = toNumber((source as any)?.total ?? legacy?.amount ?? legacy?.price);
+      if (typeof t === 'number' && t > 0) return t;
+      // If total missing, fall back to subtotal; backend may not split VAT for legacy rows
+      return derivedSubtotal;
+    })();
+
+    const fallback = computeQuoteTotalsFromAmounts({ subtotal: derivedSubtotal, total: derivedTotal });
     if (fallback) {
       resolved.providerSubtotal ??= fallback.providerSubtotal;
       resolved.platformFeeExVat ??= fallback.platformFeeExVat;
