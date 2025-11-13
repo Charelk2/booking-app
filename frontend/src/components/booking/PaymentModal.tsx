@@ -176,6 +176,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const data = res?.data || {};
       const reference: string = String(data?.reference || data?.payment_id || '').trim();
       const authorizationUrl: string | undefined = data?.authorization_url || data?.authorizationUrl;
+      const serverAmount: number | undefined = Number.isFinite(Number(data?.amount)) ? Number(data.amount) : undefined;
       const accessCode: string | undefined = data?.access_code || data?.accessCode; // not used (inline avoids ref/access_code)
 
       if (!reference) throw new Error('Payment reference missing');
@@ -192,7 +193,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           setStatus('inline');
           await openPaystackInline({
             email: customerEmail!, // safe due to hasEmail
-            amountMajor: Number(amount),
+            // Always use the server-computed amount so the charged total includes
+            // Booka's client fee + VAT, matching the backend verify/receipt totals.
+            amountMajor: Number(serverAmount ?? amount),
             currency,
             // Bind popup to the server-initialized transaction reference
             reference: reference,
