@@ -2,7 +2,7 @@
 
 import axios, { AxiosProgressEvent, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
 import { ensureFreshAccess } from '@/lib/refreshCoordinator';
-import { setTransportErrorMeta, runWithTransport } from '@/lib/transportState';
+import { setTransportErrorMeta, runWithTransport, noteTransportOnline, noteTransportOffline } from '@/lib/transportState';
 import logger from './logger';
 import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
@@ -219,6 +219,7 @@ type RetryableRequest = InternalAxiosRequestConfig & {
 api.interceptors.response.use(
   (response) => {
     rememberMachineFromResponse(response?.headers as any);
+    try { noteTransportOnline('success'); } catch {}
     return response;
   },
   (error) => {
@@ -403,6 +404,10 @@ api.interceptors.response.use(
         status,
         code: typeof code === 'string' ? code : null,
       });
+
+      if (offline || (isNetworkError && !status)) {
+        try { noteTransportOffline('network'); } catch {}
+      }
 
       return Promise.reject(error);
     }

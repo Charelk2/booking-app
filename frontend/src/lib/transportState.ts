@@ -71,7 +71,16 @@ const getConnection = () => {
 
 const connectionRef = getConnection();
 
-const initialOnline = hasWindow ? window.navigator.onLine !== false : true;
+const navigatorOnline = (): boolean => {
+  if (!hasWindow) return true;
+  try {
+    return window.navigator.onLine !== false;
+  } catch {
+    return true;
+  }
+};
+
+const initialOnline = navigatorOnline();
 const nowTs = () => Date.now();
 
 let offlineStartedAt: number | null = initialOnline ? null : nowTs();
@@ -130,6 +139,34 @@ const processQueue = () => {
     if (!task.timer) {
       scheduleTask(task);
     }
+  });
+};
+
+type OnlineReason = 'browser' | 'success' | 'probe';
+type OfflineReason = 'browser' | 'network';
+
+const markOnline = (reason: OnlineReason) => {
+  if (state.online) return;
+  const now = nowTs();
+  const duration = offlineStartedAt ? Math.max(now - offlineStartedAt, 0) : 0;
+  updateState({ online: true, lastOnlineAt: now });
+  offlineStartedAt = null;
+  trackEvent('inbox_offline_end', {
+    durationMs: duration,
+    pendingTasks: taskQueue.size,
+    reason,
+  });
+  processQueue();
+};
+
+const markOffline = (reason: OfflineReason) => {
+  if (!state.online) return;
+  const now = nowTs();
+  if (!offlineStartedAt) offlineStartedAt = now;
+  updateState({ online: false, lastOfflineAt: now });
+  trackEvent('inbox_offline_start', {
+    pendingTasks: taskQueue.size,
+    reason,
   });
 };
 
@@ -245,24 +282,13 @@ const enqueueTask = (
 };
 
 const handleOnline = () => {
-  const now = nowTs();
-  const duration = offlineStartedAt ? Math.max(now - offlineStartedAt, 0) : 0;
-  updateState({ online: true, lastOnlineAt: now });
-  offlineStartedAt = null;
-  trackEvent('inbox_offline_end', {
-    durationMs: duration,
-    pendingTasks: taskQueue.size,
-  });
-  processQueue();
+  markOnline('browser');
 };
 
 const handleOffline = () => {
-  const now = nowTs();
-  if (!offlineStartedAt) offlineStartedAt = now;
-  updateState({ online: false, lastOfflineAt: now });
-  trackEvent('inbox_offline_start', {
-    pendingTasks: taskQueue.size,
-  });
+  if (!navigatorOnline()) {
+    markOffline('browser');
+  }
 };
 
 const handleVisibility = () => {
@@ -426,4 +452,12 @@ export const setTransportErrorMeta = (error: unknown, meta: Partial<TransportErr
     existing || {},
     meta || {},
   );
+};
+
+export const noteTransportOnline = (reason: OnlineReason = 'success') => {
+  markOnline(reason);
+};
+
+export const noteTransportOffline = (reason: OfflineReason = 'network') => {
+  markOffline(reason);
 };
