@@ -17,7 +17,7 @@ from .. import crud
 from .dependencies import get_db, get_current_user
 from .api_ws import manager
 from ..schemas import message as message_schemas
-from ..services.quote_totals import quote_preview_fields
+from ..services.quote_totals import quote_preview_fields, compute_quote_totals_snapshot, quote_totals_preview_payload
 from ..utils.json import dumps_bytes as _json_dumps
 import asyncio
 
@@ -34,6 +34,49 @@ def _quote_payload_with_preview(quote: models.QuoteV2) -> dict:
     payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
     payload.update(quote_preview_fields(quote))
     return payload
+
+
+# Lightweight totals preview for client-side “Review” (no quote persisted).
+from pydantic import BaseModel
+from decimal import Decimal
+from ..schemas.quote_v2 import QuoteTotalsPreview as _QuoteTotalsPreview
+
+
+class TotalsPreviewIn(BaseModel):
+    subtotal: Decimal | float | None = None
+    total: Decimal | float | None = None
+    currency: str | None = None
+
+
+@router.post("/quotes/preview", response_model=_QuoteTotalsPreview)
+def preview_totals(payload: TotalsPreviewIn):
+    """Return platform fee preview and client total from provided amounts.
+
+    Inputs:
+      - subtotal: provider subtotal (EX provider VAT)
+      - total: provider total (INCL provider VAT)
+      - currency: optional currency label (defaults via settings)
+    """
+    src = {
+        "subtotal": payload.subtotal,
+        "total": payload.total,
+        "currency": payload.currency,
+    }
+    snap = compute_quote_totals_snapshot(src)
+    if not snap:
+        return _QuoteTotalsPreview(
+            provider_subtotal=None,
+            platform_fee_ex_vat=None,
+            platform_fee_vat=None,
+            client_total_incl_vat=None,
+        )
+    pv = quote_totals_preview_payload(snap)
+    return _QuoteTotalsPreview(
+        provider_subtotal=pv.get("provider_subtotal"),
+        platform_fee_ex_vat=pv.get("platform_fee_ex_vat"),
+        platform_fee_vat=pv.get("platform_fee_vat"),
+        client_total_incl_vat=pv.get("client_total_incl_vat"),
+    )
 
 
 @router.post(

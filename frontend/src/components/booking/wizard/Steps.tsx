@@ -27,6 +27,7 @@ import { getServiceProviderAvailability } from '@/lib/api';
 import SummarySidebar from '../SummarySidebar';
 import { trackEvent } from '@/lib/analytics';
 import { QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
+import { getQuoteTotalsPreview } from '@/lib/api';
 
 // Inline DateTimeStep to avoid per-file CSS imports; styles live in wizard.css
 const ReactDatePicker: any = dynamic(() => import('react-datepicker'), { ssr: false });
@@ -1437,9 +1438,38 @@ export function ReviewStep(props: {
   const subtotalForPreview = Number.isFinite(props.calculatedPrice ?? NaN)
     ? Number(props.calculatedPrice)
     : subtotalBeforeTaxes;
-  // Fee/VAT math intentionally not computed on the client.
-  const platformFeeIncl: number | null = null;
-  const estimatedTotal: number | null = null;
+  // Fetch backend-only fee/VAT preview for the current subtotal/total
+  const [platformFeeIncl, setPlatformFeeIncl] = React.useState<number | null>(null);
+  const [estimatedTotal, setEstimatedTotal] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Use provider EX subtotal for preview; total defaults to subtotal here (provider VAT handled in quote phase)
+        const subtotal = Number(subtotalBeforeTaxes);
+        const total = Number(subtotalBeforeTaxes);
+        if (!Number.isFinite(subtotal) || subtotal <= 0 || !Number.isFinite(total) || total <= 0) {
+          setPlatformFeeIncl(null);
+          setEstimatedTotal(null);
+          return;
+        }
+        const pv = await getQuoteTotalsPreview({ subtotal, total });
+        if (cancelled) return;
+        const feeEx = typeof pv?.platform_fee_ex_vat === 'number' ? pv.platform_fee_ex_vat : undefined;
+        const feeVat = typeof pv?.platform_fee_vat === 'number' ? pv.platform_fee_vat : undefined;
+        const feeIncl = typeof feeEx === 'number' && typeof feeVat === 'number' ? feeEx + feeVat : null;
+        setPlatformFeeIncl(Number.isFinite(feeIncl as number) ? (feeIncl as number) : null);
+        const clientTotal = typeof pv?.client_total_incl_vat === 'number' ? pv.client_total_incl_vat : null;
+        setEstimatedTotal(Number.isFinite(clientTotal as number) ? (clientTotal as number) : null);
+      } catch {
+        if (cancelled) return;
+        setPlatformFeeIncl(null);
+        setEstimatedTotal(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [subtotalBeforeTaxes]);
   const isProcessing = submitting || isLoadingReviewData;
 
   // Tiny sound-context summary

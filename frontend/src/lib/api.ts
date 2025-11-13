@@ -1050,6 +1050,19 @@ export const getMessagesBatch = (
     (s) => (s >= 200 && s < 300) || s === 304,
   );
 
+// Preview totals for wizard Review step (backend-only math)
+export const getQuoteTotalsPreview = async (
+  params: { subtotal?: number | null; total?: number | null; currency?: string | null },
+) => {
+  const url = `${API_V1}/quotes/preview`;
+  const payload: any = {};
+  if (typeof params.subtotal === 'number' && Number.isFinite(params.subtotal)) payload.subtotal = params.subtotal;
+  if (typeof params.total === 'number' && Number.isFinite(params.total)) payload.total = params.total;
+  if (typeof params.currency === 'string' && params.currency.trim()) payload.currency = params.currency.trim();
+  const res = await api.post<{ provider_subtotal?: number; platform_fee_ex_vat?: number; platform_fee_vat?: number; client_total_incl_vat?: number }>(url, payload);
+  return res.data;
+};
+
 export const postMessageToBookingRequest = (
   bookingRequestId: number,
   data: MessageCreate,
