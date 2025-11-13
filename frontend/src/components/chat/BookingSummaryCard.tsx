@@ -5,6 +5,7 @@ import SafeImage from '@/components/ui/SafeImage';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import { format, isValid } from 'date-fns';
 import { getFullImageUrl, formatCurrency, buildReceiptUrl } from '@/lib/utils';
+import { resolveQuoteTotalsPreview, QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 import { Booking, QuoteV2 } from '@/types';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -581,7 +582,10 @@ export default function BookingSummaryCard({
             onClick={() =>
               openPaymentModal({
                 bookingRequestId,
-                amount: Number((bestState.best as any).total || 0),
+                amount: (() => {
+                  const preview = resolveQuoteTotalsPreview(bestState.best as any);
+                  return typeof preview.clientTotalInclVat === 'number' ? preview.clientTotalInclVat : 0;
+                })(),
                 customerEmail: (user as any)?.email || undefined,
               })
             }
@@ -624,11 +628,11 @@ function CostBreakdown({
   const total = Number(quote.total || subtotal);
   const vat = Math.max(0, total - subtotal);
 
-  const fee = subtotal * 0.03;
-  const feeVat = fee * 0.15;
-  const feeIncl = fee + feeVat;
-  const clientTotal = Number((quote as any)?.client_total_preview ?? total + feeIncl);
-  const finalAmount = isClient ? clientTotal : total;
+  const previewTotals = resolveQuoteTotalsPreview(quote);
+  const platformFeeIncl = typeof previewTotals.platformFeeExVat === 'number' && typeof previewTotals.platformFeeVat === 'number'
+    ? previewTotals.platformFeeExVat + previewTotals.platformFeeVat
+    : undefined;
+  const clientTotal = typeof previewTotals.clientTotalInclVat === 'number' ? previewTotals.clientTotalInclVat : undefined;
 
   return (
     <div className="rounded-lg bg-white border border-gray-200 p-4 space-y-2 shadow-sm overflow-x-hidden">
@@ -669,14 +673,18 @@ function CostBreakdown({
       {isClient && (
         <div className="flex justify-between text-indigo-600">
           <span>Platform Service Fee (incl. VAT)</span>
-          <span>{formatCurrency(feeIncl)}</span>
+          <span>{platformFeeIncl !== undefined ? formatCurrency(platformFeeIncl) : QUOTE_TOTALS_PLACEHOLDER}</span>
         </div>
       )}
       <div className="flex justify-between items-center font-extrabold text-lg mt-3 pt-3 border-t border-gray-300">
         <span className="flex items-center gap-2">
           Final Total
         </span>
-        <span>{formatCurrency(finalAmount)}</span>
+        <span>
+          {isClient
+            ? (clientTotal !== undefined ? formatCurrency(clientTotal) : QUOTE_TOTALS_PLACEHOLDER)
+            : formatCurrency(total)}
+        </span>
       </div>
 
       {allowInstantBooking && (

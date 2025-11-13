@@ -22,6 +22,7 @@ import { counterpartyLabel } from '@/lib/names';
 import { useQuotes, prefetchQuotesByIds, toQuoteV2FromLegacy } from '@/hooks/useQuotes';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
+import { resolveQuoteTotalsPreview } from '@/lib/quoteTotals';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -811,21 +812,14 @@ export default function MessageThreadWrapper({
             onOpenQuote={() => setShowQuoteModal(true)}
             onPayNow={(quote: any) => {
               try {
-                // Prefer backend preview (Total To Pay); fallback to local 3% + VAT on fee
-                const ps = Number(quote?.provider_subtotal_preview ?? quote?.subtotal ?? 0) || 0;
-                const fee = Number.isFinite(Number(quote?.booka_fee_preview))
-                  ? Number(quote?.booka_fee_preview)
-                  : Math.round(ps * 0.03 * 100) / 100;
-                const feeVat = Number.isFinite(Number(quote?.booka_fee_vat_preview))
-                  ? Number(quote?.booka_fee_vat_preview)
-                  : Math.round(fee * 0.15 * 100) / 100;
-                const computed = Number.isFinite(Number(quote?.client_total_preview))
-                  ? Number(quote?.client_total_preview)
-                  : Math.round(((Number(quote?.total || 0)) + fee + feeVat) * 100) / 100;
-                const amount = Number.isFinite(computed) && computed > 0 ? computed : Number(quote?.total || 0) || 0;
+                // All fee/VAT math is computed on the backend. If previews are missing,
+                // we pass 0 so the modal can show a placeholder while the server resolves.
+                const previewTotals = resolveQuoteTotalsPreview(quote);
+                const amount = typeof previewTotals.clientTotalInclVat === 'number'
+                  ? previewTotals.clientTotalInclVat
+                  : 0;
                 const provider = bookingRequest?.artist_profile?.business_name || (bookingRequest as any)?.artist?.first_name || 'Service Provider';
                 const serviceName = bookingRequest?.service?.title || undefined;
-                // Always invoke payment; backend computes authoritative amount and will 422 if invalid
                 openPaymentModal({
                   bookingRequestId,
                   amount,

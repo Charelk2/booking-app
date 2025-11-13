@@ -1433,8 +1433,8 @@ export function ReviewStep(props: {
   const travelCost = Number(travelResult?.totalCost) || 0;
   const soundFee = Number(soundCost) || 0;
   const subtotalBeforeTaxes = baseFee + travelCost + soundFee;
-  const estimatedTaxesFees = subtotalBeforeTaxes * 0.15;
-  const estimatedTotal = subtotalBeforeTaxes + estimatedTaxesFees;
+  const estimatedTaxesFees: number | null = null;
+  const estimatedTotal: number | null = null;
   const isProcessing = submitting || isLoadingReviewData;
 
   // Tiny sound-context summary
@@ -1559,12 +1559,15 @@ export function ReviewStep(props: {
         </div>
         <div className="flex justify-between items-center">
           <span>Taxes & Fees (Est.)</span>
-          <span>{formatCurrency(estimatedTaxesFees)}</span>
+          <span>{estimatedTaxesFees !== null ? formatCurrency(estimatedTaxesFees) : '—'}</span>
         </div>
         <div className="flex justify-between items-center text-xl font-bold text-neutral-900 border-t pt-3 mt-3 border-black/20">
           <span>Estimated Total</span>
-          <span>{formatCurrency(estimatedTotal)}</span>
+          <span>{estimatedTotal !== null ? formatCurrency(estimatedTotal) : '—'}</span>
         </div>
+        <p className="mt-1 text-xs text-gray-500">
+          Final Booka fees, VAT, and taxes are computed on the backend when you submit.
+        </p>
       </div>
 
       <div className="mt-6">

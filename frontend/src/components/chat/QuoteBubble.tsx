@@ -12,6 +12,8 @@ import { StarIcon, CheckBadgeIcon, MapPinIcon, CalendarDaysIcon } from '@heroico
 import SafeImage from '@/components/ui/SafeImage';
 import { getServiceProviderReviews } from '@/lib/api';
 import type { Review } from '@/types';
+import type { QuoteTotalsResolved } from '@/lib/quoteTotals';
+import { QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 
 /* ───────── Types ───────── */
 
@@ -42,11 +44,7 @@ export interface QuotePeekProps {
   discount?: number;
   subtotal?: number;
   total: number;
-  // Server-computed preview fields to avoid UI drift
-  providerSubtotalPreview?: number;
-  bookaFeePreview?: number;
-  bookaFeeVatPreview?: number;
-  clientTotalPreview?: number;
+  totalsPreview?: QuoteTotalsResolved;
 
   // state/time
   status: QuoteStatus;
@@ -280,47 +278,33 @@ export default function QuotePeek(props: QuotePeekProps) {
     return stableLocation || locationLabel;
   }, [peekLocationName, addressOnlyLabel, stableLocation, locationLabel]);
 
-  // Taxes & “displayTotal”
-  const hasExplicitTaxes = useMemo(() => {
-    return (Array.isArray(taxes) && taxes.length > 0) || typeof vat === 'number' || typeof tax === 'number';
-  }, [taxes, vat, tax]);
+  const subtotalForVat = useMemo(() => {
+    if (subtotal != null && Number.isFinite(Number(subtotal))) {
+      return Number(subtotal);
+    }
+    return Number.isFinite(derivedSubtotal) ? derivedSubtotal : undefined;
+  }, [subtotal, derivedSubtotal]);
 
-  const fallbackVat = useMemo(() => {
-    if (hasExplicitTaxes) return 0;
-    const base = (showPrice ? Number(price) : 0)
-      + (showTravel ? Number(travelFee) : 0)
-      + (showSound ? Number(soundFee) : 0)
-      - (showDiscount ? Number(discount) : 0);
-    return Math.max(0, Math.round(base * 0.15 * 100) / 100);
-  }, [hasExplicitTaxes, showPrice, price, showTravel, travelFee, showSound, soundFee, showDiscount, discount]);
+  const vatFallback = useMemo(() => {
+    const totalNumber = Number(total);
+    if (!Number.isFinite(totalNumber)) return undefined;
+    if (!Number.isFinite(Number(subtotalForVat))) return undefined;
+    const diff = totalNumber - Number(subtotalForVat);
+    return diff > 0 ? Math.round(diff * 100) / 100 : undefined;
+  }, [total, subtotalForVat]);
 
   const displayTotal = useMemo(() => {
-    if (hasExplicitTaxes) return safeNum(total);
-    const sum = safeNum(derivedSubtotal) + safeNum(fallbackVat);
-    return Math.round(sum * 100) / 100;
-  }, [hasExplicitTaxes, total, derivedSubtotal, fallbackVat]);
+    const parsed = Number(total);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }, [total]);
 
-  // Client-facing fee previews (prefer backend fields; fallback to local math)
-  const feeIncl = useMemo(() => {
-    const ps = Number.isFinite(props.providerSubtotalPreview as number)
-      ? Number(props.providerSubtotalPreview)
-      : Number(derivedSubtotal);
-    const fee = Number.isFinite(props.bookaFeePreview as number)
-      ? Number(props.bookaFeePreview)
-      : Math.round(ps * 0.03 * 100) / 100;
-    const feeVat = Number.isFinite(props.bookaFeeVatPreview as number)
-      ? Number(props.bookaFeeVatPreview)
-      : Math.round(fee * 0.15 * 100) / 100;
-    return Math.round((fee + feeVat) * 100) / 100;
-  }, [props.providerSubtotalPreview, props.bookaFeePreview, props.bookaFeeVatPreview, derivedSubtotal]);
-
-  const clientTotal = useMemo(() => {
-    if (Number.isFinite(props.clientTotalPreview as number)) {
-      return Number(props.clientTotalPreview);
-    }
-    // Fallback: quote total/VAT + feeIncl
-    return Math.round((displayTotal + feeIncl) * 100) / 100;
-  }, [props.clientTotalPreview, displayTotal, feeIncl]);
+  // All fee/VAT math comes from the backend. Show placeholders if previews are missing.
+  const platformFeeIncl = typeof props.totalsPreview?.platformFeeExVat === 'number' && typeof props.totalsPreview?.platformFeeVat === 'number'
+    ? props.totalsPreview.platformFeeExVat + props.totalsPreview.platformFeeVat
+    : undefined;
+  const clientTotal = typeof props.totalsPreview?.clientTotalInclVat === 'number'
+    ? props.totalsPreview.clientTotalInclVat
+    : undefined;
 
   // Fetch reviews lazily when the details modal opens (best effort)
   const [peekReviews, setPeekReviews] = useState<Review[]>([]);
@@ -609,35 +593,42 @@ export default function QuotePeek(props: QuotePeekProps) {
 
                   {/* VAT / Tax */}
                   {(() => {
-                    let val = 0;
-                    let label = 'VAT (15%)';
+                    let label = 'VAT';
+                    let value: number | undefined;
                     if (Array.isArray(taxes) && taxes.length) {
-                      val = taxes.reduce((s, t) => s + Number(t.amount || 0), 0);
+                      value = taxes.reduce((sum, entry) => {
+                        const amount = Number(entry?.amount ?? 0);
+                        return Number.isFinite(amount) ? sum + amount : sum;
+                      }, 0);
                       label = 'Taxes';
                     } else if (typeof vat === 'number' && vat > 0) {
-                      val = Number(vat);
-                      label = 'VAT';
+                      value = Number(vat);
                     } else if (typeof tax === 'number' && tax > 0) {
-                      val = Number(tax);
+                      value = Number(tax);
                       label = 'Tax';
                     } else {
-                      val = fallbackVat;
+                      value = vatFallback;
                     }
-                    return <Row label={label} value={money(val)} />;
+                    return (
+                      <Row
+                        label={label}
+                        value={value !== undefined ? money(value) : QUOTE_TOTALS_PLACEHOLDER}
+                      />
+                    );
                   })()}
 
                   {/* Client-facing platform fee (informational; applied at checkout) */}
                   {isClientView && (
-                    <Row label="Booka Service Fee (3% — VAT included)" value={money(feeIncl)} />
+                        <Row label="Booka Service Fee (3% — VAT included)" value={platformFeeIncl !== undefined ? money(platformFeeIncl) : QUOTE_TOTALS_PLACEHOLDER} />
                   )}
 
                   {/* Total / Total To Pay (client) */}
                   <div className="mt-2 border-t border-b border-gray-300 py-2">
                     <div className="font-semibold">
                       {isClientView ? (
-                        <Row label="Total To Pay" value={money(clientTotal)} valueClass="!font-semibold" />
+                        <Row label="Total To Pay" value={clientTotal !== undefined ? money(clientTotal) : QUOTE_TOTALS_PLACEHOLDER} valueClass="!font-semibold" />
                       ) : (
-                        <Row label="Total" value={money(displayTotal)} valueClass="!font-semibold" />
+                        <Row label="Total" value={displayTotal !== undefined ? money(displayTotal) : QUOTE_TOTALS_PLACEHOLDER} valueClass="!font-semibold" />
                       )}
                     </div>
                   </div>

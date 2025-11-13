@@ -10,6 +10,7 @@ export interface PaymentSuccess {
   receiptUrl?: string;
   paymentId?: string;
   mocked?: boolean;
+  currency?: string;
 }
 
 type OpenArgs = {

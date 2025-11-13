@@ -5,6 +5,7 @@ import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from './QuoteBubble';
 import { calculateQuoteBreakdown, getBookingRequestById, getService, getBookingRequestCached } from '@/lib/api';
+import { QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 
 /**
  * InlineQuoteForm (v3.1 - optimized UX + perf)
@@ -35,8 +36,6 @@ interface Props {
     accommodation_cost?: number;
   };
 }
-
-const VAT_RATE = 0.15; // SA VAT (15%)
 
 const expiryOptions = [
   { label: 'No expiry', value: '' },
@@ -338,8 +337,6 @@ const InlineQuoteForm: React.FC<Props> = ({
   const extrasTotal = useMemo(() => items.reduce((sum, it) => sum + Number(it.price || 0), 0), [items]);
   const subtotal = useMemo(() => serviceFee + soundFee + travelFee + extrasTotal, [serviceFee, soundFee, travelFee, extrasTotal]);
   const discounted = Math.max(0, subtotal - (discount || 0));
-  const vat = discounted * VAT_RATE;
-  const total = discounted + vat;
 
   const expiresPreview = useMemo(() => {
     if (!expiresHours) return '';
@@ -563,10 +560,16 @@ const InlineQuoteForm: React.FC<Props> = ({
       {/* Totals */}
       <div className="mt-3 rounded-lg border border-gray-100 bg-white p-3 sm:p-4">
         <div className="grid gap-1 text-sm text-gray-800" aria-live="polite">
-          <div className="flex items-center justify-between"><span>Subtotal</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
+          <div className="flex items-center justify-between"><span>Subtotal (ex VAT)</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
           <div className="flex items-center justify-between"><span>Discount</span><span className="font-medium">{discount ? `− ${formatCurrency(discount)}` : formatCurrency(0)}</span></div>
-          <div className="flex items-center justify-between"><span>VAT ({Math.round(VAT_RATE*100)}%)</span><span className="font-medium">{formatCurrency(vat)}</span></div>
-          <div className="mt-1 border-t pt-1 flex items-center justify-between text-base font-semibold"><span>Total</span><span>{formatCurrency(total)}</span></div>
+          <div className="flex items-center justify-between text-gray-500 text-xs">
+            <span>VAT (calculated after submit)</span>
+            <span className="font-medium">{QUOTE_TOTALS_PLACEHOLDER}</span>
+          </div>
+          <div className="mt-1 border-t pt-1 flex items-center justify-between text-base font-semibold">
+            <span>Total (incl. VAT)</span>
+            <span>{QUOTE_TOTALS_PLACEHOLDER}</span>
+          </div>
         </div>
         <label className="mt-2 flex items-start gap-2 text-xs text-gray-700">
           <input
@@ -589,7 +592,7 @@ const InlineQuoteForm: React.FC<Props> = ({
       <div className="mt-3 bg-white rounded-lg border border-gray-100 p-3 sm:p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm">
           <div className="text-gray-600">You will send</div>
-          <div className="text-lg font-bold" aria-live="polite">{formatCurrency(total)}</div>
+          <div className="text-lg font-bold" aria-live="polite">{QUOTE_TOTALS_PLACEHOLDER}</div>
         </div>
         <div className="flex items-center gap-2">
           {onDecline && (

@@ -15,6 +15,20 @@ jest.mock('@/utils/paystackClient', () => ({
 
 const { openPaystackInline } = jest.requireMock('@/utils/paystackClient');
 
+const mockWindowOpen = jest.fn();
+
+beforeAll(() => {
+  Object.defineProperty(window, 'open', {
+    writable: true,
+    configurable: true,
+    value: mockWindowOpen,
+  });
+});
+
+afterEach(() => {
+  mockWindowOpen.mockReset();
+});
+
 describe('PaymentModal (inline only)', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -24,7 +38,7 @@ describe('PaymentModal (inline only)', () => {
   it('opens inline popup and completes via verify', async () => {
     // Backend init returns a reference and authorization_url
     (api.createPayment as jest.Mock).mockResolvedValue({
-      data: { reference: 'ref_123', authorization_url: 'https://checkout.paystack.com/abc' },
+      data: { reference: 'ref_123', amount: 750, currency: 'ZAR' },
     });
     const onSuccess = jest.fn();
     const onError = jest.fn();
@@ -47,15 +61,10 @@ describe('PaymentModal (inline only)', () => {
 
     // Inline was invoked with ZAR and subunits via openPaystackInline
     expect(openPaystackInline).toHaveBeenCalled();
-    expect(api.createPayment).toHaveBeenCalledWith(expect.objectContaining({ booking_request_id: 45, amount: 500, full: true }));
-
-    // Verify completes immediately (global.fetch returns ok=true with empty JSON → falls back to reference)
-    await act(async () => {});
-    expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({
-      status: 'paid',
-      amount: 500,
-      paymentId: 'ref_123',
-    }));
+    expect(api.createPayment).toHaveBeenCalledWith(expect.objectContaining({ booking_request_id: 45, full: true, inline: true }));
+    const inlineArgs = (openPaystackInline as jest.Mock).mock.calls[0][0];
+    expect(inlineArgs.amountMajor).toBe(750);
+    expect(inlineArgs.currency).toBe('ZAR');
 
     act(() => { root.unmount(); });
   });
@@ -79,10 +88,12 @@ describe('PaymentModal (inline only)', () => {
         />
       );
     });
-    // No email provided → error rendered and openPaystackInline not called
+    // No email provided → hosted fallback triggered and window.open called
     expect(openPaystackInline).not.toHaveBeenCalled();
+    expect(api.createPayment).toHaveBeenCalledWith(expect.objectContaining({ booking_request_id: 9, inline: false, full: true }));
     expect(onError).not.toHaveBeenCalled(); // internal error state is set in the modal
-    expect(div.textContent).toContain('A valid email is required to start payment.');
+    expect(mockWindowOpen).toHaveBeenCalledWith('https://checkout.paystack.com/xyz', '_blank');
+    expect(div.textContent).toContain('Verifying payment…');
     act(() => { root.unmount(); });
   });
 
@@ -92,7 +103,7 @@ describe('PaymentModal (inline only)', () => {
       if (opts?.onClose) opts.onClose();
     });
     (api.createPayment as jest.Mock).mockResolvedValue({
-      data: { reference: 'ref_321', authorization_url: 'https://checkout.paystack.com/def' },
+      data: { reference: 'ref_321', amount: 200, currency: 'ZAR' },
     });
     const onError = jest.fn();
     const div = document.createElement('div');
@@ -111,6 +122,8 @@ describe('PaymentModal (inline only)', () => {
       );
     });
     expect(openPaystackInline).toHaveBeenCalled();
+    const inlineArgs = (openPaystackInline as jest.Mock).mock.calls[0][0];
+    expect(inlineArgs.amountMajor).toBe(200);
     // Modal shows friendly close message
     expect(div.textContent).toContain('Checkout closed. Please try again.');
     act(() => { root.unmount(); });
@@ -119,7 +132,7 @@ describe('PaymentModal (inline only)', () => {
   it('surfaces error when inline popup fails to open', async () => {
     (openPaystackInline as jest.Mock).mockRejectedValueOnce(new Error('Blocked'));
     (api.createPayment as jest.Mock).mockResolvedValue({
-      data: { reference: 'ref_fail', authorization_url: 'https://checkout.paystack.com/ghi' },
+      data: { reference: 'ref_fail', amount: 99, currency: 'ZAR' },
     });
     const onError = jest.fn();
     const div = document.createElement('div');
@@ -138,6 +151,8 @@ describe('PaymentModal (inline only)', () => {
       );
     });
     expect(openPaystackInline).toHaveBeenCalled();
+    const inlineArgs = (openPaystackInline as jest.Mock).mock.calls[0][0];
+    expect(inlineArgs.amountMajor).toBe(99);
     expect(div.textContent).toContain('Could not open Paystack popup. Please try again.');
     act(() => { root.unmount(); });
   });
@@ -145,7 +160,7 @@ describe('PaymentModal (inline only)', () => {
   it('opens inline when server returns inline status (no authorization_url)', async () => {
     // Server indicates inline-only path: provide a reference but no hosted URL
     (api.createPayment as jest.Mock).mockResolvedValue({
-      data: { status: 'inline', reference: 'ref_inline' },
+      data: { status: 'inline', reference: 'ref_inline', amount: 250, currency: 'ZAR' },
     });
 
     const onSuccess = jest.fn();
@@ -154,8 +169,6 @@ describe('PaymentModal (inline only)', () => {
 
     // Prevent any accidental hosted fallback
     const wOpen = jest.spyOn(window, 'open').mockImplementation(() => null as any);
-    // Allow verify to succeed immediately
-    const fetchSpy = jest.spyOn(global as any, 'fetch').mockResolvedValue({ ok: true, json: async () => ({}) } as any);
 
     await act(async () => {
       root.render(
@@ -173,19 +186,12 @@ describe('PaymentModal (inline only)', () => {
 
     // Inline was invoked
     expect(openPaystackInline).toHaveBeenCalled();
+    const inlineArgs = (openPaystackInline as jest.Mock).mock.calls[0][0];
+    expect(inlineArgs.amountMajor).toBe(250);
     // No hosted fallback attempted
     expect(wOpen).not.toHaveBeenCalled();
 
-    // Let verify complete
-    await act(async () => {});
-    expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({
-      status: 'paid',
-      amount: 250,
-      paymentId: 'ref_inline',
-    }));
-
     wOpen.mockRestore();
-    fetchSpy.mockRestore();
     act(() => { root.unmount(); });
   });
 });

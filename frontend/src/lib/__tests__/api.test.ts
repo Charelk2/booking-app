@@ -118,8 +118,8 @@ describe('downloadQuotePdf', () => {
 describe('createPayment', () => {
   it('posts to the payments endpoint', async () => {
     const spy = jest.spyOn(api, 'post').mockResolvedValue({ data: {} } as unknown as { data: unknown });
-    await createPayment({ booking_request_id: 3, amount: 50 });
-    expect(spy).toHaveBeenCalledWith('/api/v1/payments', { booking_request_id: 3, amount: 50 });
+    await createPayment({ booking_request_id: 3 });
+    expect(spy).toHaveBeenCalledWith('/api/v1/payments', { booking_request_id: 3 });
     spy.mockRestore();
   });
 });

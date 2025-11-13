@@ -360,7 +360,8 @@ export interface QuoteV2 extends QuoteV2Create {
   booking_id?: number | null;
   subtotal: number;
   total: number;
-  // Server-computed preview fields to avoid UI drift
+  totals_preview?: QuoteTotalsPreview | null;
+  // DEPRECATED legacy preview fields (kept for compatibility)
   provider_subtotal_preview?: number;
   booka_fee_preview?: number;
   booka_fee_vat_preview?: number;
@@ -368,6 +369,13 @@ export interface QuoteV2 extends QuoteV2Create {
   status: 'pending' | 'accepted' | 'rejected' | 'expired';
   created_at: string;
   updated_at: string;
+}
+
+export interface QuoteTotalsPreview {
+  provider_subtotal?: number;
+  platform_fee_ex_vat?: number;
+  platform_fee_vat?: number;
+  client_total_incl_vat?: number;
 }
 
 export interface BookingSimple {

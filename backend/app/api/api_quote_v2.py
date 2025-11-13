@@ -17,6 +17,7 @@ from .. import crud
 from .dependencies import get_db, get_current_user
 from .api_ws import manager
 from ..schemas import message as message_schemas
+from ..services.quote_totals import compute_quote_totals_snapshot, quote_totals_preview_payload
 import asyncio
 
 router = APIRouter(tags=["QuotesV2"])
@@ -38,6 +39,22 @@ except Exception:
                 return o.isoformat()
             return str(o)
         return _json.dumps(obj, default=_default).encode("utf-8")
+
+
+def _quote_payload_with_preview(quote: models.QuoteV2) -> dict:
+    payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
+    snapshot = compute_quote_totals_snapshot(quote)
+    if snapshot:
+        preview = quote_totals_preview_payload(snapshot)
+        payload["totals_preview"] = preview
+        payload["provider_subtotal_preview"] = preview.get("provider_subtotal")
+        payload["booka_fee_preview"] = preview.get("platform_fee_ex_vat")
+        payload["booka_fee_vat_preview"] = preview.get("platform_fee_vat")
+        payload["client_total_preview"] = preview.get("client_total_incl_vat")
+        payload["rates_preview"] = snapshot.rates
+    else:
+        payload["totals_preview"] = None
+    return payload
 
 
 @router.post(
@@ -135,27 +152,10 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
                     "Artist sent a quote",
                     models.MessageType.QUOTE,
                 )
-        # Compute client preview fields (to avoid UI drift)
         try:
-            PS = float(getattr(quote, "subtotal", 0) or 0)
-            total = float(getattr(quote, "total", 0) or 0)
-            COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
-            CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
-            VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-            fee = round(PS * CLIENT_FEE_RATE, 2)
-            fee_vat = round(fee * VAT_RATE, 2)
-            client_total = round(total + fee + fee_vat, 2)
-            payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
-            payload.update({
-                "provider_subtotal_preview": PS,
-                "booka_fee_preview": fee,
-                "booka_fee_vat_preview": fee_vat,
-                "client_total_preview": client_total,
-                "rates_preview": {"commission_rate": COMMISSION_RATE, "client_fee_rate": CLIENT_FEE_RATE, "vat_rate": VAT_RATE},
-            })
-            return payload
+            return _quote_payload_with_preview(quote)
         except Exception:
-            return quote
+            return schemas.QuoteV2Read.model_validate(quote).model_dump()
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - generic failure path
@@ -234,48 +234,30 @@ def read_quote(
         setattr(quote, "booking_id", int(bid) if bid else None)
     except Exception:
         pass
-    # Attach preview fields for client totals
     try:
-        PS = float(getattr(quote, "subtotal", 0) or 0)
-        total = float(getattr(quote, "total", 0) or 0)
-        COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
-        CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
-        VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-        fee = round(PS * CLIENT_FEE_RATE, 2)
-        fee_vat = round(fee * VAT_RATE, 2)
-        client_total = round(total + fee + fee_vat, 2)
-        payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
-        payload.update({
-            "provider_subtotal_preview": PS,
-            "booka_fee_preview": fee,
-            "booka_fee_vat_preview": fee_vat,
-            "client_total_preview": client_total,
-            "rates_preview": {"commission_rate": COMMISSION_RATE, "client_fee_rate": CLIENT_FEE_RATE, "vat_rate": VAT_RATE},
-        })
-        # Serialize with orjson and attach timing
-        body = _json_dumps(payload)
-        comp_ms = (time.perf_counter() - t_comp_start) * 1000.0
-        ser_ms = 0.0
-        try:
-            # now that we have payload, re-encode once more to measure
-            t_ser = time.perf_counter()
-            body = _json_dumps(payload)
-            ser_ms = (time.perf_counter() - t_ser) * 1000.0
-        except Exception:
-            pass
-        # ETag based on updated_at marker
-        try:
-            marker = quote.updated_at.isoformat(timespec="seconds") if quote.updated_at else "0"
-            etag = f'W/"q:{int(quote.id)}:{hashlib.sha1(marker.encode()).hexdigest()}"'
-        except Exception:
-            etag = etag_pre
-        headers = {"Cache-Control": "no-cache", "Server-Timing": f"compose;dur={comp_ms:.1f}, ser;dur={ser_ms:.1f}"}
-        if etag:
-            headers["ETag"] = etag
-        return Response(content=body, media_type="application/json", headers=headers)
+        payload = _quote_payload_with_preview(quote)
     except Exception:
-        # Fallback to Pydantic path (rare)
-        return schemas.QuoteV2Read.model_validate(quote).model_dump()
+        payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
+    # Serialize with orjson and attach timing
+    body = _json_dumps(payload)
+    comp_ms = (time.perf_counter() - t_comp_start) * 1000.0
+    ser_ms = 0.0
+    try:
+        t_ser = time.perf_counter()
+        body = _json_dumps(payload)
+        ser_ms = (time.perf_counter() - t_ser) * 1000.0
+    except Exception:
+        pass
+    # ETag based on updated_at marker
+    try:
+        marker = quote.updated_at.isoformat(timespec="seconds") if quote.updated_at else "0"
+        etag = f'W/"q:{int(quote.id)}:{hashlib.sha1(marker.encode()).hexdigest()}"'
+    except Exception:
+        etag = etag_pre
+    headers = {"Cache-Control": "no-cache", "Server-Timing": f"compose;dur={comp_ms:.1f}, ser;dur={ser_ms:.1f}"}
+    if etag:
+        headers["ETag"] = etag
+    return Response(content=body, media_type="application/json", headers=headers)
 
 
 @router.post("/quotes/{quote_id}/accept", response_model=schemas.BookingSimpleRead)
@@ -366,7 +348,10 @@ def decline_quote(quote_id: int, db: Session = Depends(get_db)):
         except Exception:
             # best-effort only; thread will still update on next fetch
             pass
-        return quote
+        try:
+            return _quote_payload_with_preview(quote)
+        except Exception:
+            return schemas.QuoteV2Read.model_validate(quote).model_dump()
     except ValueError as exc:
         quote = crud_quote_v2.get_quote(db, quote_id)
         logger.warning(

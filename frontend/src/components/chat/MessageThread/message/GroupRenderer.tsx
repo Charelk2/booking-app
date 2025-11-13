@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import SystemMessage from './SystemMessage';
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal';
 import QuoteBubble from '@/components/chat/QuoteBubble';
+import { resolveQuoteTotalsPreview } from '@/lib/quoteTotals';
 import { safeParseDate } from '@/lib/chat/threadStore';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import MessageActions from './MessageActions';
@@ -268,6 +269,7 @@ export default function GroupRenderer({
           if (quoteId > 0) {
             const q = quotesById?.[quoteId];
             const isClientView = String(userType).toLowerCase() === 'client';
+            const previewTotals = q ? resolveQuoteTotalsPreview(q as any) : undefined;
             return (
               <div key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)} className="my-2 w-full flex justify-center">
                 {q ? (
@@ -275,28 +277,25 @@ export default function GroupRenderer({
                     <QuoteBubble
                       quoteId={quoteId}
                       description={(q?.services?.[0]?.description as string) || ''}
-                    price={Number(q?.services?.[0]?.price || 0)}
-                    soundFee={Number(q?.sound_fee || 0)}
-                    travelFee={Number(q?.travel_fee || 0)}
-                    accommodation={(q?.accommodation as string) || undefined}
-                    discount={Number(q?.discount) || undefined}
-                    subtotal={Number(q?.subtotal || 0)}
-                    total={Number(q?.total || 0)}
-                    providerSubtotalPreview={Number((q as any)?.provider_subtotal_preview ?? NaN)}
-                    bookaFeePreview={Number((q as any)?.booka_fee_preview ?? NaN)}
-                    bookaFeeVatPreview={Number((q as any)?.booka_fee_vat_preview ?? NaN)}
-                    clientTotalPreview={Number((q as any)?.client_total_preview ?? NaN)}
-                    status={(q?.status === 'accepted') ? 'Accepted' : (q?.status === 'rejected') ? 'Rejected' : (q?.status === 'expired') ? 'Expired' : 'Pending'}
-                    isClientView={String(userType).toLowerCase() === 'client'}
-                    isPaid={Boolean(isPaid)}
-                    expiresAt={(q?.expires_at as string) || undefined}
-                    providerName={artistName || 'Service Provider'}
-                    providerAvatarUrl={artistAvatarUrl || undefined}
-                    onPayNow={onPayNow ? (() => onPayNow(q)) : undefined}
-                    onDecline={onDecline ? (() => onDecline(q)) : undefined}
-                    onAskQuestion={onRequestNewQuote}
-                    disableRequestNewQuote={Boolean(disableRequestNewQuote)}
-                  />
+                      price={Number(q?.services?.[0]?.price || 0)}
+                      soundFee={Number(q?.sound_fee || 0)}
+                      travelFee={Number(q?.travel_fee || 0)}
+                      accommodation={(q?.accommodation as string) || undefined}
+                      discount={Number(q?.discount) || undefined}
+                      subtotal={Number(q?.subtotal || 0)}
+                      total={Number(q?.total || 0)}
+                      totalsPreview={previewTotals}
+                      status={(q?.status === 'accepted') ? 'Accepted' : (q?.status === 'rejected') ? 'Rejected' : (q?.status === 'expired') ? 'Expired' : 'Pending'}
+                      isClientView={isClientView}
+                      isPaid={Boolean(isPaid)}
+                      expiresAt={(q?.expires_at as string) || undefined}
+                      providerName={artistName || 'Service Provider'}
+                      providerAvatarUrl={artistAvatarUrl || undefined}
+                      onPayNow={onPayNow ? (() => onPayNow(q)) : undefined}
+                      onDecline={onDecline ? (() => onDecline(q)) : undefined}
+                      onAskQuestion={onRequestNewQuote}
+                      disableRequestNewQuote={Boolean(disableRequestNewQuote)}
+                    />
                     {/* Removed artist guidance banner to keep thread clean */}
                   </>
                 ) : (

@@ -19,7 +19,9 @@ async function verifyPaystack(reference: string, bookingRequestId: number, signa
   const paymentId = v?.payment_id || reference;
   const receiptUrl = `/receipts/${paymentId}`;
   safeSet(rcptKey(bookingRequestId), receiptUrl);
-  return { ok: true as const, paymentId, receiptUrl };
+  const amount = typeof v?.amount === 'number' ? v.amount : Number(v?.amount);
+  const currency = typeof v?.currency === 'string' ? v.currency : undefined;
+  return { ok: true as const, paymentId, receiptUrl, amount: Number.isFinite(amount) ? Number(amount) : undefined, currency };
 }
 
 type PaymentStatus = 'idle' | 'starting' | 'inline' | 'verifying' | 'error';
@@ -29,6 +31,7 @@ export interface PaymentSuccess {
   amount: number;
   receiptUrl?: string;
   paymentId?: string;
+  currency?: string;
 }
 
 interface PaymentModalProps {
@@ -37,7 +40,7 @@ interface PaymentModalProps {
   bookingRequestId: number;
   onSuccess: (result: PaymentSuccess) => void;
   onError: (msg: string) => void;
-  amount: number;                 // major units
+  amount: number;                 // major units (fallback only; server response is source of truth)
   serviceName?: string;           // accepted but not displayed
   /** Try inline popup first (recommended) */
   preferInline?: boolean;
@@ -77,6 +80,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const startedRef = useRef(false);
   const verifyAbortRef = useRef<AbortController | null>(null);
   const isMounted = useRef(true);
+  const resolvedAmountRef = useRef<number>(amount);
+  const resolvedCurrencyRef = useRef<string>(currency);
 
   const resetState = useCallback(() => {
     setStatus('idle');
@@ -117,6 +122,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     onError(msg);
   };
 
+  useEffect(() => {
+    resolvedAmountRef.current = amount;
+  }, [amount]);
+
+  useEffect(() => {
+    resolvedCurrencyRef.current = currency;
+  }, [currency]);
+
   const startVerifyLoop = useCallback(
     async (reference: string) => {
       verifyAbortRef.current?.abort();
@@ -129,7 +142,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       try {
         const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
         if (out.ok) {
-          finishSuccess({ status: 'paid', amount, paymentId: out.paymentId, receiptUrl: out.receiptUrl });
+          if (typeof out.amount === 'number') resolvedAmountRef.current = out.amount;
+          if (out.currency) resolvedCurrencyRef.current = out.currency;
+          const finalAmount = resolvedAmountRef.current ?? amount;
+          const finalCurrency = resolvedCurrencyRef.current ?? currency;
+          finishSuccess({ status: 'paid', amount: finalAmount, paymentId: out.paymentId, receiptUrl: out.receiptUrl, currency: finalCurrency });
           return;
         }
       } catch {}
@@ -140,7 +157,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         try {
           const out = await verifyPaystack(reference, bookingRequestId, ac.signal);
           if (out.ok) {
-            finishSuccess({ status: 'paid', amount, paymentId: out.paymentId, receiptUrl: out.receiptUrl });
+            if (typeof out.amount === 'number') resolvedAmountRef.current = out.amount;
+            if (out.currency) resolvedCurrencyRef.current = out.currency;
+            const finalAmount = resolvedAmountRef.current ?? amount;
+            const finalCurrency = resolvedCurrencyRef.current ?? currency;
+            finishSuccess({ status: 'paid', amount: finalAmount, paymentId: out.paymentId, receiptUrl: out.receiptUrl, currency: finalCurrency });
             return;
           }
         } catch {}
@@ -151,7 +172,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         setError('Still waiting for payment confirmation… If you’ve completed checkout, this will update shortly.');
       }
     },
-    [amount, bookingRequestId, finishSuccess]
+    [amount, bookingRequestId, currency, finishSuccess]
   );
 
   /** Inline-first (if email provided), otherwise hosted — opens immediately */
@@ -165,19 +186,23 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     // Do not gate on env; rely on backend configuration to decide availability
 
     try {
+      const hasEmail = Boolean(customerEmail && /\S+@\S+\.\S+/.test(customerEmail));
       // 1) Backend init: get reference + authorization_url
       const res = await createPayment({
         booking_request_id: bookingRequestId,
-        amount: Number(amount),
         full: true,
-        inline: true,
+        inline: preferInline && hasEmail,
       });
 
       const data = res?.data || {};
       const reference: string = String(data?.reference || data?.payment_id || '').trim();
       const authorizationUrl: string | undefined = data?.authorization_url || data?.authorizationUrl;
-      const serverAmount: number | undefined = Number.isFinite(Number(data?.amount)) ? Number(data.amount) : undefined;
+      const parsedServerAmount = typeof data?.amount === 'number' ? data.amount : Number(data?.amount);
+      const serverAmount: number | undefined = Number.isFinite(parsedServerAmount) ? Number(parsedServerAmount) : undefined;
+      const serverCurrency: string | undefined = typeof data?.currency === 'string' ? data.currency : undefined;
       const accessCode: string | undefined = data?.access_code || data?.accessCode; // not used (inline avoids ref/access_code)
+      resolvedAmountRef.current = serverAmount ?? amount;
+      resolvedCurrencyRef.current = serverCurrency ?? currency;
 
       if (!reference) throw new Error('Payment reference missing');
       // Cache reference for adjacent views that may try to build receipt URLs optimistically
@@ -187,7 +212,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setPaystackReference(reference);
 
       // 2) Inline preferred (if email present); otherwise hosted fallback
-      const hasEmail = Boolean(customerEmail && /\S+@\S+\.\S+/.test(customerEmail));
       if (preferInline && hasEmail) {
         try {
           setStatus('inline');
@@ -195,8 +219,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             email: customerEmail!, // safe due to hasEmail
             // Always use the server-computed amount so the charged total includes
             // Booka's client fee + VAT, matching the backend verify/receipt totals.
-            amountMajor: Number(serverAmount ?? amount),
-            currency,
+            amountMajor: resolvedAmountRef.current ?? amount,
+            currency: resolvedCurrencyRef.current ?? currency,
             // Bind popup to the server-initialized transaction reference
             reference: reference,
             channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money'],

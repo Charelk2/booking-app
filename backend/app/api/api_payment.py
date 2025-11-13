@@ -4,10 +4,10 @@ from fastapi.responses import RedirectResponse
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Literal
 import logging
 import os
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
 import httpx
 import uuid
@@ -43,12 +43,18 @@ from sqlalchemy import text
 from ..utils.metrics import incr as metrics_incr, timing_ms as metrics_timing
 from ..utils.server_timing import ServerTimer
 from datetime import datetime as _dt
+from ..services.quote_totals import compute_quote_totals_snapshot
 
 logger = logging.getLogger(__name__)
 
 """Legacy env flag PAYMENT_GATEWAY_FAKE has been removed."""
 
 router = APIRouter(tags=["payments"])
+
+# Payment invariants (keep in sync with README):
+# - Backend computes the canonical charge (quote total + Booka fee + VAT); clients never supply or recalc amounts.
+# - Frontend displays the amounts returned by these endpoints verbatim.
+# - Receipts/invoices read from stored snapshots (e.g., charged_total_amount) so historical math never drifts.
 
 
 class PaymentCreate(BaseModel):
@@ -65,7 +71,16 @@ class PaymentCreate(BaseModel):
     inline: Optional[bool] = False
 
 
-# ————————————————————————————————————————————————————————————————
+class PaymentInitResponse(BaseModel):
+    status: Literal["inline", "redirect"]
+    reference: str
+    payment_id: Optional[str] = None
+    amount: float
+    currency: str
+    authorization_url: Optional[str] = None
+    access_code: Optional[str] = None
+
+
 # Helpers
 
 def _message_to_envelope(db: Session, msg: models.Message) -> dict:
@@ -337,7 +352,7 @@ except Exception:  # pragma: no cover - fallback when ws module unavailable
     ws_manager = None  # type: ignore
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=PaymentInitResponse)
 def create_payment(
     payment_in: PaymentCreate,
     db: Session = Depends(get_db),
@@ -345,11 +360,11 @@ def create_payment(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     response: Response = None,
 ):
+    """Initialize a payment. Backend computes the canonical amount (quote total + Booka fee + VAT) and returns it."""
     logger.info(
-        "Process payment for request %s amount %s full=%s",
+        "Process payment init for request %s (inline=%s)",
         payment_in.booking_request_id,
-        payment_in.amount,
-        payment_in.full,
+        bool(getattr(payment_in, "inline", False)),
     )
     t_start_direct = time.perf_counter()
     timer = ServerTimer()
@@ -488,34 +503,28 @@ def create_payment(
             status.HTTP_400_BAD_REQUEST,
         )
 
-    # Enforce full upfront payment. Ignore client-provided amount/full and
-    # charge the client-facing Total To Pay: quote.total + Booka Service Fee (3%) + VAT on that fee (15%).
-    try:
-        quote_total = float(booking.quote.total or 0) if booking.quote else 0.0
-    except Exception:
-        quote_total = 0.0
-    if quote_total <= 0:
-        logger.warning("Quote total missing or zero for booking %s", booking.id)
+    quote = getattr(booking, "quote", None)
+    if quote is None and getattr(booking, "quote_id", None):
+        quote = db.query(QuoteV2).filter(QuoteV2.id == booking.quote_id).first()
+    if quote is None:
+        logger.warning("Quote missing for booking %s", booking.id)
         raise error_response("Invalid quote total", {"amount": "invalid"}, status.HTTP_422_UNPROCESSABLE_ENTITY)
-
-    # Compute client fee on provider subtotal (services + travel + sound)
+    snapshot = compute_quote_totals_snapshot(quote)
+    if snapshot is None:
+        logger.warning("Cannot compute charge amount for booking %s: quote total missing", booking.id)
+        raise error_response("Invalid quote total", {"amount": "invalid"}, status.HTTP_422_UNPROCESSABLE_ENTITY)
     try:
-        CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
-    except Exception:
-        CLIENT_FEE_RATE = 0.03
-    try:
-        VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-    except Exception:
-        VAT_RATE = 0.15
-    try:
-        provider_subtotal_ps = float(getattr(booking.quote, 'subtotal', 0) or 0)
-    except Exception:
-        provider_subtotal_ps = 0.0
-    client_fee = round(provider_subtotal_ps * CLIENT_FEE_RATE, 2)
-    client_fee_vat = round(client_fee * VAT_RATE, 2)
-    amount = round(quote_total + client_fee + client_fee_vat, 2)
-    logger.info("Resolved payment amount (Total To Pay: total + fee + vat) %s (total=%s fee=%s fee_vat=%s)", amount, quote_total, client_fee, client_fee_vat)
-    charge_amount = Decimal(str(amount))
+        amount_float = float(snapshot.client_total_incl_vat)
+    except (TypeError, ValueError) as exc:
+        logger.warning("Cannot compute charge amount for booking %s: %s", booking.id, exc)
+        raise error_response("Invalid quote total", {"amount": "invalid"}, status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
+    logger.info(
+        "Resolved payment amount (Total To Pay) %s (quote_total=%s fee=%s fee_vat=%s)",
+        amount_float,
+        float(snapshot.provider_total_incl_vat),
+        float(snapshot.platform_fee_ex_vat),
+        float(snapshot.platform_fee_vat),
+    )
 
     # Inline-only mode: do not call Paystack initialize. Generate a fresh
     # reference and persist it so the client can start an inline checkout
@@ -536,8 +545,9 @@ def create_payment(
             result = {
                 "status": "inline",
                 "reference": reference,
-                "currency": settings.DEFAULT_CURRENCY or "ZAR",
-                "amount": amount,
+                "payment_id": reference,
+                "currency": snapshot.currency,
+                "amount": float(snapshot.client_total_incl_vat),
             }
             try:
                 hdr = timer.header()
@@ -554,7 +564,6 @@ def create_payment(
     if not settings.PAYSTACK_SECRET_KEY:
         raise error_response("Paystack not configured", {}, status.HTTP_400_BAD_REQUEST)
     try:
-        amount_float = float(amount)
         amount_int = int(round(amount_float * 100))
         client_email = getattr(current_user, "email", None) or f"user{current_user.id}@example.com"
         callback = settings.PAYSTACK_CALLBACK_URL or None
@@ -597,7 +606,7 @@ def create_payment(
             # Record initialization as a separate type to avoid double-counting charges
             db.execute(
                 text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge_init', :amt, 'ZAR', :meta)"),
-                {"bid": booking.id, "amt": amount, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "init"})},
+                {"bid": booking.id, "amt": float(snapshot.client_total_incl_vat), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "init"})},
             )
             db.commit()
         except Exception:
@@ -608,6 +617,8 @@ def create_payment(
             "reference": reference,
             "payment_id": reference,
             "access_code": access_code,
+            "amount": float(snapshot.client_total_incl_vat),
+            "currency": snapshot.currency,
         }
         try:
             hdr = timer.header()
@@ -943,7 +954,16 @@ def paystack_verify(
             background_tasks.add_task(_background_generate_receipt_pdf, str(simple.payment_id))
     except Exception:
         logger.debug("schedule receipt pdf failed (verify)", exc_info=True)
-    result = {"status": "ok", "payment_id": simple.payment_id}
+    charged_amount = getattr(simple, "charged_total_amount", None)
+    if charged_amount is None:
+        # TODO: Remove this fallback after backfilling charged_total_amount for legacy rows.
+        charged_amount = amount
+    result = {
+        "status": "ok",
+        "payment_id": simple.payment_id,
+        "amount": float(charged_amount or 0),
+        "currency": settings.DEFAULT_CURRENCY or "ZAR",
+    }
     # Best-effort: generate provider invoice (agent) on set-off (per-booking)
     try:
         # Avoid duplicates: check for existing provider invoice
@@ -1572,6 +1592,36 @@ def get_payment_receipt(
 # Receipt PDF generation (ReportLab only)
 
 
+def _derive_receipt_amounts(
+    simple: BookingSimple | None,
+    quote: QuoteV2 | None,
+) -> tuple[float | None, float, str]:
+    """Return (total_to_pay, booka_fee_incl, currency) snapshot for receipts.
+
+    Receipts prefer stored charged_total_amount and only fall back to live quote math
+    for legacy rows that predate the snapshot.
+    """
+    snapshot = compute_quote_totals_snapshot(quote) if quote is not None else None
+    fee_incl = 0.0
+    currency = settings.DEFAULT_CURRENCY or "ZAR"
+    if snapshot is not None:
+        fee_incl = float(snapshot.platform_fee_ex_vat + snapshot.platform_fee_vat)
+        currency = snapshot.currency
+    total_to_pay: float | None = None
+    if simple and getattr(simple, "charged_total_amount", None) is not None:
+        total_to_pay = float(getattr(simple, "charged_total_amount") or 0)
+    elif snapshot is not None:
+        # TODO: Remove this fallback once charged_total_amount is backfilled for legacy receipts.
+        total_to_pay = float(snapshot.client_total_incl_vat)
+    elif quote is not None and getattr(quote, "total", None) is not None:
+        try:
+            # TODO: Remove this fallback once charged_total_amount is backfilled for legacy receipts.
+            total_to_pay = round(float(getattr(quote, "total") or 0) + fee_incl, 2)
+        except Exception:
+            total_to_pay = None
+    return total_to_pay, fee_incl, currency
+
+
 def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_path: str) -> None:
     """Generate a branded receipt PDF using ReportLab (no HTML).
 
@@ -1615,6 +1665,7 @@ def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_pa
     subtotal = None
     discount = None
     total = None
+    qv2: QuoteV2 | None = None
 
     bs: BookingSimple | None = db.query(BookingSimple).filter(BookingSimple.payment_id == payment_id).first()
     if bs:
@@ -1727,28 +1778,13 @@ def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_pa
 
     # Summary grid
     issued_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    # Compute Booka fee (3% of provider subtotal) with VAT included and Total To Pay
-    try:
-        _fee = round(float(subtotal or 0.0) * 0.03, 2)
-        _fee_vat = round(_fee * 0.15, 2)
-        _fee_incl = round(_fee + _fee_vat, 2)
-    except Exception:
-        _fee = 0.0
-        _fee_vat = 0.0
-        _fee_incl = 0.0
-    total_to_pay = None
-    try:
-        if amount is not None and float(amount or 0) > 0:
-            total_to_pay = float(amount)
-        elif total is not None:
-            total_to_pay = round(float(total or 0) + _fee_incl, 2)
-    except Exception:
-        total_to_pay = None
+    total_to_pay, _fee_incl, receipt_currency = _derive_receipt_amounts(bs, qv2)
+    summary_amount_value = total_to_pay if total_to_pay is not None else (amount if amount is not None else total)
     summary_data = [
         [Paragraph("<font color='#6b7280'>Payment ID</font>", styles["NormalSmall"]), Paragraph(str(payment_id), styles["Strong"]),
          Paragraph("<font color='#6b7280'>Issued</font>", styles["NormalSmall"]), Paragraph(issued_str, styles["NormalSmall"])],
-        [Paragraph("<font color='#6b7280'>Currency</font>", styles["NormalSmall"]), Paragraph("ZAR", styles["NormalSmall"]),
-         Paragraph("<font color='#6b7280'>Amount</font>", styles["NormalSmall"]), Paragraph(_zar(total_to_pay if total_to_pay is not None else (amount if amount is not None else total)), styles["Strong"])],
+        [Paragraph("<font color='#6b7280'>Currency</font>", styles["NormalSmall"]), Paragraph((receipt_currency or "ZAR").upper(), styles["NormalSmall"]),
+         Paragraph("<font color='#6b7280'>Amount</font>", styles["NormalSmall"]), Paragraph(_zar(summary_amount_value), styles["Strong"])],
     ]
     summary_tbl = Table(summary_data, colWidths=[doc.width*0.15, doc.width*0.35, doc.width*0.15, doc.width*0.35])
     summary_tbl.setStyle(

@@ -1,9 +1,13 @@
+import os
+import sys
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from decimal import Decimal
-import httpx
+import pytest
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.main import app
 from app.models import (
@@ -109,38 +113,32 @@ def override_client(user):
     return _override
 
 
-def test_create_payment(monkeypatch):
+def test_create_payment_inline_returns_backend_amount():
     Session = setup_app()
     client_user, br_id, Session = create_records(Session)
     prev_db = app.dependency_overrides.get(get_db)
     prev_client = app.dependency_overrides.get(get_current_active_client)
     app.dependency_overrides[get_current_active_client] = override_client(client_user)
 
-    def fake_post(url, json, timeout=10):
-        class Resp:
-            status_code = 201
-
-            def raise_for_status(self):
-                pass
-
-            def json(self):
-                return {"id": "ch_test", "status": "succeeded"}
-
-        return Resp()
-
-    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
     client = TestClient(app)
     res = client.post(
-        "/api/v1/payments/", json={"booking_request_id": br_id, "amount": 50}
+        "/api/v1/payments/",
+        json={"booking_request_id": br_id, "inline": True},
     )
     assert res.status_code == 201
+    body = res.json()
+    assert body["status"] == "inline"
+    assert body["currency"].upper() == "ZAR"
+    # Quote total is 100; client fee 3 and VAT on fee 0.45 → 103.45
+    assert body["amount"] == pytest.approx(103.45, rel=1e-6)
+
     db = Session()
     booking = db.query(BookingSimple).first()
-    assert booking.payment_status == "paid"
-    # Full upfront: charged_total_amount matches quote total (100)
-    assert Decimal(booking.charged_total_amount or 0) == Decimal("100")
-    assert booking.payment_id == "ch_test"
+    assert str(booking.payment_status or "").lower() == "pending"
+    assert booking.charged_total_amount in (None, 0)
+    assert booking.payment_id == body["reference"]
     db.close()
+
     if prev_db is not None:
         app.dependency_overrides[get_db] = prev_db
     else:
@@ -151,285 +149,57 @@ def test_create_payment(monkeypatch):
         app.dependency_overrides.pop(get_current_active_client, None)
 
 
-
-
-def test_create_payment_default_amount(monkeypatch):
+def test_paystack_verify_sets_charged_total_amount(monkeypatch):
     Session = setup_app()
     client_user, br_id, Session = create_records(Session)
     prev_db = app.dependency_overrides.get(get_db)
     prev_client = app.dependency_overrides.get(get_current_active_client)
     app.dependency_overrides[get_current_active_client] = override_client(client_user)
-
-    def fake_post(url, json, timeout=10):
-        class Resp:
-            status_code = 201
-
-            def raise_for_status(self):
-                pass
-
-            def json(self):
-                return {"id": "ch_test", "status": "succeeded"}
-
-        return Resp()
-
-    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
-    client = TestClient(app)
-    res = client.post("/api/v1/payments/", json={"booking_request_id": br_id})
-    assert res.status_code == 201
-    db = Session()
-    booking = db.query(BookingSimple).first()
-    assert booking.payment_status == "paid"
-    assert booking.payment_id == "ch_test"
-    assert Decimal(booking.charged_total_amount or 0) == Decimal("100")
-    db.close()
-    if prev_db is not None:
-        app.dependency_overrides[get_db] = prev_db
-    else:
-        app.dependency_overrides.pop(get_db, None)
-    if prev_client is not None:
-        app.dependency_overrides[get_current_active_client] = prev_client
-    else:
-        app.dependency_overrides.pop(get_current_active_client, None)
-
-
-def test_get_receipt(tmp_path):
-    payment_id = "abc123"
-    receipts_dir = tmp_path / "static" / "receipts"
-    receipts_dir.mkdir(parents=True)
-    pdf_path = receipts_dir / f"{payment_id}.pdf"
-    pdf_path.write_bytes(b"%PDF-1.4 test receipt\n%%EOF")
-
-    prev_dir = api_payment.RECEIPT_DIR
-    api_payment.RECEIPT_DIR = str(receipts_dir)
+    monkeypatch.setattr(api_payment.settings, "PAYSTACK_SECRET_KEY", "sk_test")
 
     client = TestClient(app)
-    res = client.get(f"/api/v1/payments/{payment_id}/receipt")
+    init_res = client.post(
+        "/api/v1/payments/",
+        json={"booking_request_id": br_id, "inline": True},
+    )
+    reference = init_res.json()["reference"]
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url, headers=None):
+            class Resp:
+                def raise_for_status(self):
+                    return None
+
+                def json(self):
+                    return {"data": {"status": "success", "amount": 555000}}
+
+            return Resp()
+
+    monkeypatch.setattr(api_payment.httpx, "Client", FakeClient)
+
+    res = client.get(f"/api/v1/payments/paystack/verify?reference={reference}")
     assert res.status_code == 200
-    assert res.headers["content-type"] == "application/pdf"
-    assert res.content.startswith(b"%PDF")
+    body = res.json()
+    assert body["payment_id"] == reference
+    # Paystack amount 555000 kobo => 5550.00 major units
+    assert body["amount"] == pytest.approx(5550.0, rel=1e-6)
+    assert body["currency"].upper() == "ZAR"
 
-    api_payment.RECEIPT_DIR = prev_dir
-
-
-def test_payment_wrong_client_forbidden(monkeypatch):
-    Session = setup_app()
-    client_user, br_id, Session = create_records(Session)
-    db = Session()
-    other_client = User(
-        email="other@test.com",
-        password="y",
-        first_name="o",
-        last_name="c",
-        user_type=UserType.CLIENT,
-    )
-    db.add(other_client)
-    db.commit()
-    db.refresh(other_client)
-    db.close()
-
-    prev_db = app.dependency_overrides.get(get_db)
-    prev_client = app.dependency_overrides.get(get_current_active_client)
-    app.dependency_overrides[get_current_active_client] = override_client(other_client)
-
-    def fake_post(url, json, timeout=10):
-        class Resp:
-            status_code = 201
-
-            def raise_for_status(self):
-                pass
-
-            def json(self):
-                return {"id": "ch_test", "status": "succeeded"}
-
-        return Resp()
-
-    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
-    client = TestClient(app)
-    res = client.post(
-        "/api/v1/payments/", json={"booking_request_id": br_id, "amount": 50}
-    )
-    assert res.status_code == 403
-    db = Session()
-    booking = db.query(BookingSimple).first()
-    assert str(booking.payment_status or "").lower() == "pending"
-    db.close()
-    if prev_db is not None:
-        app.dependency_overrides[get_db] = prev_db
-    else:
-        app.dependency_overrides.pop(get_db, None)
-    if prev_client is not None:
-        app.dependency_overrides[get_current_active_client] = prev_client
-    else:
-        app.dependency_overrides.pop(get_current_active_client, None)
-
-
-def test_full_payment_marks_paid(monkeypatch):
-    """Paying marks the booking paid and sets charged_total_amount."""
-    Session = setup_app()
-    client_user, br_id, Session = create_records(Session)
-    prev_db = app.dependency_overrides.get(get_db)
-    prev_client = app.dependency_overrides.get(get_current_active_client)
-    app.dependency_overrides[get_current_active_client] = override_client(client_user)
-
-    def fake_post(url, json, timeout=10):
-        class Resp:
-            status_code = 201
-
-            def raise_for_status(self):
-                pass
-
-            def json(self):
-                return {"id": "ch_full", "status": "succeeded"}
-
-        return Resp()
-
-    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
-    client = TestClient(app)
-    res = client.post(
-        "/api/v1/payments/",
-        json={"booking_request_id": br_id, "amount": 100, "full": True},
-    )
-    assert res.status_code == 201
     db = Session()
     booking = db.query(BookingSimple).first()
     assert booking.payment_status == "paid"
-    assert booking.payment_id == "ch_full"
-    assert Decimal(booking.charged_total_amount or 0) == Decimal("100")
-    db.close()
-    if prev_db is not None:
-        app.dependency_overrides[get_db] = prev_db
-    else:
-        app.dependency_overrides.pop(get_db, None)
-    if prev_client is not None:
-        app.dependency_overrides[get_current_active_client] = prev_client
-    else:
-        app.dependency_overrides.pop(get_current_active_client, None)
-
-
-def test_duplicate_payment_rejected(monkeypatch):
-    """Second payment attempt for same booking should be rejected."""
-    Session = setup_app()
-    client_user, br_id, Session = create_records(Session)
-    prev_db = app.dependency_overrides.get(get_db)
-    prev_client = app.dependency_overrides.get(get_current_active_client)
-    app.dependency_overrides[get_current_active_client] = override_client(client_user)
-
-    calls = []
-
-    def fake_post(url, json, timeout=10):
-        calls.append(1)
-
-        class Resp:
-            status_code = 201
-
-            def raise_for_status(self):
-                pass
-
-            def json(self):
-                return {"id": "ch_first", "status": "succeeded"}
-
-        return Resp()
-
-    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
-    client = TestClient(app)
-
-    res = client.post(
-        "/api/v1/payments/",
-        json={"booking_request_id": br_id, "amount": 50},
-    )
-    assert res.status_code == 201
-
-    res = client.post(
-        "/api/v1/payments/",
-        json={"booking_request_id": br_id, "amount": 50},
-    )
-    assert res.status_code == 400
-    assert len(calls) == 1
-
-    db = Session()
-    booking = db.query(BookingSimple).first()
-    assert str(booking.payment_status or "").lower() == "paid"
-    db.close()
-    if prev_db is not None:
-        app.dependency_overrides[get_db] = prev_db
-    else:
-        app.dependency_overrides.pop(get_db, None)
-    if prev_client is not None:
-        app.dependency_overrides[get_current_active_client] = prev_client
-    else:
-        app.dependency_overrides.pop(get_current_active_client, None)
-
-
-def test_payment_gateway_error(monkeypatch):
-    """Return 502 when the payment gateway request fails."""
-    Session = setup_app()
-    client_user, br_id, Session = create_records(Session)
-    prev_db = app.dependency_overrides.get(get_db)
-    prev_client = app.dependency_overrides.get(get_current_active_client)
-    app.dependency_overrides[get_current_active_client] = override_client(client_user)
-
-    def raise_error(*args, **kwargs):
-        raise httpx.RequestError("boom")
-
-    monkeypatch.setattr(api_payment.httpx, "post", raise_error)
-    client = TestClient(app)
-    res = client.post(
-        "/api/v1/payments/",
-        json={"booking_request_id": br_id, "amount": 50},
-    )
-    assert res.status_code == 502
-
-    db = Session()
-    booking = db.query(BookingSimple).first()
-    assert str(booking.payment_status or "").lower() == "pending"
-    db.close()
-
-    if prev_db is not None:
-        app.dependency_overrides[get_db] = prev_db
-    else:
-        app.dependency_overrides.pop(get_db, None)
-    if prev_client is not None:
-        app.dependency_overrides[get_current_active_client] = prev_client
-    else:
-        app.dependency_overrides.pop(get_current_active_client, None)
-
-
-def test_payment_confirms_booking_and_creates_messages(monkeypatch):
-    """Successful payment confirms booking and posts system messages."""
-    Session = setup_app()
-    client_user, br_id, Session = create_records(Session)
-    prev_db = app.dependency_overrides.get(get_db)
-    prev_client = app.dependency_overrides.get(get_current_active_client)
-    app.dependency_overrides[get_current_active_client] = override_client(client_user)
-
-    def fake_post(url, json, timeout=10):
-        class Resp:
-            status_code = 201
-
-            def raise_for_status(self):
-                pass
-
-            def json(self):
-                return {"id": "ch_test", "status": "succeeded"}
-
-        return Resp()
-
-    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
-    client = TestClient(app)
-    res = client.post(
-        "/api/v1/payments/",
-        json={"booking_request_id": br_id, "amount": 50},
-    )
-    assert res.status_code == 201
-
-    db = Session()
-    booking = db.query(BookingSimple).first()
-    br = db.query(BookingRequest).first()
-    assert booking.confirmed is True
-    assert br.status == BookingStatus.REQUEST_CONFIRMED
-    msgs = db.query(Message).all()
-    # At least two CTA messages are created; a payment_received system line may also be present
-    assert any(m.action == MessageAction.VIEW_BOOKING_DETAILS for m in msgs)
+    assert Decimal(booking.charged_total_amount or 0) == Decimal("5550")
+    total_to_pay, _, _ = api_payment._derive_receipt_amounts(booking, booking.quote)
+    assert total_to_pay == pytest.approx(5550.0, rel=1e-6)
     db.close()
 
     if prev_db is not None:

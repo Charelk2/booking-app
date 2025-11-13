@@ -26,6 +26,13 @@ class QuoteCreate(BaseModel):
     expires_at: Optional[datetime] = None
 
 
+class QuoteTotalsPreview(BaseModel):
+    provider_subtotal: Optional[Decimal] = None
+    platform_fee_ex_vat: Optional[Decimal] = None
+    platform_fee_vat: Optional[Decimal] = None
+    client_total_incl_vat: Optional[Decimal] = None
+
+
 class QuoteRead(QuoteCreate):
     id: int
     booking_id: Optional[int] = None
@@ -36,7 +43,9 @@ class QuoteRead(QuoteCreate):
     created_at: datetime
     updated_at: datetime
 
-    # Preview fields for client-facing math (optional; computed server-side)
+    totals_preview: Optional[QuoteTotalsPreview] = None
+
+    # DEPRECATED legacy preview fields (retain for compatibility)
     provider_subtotal_preview: Optional[Decimal] = None
     booka_fee_preview: Optional[Decimal] = None
     booka_fee_vat_preview: Optional[Decimal] = None

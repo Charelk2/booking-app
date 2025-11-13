@@ -4,6 +4,7 @@ import Button from '../ui/Button';
 import { QuoteV2 } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { downloadQuotePdf } from '@/lib/api';
+import { resolveQuoteTotalsPreview, QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 
 interface Props {
   quote: QuoteV2;
@@ -67,6 +68,14 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
     const id = setInterval(update, 60000);
     return () => clearInterval(id);
   }, [quote.expires_at, quote.status]);
+  const previewTotals = resolveQuoteTotalsPreview(quote);
+  const platformFeeIncl = typeof previewTotals.platformFeeExVat === 'number' && typeof previewTotals.platformFeeVat === 'number'
+    ? previewTotals.platformFeeExVat + previewTotals.platformFeeVat
+    : undefined;
+  const clientTotalPreview = typeof previewTotals.clientTotalInclVat === 'number'
+    ? previewTotals.clientTotalInclVat
+    : undefined;
+
   return (
     <div className="border rounded-lg p-3 bg-gray-50 mt-2" data-testid="quote-card">
       <div className="flex items-center justify-between mb-1">
@@ -86,31 +95,20 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
         <p className="text-sm">Accommodation: {quote.accommodation}</p>
       )}
       <p className="text-sm font-medium">Subtotal: {formatCurrency(Number(quote.subtotal))}</p>
-      {/* Booka Service Fee (3%) — VAT included (informational; applied at checkout)
-          Only clients see this line; providers' view hides client fees. */}
-      {isClient && (() => {
-        const ps = Number(quote.subtotal) || 0;
-        const fee = ps * 0.03;
-        const feeVat = fee * 0.15;
-        const feeIncl = fee + feeVat;
-        return (
-          <p className="text-sm">
-            Booka Service Fee (3% — VAT included): {formatCurrency(feeIncl)}{' '}
-            <span className="text-xs text-gray-500">(added at checkout)</span>
-          </p>
-        );
-      })()}
+      {/* All fee/VAT math lives on the backend. Show a placeholder if preview totals are missing. */}
+      {isClient && (
+        <p className="text-sm">
+          Booka Service Fee (3% — VAT included): {platformFeeIncl !== undefined ? formatCurrency(platformFeeIncl) : QUOTE_TOTALS_PLACEHOLDER}{' '}
+          <span className="text-xs text-gray-500">(added at checkout)</span>
+        </p>
+      )}
       {quote.discount && (
         <p className="text-sm">Discount: {formatCurrency(Number(quote.discount))}</p>
       )}
       {isClient ? (
-        (() => {
-          const ps = Number(quote.provider_subtotal_preview ?? quote.subtotal) || 0;
-          const fee = Number(quote.booka_fee_preview ?? Math.round(ps * 0.03 * 100) / 100);
-          const feeVat = Number(quote.booka_fee_vat_preview ?? Math.round(fee * 0.15 * 100) / 100);
-          const clientTotal = Number(quote.client_total_preview ?? (Number(quote.total) + fee + feeVat));
-          return <p className="font-semibold">Total To Pay: {formatCurrency(clientTotal)}</p>;
-        })()
+        <p className="font-semibold">
+          Total To Pay: {clientTotalPreview !== undefined ? formatCurrency(clientTotalPreview) : QUOTE_TOTALS_PLACEHOLDER}
+        </p>
       ) : (
         <p className="font-semibold">Total: {formatCurrency(Number(quote.total))}</p>
       )}

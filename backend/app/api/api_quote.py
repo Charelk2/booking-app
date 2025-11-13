@@ -1,3 +1,5 @@
+# DEPRECATED: Legacy quote endpoints. Prefer api_quote_v2.py for new features.
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
@@ -32,6 +34,10 @@ router = APIRouter(
 )
 
 
+def _log_legacy_usage(endpoint: str) -> None:
+    logger.warning("DEPRECATED api_quote endpoint called: %s. Use api_quote_v2.py instead.", endpoint)
+
+
 @router.post(
     "/booking-requests/{request_id}/quotes",
     response_model=schemas.QuoteResponse,
@@ -45,6 +51,7 @@ def create_quote_for_request(
     current_artist: models.User = Depends(get_current_service_provider),
 ):
     """
+    _log_legacy_usage("create_quote_for_request")
     Create a new quote for a specific booking request.
     Only the artist to whom the request was made can create a quote.
     The `quote_in` schema's `booking_request_id` must match `request_id` from path.
@@ -180,6 +187,7 @@ def read_quote(
     current_user: models.User = Depends(get_current_user),
 ):
     """
+    _log_legacy_usage("read_quote")
     Retrieve a specific quote by ID.
     Accessible by the client of the booking request or the artist who made the quote.
     """
@@ -235,6 +243,7 @@ def read_quotes_for_booking_request(
     current_user: models.User = Depends(get_current_user),
 ):
     """
+    _log_legacy_usage("read_quotes_for_booking_request")
     Retrieve all quotes associated with a specific booking request.
     Accessible by the client who made the request or the artist it was made to.
     """
@@ -298,6 +307,7 @@ def calculate_quote_endpoint(
     Uses the same calculation helpers as booking flows so the UI can prefill
     inline quotes with travel- and sound-aware pricing.
     """
+    _log_legacy_usage("calculate_quote_endpoint")
     svc = crud.service.get_service(db, body.service_id)
     if not svc:
         raise error_response(
@@ -346,6 +356,7 @@ def read_my_artist_quotes(
     """
     Retrieve all quotes made by the current artist.
     """
+    _log_legacy_usage("read_my_artist_quotes")
     quotes = crud.crud_quote.get_quotes_by_artist(
         db=db, artist_id=current_artist.id, skip=skip, limit=limit
     )
@@ -364,6 +375,7 @@ def get_quotes_batch(
 
     Returns only quotes the caller is authorized to view (owner participant).
     """
+    _log_legacy_usage("get_quotes_batch")
     try:
         id_list = [int(x) for x in ids.split(",") if x.strip()]
     except Exception:
@@ -403,6 +415,7 @@ def update_quote_by_client(
     current_user: models.User = Depends(get_current_active_client),
 ):
     """
+    _log_legacy_usage("update_quote_by_client")
     Update a quote's status (accept or reject).
     Only accessible by the client to whom the quote was offered (via booking request).
     """
@@ -528,6 +541,7 @@ def update_quote_by_artist(
     current_artist: models.User = Depends(get_current_service_provider),
 ):
     """
+    _log_legacy_usage("update_quote_by_artist")
     Update quote details or withdraw a quote.
     Only accessible by the artist who created the quote.
     """
@@ -591,6 +605,7 @@ def confirm_quote_and_create_booking(
     current_artist: models.User = Depends(get_current_service_provider),
 ):
     """
+    _log_legacy_usage("confirm_quote_and_create_booking")
     Artist confirms a client-accepted quote, which creates a formal Booking.
     """
     db_quote = crud.crud_quote.get_quote(db, quote_id=quote_id)

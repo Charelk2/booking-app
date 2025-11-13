@@ -19,6 +19,7 @@ describe('QuoteBubble', () => {
           discount={5}
           subtotal={125}
           total={130}
+          totalsPreview={{ providerSubtotal: 125, platformFeeExVat: 3.75, platformFeeVat: 0.56, clientTotalInclVat: 134.31 }}
           status="Pending"
           eventDetails={{
             from: 'Client Name',
