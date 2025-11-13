@@ -387,6 +387,18 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
 
         const normalized = items.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
 
+        // Proactively ensure any referenced quotes are hydrated into the global store
+        try {
+          const ids: number[] = [];
+          for (const m of normalized as any[]) {
+            const qid = Number((m as any)?.quote_id || 0);
+            if (Number.isFinite(qid) && qid > 0) ids.push(qid);
+          }
+          if (ids.length && typeof opts?.ensureQuotesLoaded === 'function') {
+            try { await opts.ensureQuotesLoaded(Array.from(new Set(ids))); } catch {}
+          }
+        } catch {}
+
         setMessages(prev => {
           const next = mergeMessages(prev, normalized);
           const last = next[next.length - 1];
@@ -428,6 +440,16 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
               const rows = Array.isArray((olderRes as any)?.data?.items) ? (olderRes as any).data.items : [];
               if (!rows.length) break;
               const older = rows.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
+              try {
+                const ids: number[] = [];
+                for (const m of older as any[]) {
+                  const qid = Number((m as any)?.quote_id || 0);
+                  if (Number.isFinite(qid) && qid > 0) ids.push(qid);
+                }
+                if (ids.length && typeof opts?.ensureQuotesLoaded === 'function') {
+                  try { await opts.ensureQuotesLoaded(Array.from(new Set(ids))); } catch {}
+                }
+              } catch {}
               if (!older.length) break;
               setMessages((prev) => {
                 const next = mergeMessages(older, prev);
@@ -514,6 +536,16 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       const rows = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
       if (!rows.length) return;
       const newer = rows.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
+      try {
+        const ids: number[] = [];
+        for (const m of newer as any[]) {
+          const qid = Number((m as any)?.quote_id || 0);
+          if (Number.isFinite(qid) && qid > 0) ids.push(qid);
+        }
+        if (ids.length && typeof opts?.ensureQuotesLoaded === 'function') {
+          try { await opts.ensureQuotesLoaded(Array.from(new Set(ids))); } catch {}
+        }
+      } catch {}
       if (!newer.length) return;
       setMessages((prev) => {
         const next = mergeMessages(prev, newer);

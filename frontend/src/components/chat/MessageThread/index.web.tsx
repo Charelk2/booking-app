@@ -178,7 +178,12 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     fetchMessages,
     fetchDelta,
     handlers,
-  } = useThreadData(bookingRequestId, { isActiveThread: isActive, onMessagesFetched: () => {}, viewerUserType: userType });
+  } = useThreadData(bookingRequestId, {
+    isActiveThread: isActive,
+    onMessagesFetched: () => {},
+    viewerUserType: userType,
+    ensureQuotesLoaded: ensureQuotesLoaded,
+  });
 
   // --- Virtualization selection (stable)
   const ListComponent = React.useMemo(() => {
@@ -187,7 +192,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   }, [messages]);
 
   // --- Quotes
-  const { quotesById, ensureQuoteLoaded, setQuote } = useQuotes(bookingRequestId) as any;
+  const { quotesById, ensureQuoteLoaded, ensureQuotesLoaded, setQuote } = useQuotes(bookingRequestId) as any;
   const declineQuote = useDeclineQuote();
   const onDecline = useStableCallback((q: any) => {
     try {
