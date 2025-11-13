@@ -84,6 +84,8 @@ const initialOnline = navigatorOnline();
 const nowTs = () => Date.now();
 
 let offlineStartedAt: number | null = initialOnline ? null : nowTs();
+let lastSuccessAt: number = initialOnline ? nowTs() : 0;
+let offlineTimer: ReturnType<typeof setTimeout> | null = null;
 
 let state: TransportState = {
   online: initialOnline,
@@ -146,6 +148,11 @@ type OnlineReason = 'browser' | 'success' | 'probe';
 type OfflineReason = 'browser' | 'network';
 
 const markOnline = (reason: OnlineReason) => {
+  if (offlineTimer) {
+    clearTimeout(offlineTimer);
+    offlineTimer = null;
+  }
+  lastSuccessAt = nowTs();
   if (state.online) return;
   const now = nowTs();
   const duration = offlineStartedAt ? Math.max(now - offlineStartedAt, 0) : 0;
@@ -281,13 +288,26 @@ const enqueueTask = (
   scheduleTask(next);
 };
 
+const scheduleOfflineCheck = (reason: OfflineReason, delayMs: number) => {
+  if (offlineTimer) clearTimeout(offlineTimer);
+  offlineTimer = setTimeout(() => {
+    offlineTimer = null;
+    const now = nowTs();
+    const browserOffline = !navigatorOnline();
+    const staleSuccess = now - lastSuccessAt > 1500;
+    if (reason === 'browser' && !browserOffline) return;
+    if (reason === 'network' && !staleSuccess) return;
+    markOffline(reason);
+  }, Math.max(delayMs, 0));
+};
+
 const handleOnline = () => {
   markOnline('browser');
 };
 
 const handleOffline = () => {
   if (!navigatorOnline()) {
-    markOffline('browser');
+    scheduleOfflineCheck('browser', 800);
   }
 };
 
@@ -459,5 +479,9 @@ export const noteTransportOnline = (reason: OnlineReason = 'success') => {
 };
 
 export const noteTransportOffline = (reason: OfflineReason = 'network') => {
+  if (reason === 'network') {
+    scheduleOfflineCheck('network', 1200);
+    return;
+  }
   markOffline(reason);
 };
