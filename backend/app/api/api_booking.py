@@ -162,6 +162,7 @@ def read_my_bookings(
             BookingSimple.payment_status,
             QuoteV2.booking_request_id,
             inv_subq.c.invoice_id,
+            BookingSimple.id.label("bs_id"),
         )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
         .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
@@ -205,6 +206,7 @@ def read_my_bookings(
         payment_status,
         booking_request_id,
         invoice_id,
+        bs_id,
     ) in rows:
         booking.payment_status = payment_status
         if booking_request_id is not None:
@@ -213,6 +215,26 @@ def read_my_bookings(
             setattr(booking, "invoice_id", int(invoice_id) if invoice_id is not None else None)
         except Exception:
             setattr(booking, "invoice_id", None)
+        # Populate visible_invoices best-effort
+        try:
+            vis = []
+            if bs_id:
+                invs = (
+                    db.query(models.Invoice)
+                    .filter(models.Invoice.booking_id == int(bs_id))
+                    .order_by(models.Invoice.id.asc())
+                    .all()
+                )
+                for iv in invs:
+                    vis.append({
+                        "type": (getattr(iv, "invoice_type", None) or "").lower() or "unknown",
+                        "id": int(iv.id),
+                        "pdf_url": getattr(iv, "pdf_url", None),
+                        "created_at": getattr(iv, "created_at", getattr(iv, "updated_at", booking.created_at)),
+                    })
+            setattr(booking, "visible_invoices", vis)
+        except Exception:
+            setattr(booking, "visible_invoices", None)
         bookings.append(booking)
 
     # Defensive: ensure timestamps present on legacy rows
@@ -244,7 +266,7 @@ def read_artist_bookings(
         .subquery()
     )
     rows = (
-        db.query(Booking, inv_subq.c.invoice_id)
+        db.query(Booking, inv_subq.c.invoice_id, BookingSimple.id.label("bs_id"))
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
         .outerjoin(inv_subq, inv_subq.c.bs_id == BookingSimple.id)
         .options(
@@ -257,11 +279,31 @@ def read_artist_bookings(
         .all()
     )
     bookings: List[Booking] = []
-    for booking, invoice_id in rows:
+    for booking, invoice_id, bs_id in rows:
         try:
             setattr(booking, "invoice_id", int(invoice_id) if invoice_id is not None else None)
         except Exception:
             setattr(booking, "invoice_id", None)
+        # Populate visible_invoices best-effort
+        try:
+            vis = []
+            if bs_id:
+                invs = (
+                    db.query(models.Invoice)
+                    .filter(models.Invoice.booking_id == int(bs_id))
+                    .order_by(models.Invoice.id.asc())
+                    .all()
+                )
+                for iv in invs:
+                    vis.append({
+                        "type": (getattr(iv, "invoice_type", None) or "").lower() or "unknown",
+                        "id": int(iv.id),
+                        "pdf_url": getattr(iv, "pdf_url", None),
+                        "created_at": getattr(iv, "created_at", getattr(iv, "updated_at", booking.created_at)),
+                    })
+            setattr(booking, "visible_invoices", vis)
+        except Exception:
+            setattr(booking, "visible_invoices", None)
         bookings.append(booking)
     try:
         from datetime import datetime as _dt
@@ -373,6 +415,7 @@ def read_booking_details(
             BookingSimple.payment_status,
             QuoteV2.booking_request_id,
             inv_subq.c.invoice_id,
+            BookingSimple.id.label("bs_id"),
         )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
         .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
@@ -401,6 +444,7 @@ def read_booking_details(
         payment_status,
         booking_request_id,
         invoice_id,
+        bs_id,
     ) = booking_row
 
     # Only the client or the artist may see it:
@@ -424,6 +468,27 @@ def read_booking_details(
         setattr(booking, "invoice_id", int(invoice_id) if invoice_id is not None else None)
     except Exception:
         setattr(booking, "invoice_id", None)
+
+    # Populate visible_invoices best-effort
+    try:
+        vis = []
+        if bs_id:
+            invs = (
+                db.query(models.Invoice)
+                .filter(models.Invoice.booking_id == int(bs_id))
+                .order_by(models.Invoice.id.asc())
+                .all()
+            )
+            for iv in invs:
+                vis.append({
+                    "type": (getattr(iv, "invoice_type", None) or "").lower() or "unknown",
+                    "id": int(iv.id),
+                    "pdf_url": getattr(iv, "pdf_url", None),
+                    "created_at": getattr(iv, "created_at", getattr(iv, "updated_at", booking.created_at)),
+                })
+        setattr(booking, "visible_invoices", vis)
+    except Exception:
+        setattr(booking, "visible_invoices", None)
 
     return booking
 

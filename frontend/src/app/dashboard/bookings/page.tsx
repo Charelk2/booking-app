@@ -142,16 +142,14 @@ export default function ArtistBookingsPage() {
                   </Link>
                 )}
                 <div className="mt-3 space-x-4">
-                  {b.invoice_id && (
-                    <a
-                      href={`/invoices/${b.invoice_id}`}
-                      target="_blank"
-                      rel="noopener"
-                      className="text-brand-dark hover:underline text-sm"
-                    >
-                      View invoice
-                    </a>
-                  )}
+                  <a
+                    href={b.invoice_id ? `/invoices/${b.invoice_id}` : `/invoices/by-booking/${b.id}?type=provider`}
+                    target="_blank"
+                    rel="noopener"
+                    className="text-brand-dark hover:underline text-sm"
+                  >
+                    View invoice
+                  </a>
                   {b.status !== 'completed' && b.status !== 'cancelled' && (
                     <>
                       <button

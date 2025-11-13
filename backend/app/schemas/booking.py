@@ -41,6 +41,14 @@ class BookingResponse(BookingBase):
     booking_request_id: Optional[int] = None
     # New: expose invoice_id to avoid per-row lookups on dashboards
     invoice_id: Optional[int] = None
+    # New: list all visible invoices for this booking (by type)
+    class VisibleInvoice(BaseModel):
+        type: str
+        id: int
+        pdf_url: Optional[str] = None
+        created_at: datetime
+
+    visible_invoices: Optional[List[VisibleInvoice]] = None
 
     # Include nested details for frontend dashboard
     client: Optional[UserResponse] = None

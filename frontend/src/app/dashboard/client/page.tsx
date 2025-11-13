@@ -139,8 +139,8 @@ export default function ClientDashboardPage() {
                         <div className="mt-2 text-sm font-semibold text-gray-900">{formatCurrency(Number(booking.total_price))}</div>
                       </div>
                     </div>
-                    {booking.invoice_id && (
-                      <div className="mt-2">
+                    <div className="mt-2">
+                      {booking.invoice_id ? (
                         <a
                           href={`/invoices/${booking.invoice_id}`}
                           target="_blank"
@@ -149,8 +149,17 @@ export default function ClientDashboardPage() {
                         >
                           View invoice
                         </a>
-                      </div>
-                    )}
+                      ) : (
+                        <a
+                          href={`/invoices/by-booking/${booking.id}?type=provider`}
+                          target="_blank"
+                          rel="noopener"
+                          className="text-brand-dark hover:underline text-sm"
+                        >
+                          View invoice
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
               />

@@ -88,17 +88,15 @@ function BookingList({
                 View receipt
               </a>
             )}
-            {b.invoice_id && (
-              <a
-                href={`/invoices/${b.invoice_id}`}
-                target="_blank"
-                rel="noopener"
-                className="ml-3 mt-2 text-brand-dark hover:underline text-sm"
-                data-testid="booking-invoice-link"
-              >
-                View invoice
-              </a>
-            )}
+            <a
+              href={b.invoice_id ? `/invoices/${b.invoice_id}` : `/invoices/by-booking/${b.id}?type=provider`}
+              target="_blank"
+              rel="noopener"
+              className="ml-3 mt-2 text-brand-dark hover:underline text-sm"
+              data-testid="booking-invoice-link"
+            >
+              View invoice
+            </a>
             <div className="flex justify-between text-xs text-gray-500 mt-2">
               {["Requested", "Confirmed", b.status === "cancelled" ? "Cancelled" : "Completed"].map((step, idx) => {
                 const activeIdx =
