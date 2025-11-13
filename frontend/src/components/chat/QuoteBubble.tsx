@@ -296,23 +296,27 @@ export default function QuotePeek(props: QuotePeekProps) {
   // All fee/VAT math comes from the backend. Show placeholders if previews are missing.
   const fallbackTotals = useMemo(() => {
     const totalNumber = Number(total);
-    if (!Number.isFinite(totalNumber) || totalNumber <= 0) return null;
     const subtotalNumber = Number(subtotalForVat);
-    const subtotalInput = Number.isFinite(subtotalNumber) && subtotalNumber > 0 ? subtotalNumber : undefined;
-    return computeQuoteTotalsFromAmounts({ subtotal: subtotalInput, total: totalNumber }) ?? null;
+    if (!Number.isFinite(totalNumber) && !Number.isFinite(subtotalNumber)) return null;
+    return computeQuoteTotalsFromAmounts({
+      subtotal: Number.isFinite(subtotalNumber) && subtotalNumber > 0 ? subtotalNumber : undefined,
+      total: Number.isFinite(totalNumber) && totalNumber > 0 ? totalNumber : undefined,
+    }) ?? null;
   }, [subtotalForVat, total]);
 
   const mergedTotals = props.totalsPreview ?? fallbackTotals ?? undefined;
-  const providerSubtotalPreview = mergedTotals?.providerSubtotal;
-  const platformFeeEx = mergedTotals?.platformFeeExVat;
-  const platformFeeVat = mergedTotals?.platformFeeVat;
-  const clientTotal = mergedTotals?.clientTotalInclVat;
-  const platformFeeIncl = typeof platformFeeEx === 'number' && typeof platformFeeVat === 'number'
-    ? platformFeeEx + platformFeeVat
-    : undefined;
+  const providerSubtotalPreview =
+    typeof mergedTotals?.providerSubtotal === 'number' && Number.isFinite(mergedTotals.providerSubtotal)
+      ? mergedTotals.providerSubtotal
+      : undefined;
+  const platformFeeEx = typeof mergedTotals?.platformFeeExVat === 'number' ? mergedTotals.platformFeeExVat : undefined;
+  const platformFeeVat = typeof mergedTotals?.platformFeeVat === 'number' ? mergedTotals.platformFeeVat : undefined;
+  const clientTotal = typeof mergedTotals?.clientTotalInclVat === 'number' ? mergedTotals.clientTotalInclVat : undefined;
+  const platformFeeIncl =
+    platformFeeEx !== undefined && platformFeeVat !== undefined ? platformFeeEx + platformFeeVat : undefined;
 
   const normalizedTotal = Number(total);
-  const normalizedSubtotal = Number(subtotal);
+  const normalizedSubtotal = Number(subtotalForVat);
   const headerAmountSource =
     (isClientView ? clientTotal : providerSubtotalPreview) ??
     (Number.isFinite(normalizedTotal) && normalizedTotal > 0 ? normalizedTotal : undefined) ??
@@ -463,7 +467,7 @@ export default function QuotePeek(props: QuotePeekProps) {
 
           <div className="shrink-0 text-right">
             <div className="text-sm font-extrabold tabular-nums text-gray-900">
-              {money(displayTotal)}
+              {displayTotal !== undefined ? formatCurrency(displayTotal) : QUOTE_TOTALS_PLACEHOLDER}
             </div>
             {/* Taxes pill: intentionally minimal for now */}
           </div>

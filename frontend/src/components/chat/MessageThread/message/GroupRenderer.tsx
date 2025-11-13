@@ -244,27 +244,6 @@ export default function GroupRenderer({
           const isInquiryCard = text.includes('inquiry_sent_v1');
           const quoteId = Number(m?.quote_id || 0);
 
-          // System message line (rich renderer)
-          if (isSystem || isInquiryCard) {
-            try {
-              const content = String(m?.content || '');
-              // For service providers, suppress the booking-details card while keeping
-              // the message in the list so parsing and side-panel still work.
-              if (userType === 'service_provider' && content.startsWith(BOOKING_DETAILS_PREFIX)) {
-                return null;
-              }
-            } catch {}
-            return (
-              <SystemMessage
-                key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)}
-                msg={m}
-                hasAnyQuote={hasAnyQuote}
-                onOpenDetails={onOpenDetailsPanel}
-                onOpenQuote={onOpenQuote}
-              />
-            );
-          }
-
           // Quote block (render if loaded, else show placeholder; effect above requests loads)
           if (quoteId > 0) {
             const q = quotesById?.[quoteId];
@@ -315,6 +294,27 @@ export default function GroupRenderer({
                   <div className="text-[12px] text-gray-600">Loading quote…</div>
                 )}
               </div>
+            );
+          }
+
+          // System message line (rich renderer)
+          if (isSystem || isInquiryCard) {
+            try {
+              const content = String(m?.content || '');
+              // For service providers, suppress the booking-details card while keeping
+              // the message in the list so parsing and side-panel still work.
+              if (userType === 'service_provider' && content.startsWith(BOOKING_DETAILS_PREFIX)) {
+                return null;
+              }
+            } catch {}
+            return (
+              <SystemMessage
+                key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)}
+                msg={m}
+                hasAnyQuote={hasAnyQuote}
+                onOpenDetails={onOpenDetailsPanel}
+                onOpenQuote={onOpenQuote}
+              />
             );
           }
           return (
