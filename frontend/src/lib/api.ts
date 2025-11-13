@@ -987,6 +987,7 @@ export interface MessageListParams {
   mode?: 'full' | 'lite' | 'delta';
   // Optional: comma-separated ids the client already has, so server can omit them
   known_quote_ids?: string | number[];
+  include_quotes?: boolean;
 }
 
 export const getMessagesForBookingRequest = (

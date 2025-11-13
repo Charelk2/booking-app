@@ -241,6 +241,35 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
   );
   const missingThreadRef = React.useRef(false);
   const deltaCooldownRef = React.useRef<number>(0);
+  const knownQuoteIdsRef = React.useRef<Set<number>>(new Set());
+
+  React.useEffect(() => {
+    knownQuoteIdsRef.current.clear();
+  }, [threadId]);
+
+  const ingestQuotes = React.useCallback((quoteMap: Record<number, any> | undefined | null) => {
+    if (!quoteMap || typeof quoteMap !== 'object') return;
+    const values = Object.values(quoteMap).filter(Boolean) as any[];
+    if (!values.length) return;
+    try { seedGlobalQuotes(values); } catch {}
+    values.forEach((q) => {
+      const id = Number((q as any)?.id ?? (q as any)?.quote_id ?? 0);
+      if (Number.isFinite(id) && id > 0) knownQuoteIdsRef.current.add(id);
+    });
+  }, []);
+
+  const buildRequestParams = React.useCallback(
+    (base: MessageListParams): MessageListParams & { include_quotes: boolean; known_quote_ids?: number[] } => {
+      const params = { ...base, include_quotes: true } as MessageListParams & {
+        include_quotes: boolean;
+        known_quote_ids?: number[];
+      };
+      const known = Array.from(knownQuoteIdsRef.current.values()).filter((id) => Number.isFinite(id) && id > 0);
+      if (known.length) params.known_quote_ids = known;
+      return params;
+    },
+    [],
+  );
 
   // Reset history flags when thread changes
   React.useEffect(() => {
@@ -346,13 +375,9 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         try { abortRef.current?.abort(); } catch {}
         abortRef.current = new AbortController();
 
-        const res = await apiList(threadId, params as any, { signal: abortRef.current.signal });
-
-        // Seed quotes (best-effort)
-        try {
-          const qmap = (res.data as any)?.quotes as Record<number, any> | undefined;
-          if (qmap && typeof qmap === 'object') seedGlobalQuotes(Object.values(qmap).filter(Boolean) as any);
-        } catch {}
+        const requestParams = buildRequestParams(params);
+        const res = await apiList(threadId, requestParams as any, { signal: abortRef.current.signal });
+        try { ingestQuotes((res.data as any)?.quotes); } catch {}
 
         const items =
           Array.isArray((res.data as any)?.messages) ? (res.data as any).messages
@@ -390,12 +415,16 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
             }
             if (!earliest || earliest <= 1) break;
             try {
-              const olderRes = await apiList(threadId, {
-                limit: FULL_LIMIT,
-                mode: 'full' as any,
-                before_id: earliest,
-                fields: 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions',
-              } as any);
+              const olderRes = await apiList(
+                threadId,
+                buildRequestParams({
+                  limit: FULL_LIMIT,
+                  mode: 'full' as any,
+                  before_id: earliest,
+                  fields: 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions',
+                }) as any,
+              );
+              try { ingestQuotes((olderRes as any)?.data?.quotes); } catch {}
               const rows = Array.isArray((olderRes as any)?.data?.items) ? (olderRes as any).data.items : [];
               if (!rows.length) break;
               const older = rows.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
@@ -472,12 +501,16 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       const now = Date.now();
       if (now < (deltaCooldownRef.current || 0)) return;
       deltaCooldownRef.current = now + 600; // throttle
-      const res = await apiList(threadId, {
-        limit: 100,
-        mode: 'delta' as any,
-        after_id: after,
-        fields: 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions',
-      } as any);
+      const res = await apiList(
+        threadId,
+        buildRequestParams({
+          limit: 100,
+          mode: 'delta' as any,
+          after_id: after,
+          fields: 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions',
+        }) as any,
+      );
+      try { ingestQuotes((res as any)?.data?.quotes); } catch {}
       const rows = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
       if (!rows.length) return;
       const newer = rows.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
