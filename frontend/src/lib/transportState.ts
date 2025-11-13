@@ -288,6 +288,8 @@ const enqueueTask = (
   scheduleTask(next);
 };
 
+const OFFLINE_DELAY_MS = 3000;
+
 const scheduleOfflineCheck = (reason: OfflineReason, delayMs: number) => {
   if (offlineTimer) clearTimeout(offlineTimer);
   offlineTimer = setTimeout(() => {
@@ -307,7 +309,7 @@ const handleOnline = () => {
 
 const handleOffline = () => {
   if (!navigatorOnline()) {
-    scheduleOfflineCheck('browser', 800);
+    scheduleOfflineCheck('browser', OFFLINE_DELAY_MS);
   }
 };
 
@@ -480,8 +482,10 @@ export const noteTransportOnline = (reason: OnlineReason = 'success') => {
 
 export const noteTransportOffline = (reason: OfflineReason = 'network') => {
   if (reason === 'network') {
-    scheduleOfflineCheck('network', 1200);
+    if (!navigatorOnline()) {
+      scheduleOfflineCheck('network', OFFLINE_DELAY_MS);
+    }
     return;
   }
-  markOffline(reason);
+  scheduleOfflineCheck('browser', OFFLINE_DELAY_MS);
 };
