@@ -50,7 +50,12 @@ def read_invoice(
         db.refresh(invoice)
     except Exception:
         pass
-    return schemas.InvoiceRead.model_validate(invoice)
+    payload = schemas.InvoiceRead.model_validate(invoice).model_dump()
+    try:
+        payload["invoice_type"] = getattr(invoice, "invoice_type", None)
+    except Exception:
+        pass
+    return payload
 
 
 @router.post("/{invoice_id}/mark-paid", response_model=schemas.InvoiceRead)
@@ -214,6 +219,7 @@ def get_invoice_by_booking(
         due_date=getattr(inv, "due_date", None),
         amount_due=inv.amount_due,
         status=inv.status,
+        invoice_type=getattr(inv, "invoice_type", None),
         payment_method=getattr(inv, "payment_method", None),
         notes=getattr(inv, "notes", None),
         pdf_url=getattr(inv, "pdf_url", None),

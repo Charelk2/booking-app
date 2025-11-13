@@ -118,6 +118,8 @@ def test_invoice_created_and_api():
     res = client.get(f"/api/v1/invoices/{invoice.id}")
     assert res.status_code == 200
     assert res.json()["id"] == invoice.id
+    # invoice_type present (string), best-effort
+    assert "invoice_type" in res.json()
 
     res = client.post(f"/api/v1/invoices/{invoice.id}/mark-paid", json={"payment_method": "eft"})
     assert res.status_code == 200
@@ -137,3 +139,21 @@ def test_invoice_created_and_api():
         app.dependency_overrides.pop(get_current_user, None)
     db.close()
 
+
+def test_invoice_idempotency_by_type():
+    Session = setup_app()
+    db, client_user, artist_user, quote = create_records(Session)
+    # Accept quote to create a BookingSimple row
+    from app.crud import crud_quote_v2 as _cq
+    bs = _cq.accept_quote(db=db, quote_id=quote.id)
+    assert bs is not None
+    # Create client fee invoice twice → expect one record
+    from app.crud import crud_invoice as inv
+    inv1 = inv.create_client_fee_invoice(db, bs)
+    inv2 = inv.create_client_fee_invoice(db, bs)
+    assert inv1.id == inv2.id
+    # Create commission invoice twice → expect one record
+    com1 = inv.create_commission_invoice(db, bs)
+    com2 = inv.create_commission_invoice(db, bs)
+    assert com1.id == com2.id
+    db.close()

@@ -64,15 +64,38 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
         import os
         vat = float(os.getenv('VAT_RATE', '0.15') or 0.15)
     except Exception:
-        vat = 0.15
-    # Use amount_due as total if present; otherwise compute roughly
-    commission_ex = float(getattr(invoice, 'amount_due', 0) or 0) / (1 + vat)
-    vat_amount = commission_ex * vat
-    total = commission_ex + vat_amount
+    # Prefer stored snapshot values; fallback to a basic derive
+    total = float(getattr(invoice, 'amount_due', 0) or 0)
+    commission_ex = 0.0
+    vat_amount = 0.0
+    try:
+        snap = getattr(invoice, 'vat_breakdown_snapshot', None) or None
+        if isinstance(snap, dict):
+            ex = snap.get('ex')
+            vat = snap.get('vat')
+            if ex is not None and vat is not None:
+                commission_ex = float(ex or 0)
+                vat_amount = float(vat or 0)
+            else:
+                # Fallback derive from amount_due and VAT_RATE env
+                import os
+                vat_rate = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+                commission_ex = total / (1 + vat_rate) if total else 0.0
+                vat_amount = commission_ex * vat_rate
+        else:
+            import os
+            vat_rate = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+            commission_ex = total / (1 + vat_rate) if total else 0.0
+            vat_amount = commission_ex * vat_rate
+    except Exception:
+        import os
+        vat_rate = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+        commission_ex = total / (1 + vat_rate) if total else 0.0
+        vat_amount = commission_ex * vat_rate
 
     rows = [[Paragraph("Description", styles["Strong"]), Paragraph("Amount", styles["Strong"])]]
     rows.append([Paragraph("Commission (EX VAT)", styles["NormalSmall"]), Paragraph(_zar(commission_ex), styles["NormalSmall"])])
-    rows.append([Paragraph("VAT (15%)", styles["NormalSmall"]), Paragraph(_zar(vat_amount), styles["NormalSmall"])])
+    rows.append([Paragraph("VAT", styles["NormalSmall"]), Paragraph(_zar(vat_amount), styles["NormalSmall"])])
     rows.append([Paragraph("TOTAL", styles["Strong"]), Paragraph(_zar(total), styles["Strong"])])
     tbl = Table(rows, colWidths=[doc.width*0.65, doc.width*0.35])
     tbl.setStyle(TableStyle([("BOX", (0,0), (-1,-1), 0.25, border), ("INNERGRID", (0,0), (-1,-1), 0.25, border)]))

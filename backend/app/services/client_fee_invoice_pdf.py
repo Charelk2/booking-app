@@ -56,10 +56,28 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
     story.append(parties_tbl)
     story.append(Spacer(1, 8))
 
-    # Use invoice.amount_due as total if set; otherwise derive 3% + 15% VAT is not available here
+    # Prefer stored snapshot breakdown when available to avoid recomputation
     fee_total = float(getattr(invoice, 'amount_due', 0) or 0)
-    fee_ex = fee_total / 1.15 if fee_total else 0.0
-    fee_vat = fee_total - fee_ex
+    fee_ex = 0.0
+    fee_vat = 0.0
+    try:
+        snap = getattr(invoice, 'vat_breakdown_snapshot', None) or None
+        if isinstance(snap, dict):
+            ex = snap.get('ex')
+            vat = snap.get('vat')
+            if ex is not None and vat is not None:
+                fee_ex = float(ex or 0)
+                fee_vat = float(vat or 0)
+            else:
+                # Fallback: derive from total if snapshot incomplete
+                fee_ex = fee_total / 1.15 if fee_total else 0.0
+                fee_vat = max(0.0, fee_total - fee_ex)
+        else:
+            fee_ex = fee_total / 1.15 if fee_total else 0.0
+            fee_vat = max(0.0, fee_total - fee_ex)
+    except Exception:
+        fee_ex = fee_total / 1.15 if fee_total else 0.0
+        fee_vat = max(0.0, fee_total - fee_ex)
 
     rows = [[Paragraph("Description", styles["Strong"]), Paragraph("Amount", styles["Strong"])]]
     rows.append([Paragraph("Platform service fee (EX VAT)", styles["NormalSmall"]), Paragraph(_zar(fee_ex), styles["NormalSmall"])])
@@ -73,4 +91,3 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
     doc.build(story)
     buffer.seek(0)
     return buffer.read()
-

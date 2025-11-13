@@ -13,6 +13,18 @@ class InvoiceStatus(str, enum.Enum):
     OVERDUE = "overdue"
 
 
+class InvoiceType(str, enum.Enum):
+    """Logical invoice types used across the app.
+
+    Note: The database column ``invoice_type`` is a VARCHAR for compatibility. This
+    enum provides a canonical set for code and schemas without altering the DB type.
+    """
+    PROVIDER_TAX = "provider_tax"
+    PROVIDER_INVOICE = "provider_invoice"
+    CLIENT_FEE_TAX = "client_fee_tax"
+    COMMISSION_TAX = "commission_tax"
+
+
 class Invoice(BaseModel):
     __tablename__ = "invoices"
 

@@ -123,6 +123,10 @@ def create_commission_invoice(db: Session, booking: models.BookingSimple) -> mod
     qv2 = db.query(models.QuoteV2).filter(models.QuoteV2.id == booking.quote_id).first()
     if not qv2:
         raise ValueError("quote_missing")
+    # Idempotency: return existing commission invoice if present
+    existing = get_invoice_by_booking_and_type(db, int(booking.id), "commission")
+    if existing:
+        return existing
     base_ex = _quote_base_ex(qv2)
     COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
     VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
@@ -139,6 +143,13 @@ def create_commission_invoice(db: Session, booking: models.BookingSimple) -> mod
         invoice_type="commission_tax",
         issuer_snapshot={"legal_name": "Booka (Pty) Ltd", "vat_number": os.getenv('BOOKA_VAT_NUMBER','')},
         recipient_snapshot=_provider_snapshot(db, qv2.artist_id),
+        vat_breakdown_snapshot={
+            "ex": commission_ex,
+            "vat": round(commission_ex * VAT_RATE, 2),
+            "total": amount_due,
+            "rate": VAT_RATE,
+            "currency": settings.DEFAULT_CURRENCY or "ZAR",
+        },
     )
     series_key = f"COM-{_yyyymm_now()}"
     invoice.invoice_number = allocate_invoice_number(db, series_key, "COM")
@@ -152,6 +163,10 @@ def create_client_fee_invoice(db: Session, booking: models.BookingSimple) -> mod
     qv2 = db.query(models.QuoteV2).filter(models.QuoteV2.id == booking.quote_id).first()
     if not qv2:
         raise ValueError("quote_missing")
+    # Idempotency: return existing client fee invoice if present
+    existing = get_invoice_by_booking_and_type(db, int(booking.id), "client_fee")
+    if existing:
+        return existing
     base_ex = _quote_base_ex(qv2)
     CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
     VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
@@ -168,6 +183,13 @@ def create_client_fee_invoice(db: Session, booking: models.BookingSimple) -> mod
         invoice_type="client_fee_tax",
         issuer_snapshot={"legal_name": "Booka (Pty) Ltd", "vat_number": os.getenv('BOOKA_VAT_NUMBER','')},
         recipient_snapshot=_client_snapshot(db, booking, qv2.client_id),
+        vat_breakdown_snapshot={
+            "ex": fee_ex,
+            "vat": round(fee_ex * VAT_RATE, 2),
+            "total": amount_due,
+            "rate": VAT_RATE,
+            "currency": settings.DEFAULT_CURRENCY or "ZAR",
+        },
     )
     series_key = f"FEE-{_yyyymm_now()}"
     invoice.invoice_number = allocate_invoice_number(db, series_key, "FEE")
