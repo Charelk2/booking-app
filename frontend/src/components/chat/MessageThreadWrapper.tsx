@@ -324,26 +324,22 @@ export default function MessageThreadWrapper({
 
   const refreshQuotesForThread = useCallback(async () => {
     try {
-      const res = await api.getQuotesForBookingRequest(Number(bookingRequestId || 0));
-      const arr = Array.isArray(res.data) ? (res.data as any[]) : [];
-      for (const raw of arr) {
-        let normalized: QuoteV2 | null = null;
-        if (Array.isArray((raw as any)?.services)) {
-          normalized = raw as QuoteV2;
-        } else {
-          try {
-            normalized = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id });
-          } catch {
-            normalized = null;
-          }
+      const ids: number[] = [];
+      const accepted = Number((bookingRequest as any)?.accepted_quote_id || 0);
+      if (Number.isFinite(accepted) && accepted > 0) ids.push(accepted);
+      try {
+        const arr = Array.isArray((bookingRequest as any)?.quotes) ? (bookingRequest as any).quotes : [];
+        for (const q of arr) {
+          const id = Number((q as any)?.id || 0);
+          if (Number.isFinite(id) && id > 0) ids.push(id);
         }
-        if (normalized && typeof normalized.id === 'number') {
-          const bookingId = Number(normalized.booking_request_id ?? bookingRequestId ?? 0) || Number(bookingRequestId || 0);
-          setQuote({ ...normalized, booking_request_id: bookingId } as QuoteV2);
-        }
-      }
+      } catch {}
+      const unique = Array.from(new Set(ids.filter((n) => Number.isFinite(n) && n > 0)));
+      if (!unique.length) return;
+      try { await prefetchQuotesByIds(unique); } catch {}
+      try { await ensureQuotesLoaded(unique); } catch {}
     } catch { /* ignore */ }
-  }, [bookingRequestId, setQuote, bookingRequest]);
+  }, [bookingRequest, bookingRequestId, ensureQuotesLoaded]);
 
   const handleHydratedBookingRequest = useCallback((request: BookingRequest) => {
     canonicalHydrateAttemptedRef.current = true;
