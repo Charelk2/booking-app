@@ -293,19 +293,7 @@ export default function QuotePeek(props: QuotePeekProps) {
     return diff > 0 ? Math.round(diff * 100) / 100 : undefined;
   }, [total, subtotalForVat]);
 
-  const displayTotal = useMemo(() => {
-    const parsed = Number(total);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }, [total]);
-
   // All fee/VAT math comes from the backend. Show placeholders if previews are missing.
-  const previewPlatformFee = typeof props.totalsPreview?.platformFeeExVat === 'number' && typeof props.totalsPreview?.platformFeeVat === 'number'
-    ? props.totalsPreview.platformFeeExVat + props.totalsPreview.platformFeeVat
-    : undefined;
-  const previewClientTotal = typeof props.totalsPreview?.clientTotalInclVat === 'number'
-    ? props.totalsPreview.clientTotalInclVat
-    : undefined;
-
   const fallbackTotals = useMemo(() => {
     const totalNumber = Number(total);
     if (!Number.isFinite(totalNumber) || totalNumber <= 0) return null;
@@ -314,10 +302,22 @@ export default function QuotePeek(props: QuotePeekProps) {
     return computeQuoteTotalsFromAmounts({ subtotal: subtotalInput, total: totalNumber }) ?? null;
   }, [subtotalForVat, total]);
 
-  const platformFeeIncl = previewPlatformFee ?? (fallbackTotals
-    ? (fallbackTotals.platformFeeExVat ?? 0) + (fallbackTotals.platformFeeVat ?? 0)
-    : undefined);
-  const clientTotal = previewClientTotal ?? fallbackTotals?.clientTotalInclVat;
+  const mergedTotals = props.totalsPreview ?? fallbackTotals ?? undefined;
+  const providerSubtotalPreview = mergedTotals?.providerSubtotal;
+  const platformFeeEx = mergedTotals?.platformFeeExVat;
+  const platformFeeVat = mergedTotals?.platformFeeVat;
+  const clientTotal = mergedTotals?.clientTotalInclVat;
+  const platformFeeIncl = typeof platformFeeEx === 'number' && typeof platformFeeVat === 'number'
+    ? platformFeeEx + platformFeeVat
+    : undefined;
+
+  const normalizedTotal = Number(total);
+  const normalizedSubtotal = Number(subtotal);
+  const headerAmountSource =
+    (isClientView ? clientTotal : providerSubtotalPreview) ??
+    (Number.isFinite(normalizedTotal) && normalizedTotal > 0 ? normalizedTotal : undefined) ??
+    (Number.isFinite(normalizedSubtotal) && normalizedSubtotal > 0 ? normalizedSubtotal : undefined);
+  const displayTotal = typeof headerAmountSource === 'number' ? headerAmountSource : undefined;
 
   // Fetch reviews lazily when the details modal opens (best effort)
   const [peekReviews, setPeekReviews] = useState<Review[]>([]);

@@ -270,6 +270,19 @@ export default function GroupRenderer({
             const q = quotesById?.[quoteId];
             const isClientView = String(userType).toLowerCase() === 'client';
             const previewTotals = q ? resolveQuoteTotalsPreview(q as any) : undefined;
+            if (process.env.NODE_ENV !== 'production' && q && typeof window !== 'undefined') {
+              try {
+                // eslint-disable-next-line no-console
+                console.debug('[QuoteBubble]', {
+                  quoteId,
+                  total: q?.total,
+                  subtotal: q?.subtotal,
+                  preview: previewTotals,
+                });
+              } catch {
+                // ignore logging failures
+              }
+            }
             return (
               <div key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)} className="my-2 w-full flex justify-center">
                 {q ? (

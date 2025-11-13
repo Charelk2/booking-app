@@ -633,6 +633,20 @@ function CostBreakdown({
     ? previewTotals.platformFeeExVat + previewTotals.platformFeeVat
     : undefined;
   const clientTotal = typeof previewTotals.clientTotalInclVat === 'number' ? previewTotals.clientTotalInclVat : undefined;
+  const providerSubtotal = typeof previewTotals.providerSubtotal === 'number' ? previewTotals.providerSubtotal : undefined;
+
+  const providerDisplayRaw =
+    (Number.isFinite(total) && total > 0 ? total : undefined) ??
+    (Number.isFinite(subtotal) && subtotal > 0 ? subtotal : undefined) ??
+    providerSubtotal;
+  const providerDisplay =
+    typeof providerDisplayRaw === 'number' && Number.isFinite(providerDisplayRaw)
+      ? formatCurrency(providerDisplayRaw)
+      : QUOTE_TOTALS_PLACEHOLDER;
+  const clientDisplay =
+    typeof clientTotal === 'number' && Number.isFinite(clientTotal)
+      ? formatCurrency(clientTotal)
+      : providerDisplay;
 
   return (
     <div className="rounded-lg bg-white border border-gray-200 p-4 space-y-2 shadow-sm overflow-x-hidden">
@@ -681,9 +695,7 @@ function CostBreakdown({
           Final Total
         </span>
         <span>
-          {isClient
-            ? (clientTotal !== undefined ? formatCurrency(clientTotal) : QUOTE_TOTALS_PLACEHOLDER)
-            : formatCurrency(total)}
+          {isClient ? clientDisplay : providerDisplay}
         </span>
       </div>
 
