@@ -216,6 +216,21 @@ def get_invoice_by_booking(db: Session, booking_id: int) -> models.Invoice | Non
     )
 
 
+def get_invoice_by_booking_and_type(
+    db: Session, booking_id: int, type_key: str
+) -> models.Invoice | None:
+    type_key = (type_key or "").strip().lower()
+    q = db.query(models.Invoice).filter(models.Invoice.booking_id == int(booking_id))
+    if type_key == "provider":
+        q = q.filter(models.Invoice.invoice_type.in_(["provider_tax", "provider_invoice"]))
+    elif type_key == "client_fee":
+        q = q.filter(models.Invoice.invoice_type == "client_fee_tax")
+    elif type_key == "commission":
+        q = q.filter(models.Invoice.invoice_type == "commission_tax")
+    # Unknown type: fall back to latest (backward-compatible)
+    return q.order_by(models.Invoice.id.desc()).first()
+
+
 def get_invoice_by_quote(db: Session, quote_id: int) -> models.Invoice | None:
     return (
         db.query(models.Invoice)

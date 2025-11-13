@@ -34,7 +34,7 @@ export default function BookingDetailsPage() {
         setBooking(res.data);
         // Attempt to fetch invoice id for this formal booking
         try {
-          const url = apiUrl(`/api/v1/invoices/by-booking/${id}`);
+          const url = apiUrl(`/api/v1/invoices/by-booking/${id}?type=provider`);
           const resp = await fetch(url, { credentials: 'include' });
           if (resp.ok) {
             const data = await resp.json();

@@ -15,11 +15,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 
   const cookie = req.headers.get('cookie') || '';
-  const url = `${apiBase()}/api/v1/invoices/by-booking/${encodeURIComponent(bookingId)}`;
+  const type = req.nextUrl.searchParams.get('type') || 'provider';
+  const url = `${apiBase()}/api/v1/invoices/by-booking/${encodeURIComponent(bookingId)}?type=${encodeURIComponent(type)}`;
 
   const resp = await fetch(url, { method: 'GET', headers: { cookie } });
   if (resp.status === 401 || resp.status === 403) {
-    const returnTo = `/invoices/by-booking/${encodeURIComponent(bookingId)}`;
+    const returnTo = `/invoices/by-booking/${encodeURIComponent(bookingId)}?type=${encodeURIComponent(type)}`;
     const loginUrl = `/login?next=${encodeURIComponent(returnTo)}`;
     return NextResponse.redirect(loginUrl);
   }
@@ -33,4 +34,3 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
   return NextResponse.redirect(`/invoices/${encodeURIComponent(String(id))}`);
 }
-

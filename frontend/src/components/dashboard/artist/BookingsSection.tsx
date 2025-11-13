@@ -73,7 +73,7 @@ const BookingsSection: React.FC<Props> = ({ bookings, loading, error, onRetry })
                 </a>
               ) : (
                 <a
-                  href={`/invoices/by-booking/${booking.id}`}
+                  href={`/invoices/by-booking/${booking.id}?type=provider`}
                   className="text-brand-dark hover:underline text-sm"
                   title="Find Provider Invoice by booking"
                 >

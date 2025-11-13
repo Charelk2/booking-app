@@ -1526,6 +1526,23 @@ def ensure_invoice_number_unique_index(engine: Engine) -> None:
         # Non-fatal; uniqueness still enforced at allocator level by low contention
         pass
 
+def ensure_invoice_booking_type_unique_index(engine: Engine) -> None:
+    """Ensure a UNIQUE index on (booking_id, invoice_type) to enforce idempotency.
+
+    Best-effort: created on Postgres/SQLite; no-op on other dialects.
+    """
+    try:
+        if engine.dialect.name not in {"postgresql", "sqlite"}:
+            return
+        with engine.connect() as conn:
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS invoices_booking_type_uidx ON invoices (booking_id, invoice_type)"
+            ))
+            conn.commit()
+    except Exception:
+        # Non-fatal: application-level idempotency still guards common paths
+        pass
+
 def ensure_booking_simple_agent_columns(engine: Engine) -> None:
     """Ensure agent-mode columns exist on bookings_simple."""
     add_column_if_missing(engine, "bookings_simple", "provider_profile_snapshot", "provider_profile_snapshot JSON")

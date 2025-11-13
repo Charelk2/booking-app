@@ -336,7 +336,7 @@ export default function BookingSummaryCard({
             const statusConfirmed = status.includes('confirmed') || status === 'completed';
             const invoiceHref = bookingDetails?.invoice_id
               ? `/invoices/${bookingDetails.invoice_id}`
-              : (bookingDetails?.id ? `/invoices/by-booking/${bookingDetails.id}` : null);
+              : (bookingDetails?.id ? `/invoices/by-booking/${bookingDetails.id}?type=provider` : null);
             if ((paid || statusConfirmed) && invoiceHref) {
               return (
                 <div className="mb-4">

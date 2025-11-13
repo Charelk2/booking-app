@@ -163,17 +163,24 @@ def get_invoice_pdf(
     except Exception:
         # Fall back to local file response
         return FileResponse(path, media_type="application/pdf", filename=filename)
-@router.get("/by-booking/{booking_id}", response_model=schemas.InvoiceRead)
+@router.get("/by-booking/{booking_id}", response_model=schemas.InvoiceByBooking)
 def get_invoice_by_booking(
     booking_id: int,
+    type: str | None = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Fetch the invoice for a formal Booking id.
+    """Fetch a specific invoice by formal Booking id.
 
-    Resolves Booking -> BookingSimple via quote_id, then returns the invoice.
+    Query param `type` selects which invoice to return:
+      - provider (default): provider_tax/provider_invoice
+      - client_fee: client_fee_tax
+      - commission: commission_tax
+
+    Returns 404 when not found; never 500. Response includes both
+    user-facing booking_id and internal booking_simple_id.
     """
-    booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
+    booking = db.query(models.Booking).filter(models.Booking.id == int(booking_id)).first()
     if not booking:
         raise error_response("Booking not found", {"booking_id": "not_found"}, status.HTTP_404_NOT_FOUND)
     simple = (
@@ -183,7 +190,7 @@ def get_invoice_by_booking(
     )
     if not simple:
         raise error_response("Invoice not found", {"invoice": "not_found"}, status.HTTP_404_NOT_FOUND)
-    inv = crud.crud_invoice.get_invoice_by_booking(db, int(simple.id))
+    inv = crud.crud_invoice.get_invoice_by_booking_and_type(db, int(simple.id), type or "provider")
     if not inv:
         raise error_response("Invoice not found", {"invoice": "not_found"}, status.HTTP_404_NOT_FOUND)
     try:
@@ -192,16 +199,27 @@ def get_invoice_by_booking(
         is_admin = False
     if not is_admin and inv.client_id != current_user.id and inv.artist_id != current_user.id:
         raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
-    # Defensive timestamp ensure (no commit on read)
-    try:
-        from datetime import datetime as _dt
-        if not getattr(inv, "created_at", None):
-            inv.created_at = getattr(inv, "updated_at", None) or _dt.utcnow()
-        if not getattr(inv, "updated_at", None):
-            inv.updated_at = inv.created_at
-    except Exception:
-        pass
-    return schemas.InvoiceRead.model_validate(inv)
+    # Build augmented response including both booking ids
+    from datetime import datetime as _dt
+    created = getattr(inv, "created_at", None) or _dt.utcnow()
+    updated = getattr(inv, "updated_at", None) or created
+    return schemas.InvoiceByBooking(
+        id=int(inv.id),
+        quote_id=int(inv.quote_id),
+        booking_id=int(booking.id),
+        booking_simple_id=int(simple.id),
+        artist_id=int(inv.artist_id),
+        client_id=int(inv.client_id),
+        issue_date=inv.issue_date,
+        due_date=getattr(inv, "due_date", None),
+        amount_due=inv.amount_due,
+        status=inv.status,
+        payment_method=getattr(inv, "payment_method", None),
+        notes=getattr(inv, "notes", None),
+        pdf_url=getattr(inv, "pdf_url", None),
+        created_at=created,
+        updated_at=updated,
+    )
 
 
 @router.get("/by-quote/{quote_id}", response_model=schemas.InvoiceRead)
