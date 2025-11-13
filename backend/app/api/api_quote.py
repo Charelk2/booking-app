@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Any
 import logging
 from datetime import datetime, timedelta
 
@@ -28,6 +28,7 @@ from decimal import Decimal
 from ..utils import error_response
 from .api_sound_outreach import kickoff_sound_outreach
 from ..utils.notifications import notify_user_new_message
+from ..services.quote_totals import quote_preview_fields
 
 router = APIRouter(
     tags=["Quotes"],
@@ -36,6 +37,24 @@ router = APIRouter(
 
 def _log_legacy_usage(endpoint: str) -> None:
     logger.warning("DEPRECATED api_quote endpoint called: %s. Use api_quote_v2.py instead.", endpoint)
+
+
+def _attach_quote_preview(obj: Any | None) -> None:
+    if not obj:
+        return
+    try:
+        fields = quote_preview_fields(obj)
+        for key, value in fields.items():
+            setattr(obj, key, value)
+    except Exception:
+        pass
+
+
+def _attach_many(items: list[Any] | None) -> None:
+    if not items:
+        return
+    for item in items:
+        _attach_quote_preview(item)
 
 
 @router.post(
@@ -173,6 +192,7 @@ def create_quote_for_request(
             "Invalid quote create payload by user %s: %s", current_artist.id, e
         )
         raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
+    _attach_quote_preview(new_quote)
     return new_quote
 
 
@@ -229,6 +249,7 @@ def read_quote(
     except Exception:
         pass
     db_quote.booking_request = None
+    _attach_quote_preview(db_quote)
     return db_quote
 
 
@@ -290,6 +311,7 @@ def read_quotes_for_booking_request(
         pass
     for q in quotes:
         q.booking_request = None
+    _attach_many(quotes)
     return quotes
 
 
@@ -362,6 +384,7 @@ def read_my_artist_quotes(
     )
     for q in quotes:
         q.booking_request = None
+    _attach_many(quotes)
     return quotes
 
 
@@ -400,6 +423,7 @@ def get_quotes_batch(
         if current_user.id in [br.client_id, br.artist_id]:
             q.booking_request = None
             permitted.append(q)
+    _attach_many(permitted)
     return permitted
 
 
@@ -524,6 +548,7 @@ def update_quote_by_client(
                             exc,
                         )
             # else: missing info to create a booking; keep quote accepted only
+        _attach_quote_preview(updated)
         return updated
     except ValueError as e:
         raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
@@ -584,12 +609,14 @@ def update_quote_by_artist(
         )
 
     try:
-        return crud.crud_quote.update_quote(
+        updated = crud.crud_quote.update_quote(
             db=db,
             db_quote=db_quote,
             quote_update=quote_update,
             actor_is_artist=True,
         )
+        _attach_quote_preview(updated)
+        return updated
     except ValueError as e:
         raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
 

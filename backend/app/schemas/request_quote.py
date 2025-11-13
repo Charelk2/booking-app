@@ -76,6 +76,14 @@ class QuoteBase(BaseModel):
     currency: str = "ZAR"
     valid_until: Optional[datetime] = None
 
+
+class QuoteTotalsPreview(BaseModel):
+    provider_subtotal: Optional[Decimal] = None
+    platform_fee_ex_vat: Optional[Decimal] = None
+    platform_fee_vat: Optional[Decimal] = None
+    client_total_incl_vat: Optional[Decimal] = None
+
+
 class QuoteCreate(QuoteBase):
     booking_request_id: int # Artist creates a quote for a specific request
 
@@ -106,6 +114,12 @@ class QuoteResponse(QuoteBase):
         default=None, exclude=True
     )
     # booking: Optional[BookingResponse] = None # Optional: If a booking was created from this quote
+    totals_preview: Optional[QuoteTotalsPreview] = None
+    provider_subtotal_preview: Optional[Decimal] = None
+    booka_fee_preview: Optional[Decimal] = None
+    booka_fee_vat_preview: Optional[Decimal] = None
+    client_total_preview: Optional[Decimal] = None
+    rates_preview: Optional[Dict] = None
 
     model_config = {
         "from_attributes": True

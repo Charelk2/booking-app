@@ -33,6 +33,7 @@ from ..utils import error_response
 from ..utils import r2 as r2utils
 from .api_ws import manager, notifications_manager, Envelope
 from ..utils.metrics import incr as metrics_incr
+from ..services.quote_totals import quote_preview_fields
 import os
 import mimetypes
 import uuid
@@ -721,7 +722,7 @@ async def read_messages_async(
                                 p = (s or {}).get("price") if isinstance(s, dict) else None
                                 if d is not None and p is not None:
                                     services.append({"description": d, "price": float(p)})
-                        summaries[int(q.id)] = {
+                        payload = {
                             "id": int(q.id),
                             "booking_request_id": int(q.booking_request_id),
                             "status": str(q.status.value if hasattr(q.status, "value") else q.status),
@@ -734,6 +735,8 @@ async def read_messages_async(
                             "services": services,
                             "updated_at": q.updated_at.isoformat() if getattr(q, "updated_at", None) else None,
                         }
+                        payload.update(quote_preview_fields(q))
+                        summaries[int(q.id)] = payload
                     except Exception:
                         continue
             except Exception:
@@ -761,7 +764,7 @@ async def read_messages_async(
                                 status_label = "expired"
                             else:
                                 status_label = "pending"
-                            summaries[int(lq.id)] = {
+                            payload = {
                                 "id": int(lq.id),
                                 "booking_request_id": int(lq.booking_request_id),
                                 "status": status_label,
@@ -774,6 +777,8 @@ async def read_messages_async(
                                 "services": services,
                                 "updated_at": lq.updated_at.isoformat() if getattr(lq, "updated_at", None) else None,
                             }
+                            payload.update(quote_preview_fields(lq))
+                            summaries[int(lq.id)] = payload
                         except Exception:
                             continue
             except Exception:
@@ -1140,7 +1145,7 @@ def read_messages_batch(
                             p = (s or {}).get("price") if isinstance(s, dict) else None
                             if d is not None and p is not None:
                                 services.append({"description": d, "price": float(p)})
-                    quotes_map[int(q.id)] = {
+                    payload = {
                         "id": int(q.id),
                         "booking_request_id": int(q.booking_request_id),
                         "status": str(q.status.value if hasattr(q.status, "value") else q.status),
@@ -1153,6 +1158,8 @@ def read_messages_batch(
                         "services": services,
                         "updated_at": q.updated_at.isoformat() if getattr(q, "updated_at", None) else None,
                     }
+                    payload.update(quote_preview_fields(q))
+                    quotes_map[int(q.id)] = payload
                 except Exception:
                     continue
         except Exception:
@@ -1179,7 +1186,7 @@ def read_messages_batch(
                             status_label = "expired"
                         else:
                             status_label = "pending"
-                        quotes_map[int(lq.id)] = {
+                        payload = {
                             "id": int(lq.id),
                             "booking_request_id": int(lq.booking_request_id),
                             "status": status_label,
@@ -1192,6 +1199,8 @@ def read_messages_batch(
                             "services": services,
                             "updated_at": lq.updated_at.isoformat() if getattr(lq, "updated_at", None) else None,
                         }
+                        payload.update(quote_preview_fields(lq))
+                        quotes_map[int(lq.id)] = payload
                     except Exception:
                         continue
         except Exception:

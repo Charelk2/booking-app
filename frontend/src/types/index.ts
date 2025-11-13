@@ -313,6 +313,12 @@ export interface Quote {
   status: string; // e.g. "pending_client_action", "accepted_by_client", etc.
   created_at: string;
   updated_at: string;
+  totals_preview?: QuoteTotalsPreview | null;
+  provider_subtotal_preview?: number;
+  booka_fee_preview?: number;
+  booka_fee_vat_preview?: number;
+  client_total_preview?: number;
+  rates_preview?: Record<string, number> | null;
 }
 
 export interface ServiceItem {

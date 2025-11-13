@@ -40,6 +40,15 @@ def _read_field(source: Any, key: str) -> Any:
     return getattr(source, key, None)
 
 
+def _read_money(source: Any, keys: tuple[str, ...]) -> Decimal:
+    """Return the first positive decimal for the provided keys."""
+    for key in keys:
+        value = _to_decimal(_read_field(source, key))
+        if value > Decimal("0"):
+            return value
+    return Decimal("0")
+
+
 def _rate_from_env(env_key: str, default: str) -> Decimal:
     raw = os.getenv(env_key, default) or default
     return _to_decimal(raw, Decimal(default))
@@ -52,10 +61,27 @@ def compute_quote_totals_snapshot(source: Any) -> QuoteTotalsSnapshot | None:
     (quotes, payments, receipts) exposes consistent values and the frontend
     never recomputes percentages.
     """
-    total_incl_vat = _to_decimal(_read_field(source, "total"))
+    total_incl_vat = _read_money(
+        source,
+        (
+            "total",
+            "total_incl_vat",
+            "provider_total_incl_vat",
+            "price",
+            "amount",
+        ),
+    )
     if total_incl_vat <= Decimal("0"):
         return None
-    provider_subtotal = _to_decimal(_read_field(source, "subtotal"))
+    provider_subtotal = _read_money(
+        source,
+        (
+            "subtotal",
+            "provider_subtotal",
+            "price",
+            "total",
+        ),
+    )
     if provider_subtotal <= Decimal("0"):
         provider_subtotal = total_incl_vat
 
@@ -91,4 +117,30 @@ def quote_totals_preview_payload(snapshot: QuoteTotalsSnapshot) -> dict[str, flo
         "platform_fee_ex_vat": float(snapshot.platform_fee_ex_vat),
         "platform_fee_vat": float(snapshot.platform_fee_vat),
         "client_total_incl_vat": float(snapshot.client_total_incl_vat),
+    }
+
+
+_PREVIEW_DEFAULTS = {
+    "totals_preview": None,
+    "provider_subtotal_preview": None,
+    "booka_fee_preview": None,
+    "booka_fee_vat_preview": None,
+    "client_total_preview": None,
+    "rates_preview": None,
+}
+
+
+def quote_preview_fields(source: Any) -> dict[str, Any]:
+    """Return a dict of preview fields (nested + legacy) for a quote-like object."""
+    snapshot = compute_quote_totals_snapshot(source)
+    if not snapshot:
+        return dict(_PREVIEW_DEFAULTS)
+    preview = quote_totals_preview_payload(snapshot)
+    return {
+        "totals_preview": preview,
+        "provider_subtotal_preview": preview.get("provider_subtotal"),
+        "booka_fee_preview": preview.get("platform_fee_ex_vat"),
+        "booka_fee_vat_preview": preview.get("platform_fee_vat"),
+        "client_total_preview": preview.get("client_total_incl_vat"),
+        "rates_preview": snapshot.rates,
     }

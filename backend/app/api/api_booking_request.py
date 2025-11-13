@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, UploadFile, File, Header, Respon
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
-from typing import List
+from typing import List, Any
 import logging
 
 from .. import crud, models, schemas
@@ -21,6 +21,7 @@ from ..utils.notifications import (
 from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..utils import error_response, background_worker
 from ..utils.redis_cache import invalidate_availability_cache
+from ..services.quote_totals import quote_preview_fields
 import os
 import uuid
 import shutil
@@ -37,6 +38,22 @@ DEFAULT_ATTACHMENTS_DIR = os.path.abspath(
 )
 ATTACHMENTS_DIR = os.getenv("ATTACHMENTS_DIR", DEFAULT_ATTACHMENTS_DIR)
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+
+
+def _prepare_quotes_for_response(quotes: list[Any] | None) -> None:
+    if not quotes:
+        return
+    for q in quotes:
+        try:
+            setattr(q, "booking_request", None)
+        except Exception:
+            continue
+        try:
+            fields = quote_preview_fields(q)
+            for key, value in fields.items():
+                setattr(q, key, value)
+        except Exception:
+            continue
 
 
 @router.post("/attachments", status_code=status.HTTP_201_CREATED)
@@ -287,9 +304,7 @@ def read_my_client_booking_requests(
         if getattr(req, "updated_at", None) is None:
             req.updated_at = req.created_at
         if not lite:
-            for q in req.quotes:
-                # Avoid recursive payloads
-                q.booking_request = None
+            _prepare_quotes_for_response(list(req.quotes or []))
     return requests
 
 
@@ -321,8 +336,7 @@ def read_my_artist_booking_requests(
             req.created_at = datetime.utcnow()
         if getattr(req, "updated_at", None) is None:
             req.updated_at = req.created_at
-        for q in req.quotes:
-            q.booking_request = None
+        _prepare_quotes_for_response(list(req.quotes or []))
     return requests
 
 
@@ -365,8 +379,7 @@ def read_booking_request(
             {"request_id": "Forbidden"},
             status.HTTP_403_FORBIDDEN,
         )
-    for q in db_request.quotes:
-        q.booking_request = None
+    _prepare_quotes_for_response(list(db_request.quotes or []))
     accepted = next(
         (
             q

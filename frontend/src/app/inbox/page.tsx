@@ -108,6 +108,7 @@ export default function InboxPage() {
   );
   const [showList, setShowList] = useState(true);
   const [query, setQuery] = useState('');
+  const [showOfflineBanner, setShowOfflineBanner] = useState(false);
   // height is measured inside ConversationPane
   // Track last manual row click to avoid URL-sync overriding immediate selection
   const manualSelectAtRef = useRef<number>(0);
@@ -145,6 +146,30 @@ export default function InboxPage() {
   useEffect(() => {
     setActivePrefetchThread(selectedThreadId ?? null);
   }, [selectedThreadId]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (!transport.online) {
+      timer = setTimeout(() => setShowOfflineBanner(true), 450);
+    } else {
+      setShowOfflineBanner(false);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [transport.online]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    try {
+      const navigatorOnline =
+        typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean'
+          ? navigator.onLine
+          : 'unknown';
+      // eslint-disable-next-line no-console
+      console.info('Inbox transport status', { navigatorOnline, transportOnline: transport.online });
+    } catch {}
+  }, [transport.online]);
 
   // If not authenticated, send to login early and avoid firing API calls
   // Single auth gate: redirect to login only after authLoading settles.
@@ -753,7 +778,7 @@ export default function InboxPage() {
         className="fixed inset-x-0 bottom-0 flex flex-col bg-gray-50"
         style={{ top: isMobile && !showList ? 0 : 'var(--app-header-height, 64px)', zIndex: isMobile && !showList ? 60 : undefined }}
       >
-        {!transport.online && <OfflineBanner />}
+        {showOfflineBanner && <OfflineBanner />}
         {/* Full-width container holding both panes (edge-to-edge below header) */}
         <div className="flex-1 overflow-hidden">
           <div className="w-full h-full">

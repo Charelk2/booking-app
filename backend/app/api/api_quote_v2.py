@@ -17,7 +17,7 @@ from .. import crud
 from .dependencies import get_db, get_current_user
 from .api_ws import manager
 from ..schemas import message as message_schemas
-from ..services.quote_totals import compute_quote_totals_snapshot, quote_totals_preview_payload
+from ..services.quote_totals import quote_preview_fields
 import asyncio
 
 router = APIRouter(tags=["QuotesV2"])
@@ -43,17 +43,7 @@ except Exception:
 
 def _quote_payload_with_preview(quote: models.QuoteV2) -> dict:
     payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
-    snapshot = compute_quote_totals_snapshot(quote)
-    if snapshot:
-        preview = quote_totals_preview_payload(snapshot)
-        payload["totals_preview"] = preview
-        payload["provider_subtotal_preview"] = preview.get("provider_subtotal")
-        payload["booka_fee_preview"] = preview.get("platform_fee_ex_vat")
-        payload["booka_fee_vat_preview"] = preview.get("platform_fee_vat")
-        payload["client_total_preview"] = preview.get("client_total_incl_vat")
-        payload["rates_preview"] = snapshot.rates
-    else:
-        payload["totals_preview"] = None
+    payload.update(quote_preview_fields(quote))
     return payload
 
 

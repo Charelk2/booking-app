@@ -26,6 +26,7 @@ import { getDrivingMetricsCached, TravelResult } from '@/lib/travel';
 import { getServiceProviderAvailability } from '@/lib/api';
 import SummarySidebar from '../SummarySidebar';
 import { trackEvent } from '@/lib/analytics';
+import { computeQuoteTotalsFromAmounts, QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 
 // Inline DateTimeStep to avoid per-file CSS imports; styles live in wizard.css
 const ReactDatePicker: any = dynamic(() => import('react-datepicker'), { ssr: false });
@@ -1433,8 +1434,19 @@ export function ReviewStep(props: {
   const travelCost = Number(travelResult?.totalCost) || 0;
   const soundFee = Number(soundCost) || 0;
   const subtotalBeforeTaxes = baseFee + travelCost + soundFee;
-  const estimatedTaxesFees: number | null = null;
-  const estimatedTotal: number | null = null;
+  const subtotalForPreview = Number.isFinite(props.calculatedPrice ?? NaN)
+    ? Number(props.calculatedPrice)
+    : subtotalBeforeTaxes;
+  const previewTotals = computeQuoteTotalsFromAmounts({
+    subtotal: subtotalForPreview,
+    total: subtotalForPreview,
+  });
+  const platformFeeIncl =
+    typeof previewTotals?.platformFeeExVat === 'number' && typeof previewTotals?.platformFeeVat === 'number'
+      ? previewTotals.platformFeeExVat + previewTotals.platformFeeVat
+      : null;
+  const estimatedTotal: number | null =
+    typeof previewTotals?.clientTotalInclVat === 'number' ? previewTotals.clientTotalInclVat : null;
   const isProcessing = submitting || isLoadingReviewData;
 
   // Tiny sound-context summary
@@ -1558,15 +1570,21 @@ export function ReviewStep(props: {
           <span className="font-medium">{formatCurrency(subtotalBeforeTaxes)}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span>Taxes & Fees (Est.)</span>
-          <span>{estimatedTaxesFees !== null ? formatCurrency(estimatedTaxesFees) : '—'}</span>
+          <span>Booka Service Fee (3% — VAT included)</span>
+          <span>
+            {typeof platformFeeIncl === 'number' && Number.isFinite(platformFeeIncl)
+              ? formatCurrency(platformFeeIncl)
+              : QUOTE_TOTALS_PLACEHOLDER}
+          </span>
         </div>
         <div className="flex justify-between items-center text-xl font-bold text-neutral-900 border-t pt-3 mt-3 border-black/20">
-          <span>Estimated Total</span>
-          <span>{estimatedTotal !== null ? formatCurrency(estimatedTotal) : '—'}</span>
+          <span>Total To Pay</span>
+          <span>
+            {estimatedTotal !== null ? formatCurrency(estimatedTotal) : QUOTE_TOTALS_PLACEHOLDER}
+          </span>
         </div>
         <p className="mt-1 text-xs text-gray-500">
-          Final Booka fees, VAT, and taxes are computed on the backend when you submit.
+          Final Booka fees and VAT are confirmed at submission to stay aligned with the quote you'll review in chat.
         </p>
       </div>
 

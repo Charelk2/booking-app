@@ -29,6 +29,11 @@ export function toQuoteV2FromLegacy(legacy: Quote, opts: { clientId?: number } =
   const subtotal = services.reduce((sum, s) => sum + Number(s.price || 0), 0);
   const legacyTotal = Number(legacy.price || subtotal);
   const total = Number.isFinite(legacyTotal) && legacyTotal > 0 ? legacyTotal : subtotal;
+  const legacyPreview = (legacy as any)?.totals_preview;
+  const providerSubtotalPreview = (legacy as any)?.provider_subtotal_preview;
+  const bookaFeePreview = (legacy as any)?.booka_fee_preview;
+  const bookaFeeVatPreview = (legacy as any)?.booka_fee_vat_preview;
+  const clientTotalPreview = (legacy as any)?.client_total_preview;
   return {
     id: legacy.id,
     booking_request_id: legacy.booking_request_id,
@@ -44,6 +49,11 @@ export function toQuoteV2FromLegacy(legacy: Quote, opts: { clientId?: number } =
     expires_at: legacy.valid_until ?? null,
     subtotal,
     total,
+    totals_preview: legacyPreview ?? undefined,
+    provider_subtotal_preview: providerSubtotalPreview ?? undefined,
+    booka_fee_preview: bookaFeePreview ?? undefined,
+    booka_fee_vat_preview: bookaFeeVatPreview ?? undefined,
+    client_total_preview: clientTotalPreview ?? undefined,
     status: mapLegacyStatusToV2(legacy.status),
     created_at: legacy.created_at,
     updated_at: legacy.updated_at,

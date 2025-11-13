@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import useIsMobile from '@/hooks/useIsMobile';
 import useBookingForm from '@/hooks/useBookingForm';
 import useOfflineQueue from '@/hooks/useOfflineQueue';
+import useTransportState from '@/hooks/useTransportState';
 import { useDebounce } from '@/hooks/useDebounce';
 import { parseBookingText } from '@/lib/api';
 import {
@@ -135,6 +136,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     applySavedProgress,
   } = useBooking();
   const { user } = useAuth();
+  const transport = useTransportState();
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [showAiAssist, setShowAiAssist] = useState(false);
   const [aiText, setAiText] = useState('');
@@ -292,6 +294,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const hasLoaded = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const firstInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const isCurrentlyOnline = useCallback(
+    () => (typeof transport.online === 'boolean' ? transport.online : (typeof navigator === 'undefined' ? true : navigator.onLine !== false)),
+    [transport.online],
+  );
 
   // --- Form Hook (React Hook Form + Yup) ---
   const {
@@ -1290,9 +1296,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       backline_required: !!(details as any).backlineRequired,
       selected_sound_service_id: (details as any).soundSupplierServiceId,
     };
-    if (!navigator.onLine) {
+    if (!isCurrentlyOnline()) {
       enqueueBooking({ action: 'draft', payload, requestId });
-      toast.success('Draft queued. It will save when back online.');
+      toast.success("Queued draft saved. We'll sync it when you're back online.");
       return;
     }
     try {
@@ -1378,9 +1384,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       vals.sound || 'N/A'
     }\nNotes: ${vals.notes || 'N/A'}`;
 
-    if (!navigator.onLine) {
+    if (!isCurrentlyOnline()) {
       enqueueBooking({ action: 'submit', payload, requestId, message });
-      toast.success('Booking request queued. It will submit when back online.');
+      toast.success("Booking request queued. We'll submit it when you're back online.");
       setSubmitting(false);
       return;
     }
