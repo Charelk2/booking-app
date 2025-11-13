@@ -109,6 +109,7 @@ export default function InboxPage() {
   const [showList, setShowList] = useState(true);
   const [query, setQuery] = useState('');
   const [showOfflineBanner, setShowOfflineBanner] = useState(false);
+  const [hasSeenOnline, setHasSeenOnline] = useState(false);
   // height is measured inside ConversationPane
   // Track last manual row click to avoid URL-sync overriding immediate selection
   const manualSelectAtRef = useRef<number>(0);
@@ -148,8 +149,12 @@ export default function InboxPage() {
   }, [selectedThreadId]);
 
   useEffect(() => {
+    if (transport.online) setHasSeenOnline(true);
+  }, [transport.online]);
+
+  useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
-    if (!transport.online) {
+    if (!transport.online && hasSeenOnline) {
       timer = setTimeout(() => setShowOfflineBanner(true), 450);
     } else {
       setShowOfflineBanner(false);
@@ -157,7 +162,7 @@ export default function InboxPage() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [transport.online]);
+  }, [transport.online, hasSeenOnline]);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;

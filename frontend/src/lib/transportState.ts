@@ -80,17 +80,17 @@ const navigatorOnline = (): boolean => {
   }
 };
 
-const initialOnline = navigatorOnline();
+const initialOnline = true;
 const nowTs = () => Date.now();
 
-let offlineStartedAt: number | null = initialOnline ? null : nowTs();
-let lastSuccessAt: number = initialOnline ? nowTs() : 0;
+let offlineStartedAt: number | null = null;
+let lastSuccessAt: number = nowTs();
 let offlineTimer: ReturnType<typeof setTimeout> | null = null;
 
 let state: TransportState = {
   online: initialOnline,
-  lastOnlineAt: initialOnline ? nowTs() : null,
-  lastOfflineAt: initialOnline ? null : nowTs(),
+  lastOnlineAt: nowTs(),
+  lastOfflineAt: null,
   isDocumentHidden: hasDocument ? document.visibilityState === 'hidden' : false,
   effectiveType: connectionRef?.effectiveType ?? null,
   downlink: typeof connectionRef?.downlink === 'number' ? connectionRef!.downlink : null,
