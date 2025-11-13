@@ -263,6 +263,24 @@ export default function MessageThreadWrapper({
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
+  const providerProfile = useMemo(() => {
+    if (!bookingRequest) return null;
+    return (
+      (bookingRequest as any)?.service_provider_profile ||
+      (bookingRequest as any)?.service?.service_provider_profile ||
+      null
+    );
+  }, [bookingRequest]);
+
+  const providerVatRegistered = Boolean(providerProfile?.vat_registered);
+  const providerVatRate = useMemo(() => {
+    if (!providerVatRegistered) return null;
+    const raw = providerProfile?.vat_rate;
+    if (raw == null) return null;
+    const numeric = typeof raw === 'string' ? parseFloat(raw) : Number(raw);
+    return Number.isFinite(numeric) ? numeric : null;
+  }, [providerProfile, providerVatRegistered]);
+
   /** Quotes for totals in the side panel */
   const initialQuotes = useMemo(() => {
     if (!bookingRequest) return [] as QuoteV2[];
@@ -1040,6 +1058,8 @@ export default function MessageThreadWrapper({
                   initialBaseFee={bookingRequest?.service?.price ? Number(bookingRequest.service.price) : undefined}
                   initialTravelCost={bookingRequest && bookingRequest.travel_cost != null ? Number(bookingRequest.travel_cost) : undefined}
                   initialSoundNeeded={false}
+                  providerVatRegistered={providerVatRegistered}
+                  providerVatRate={providerVatRate ?? undefined}
                 />
               </div>
             </div>

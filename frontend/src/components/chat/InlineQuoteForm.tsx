@@ -5,7 +5,6 @@ import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from './QuoteBubble';
 import { calculateQuoteBreakdown, getBookingRequestById, getService, getBookingRequestCached } from '@/lib/api';
-import { QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 
 /**
  * InlineQuoteForm (v3.1 - optimized UX + perf)
@@ -35,6 +34,8 @@ interface Props {
     event_city: string;
     accommodation_cost?: number;
   };
+  providerVatRegistered?: boolean;
+  providerVatRate?: number | null;
 }
 
 const expiryOptions = [
@@ -175,6 +176,8 @@ const InlineQuoteForm: React.FC<Props> = ({
   initialSoundCost,
   onDecline,
   calculationParams,
+  providerVatRegistered = false,
+  providerVatRate = null,
 }) => {
   // - State -
   const [serviceFee, setServiceFee] = useState<number>(initialBaseFee ?? 0);
@@ -337,6 +340,24 @@ const InlineQuoteForm: React.FC<Props> = ({
   const extrasTotal = useMemo(() => items.reduce((sum, it) => sum + Number(it.price || 0), 0), [items]);
   const subtotal = useMemo(() => serviceFee + soundFee + travelFee + extrasTotal, [serviceFee, soundFee, travelFee, extrasTotal]);
   const discounted = Math.max(0, subtotal - (discount || 0));
+
+  const normalizedVatRate = useMemo(() => {
+    if (!providerVatRegistered) return 0;
+    const raw = typeof providerVatRate === 'string' ? parseFloat(providerVatRate) : providerVatRate;
+    if (!Number.isFinite(raw) || raw! <= 0) return 0.15;
+    return raw! > 1 ? raw! / 100 : raw!;
+  }, [providerVatRate, providerVatRegistered]);
+
+  const vatAmount = useMemo(() => {
+    if (!providerVatRegistered || normalizedVatRate <= 0) return 0;
+    const base = Math.max(0, discounted);
+    return Math.round(base * normalizedVatRate * 100) / 100;
+  }, [discounted, normalizedVatRate, providerVatRegistered]);
+
+  const totalInclVat = useMemo(() => {
+    const base = Math.max(0, discounted);
+    return Math.round((base + vatAmount) * 100) / 100;
+  }, [discounted, vatAmount]);
 
   const expiresPreview = useMemo(() => {
     if (!expiresHours) return '';
@@ -560,15 +581,23 @@ const InlineQuoteForm: React.FC<Props> = ({
       {/* Totals */}
       <div className="mt-3 rounded-lg border border-gray-100 bg-white p-3 sm:p-4">
         <div className="grid gap-1 text-sm text-gray-800" aria-live="polite">
-          <div className="flex items-center justify-between"><span>Subtotal (ex VAT)</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
-          <div className="flex items-center justify-between"><span>Discount</span><span className="font-medium">{discount ? `− ${formatCurrency(discount)}` : formatCurrency(0)}</span></div>
-          <div className="flex items-center justify-between text-gray-500 text-xs">
-            <span>VAT (calculated after submit)</span>
-            <span className="font-medium">{QUOTE_TOTALS_PLACEHOLDER}</span>
+          <div className="flex items-center justify-between">
+            <span>Subtotal (ex VAT)</span>
+            <span className="font-medium">{formatCurrency(subtotal)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Discount</span>
+            <span className="font-medium">{discount ? `− ${formatCurrency(discount)}` : formatCurrency(0)}</span>
+          </div>
+          <div className="flex items-center justify-between text-gray-700 text-xs">
+            <span>
+              VAT {providerVatRegistered ? `(${(normalizedVatRate * 100).toFixed(2).replace(/\.?0+$/, '')}%)` : '(not registered)'}
+            </span>
+            <span className="font-medium">{formatCurrency(vatAmount)}</span>
           </div>
           <div className="mt-1 border-t pt-1 flex items-center justify-between text-base font-semibold">
             <span>Total (incl. VAT)</span>
-            <span>{QUOTE_TOTALS_PLACEHOLDER}</span>
+            <span>{formatCurrency(totalInclVat)}</span>
           </div>
         </div>
         <label className="mt-2 flex items-start gap-2 text-xs text-gray-700">
@@ -592,7 +621,7 @@ const InlineQuoteForm: React.FC<Props> = ({
       <div className="mt-3 bg-white rounded-lg border border-gray-100 p-3 sm:p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm">
           <div className="text-gray-600">You will send</div>
-          <div className="text-lg font-bold" aria-live="polite">{QUOTE_TOTALS_PLACEHOLDER}</div>
+          <div className="text-lg font-bold" aria-live="polite">{formatCurrency(totalInclVat)}</div>
         </div>
         <div className="flex items-center gap-2">
           {onDecline && (

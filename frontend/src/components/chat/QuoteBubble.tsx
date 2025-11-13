@@ -13,7 +13,7 @@ import SafeImage from '@/components/ui/SafeImage';
 import { getServiceProviderReviews } from '@/lib/api';
 import type { Review } from '@/types';
 import type { QuoteTotalsResolved } from '@/lib/quoteTotals';
-import { QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
+import { QUOTE_TOTALS_PLACEHOLDER, computeQuoteTotalsFromAmounts } from '@/lib/quoteTotals';
 
 /* ───────── Types ───────── */
 
@@ -299,12 +299,25 @@ export default function QuotePeek(props: QuotePeekProps) {
   }, [total]);
 
   // All fee/VAT math comes from the backend. Show placeholders if previews are missing.
-  const platformFeeIncl = typeof props.totalsPreview?.platformFeeExVat === 'number' && typeof props.totalsPreview?.platformFeeVat === 'number'
+  const previewPlatformFee = typeof props.totalsPreview?.platformFeeExVat === 'number' && typeof props.totalsPreview?.platformFeeVat === 'number'
     ? props.totalsPreview.platformFeeExVat + props.totalsPreview.platformFeeVat
     : undefined;
-  const clientTotal = typeof props.totalsPreview?.clientTotalInclVat === 'number'
+  const previewClientTotal = typeof props.totalsPreview?.clientTotalInclVat === 'number'
     ? props.totalsPreview.clientTotalInclVat
     : undefined;
+
+  const fallbackTotals = useMemo(() => {
+    const totalNumber = Number(total);
+    if (!Number.isFinite(totalNumber) || totalNumber <= 0) return null;
+    const subtotalNumber = Number(subtotalForVat);
+    const subtotalInput = Number.isFinite(subtotalNumber) && subtotalNumber > 0 ? subtotalNumber : undefined;
+    return computeQuoteTotalsFromAmounts({ subtotal: subtotalInput, total: totalNumber }) ?? null;
+  }, [subtotalForVat, total]);
+
+  const platformFeeIncl = previewPlatformFee ?? (fallbackTotals
+    ? (fallbackTotals.platformFeeExVat ?? 0) + (fallbackTotals.platformFeeVat ?? 0)
+    : undefined);
+  const clientTotal = previewClientTotal ?? fallbackTotals?.clientTotalInclVat;
 
   // Fetch reviews lazily when the details modal opens (best effort)
   const [peekReviews, setPeekReviews] = useState<Review[]>([]);
