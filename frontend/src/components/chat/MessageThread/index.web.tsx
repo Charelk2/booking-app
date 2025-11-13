@@ -167,6 +167,26 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const [isAtBottom, setIsAtBottom] = React.useState(true);
   const [newAnchorId, setNewAnchorId] = React.useState<number | null>(null);
 
+  // --- Quotes (must be initialized before useThreadData so we can pass ensureQuotesLoaded)
+  const { quotesById, ensureQuoteLoaded, ensureQuotesLoaded, setQuote } = useQuotes(bookingRequestId) as any;
+  const declineQuote = useDeclineQuote();
+  const onDecline = useStableCallback((q: any) => {
+    try {
+      const qid = Number(q?.id || q?.quote_id || 0);
+      if (!Number.isFinite(qid) || qid <= 0) return;
+      void (async () => {
+        try {
+          await declineQuote(qid);
+          try { setQuote?.({ ...(q as any), id: qid, status: 'rejected' }); } catch {}
+          try { await ensureQuoteLoaded(qid); } catch {}
+          try { emitThreadsUpdated({ threadId: bookingRequestId, reason: 'quote_declined', immediate: true }, { immediate: true, force: true }); } catch {}
+        } catch {
+          // swallow; UI will remain unchanged and can retry
+        }
+      })();
+    } catch {}
+  });
+
   // --- Server data (messages + helpers)
   const {
     messages,
@@ -189,27 +209,8 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const ListComponent = React.useMemo(() => {
     const count = Array.isArray(messages) ? messages.length : 0;
     return selectAdapter(count) === 'virtuoso' ? VirtuosoList : PlainList;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
-
-  // --- Quotes
-  const { quotesById, ensureQuoteLoaded, ensureQuotesLoaded, setQuote } = useQuotes(bookingRequestId) as any;
-  const declineQuote = useDeclineQuote();
-  const onDecline = useStableCallback((q: any) => {
-    try {
-      const qid = Number(q?.id || q?.quote_id || 0);
-      if (!Number.isFinite(qid) || qid <= 0) return;
-      void (async () => {
-        try {
-          await declineQuote(qid);
-          try { setQuote?.({ ...(q as any), id: qid, status: 'rejected' }); } catch {}
-          try { await ensureQuoteLoaded(qid); } catch {}
-          try { emitThreadsUpdated({ threadId: bookingRequestId, reason: 'quote_declined', immediate: true }, { immediate: true, force: true }); } catch {}
-        } catch {
-          // swallow; UI will remain unchanged and can retry
-        }
-      })();
-    } catch {}
-  });
 
   // ----------------------------------------------------------------
   // Presence / typing header label derived from threadStore
