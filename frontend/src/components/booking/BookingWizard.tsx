@@ -210,6 +210,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [selectedSupplierName, setSelectedSupplierName] = useState<string | undefined>(undefined);
   const [artistVatRegistered, setArtistVatRegistered] = useState<boolean | null>(null);
   const [providerName, setProviderName] = useState<string | null>(null);
+  const [artistVatRate, setArtistVatRate] = useState<number | null>(null);
 
   // Business billing (client)
   const [needTaxInvoice, setNeedTaxInvoice] = useState(false);
@@ -391,6 +392,16 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           setArtistLocation(loc || null);
           const vatVal = typeof artistProf?.vat_registered === 'boolean' ? artistProf.vat_registered : null;
           setArtistVatRegistered(vatVal);
+          try {
+            const rawRate = artistProf?.vat_rate;
+            let rateNum: number | null = null;
+            if (typeof rawRate === 'number') rateNum = rawRate;
+            else if (typeof rawRate === 'string' && rawRate.trim()) {
+              const parsed = parseFloat(rawRate);
+              rateNum = Number.isFinite(parsed) ? parsed : null;
+            }
+            setArtistVatRate(rateNum);
+          } catch { setArtistVatRate(null); }
           const name = (artistProf?.legal_name || artistProf?.business_name || svcRes?.title || '').toString().trim();
           setProviderName(name || null);
         } catch {
@@ -1491,6 +1502,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           selectedSupplierName={selectedSupplierName}
           servicePriceItems={servicePriceItems}
           serviceCategorySlug={serviceCategorySlug}
+          providerVatRegistered={artistVatRegistered === true}
+          providerVatRate={artistVatRate}
         />
       );
       default: return null;

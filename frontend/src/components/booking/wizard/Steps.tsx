@@ -1413,6 +1413,8 @@ export function ReviewStep(props: {
   serviceCategorySlug?: string;
   open?: boolean;
   onToggle?: () => void;
+  providerVatRegistered?: boolean;
+  providerVatRate?: number | null;
 }) {
   const {
     isLoadingReviewData,
@@ -1446,9 +1448,15 @@ export function ReviewStep(props: {
     let cancelled = false;
     (async () => {
       try {
-        // Use provider EX subtotal for preview; total defaults to subtotal here (provider VAT handled in quote phase)
+        // Use provider EX subtotal; if provider is VAT-registered, include provider VAT in total for a closer estimate
         const subtotal = Number(subtotalBeforeTaxes);
-        const total = Number(subtotalBeforeTaxes);
+        let total = Number(subtotalBeforeTaxes);
+        const vatRate = (props.providerVatRegistered && typeof props.providerVatRate === 'number' && props.providerVatRate > 0)
+          ? (props.providerVatRate! > 1 ? (props.providerVatRate! / 100) : props.providerVatRate!)
+          : (props.providerVatRegistered ? 0.15 : 0);
+        if (props.providerVatRegistered && Number.isFinite(vatRate) && vatRate > 0) {
+          total = subtotal + (subtotal * vatRate);
+        }
         if (!Number.isFinite(subtotal) || subtotal <= 0 || !Number.isFinite(total) || total <= 0) {
           setPlatformFeeIncl(null);
           setEstimatedTotal(null);
@@ -1469,7 +1477,7 @@ export function ReviewStep(props: {
       }
     })();
     return () => { cancelled = true; };
-  }, [subtotalBeforeTaxes]);
+  }, [subtotalBeforeTaxes, props.providerVatRegistered, props.providerVatRate]);
   const isProcessing = submitting || isLoadingReviewData;
 
   // Tiny sound-context summary
@@ -1592,6 +1600,12 @@ export function ReviewStep(props: {
           <span className="font-medium">Subtotal</span>
           <span className="font-medium">{formatCurrency(subtotalBeforeTaxes)}</span>
         </div>
+        {props.providerVatRegistered && (
+          <div className="flex justify-between items-center">
+            <span>Provider VAT</span>
+            <span>{formatCurrency(subtotalBeforeTaxes * ((typeof props.providerVatRate === 'number' && props.providerVatRate > 0) ? (props.providerVatRate > 1 ? (props.providerVatRate / 100) : props.providerVatRate) : 0.15))}</span>
+          </div>
+        )}
         <div className="flex justify-between items-center">
           <span>Booka Service Fee (3% — VAT included)</span>
           <span>
