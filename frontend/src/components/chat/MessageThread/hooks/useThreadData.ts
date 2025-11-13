@@ -554,7 +554,10 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         return next;
       });
     } catch {
-      // swallow - delta is best-effort
+      // Delta failed: perform a full refresh to keep UI coherent
+      try {
+        await fetchMessagesRef.current?.({ mode: 'initial', force: true, reason: 'delta-failed', limit: 120 } as any);
+      } catch {}
     }
   }, [threadId]);
 
