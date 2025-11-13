@@ -34,6 +34,7 @@ from ..utils.auth import get_password_hash, verify_password, normalize_email, bc
 from ..utils.email import send_email
 from ..utils.redis_cache import get_redis_client
 from ..utils.server_timing import ServerTimer
+from ..utils.json import dumps_bytes as _json_dumps
 from app.core.config import settings
 import redis
 
@@ -76,15 +77,7 @@ except Exception:
 
 router = APIRouter(tags=["auth"])
 
-# Local orjson serializer for explicit responses
-try:
-    import orjson as _orjson  # type: ignore
-    def _json_dumps(obj) -> bytes:
-        return _orjson.dumps(obj)
-except Exception:  # pragma: no cover
-    import json as _json  # type: ignore
-    def _json_dumps(obj) -> bytes:
-        return _json.dumps(obj).encode('utf-8')
+# Use shared JSON serializer to avoid decimals/key issues
 
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "a_default_fallback_secret_key")

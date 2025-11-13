@@ -93,12 +93,17 @@ def _maybe_sign_attachment_url(val: Optional[str], meta: Optional[dict]) -> Opti
     return val
 
 
-def _is_valid_r2_public_url(public_url: str) -> bool:
-    """Return True if the URL looks like a public R2 object under our configured base.
+def _is_valid_attachment_url(public_url: str) -> bool:
+    """Return True if the URL is an allowed attachment location.
 
-    If R2 is not configured with a public base URL, be permissive (return True).
+    Allowed:
+    - Local static uploads under "/static/attachments/"
+    - R2 public URLs under the configured public base
+    - If R2 public base is not configured, be permissive
     """
     try:
+        if isinstance(public_url, str) and public_url.startswith("/static/attachments/"):
+            return True
         cfg = r2utils.R2Config()
         base = (cfg.public_base_url or "").rstrip("/")
         if not base:
@@ -815,8 +820,14 @@ async def read_messages_async(
                             continue
             except Exception:
                 pass
-        # Always include a quotes object when requested to avoid null wiping on clients
-        envelope_dict["quotes"] = summaries if summaries else {}
+        # Always include a quotes object when requested; ensure string keys for JSON safety
+        if summaries:
+            try:
+                envelope_dict["quotes"] = {str(k): v for k, v in summaries.items()}
+            except Exception:
+                envelope_dict["quotes"] = summaries  # best-effort
+        else:
+            envelope_dict["quotes"] = {}
 
     payload_probe = {
         **envelope_dict,
@@ -1065,6 +1076,12 @@ def read_messages_batch(
                 avatar_url = _avatar_for_sender(sender)
                 if avatar_url:
                     row["avatar_url"] = _scrub_avatar(avatar_url)
+                # Align attachment URL signing policy with thread read
+                if row.get("attachment_url"):
+                    row["attachment_url"] = _maybe_sign_attachment_url(
+                        str(row.get("attachment_url") or ""),
+                        row.get("attachment_meta"),
+                    )
                 # Trim heavy attachment previews
                 if row.get("attachment_meta"):
                     row["attachment_meta"] = _scrub_attachment_meta(row.get("attachment_meta"))
@@ -1182,13 +1199,22 @@ def read_messages_batch(
         except Exception:
             pass
 
+    # Ensure JSON-safe keys for threads map
+    try:
+        threads_serial = {str(k): v for k, v in threads_out.items()}
+    except Exception:
+        threads_serial = threads_out
+
     envelope = {
         "mode": mode,
-        "threads": threads_out,
+        "threads": threads_serial,
         "payload_bytes": 0,
     }
     if include_quotes:
-        envelope["quotes"] = quotes_map
+        try:
+            envelope["quotes"] = {str(k): v for k, v in quotes_map.items()}
+        except Exception:
+            envelope["quotes"] = quotes_map
 
     # payload byte size probe
     try:
@@ -2093,7 +2119,7 @@ def finalize_attachment_message(
 
     # Validate and persist URL and metadata
     try:
-        if not _is_valid_r2_public_url(payload.url):
+        if not _is_valid_attachment_url(payload.url):
             raise error_response("Invalid attachment URL", {"url": "invalid"}, status.HTTP_400_BAD_REQUEST)
         msg.attachment_url = payload.url
         if isinstance(payload.metadata, dict):
@@ -2138,3 +2164,15 @@ def finalize_attachment_message(
     except Exception:
         pass
     return data
+    # Validate attachment URL origin when provided
+    try:
+        if message_in.attachment_url and str(message_in.attachment_url).strip():
+            if not _is_valid_attachment_url(str(message_in.attachment_url)):
+                raise error_response(
+                    "Invalid attachment URL",
+                    {"attachment_url": "invalid"},
+                    status.HTTP_400_BAD_REQUEST,
+                )
+    except Exception:
+        # Fail closed (reject) only for clearly invalid; otherwise proceed
+        pass

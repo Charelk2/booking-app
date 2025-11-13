@@ -18,6 +18,7 @@ from .dependencies import get_db, get_current_user
 from .api_ws import manager
 from ..schemas import message as message_schemas
 from ..services.quote_totals import quote_preview_fields
+from ..utils.json import dumps_bytes as _json_dumps
 import asyncio
 
 router = APIRouter(tags=["QuotesV2"])
@@ -26,19 +27,7 @@ logger = logging.getLogger(__name__)
 QUOTE_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "quotes")
 os.makedirs(QUOTE_DIR, exist_ok=True)
 
-# Fast JSON dumps (fallbacks handled in api_threads)
-try:
-    import orjson as _orjson
-    def _json_dumps(obj):
-        return _orjson.dumps(obj)
-except Exception:
-    import json as _json
-    def _json_dumps(obj):
-        def _default(o):
-            if isinstance(o, datetime):
-                return o.isoformat()
-            return str(o)
-        return _json.dumps(obj, default=_default).encode("utf-8")
+# Use shared JSON serializer (handles Decimals, datetimes, and non-str keys)
 
 
 def _quote_payload_with_preview(quote: models.QuoteV2) -> dict:

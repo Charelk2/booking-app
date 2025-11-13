@@ -145,17 +145,15 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
     # Summary grid
     issue_str = f"{issue_date:%Y-%m-%d}" if issue_date else "—"
     due_str = f"{due_date:%Y-%m-%d}" if due_date else "—"
-    # Compute Booka fee (3%) + VAT on fee and Total To Pay for header visibility
+    # Total To Pay from backend snapshot for header visibility
     try:
-        _fee = round(float(subtotal or 0.0) * 0.03, 2)
-        _fee_vat = round(_fee * 0.15, 2)
-        _fee_incl = round(_fee + _fee_vat, 2)
+        snapshot_header = compute_quote_totals_snapshot(getattr(invoice, "quote", None))
     except Exception:
-        _fee_incl = 0.0
+        snapshot_header = None
     total_to_pay = None
     try:
-        if total is not None:
-            total_to_pay = round(float(total or 0) + float(_fee_incl or 0), 2)
+        if snapshot_header and snapshot_header.client_total_incl_vat is not None:
+            total_to_pay = float(snapshot_header.client_total_incl_vat)
         elif amount_due is not None:
             total_to_pay = float(amount_due or 0)
     except Exception:

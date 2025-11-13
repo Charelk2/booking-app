@@ -33,9 +33,6 @@ def _status_val(v):
     return getattr(v, "value", v)
 
 
-VAT_RATE = Decimal("0.15")
-
-
 def calculate_totals(quote_in: schemas.QuoteV2Create) -> tuple[Decimal, Decimal]:
     """Calculate subtotal (pre‑VAT) and total (VAT‑inclusive).
 
@@ -44,13 +41,19 @@ def calculate_totals(quote_in: schemas.QuoteV2Create) -> tuple[Decimal, Decimal]
     - VAT: 15% applied to (subtotal - discount).
     - Total: (subtotal - discount) + VAT.
     """
+    # Read VAT from env to stay consistent with backend-configured rates.
+    try:
+        import os
+        vat_rate = Decimal(os.getenv("VAT_RATE", "0.15") or "0.15")
+    except Exception:
+        vat_rate = Decimal("0.15")
     subtotal = sum(item.price for item in quote_in.services)
     subtotal += quote_in.sound_fee + quote_in.travel_fee
     discount = quote_in.discount or Decimal("0")
     pre_vat = subtotal - discount
     if pre_vat < Decimal("0"):
         pre_vat = Decimal("0")
-    vat_amount = (pre_vat * VAT_RATE)
+    vat_amount = (pre_vat * vat_rate)
     total = pre_vat + vat_amount
     return subtotal, total
 

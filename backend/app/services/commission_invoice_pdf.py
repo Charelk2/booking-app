@@ -60,7 +60,11 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
     story.append(parties_tbl)
     story.append(Spacer(1, 8))
 
-    vat = 0.15
+    try:
+        import os
+        vat = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+    except Exception:
+        vat = 0.15
     # Use amount_due as total if present; otherwise compute roughly
     commission_ex = float(getattr(invoice, 'amount_due', 0) or 0) / (1 + vat)
     vat_amount = commission_ex * vat
@@ -80,4 +84,3 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
     doc.build(story)
     buffer.seek(0)
     return buffer.read()
-
