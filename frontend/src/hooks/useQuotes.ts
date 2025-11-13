@@ -208,15 +208,26 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
     emitQuoteUpdate();
   }, [bookingRequestId]);
 
+  const isComplete = (q: any): boolean => {
+    try {
+      if (!q) return false;
+      const hasServices = Array.isArray(q.services) && q.services.length > 0;
+      const hasTotalsPreview = !!((q as any)?.totals_preview || (q as any)?.client_total_preview || (q as any)?.provider_subtotal_preview);
+      const hasAmounts = Number(q.total || 0) > 0 || Number(q.subtotal || 0) > 0;
+      return hasServices || hasTotalsPreview || hasAmounts;
+    } catch { return false; }
+  };
+
   const ensureQuoteLoaded = useCallback(async (quoteId: number) => {
     if (!Number.isFinite(quoteId) || quoteId <= 0) return;
-    if (quotesById[quoteId]) return;
+    const existing = quotesById[quoteId];
+    if (existing && isComplete(existing)) return;
     // If present in global cache, hydrate local state immediately
     try {
       const hit = GLOBAL_QUOTES.get(quoteId);
       if (hit) {
         setQuotesById((prev) => ({ ...prev, [quoteId]: hit }));
-        return;
+        if (isComplete(hit)) return;
       }
     } catch {}
     if (pendingRef.current.has(quoteId)) return;
@@ -241,7 +252,10 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
 
   const ensureQuotesLoaded = useCallback(async (ids: number[]) => {
     const want = Array.from(new Set(ids.filter((n) => Number.isFinite(n) && n > 0)));
-    const missing = want.filter((id) => !quotesById[id]);
+    const missing = want.filter((id) => {
+      const q = quotesById[id];
+      return !q || !isComplete(q);
+    });
     if (missing.length === 0) return;
     // Try batch first
     try {
@@ -270,7 +284,11 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
         emitQuoteUpdate();
       }
       const received = new Set<number>(normalized.map((q) => Number(q.id)).filter((n) => Number.isFinite(n)));
-      const still = missing.filter((id) => !received.has(id));
+      const still = missing.filter((id) => {
+        if (!received.has(id)) return true;
+        const fresh = GLOBAL_QUOTES.get(id) || (quotesById as any)[id];
+        return !isComplete(fresh);
+      });
       // Individual fallback and legacy conversion
       await Promise.all(still.map((id) => ensureQuoteLoaded(id)));
     } catch {
