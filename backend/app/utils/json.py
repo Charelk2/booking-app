@@ -6,7 +6,13 @@ try:
     import orjson as _orjson  # type: ignore
 
     def dumps_bytes(obj: Any) -> bytes:
-        return _orjson.dumps(obj)
+        # Allow non-string dict keys (e.g., integer ids) across responses
+        # to avoid TypeError: Dict key must be str during serialization.
+        try:
+            return _orjson.dumps(obj, option=_orjson.OPT_NON_STR_KEYS)
+        except Exception:
+            # Fallback without options if the installed orjson version lacks OPT_NON_STR_KEYS
+            return _orjson.dumps(obj)
 
 except Exception:  # pragma: no cover
     import json as _json  # type: ignore
@@ -22,4 +28,3 @@ except Exception:  # pragma: no cover
 
     def dumps_bytes(obj: Any) -> bytes:
         return _json.dumps(obj, default=_default).encode("utf-8")
-

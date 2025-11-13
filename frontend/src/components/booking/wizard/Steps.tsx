@@ -26,7 +26,7 @@ import { getDrivingMetricsCached, TravelResult } from '@/lib/travel';
 import { getServiceProviderAvailability } from '@/lib/api';
 import SummarySidebar from '../SummarySidebar';
 import { trackEvent } from '@/lib/analytics';
-import { computeQuoteTotalsFromAmounts, QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
+import { QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 
 // Inline DateTimeStep to avoid per-file CSS imports; styles live in wizard.css
 const ReactDatePicker: any = dynamic(() => import('react-datepicker'), { ssr: false });
@@ -1437,16 +1437,9 @@ export function ReviewStep(props: {
   const subtotalForPreview = Number.isFinite(props.calculatedPrice ?? NaN)
     ? Number(props.calculatedPrice)
     : subtotalBeforeTaxes;
-  const previewTotals = computeQuoteTotalsFromAmounts({
-    subtotal: subtotalForPreview,
-    total: subtotalForPreview,
-  });
-  const platformFeeIncl =
-    typeof previewTotals?.platformFeeExVat === 'number' && typeof previewTotals?.platformFeeVat === 'number'
-      ? previewTotals.platformFeeExVat + previewTotals.platformFeeVat
-      : null;
-  const estimatedTotal: number | null =
-    typeof previewTotals?.clientTotalInclVat === 'number' ? previewTotals.clientTotalInclVat : null;
+  // Fee/VAT math intentionally not computed on the client.
+  const platformFeeIncl: number | null = null;
+  const estimatedTotal: number | null = null;
   const isProcessing = submitting || isLoadingReviewData;
 
   // Tiny sound-context summary

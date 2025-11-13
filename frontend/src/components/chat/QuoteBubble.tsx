@@ -13,7 +13,7 @@ import SafeImage from '@/components/ui/SafeImage';
 import { getServiceProviderReviews } from '@/lib/api';
 import type { Review } from '@/types';
 import type { QuoteTotalsResolved } from '@/lib/quoteTotals';
-import { QUOTE_TOTALS_PLACEHOLDER, computeQuoteTotalsFromAmounts } from '@/lib/quoteTotals';
+import { QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 
 /* ───────── Types ───────── */
 
@@ -294,17 +294,7 @@ export default function QuotePeek(props: QuotePeekProps) {
   }, [total, subtotalForVat]);
 
   // All fee/VAT math comes from the backend. Show placeholders if previews are missing.
-  const fallbackTotals = useMemo(() => {
-    const totalNumber = Number(total);
-    const subtotalNumber = Number(subtotalForVat);
-    if (!Number.isFinite(totalNumber) && !Number.isFinite(subtotalNumber)) return null;
-    return computeQuoteTotalsFromAmounts({
-      subtotal: Number.isFinite(subtotalNumber) && subtotalNumber > 0 ? subtotalNumber : undefined,
-      total: Number.isFinite(totalNumber) && totalNumber > 0 ? totalNumber : undefined,
-    }) ?? null;
-  }, [subtotalForVat, total]);
-
-  const mergedTotals = props.totalsPreview ?? fallbackTotals ?? undefined;
+  const mergedTotals = props.totalsPreview ?? undefined;
   const providerSubtotalPreview =
     typeof mergedTotals?.providerSubtotal === 'number' && Number.isFinite(mergedTotals.providerSubtotal)
       ? mergedTotals.providerSubtotal

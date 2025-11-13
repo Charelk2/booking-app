@@ -6,6 +6,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 from .. import models
+from .quote_totals import compute_quote_totals_snapshot
 
 
 def generate_pdf(invoice: models.Invoice) -> bytes:
@@ -222,20 +223,30 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
                 totals_rows.append([Paragraph("VAT (15%)", styles["NormalSmall"]), Paragraph(_zar(vat_provider), styles["NormalSmall"])])
     except Exception:
         pass
-    # Booka Service Fee (VAT included) as one line
+    # Platform Service Fee (incl. VAT) sourced from backend totals snapshot
+    fee_incl = None
+    snapshot = None
     try:
-        fee = round(float(subtotal or 0.0) * 0.03, 2)
-        fee_vat = round(fee * 0.15, 2)
-        fee_incl = round(fee + fee_vat, 2)
-        if fee_incl > 0:
-            totals_rows.append([Paragraph("Booka Service Fee (3% — VAT included)", styles["NormalSmall"]), Paragraph(_zar(fee_incl), styles["NormalSmall"])])
+        qv2 = getattr(invoice, "quote", None)
+        snapshot = compute_quote_totals_snapshot(qv2) if qv2 is not None else None
     except Exception:
-        fee_incl = 0.0
-    # Total To Pay (provider total + Booka fee incl)
+        snapshot = None
+    if snapshot and (snapshot.platform_fee_ex_vat is not None) and (snapshot.platform_fee_vat is not None):
+        try:
+            fee_incl = float(snapshot.platform_fee_ex_vat + snapshot.platform_fee_vat)
+        except Exception:
+            fee_incl = None
+    if isinstance(fee_incl, float) and fee_incl > 0:
+        totals_rows.append([
+            Paragraph("Booka Service Fee (3% — VAT included)", styles["NormalSmall"]),
+            Paragraph(_zar(fee_incl), styles["NormalSmall"]),
+        ])
+
+    # Total To Pay (client total incl. VAT from snapshot when available)
     total_to_pay = None
     try:
-        if total is not None:
-            total_to_pay = round(float(total or 0) + float(fee_incl or 0), 2)
+        if snapshot and snapshot.client_total_incl_vat is not None:
+            total_to_pay = float(snapshot.client_total_incl_vat)
         elif amount_due is not None:
             total_to_pay = float(amount_due or 0)
     except Exception:

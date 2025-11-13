@@ -4,7 +4,7 @@ import Button from '../ui/Button';
 import { QuoteV2 } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { downloadQuotePdf } from '@/lib/api';
-import { resolveQuoteTotalsPreview, QUOTE_TOTALS_PLACEHOLDER, computeQuoteTotalsFromAmounts } from '@/lib/quoteTotals';
+import { resolveQuoteTotalsPreview, QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 
 interface Props {
   quote: QuoteV2;
@@ -69,18 +69,15 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
     return () => clearInterval(id);
   }, [quote.expires_at, quote.status]);
   const previewTotals = resolveQuoteTotalsPreview(quote);
-  const fallbackTotals = computeQuoteTotalsFromAmounts({
-    subtotal: Number.isFinite(Number(quote.subtotal)) ? Number(quote.subtotal) : undefined,
-    total: Number.isFinite(Number(quote.total)) ? Number(quote.total) : undefined,
-  });
-  const platformFeeIncl = typeof previewTotals.platformFeeExVat === 'number' && typeof previewTotals.platformFeeVat === 'number'
-    ? previewTotals.platformFeeExVat + previewTotals.platformFeeVat
-    : fallbackTotals && typeof fallbackTotals.platformFeeExVat === 'number' && typeof fallbackTotals.platformFeeVat === 'number'
-      ? fallbackTotals.platformFeeExVat + fallbackTotals.platformFeeVat
+  const platformFeeIncl =
+    typeof previewTotals.platformFeeExVat === 'number' &&
+    typeof previewTotals.platformFeeVat === 'number'
+      ? previewTotals.platformFeeExVat + previewTotals.platformFeeVat
       : undefined;
-  const clientTotalPreview = typeof previewTotals.clientTotalInclVat === 'number'
-    ? previewTotals.clientTotalInclVat
-    : fallbackTotals?.clientTotalInclVat;
+  const clientTotalPreview =
+    typeof previewTotals.clientTotalInclVat === 'number'
+      ? previewTotals.clientTotalInclVat
+      : undefined;
 
   return (
     <div className="border rounded-lg p-3 bg-gray-50 mt-2" data-testid="quote-card">

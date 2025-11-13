@@ -464,7 +464,10 @@ export default function BookingSummaryCard({
               onReserve={() =>
                 openPaymentModal({
                   bookingRequestId,
-                  amount: Number((bestState.best as any).total || 0),
+                  amount: (() => {
+                    const preview = resolveQuoteTotalsPreview(bestState.best as any);
+                    return typeof preview.clientTotalInclVat === 'number' ? preview.clientTotalInclVat : 0;
+                  })(),
                   customerEmail: (user as any)?.email || undefined,
                 })
               }
@@ -646,7 +649,7 @@ function CostBreakdown({
   const clientDisplay =
     typeof clientTotal === 'number' && Number.isFinite(clientTotal)
       ? formatCurrency(clientTotal)
-      : providerDisplay;
+      : QUOTE_TOTALS_PLACEHOLDER;
 
   return (
     <div className="rounded-lg bg-white border border-gray-200 p-4 space-y-2 shadow-sm overflow-x-hidden">

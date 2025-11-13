@@ -42,12 +42,70 @@ from pydantic import BaseModel
 from ..utils.json import dumps_bytes as _json_dumps
 from ..utils.outbox import enqueue_outbox
 from ..utils.redis_cache import invalidate_preview_cache_for_user
-from threading import BoundedSemaphore
+from threading import BoundedSemaphore, Lock
 from contextlib import contextmanager
 
 router = APIRouter(tags=["messages"])
 
 logger = logging.getLogger(__name__)
+
+# ---- Small helpers -----------------------------------------------------------
+
+def _avatar_for_sender(sender: "models.User | None") -> Optional[str]:
+    """Best-effort avatar URL derivation for a message sender.
+
+    - For service providers, prefer the artist_profile.profile_picture_url
+    - Otherwise, use sender.profile_picture_url when available
+    - Return None on any error or missing data
+    """
+    if not sender:
+        return None
+    try:
+        if getattr(sender, "user_type", None) == models.UserType.SERVICE_PROVIDER:
+            profile = getattr(sender, "artist_profile", None)
+            url = getattr(profile, "profile_picture_url", None) if profile else None
+            if url:
+                return url
+        url = getattr(sender, "profile_picture_url", None)
+        return url or None
+    except Exception:
+        return None
+
+
+def _maybe_sign_attachment_url(val: Optional[str], meta: Optional[dict]) -> Optional[str]:
+    """Transform a public R2 URL to a short-lived signed GET, except for images.
+
+    Images keep a stable public URL to maximize browser caching.
+    """
+    # Do not sign images (keep stable URL for caching)
+    try:
+        ct = (meta or {}).get("content_type")
+        if isinstance(ct, str) and ct.lower().startswith("image/"):
+            return val
+    except Exception:
+        pass
+    try:
+        if val:
+            signed = r2utils.presign_get_for_public_url(val)
+            return signed or val
+    except Exception:
+        pass
+    return val
+
+
+def _is_valid_r2_public_url(public_url: str) -> bool:
+    """Return True if the URL looks like a public R2 object under our configured base.
+
+    If R2 is not configured with a public base URL, be permissive (return True).
+    """
+    try:
+        cfg = r2utils.R2Config()
+        base = (cfg.public_base_url or "").rstrip("/")
+        if not base:
+            return True
+        return str(public_url).startswith(base + "/")
+    except Exception:
+        return False
 
 # ---- CPU-bound message serialization helper (pure sync) ----------------------
 def process_messages_sync(
@@ -77,19 +135,8 @@ def process_messages_sync(
     out: List[dict] = []
     for m in db_messages:
         # Derive avatar
-        avatar_url = None
         sender = getattr(m, "sender", None)
-        if sender:
-            try:
-                if sender.user_type == _models.UserType.SERVICE_PROVIDER:
-                    profile = getattr(sender, "artist_profile", None)
-                    if profile and getattr(profile, "profile_picture_url", None):
-                        avatar_url = profile.profile_picture_url
-                elif getattr(sender, "profile_picture_url", None):
-                    avatar_url = sender.profile_picture_url
-            except Exception:
-                avatar_url = None
-        avatar_url = scrub_avatar(avatar_url)
+        avatar_url = scrub_avatar(_avatar_for_sender(sender))
 
         data = _schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
@@ -180,18 +227,22 @@ def process_messages_sync(
 
 # ─── Concurrency limiter for message list (DB protection) ─────────────────────
 _MSG_LIST_SEM: BoundedSemaphore | None = None
+_MSG_LIST_SEM_LOCK = Lock()
 
 
 def _get_msg_list_sem() -> BoundedSemaphore:
     global _MSG_LIST_SEM
-    if _MSG_LIST_SEM is None:
-        try:
-            limit = int(os.getenv("MESSAGE_LIST_CONCURRENCY") or 12)
-            if limit <= 0:
+    if _MSG_LIST_SEM is not None:
+        return _MSG_LIST_SEM
+    with _MSG_LIST_SEM_LOCK:
+        if _MSG_LIST_SEM is None:
+            try:
+                limit = int(os.getenv("MESSAGE_LIST_CONCURRENCY") or 12)
+                if limit <= 0:
+                    limit = 12
+            except Exception:
                 limit = 12
-        except Exception:
-            limit = 12
-        _MSG_LIST_SEM = BoundedSemaphore(limit)
+            _MSG_LIST_SEM = BoundedSemaphore(limit)
     return _MSG_LIST_SEM
 
 
@@ -358,12 +409,7 @@ async def read_messages_async(
     )
     if after_id is not None and after_id < 0:
         after_id = None
-    if hasattr(skip, "default"):
-        skip = skip.default
-    if hasattr(limit, "default"):
-        limit = limit.default
-    if hasattr(fields, "default"):
-        fields = None
+
 
     normalized_mode: Literal["full", "lite", "delta"] = mode
     if normalized_mode == "delta" and after_id is None and since is None:
@@ -593,23 +639,9 @@ async def read_messages_async(
         except Exception:
             return None
 
-    # Helper: transform attachment_url to a signed GET if it's an R2 public URL
-    # Skip signing for images so browsers can cache on a stable public URL.
-    def _maybe_sign_attachment_url(val: Optional[str], meta: Optional[dict]) -> Optional[str]:
-        # Do not sign images (keep stable URL for caching)
-        try:
-            ct = (meta or {}).get("content_type")
-            if isinstance(ct, str) and ct.lower().startswith("image/"):
-                return val
-        except Exception:
-            pass
-        try:
-            if val:
-                signed = r2utils.presign_get_for_public_url(val)
-                return signed or val
-        except Exception:
-            pass
-        return val
+    # Helper: transform attachment_url to a signed GET (module policy)
+    def _maybe_sign_attachment_url_local(val: Optional[str], meta: Optional[dict]) -> Optional[str]:
+        return _maybe_sign_attachment_url(val, meta)
 
     # Batch load reply previews to avoid per-row queries when requested
     parent_preview_by_id: dict[int, str] = {}
@@ -651,7 +683,7 @@ async def read_messages_async(
         my=my,
         scrub_avatar=_scrub_avatar,
         scrub_attachment_meta=_scrub_attachment_meta,
-        maybe_sign_attachment_url=_maybe_sign_attachment_url,
+        maybe_sign_attachment_url=_maybe_sign_attachment_url_local,
     )
 
     delta_cursor = None
@@ -848,52 +880,6 @@ async def read_messages_async(
         headers["ETag"] = etag
     return Response(content=body, media_type="application/json", headers=headers)
 
-    # Conditional caching: weak ETag + short private cache
-    try:
-        quotes_obj = envelope_dict.get("quotes") if include_quotes else None
-        quotes_count = 0
-        if isinstance(quotes_obj, dict):
-            try:
-                quotes_count = len(quotes_obj)
-            except Exception:
-                quotes_count = 0
-        last_id_marker = 0
-        last_ts_marker = ""
-        try:
-            if result:
-                last_row = result[-1]
-                last_id = last_row.get("id")
-                if isinstance(last_id, int):
-                    last_id_marker = last_id
-                ts_val = last_row.get("timestamp")
-                last_ts_marker = ts_val.isoformat() if isinstance(ts_val, datetime) else str(ts_val or "")
-        except Exception:
-            pass
-        import hashlib
-        src = f"msg:{int(request_id)}:{normalized_mode}:{int(after_id) if after_id is not None else 'none'}:{int(before_id) if before_id is not None else 'none'}:{str(since) if since else ''}:{last_id_marker}:{last_ts_marker}:{len(result)}:{quotes_count}"
-        etag = f'W/"{hashlib.sha1(src.encode()).hexdigest()}"'
-        inm = None
-        try:
-            if request is not None:
-                inm = request.headers.get("if-none-match") or request.headers.get("If-None-Match")
-        except Exception:
-            inm = None
-        cache_control = "private, max-age=30, stale-while-revalidate=120"
-        if inm and etag and inm.strip() == etag:
-            # Short-circuit with 304 Not Modified
-            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag, "Cache-Control": cache_control})
-        if response is not None and etag:
-            try:
-                response.headers["ETag"] = etag
-                response.headers["Cache-Control"] = cache_control
-            except Exception:
-                pass
-    except Exception:
-        # Do not fail the request if ETag computation fails
-        pass
-
-    return schemas.MessageListResponse(**envelope_dict)
-
 # Back-compat wrapper for tests and internal callers that import read_messages
 def read_messages(
     request_id: int,
@@ -1075,18 +1061,8 @@ def read_messages_batch(
                     continue
                 row = schemas.MessageResponse.model_validate(m).model_dump()
                 # Optional avatar derivation (best-effort)
-                avatar_url = None
-                try:
-                    sender = getattr(m, "sender", None)
-                    if sender:
-                        if sender.user_type == models.UserType.SERVICE_PROVIDER:
-                            profile = getattr(sender, "artist_profile", None)
-                            if profile and getattr(profile, "profile_picture_url", None):
-                                avatar_url = profile.profile_picture_url
-                        elif getattr(sender, "profile_picture_url", None):
-                            avatar_url = sender.profile_picture_url
-                except Exception:
-                    avatar_url = None
+                sender = getattr(m, "sender", None)
+                avatar_url = _avatar_for_sender(sender)
                 if avatar_url:
                     row["avatar_url"] = _scrub_avatar(avatar_url)
                 # Trim heavy attachment previews
@@ -1427,17 +1403,13 @@ def create_message(
             )
             if existing:
                 data = schemas.MessageResponse.model_validate(existing).model_dump()
-                # Ensure avatar_url included (parity w/normal path)
-                sender = existing.sender
-                avatar_url = None
-                if sender:
-                    if sender.user_type == models.UserType.SERVICE_PROVIDER:
-                        profile = sender.artist_profile
-                        if profile and profile.profile_picture_url:
-                            avatar_url = profile.profile_picture_url
-                    elif sender.profile_picture_url:
-                        avatar_url = sender.profile_picture_url
-                data["avatar_url"] = avatar_url
+                # Ensure avatar_url and attachment URL policy align with normal path
+                data["avatar_url"] = _avatar_for_sender(getattr(existing, "sender", None))
+                if data.get("attachment_url"):
+                    data["attachment_url"] = _maybe_sign_attachment_url(
+                        str(data.get("attachment_url") or ""),
+                        data.get("attachment_meta"),
+                    )
                 return data
         except Exception:
             pass
@@ -1497,17 +1469,14 @@ def create_message(
                     # Treat repeats within 15s as duplicates (e.g., double-tap / reconnect resend)
                     if delta >= 0 and delta <= 15:
                         data = schemas.MessageResponse.model_validate(last).model_dump()
-                        # Ensure avatar_url present for parity with normal path
-                        sender = last.sender
-                        avatar_url = None
-                        if sender:
-                            if sender.user_type == models.UserType.SERVICE_PROVIDER:
-                                profile = sender.artist_profile
-                                if profile and profile.profile_picture_url:
-                                    avatar_url = profile.profile_picture_url
-                            elif sender.profile_picture_url:
-                                avatar_url = sender.profile_picture_url
-                        data["avatar_url"] = avatar_url
+                        # Ensure avatar_url present (parity with normal path)
+                        data["avatar_url"] = _avatar_for_sender(getattr(last, "sender", None))
+                        # Align attachment URL policy with normal path
+                        if data.get("attachment_url"):
+                            data["attachment_url"] = _maybe_sign_attachment_url(
+                                str(data.get("attachment_url") or ""),
+                                data.get("attachment_meta"),
+                            )
                         return data
                 except Exception:
                     # Never hard-fail idempotency checks; fall through to create
@@ -1539,16 +1508,12 @@ def create_message(
             existing = db.query(models.Message).filter(models.Message.id == msg_id).first()
             if existing:
                 data = schemas.MessageResponse.model_validate(existing).model_dump()
-                sender = existing.sender
-                avatar_url = None
-                if sender:
-                    if sender.user_type == models.UserType.SERVICE_PROVIDER:
-                        profile = sender.artist_profile
-                        if profile and profile.profile_picture_url:
-                            avatar_url = profile.profile_picture_url
-                    elif sender.profile_picture_url:
-                        avatar_url = sender.profile_picture_url
-                data["avatar_url"] = avatar_url
+                data["avatar_url"] = _avatar_for_sender(getattr(existing, "sender", None))
+                if data.get("attachment_url"):
+                    data["attachment_url"] = _maybe_sign_attachment_url(
+                        str(data.get("attachment_url") or ""),
+                        data.get("attachment_meta"),
+                    )
                 # Echo the client correlation id (response only; response_model will strip unknown keys safely)
                 if client_req_id:
                     try:
@@ -1638,23 +1603,13 @@ def create_message(
                 message_id=int(getattr(msg, "id", 0)) or None,
             )
 
-    avatar_url = None
-    sender = msg.sender  # sender should exist, but guard against missing relation
-    if sender:
-        if sender.user_type == models.UserType.SERVICE_PROVIDER:
-            profile = sender.artist_profile
-            if profile and profile.profile_picture_url:
-                avatar_url = profile.profile_picture_url
-        elif sender.profile_picture_url:
-            avatar_url = sender.profile_picture_url
-
     data = schemas.MessageResponse.model_validate(msg).model_dump()
-    data["avatar_url"] = avatar_url
+    data["avatar_url"] = _avatar_for_sender(getattr(msg, "sender", None))
     if data.get("attachment_url"):
-        try:
-            data["attachment_url"] = r2utils.presign_get_for_public_url(str(data.get("attachment_url") or "")) or data["attachment_url"]
-        except Exception:
-            pass
+        data["attachment_url"] = _maybe_sign_attachment_url(
+            str(data.get("attachment_url") or ""),
+            data.get("attachment_meta"),
+        )
     # Add reply preview if any
     if msg.reply_to_message_id:
         parent = (
@@ -2065,16 +2020,7 @@ def init_attachment_message(
 
     # Serialize envelope (align with create_message)
     data = schemas.MessageResponse.model_validate(msg).model_dump()
-    avatar_url = None
-    sender = msg.sender
-    if sender:
-        if sender.user_type == models.UserType.SERVICE_PROVIDER:
-            profile = sender.artist_profile
-            if profile and profile.profile_picture_url:
-                avatar_url = profile.profile_picture_url
-        elif sender.profile_picture_url:
-            avatar_url = sender.profile_picture_url
-    data["avatar_url"] = avatar_url
+    data["avatar_url"] = _avatar_for_sender(getattr(msg, "sender", None))
 
     # Presign direct upload
     try:
@@ -2145,8 +2091,10 @@ def finalize_attachment_message(
     if msg.sender_id != current_user.id:
         raise error_response("You can only finalize your own message", {}, status.HTTP_403_FORBIDDEN)
 
-    # Persist URL and metadata
+    # Validate and persist URL and metadata
     try:
+        if not _is_valid_r2_public_url(payload.url):
+            raise error_response("Invalid attachment URL", {"url": "invalid"}, status.HTTP_400_BAD_REQUEST)
         msg.attachment_url = payload.url
         if isinstance(payload.metadata, dict):
             msg.attachment_meta = payload.metadata
@@ -2159,21 +2107,12 @@ def finalize_attachment_message(
 
     # Serialize envelope with potential public read URL transformation
     data = schemas.MessageResponse.model_validate(msg).model_dump()
-    avatar_url = None
-    sender = msg.sender
-    if sender:
-        if sender.user_type == models.UserType.SERVICE_PROVIDER:
-            profile = sender.artist_profile
-            if profile and profile.profile_picture_url:
-                avatar_url = profile.profile_picture_url
-        elif sender.profile_picture_url:
-            avatar_url = sender.profile_picture_url
-    data["avatar_url"] = avatar_url
+    data["avatar_url"] = _avatar_for_sender(getattr(msg, "sender", None))
     if data.get("attachment_url"):
-        try:
-            data["attachment_url"] = r2utils.presign_get_for_public_url(str(data.get("attachment_url") or "")) or data["attachment_url"]
-        except Exception:
-            pass
+        data["attachment_url"] = _maybe_sign_attachment_url(
+            str(data.get("attachment_url") or ""),
+            data.get("attachment_meta"),
+        )
 
     # Broadcast update and enqueue outbox
     try:
