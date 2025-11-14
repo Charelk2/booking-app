@@ -124,6 +124,7 @@ export function useThreads(user: User | null | undefined) {
       counterparty_label: (it as any).counterparty?.name,
       counterparty_avatar_url: (it as any).counterparty?.avatar_url ?? null,
       ...(it?.state ? { thread_state: it.state } : {}),
+      ...(typeof it?.has_inquiry_card !== 'undefined' ? { has_inquiry_card: it.has_inquiry_card } : {}),
       // Surface preview_key/args for richer client tags without extra heuristics
       ...(it?.preview_key ? { last_message_preview_key: it.preview_key } : {}),
       ...(it?.preview_args ? { last_message_preview_args: it.preview_args } : {}),

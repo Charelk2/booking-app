@@ -177,7 +177,14 @@ function detectTags(
     if (paidOrConfirmed || isPersonalizedVideo || showQuote || isSupplierInvite) {
       return false;
     }
-    if ((thread as any).has_inquiry_card === true) return true;
+    if ((thread as any).has_inquiry_card === true) {
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`inquiry-thread-${thread.id}`, "1");
+        }
+      } catch {}
+      return true;
+    }
     try {
       if (
         typeof window !== "undefined" &&
