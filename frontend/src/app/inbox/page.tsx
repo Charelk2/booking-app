@@ -266,6 +266,20 @@ export default function InboxPage() {
     return () => window.removeEventListener('thread:missing', handleMissing as EventListener);
   }, [CACHE_KEY, LATEST_CACHE_KEY, persistKey, SEL_KEY, mutateThreads, setSelectedThreadId]);
 
+  // If the currently selected thread appears (or updates) with a non-zero
+  // unread_count, immediately apply a local read so the per-thread pill,
+  // header badge, and Messages nav badge drop to 0 without requiring an
+  // extra click on the conversation row. This especially helps right after
+  // creating a new booking request and being redirected into that thread.
+  useEffect(() => {
+    if (!selectedThreadId) return;
+    const rec = threads.find((t) => Number(t.id) === Number(selectedThreadId)) as any;
+    const unread = Number(rec?.unread_count || 0) || 0;
+    if (unread > 0) {
+      applyLocalRead(selectedThreadId);
+    }
+  }, [threads, selectedThreadId, applyLocalRead]);
+
   // Refresh list on window focus / tab visibility change so previews update (throttled)
   useEffect(() => {
     const onFocus = () => {

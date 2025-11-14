@@ -439,6 +439,12 @@ def get_threads_preview(
                 dm = re.search(r"event\s+in\s+(\d+)\s+days\s*:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})", low, flags=re.IGNORECASE)
                 if dm:
                     preview_args = {"daysBefore": int(dm.group(1)), "date": dm.group(2)}
+        # For threads with no messages yet that are still in the requested
+        # state, surface a semantic preview_key so clients can render a
+        # consistent badge/tag for new booking requests without relying on
+        # content heuristics.
+        if not system_key and not msg_id and state == "requested" and (preview or "").strip():
+            preview_key = preview_key or "new_booking_request"
 
         # Meta
         meta: Dict[str, Any] = {}

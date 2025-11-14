@@ -101,12 +101,12 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
             attachment_url=None,
         )
         # Provide additional context and notify the client that the quote is
-        # ready to review. The system message keeps both parties in sync.
-        try:
-            formatted_total = f"R {float(quote.total):,.2f}"
-        except Exception:
-            formatted_total = str(quote.total)
-        detail_content = f"Quote sent with total {formatted_total}"
+        # ready to review. Keep the system line neutral (no amounts) so there
+        # is no mismatch between what the artist sees as their total and what
+        # the client pays after Booka fees are applied; detailed totals live in
+        # the quote bubble and booking summary instead.
+        detail_content = "Quote sent."
+
         msg_sys = crud.crud_message.create_message(
             db=db,
             booking_request_id=quote.booking_request_id,

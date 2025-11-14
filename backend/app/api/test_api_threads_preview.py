@@ -197,9 +197,13 @@ def test_threads_preview_requested_without_messages_uses_fallback_label(db):
         data = r.json()
         items_by_id = {it["thread_id"]: it for it in data["items"]}
         assert br.id in items_by_id
+        item = items_by_id[br.id]
         # Brand-new requested threads without messages should still surface a
         # neutral label so the Inbox preview does not go blank after hydration.
-        assert items_by_id[br.id]["last_message_preview"] == "New Booking Request"
+        assert item["last_message_preview"] == "New Booking Request"
+        # And they should carry a semantic preview_key so the client can render
+        # consistent badges/tags for new booking requests.
+        assert item.get("preview_key") == "new_booking_request"
 
         # Act: 304 with If-None-Match
         etag = r.headers["ETag"]
