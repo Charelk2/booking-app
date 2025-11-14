@@ -964,15 +964,21 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           setSoundMode(null);
           setSoundModeOverridden(false);
 
-          // Use backend travel aggregates for fast totals at review.
+          // First, trust the backend travel aggregate when present.
           const tm2 = (quote2?.travel_mode || '').toLowerCase();
           const estimates2 = Array.isArray((quote2 as any)?.travel_estimates) ? (quote2 as any).travel_estimates : [];
           const driveRow2 = estimates2.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
-          const travelRes2 = {
+          const travelCost2 = Number(quote2?.travel_cost || 0);
+          const baseTravelRes = {
             mode: tm2 === 'flight' ? 'fly' : 'drive',
-            totalCost: Number(quote2?.travel_cost || 0),
+            totalCost: travelCost2,
             breakdown: {
-              drive: { estimate: Number(driveRow2?.cost || (tm2 === 'flight' ? 0 : (quote2?.travel_cost || 0))) },
+              drive: {
+                estimate: Number(
+                  driveRow2?.cost ||
+                  (tm2 === 'flight' ? 0 : travelCost2),
+                ),
+              },
               fly: {
                 perPerson: 0,
                 travellers: numTravelMembers,
@@ -981,11 +987,61 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 localTransferKm: 0,
                 departureTransferKm: 0,
                 transferCost: 0,
-                total: tm2 === 'flight' ? Number(quote2?.travel_cost || 0) : 0,
+                total: tm2 === 'flight' ? travelCost2 : 0,
               },
             },
           } as any;
-          setTravelResult(travelRes2);
+
+          if (Number.isFinite(travelCost2) && travelCost2 > 0) {
+            setTravelResult(baseTravelRes);
+          } else {
+            // Backend did not compute a travel_cost; fall back to the client
+            // travel engine once to derive a meaningful estimate.
+            try {
+              const dt = (() => {
+                const dd = (details as any)?.date;
+                if (!dd) return new Date();
+                try { return typeof dd === 'string' ? new Date(dd) : dd; } catch { return new Date(); }
+              })();
+              const artistLoc = String(artistLocation || '').trim();
+              const eventLoc = String((details as any)?.location || '').trim();
+              if (artistLoc && eventLoc) {
+                let drivingEstimate = 0;
+                try {
+                  const dm = await getDrivingMetricsCached(artistLoc, eventLoc);
+                  const distKm = Number(dm?.distanceKm || 0);
+                  if (Number.isFinite(distKm) && distKm > 0) drivingEstimate = distKm * travelRate;
+                } catch {}
+                const airportFn = async (city: string) => {
+                  const geo = await geocodeCached(city);
+                  if (geo) return findNearestAirport(city, async () => geo);
+                  const mock = getMockCoordinates(city);
+                  if (mock) return findNearestAirport(city, async () => mock as any);
+                  return findNearestAirport(city);
+                };
+                const tr = await calculateTravelMode({
+                  artistLocation: artistLoc,
+                  eventLocation: eventLoc,
+                  numTravellers: Number(numTravelMembers || 1),
+                  drivingEstimate,
+                  travelRate,
+                  travelDate: dt,
+                  carRentalPrice: carRentalPrice,
+                  flightPricePerPerson: flightPrice,
+                }, undefined as any, airportFn as any);
+                if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost)) {
+                  setTravelResult(tr as any);
+                } else {
+                  // If client engine failed, fall back to the best backend aggregate we have.
+                  setTravelResult(baseTravelRes);
+                }
+              } else {
+                setTravelResult(baseTravelRes);
+              }
+            } catch {
+              setTravelResult(baseTravelRes);
+            }
+          }
         } catch {
           setCalculatedPrice(basePrice);
           setSoundCost(0);
