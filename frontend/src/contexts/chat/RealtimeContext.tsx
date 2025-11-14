@@ -55,6 +55,14 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
           try { window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { total: Number(payload?.payload?.total ?? 0) } })); } catch {}
           return;
         }
+        // Attachment finalized event → ensure the affected thread reconciles now
+        if (payload && payload.type === 'message_finalized') {
+          const threadId = Number(payload?.payload?.booking_request_id ?? 0);
+          if (Number.isFinite(threadId) && threadId > 0) {
+            try { window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId, source: 'message_finalized' } })); } catch {}
+          }
+          return;
+        }
         // Ignore per-thread/unicast bumps; chat WS events own thread list updates.
         return;
       } catch {

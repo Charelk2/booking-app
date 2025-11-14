@@ -2184,6 +2184,19 @@ def finalize_attachment_message(
             enqueue_outbox(db, topic=f"booking-requests:{int(request_id)}", payload=data)
         except Exception:
             logger.exception("attachment_finalize: enqueue_outbox failed")
+        # Fan out a lightweight notification so inactive clients know to reconcile.
+        try:
+            notif_env = {
+                "type": "message_finalized",
+                "payload": {
+                    "booking_request_id": int(request_id),
+                    "message_id": int(message_id),
+                    "timestamp": data.get("timestamp"),
+                },
+            }
+            enqueue_outbox(db, topic="notifications", payload=notif_env)
+        except Exception:
+            logger.exception("attachment_finalize: notifications fanout failed")
     except Exception:
         logger.exception("attachment_finalize: broadcast failed")
     try:
