@@ -1485,6 +1485,12 @@ export function ReviewStep(props: {
     return () => { cancelled = true; };
   }, [subtotalForPreview, props.providerVatRegistered, props.providerVatRate]);
   const isProcessing = submitting || isLoadingReviewData;
+  const buttonLabel = (() => {
+    if (isLoadingReviewData && !submitting) return 'Calculating...';
+    if (submitting && submitLabel === 'Submit Request') return 'Submitting...';
+    if (submitting) return 'Loading...';
+    return submitLabel;
+  })();
 
   // Tiny sound-context summary
   const tinyStage = d?.stageRequired ? (d.stageSize || 'S') : 'no';
@@ -1652,7 +1658,7 @@ export function ReviewStep(props: {
           }}
           className="rounded-xl bg-black text-white hover:bg-black/90"
         >
-          {isProcessing ? (submitLabel === 'Submit Request' ? 'Submitting...' : 'Loading...') : submitLabel}
+          {buttonLabel}
         </Button>
         <p className="text-xs text-neutral-600 mt-3">
           Artist must accept this request. Once accepted, your artist booking is confirmed. Sound is usually confirmed within a few hours; if the top pick declines we auto-try backups. If all decline, you can choose another option or we’ll refund the sound portion immediately.
