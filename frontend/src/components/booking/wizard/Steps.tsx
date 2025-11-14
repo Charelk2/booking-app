@@ -16,7 +16,7 @@ import LocationInput from '@/components/ui/LocationInput';
 import { useBooking } from '@/contexts/BookingContext';
 import type { EventDetails as CtxEventDetails } from '@/contexts/BookingContext';
 import { loadPlaces } from '@/lib/loadPlaces';
-import { LatLng } from '@/lib/geo';
+import { LatLng, reverseGeocode } from '@/lib/geo';
 import eventTypes from '@/data/eventTypes.json';
 import toast from '@/components/ui/Toast';
 import { apiUrl } from '@/lib/api';
@@ -498,13 +498,20 @@ export function LocationStep({ control, artistLocation, setWarning, setValue, op
               const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
               setMarker(loc);
               setGeoError(null);
-              const label = `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
-              try {
-                setValue('location', label as any, { shouldDirty: true, shouldValidate: true } as any);
-                setValue('locationName', 'My current location' as any, { shouldDirty: true } as any);
-              } catch {
-                if (locationNameSetterRef.current) locationNameSetterRef.current('My current location');
-              }
+              (async () => {
+                try {
+                  const formatted = await reverseGeocode(loc);
+                  const label = formatted || `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
+                  setValue('location', label as any, { shouldDirty: true, shouldValidate: true } as any);
+                  const shortName = formatted
+                    ? String(formatted).split(',')[0]?.trim() || 'My current location'
+                    : 'My current location';
+                  setValue('locationName', shortName as any, { shouldDirty: true } as any);
+                } catch {
+                  const fallbackLabel = `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
+                  setValue('location', fallbackLabel as any, { shouldDirty: true, shouldValidate: true } as any);
+                }
+              })();
             },
             () => setGeoError('Unable to fetch your location'),
           );

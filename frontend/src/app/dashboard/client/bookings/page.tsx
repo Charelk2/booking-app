@@ -27,6 +27,21 @@ function BookingList({
   onReview: (id: number) => void;
   onPayNow: (id: number) => void;
 }) {
+  const getInvoiceHref = (b: BookingWithReview | Booking) => {
+    const anyBooking: any = b as any;
+    const vis = Array.isArray(anyBooking.visible_invoices)
+      ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
+      : [];
+    const providerInv = vis.find(
+      (iv) => iv.type === "provider_tax" || iv.type === "provider_invoice",
+    );
+    const fallbackInv = vis.length ? vis[vis.length - 1] : undefined;
+    const target = providerInv || fallbackInv;
+    if (target && typeof target.id === "number") return `/invoices/${target.id}`;
+    if (b.invoice_id) return `/invoices/${b.invoice_id}`;
+    return `/invoices/by-booking/${b.id}?type=provider`;
+  };
+
   return (
     <div>
       {items.map((b) => {
@@ -88,15 +103,21 @@ function BookingList({
                 View receipt
               </a>
             )}
-            <a
-              href={`/invoices/by-booking/${b.id}?type=provider`}
-              target="_blank"
-              rel="noopener"
-              className="ml-3 mt-2 text-brand-dark hover:underline text-sm"
-              data-testid="booking-invoice-link"
-            >
-              View invoice
-            </a>
+            {(() => {
+              const href = getInvoiceHref(b);
+              if (!href) return null;
+              return (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener"
+                  className="ml-3 mt-2 text-brand-dark hover:underline text-sm"
+                  data-testid="booking-invoice-link"
+                >
+                  View invoice
+                </a>
+              );
+            })()}
             <div className="flex justify-between text-xs text-gray-500 mt-2">
               {["Requested", "Confirmed", b.status === "cancelled" ? "Cancelled" : "Completed"].map((step, idx) => {
                 const activeIdx =
