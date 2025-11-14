@@ -543,41 +543,6 @@ export default function InboxPage() {
       recordThreadSwitchStart(id, { source: 'list_click', unreadBefore });
       setSelectedThreadId(id);
       applyLocalRead(id);
-      const isBooka = Boolean(selectedNow?.is_booka_synthetic);
-      const params = new URLSearchParams(searchParams.toString());
-      if (isBooka) {
-        params.delete('requestId');
-        params.set('booka', '1');
-      } else {
-        params.delete('booka');
-        params.set('requestId', String(id));
-      }
-      try {
-        const nextSearch = `?${params.toString()}`;
-        if (typeof window === 'undefined' || window.location.search !== nextSearch) {
-          if (urlReplaceTimerRef.current) {
-            clearTimeout(urlReplaceTimerRef.current);
-            urlReplaceTimerRef.current = null;
-          }
-          const scheduledId = id;
-          urlReplaceTimerRef.current = setTimeout(() => {
-            if (selectedIdRef.current !== scheduledId) return;
-            suppressUrlSyncUntilRef.current = Date.now() + 4000;
-            try { router.replace(nextSearch, { scroll: false }); } catch {}
-          }, 0);
-        }
-      } catch {
-        if (urlReplaceTimerRef.current) {
-          clearTimeout(urlReplaceTimerRef.current);
-          urlReplaceTimerRef.current = null;
-        }
-        const scheduledId = id;
-        urlReplaceTimerRef.current = setTimeout(() => {
-          if (selectedIdRef.current !== scheduledId) return;
-          suppressUrlSyncUntilRef.current = Date.now() + 4000;
-          try { router.replace(`?${params.toString()}`, { scroll: false }); } catch {}
-        }, 0);
-      }
 
       // Prime quote cache from any locally cached messages.
       try {
