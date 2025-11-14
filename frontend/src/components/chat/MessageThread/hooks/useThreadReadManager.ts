@@ -55,8 +55,10 @@ export function useThreadReadManager({ threadId, messages, isActive, myUserId }:
           );
         } catch {}
       }
-
-      cacheSetLastRead(threadId, lastMessageId);
+      // Avoid duplicate UI notifications if unread is already 0 (e.g., active+visible path)
+      if (prevUnread > 0) {
+        cacheSetLastRead(threadId, lastMessageId);
+      }
       fireEvent(lastMessageId);
 
       const maybe = runWithTransport(
