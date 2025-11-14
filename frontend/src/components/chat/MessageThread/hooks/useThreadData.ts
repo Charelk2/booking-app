@@ -38,6 +38,7 @@ import { safeParseDate } from '@/lib/chat/threadStore';
 import { normalizeMessage as normalizeShared } from '@/lib/normalizers/messages';
 import { normalizeMessage as normalizeGeneric } from '@/utils/messages';
 import { getEphemeralStubs, clearEphemeralStubs } from '@/lib/chat/ephemeralStubs';
+import { isAttachmentCandidate, isAttachmentReady } from '@/components/chat/MessageThread/utils/media';
 
 export type ThreadMessage = {
   id: number;
@@ -396,7 +397,13 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
           : Array.isArray(res.data) ? (res.data as any)
           : [];
 
-        const normalized = items.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
+        const normalized = items
+          .map(normalizeForRender)
+          .filter((m: any) => Number.isFinite(m.id) && m.id > 0)
+          // Drop server-provided messages that look like pending attachments (no durable URL yet)
+          .filter((m: any) => {
+            try { return !(isAttachmentCandidate(m) && !isAttachmentReady(m)); } catch { return true; }
+          });
 
         // Proactively ensure any referenced quotes are hydrated into the global store
         try {
@@ -546,7 +553,12 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       try { ingestQuotes((res as any)?.data?.quotes); } catch {}
       const rows = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
       if (!rows.length) return;
-      const newer = rows.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
+      const newer = rows
+        .map(normalizeForRender)
+        .filter((m: any) => Number.isFinite(m.id) && m.id > 0)
+        .filter((m: any) => {
+          try { return !(isAttachmentCandidate(m) && !isAttachmentReady(m)); } catch { return true; }
+        });
       try {
         const ids: number[] = [];
         for (const m of newer as any[]) {
