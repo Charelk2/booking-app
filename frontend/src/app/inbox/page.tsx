@@ -24,6 +24,8 @@ import ConversationPane from '@/features/inbox/components/ConversationPane';
 import ThreadPane from '@/features/inbox/components/ThreadPane';
 import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
 import { writeThreadCache, readThreadCache, readThreadFromIndexedDb } from '@/lib/chat/threadCache';
+import { threadStore } from '@/lib/chat/threadStore';
+import { broadcastActiveThread } from '@/features/inbox/state/crossTab';
 import { prefetchQuotesByIds } from '@/hooks/useQuotes';
 import {
   initThreadPrefetcher,
@@ -146,6 +148,8 @@ export default function InboxPage() {
 
   useEffect(() => {
     setActivePrefetchThread(selectedThreadId ?? null);
+    try { threadStore.setActiveThread(selectedThreadId ?? null); } catch {}
+    try { broadcastActiveThread(selectedThreadId ?? null); } catch {}
   }, [selectedThreadId]);
 
   useEffect(() => {

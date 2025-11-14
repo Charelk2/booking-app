@@ -5,6 +5,7 @@ type Msg =
   | { t: 'hello'; id: string }
   | { t: 'thread_read'; id: string; threadId: number; lastMessageId: number; readAt?: string | null }
   | { t: 'threads_updated'; id: string; detail?: any }
+  | { t: 'active_thread'; id: string; threadId: number | null }
   | { t: 'clear_caches'; id: string };
 
 let channel: BroadcastChannel | null = null;
@@ -38,6 +39,15 @@ export function initCrossTabSync() {
       if (Number.isFinite(threadId) && threadId > 0) {
         try { cacheSetLastRead(threadId, Number(lastMessageId) || undefined); } catch {}
       }
+      return;
+    }
+    if (data.t === 'active_thread') {
+      try {
+        const tid = Number(data.threadId ?? 0) || null;
+        if (typeof window !== 'undefined') {
+          (window as any).__inboxActiveThreadId = tid;
+        }
+      } catch {}
       return;
     }
     if (data.t === 'threads_updated') {
@@ -100,4 +110,12 @@ export function broadcastClearCaches() {
   try { channel.postMessage({ t: 'clear_caches', id: selfId! } as Msg); } catch {}
   // also clear local caches immediately in this tab
   try { clearCachesLocal(); } catch {}
+}
+
+export function broadcastActiveThread(threadId: number | null) {
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return;
+  if (!selfId) selfId = Math.random().toString(36).slice(2);
+  if (!channel) channel = new BroadcastChannel('inbox-threads');
+  try { channel.postMessage({ t: 'active_thread', id: selfId!, threadId } as Msg); } catch {}
+  try { (window as any).__inboxActiveThreadId = threadId ?? null; } catch {}
 }

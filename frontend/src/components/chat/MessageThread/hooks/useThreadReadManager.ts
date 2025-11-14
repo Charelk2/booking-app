@@ -109,4 +109,25 @@ export function useThreadReadManager({ threadId, messages, isActive, myUserId }:
     lastAcknowledgedRef.current = latestId;
     scheduleMark(latestId);
   }, [isActive, messages, scheduleMark, myUserId]);
+
+  // Visibility return smoothing: when tab becomes visible while on the active
+  // thread, immediately clear local unread by setting lastRead up to last id.
+  useEffect(() => {
+    const onVisibility = () => {
+      try {
+        if (!isActive) return;
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+        const last = Array.isArray(messages) && messages.length ? messages[messages.length - 1] : null;
+        const lastId = Number((last as any)?.id || 0);
+        if (Number.isFinite(lastId) && lastId > 0) {
+          cacheSetLastRead(threadId, lastId);
+        }
+      } catch {}
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility);
+      return () => document.removeEventListener('visibilitychange', onVisibility);
+    }
+    return () => {};
+  }, [isActive, messages, threadId]);
 }

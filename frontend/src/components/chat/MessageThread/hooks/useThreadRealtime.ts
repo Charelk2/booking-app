@@ -74,9 +74,29 @@ export function useThreadRealtime({
         const isDuplicate = Number.isFinite(mid) && mid > 0 && seenSet.has(mid);
         if (Number.isFinite(senderId) && senderId > 0 && senderId !== myUserId) {
           const isVisible = typeof document !== 'undefined' ? (document.visibilityState === 'visible') : true;
-          if (isActive && isVisible && Number.isFinite(mid) && mid > 0) {
-            // Active thread: treat incoming as read immediately; do not bump unread
-            try { cacheSetLastRead(threadId, Number(mid)); } catch {}
+          const globalActiveId = (typeof window !== 'undefined' ? (window as any).__inboxActiveThreadId : null) as number | null;
+          const globallyActive = Number(globalActiveId || 0) === Number(threadId);
+          if (Number.isFinite(mid) && mid > 0) {
+            if ((isActive && isVisible) || globallyActive) {
+              // Active (this tab & visible) → mark read now; other-tab active → skip unread bump
+              if (isActive && isVisible) {
+                try { cacheSetLastRead(threadId, Number(mid)); } catch {}
+              }
+              // Do not bump unread in either case
+            } else if (!isDuplicate) {
+              try {
+                const list = cacheGetSummaries() as any[];
+                const next = list.map((t) => Number(t?.id) === threadId ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 } : t);
+                cacheSetSummaries(next as any);
+              } catch {}
+              try {
+                seenSet.add(mid);
+                if (seenSet.size > 500) {
+                  const half = Math.floor(seenSet.size / 2);
+                  let i = 0; for (const v of seenSet) { seenSet.delete(v); if (++i >= half) break; }
+                }
+              } catch {}
+            }
           } else if (!isDuplicate) {
             try {
               const list = cacheGetSummaries() as any[];
