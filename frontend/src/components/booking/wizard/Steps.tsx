@@ -1486,7 +1486,7 @@ export function ReviewStep(props: {
   }, [subtotalForPreview, props.providerVatRegistered, props.providerVatRate]);
   const isProcessing = submitting || isLoadingReviewData;
   const buttonLabel = (() => {
-    if (isLoadingReviewData && !submitting) return 'Loading Estimate';
+    if (isLoadingReviewData && !submitting) return 'Calculating estimates...';
     if (submitting && submitLabel === 'Submit Request') return 'Submitting...';
     if (submitting) return 'Loading...';
     return submitLabel;
