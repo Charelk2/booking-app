@@ -36,18 +36,44 @@ export default function useUnreadThreadsCount() {
   const { user } = useAuth();
   const debouncedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cacheTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countRef = useRef<number>(0);
+  const lastLocalLowerAtRef = useRef<number>(0);
+  useEffect(() => { countRef.current = count; }, [count]);
+
+  const recomputeFromCache = useCallback(() => {
+    try {
+      const list = cacheGetSummaries() as any[];
+      const local = Array.isArray(list)
+        ? list.reduce((a, s: any) => a + (Number(s?.unread_count || 0) || 0), 0)
+        : 0;
+      setCount((prev) => {
+        const next = Math.max(0, Number(local || 0));
+        // Allow cache to raise (new messages) or keep a lower value set by local delta reads
+        return Math.max(prev, next);
+      });
+    } catch {}
+  }, []);
+
+  const applyServerTotal = useCallback((serverTotal?: number) => {
+    if (!Number.isFinite(Number(serverTotal))) return;
+    const server = Math.max(0, Number(serverTotal));
+    // Suppress raising for a short window after a local read lower
+    const sinceLower = Date.now() - (lastLocalLowerAtRef.current || 0);
+    if (sinceLower < 1200) return;
+    const prev = countRef.current || 0;
+    if (server > prev) setCount(server);
+  }, []);
 
   const compute = useCallback(async (prevCount?: number) => {
-    const list = cacheGetSummaries() as any[];
-    const local = Array.isArray(list)
-      ? list.reduce((a, s: any) => a + (Number(s?.unread_count || 0) || 0), 0)
-      : 0;
-    let server = 0;
+    // First reflect local cache
+    recomputeFromCache();
+    // Then consult server; only allow raising
     try {
-      server = await fetchAggregateUnread(prevCount);
+      const server = await fetchAggregateUnread(prevCount);
+      applyServerTotal(server);
     } catch {}
-    return Math.max(local, server);
-  }, []);
+    return countRef.current;
+  }, [recomputeFromCache, applyServerTotal]);
 
   useEffect(() => {
     let canceled = false;
@@ -91,7 +117,11 @@ export default function useUnreadThreadsCount() {
           return;
         }
         if (typeof d.delta === 'number' && Number.isFinite(d.delta)) {
-          setCount((c) => Math.max(0, c + Number(d.delta)));
+          const delta = Number(d.delta);
+          if (delta < 0) {
+            lastLocalLowerAtRef.current = Date.now();
+          }
+          setCount((c) => Math.max(0, c + delta));
         }
       } catch {}
       // For other events, reconcile soon
