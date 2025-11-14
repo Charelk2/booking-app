@@ -592,9 +592,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const carRentalPrice = parseOptionalNumber(svcRes.car_rental_price);
       const flightPrice = parseOptionalNumber(svcRes.flight_price);
 
-      // Distance will be computed server-side; keep a rough client drive cost for UX while waiting
-      const drivingEstimateCost = 0;
-
       let quote: Awaited<ReturnType<typeof calculateQuote>> | null = null;
       const isSoundServiceCategory = (svcCategorySlug || '').toLowerCase().includes('sound');
       if (!isSoundServiceCategory && details.sound === 'yes') {
@@ -939,7 +936,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         setSoundMode(quote.sound_mode);
         setSoundModeOverridden(quote.sound_mode_overridden);
       } else {
-        // Still compute travel (and totals) on the server even if no external sound
+        // Still compute totals (including travel) on the server even if no external sound.
         try {
           const quote2 = await calculateQuote({
             base_fee: basePrice,
@@ -951,136 +948,35 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           setSoundCost(0);
           setSoundMode(null);
           setSoundModeOverridden(false);
-          // Prefer client-side travel engine (airports + transfers) for UI breakdown
-          try {
-            const dt = (() => {
-              const dd = (details as any)?.date;
-              if (!dd) return new Date();
-              try { return typeof dd === 'string' ? new Date(dd) : dd; } catch { return new Date(); }
-            })();
-            const artistLoc = String(artistLocation || '').trim();
-            const eventLoc = String((details as any)?.location || '').trim();
-            if (artistLoc && eventLoc) {
-              // Rough driving estimate for fallback comparison
-              let drivingEstimate = 0;
-              try {
-                const dm = await getDrivingMetricsCached(artistLoc, eventLoc);
-                const distKm = Number(dm?.distanceKm || 0);
-                if (Number.isFinite(distKm) && distKm > 0) drivingEstimate = distKm * travelRate;
-              } catch {}
-              const airportFn = async (city: string) => {
-                const geo = await geocodeCached(city);
-                if (geo) return findNearestAirport(city, async () => geo);
-                // fallback to mock coordinates (no network)
-                const mock = getMockCoordinates(city);
-                if (mock) return findNearestAirport(city, async () => mock as any);
-                return findNearestAirport(city);
-              };
-              const tr = await calculateTravelMode({
-                artistLocation: artistLoc,
-                eventLocation: eventLoc,
-                numTravellers: Number(numTravelMembers || 1),
-                drivingEstimate,
-                travelRate,
-                travelDate: dt,
-                carRentalPrice: carRentalPrice,
-                flightPricePerPerson: flightPrice,
-              }, undefined as any, airportFn as any);
-              if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost)) {
-                setTravelResult(tr as any);
-              } else {
-                // Fallback to server aggregate if client calc failed
-                const tm2 = (quote2?.travel_mode || '').toLowerCase();
-                const estimates2 = Array.isArray((quote2 as any)?.travel_estimates) ? (quote2 as any).travel_estimates : [];
-                const driveRow2 = estimates2.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
-                const travelRes2 = {
-                  mode: tm2 === 'flight' ? 'fly' : 'drive',
-                  totalCost: Number(quote2?.travel_cost || 0),
-                  breakdown: {
-                    drive: { estimate: Number(driveRow2?.cost || (tm2 === 'flight' ? 0 : (quote2?.travel_cost || 0))) },
-                    fly: { perPerson: 0, travellers: numTravelMembers, flightSubtotal: 0, carRental: Number(carRentalPrice || 0), localTransferKm: 0, departureTransferKm: 0, transferCost: 0, total: tm2 === 'flight' ? Number(quote2?.travel_cost || 0) : 0 },
-                  },
-                } as any;
-                setTravelResult(travelRes2);
-              }
-            }
-          } catch {
-            // Fallback to server aggregate if client calc throws
-            const tm2 = (quote2?.travel_mode || '').toLowerCase();
-            const estimates2 = Array.isArray((quote2 as any)?.travel_estimates) ? (quote2 as any).travel_estimates : [];
-            const driveRow2 = estimates2.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
-            const travelRes2 = {
-              mode: tm2 === 'flight' ? 'fly' : 'drive',
-              totalCost: Number(quote2?.travel_cost || 0),
-              breakdown: {
-                drive: { estimate: Number(driveRow2?.cost || (tm2 === 'flight' ? 0 : (quote2?.travel_cost || 0))) },
-                fly: { perPerson: 0, travellers: numTravelMembers, flightSubtotal: 0, carRental: Number(carRentalPrice || 0), localTransferKm: 0, departureTransferKm: 0, transferCost: 0, total: tm2 === 'flight' ? Number(quote2?.travel_cost || 0) : 0 },
+
+          // Use backend travel aggregates for fast totals at review.
+          const tm2 = (quote2?.travel_mode || '').toLowerCase();
+          const estimates2 = Array.isArray((quote2 as any)?.travel_estimates) ? (quote2 as any).travel_estimates : [];
+          const driveRow2 = estimates2.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
+          const travelRes2 = {
+            mode: tm2 === 'flight' ? 'fly' : 'drive',
+            totalCost: Number(quote2?.travel_cost || 0),
+            breakdown: {
+              drive: { estimate: Number(driveRow2?.cost || (tm2 === 'flight' ? 0 : (quote2?.travel_cost || 0))) },
+              fly: {
+                perPerson: 0,
+                travellers: numTravelMembers,
+                flightSubtotal: 0,
+                carRental: Number(carRentalPrice || 0),
+                localTransferKm: 0,
+                departureTransferKm: 0,
+                transferCost: 0,
+                total: tm2 === 'flight' ? Number(quote2?.travel_cost || 0) : 0,
               },
-            } as any;
-            setTravelResult(travelRes2);
-          }
+            },
+          } as any;
+          setTravelResult(travelRes2);
         } catch {
           setCalculatedPrice(basePrice);
           setSoundCost(0);
           setSoundMode(null);
           setSoundModeOverridden(false);
         }
-      }
-
-      // Prefer client-side travel engine for the primary path as well
-      try {
-        const dt = (() => {
-          const dd = (details as any)?.date;
-          if (!dd) return new Date();
-          try { return typeof dd === 'string' ? new Date(dd) : dd; } catch { return new Date(); }
-        })();
-        const artistLoc = String(artistLocation || '').trim();
-        const eventLoc = String((details as any)?.location || '').trim();
-        if (artistLoc && eventLoc) {
-          // Rough driving estimate for fallback comparison
-          let drivingEstimate = 0;
-          try {
-            const dm = await getDrivingMetricsCached(artistLoc, eventLoc);
-            const distKm = Number(dm?.distanceKm || 0);
-            if (Number.isFinite(distKm) && distKm > 0) drivingEstimate = distKm * travelRate;
-          } catch {}
-          const airportFn = async (city: string) => {
-            const geo = await geocodeCached(city);
-            if (geo) return findNearestAirport(city, async () => geo);
-            const mock = getMockCoordinates(city);
-            if (mock) return findNearestAirport(city, async () => mock as any);
-            return findNearestAirport(city);
-          };
-          const tr = await calculateTravelMode({
-            artistLocation: artistLoc,
-            eventLocation: eventLoc,
-            numTravellers: Number(numTravelMembers || 1),
-            drivingEstimate,
-            travelRate,
-            travelDate: dt,
-            carRentalPrice: carRentalPrice,
-            flightPricePerPerson: flightPrice,
-          }, undefined as any, airportFn as any);
-          if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost)) {
-            setTravelResult(tr as any);
-          } else {
-            // Fallback to server aggregate
-            const tm = (quote?.travel_mode || '').toLowerCase();
-            const estimates = Array.isArray((quote as any)?.travel_estimates) ? (quote as any).travel_estimates : [];
-            const driveRow = estimates.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
-            const travelResult = {
-              mode: tm === 'flight' ? 'fly' : 'drive',
-              totalCost: Number(quote?.travel_cost || 0),
-              breakdown: {
-                drive: { estimate: Number(driveRow?.cost || (tm === 'flight' ? 0 : (quote?.travel_cost || 0))) },
-                fly: { perPerson: 0, travellers: numTravelMembers, flightSubtotal: 0, carRental: Number(carRentalPrice || 0), localTransferKm: 0, departureTransferKm: 0, transferCost: 0, total: tm === 'flight' ? Number(quote?.travel_cost || 0) : 0 },
-              },
-            } as any;
-            setTravelResult(travelResult);
-          }
-        }
-      } catch {
-        setTravelResult({ mode: 'drive', totalCost: Number(quote?.travel_cost || 0), breakdown: { drive: { estimate: Number(quote?.travel_cost || 0) }, fly: { perPerson: 0, travellers: numTravelMembers, flightSubtotal: 0, carRental: 0, localTransferKm: 0, departureTransferKm: 0, transferCost: 0, total: 0 } } } as any);
       }
 
     } catch (err) {
