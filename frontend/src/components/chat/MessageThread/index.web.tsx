@@ -205,6 +205,18 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     ensureQuotesLoaded: ensureQuotesLoaded,
   });
 
+  // Auto-focus the composer textarea when this thread is active so users
+  // can start typing immediately on open and when switching threads.
+  React.useEffect(() => {
+    if (!isActive) return;
+    try {
+      const el = composerRef.current?.querySelector('textarea') as HTMLTextAreaElement | null;
+      el?.focus();
+    } catch {
+      // best-effort only
+    }
+  }, [isActive, bookingRequestId]);
+
   // --- Virtualization selection (stable)
   const ListComponent = React.useMemo(() => {
     const count = Array.isArray(messages) ? messages.length : 0;
