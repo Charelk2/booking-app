@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState, useCallback } from 'react';
+import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { getInboxUnread } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { subscribe as cacheSubscribe, getSummaries as cacheGetSummaries } from '@/lib/chat/threadCache';
@@ -34,6 +34,8 @@ function fetchAggregateUnread(prev?: number): Promise<number> {
 export default function useUnreadThreadsCount() {
   const [count, setCount] = useState<number>(0);
   const { user } = useAuth();
+  const debouncedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cacheTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const compute = useCallback(async (prevCount?: number) => {
     const list = cacheGetSummaries() as any[];
@@ -55,11 +57,28 @@ export default function useUnreadThreadsCount() {
       if (!canceled) setCount(next);
     };
 
+    const scheduleCompute = (delayMs = 800) => {
+      if (debouncedTimerRef.current) return;
+      debouncedTimerRef.current = setTimeout(() => {
+        debouncedTimerRef.current = null;
+        void setFromCompute();
+      }, delayMs);
+    };
+
     // seed now
     void setFromCompute();
 
-    // refresh on cache changes
-    const onCacheChange = () => void setFromCompute();
+    // Refresh on cache changes, but throttle and only when visible to reduce jitter
+    const onCacheChange = () => {
+      try {
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      } catch {}
+      if (cacheTimerRef.current) return;
+      cacheTimerRef.current = setTimeout(() => {
+        cacheTimerRef.current = null;
+        scheduleCompute(200); // slight delay to coalesce bursts
+      }, 200);
+    };
     const unsub = cacheSubscribe(onCacheChange);
 
     // refresh on badge delta and when tab becomes visible
@@ -68,21 +87,24 @@ export default function useUnreadThreadsCount() {
         const d = (ev as CustomEvent<{ delta?: number; total?: number }>).detail || {};
         if (typeof d.total === 'number' && Number.isFinite(d.total)) {
           setCount(Math.max(0, Number(d.total)));
+          // Accept total as authoritative and avoid immediate recompute
           return;
         }
         if (typeof d.delta === 'number' && Number.isFinite(d.delta)) {
           setCount((c) => Math.max(0, c + Number(d.delta)));
         }
       } catch {}
-      void setFromCompute();
+      // Do not recompute on every delta; wait for visibility/focus or server throttle
     };
     const onVisibility = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         void setFromCompute();
       }
     };
+    const onFocus = () => { void setFromCompute(); };
     if (typeof window !== 'undefined') {
       try { window.addEventListener('inbox:unread', onBadgeDelta as EventListener); } catch {}
+      try { window.addEventListener('focus', onFocus); } catch {}
     }
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', onVisibility);
@@ -93,10 +115,13 @@ export default function useUnreadThreadsCount() {
       try { unsub(); } catch {}
       if (typeof window !== 'undefined') {
         try { window.removeEventListener('inbox:unread', onBadgeDelta as EventListener); } catch {}
+        try { window.removeEventListener('focus', onFocus); } catch {}
       }
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisibility);
       }
+      if (debouncedTimerRef.current) { try { clearTimeout(debouncedTimerRef.current); } catch {} debouncedTimerRef.current = null; }
+      if (cacheTimerRef.current) { try { clearTimeout(cacheTimerRef.current); } catch {} cacheTimerRef.current = null; }
     };
   }, [compute, user]);
 
