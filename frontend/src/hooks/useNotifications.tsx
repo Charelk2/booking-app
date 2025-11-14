@@ -144,7 +144,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               } catch {}
             })();
           }
-          const nextUnread = isActive ? 0 : (Number(prev?.unread_count || 0) + 1);
+          // Do not bump per-thread unread here; chat WS owns per-thread unread.
+          const nextUnread = Number(prev?.unread_count || 0);
           // Derive a friendly preview label locally for known system lines to
           // avoid a brief flicker from raw content (e.g., order numbers) to the
           // server-normalized label after the subsequent fetch.
@@ -157,8 +158,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           }
           threadStore.upsert({
             id: threadId,
-            unread_count: nextUnread,
-            is_unread_by_current_user: nextUnread > 0,
+            // leave unread untouched; preview update only
             last_message_content: previewLabel,
             last_message_timestamp: newNotif.timestamp,
             counterparty_label: newNotif.sender_name || prev?.counterparty_label || undefined,
@@ -171,7 +171,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             cacheUpdateSummary(threadId, {
               last_message_content: previewLabel,
               last_message_timestamp: newNotif.timestamp as any,
-              unread_count: nextUnread,
             } as any);
           } catch {}
 
@@ -222,11 +221,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               try { window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId, source: 'notification' } })); } catch {}
             }
           } catch {}
-          if (!isActive && typeof window !== 'undefined') {
-            try {
-              window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { delta: 1, threadId } }));
-            } catch {}
-          }
+          // No badge delta here; aggregate unread_total will arrive via SSE/notifications channel
         }
       } catch (e) {
         console.error('Failed to handle notification message', e);

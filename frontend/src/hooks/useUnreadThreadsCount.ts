@@ -86,15 +86,15 @@ export default function useUnreadThreadsCount() {
       try {
         const d = (ev as CustomEvent<{ delta?: number; total?: number }>).detail || {};
         if (typeof d.total === 'number' && Number.isFinite(d.total)) {
+          // Seed with hinted total, but always reconcile next
           setCount(Math.max(0, Number(d.total)));
-          // Accept total as authoritative and avoid immediate recompute
-          return;
         }
         if (typeof d.delta === 'number' && Number.isFinite(d.delta)) {
           setCount((c) => Math.max(0, c + Number(d.delta)));
         }
       } catch {}
-      // Do not recompute on every delta; wait for visibility/focus or server throttle
+      // Always reconcile with threadCache + server aggregate (debounced)
+      scheduleCompute(0);
     };
     const onVisibility = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
