@@ -61,34 +61,15 @@ const BookingsSection: React.FC<Props> = ({ bookings, loading, error, onRetry })
             </div>
             {/* Documents quick links */}
             <div className="mt-3">
-              {(() => {
-                const anyBooking: any = booking as any;
-                const vis = Array.isArray(anyBooking.visible_invoices)
-                  ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
-                  : [];
-                const providerInv = vis.find(
-                  (iv) => iv.type === "provider_tax" || iv.type === "provider_invoice",
-                );
-                const fallbackInv = vis.length ? vis[vis.length - 1] : undefined;
-                const target = providerInv || fallbackInv;
-                const href =
-                  target && typeof target.id === "number"
-                    ? `/invoices/${target.id}`
-                    : booking.invoice_id
-                    ? `/invoices/${booking.invoice_id}`
-                    : `/invoices/by-booking/${booking.id}?type=provider`;
-                return (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener"
-                    className="text-brand-dark hover:underline text-sm"
-                    title="Download Provider Invoice"
-                  >
-                    Download Provider Invoice
-                  </a>
-                );
-              })()}
+              <a
+                href={`/invoices/by-booking/${booking.id}?type=provider`}
+                target="_blank"
+                rel="noopener"
+                className="text-brand-dark hover:underline text-sm"
+                title="Download Provider Invoice"
+              >
+                Download Provider Invoice
+              </a>
             </div>
           </div>
         ))}

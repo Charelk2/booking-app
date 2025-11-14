@@ -60,21 +60,6 @@ export default function ArtistBookingsPage() {
     }
   };
 
-  const getInvoiceHref = (b: Booking) => {
-    const anyBooking: any = b as any;
-    const vis = Array.isArray(anyBooking.visible_invoices)
-      ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
-      : [];
-    const providerInv = vis.find(
-      (iv) => iv.type === 'provider_tax' || iv.type === 'provider_invoice',
-    );
-    const fallbackInv = vis.length ? vis[vis.length - 1] : undefined;
-    const target = providerInv || fallbackInv;
-    if (target && typeof target.id === 'number') return `/invoices/${target.id}`;
-    if (b.invoice_id) return `/invoices/${b.invoice_id}`;
-    return `/invoices/by-booking/${b.id}?type=provider`;
-  };
-
   useEffect(() => {
     if (!user) return;
 
@@ -158,7 +143,7 @@ export default function ArtistBookingsPage() {
                 )}
                 <div className="mt-3 space-x-4">
                   <a
-                    href={getInvoiceHref(b)}
+                    href={`/invoices/by-booking/${b.id}?type=provider`}
                     target="_blank"
                     rel="noopener"
                     className="text-brand-dark hover:underline text-sm"

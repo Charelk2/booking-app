@@ -336,25 +336,7 @@ export default function BookingSummaryCard({
             const status = String(bookingDetails?.status || '').toLowerCase();
             const statusConfirmed = status.includes('confirmed') || status === 'completed';
             const bookingId = bookingDetails?.id;
-            let invoiceHref: string | null = null;
-            if (bookingId) {
-              const anyBooking: any = bookingDetails as any;
-              const vis = Array.isArray(anyBooking.visible_invoices)
-                ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
-                : [];
-              const providerInv = vis.find(
-                (iv) => iv.type === 'provider_tax' || iv.type === 'provider_invoice',
-              );
-              const fallbackInv = vis.length ? vis[vis.length - 1] : undefined;
-              const target = providerInv || fallbackInv;
-              if (target && typeof target.id === 'number') {
-                invoiceHref = `/invoices/${target.id}`;
-              } else if (bookingDetails?.invoice_id) {
-                invoiceHref = `/invoices/${bookingDetails.invoice_id}`;
-              } else {
-                invoiceHref = `/invoices/by-booking/${bookingId}?type=provider`;
-              }
-            }
+            const invoiceHref = bookingId ? `/invoices/by-booking/${bookingId}?type=provider` : null;
             if ((paid || statusConfirmed) && invoiceHref) {
               return (
                 <div className="mb-4">
