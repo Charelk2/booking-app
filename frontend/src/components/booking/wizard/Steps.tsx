@@ -339,6 +339,7 @@ interface LocationProps {
   control: Control<EventDetails>;
   artistLocation?: string | null;
   setWarning: (w: string | null) => void;
+  setValue: UseFormSetValue<EventDetails>;
   open?: boolean;
   onToggle?: () => void;
 }
@@ -371,13 +372,12 @@ function GoogleMapsLoader({ children }: { children: (isLoaded: boolean) => JSX.E
   return children(loaded);
 }
 
-export function LocationStep({ control, artistLocation, setWarning, open = true }: LocationProps) {
+export function LocationStep({ control, artistLocation, setWarning, setValue, open = true }: LocationProps) {
   const [shouldLoadMap, setShouldLoadMap] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [marker, setMarker] = useState<LatLng | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const locationNameSetterRef = useRef<((val: string) => void) | null>(null);
-  const locationSetterRef = useRef<((val: string) => void) | null>(null);
 
   useEffect(() => {
     const target = containerRef.current;
@@ -422,10 +422,7 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                     render={({ field }) => (
                       <LocationInput
                         value={field.value ?? ''}
-                        onValueChange={(val) => {
-                          field.onChange(val);
-                          locationSetterRef.current = field.onChange;
-                        }}
+                        onValueChange={field.onChange}
                         enterKeyHint="search"
                         onPlaceSelect={(place: google.maps.places.PlaceResult) => {
                           if (place.geometry?.location) {
@@ -467,10 +464,7 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                 render={({ field }) => (
                   <LocationInput
                     value={field.value ?? ''}
-                    onValueChange={(val) => {
-                      field.onChange(val);
-                      locationSetterRef.current = field.onChange;
-                    }}
+                    onValueChange={field.onChange}
                     enterKeyHint="search"
                     onPlaceSelect={(place: google.maps.places.PlaceResult) => {
                       if (place.geometry?.location) {
@@ -495,14 +489,22 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
         variant="link"
         className="mt-2 text-sm inline-block min-h-[44px] px-0 text-black hover:underline underline-offset-4"
         onClick={() => {
+          if (!navigator.geolocation) {
+            setGeoError('Unable to fetch your location');
+            return;
+          }
           navigator.geolocation.getCurrentPosition(
             (pos) => {
               const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
               setMarker(loc);
               setGeoError(null);
               const label = `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
-              if (locationSetterRef.current) locationSetterRef.current(label);
-              if (locationNameSetterRef.current) locationNameSetterRef.current('My current location');
+              try {
+                setValue('location', label as any, { shouldDirty: true, shouldValidate: true } as any);
+                setValue('locationName', 'My current location' as any, { shouldDirty: true } as any);
+              } catch {
+                if (locationNameSetterRef.current) locationNameSetterRef.current('My current location');
+              }
             },
             () => setGeoError('Unable to fetch your location'),
           );

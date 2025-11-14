@@ -1596,6 +1596,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             control={control}
             artistLocation={artistLocation}
             setWarning={setWarning}
+            setValue={setValue}
           />
         );
       case 2:
