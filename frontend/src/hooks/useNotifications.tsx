@@ -132,6 +132,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         if (threadId) {
           const isActive = threadStore.getActiveThreadId() === threadId;
           const prev = threadStore.getThread(threadId);
+          // If the notification looks like a pending attachment (filename-only or placeholder) and we don't yet have a durable URL,
+          // skip preview/unread updates here; fetch the finalized message shortly instead.
+          try {
+            const textRaw = String(newNotif.message || '').trim();
+            const low = textRaw.toLowerCase();
+            const looksFilename = !!textRaw && !low.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif|mp4|mov|webm|mkv|m4v|mp3|m4a|wav|ogg)$/i.test(textRaw);
+            const isPlaceholder = low === 'image' || low === '[image]' || low === 'video' || low === '[video]' || low === 'audio' || low === '[audio]';
+            if ((looksFilename || isPlaceholder) && typeof window !== 'undefined') {
+              try { window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId, source: 'pending-attachment' } })); } catch {}
+              return; // ignore preview/unread for now
+            }
+          } catch {}
           if (isActive) {
             threadStore.applyRead(threadId, prev?.last_message_id ?? null);
             // Keep cache summaries in sync so ConversationList updates immediately

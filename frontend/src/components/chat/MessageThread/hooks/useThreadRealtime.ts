@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
+import { isAttachmentCandidate, isAttachmentReady } from '@/components/chat/MessageThread/utils/media';
 import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, setLastRead as cacheSetLastRead, updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
 import { threadStore } from '@/lib/chat/threadStore';
 
@@ -56,6 +57,12 @@ export function useThreadRealtime({
       if (!type || type === 'message' || type === 'message_new') {
         const raw = (evt?.payload && (evt.payload.message || evt.payload.data)) || evt.message || evt.data || evt;
         try {
+          const fromSelf = Number(raw?.sender_id ?? raw?.senderId ?? 0) === Number(myUserId);
+          if (!fromSelf && isAttachmentCandidate(raw) && !isAttachmentReady(raw)) {
+            // Drop pending attachments for receiver; fetch finalized shortly
+            try { if (typeof pokeDelta === 'function') setTimeout(() => { try { pokeDelta('pending-attachment'); } catch {} }, 600); } catch {}
+            return;
+          }
           ingestMessage(raw);
         } catch (e) {
           try { console.warn('[realtime] ingest failed', e, { keys: raw && typeof raw === 'object' ? Object.keys(raw) : [] }); } catch {}

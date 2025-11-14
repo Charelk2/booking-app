@@ -16,3 +16,35 @@ export function isAudio(url?: string | null) {
   if (!url) return false;
   return /\.(webm|mp3|m4a|ogg|wav)(?:\?.*)?$/i.test(url) || /^data:audio\//i.test(url);
 }
+
+// Unified attachment readiness helpers
+export function isAttachmentCandidate(m: any): boolean {
+  try {
+    const ct = String(m?.attachment_meta?.content_type || '').toLowerCase().split(';')[0].trim();
+    const name = String(m?.attachment_meta?.original_filename || '').toLowerCase();
+    const url = String(m?.attachment_url || '');
+    if (!ct && !name && !url) return false;
+    if (ct.startsWith('image/') || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(name)) return true;
+    if (ct.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v)$/i.test(name)) return true;
+    if (ct.startsWith('audio/') || /\.(webm|mp3|m4a|ogg|wav)$/i.test(name)) return true;
+    return Boolean(url);
+  } catch {
+    return false;
+  }
+}
+
+export function isAttachmentReady(m: any): boolean {
+  try {
+    if (!isAttachmentCandidate(m)) return false;
+    const ct = String(m?.attachment_meta?.content_type || '').toLowerCase().split(';')[0].trim();
+    const url = String(m?.attachment_url || '');
+    // For video we could require stream_url/poster_url if your stack uses them
+    if (ct.startsWith('video/')) {
+      const streamUrl = String((m as any)?.stream_url || '');
+      return Boolean(streamUrl || url);
+    }
+    return Boolean(url);
+  } catch {
+    return false;
+  }
+}
