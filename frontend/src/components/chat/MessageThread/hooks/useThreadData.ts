@@ -335,6 +335,29 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     return () => { cancelled = true; };
   }, [threadId, opts]);
 
+  // Remove any filename-only placeholder immediately when the server finalizes the attachment,
+  // then fetch delta to pull the real message with a durable URL.
+  React.useEffect(() => {
+    const onFinalized = (e: Event) => {
+      try {
+        const d = (e as CustomEvent<{ threadId?: number; messageId?: number }>).detail || {};
+        if (Number(d.threadId) !== Number(threadId)) return;
+        const mid = Number(d.messageId || 0);
+        if (!Number.isFinite(mid) || mid <= 0) return;
+        setMessages(prev => prev.filter((m: any) => {
+          const same = Number(m?.id) === mid;
+          const hasUrl = !!String(m?.attachment_url || '').trim();
+          // Remove only if it's the placeholder (same id, no url)
+          return !(same && !hasUrl);
+        }));
+        // Pull the finalized message now
+        try { void fetchDelta?.('finalized'); } catch {}
+      } catch {}
+    };
+    if (typeof window !== 'undefined') window.addEventListener('message:finalized', onFinalized as any);
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('message:finalized', onFinalized as any); };
+  }, [threadId, fetchDelta, setMessages]);
+
   // (moved below) - Listen for global delta pokes
 
   const fetchMessages = React.useCallback(

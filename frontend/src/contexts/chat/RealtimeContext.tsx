@@ -58,8 +58,10 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         // Attachment finalized event → ensure the affected thread reconciles now
         if (payload && payload.type === 'message_finalized') {
           const threadId = Number(payload?.payload?.booking_request_id ?? 0);
+          const messageId = Number(payload?.payload?.message_id ?? 0);
           if (Number.isFinite(threadId) && threadId > 0) {
             try { window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId, source: 'message_finalized' } })); } catch {}
+            try { window.dispatchEvent(new CustomEvent('message:finalized', { detail: { threadId, messageId } })); } catch {}
           }
           return;
         }
