@@ -97,10 +97,9 @@ export default function useUnreadThreadsCount() {
     const onBadgeDelta = (ev: Event) => {
       try {
         const d = (ev as CustomEvent<{ delta?: number; total?: number }>).detail || {};
-        // Authoritative snapshot from server
-        if (typeof d.total === 'number' && Number.isFinite(d.total)) {
-          const total = Math.max(0, Number(d.total));
-          if (total !== countRef.current) setCount(total);
+        // Treat totals as a poke only; recompute from cache which is the source of truth
+        if (typeof (d as any).total === 'number') {
+          recomputeFromCache();
           return;
         }
         if (typeof d.delta === 'number' && Number.isFinite(d.delta)) {

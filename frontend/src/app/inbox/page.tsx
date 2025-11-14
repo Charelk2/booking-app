@@ -286,15 +286,8 @@ export default function InboxPage() {
     };
     // Also refresh when the chat layer signals updates (e.g., quote sent, payment received)
     const onThreadsUpdated = (event: Event) => {
-      const detail = (event as CustomEvent<ThreadsUpdatedDetail>).detail || {};
-      const id = Number(detail.threadId || 0);
-      if (id && id === selectedThreadId) return;
-      const now = Date.now();
-      const immediate = Boolean((detail as any).immediate);
-      if (immediate || now - lastRefreshAtRef.current > 1000) {
-        lastRefreshAtRef.current = now;
-        fetchAllRequests();
-      }
+      // Merge-only: reflect current cache into local state instead of refetching
+      try { setThreads(cacheGetSummaries() as any); } catch {}
     };
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);
@@ -339,14 +332,7 @@ export default function InboxPage() {
           let snapshot: any = null;
           try { snapshot = JSON.parse(String(e.data || '{}')); } catch {}
           try { emitThreadsUpdated({ source: 'inbox:sse', immediate: true }, { immediate: true, force: true }); } catch {}
-          try {
-            const total = Number(snapshot?.unread_total);
-            if (Number.isFinite(total)) {
-              window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { total } }));
-            } else {
-              window.dispatchEvent(new Event('inbox:unread'));
-            }
-          } catch {}
+          try { window.dispatchEvent(new Event('inbox:unread')); } catch {}
           // Best-effort: if a thread is active, poke its delta fetch so the
           // new message appears immediately even if WS is flapping.
           try {

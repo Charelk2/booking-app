@@ -340,8 +340,10 @@ export function setSummaries(list: ThreadSummary[]): void {
       mergedBase.last_message_id = lastMsgId || undefined;
     }
 
-    // Unread merge: never lose local increments; respect local read state
-    const serverUnread = Number((raw as any)?.unread_count ?? 0) || 0;
+    // Unread merge: coerce server numeric, fallback from is_unread_by_current_user, never lose local increments; respect local read state
+    const rawCount = Number((raw as any)?.unread_count ?? 0) || 0;
+    const fallbackFlag = Boolean((raw as any)?.is_unread_by_current_user);
+    const serverUnread = rawCount > 0 ? rawCount : (fallbackFlag ? 1 : 0);
     const prevUnread = Number(prev?.unread_count ?? 0) || 0;
     let mergedUnread = prev ? Math.max(prevUnread, serverUnread) : serverUnread;
     if (lastReadId && lastMsgId && lastReadId >= lastMsgId) {
