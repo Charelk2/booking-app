@@ -16,7 +16,15 @@ export default function SummarySidebar() {
     let cleaned = locationString.replace(/,?\s*South Africa/gi, '');
     cleaned = cleaned.replace(/,\s*\d{4}\s*$/, '').trim();
     cleaned = cleaned.replace(/,$/, '').trim();
-    return cleaned;
+
+    const parts = cleaned
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (parts.length >= 2 && parts[0].toLowerCase() === parts[1].toLowerCase()) {
+      parts.splice(1, 1);
+    }
+    return parts.join(', ');
   };
 
   if (!isVisible) {

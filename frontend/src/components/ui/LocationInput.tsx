@@ -357,13 +357,33 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
               placeDetails
             ) {
               onPlaceSelect(placeDetails as PlaceResult);
-              const combined = placeDetails.name
-                ? `${placeDetails.name}${placeDetails.formatted_address ? ", " + placeDetails.formatted_address : ""}`
-                : (placeDetails.formatted_address || prediction.description);
+
+              const name = (placeDetails.name || "").trim();
+              const formatted = (placeDetails.formatted_address || "").trim();
+              let combined: string;
+
+              if (name && formatted) {
+                const nameLower = name.toLowerCase();
+                const formattedLower = formatted.toLowerCase();
+                // Avoid duplicating the name when it already prefixes the formatted address.
+                if (
+                  formattedLower === nameLower ||
+                  formattedLower.startsWith(nameLower + ",")
+                ) {
+                  combined = formatted;
+                } else {
+                  combined = `${name}, ${formatted}`;
+                }
+              } else {
+                combined = formatted || name || prediction.description;
+              }
+
               onValueChange(combined);
               setLiveMessage(`Location selected: ${combined}`);
               suppressAutocompleteRef.current = true;
-              setTimeout(() => { suppressAutocompleteRef.current = false; }, 600);
+              setTimeout(() => {
+                suppressAutocompleteRef.current = false;
+              }, 600);
             } else {
               console.error("PlacesService.getDetails failed:", status);
               onPlaceSelect({
@@ -373,7 +393,9 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
               onValueChange(prediction.description);
               setLiveMessage(`Location selected: ${prediction.description}`);
               suppressAutocompleteRef.current = true;
-              setTimeout(() => { suppressAutocompleteRef.current = false; }, 600);
+              setTimeout(() => {
+                suppressAutocompleteRef.current = false;
+              }, 600);
             }
           }
         );
@@ -385,7 +407,9 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
         onValueChange(prediction.description);
         setLiveMessage(`Location selected: ${prediction.description}`);
         suppressAutocompleteRef.current = true;
-        setTimeout(() => { suppressAutocompleteRef.current = false; }, 600);
+        setTimeout(() => {
+          suppressAutocompleteRef.current = false;
+        }, 600);
       }
     };
 
