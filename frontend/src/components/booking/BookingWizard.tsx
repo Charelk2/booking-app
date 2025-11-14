@@ -982,9 +982,92 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           },
         } as any;
 
-        if (Number.isFinite(travelCost) && travelCost > 0) {
-          setTravelResult(baseTravelRes);
-        } else {
+        try {
+          const dt = (() => {
+            const dd = (details as any)?.date;
+            if (!dd) return new Date();
+            try { return typeof dd === 'string' ? new Date(dd) : dd; } catch { return new Date(); }
+          })();
+          const artistLoc = String(artistLocation || '').trim();
+          const eventLoc = String((details as any)?.location || '').trim();
+          if (artistLoc && eventLoc) {
+            let drivingEstimate = 0;
+            try {
+              const dm = await getDrivingMetricsCached(artistLoc, eventLoc);
+              const distKm = Number(dm?.distanceKm || 0);
+              if (Number.isFinite(distKm) && distKm > 0) drivingEstimate = distKm * travelRate;
+            } catch {}
+            const airportFn = async (city: string) => {
+              const geo = await geocodeCached(city);
+              if (geo) return findNearestAirport(city, async () => geo);
+              const mock = getMockCoordinates(city);
+              if (mock) return findNearestAirport(city, async () => mock as any);
+              return findNearestAirport(city);
+            };
+            const tr = await calculateTravelMode({
+              artistLocation: artistLoc,
+              eventLocation: eventLoc,
+              numTravellers: Number(numTravelMembers || 1),
+              drivingEstimate,
+              travelRate,
+              travelDate: dt,
+              carRentalPrice: carRentalPrice,
+              flightPricePerPerson: flightPrice,
+            }, undefined as any, airportFn as any);
+            if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
+              setTravelResult(tr as any);
+            } else if (Number.isFinite(travelCost) && travelCost > 0) {
+              setTravelResult(baseTravelRes);
+            }
+          } else if (Number.isFinite(travelCost) && travelCost > 0) {
+            setTravelResult(baseTravelRes);
+          }
+        } catch {
+          if (Number.isFinite(travelCost) && travelCost > 0) {
+            setTravelResult(baseTravelRes);
+          }
+        }
+      } else {
+        // Still compute totals (including travel) on the server even if no external sound.
+        try {
+          const quote2 = await calculateQuote({
+            base_fee: basePrice,
+            // Omit distance_km; backend resolves from artist base → event city
+            service_id: serviceId,
+            event_city: details.location,
+          } as any);
+          setCalculatedPrice(Number(quote2.total));
+          setSoundCost(0);
+          setSoundMode(null);
+          setSoundModeOverridden(false);
+
+          const tm2 = (quote2?.travel_mode || '').toLowerCase();
+          const estimates2 = Array.isArray((quote2 as any)?.travel_estimates) ? (quote2 as any).travel_estimates : [];
+          const driveRow2 = estimates2.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
+          const travelCost2 = Number(quote2?.travel_cost || 0);
+          const baseTravelRes = {
+            mode: tm2 === 'flight' ? 'fly' : 'drive',
+            totalCost: travelCost2,
+            breakdown: {
+              drive: {
+                estimate: Number(
+                  driveRow2?.cost ||
+                  (tm2 === 'flight' ? 0 : travelCost2),
+                ),
+              },
+              fly: {
+                perPerson: 0,
+                travellers: numTravelMembers,
+                flightSubtotal: 0,
+                carRental: Number(carRentalPrice || 0),
+                localTransferKm: 0,
+                departureTransferKm: 0,
+                transferCost: 0,
+                total: tm2 === 'flight' ? travelCost2 : 0,
+              },
+            },
+          } as any;
+
           try {
             const dt = (() => {
               const dd = (details as any)?.date;
@@ -1017,107 +1100,17 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 carRentalPrice: carRentalPrice,
                 flightPricePerPerson: flightPrice,
               }, undefined as any, airportFn as any);
-              if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost)) {
+              if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
                 setTravelResult(tr as any);
-              } else {
+              } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
+                // If client engine failed or produced 0, fall back to backend aggregate.
                 setTravelResult(baseTravelRes);
               }
-            } else {
+            } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
               setTravelResult(baseTravelRes);
             }
           } catch {
-            setTravelResult(baseTravelRes);
-          }
-        }
-      } else {
-        // Still compute totals (including travel) on the server even if no external sound.
-        try {
-          const quote2 = await calculateQuote({
-            base_fee: basePrice,
-            // Omit distance_km; backend resolves from artist base → event city
-            service_id: serviceId,
-            event_city: details.location,
-          } as any);
-          setCalculatedPrice(Number(quote2.total));
-          setSoundCost(0);
-          setSoundMode(null);
-          setSoundModeOverridden(false);
-
-          // First, trust the backend travel aggregate when present.
-          const tm2 = (quote2?.travel_mode || '').toLowerCase();
-          const estimates2 = Array.isArray((quote2 as any)?.travel_estimates) ? (quote2 as any).travel_estimates : [];
-          const driveRow2 = estimates2.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
-          const travelCost2 = Number(quote2?.travel_cost || 0);
-          const baseTravelRes = {
-            mode: tm2 === 'flight' ? 'fly' : 'drive',
-            totalCost: travelCost2,
-            breakdown: {
-              drive: {
-                estimate: Number(
-                  driveRow2?.cost ||
-                  (tm2 === 'flight' ? 0 : travelCost2),
-                ),
-              },
-              fly: {
-                perPerson: 0,
-                travellers: numTravelMembers,
-                flightSubtotal: 0,
-                carRental: Number(carRentalPrice || 0),
-                localTransferKm: 0,
-                departureTransferKm: 0,
-                transferCost: 0,
-                total: tm2 === 'flight' ? travelCost2 : 0,
-              },
-            },
-          } as any;
-
-          if (Number.isFinite(travelCost2) && travelCost2 > 0) {
-            setTravelResult(baseTravelRes);
-          } else {
-            // Backend did not compute a travel_cost; fall back to the client
-            // travel engine once to derive a meaningful estimate.
-            try {
-              const dt = (() => {
-                const dd = (details as any)?.date;
-                if (!dd) return new Date();
-                try { return typeof dd === 'string' ? new Date(dd) : dd; } catch { return new Date(); }
-              })();
-              const artistLoc = String(artistLocation || '').trim();
-              const eventLoc = String((details as any)?.location || '').trim();
-              if (artistLoc && eventLoc) {
-                let drivingEstimate = 0;
-                try {
-                  const dm = await getDrivingMetricsCached(artistLoc, eventLoc);
-                  const distKm = Number(dm?.distanceKm || 0);
-                  if (Number.isFinite(distKm) && distKm > 0) drivingEstimate = distKm * travelRate;
-                } catch {}
-                const airportFn = async (city: string) => {
-                  const geo = await geocodeCached(city);
-                  if (geo) return findNearestAirport(city, async () => geo);
-                  const mock = getMockCoordinates(city);
-                  if (mock) return findNearestAirport(city, async () => mock as any);
-                  return findNearestAirport(city);
-                };
-                const tr = await calculateTravelMode({
-                  artistLocation: artistLoc,
-                  eventLocation: eventLoc,
-                  numTravellers: Number(numTravelMembers || 1),
-                  drivingEstimate,
-                  travelRate,
-                  travelDate: dt,
-                  carRentalPrice: carRentalPrice,
-                  flightPricePerPerson: flightPrice,
-                }, undefined as any, airportFn as any);
-                if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost)) {
-                  setTravelResult(tr as any);
-                } else {
-                  // If client engine failed, fall back to the best backend aggregate we have.
-                  setTravelResult(baseTravelRes);
-                }
-              } else {
-                setTravelResult(baseTravelRes);
-              }
-            } catch {
+            if (Number.isFinite(travelCost2) && travelCost2 > 0) {
               setTravelResult(baseTravelRes);
             }
           }
