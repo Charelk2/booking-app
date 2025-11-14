@@ -337,6 +337,29 @@ function computeRow(
     (thread as any).unread_count,
     isUnreadFlag
   );
+  let unreadCount = count;
+  let unreadFlag = isUnread;
+
+  // Fallback: when the server does not provide an explicit unread_count but
+  // we know the thread is unread, derive a more accurate count from the
+  // cached messages for this thread if available.
+  if (unreadFlag && (unreadCount <= 1 || !Number.isFinite(unreadCount))) {
+    try {
+      const cached = readThreadCache(thread.id) as any[] | null;
+      if (Array.isArray(cached) && cached.length && currentUser) {
+        const myId = Number((currentUser as any)?.id || 0);
+        const derived = cached.reduce((acc, m: any) => {
+          const senderId = Number(m?.sender_id ?? m?.senderId ?? 0);
+          const fromMe = myId && senderId === myId;
+          const isRead = Boolean(m?.is_read || m?.read_at);
+          return !fromMe && !isRead ? acc + 1 : acc;
+        }, 0);
+        if (Number.isFinite(derived) && derived > unreadCount) {
+          unreadCount = derived;
+        }
+      }
+    } catch {}
+  }
 
   const tags = detectTags(
     thread,
@@ -357,8 +380,8 @@ function computeRow(
     avatarUrl: isBookaModeration ? null : avatar,
     timestamp: formatTimestamp(parsedTimestamp),
     rawTimestamp: parsedTimestamp,
-    unreadCount: count,
-    isUnread,
+    unreadCount,
+    isUnread: unreadFlag,
     tags,
     isBookaModeration,
     supplierProgram,
