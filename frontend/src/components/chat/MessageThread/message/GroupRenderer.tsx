@@ -324,6 +324,17 @@ export default function GroupRenderer({
           if (isSystem || isInquiryCard) {
             try {
               const content = String(m?.content || '');
+              // Persist inquiry marker per thread so the Inbox list can
+              // surface an INQUIRY chip even after a hard refresh for
+              // both clients and service providers.
+              if (isInquiryCard && typeof window !== 'undefined') {
+                try {
+                  const tid = Number(bookingRequestId || 0);
+                  if (Number.isFinite(tid) && tid > 0) {
+                    window.localStorage.setItem(`inquiry-thread-${tid}`, '1');
+                  }
+                } catch {}
+              }
               // For service providers, suppress the booking-details card while keeping
               // the message in the list so parsing and side-panel still work.
               if (userType === 'service_provider' && content.startsWith(BOOKING_DETAILS_PREFIX)) {
