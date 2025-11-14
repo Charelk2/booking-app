@@ -214,6 +214,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [artistVatRegistered, setArtistVatRegistered] = useState<boolean | null>(null);
   const [providerName, setProviderName] = useState<string | null>(null);
   const [artistVatRate, setArtistVatRate] = useState<number | null>(null);
+  const [providerAvatarUrl, setProviderAvatarUrl] = useState<string | null>(null);
 
   // Business billing (client)
   const [needTaxInvoice, setNeedTaxInvoice] = useState(false);
@@ -405,6 +406,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             }
             setArtistVatRate(rateNum);
           } catch { setArtistVatRate(null); }
+          try {
+            const avatar = (artistProf?.profile_picture_url || svcRes?.artist_profile?.profile_picture_url || svcRes?.service_provider_profile?.profile_picture_url || '').toString().trim();
+            setProviderAvatarUrl(avatar || null);
+          } catch {
+            setProviderAvatarUrl(null);
+          }
           const name = (artistProf?.legal_name || artistProf?.business_name || svcRes?.title || '').toString().trim();
           setProviderName(name || null);
         } catch {
@@ -1423,6 +1430,21 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           const updatedAt: string | undefined = created.updated_at || created.updatedAt;
           const ts = (created.last_message_timestamp as string | undefined) || updatedAt || createdAt || nowIso;
           const counterpartyLabel = providerName || (created.service?.title as string | undefined) || 'Service Provider';
+          const counterpartyAvatar = providerAvatarUrl || (created as any)?.counterparty_avatar_url || null;
+
+          // 0) Persist selection so /inbox (without ?requestId) opens this thread.
+          try {
+            if (typeof window !== 'undefined' && user?.id) {
+              const role = user.user_type === 'service_provider' ? 'artist' : 'client';
+              const uid = String(user.id);
+              const cacheKey = `inbox:threadsCache:v2:${role}:${uid}`;
+              const selKey = `${cacheKey}:selected`;
+              try { sessionStorage.setItem(selKey, String(id)); } catch {}
+              try { localStorage.setItem(selKey, JSON.stringify({ id: Number(id), ts: Date.now() })); } catch {}
+            }
+          } catch {
+            // Selection persistence is best-effort.
+          }
 
           // 1) Update unified thread summaries so ConversationList renders
           // a non-empty, correctly labeled preview immediately.
@@ -1433,6 +1455,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               last_message_content: 'New Booking Request',
               unread_count: 0,
               counterparty_label: counterpartyLabel,
+              counterparty_avatar_url: counterpartyAvatar,
             } as any);
           } catch {
             // Best-effort only; do not block submit on cache issues.
@@ -1449,6 +1472,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               last_message_content: 'New Booking Request',
               unread_count: 0,
               counterparty_label: counterpartyLabel,
+              counterparty_avatar_url: counterpartyAvatar,
             } as any);
           } catch {
             // Non-fatal; threadStore is a best-effort optimization.
@@ -1469,7 +1493,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 visible_to: 'both',
                 timestamp: ts,
                 status: 'sent',
-                avatar_url: (user as any)?.profile_picture_url ?? null,
+                avatar_url: (user as any)?.profile_picture_url ?? counterpartyAvatar ?? null,
               };
               addEphemeralStub(Number(id), stub);
             }
@@ -1484,7 +1508,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       // Redirect immediately to inbox for a snappy UX; post the details line in the background
       try { router.prefetch('/inbox'); } catch {}
       toast.success('Your booking request has been submitted successfully!');
-      router.push(`/inbox?requestId=${id}`);
+      router.push('/inbox');
 
       // Fire-and-forget posting of the details system line; do not block navigation
       (async () => {
