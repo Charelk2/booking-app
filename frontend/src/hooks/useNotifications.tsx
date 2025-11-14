@@ -221,7 +221,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               try { window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId, source: 'notification' } })); } catch {}
             }
           } catch {}
-          // No badge delta here; aggregate unread_total will arrive via SSE/notifications channel
+          // Bump global badge once for inactive threads so header updates with preview
+          if (!isActive && typeof window !== 'undefined') {
+            try { window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { delta: 1, threadId } })); } catch {}
+          }
         }
       } catch (e) {
         console.error('Failed to handle notification message', e);

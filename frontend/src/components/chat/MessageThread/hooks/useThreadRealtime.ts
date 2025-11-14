@@ -89,12 +89,6 @@ export function useThreadRealtime({
                 const next = list.map((t) => Number(t?.id) === threadId ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 } : t);
                 cacheSetSummaries(next as any);
               } catch {}
-              // Nudge global/unified badges immediately (delta +1)
-              try {
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { delta: 1, threadId } }));
-                }
-              } catch {}
               try {
                 seenSet.add(mid);
                 if (seenSet.size > 500) {
@@ -108,12 +102,6 @@ export function useThreadRealtime({
               const list = cacheGetSummaries() as any[];
               const next = list.map((t) => Number(t?.id) === threadId ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 } : t);
               cacheSetSummaries(next as any);
-            } catch {}
-            // Nudge global/unified badges immediately (delta +1)
-            try {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { delta: 1, threadId } }));
-              }
             } catch {}
             if (Number.isFinite(mid) && mid > 0) {
               try {
