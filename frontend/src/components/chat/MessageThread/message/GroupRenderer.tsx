@@ -465,7 +465,14 @@ export default function GroupRenderer({
                       </div>
                     );
                   }
-                  const shouldShowTextNode = Boolean(textNode) && !(hasImage || hasVideo || hasAudio);
+                  // Show caption text for media unless the text is just a filename/placeholder
+                  const rawTextForHide = String(m?.content || '').trim();
+                  const lowTextForHide = rawTextForHide.toLowerCase();
+                  const isPlaceholderText = !rawTextForHide || lowTextForHide === 'image' || lowTextForHide === '[image]' || lowTextForHide === 'attachment' || lowTextForHide === '[attachment]';
+                  const looksLikeFilenameText = !lowTextForHide.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(lowTextForHide);
+                  const equalsOriginalName = Boolean((meta?.original_filename || '').toLowerCase() === lowTextForHide && lowTextForHide.length > 0);
+                  const hideTextForMedia = (hasImage || hasVideo) && (isPlaceholderText || looksLikeFilenameText || equalsOriginalName);
+                  const shouldShowTextNode = Boolean(textNode) && !hideTextForMedia;
                   if (shouldShowTextNode) {
                     blocks.push(
                       <div key="text" className="mb-2">
