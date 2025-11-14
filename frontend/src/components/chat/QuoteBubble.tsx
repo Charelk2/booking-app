@@ -307,10 +307,17 @@ export default function QuotePeek(props: QuotePeekProps) {
 
   const normalizedTotal = Number(total);
   const normalizedSubtotal = Number(subtotalForVat);
-  const headerAmountSource =
-    (isClientView ? clientTotal : providerSubtotalPreview) ??
-    (Number.isFinite(normalizedTotal) && normalizedTotal > 0 ? normalizedTotal : undefined) ??
-    (Number.isFinite(normalizedSubtotal) && normalizedSubtotal > 0 ? normalizedSubtotal : undefined);
+  const headerAmountSource = isClientView
+    ? (
+      (typeof clientTotal === 'number' && Number.isFinite(clientTotal) ? clientTotal : undefined) ??
+      (Number.isFinite(normalizedTotal) && normalizedTotal > 0 ? normalizedTotal : undefined) ??
+      (Number.isFinite(normalizedSubtotal) && normalizedSubtotal > 0 ? normalizedSubtotal : undefined)
+    )
+    : (
+      (Number.isFinite(normalizedTotal) && normalizedTotal > 0 ? normalizedTotal : undefined) ??
+      providerSubtotalPreview ??
+      (Number.isFinite(normalizedSubtotal) && normalizedSubtotal > 0 ? normalizedSubtotal : undefined)
+    );
   const displayTotal = typeof headerAmountSource === 'number' ? headerAmountSource : undefined;
 
   // Fetch reviews lazily when the details modal opens (best effort)

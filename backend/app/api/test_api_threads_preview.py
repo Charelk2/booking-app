@@ -178,6 +178,29 @@ def test_threads_preview_single_query_path(db):
         assert items_by_id[br1.id].get("preview_key") == "new_booking_request"
         assert items_by_id[br3.id].get("preview_key") == "payment_received"
 
+
+def test_threads_preview_requested_without_messages_uses_fallback_label(db):
+    # Arrange a client and artist with a brand-new booking request that has no messages yet.
+    client = _mk_user(db, "fresh-client@example.com", models.UserType.CLIENT)
+    artist = _mk_user(db, "fresh-artist@example.com", models.UserType.SERVICE_PROVIDER)
+    br = _mk_request(db, client.id, artist.id, service_id=None)
+
+    # Sanity: booking status maps to "requested" state in the preview helper.
+    assert br.status == models.BookingStatus.PENDING_QUOTE
+
+    app.dependency_overrides[get_db] = _override_get_db
+    app.dependency_overrides[get_current_user] = lambda: client
+
+    with TestClient(app) as http:
+        r = http.get("/api/v1/message-threads/preview", params={"role": "client", "limit": 100})
+        assert r.status_code == 200, r.text
+        data = r.json()
+        items_by_id = {it["thread_id"]: it for it in data["items"]}
+        assert br.id in items_by_id
+        # Brand-new requested threads without messages should still surface a
+        # neutral label so the Inbox preview does not go blank after hydration.
+        assert items_by_id[br.id]["last_message_preview"] == "New Booking Request"
+
         # Act: 304 with If-None-Match
         etag = r.headers["ETag"]
         r2 = http.get(

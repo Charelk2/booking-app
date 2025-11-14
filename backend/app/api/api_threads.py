@@ -419,7 +419,12 @@ def get_threads_preview(
         state = _state_from_status(br.status)
 
         # Preview label
-        preview = preview_label_for_message(last_m, thread_state=state, sender_display=display) if msg_id else ""
+        # Always delegate to preview_label_for_message so that brand-new
+        # requested threads without any messages still get a stable,
+        # neutral label like "New Booking Request" instead of an empty
+        # preview that would overwrite hydrated client hints.
+        preview_msg = last_m if msg_id else None
+        preview = preview_label_for_message(preview_msg, thread_state=state, sender_display=display)
         preview_key = None
         preview_args: Dict[str, Any] = {}
         if system_key:
