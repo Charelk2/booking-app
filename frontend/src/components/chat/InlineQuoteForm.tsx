@@ -343,7 +343,7 @@ const InlineQuoteForm: React.FC<Props> = ({
 
   const normalizedVatRate = useMemo(() => {
     if (!providerVatRegistered) return 0;
-    const raw = typeof providerVatRate === 'string' ? parseFloat(providerVatRate) : providerVatRate;
+    const raw = providerVatRate;
     if (!Number.isFinite(raw) || raw! <= 0) return 0.15;
     return raw! > 1 ? raw! / 100 : raw!;
   }, [providerVatRate, providerVatRegistered]);

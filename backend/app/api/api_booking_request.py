@@ -423,13 +423,27 @@ def read_booking_request(
         db_request.created_at = datetime.utcnow()
     if getattr(db_request, "updated_at", None) is None:
         db_request.updated_at = db_request.created_at
-    # ETag support: generate a weak ETag based on id + updated_at + last_message_timestamp (seconds precision)
+    # ETag support: generate a weak ETag based on id + updated_at + last_message_timestamp + provider VAT snapshot
     try:
         from hashlib import sha1
         last_ts = getattr(db_request, "last_message_timestamp", None)
         marker_last = last_ts.isoformat(timespec="seconds") if last_ts else "0"
         marker_upd = db_request.updated_at.isoformat(timespec="seconds") if db_request.updated_at else "0"
-        etag = f'W/"br:{int(db_request.id)}:{sha1((marker_upd+":"+marker_last).encode()).hexdigest()}"'
+        vat_reg = None
+        vat_rate = None
+        try:
+            prof = getattr(db_request, "artist_profile", None)
+            if prof is None and getattr(db_request, "artist", None) is not None:
+                prof = getattr(db_request.artist, "artist_profile", None)
+            if prof is not None:
+                vat_reg = getattr(prof, "vat_registered", None)
+                vat_rate = getattr(prof, "vat_rate", None)
+        except Exception:
+            vat_reg = None
+            vat_rate = None
+        marker_vat = f"{'1' if vat_reg is True else '0' if vat_reg is False else ''}:{str(vat_rate or '')}"
+        basis = f"{marker_upd}:{marker_last}:{marker_vat}"
+        etag = f'W/"br:{int(db_request.id)}:{sha1(basis.encode()).hexdigest()}"'
         if if_none_match and if_none_match.strip() == etag:
             return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag})
     except Exception:

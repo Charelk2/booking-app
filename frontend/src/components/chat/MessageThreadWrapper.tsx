@@ -265,11 +265,7 @@ export default function MessageThreadWrapper({
 
   const providerProfile = useMemo(() => {
     if (!bookingRequest) return null;
-    return (
-      (bookingRequest as any)?.service_provider_profile ||
-      (bookingRequest as any)?.service?.service_provider_profile ||
-      null
-    );
+    return (bookingRequest as any)?.service_provider_profile ?? null;
   }, [bookingRequest]);
 
   const providerVatRegistered = Boolean(providerProfile?.vat_registered);
@@ -277,7 +273,7 @@ export default function MessageThreadWrapper({
     if (!providerVatRegistered) return null;
     const raw = providerProfile?.vat_rate;
     if (raw == null) return null;
-    const numeric = typeof raw === 'string' ? parseFloat(raw) : Number(raw);
+    const numeric = Number(raw);
     return Number.isFinite(numeric) ? numeric : null;
   }, [providerProfile, providerVatRegistered]);
 
