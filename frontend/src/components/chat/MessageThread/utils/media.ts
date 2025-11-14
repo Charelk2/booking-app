@@ -23,10 +23,12 @@ export function isAttachmentCandidate(m: any): boolean {
     const ct = String(m?.attachment_meta?.content_type || '').toLowerCase().split(';')[0].trim();
     const name = String(m?.attachment_meta?.original_filename || '').toLowerCase();
     const url = String(m?.attachment_url || '');
+    const contentText = String(m?.content || '').toLowerCase().trim();
+    const looksFilenameText = !!contentText && !contentText.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif|mp4|mov|webm|mkv|m4v|mp3|m4a|wav|ogg)$/i.test(contentText);
     if (!ct && !name && !url) return false;
-    if (ct.startsWith('image/') || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(name)) return true;
-    if (ct.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v)$/i.test(name)) return true;
-    if (ct.startsWith('audio/') || /\.(webm|mp3|m4a|ogg|wav)$/i.test(name)) return true;
+    if (ct.startsWith('image/') || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(name) || looksFilenameText) return true;
+    if (ct.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v)$/i.test(name) || looksFilenameText) return true;
+    if (ct.startsWith('audio/') || /\.(webm|mp3|m4a|ogg|wav)$/i.test(name) || looksFilenameText) return true;
     return Boolean(url);
   } catch {
     return false;
