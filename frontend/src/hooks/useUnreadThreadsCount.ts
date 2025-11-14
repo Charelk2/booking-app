@@ -85,15 +85,16 @@ export default function useUnreadThreadsCount() {
     const onBadgeDelta = (ev: Event) => {
       try {
         const d = (ev as CustomEvent<{ delta?: number; total?: number }>).detail || {};
+        // Treat totals as a pure trigger to recompute; do not seed from server
         if (typeof d.total === 'number' && Number.isFinite(d.total)) {
-          // Seed with hinted total, but always reconcile next
-          setCount(Math.max(0, Number(d.total)));
+          scheduleCompute(0);
+          return;
         }
         if (typeof d.delta === 'number' && Number.isFinite(d.delta)) {
           setCount((c) => Math.max(0, c + Number(d.delta)));
         }
       } catch {}
-      // Always reconcile with threadCache + server aggregate (debounced)
+      // For other events, reconcile soon
       scheduleCompute(0);
     };
     const onVisibility = () => {

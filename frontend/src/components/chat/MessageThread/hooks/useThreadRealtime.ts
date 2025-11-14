@@ -73,7 +73,11 @@ export function useThreadRealtime({
         if (!seenSet) { seenSet = new Set<number>(); seenIdsRef.set(threadId, seenSet); }
         const isDuplicate = Number.isFinite(mid) && mid > 0 && seenSet.has(mid);
         if (Number.isFinite(senderId) && senderId > 0 && senderId !== myUserId) {
-          if (!isDuplicate) {
+          const isVisible = typeof document !== 'undefined' ? (document.visibilityState === 'visible') : true;
+          if (isActive && isVisible && Number.isFinite(mid) && mid > 0) {
+            // Active thread: treat incoming as read immediately; do not bump unread
+            try { cacheSetLastRead(threadId, Number(mid)); } catch {}
+          } else if (!isDuplicate) {
             try {
               const list = cacheGetSummaries() as any[];
               const next = list.map((t) => Number(t?.id) === threadId ? { ...t, unread_count: Math.max(0, Number(t?.unread_count || 0)) + 1 } : t);
