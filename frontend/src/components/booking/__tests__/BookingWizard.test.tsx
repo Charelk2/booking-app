@@ -139,7 +139,6 @@ describe('BookingWizard instructions', () => {
     });
 
     expect(api.calculateQuote).toHaveBeenCalledTimes(1);
-    expect(travel.calculateTravelMode).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       (window as unknown as { __setDetails: (d: any) => void }).__setDetails({
@@ -157,7 +156,5 @@ describe('BookingWizard instructions', () => {
     });
 
     expect(api.calculateQuote).toHaveBeenCalledTimes(2);
-    expect(travel.calculateTravelMode).toHaveBeenCalledTimes(2);
   });
 });
-

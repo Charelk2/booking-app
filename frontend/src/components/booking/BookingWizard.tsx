@@ -22,7 +22,7 @@ import {
   calculateQuote,
   estimatePriceSafe,
 } from '@/lib/api';
-import { calculateTravelMode, getDrivingMetricsCached, geocodeCached, findNearestAirport, getMockCoordinates } from '@/lib/travel';
+import { getDrivingMetricsCached } from '@/lib/travel';
   import { trackEvent } from '@/lib/analytics';
   import { format } from 'date-fns';
   import { computeSoundServicePrice, type LineItem } from '@/lib/soundPricing';
@@ -523,11 +523,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     setReviewDataError(null);
 
     try {
-      const [svcRes, artistPos, eventPos] = await Promise.all([
-        serviceId ? fetchServiceCached(serviceId) : Promise.resolve(null),
-        geocodeCached(artistLocation),
-        geocodeCached(details.location),
-      ]);
+      const svcRes = serviceId ? await fetchServiceCached(serviceId) : null;
 
       if (!svcRes) {
         // Tombstone: remember and bail quietly without spamming the console
@@ -537,13 +533,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         setServicePriceItems(null);
         setTravelResult(null);
         return;
-      }
-
-      if (!artistPos) {
-        throw new Error(`Could not find geographic coordinates for artist's base location: "${artistLocation}".`);
-      }
-      if (!eventPos) {
-        throw new Error(`Could not find geographic coordinates for event location: "${details.location}".`);
       }
 
       // Helper to safely parse numeric fields that may arrive as formatted strings
@@ -951,10 +940,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         setSoundMode(quote.sound_mode);
         setSoundModeOverridden(quote.sound_mode_overridden);
 
-        // Travel: when sound is required for a non-sound service, trust the
-        // backend's travel_cost/travel_mode first. If the backend did not
-        // compute travel (travel_cost <= 0), fall back to the client travel
-        // engine once to derive a meaningful estimate.
+        // Travel: when sound is required for a non-sound service, use the
+        // backend's travel_cost/travel_mode and travel_estimates for the
+        // Review step. This keeps the wizard aligned with the persisted
+        // quote that Thandi and Jan will see in chat and invoices.
         const tm = (quote?.travel_mode || '').toLowerCase();
         const estimates = Array.isArray((quote as any)?.travel_estimates) ? (quote as any).travel_estimates : [];
         const driveRow = estimates.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
@@ -982,50 +971,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           },
         } as any;
 
-        try {
-          const dt = (() => {
-            const dd = (details as any)?.date;
-            if (!dd) return new Date();
-            try { return typeof dd === 'string' ? new Date(dd) : dd; } catch { return new Date(); }
-          })();
-          const artistLoc = String(artistLocation || '').trim();
-          const eventLoc = String((details as any)?.location || '').trim();
-          if (artistLoc && eventLoc) {
-            let drivingEstimate = 0;
-            try {
-              const dm = await getDrivingMetricsCached(artistLoc, eventLoc);
-              const distKm = Number(dm?.distanceKm || 0);
-              if (Number.isFinite(distKm) && distKm > 0) drivingEstimate = distKm * travelRate;
-            } catch {}
-            const airportFn = async (city: string) => {
-              const geo = await geocodeCached(city);
-              if (geo) return findNearestAirport(city, async () => geo);
-              const mock = getMockCoordinates(city);
-              if (mock) return findNearestAirport(city, async () => mock as any);
-              return findNearestAirport(city);
-            };
-            const tr = await calculateTravelMode({
-              artistLocation: artistLoc,
-              eventLocation: eventLoc,
-              numTravellers: Number(numTravelMembers || 1),
-              drivingEstimate,
-              travelRate,
-              travelDate: dt,
-              carRentalPrice: carRentalPrice,
-              flightPricePerPerson: flightPrice,
-            }, undefined as any, airportFn as any);
-            if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
-              setTravelResult(tr as any);
-            } else if (Number.isFinite(travelCost) && travelCost > 0) {
-              setTravelResult(baseTravelRes);
-            }
-          } else if (Number.isFinite(travelCost) && travelCost > 0) {
-            setTravelResult(baseTravelRes);
-          }
-        } catch {
-          if (Number.isFinite(travelCost) && travelCost > 0) {
-            setTravelResult(baseTravelRes);
-          }
+        if (Number.isFinite(travelCost) && travelCost > 0) {
+          setTravelResult(baseTravelRes);
+        } else {
+          setTravelResult(null);
         }
       } else {
         // Still compute totals (including travel) on the server even if no external sound.
@@ -1068,51 +1017,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             },
           } as any;
 
-          try {
-            const dt = (() => {
-              const dd = (details as any)?.date;
-              if (!dd) return new Date();
-              try { return typeof dd === 'string' ? new Date(dd) : dd; } catch { return new Date(); }
-            })();
-            const artistLoc = String(artistLocation || '').trim();
-            const eventLoc = String((details as any)?.location || '').trim();
-            if (artistLoc && eventLoc) {
-              let drivingEstimate = 0;
-              try {
-                const dm = await getDrivingMetricsCached(artistLoc, eventLoc);
-                const distKm = Number(dm?.distanceKm || 0);
-                if (Number.isFinite(distKm) && distKm > 0) drivingEstimate = distKm * travelRate;
-              } catch {}
-              const airportFn = async (city: string) => {
-                const geo = await geocodeCached(city);
-                if (geo) return findNearestAirport(city, async () => geo);
-                const mock = getMockCoordinates(city);
-                if (mock) return findNearestAirport(city, async () => mock as any);
-                return findNearestAirport(city);
-              };
-              const tr = await calculateTravelMode({
-                artistLocation: artistLoc,
-                eventLocation: eventLoc,
-                numTravellers: Number(numTravelMembers || 1),
-                drivingEstimate,
-                travelRate,
-                travelDate: dt,
-                carRentalPrice: carRentalPrice,
-                flightPricePerPerson: flightPrice,
-              }, undefined as any, airportFn as any);
-              if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
-                setTravelResult(tr as any);
-              } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
-                // If client engine failed or produced 0, fall back to backend aggregate.
-                setTravelResult(baseTravelRes);
-              }
-            } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
-              setTravelResult(baseTravelRes);
-            }
-          } catch {
-            if (Number.isFinite(travelCost2) && travelCost2 > 0) {
-              setTravelResult(baseTravelRes);
-            }
+          if (Number.isFinite(travelCost2) && travelCost2 > 0) {
+            setTravelResult(baseTravelRes);
+          } else {
+            setTravelResult(null);
           }
         } catch {
           setCalculatedPrice(basePrice);
