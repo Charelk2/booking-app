@@ -185,6 +185,11 @@ export async function findNearestAirport(
 const MOCK_COORDS: Record<string, { lat: number; lng: number }> = {
   'Mossel Bay, South Africa': { lat: -34.1831, lng: 22.158 },
   'Paarl, South Africa': { lat: -33.7342, lng: 18.9621 },
+  // Common South African cities used in booking flows
+  'Stellenbosch, South Africa': { lat: -33.9249, lng: 18.8602 },
+  Stellenbosch: { lat: -33.9249, lng: 18.8602 },
+  'Pretoria, South Africa': { lat: -25.7479, lng: 28.2293 },
+  Pretoria: { lat: -25.7479, lng: 28.2293 },
 };
 
 export function getMockCoordinates(
