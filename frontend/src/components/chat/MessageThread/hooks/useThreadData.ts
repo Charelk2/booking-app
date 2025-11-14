@@ -436,6 +436,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
           .filter((m: any) => {
             try { return !(isAttachmentCandidate(m) && !isAttachmentReady(m)); } catch { return true; }
           });
+        let hasRealMessages = normalized.length > 0;
 
         // Proactively ensure any referenced quotes are hydrated into the global store
         try {
@@ -490,6 +491,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
               const rows = Array.isArray((olderRes as any)?.data?.items) ? (olderRes as any).data.items : [];
               if (!rows.length) break;
               const older = rows.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
+              if (older.length) hasRealMessages = true;
               try {
                 const ids: number[] = [];
                 for (const m of older as any[]) {
@@ -519,11 +521,13 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
           setReachedHistoryStart(true);
         }
 
-        // Replace ephemeral stubs now that the real data arrived
-        try {
-          clearEphemeralStubs(threadId);
-          setMessages(prev => prev.filter((m: any) => Number(m.id) > 0));
-        } catch {}
+        // Replace ephemeral stubs now that real data arrived for this viewer.
+        if (hasRealMessages) {
+          try {
+            clearEphemeralStubs(threadId);
+            setMessages(prev => prev.filter((m: any) => Number(m.id) > 0));
+          } catch {}
+        }
       } catch (err) {
         if (isAxiosError(err) && (err as any).code === 'ERR_CANCELED') {
           setLoading(false);
