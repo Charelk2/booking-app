@@ -346,7 +346,8 @@ export function setSummaries(list: ThreadSummary[]): void {
     const serverUnread = rawCount > 0 ? rawCount : (fallbackFlag ? 1 : 0);
     const prevUnread = Number(prev?.unread_count ?? 0) || 0;
     let mergedUnread = prev ? Math.max(prevUnread, serverUnread) : serverUnread;
-    if (lastReadId && lastMsgId && lastReadId >= lastMsgId) {
+    // If we've locally marked read up to/including the last message (or server snapshot lacks last_message_id), force unread = 0
+    if (lastReadId && (!lastMsgId || lastReadId >= lastMsgId)) {
       mergedUnread = 0;
     }
     (mergedBase as any).unread_count = mergedUnread;

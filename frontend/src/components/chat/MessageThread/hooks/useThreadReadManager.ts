@@ -55,10 +55,9 @@ export function useThreadReadManager({ threadId, messages, isActive, myUserId }:
           );
         } catch {}
       }
-      // Avoid duplicate UI notifications if unread is already 0 (e.g., active+visible path)
-      if (prevUnread > 0) {
-        cacheSetLastRead(threadId, lastMessageId);
-      }
+      // Always set local lastRead to enforce unread=0 merge guard; then poke a header recompute
+      cacheSetLastRead(threadId, lastMessageId);
+      try { if (typeof window !== 'undefined') window.dispatchEvent(new Event('inbox:unread')); } catch {}
       fireEvent(lastMessageId);
 
       const maybe = runWithTransport(

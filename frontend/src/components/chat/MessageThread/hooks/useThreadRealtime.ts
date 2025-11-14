@@ -88,6 +88,8 @@ export function useThreadRealtime({
               // Active (this tab & visible) → mark read now; other-tab active → skip unread bump
               if (isActive && isVisible) {
                 try { cacheSetLastRead(threadId, Number(mid)); } catch {}
+                // Poke header/list recompute immediately so counts clear without waiting for throttles
+                try { window.dispatchEvent(new Event('inbox:unread')); } catch {}
               }
               // Do not bump unread in either case
             } else if (!isDuplicate) {
