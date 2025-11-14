@@ -375,7 +375,7 @@ export default function BookingSummaryCard({
                 <span className="font-semibold w-28 text-gray-600 shrink-0">Date &amp; Time:</span>
                 <span className="text-gray-800 break-words">
                   {isValid(new Date(parsedBookingDetails.date))
-                    ? format(new Date(parsedBookingDetails.date), 'PPP p')
+                    ? format(new Date(parsedBookingDetails.date), 'EEE, d MMMM, yyyy h:mm a')
                     : parsedBookingDetails.date}
                 </span>
               </li>
