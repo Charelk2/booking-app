@@ -75,7 +75,7 @@ const AvatarHeader: React.FC<
   const eventDate = parsedBookingDetails?.date;
   const formattedDate =
     eventDate && isValid(new Date(eventDate))
-      ? format(new Date(eventDate), 'EEE, MMM d, yyyy')
+      ? format(new Date(eventDate), 'EEE, d MMMM, yyyy')
       : 'Date TBD';
   const formattedTime =
     eventDate && isValid(new Date(eventDate))
