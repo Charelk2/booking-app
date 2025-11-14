@@ -167,10 +167,37 @@ export async function findNearestAirport(
   city: string,
   coordFn: typeof getCoordinates = getCoordinates,
 ): Promise<string | null> {
-  const coords = await coordFn(city);
-  if (!coords) return null;
+  // Primary strategy: use driving distance to each known airport address via
+  // the distance API so we can work with any South African town/city string
+  // without requiring browser-side geocoding. This delegates address parsing
+  // to the backend and its configured maps provider.
   let nearest: string | null = null;
   let minDist = Infinity;
+  try {
+    const entries = Object.entries(AIRPORT_ADDRESSES);
+    for (const [code, addr] of entries) {
+      try {
+        const metrics = await getDrivingMetrics(city, addr);
+        const distKm = metrics?.distanceKm ?? 0;
+        if (distKm > 0 && distKm < minDist) {
+          minDist = distKm;
+          nearest = code;
+        }
+      } catch {
+        // Ignore individual failures and continue trying other airports
+      }
+    }
+  } catch {
+    // Fall through to coordinate-based fallback below
+  }
+  if (nearest) return nearest;
+
+  // Fallback: when the distance API is unavailable, fall back to geocoding +
+  // haversine so behavior in development remains graceful.
+  const coords = await coordFn(city);
+  if (!coords) return null;
+  nearest = null;
+  minDist = Infinity;
   Object.entries(AIRPORT_LOCATIONS).forEach(([code, loc]) => {
     const dist = haversineDistance(coords, loc);
     if (dist < minDist) {
