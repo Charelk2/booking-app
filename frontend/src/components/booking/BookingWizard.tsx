@@ -424,15 +424,30 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     void fetchArtistData();
   }, [artistId, serviceId]);
 
-  // Effect to prompt to restore saved progress only when the wizard first opens
+  // Effect to prompt to restore saved progress only when the wizard first opens.
+  // For service-specific flows, only show the resume prompt when the saved
+  // state is explicitly tied to the same serviceId to avoid confusing users
+  // with drafts from other artists/services.
   useEffect(() => {
     if (!isOpen || hasLoaded.current) return;
     // Peek for saved progress; show modal if meaningful, else offer AI assist
     try {
       const peek = peekSavedProgress?.();
       if (peek) {
-        savedRef.current = peek;
-        setShowResumeModal(true);
+        const savedServiceId = typeof peek.serviceId === 'number' ? peek.serviceId : null;
+        if (serviceId != null) {
+          // When booking a specific service, ignore drafts for other services.
+          if (savedServiceId !== serviceId) {
+            // No matching draft for this service → behave as if no saved progress.
+          } else {
+            savedRef.current = peek;
+            setShowResumeModal(true);
+          }
+        } else {
+          // Generic flow (no serviceId prop): keep previous behavior.
+          savedRef.current = peek;
+          setShowResumeModal(true);
+        }
       } else {
         // Do not auto-open AI overlay to avoid blocking typing on the first step.
         // Users can still open AI assist manually from UI affordances elsewhere.
@@ -442,7 +457,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       loadSavedProgress();
     }
     hasLoaded.current = true;
-  }, [isOpen, loadSavedProgress, peekSavedProgress]);
+  }, [isOpen, loadSavedProgress, peekSavedProgress, serviceId]);
 
   // Effect to set serviceId in the booking context if provided as a prop
   useEffect(() => {
