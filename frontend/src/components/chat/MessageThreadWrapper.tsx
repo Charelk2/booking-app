@@ -262,11 +262,34 @@ export default function MessageThreadWrapper({
   });
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [bookingRequestFull, setBookingRequestFull] = useState<BookingRequest | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!bookingRequestId) {
+      setBookingRequestFull(null);
+      return;
+    }
+    (async () => {
+      try {
+        const data = await api.getBookingRequestCached(Number(bookingRequestId));
+        if (cancelled) return;
+        setBookingRequestFull(data as any);
+      } catch {
+        if (cancelled) return;
+        setBookingRequestFull(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingRequestId]);
 
   const providerProfile = useMemo(() => {
-    if (!bookingRequest) return null;
-    return (bookingRequest as any)?.service_provider_profile ?? null;
-  }, [bookingRequest]);
+    const base: any = bookingRequestFull || bookingRequest || null;
+    if (!base) return null;
+    return base.service_provider_profile ?? null;
+  }, [bookingRequest, bookingRequestFull]);
 
   const providerVatRegistered = Boolean(providerProfile?.vat_registered);
   const providerVatRate = useMemo(() => {
