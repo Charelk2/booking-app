@@ -1067,7 +1067,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           (real: any) => {
             setMessages((prev: any[]) => prev.map((m: any) => (
               Number(m?.id) === (mid || messageKeyId)
-                ? { ...m, ...real, id: Number(real?.id), timestamp: m.timestamp, status: 'sent' }
+                ? { ...m, ...real, id: Number(real?.id), timestamp: m.timestamp, status: 'sent', _upload_pct: undefined }
                 : m
             )));
             try { URL.revokeObjectURL(previewUrl); createdBlobUrlsRef.current.delete(previewUrl); } catch {}

@@ -256,7 +256,8 @@ export default function GroupRenderer({
           const byCtImg = ct.startsWith('image/');
           const byCtVid = ct.startsWith('video/');
           const byCtAud = ct.startsWith('audio/');
-          const hasImage = byCtImg || isImage(url);
+          const byNameImg = !!(meta?.original_filename || '').toLowerCase().match(/\.(jpe?g|png|webp|gif|heic|heif)$/i);
+          const hasImage = byCtImg || byNameImg || isImage(url);
           const hasVideo = byCtVid || (!byCtAud && isVideo(url));
           const hasAudio = byCtAud || (!byCtVid && isAudio(url));
           const text = String(m?.content || '');
@@ -474,19 +475,23 @@ export default function GroupRenderer({
                   }
 
                   if (hasImage || hasVideo) {
+                    const localPreviewUrl = (m as any)?.local_preview_url as string | undefined;
+                    const mediaUrl = (localPreviewUrl || url) as string | undefined;
+                    const rawPct = typeof (m as any)?._upload_pct === 'number' ? (m as any)._upload_pct : undefined;
+                    const progressPct = (metaState === 'sending' && typeof rawPct === 'number' && rawPct >= 0 && rawPct < 100) ? rawPct : undefined;
                     blocks.push(
                   <div
                     key="media"
                     className="relative inline-block"
                   >
                         <Attachments
-                          imageUrl={hasImage ? url as string : undefined}
-                          videoUrl={hasVideo ? url as string : undefined}
+                          imageUrl={hasImage ? mediaUrl : undefined}
+                          videoUrl={hasVideo ? mediaUrl : undefined}
                           audioUrl={undefined}
-                          progressPct={typeof (m as any)?._upload_pct === 'number' ? (m as any)._upload_pct : undefined}
+                          progressPct={progressPct}
                           onMediaLoad={onMediaLoad}
-                          onOpenImage={hasImage ? (() => openLightbox(url as string, galleryItems)) : undefined}
-                          onOpenVideo={hasVideo ? ((s) => openLightbox(url as string, galleryItems, { time: s?.time, play: s?.playing })) : undefined}
+                          onOpenImage={hasImage ? (() => openLightbox((mediaUrl as string), galleryItems)) : undefined}
+                          onOpenVideo={hasVideo ? ((s) => openLightbox((mediaUrl as string), galleryItems, { time: s?.time, play: s?.playing })) : undefined}
                         />
                         <div className="pointer-events-none absolute bottom-2 right-2 drop-shadow" aria-hidden>
                           {renderMeta()}
@@ -500,7 +505,7 @@ export default function GroupRenderer({
                           imageUrl={undefined}
                           videoUrl={undefined}
                           audioUrl={url as string}
-                          progressPct={typeof (m as any)?._upload_pct === 'number' ? (m as any)._upload_pct : undefined}
+                          progressPct={undefined}
                           onMediaLoad={onMediaLoad}
                         />
                       </div>
