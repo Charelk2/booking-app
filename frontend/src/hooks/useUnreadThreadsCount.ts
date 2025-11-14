@@ -1,164 +1,158 @@
-import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { getInboxUnread } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { subscribe as cacheSubscribe, getSummaries as cacheGetSummaries } from '@/lib/chat/threadCache';
 
-// Lightweight client-side cache to reduce server load from frequent updates
-let _unreadLastEtag: string | null = null;
-let _unreadLastFetchAt = 0;
-let _unreadInflight: Promise<number> | null = null;
+type InboxUnreadDetail = {
+  delta?: number;
+  total?: number;
+  threadId?: number;
+};
 
-function fetchAggregateUnread(prev?: number): Promise<number> {
+// Lightweight client-side cache for /inbox/unread
+let _unreadInflight: Promise<number> | null = null;
+let _unreadLastFetchAt = 0;
+let _unreadLastEtag: string | null = null;
+
+async function fetchAggregateUnread(prev: number): Promise<number> {
   const now = Date.now();
-  // Throttle network calls to at most once every 5 seconds
-  if (now - _unreadLastFetchAt < 5000 && typeof prev === 'number') {
-    return Promise.resolve(prev);
-  }
   if (_unreadInflight) return _unreadInflight;
+  // Throttle to at most once every 5 seconds unless prev is clearly wrong
+  if (now - _unreadLastFetchAt < 5000 && Number.isFinite(prev)) {
+    return prev;
+  }
   _unreadLastFetchAt = now;
-  _unreadInflight = getInboxUnread({
-    // Treat 200 or 304 as success; keep previous on 304
-    validateStatus: (s) => s === 200 || s === 304,
-    headers: _unreadLastEtag ? { 'If-None-Match': _unreadLastEtag } : undefined,
-  })
-    .then((r) => {
-      try { _unreadLastEtag = String((r.headers as any)?.etag || '') || _unreadLastEtag; } catch {}
-      if (r.status === 304) return typeof prev === 'number' ? prev : 0;
-      return Number((r.data?.total ?? r.data?.count ?? 0));
-    })
-    .catch(() => (typeof prev === 'number' ? prev : 0))
-    .finally(() => { _unreadInflight = null; });
+  _unreadInflight = (async () => {
+    try {
+      const resp = await getInboxUnread({
+        validateStatus: (s) => s === 200 || s === 304,
+        headers: _unreadLastEtag ? { 'If-None-Match': _unreadLastEtag } : undefined,
+      });
+      try { _unreadLastEtag = String((resp.headers as any)?.etag || '') || _unreadLastEtag; } catch {}
+      if (resp.status === 304) return prev;
+      const total = Number(resp.data?.total ?? resp.data?.count ?? prev ?? 0) || 0;
+      return Math.max(0, total);
+    } catch {
+      return prev;
+    } finally {
+      _unreadInflight = null;
+    }
+  })();
   return _unreadInflight;
 }
 
+function sumFromCache(): number {
+  try {
+    const list = cacheGetSummaries() as any[];
+    if (!Array.isArray(list)) return 0;
+    return list.reduce((acc, s: any) => {
+      const n = Number(s?.unread_count ?? 0) || 0;
+      return acc + (n > 0 ? n : 0);
+    }, 0);
+  } catch {
+    return 0;
+  }
+}
+
 export default function useUnreadThreadsCount() {
-  const [count, setCount] = useState<number>(0);
   const { user } = useAuth();
-  const debouncedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cacheTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const countRef = useRef<number>(0);
-  useEffect(() => { countRef.current = count; }, [count]);
+  const [count, setCount] = useState(0);
+  const countRef = useRef(0);
+  countRef.current = count;
 
   const recomputeFromCache = useCallback(() => {
-    try {
-      const list = cacheGetSummaries() as any[];
-      const local = Array.isArray(list)
-        ? list.reduce((a, s: any) => a + (Number(s?.unread_count || 0) || 0), 0)
-        : 0;
-      const next = Math.max(0, Number(local || 0));
-      if (next !== countRef.current) setCount(next);
-    } catch {}
+    const local = sumFromCache();
+    const next = Math.max(0, local);
+    if (next !== countRef.current) {
+      setCount(next);
+    }
   }, []);
 
-  const compute = useCallback(async (prevCount?: number) => {
-    // First reflect local cache
+  const syncFromServer = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (!user) {
+        if (countRef.current !== 0) setCount(0);
+        return;
+      }
+      const base = opts?.force ? 0 : countRef.current || 0;
+      const next = await fetchAggregateUnread(base);
+      if (next !== countRef.current) {
+        setCount(next);
+      }
+    },
+    [user],
+  );
+
+  // Initial bootstrap: local cache, then server snapshot
+  useEffect(() => {
     recomputeFromCache();
-    // Then consult server; only allow raising
-    try {
-      const server = await fetchAggregateUnread(countRef.current);
-      if (server !== countRef.current) setCount(server);
-    } catch {}
-    return countRef.current;
+    void syncFromServer({ force: true });
+  }, [recomputeFromCache, syncFromServer]);
+
+  // Keep badge in sync with thread cache (per-thread unread_count)
+  useEffect(() => {
+    return cacheSubscribe(() => {
+      recomputeFromCache();
+    });
   }, [recomputeFromCache]);
 
+  // Global unread events: total snapshots + local deltas
   useEffect(() => {
-    let canceled = false;
-    const setFromCompute = async () => {
-      if (!user) { if (!canceled) setCount(0); return; }
-      const next = await compute(count);
-      if (!canceled) setCount(next);
-    };
-
-    const scheduleCompute = (delayMs = 800) => {
-      if (debouncedTimerRef.current) return;
-      debouncedTimerRef.current = setTimeout(() => {
-        debouncedTimerRef.current = null;
-        void setFromCompute();
-      }, delayMs);
-    };
-
-    // seed now
-    void setFromCompute();
-
-    // Refresh on cache changes, but throttle and only when visible to reduce jitter
-    const onCacheChange = () => {
-      try {
-        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-      } catch {}
-      if (cacheTimerRef.current) return;
-      cacheTimerRef.current = setTimeout(() => {
-        cacheTimerRef.current = null;
-        scheduleCompute(200); // slight delay to coalesce bursts
-      }, 200);
-    };
-    const unsub = cacheSubscribe(onCacheChange);
-
-    // refresh on badge delta and when tab becomes visible
     const onBadgeDelta = (ev: Event) => {
-      try {
-        const d = (ev as CustomEvent<{ delta?: number; total?: number }>).detail || {};
-        // Totals: treat server aggregate as authoritative outside Inbox,
-        // but keep cache as the boss while on the /inbox route.
-        if (typeof (d as any).total === 'number') {
-          const total = Math.max(0, Number((d as any).total || 0));
-          let isInboxRoute = false;
-          try {
-            if (typeof window !== 'undefined' && window.location && typeof window.location.pathname === 'string') {
-              isInboxRoute = window.location.pathname.startsWith('/inbox');
-            }
-          } catch {}
-          if (isInboxRoute) {
-            // Inside Inbox, rely on per-thread cache (which respects local read guards)
-            recomputeFromCache();
-          } else {
-            // Outside Inbox (home, dashboards, etc.), reflect the server total immediately
-            if (total !== countRef.current) {
-              countRef.current = total;
-              setCount(total);
-            }
-          }
-          // In both cases, schedule a reconcile soon (re-sum cache + consult backend)
-          scheduleCompute(800);
-          return;
+      const detail = (ev as CustomEvent<InboxUnreadDetail>).detail || {};
+
+      // 1) Authoritative snapshot from backend (notifications WS or inbox SSE)
+      if (typeof detail.total === 'number' && Number.isFinite(detail.total)) {
+        const total = Math.max(0, Number(detail.total));
+        if (total !== countRef.current) {
+          setCount(total);
         }
-        if (typeof d.delta === 'number' && Number.isFinite(d.delta)) {
-          const delta = Number(d.delta);
-          setCount((c) => Math.max(0, c + delta));
-          // Heal any drift shortly after local delta
-          scheduleCompute(200);
-        }
-      } catch {}
-      // For other events, reconcile soon
-      scheduleCompute(0);
-    };
-    const onVisibility = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        void setFromCompute();
+        return;
+      }
+
+      // 2) Local delta (e.g., we just opened a thread and marked it read)
+      if (typeof detail.delta === 'number' && Number.isFinite(detail.delta)) {
+        const delta = Number(detail.delta);
+        if (!delta) return;
+        setCount((prev) => Math.max(0, prev + delta));
+        // Best-effort heal from server shortly after local change
+        void syncFromServer();
       }
     };
-    const onFocus = () => { void setFromCompute(); };
+
     if (typeof window !== 'undefined') {
-      try { window.addEventListener('inbox:unread', onBadgeDelta as EventListener); } catch {}
-      try { window.addEventListener('focus', onFocus); } catch {}
+      window.addEventListener('inbox:unread', onBadgeDelta as EventListener);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('inbox:unread', onBadgeDelta as EventListener);
+      }
+    };
+  }, [syncFromServer]);
+
+  // Safety net: refetch on focus / visibility
+  useEffect(() => {
+    const onFocus = () => { void syncFromServer({ force: true }); };
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        void syncFromServer({ force: true });
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', onFocus);
     }
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', onVisibility);
     }
-
     return () => {
-      canceled = true;
-      try { unsub(); } catch {}
       if (typeof window !== 'undefined') {
-        try { window.removeEventListener('inbox:unread', onBadgeDelta as EventListener); } catch {}
-        try { window.removeEventListener('focus', onFocus); } catch {}
+        window.removeEventListener('focus', onFocus);
       }
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisibility);
       }
-      if (debouncedTimerRef.current) { try { clearTimeout(debouncedTimerRef.current); } catch {} debouncedTimerRef.current = null; }
-      if (cacheTimerRef.current) { try { clearTimeout(cacheTimerRef.current); } catch {} cacheTimerRef.current = null; }
     };
-  }, [compute, user]);
+  }, [syncFromServer]);
 
-  return useMemo(() => ({ count }), [count]);
+  return { count };
 }
