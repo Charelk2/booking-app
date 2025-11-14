@@ -31,6 +31,9 @@ import { BookingRequestCreate } from '@/types';
 import './wizard/wizard.css';
 import toast from '../ui/Toast';
 import { apiUrl, setClientBillingByBookingRequest } from '@/lib/api';
+import { updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
+import { addEphemeralStub } from '@/lib/chat/ephemeralStubs';
+import { threadStore } from '@/lib/chat/threadStore';
 // 404-aware service cache (tombstones)
 const svcCache = new Map<number, any | null>();
 type ServiceJson = any | null; // null = tombstone (missing)
@@ -1409,6 +1412,74 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
       const id = requestId || res?.data?.id;
       if (!id) throw new Error('Missing booking request ID after creation/update.');
+
+      // Fast-thread hydration for Thandi: seed Inbox preview and a local
+      // booking-details stub so the new thread is fully visible immediately.
+      if (!requestId) {
+        try {
+          const created: any = res?.data || {};
+          const nowIso = new Date().toISOString();
+          const createdAt: string | undefined = created.created_at || created.createdAt;
+          const updatedAt: string | undefined = created.updated_at || created.updatedAt;
+          const ts = (created.last_message_timestamp as string | undefined) || updatedAt || createdAt || nowIso;
+          const counterpartyLabel = providerName || (created.service?.title as string | undefined) || 'Service Provider';
+
+          // 1) Update unified thread summaries so ConversationList renders
+          // a non-empty, correctly labeled preview immediately.
+          try {
+            cacheUpdateSummary(Number(id), {
+              id: Number(id),
+              last_message_timestamp: ts,
+              last_message_content: 'New Booking Request',
+              unread_count: 0,
+              counterparty_label: counterpartyLabel,
+            } as any);
+          } catch {
+            // Best-effort only; do not block submit on cache issues.
+          }
+
+          // 2) Keep threadStore in sync for prefetchers/presence.
+          try {
+            threadStore.upsert({
+              id: Number(id),
+              status: 'pending_quote' as any,
+              created_at: createdAt || ts,
+              updated_at: updatedAt || ts,
+              last_message_timestamp: ts,
+              last_message_content: 'New Booking Request',
+              unread_count: 0,
+              counterparty_label: counterpartyLabel,
+            } as any);
+          } catch {
+            // Non-fatal; threadStore is a best-effort optimization.
+          }
+
+          // 3) Add an ephemeral booking-details system stub so the thread
+          // timeline is not empty while the real message is still in-flight.
+          try {
+            if (message && user?.id) {
+              const stubId = -Math.floor(Date.now());
+              const stub = {
+                id: stubId,
+                booking_request_id: Number(id),
+                sender_id: Number(user.id),
+                sender_type: 'client',
+                content: message,
+                message_type: 'SYSTEM',
+                visible_to: 'both',
+                timestamp: ts,
+                status: 'sent',
+                avatar_url: (user as any)?.profile_picture_url ?? null,
+              };
+              addEphemeralStub(Number(id), stub);
+            }
+          } catch {
+            // Ephemeral-only; safe to ignore failures.
+          }
+        } catch {
+          // Hydration is best-effort; never block submit.
+        }
+      }
 
       // Redirect immediately to inbox for a snappy UX; post the details line in the background
       try { router.prefetch('/inbox'); } catch {}
