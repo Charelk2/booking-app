@@ -1544,10 +1544,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         }
       }
 
-      // Redirect immediately to inbox for a snappy UX; post the details line in the background
-      try { router.prefetch('/inbox'); } catch {}
+      // Redirect immediately to inbox for a snappy UX; post the details line in the background.
+      // Include the requestId in the URL so the Inbox opens with this new thread
+      // active, avoiding confusion where another thread appears selected.
+      const inboxUrl = `/inbox?requestId=${id}`;
+      try { router.prefetch(inboxUrl); } catch {}
       toast.success('Your booking request has been submitted successfully!');
-      router.push('/inbox');
+      router.push(inboxUrl);
 
       // Fire-and-forget posting of the details system line; do not block navigation
       (async () => {
