@@ -29,6 +29,24 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 
   if (!resp.ok) {
+    // Fallback: try resolving via booking id if provided and server returned 404
+    if (resp.status === 404) {
+      try {
+        const bookingId = req.nextUrl.searchParams.get('booking_id');
+        if (bookingId && /^\d+$/.test(bookingId)) {
+          const type = 'provider';
+          const altUrl = `${apiBase()}/api/v1/invoices/by-booking/${encodeURIComponent(bookingId)}?type=${encodeURIComponent(type)}`;
+          const alt = await fetch(altUrl, { method: 'GET', headers: { cookie } });
+          if (alt.ok) {
+            const data = await alt.json();
+            const newId = data?.id;
+            if (newId) {
+              return NextResponse.redirect(`/invoices/${encodeURIComponent(String(newId))}`);
+            }
+          }
+        }
+      } catch {}
+    }
     return new NextResponse('Invoice unavailable', { status: resp.status });
   }
 
@@ -42,4 +60,3 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   return new NextResponse(resp.body, { status: 200, headers });
 }
-

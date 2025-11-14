@@ -33,27 +33,32 @@ export default function Attachments({ imageUrl, videoUrl, audioUrl, fileLabel, f
   }, []);
 
   if (imageUrl) {
-    // Defer image bytes until the user opens the lightbox.
-    // Render a sized placeholder (3:2) with an "Open" button; do not set <img src> here.
     const open = () => { try { onOpenImage?.(); } catch {} };
     return (
-      <div className="relative inline-block">
-        <div className="relative w-full overflow-hidden rounded-xl bg-gray-100" style={{ width: 'min(420px, 62vw)', paddingTop: '66.66%' }}>
-          <button
-            type="button"
-            aria-label="Open image"
-            onClick={open}
-            className="absolute inset-0 w-full h-full grid place-items-center text-gray-700 hover:bg-black/5"
-          >
-            <div className="px-3 py-1.5 rounded-full border border-gray-300 bg-white/90 shadow-sm text-sm">View image</div>
-          </button>
-          {typeof progressPct === 'number' && (
-            <div className="absolute inset-0 grid place-items-center">
-              <ProgressRing pct={progressPct} />
-            </div>
-          )}
+      <button
+        type="button"
+        onClick={open}
+        className="group relative inline-block max-w-[420px] w-[min(420px,62vw)] overflow-hidden rounded-xl border border-gray-200 bg-black/5 hover:bg-black/10 transition"
+        aria-label="Open image"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt={fileLabel || 'Image'}
+          className="block max-h-72 w-full object-cover"
+          loading="lazy"
+          onLoad={() => { try { onMediaLoad?.(); } catch {} }}
+        />
+        <div className="pointer-events-none absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/60 via-black/0 to-transparent px-2 py-1 text-xs text-white">
+          <span className="truncate opacity-80">{fileLabel || 'Image'}</span>
+          <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide opacity-80">View</span>
         </div>
-      </div>
+        {typeof progressPct === 'number' && (
+          <div className="absolute inset-0 grid place-items-center">
+            <ProgressRing pct={progressPct} />
+          </div>
+        )}
+      </button>
     );
   }
   if (videoUrl) {
@@ -204,10 +209,26 @@ export default function Attachments({ imageUrl, videoUrl, audioUrl, fileLabel, f
     );
   }
   if (fileLabel) {
-    // Fallback renderer for non-media attachments (e.g., PDFs, docs)
-    // Provide a simple download/open link so users can access the file.
+    // Detect PDFs by filename when content-type isn't available in props
     const label = String(fileLabel || 'Attachment');
     const href = typeof fileUrl === 'string' && fileUrl ? fileUrl : undefined;
+    const isPdf = /\.pdf$/i.test(label || '') || /[?&]filename=.*\.pdf($|&)/i.test(label || '');
+    if (isPdf && href) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="flex max-w-xs items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm hover:bg-gray-50"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded bg-red-100 text-red-600 text-xs font-semibold">PDF</div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-medium">{label || 'Document.pdf'}</div>
+            <div className="text-xs text-gray-500">Open PDF</div>
+          </div>
+        </a>
+      );
+    }
     return (
       <div className="text-[13px] text-gray-700 bg-gray-100 rounded px-2 py-1.5">
         {href ? (

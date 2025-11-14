@@ -142,7 +142,7 @@ export default function ClientDashboardPage() {
                     <div className="mt-2">
                       {booking.invoice_id ? (
                         <a
-                          href={`/invoices/${booking.invoice_id}`}
+                          href={`/invoices/${booking.invoice_id}?booking_id=${booking.id}`}
                           target="_blank"
                           rel="noopener"
                           className="text-brand-dark hover:underline text-sm"

@@ -315,33 +315,55 @@ export function getSummaries(): ThreadSummary[] { return summariesArray; }
 
 export function setSummaries(list: ThreadSummary[]): void {
   if (!Array.isArray(list)) { summaries.clear(); summariesArray = []; notify(); return; }
-  const next = sortSummaries(list.map((it) => ({ ...it, id: Number(it.id) })));
-  // Reuse object identities where possible to keep list stable
-  const byId = new Map<number, ThreadSummary>();
-  next.forEach((it) => {
-    const id = Number(it.id);
-    const prev = summaries.get(id);
-    if (prev) {
-      // Monotonic timestamp merge: never move a thread backwards in time
-      const prevTs = tsToMs(prev.last_message_timestamp as string);
-      const nextTs = tsToMs(it.last_message_timestamp as string);
-      const merged = { ...prev, ...it } as ThreadSummary;
-      if (prevTs && nextTs && nextTs < prevTs) {
-        merged.last_message_timestamp = prev.last_message_timestamp;
-        merged.last_message_content = prev.last_message_content;
-        merged.last_message_id = prev.last_message_id;
-      }
-      byId.set(id, merged);
+  const incoming = list.map((it) => ({ ...it, id: Number(it.id ?? (it as any)?.booking_request_id) }));
+
+  // Merge per id with monotonic timestamp and unread guards
+  const byId = new Map<number, ThreadSummary>(summaries);
+  for (const raw of sortSummaries(incoming)) {
+    const id = Number(raw.id);
+    if (!Number.isFinite(id) || id <= 0) continue;
+    const prev = byId.get(id);
+
+    // Determine last message id across payload/prev
+    const lastMsgId = Number((raw as any)?.last_message_id ?? prev?.last_message_id ?? 0) || 0;
+    const lastReadId = Number(lastReadById.get(id) ?? 0) || 0;
+
+    // Start from a shallow merge but keep timestamp monotonic
+    const prevTs = prev ? tsToMs(prev.last_message_timestamp as string) : 0;
+    const nextTs = tsToMs(raw.last_message_timestamp as string);
+    const mergedBase = { ...(prev || {}), ...raw } as ThreadSummary;
+    if (prev && prevTs && nextTs && nextTs < prevTs) {
+      mergedBase.last_message_timestamp = prev.last_message_timestamp;
+      mergedBase.last_message_content = prev.last_message_content;
+      mergedBase.last_message_id = prev.last_message_id;
     } else {
-      byId.set(id, it);
+      mergedBase.last_message_id = lastMsgId || undefined;
     }
-  });
+
+    // Unread merge: never lose local increments; respect local read state
+    const serverUnread = Number((raw as any)?.unread_count ?? 0) || 0;
+    const prevUnread = Number(prev?.unread_count ?? 0) || 0;
+    let mergedUnread = prev ? Math.max(prevUnread, serverUnread) : serverUnread;
+    if (lastReadId && lastMsgId && lastReadId >= lastMsgId) {
+      mergedUnread = 0;
+    }
+    (mergedBase as any).unread_count = mergedUnread;
+
+    byId.set(id, mergedBase);
+  }
+
   summaries.clear();
   byId.forEach((v, k) => summaries.set(k, v));
-  const arr = Array.from(summaries.values());
-  const sorted = sortSummaries(arr);
-  // Only swap array reference if contents changed
-  const same = summariesArray.length === sorted.length && summariesArray.every((s, i) => Number(s.id) === Number(sorted[i].id) && s.last_message_content === sorted[i].last_message_content && s.last_message_timestamp === sorted[i].last_message_timestamp && Number(s.unread_count || 0) === Number(sorted[i].unread_count || 0));
+  const sorted = sortSummaries(Array.from(summaries.values()));
+  const same =
+    summariesArray.length === sorted.length &&
+    summariesArray.every(
+      (s, i) =>
+        Number(s.id) === Number(sorted[i].id) &&
+        s.last_message_content === sorted[i].last_message_content &&
+        s.last_message_timestamp === sorted[i].last_message_timestamp &&
+        Number(s.unread_count || 0) === Number(sorted[i].unread_count || 0),
+    );
   if (!same) summariesArray = sorted;
   notify();
 }
@@ -361,6 +383,19 @@ export function updateSummary(id: number, patch: Partial<ThreadSummary>) {
       last_message_id: prev.last_message_id,
     } as ThreadSummary;
   }
+  // Unread guard: if we have a local read up to/including last message, force 0
+  try {
+    const lastMsgId = Number((next as any)?.last_message_id ?? prev.last_message_id ?? 0) || 0;
+    const lastReadId = Number(lastReadById.get(tid) ?? 0) || 0;
+    if (lastReadId && lastMsgId && lastReadId >= lastMsgId) {
+      (next as any).unread_count = 0;
+    } else if ((patch as any)?.unread_count != null && prev?.unread_count != null) {
+      // If caller patched unread_count, keep it monotonic w.r.t. local increments
+      const serverUnread = Number((patch as any).unread_count || 0) || 0;
+      const prevUnread = Number(prev.unread_count || 0) || 0;
+      (next as any).unread_count = Math.max(prevUnread, serverUnread);
+    }
+  } catch {}
   summaries.set(tid, next);
   summariesArray = sortSummaries(Array.from(summaries.values()));
   notify();
@@ -472,7 +507,8 @@ export function upsertMessage(msg: any): void {
 export function setLastRead(conversationId: number, lastReadMessageId?: number | null) {
   const id = Number(conversationId);
   if (!Number.isFinite(id) || id <= 0) return;
-  if (Number.isFinite(Number(lastReadMessageId))) lastReadById.set(id, Number(lastReadMessageId));
+  const mid = Number(lastReadMessageId ?? 0);
+  if (Number.isFinite(mid) && mid > 0) lastReadById.set(id, mid);
   const s = summaries.get(id);
   if (s) {
     const next = { ...s, unread_count: 0 } as ThreadSummary;

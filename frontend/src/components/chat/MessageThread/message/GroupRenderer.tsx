@@ -191,13 +191,21 @@ export default function GroupRenderer({
           const out: Array<{ type: 'album'; items: { id: number; url: string }[] } | { type: 'msg'; m: any }> = [];
           const isImageOnly = (mm: any) => {
             const url = mm?.attachment_url as string | undefined;
-            const meta = (mm as any)?.attachment_meta as { content_type?: string } | undefined;
+            const meta = (mm as any)?.attachment_meta as { content_type?: string; original_filename?: string } | undefined;
             const ct = typeof meta?.content_type === 'string' ? meta.content_type.toLowerCase() : '';
             const byCtImg = ct.startsWith('image/');
             const img = isImage(url) || byCtImg;
             if (!img) return false;
-            const text = String(mm?.content || '').trim().toLowerCase();
-            return !text || text === 'attachment' || text === '[attachment]' || text === '[image]' || text === 'image';
+            const rawText = String(mm?.content || '').trim();
+            const text = rawText.toLowerCase();
+            if (!text) return true;
+            if (text === 'attachment' || text === '[attachment]' || text === '[image]' || text === 'image') return true;
+            // Filename heuristic: single token with image extension
+            const looksLikeFilename = !text.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(text);
+            if (looksLikeFilename) return true;
+            const fn = String(meta?.original_filename || '').trim().toLowerCase();
+            if (fn && text === fn) return true;
+            return false;
           };
           for (let i = 0; i < group.messages.length; ) {
             const mm = group.messages[i];

@@ -180,7 +180,7 @@ function mergeMessages(prev: ThreadMessage[], incoming: ThreadMessage[]): Thread
     const existingId = Number.isFinite(m.id) ? m.id : (cid && byClient.get(cid)) || undefined;
     if (existingId && byId.has(existingId)) {
       const prior = byId.get(existingId)!;
-      const merged: ThreadMessage = {
+      const mergedBase: ThreadMessage = {
         ...prior,
         ...m,
         // Keep any local-only hints (upload progress, temporary attachment preview)
@@ -189,7 +189,17 @@ function mergeMessages(prev: ThreadMessage[], incoming: ThreadMessage[]): Thread
         status: (m.status as any) || (prior.status as any),
         pending: false,
       } as any;
-      byId.set(Number(merged.id) || existingId, merged);
+      // Reactions stabilisation: if incoming omits reactions/my_reactions (or is empty), keep prior
+      const incomingHasReactions = !!(m as any)?.reactions && Object.keys((m as any).reactions as any).length > 0;
+      const incomingHasMine = Array.isArray((m as any)?.my_reactions) && ((m as any).my_reactions as any[]).length > 0;
+      if (!incomingHasReactions && (prior as any)?.reactions) {
+        (mergedBase as any).reactions = (prior as any).reactions;
+      }
+      if (!incomingHasMine && (prior as any)?.my_reactions) {
+        (mergedBase as any).my_reactions = (prior as any).my_reactions;
+      }
+      const finalMerged = mergedBase;
+      byId.set(Number(finalMerged.id) || existingId, finalMerged);
       if (cid) byClient.set(cid, Number(merged.id) || existingId);
     } else if (Number.isFinite(m.id)) {
       byId.set(Number(m.id), m);

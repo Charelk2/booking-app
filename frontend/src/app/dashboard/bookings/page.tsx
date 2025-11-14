@@ -143,7 +143,7 @@ export default function ArtistBookingsPage() {
                 )}
                 <div className="mt-3 space-x-4">
                   <a
-                    href={b.invoice_id ? `/invoices/${b.invoice_id}` : `/invoices/by-booking/${b.id}?type=provider`}
+                    href={b.invoice_id ? `/invoices/${b.invoice_id}?booking_id=${b.id}` : `/invoices/by-booking/${b.id}?type=provider`}
                     target="_blank"
                     rel="noopener"
                     className="text-brand-dark hover:underline text-sm"

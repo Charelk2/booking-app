@@ -63,7 +63,7 @@ const BookingsSection: React.FC<Props> = ({ bookings, loading, error, onRetry })
             <div className="mt-3">
               {booking.invoice_id ? (
                 <a
-                  href={`/invoices/${booking.invoice_id}`}
+                  href={`/invoices/${booking.invoice_id}?booking_id=${booking.id}`}
                   target="_blank"
                   rel="noopener"
                   className="text-brand-dark hover:underline text-sm"
