@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getQuoteV2, getQuotesBatch, getQuotesForBookingRequest } from '@/lib/api';
+import { getQuoteV2, getQuotesBatch } from '@/lib/api';
 import type { Quote, QuoteV2, ServiceItem } from '@/types';
 
 function mapLegacyStatusToV2(status: string | null | undefined): QuoteV2['status'] {
@@ -252,10 +252,23 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
 
   const ensureQuotesLoaded = useCallback(async (ids: number[]) => {
     const want = Array.from(new Set(ids.filter((n) => Number.isFinite(n) && n > 0)));
-    const missing = want.filter((id) => {
-      const q = quotesById[id];
-      return !q || !isComplete(q);
-    });
+    const missing: number[] = [];
+
+    // First, hydrate from the global cache wherever possible and avoid network
+    // calls when the sidecar has already provided complete quote objects.
+    for (const id of want) {
+      const local = quotesById[id];
+      if (local && isComplete(local)) continue;
+      let fromGlobal: QuoteV2 | undefined;
+      try { fromGlobal = GLOBAL_QUOTES.get(id); } catch { fromGlobal = undefined; }
+      if (fromGlobal && isComplete(fromGlobal)) {
+        const hydrated = fromGlobal;
+        setQuotesById((prev) => ({ ...prev, [id]: hydrated }));
+        continue;
+      }
+      missing.push(id);
+    }
+
     if (missing.length === 0) return;
     // Try batch first
     try {

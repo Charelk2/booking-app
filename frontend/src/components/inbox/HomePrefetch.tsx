@@ -7,7 +7,7 @@ import { useThreads } from '@/features/inbox/hooks/useThreads';
 import { initThreadPrefetcher, enqueueThreadPrefetch, kickThreadPrefetcher } from '@/lib/chat/threadPrefetcher';
 import { getMessagesForBookingRequest, getMessagesBatch } from '@/lib/api';
 import { writeThreadCache } from '@/lib/chat/threadCache';
-import { prefetchQuotesByIds } from '@/hooks/useQuotes';
+import { prefetchQuotesByIds, seedGlobalQuotes } from '@/hooks/useQuotes';
 import { threadStore } from '@/lib/chat/threadStore';
 
 function useIdle(fn: () => void, timeout = 800) {
@@ -82,14 +82,24 @@ export default function HomePrefetch() {
       // Initialize prefetcher (idempotent)
       initThreadPrefetcher(async (id: number, limit: number) => {
         try {
-          const res = await getMessagesForBookingRequest(id, { limit, mode: 'full' });
+          const res = await getMessagesForBookingRequest(id, { limit, mode: 'full', include_quotes: true });
           const items = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
           writeThreadCache(id, items);
           try {
-            const qids = Array.from(new Set<number>(items
-              .map((m: any) => Number(m?.quote_id))
-              .filter((n: number) => Number.isFinite(n) && n > 0)));
-            if (qids.length) await prefetchQuotesByIds(qids);
+            const qmap = (res as any)?.data?.quotes as Record<number, any> | undefined;
+            if (qmap && typeof qmap === 'object') {
+              const values = Object.values(qmap).filter(Boolean) as any[];
+              if (values.length) seedGlobalQuotes(values as any);
+            } else {
+              const qids = Array.from(
+                new Set<number>(
+                  items
+                    .map((m: any) => Number(m?.quote_id))
+                    .filter((n: number) => Number.isFinite(n) && n > 0),
+                ),
+              );
+              if (qids.length) await prefetchQuotesByIds(qids);
+            }
           } catch {}
         } catch {}
       }, { defaultLimit: 50, staleMs: 5 * 60 * 1000 });
@@ -116,10 +126,8 @@ export default function HomePrefetch() {
           }
           try {
             if (quotes && typeof quotes === 'object') {
-              const qids = Object.keys(quotes)
-                .map((k) => Number(k))
-                .filter((n: number) => Number.isFinite(n) && n > 0);
-              if (qids.length) await prefetchQuotesByIds(qids);
+              const values = Object.values(quotes).filter(Boolean) as any[];
+              if (values.length) seedGlobalQuotes(values as any);
             }
           } catch {}
         } catch {}

@@ -26,7 +26,7 @@ import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
 import { writeThreadCache, readThreadCache, readThreadFromIndexedDb } from '@/lib/chat/threadCache';
 import { threadStore } from '@/lib/chat/threadStore';
 import { broadcastActiveThread } from '@/features/inbox/state/crossTab';
-import { prefetchQuotesByIds } from '@/hooks/useQuotes';
+import { prefetchQuotesByIds, seedGlobalQuotes } from '@/hooks/useQuotes';
 import {
   initThreadPrefetcher,
   resetThreadPrefetcher,
@@ -494,13 +494,29 @@ export default function InboxPage() {
         return next;
       };
 
-      // Full fetch only (no lite/delta)
-      const res = await getMessagesForBookingRequest(id, { limit: Math.max(100, limit), mode: 'full' }, { signal: ac.signal });
+      // Full fetch only (no lite/delta) and hydrate quote sidecar for this thread.
+      const res = await getMessagesForBookingRequest(
+        id,
+        { limit: Math.max(100, limit), mode: 'full', include_quotes: true },
+        { signal: ac.signal },
+      );
       writeThreadCache(id, res.data.items);
       try {
-        const items = Array.isArray((res.data as any)?.items) ? (res.data as any).items : [];
-        const ids = Array.from(new Set<number>(items.map((m: any) => Number(m?.quote_id)).filter((n: number) => Number.isFinite(n) && n > 0))) as number[];
-        if (ids.length) await prefetchQuotesByIds(ids as number[]);
+        const qmap = (res.data as any)?.quotes as Record<number, any> | undefined;
+        if (qmap && typeof qmap === 'object') {
+          const values = Object.values(qmap).filter(Boolean) as any[];
+          if (values.length) seedGlobalQuotes(values as any);
+        } else {
+          const items = Array.isArray((res.data as any)?.items) ? (res.data as any).items : [];
+          const ids = Array.from(
+            new Set<number>(
+              items
+                .map((m: any) => Number(m?.quote_id))
+                .filter((n: number) => Number.isFinite(n) && n > 0),
+            ),
+          ) as number[];
+          if (ids.length) await prefetchQuotesByIds(ids as number[]);
+        }
       } catch {}
     } catch {}
     finally {
