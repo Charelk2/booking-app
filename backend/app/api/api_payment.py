@@ -1532,20 +1532,6 @@ def get_payment_receipt(
     path = os.path.abspath(os.path.join(RECEIPT_DIR, f"{payment_id}.pdf"))
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     if os.path.exists(path):
-        # If R2 is configured, prefer a redirect to a presigned GET
-        try:
-            key = r2utils.build_receipt_key(payment_id)
-            with open(path, "rb") as fh:
-                data = fh.read()
-            try:
-                r2utils.put_bytes(key, data, content_type="application/pdf")
-                signed = r2utils.presign_get_by_key(key, filename=f"{payment_id}.pdf", content_type="application/pdf", inline=True)
-                return RedirectResponse(url=signed, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
-            except Exception:
-                # Fall through to local file response if upload/presign failed
-                pass
-        except Exception:
-            pass
         resp = FileResponse(
             path,
             media_type="application/pdf",
@@ -1562,26 +1548,16 @@ def get_payment_receipt(
     try:
         ok = generate_receipt_pdf(db, payment_id)
         if ok and os.path.exists(path):
-            # Attempt upload to R2 and redirect to presigned URL
+            resp = FileResponse(
+                path,
+                media_type="application/pdf",
+                filename=f"{payment_id}.pdf",
+            )
             try:
-                key = r2utils.build_receipt_key(payment_id)
-                with open(path, "rb") as fh:
-                    data = fh.read()
-                r2utils.put_bytes(key, data, content_type="application/pdf")
-                signed = r2utils.presign_get_by_key(key, filename=f"{payment_id}.pdf", content_type="application/pdf", inline=True)
-                return RedirectResponse(url=signed, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+                resp.headers["X-Robots-Tag"] = "noindex"
             except Exception:
-                # Fall back to local file
-                resp = FileResponse(
-                    path,
-                    media_type="application/pdf",
-                    filename=f"{payment_id}.pdf",
-                )
-                try:
-                    resp.headers["X-Robots-Tag"] = "noindex"
-                except Exception:
-                    pass
-                return resp
+                pass
+            return resp
     except Exception:
         # Best-effort only — proceed to direct ReportLab generation
         pass
@@ -1596,25 +1572,16 @@ def get_payment_receipt(
                 f.write(b"%PDF-1.4\n% Fallback receipt stub for security\n%%EOF")
         except Exception:
             pass
-    # Try to upload stub to R2 and redirect; else return local stub
+    resp = FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=f"{payment_id}.pdf",
+    )
     try:
-        key = r2utils.build_receipt_key(payment_id)
-        with open(path, "rb") as fh:
-            data = fh.read()
-        r2utils.put_bytes(key, data, content_type="application/pdf")
-        signed = r2utils.presign_get_by_key(key, filename=f"{payment_id}.pdf", content_type="application/pdf", inline=True)
-        return RedirectResponse(url=signed, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+        resp.headers["X-Robots-Tag"] = "noindex"
     except Exception:
-        resp = FileResponse(
-            path,
-            media_type="application/pdf",
-            filename=f"{payment_id}.pdf",
-        )
-        try:
-            resp.headers["X-Robots-Tag"] = "noindex"
-        except Exception:
-            pass
-        return resp
+        pass
+    return resp
 
 # ————————————————————————————————————————————————————————————————
 # Receipt PDF generation (ReportLab only)

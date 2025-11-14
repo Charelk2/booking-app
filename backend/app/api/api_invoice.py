@@ -108,6 +108,20 @@ def get_invoice_pdf(
             {"invoice_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    # If we already have a stored public URL pointing at R2, prefer a presigned
+    # redirect without regenerating the PDF.
+    try:
+        public = getattr(invoice, "pdf_url", None)
+    except Exception:
+        public = None
+    if public:
+        try:
+            signed = r2utils.presign_get_for_public_url(str(public))
+        except Exception:
+            signed = None
+        if signed:
+            return RedirectResponse(url=signed, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
     # Lazy import to avoid heavy deps during OpenAPI generation
     # Select renderer based on invoice_type when available
     try:

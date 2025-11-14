@@ -158,22 +158,6 @@ export function DateTimeStep({
           />
         )}
 
-        <div className="mt-4 max-w-sm">
-          <label className="label mb-1 block">Start time (optional)</label>
-          <Controller
-            name="time"
-            control={control}
-            render={({ field }) => (
-              <input
-                type="time"
-                {...field}
-                value={field.value || ''}
-                enterKeyHint="done"
-                className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
-              />
-            )}
-          />
-        </div>
       </div>
     </section>
   );
