@@ -132,37 +132,26 @@ export default function ClientDashboardPage() {
                            'Unknown Service Provider'}
                         </div>
                         <div className="mt-0.5 text-sm text-gray-600 truncate">{booking.service?.title || "—"}</div>
-                        <div className="mt-1 text-xs text-gray-500">{format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}</div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(booking.status)}`}>{formatStatus(booking.status)}</span>
-                        <div className="mt-2 text-sm font-semibold text-gray-900">{formatCurrency(Number(booking.total_price))}</div>
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      {booking.invoice_id ? (
-                        <a
-                          href={`/invoices/${booking.invoice_id}?booking_id=${booking.id}`}
-                          target="_blank"
-                          rel="noopener"
-                          className="text-brand-dark hover:underline text-sm"
-                        >
-                          View invoice
-                        </a>
-                      ) : (
-                        <a
-                          href={`/invoices/by-booking/${booking.id}?type=provider`}
-                          target="_blank"
-                          rel="noopener"
-                          className="text-brand-dark hover:underline text-sm"
-                        >
-                          View invoice
-                        </a>
-                      )}
-                    </div>
+                    <div className="mt-1 text-xs text-gray-500">{format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}</div>
                   </div>
-                )}
-              />
+                  <div className="shrink-0 text-right">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(booking.status)}`}>{formatStatus(booking.status)}</span>
+                    <div className="mt-2 text-sm font-semibold text-gray-900">{formatCurrency(Number(booking.total_price))}</div>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <a
+                    href={`/invoices/by-booking/${booking.id}?type=provider`}
+                    target="_blank"
+                    rel="noopener"
+                    className="text-brand-dark hover:underline text-sm"
+                  >
+                    View invoice
+                  </a>
+                </div>
+              </div>
+            )}
+          />
               {bookings.length > upcomingBookings.length && (
                 <div className="mt-2">
                   <Link href="/dashboard/client/bookings" className="text-brand-dark hover:underline text-sm">

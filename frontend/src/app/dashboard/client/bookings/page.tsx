@@ -89,7 +89,7 @@ function BookingList({
               </a>
             )}
             <a
-              href={b.invoice_id ? `/invoices/${b.invoice_id}` : `/invoices/by-booking/${b.id}?type=provider`}
+              href={`/invoices/by-booking/${b.id}?type=provider`}
               target="_blank"
               rel="noopener"
               className="ml-3 mt-2 text-brand-dark hover:underline text-sm"

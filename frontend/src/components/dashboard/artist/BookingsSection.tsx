@@ -61,25 +61,15 @@ const BookingsSection: React.FC<Props> = ({ bookings, loading, error, onRetry })
             </div>
             {/* Documents quick links */}
             <div className="mt-3">
-              {booking.invoice_id ? (
-                <a
-                  href={`/invoices/${booking.invoice_id}?booking_id=${booking.id}`}
-                  target="_blank"
-                  rel="noopener"
-                  className="text-brand-dark hover:underline text-sm"
-                  title="Download Provider Invoice"
-                >
-                  Download Provider Invoice
-                </a>
-              ) : (
-                <a
-                  href={`/invoices/by-booking/${booking.id}?type=provider`}
-                  className="text-brand-dark hover:underline text-sm"
-                  title="Find Provider Invoice by booking"
-                >
-                  View Provider Invoice
-                </a>
-              )}
+              <a
+                href={`/invoices/by-booking/${booking.id}?type=provider`}
+                target="_blank"
+                rel="noopener"
+                className="text-brand-dark hover:underline text-sm"
+                title="Download Provider Invoice"
+              >
+                Download Provider Invoice
+              </a>
             </div>
           </div>
         ))}
