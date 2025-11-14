@@ -81,10 +81,20 @@ export default function useUnreadThreadsCount() {
         return;
       }
       const base = opts?.force ? 0 : countRef.current || 0;
-      await fetchAggregateUnread(base);
+      const serverTotal = await fetchAggregateUnread(base);
       const local = sumFromCache();
-      if (local !== countRef.current) {
-        setCount(local);
+      let next = local;
+      try {
+        const summaries = cacheGetSummaries();
+        const hasLocal = Array.isArray(summaries) && summaries.length > 0;
+        if (!hasLocal) {
+          next = serverTotal;
+        }
+      } catch {
+        if (!next) next = serverTotal;
+      }
+      if (next !== countRef.current) {
+        setCount(next);
       }
     },
     [user],
@@ -110,10 +120,17 @@ export default function useUnreadThreadsCount() {
 
       // 1) Authoritative snapshot from backend (notifications WS or inbox SSE)
       if (typeof detail.total === 'number' && Number.isFinite(detail.total)) {
-        // Prefer recomputing from our local thread cache (which already
-        // incorporates optimistic reads and active-thread guards) instead
-        // of trusting the aggregate total blindly.
-        const next = sumFromCache();
+        const local = sumFromCache();
+        let next = local;
+        try {
+          const summaries = cacheGetSummaries();
+          const hasLocal = Array.isArray(summaries) && summaries.length > 0;
+          if (!hasLocal) {
+            next = Number(detail.total);
+          }
+        } catch {
+          if (!next) next = Number(detail.total);
+        }
         if (next !== countRef.current) {
           setCount(next);
         }
