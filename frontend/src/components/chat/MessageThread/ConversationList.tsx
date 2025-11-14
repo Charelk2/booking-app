@@ -174,7 +174,10 @@ function detectTags(
   })();
 
   const showInquiry = (() => {
-    if (paidOrConfirmed || isPersonalizedVideo || showQuote || isSupplierInvite) {
+    // Inquiry is suppressed once the event is paid/confirmed, for PV threads,
+    // or for supplier invites. It is allowed to co-exist with QUOTE so users
+    // can still see there is an open inquiry card alongside a quote.
+    if (paidOrConfirmed || isPersonalizedVideo || isSupplierInvite) {
       return false;
     }
     if ((thread as any).has_inquiry_card === true) {
