@@ -10,7 +10,7 @@ type RealtimeCtx = ReturnType<typeof useRealtime>;
 
 const RealtimeContext = createContext<RealtimeCtx | null>(null);
 
-// Local read epochs per thread to suppress stale unread bumps that arrive after
+//  Local read epochs per thread to suppress stale unread bumps that arrive after
 // the user has already marked a thread as read in this tab.
 const localReadEpochByThread: Map<number, number> = new Map();
 
