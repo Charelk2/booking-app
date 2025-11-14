@@ -253,6 +253,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
   const missingThreadRef = React.useRef(false);
   const deltaCooldownRef = React.useRef<number>(0);
   const knownQuoteIdsRef = React.useRef<Set<number>>(new Set());
+  const fetchMessagesRef = React.useRef<null | ((options: FetchMessagesOptions) => Promise<void> | void)>(null);
 
   React.useEffect(() => {
     knownQuoteIdsRef.current.clear();
@@ -336,7 +337,7 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
   }, [threadId, opts]);
 
   // Remove any filename-only placeholder immediately when the server finalizes the attachment,
-  // then fetch delta to pull the real message with a durable URL.
+  // then force a full refresh so we pull the updated row even when the id is unchanged.
   React.useEffect(() => {
     const onFinalized = (e: Event) => {
       try {
@@ -350,13 +351,21 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
           // Remove only if it's the placeholder (same id, no url)
           return !(same && !hasUrl);
         }));
-        // Pull the finalized message now
-        try { void fetchDelta?.('finalized'); } catch {}
+        // Pull the finalized message now via a bounded full refresh so an
+        // updated row with the same id is not skipped by the after_id delta.
+        try {
+          void fetchMessagesRef.current?.({
+            mode: 'initial',
+            force: true,
+            reason: 'finalized',
+            limit: 120,
+          });
+        } catch {}
       } catch {}
     };
     if (typeof window !== 'undefined') window.addEventListener('message:finalized', onFinalized as any);
     return () => { if (typeof window !== 'undefined') window.removeEventListener('message:finalized', onFinalized as any); };
-  }, [threadId, fetchDelta, setMessages]);
+  }, [threadId, setMessages]);
 
   // (moved below) - Listen for global delta pokes
 
@@ -555,6 +564,12 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     },
     [threadId, isActiveThread, transport.online, opts],
   );
+
+  // Keep an imperative handle for callers that need to force a full refresh
+  // (e.g., attachment finalize events) without threading callbacks through props.
+  React.useEffect(() => {
+    fetchMessagesRef.current = fetchMessages;
+  }, [fetchMessages]);
 
   // Lightweight delta reconcile after realtime events (best-effort)
   const fetchDelta = React.useCallback(async (reason: string = 'delta') => {

@@ -1,5 +1,8 @@
 import { setLastRead as cacheSetLastRead } from '@/lib/chat/threadCache';
-import { THREAD_READ_EVENT } from '@/components/chat/MessageThread/hooks/useThreadReadManager';
+
+// Local copy of the thread read event name to avoid a circular dependency
+// on the MessageThread hooks module (which also imports the thread cache).
+const THREAD_READ_EVENT = 'thread:read';
 
 type Msg =
   | { t: 'hello'; id: string }

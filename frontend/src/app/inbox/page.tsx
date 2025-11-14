@@ -59,8 +59,6 @@ export default function InboxPage() {
 
   const applyLocalRead = useCallback((id: number) => {
     if (!id) return;
-    // If clicking the already-active thread, it is handled by realtime/read-manager; avoid duplicate UI writes
-    if (selectedThreadId != null && Number(selectedThreadId) === Number(id)) return;
     const record = (cacheGetSummaries() as any[]).find((t) => t.id === id) as any;
     const unreadBefore = Number(record?.unread_count || 0) || 0;
     if (unreadBefore > 0 && typeof window !== 'undefined') {

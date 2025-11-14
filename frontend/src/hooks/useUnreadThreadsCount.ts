@@ -97,9 +97,28 @@ export default function useUnreadThreadsCount() {
     const onBadgeDelta = (ev: Event) => {
       try {
         const d = (ev as CustomEvent<{ delta?: number; total?: number }>).detail || {};
-        // Treat totals as a poke only; recompute from cache which is the source of truth
+        // Totals: treat server aggregate as authoritative outside Inbox,
+        // but keep cache as the boss while on the /inbox route.
         if (typeof (d as any).total === 'number') {
-          recomputeFromCache();
+          const total = Math.max(0, Number((d as any).total || 0));
+          let isInboxRoute = false;
+          try {
+            if (typeof window !== 'undefined' && window.location && typeof window.location.pathname === 'string') {
+              isInboxRoute = window.location.pathname.startsWith('/inbox');
+            }
+          } catch {}
+          if (isInboxRoute) {
+            // Inside Inbox, rely on per-thread cache (which respects local read guards)
+            recomputeFromCache();
+          } else {
+            // Outside Inbox (home, dashboards, etc.), reflect the server total immediately
+            if (total !== countRef.current) {
+              countRef.current = total;
+              setCount(total);
+            }
+          }
+          // In both cases, schedule a reconcile soon (re-sum cache + consult backend)
+          scheduleCompute(800);
           return;
         }
         if (typeof d.delta === 'number' && Number.isFinite(d.delta)) {
