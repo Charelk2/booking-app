@@ -377,6 +377,7 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
   const [marker, setMarker] = useState<LatLng | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const locationNameSetterRef = useRef<((val: string) => void) | null>(null);
+  const locationSetterRef = useRef<((val: string) => void) | null>(null);
 
   useEffect(() => {
     const target = containerRef.current;
@@ -421,7 +422,10 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                     render={({ field }) => (
                       <LocationInput
                         value={field.value ?? ''}
-                        onValueChange={field.onChange}
+                        onValueChange={(val) => {
+                          field.onChange(val);
+                          locationSetterRef.current = field.onChange;
+                        }}
                         enterKeyHint="search"
                         onPlaceSelect={(place: google.maps.places.PlaceResult) => {
                           if (place.geometry?.location) {
@@ -463,7 +467,10 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                 render={({ field }) => (
                   <LocationInput
                     value={field.value ?? ''}
-                    onValueChange={field.onChange}
+                    onValueChange={(val) => {
+                      field.onChange(val);
+                      locationSetterRef.current = field.onChange;
+                    }}
                     enterKeyHint="search"
                     onPlaceSelect={(place: google.maps.places.PlaceResult) => {
                       if (place.geometry?.location) {
@@ -493,6 +500,9 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
               const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
               setMarker(loc);
               setGeoError(null);
+              const label = `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
+              if (locationSetterRef.current) locationSetterRef.current(label);
+              if (locationNameSetterRef.current) locationNameSetterRef.current('My current location');
             },
             () => setGeoError('Unable to fetch your location'),
           );
