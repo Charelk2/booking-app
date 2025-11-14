@@ -362,9 +362,10 @@ export default function InboxPage() {
     return () => { closed = true; try { es?.close(); } catch {}; };
   }, [user, selectedThreadId]);
 
-  // Select conversation based on URL param after requests load; if none, restore persisted selection
+  // Select conversation based on URL param; do not require presence in threads to honor deep links
+  // If the list hasn't loaded the thread yet, we still select so the chat pane can fetch messages.
   useEffect(() => {
-    if (!threads.length) return;
+    // When switching manually, avoid immediate URL-driven overrides
     const justManuallySelected = Date.now() - (manualSelectAtRef.current || 0) < 5000;
     if (justManuallySelected) return;
     if (Date.now() < suppressUrlSyncUntilRef.current) return;
@@ -384,14 +385,14 @@ export default function InboxPage() {
       })();
       return;
     }
-    if (
-      urlId &&
-      urlId !== selectedThreadId &&
-      threads.find((r) => r.id === urlId)
-    ) {
+    if (urlId && urlId !== selectedThreadId) {
       recordThreadSwitchStart(urlId, { source: 'restored' });
       setSelectedThreadId(urlId);
-      applyLocalRead(urlId);
+      // Apply local read only when we actually have the summary row (best-effort)
+      try {
+        if (threads.find((r) => r.id === urlId)) applyLocalRead(urlId);
+      } catch {}
+      return;
     } else if (selectedThreadId == null) {
       // Try restore persisted selection first
       try {

@@ -345,9 +345,10 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         // Load everything up to FULL_LIMIT in one shot
         limit: FULL_LIMIT,
       } as MessageListParams;
-      // Choose mode based on whether we have a last id
+      // Choose mode: first load for this thread should always be full, even if a stray lastId exists.
       const lastId = lastMessageIdRef.current ? Number(lastMessageIdRef.current) : 0;
-      if (Number.isFinite(lastId) && lastId > 0) {
+      const firstLoadForThread = !initialLoadedRef.current || (messagesRef.current?.length || 0) === 0;
+      if (!firstLoadForThread && Number.isFinite(lastId) && lastId > 0) {
         (params as any).after_id = lastId;
         params.mode = 'delta' as any;
       } else {
