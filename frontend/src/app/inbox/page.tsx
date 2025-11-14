@@ -7,7 +7,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { type ThreadsUpdatedDetail, emitThreadsUpdated } from '@/lib/chat/threadsEvents';
 import { Spinner } from '@/components/ui';
-// list + thread panes moved to features/inbox
+/// list + thread panes moved to features/inbox
 import ReviewFormModal from '@/components/review/ReviewFormModal';
 import { getMessagesForBookingRequest, getMessagesBatch, ensureBookaThread, markThreadMessagesRead } from '@/lib/api';
 import { useTransportState } from '@/hooks/useTransportState';
