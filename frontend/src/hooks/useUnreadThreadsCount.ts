@@ -45,7 +45,13 @@ function sumFromCache(): number {
   try {
     const list = cacheGetSummaries() as any[];
     if (!Array.isArray(list)) return 0;
+    const activeId =
+      typeof window !== 'undefined'
+        ? Number((window as any).__inboxActiveThreadId || 0)
+        : 0;
     return list.reduce((acc, s: any) => {
+      const tid = Number((s as any)?.id ?? (s as any)?.booking_request_id ?? 0);
+      if (activeId && tid === activeId) return acc;
       const n = Number(s?.unread_count ?? 0) || 0;
       return acc + (n > 0 ? n : 0);
     }, 0);
@@ -75,9 +81,10 @@ export default function useUnreadThreadsCount() {
         return;
       }
       const base = opts?.force ? 0 : countRef.current || 0;
-      const next = await fetchAggregateUnread(base);
-      if (next !== countRef.current) {
-        setCount(next);
+      await fetchAggregateUnread(base);
+      const local = sumFromCache();
+      if (local !== countRef.current) {
+        setCount(local);
       }
     },
     [user],
@@ -103,9 +110,12 @@ export default function useUnreadThreadsCount() {
 
       // 1) Authoritative snapshot from backend (notifications WS or inbox SSE)
       if (typeof detail.total === 'number' && Number.isFinite(detail.total)) {
-        const total = Math.max(0, Number(detail.total));
-        if (total !== countRef.current) {
-          setCount(total);
+        // Prefer recomputing from our local thread cache (which already
+        // incorporates optimistic reads and active-thread guards) instead
+        // of trusting the aggregate total blindly.
+        const next = sumFromCache();
+        if (next !== countRef.current) {
+          setCount(next);
         }
         return;
       }
