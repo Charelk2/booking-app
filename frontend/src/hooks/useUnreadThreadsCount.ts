@@ -37,7 +37,6 @@ export default function useUnreadThreadsCount() {
   const debouncedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cacheTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countRef = useRef<number>(0);
-  const lastLocalLowerAtRef = useRef<number>(0);
   useEffect(() => { countRef.current = count; }, [count]);
 
   const recomputeFromCache = useCallback(() => {
@@ -46,22 +45,9 @@ export default function useUnreadThreadsCount() {
       const local = Array.isArray(list)
         ? list.reduce((a, s: any) => a + (Number(s?.unread_count || 0) || 0), 0)
         : 0;
-      setCount((prev) => {
-        const next = Math.max(0, Number(local || 0));
-        // Allow cache to raise (new messages) or keep a lower value set by local delta reads
-        return Math.max(prev, next);
-      });
+      const next = Math.max(0, Number(local || 0));
+      if (next !== countRef.current) setCount(next);
     } catch {}
-  }, []);
-
-  const applyServerTotal = useCallback((serverTotal?: number) => {
-    if (!Number.isFinite(Number(serverTotal))) return;
-    const server = Math.max(0, Number(serverTotal));
-    // Suppress raising for a short window after a local read lower
-    const sinceLower = Date.now() - (lastLocalLowerAtRef.current || 0);
-    if (sinceLower < 1200) return;
-    const prev = countRef.current || 0;
-    if (server > prev) setCount(server);
   }, []);
 
   const compute = useCallback(async (prevCount?: number) => {
@@ -69,11 +55,11 @@ export default function useUnreadThreadsCount() {
     recomputeFromCache();
     // Then consult server; only allow raising
     try {
-      const server = await fetchAggregateUnread(prevCount);
-      applyServerTotal(server);
+      const server = await fetchAggregateUnread(countRef.current);
+      if (server !== countRef.current) setCount(server);
     } catch {}
     return countRef.current;
-  }, [recomputeFromCache, applyServerTotal]);
+  }, [recomputeFromCache]);
 
   useEffect(() => {
     let canceled = false;
@@ -111,17 +97,17 @@ export default function useUnreadThreadsCount() {
     const onBadgeDelta = (ev: Event) => {
       try {
         const d = (ev as CustomEvent<{ delta?: number; total?: number }>).detail || {};
-        // Treat totals as a pure trigger to recompute; do not seed from server
+        // Authoritative snapshot from server
         if (typeof d.total === 'number' && Number.isFinite(d.total)) {
-          scheduleCompute(0);
+          const total = Math.max(0, Number(d.total));
+          if (total !== countRef.current) setCount(total);
           return;
         }
         if (typeof d.delta === 'number' && Number.isFinite(d.delta)) {
           const delta = Number(d.delta);
-          if (delta < 0) {
-            lastLocalLowerAtRef.current = Date.now();
-          }
           setCount((c) => Math.max(0, c + delta));
+          // Heal any drift shortly after local delta
+          scheduleCompute(200);
         }
       } catch {}
       // For other events, reconcile soon

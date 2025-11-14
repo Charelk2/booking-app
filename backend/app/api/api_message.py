@@ -2063,13 +2063,20 @@ def init_attachment_message(
 
     # Best-effort broadcast placeholder and enqueue outbox
     try:
+        logger.info(
+            "attachment_init: created placeholder request_id=%s message_id=%s filename=%s content_type=%s",
+            request_id,
+            getattr(msg, "id", None),
+            payload.filename,
+            payload.content_type,
+        )
         background_tasks.add_task(manager.broadcast, request_id, data)
         try:
             enqueue_outbox(db, topic=f"booking-requests:{int(request_id)}", payload=data)
         except Exception:
-            pass
+            logger.exception("attachment_init: enqueue_outbox failed")
     except Exception:
-        pass
+        logger.exception("attachment_init: broadcast failed")
     try:
         metrics_incr("message.attachment_init_total")
     except Exception:
@@ -2104,6 +2111,12 @@ def finalize_attachment_message(
     current_user: models.User = Depends(get_current_user),
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
+    logger.info(
+        "attachment_finalize: start request_id=%s message_id=%s url=%s",
+        request_id,
+        message_id,
+        getattr(payload, "url", None),
+    )
     booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
     if not booking_request:
         raise error_response("Booking request not found", {"request_id": "not_found"}, status.HTTP_404_NOT_FOUND)
@@ -2119,7 +2132,18 @@ def finalize_attachment_message(
 
     # Validate and persist URL and metadata
     try:
-        if not _is_valid_attachment_url(payload.url):
+        is_valid = False
+        try:
+            is_valid = _is_valid_attachment_url(payload.url)
+        except Exception:
+            is_valid = False
+        logger.info(
+            "attachment_finalize: validate_url request_id=%s message_id=%s valid=%s",
+            request_id,
+            message_id,
+            is_valid,
+        )
+        if not is_valid:
             raise error_response("Invalid attachment URL", {"url": "invalid"}, status.HTTP_400_BAD_REQUEST)
         msg.attachment_url = payload.url
         if isinstance(payload.metadata, dict):
@@ -2127,6 +2151,13 @@ def finalize_attachment_message(
         db.add(msg)
         db.commit()
         db.refresh(msg)
+        logger.info(
+            "attachment_finalize: saved request_id=%s message_id=%s attachment_url=%s content_type=%s",
+            request_id,
+            message_id,
+            getattr(msg, "attachment_url", None),
+            (getattr(msg, "attachment_meta", {}) or {}).get("content_type"),
+        )
     except Exception as exc:
         logger.exception("Finalize attachment failed: %s", exc)
         raise error_response("Finalize failed", {"attachment": "persist_failed"}, status.HTTP_400_BAD_REQUEST)
@@ -2142,13 +2173,19 @@ def finalize_attachment_message(
 
     # Broadcast update and enqueue outbox
     try:
+        logger.info(
+            "attachment_finalize: broadcasting request_id=%s message_id=%s attachment_url=%s",
+            request_id,
+            message_id,
+            data.get("attachment_url"),
+        )
         background_tasks.add_task(manager.broadcast, request_id, data)
         try:
             enqueue_outbox(db, topic=f"booking-requests:{int(request_id)}", payload=data)
         except Exception:
-            pass
+            logger.exception("attachment_finalize: enqueue_outbox failed")
     except Exception:
-        pass
+        logger.exception("attachment_finalize: broadcast failed")
     try:
         metrics_incr("message.attachment_finalize_total")
     except Exception:
