@@ -950,6 +950,85 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         setSoundCost(Number(sc) || 0);
         setSoundMode(quote.sound_mode);
         setSoundModeOverridden(quote.sound_mode_overridden);
+
+        // Travel: when sound is required for a non-sound service, trust the
+        // backend's travel_cost/travel_mode first. If the backend did not
+        // compute travel (travel_cost <= 0), fall back to the client travel
+        // engine once to derive a meaningful estimate.
+        const tm = (quote?.travel_mode || '').toLowerCase();
+        const estimates = Array.isArray((quote as any)?.travel_estimates) ? (quote as any).travel_estimates : [];
+        const driveRow = estimates.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
+        const travelCost = Number(quote?.travel_cost || 0);
+        const baseTravelRes = {
+          mode: tm === 'flight' ? 'fly' : 'drive',
+          totalCost: travelCost,
+          breakdown: {
+            drive: {
+              estimate: Number(
+                driveRow?.cost ||
+                (tm === 'flight' ? 0 : travelCost),
+              ),
+            },
+            fly: {
+              perPerson: 0,
+              travellers: numTravelMembers,
+              flightSubtotal: 0,
+              carRental: Number(carRentalPrice || 0),
+              localTransferKm: 0,
+              departureTransferKm: 0,
+              transferCost: 0,
+              total: tm === 'flight' ? travelCost : 0,
+            },
+          },
+        } as any;
+
+        if (Number.isFinite(travelCost) && travelCost > 0) {
+          setTravelResult(baseTravelRes);
+        } else {
+          try {
+            const dt = (() => {
+              const dd = (details as any)?.date;
+              if (!dd) return new Date();
+              try { return typeof dd === 'string' ? new Date(dd) : dd; } catch { return new Date(); }
+            })();
+            const artistLoc = String(artistLocation || '').trim();
+            const eventLoc = String((details as any)?.location || '').trim();
+            if (artistLoc && eventLoc) {
+              let drivingEstimate = 0;
+              try {
+                const dm = await getDrivingMetricsCached(artistLoc, eventLoc);
+                const distKm = Number(dm?.distanceKm || 0);
+                if (Number.isFinite(distKm) && distKm > 0) drivingEstimate = distKm * travelRate;
+              } catch {}
+              const airportFn = async (city: string) => {
+                const geo = await geocodeCached(city);
+                if (geo) return findNearestAirport(city, async () => geo);
+                const mock = getMockCoordinates(city);
+                if (mock) return findNearestAirport(city, async () => mock as any);
+                return findNearestAirport(city);
+              };
+              const tr = await calculateTravelMode({
+                artistLocation: artistLoc,
+                eventLocation: eventLoc,
+                numTravellers: Number(numTravelMembers || 1),
+                drivingEstimate,
+                travelRate,
+                travelDate: dt,
+                carRentalPrice: carRentalPrice,
+                flightPricePerPerson: flightPrice,
+              }, undefined as any, airportFn as any);
+              if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost)) {
+                setTravelResult(tr as any);
+              } else {
+                setTravelResult(baseTravelRes);
+              }
+            } else {
+              setTravelResult(baseTravelRes);
+            }
+          } catch {
+            setTravelResult(baseTravelRes);
+          }
+        }
       } else {
         // Still compute totals (including travel) on the server even if no external sound.
         try {
