@@ -257,7 +257,9 @@ export default function GroupRenderer({
           const byCtVid = ct.startsWith('video/');
           const byCtAud = ct.startsWith('audio/');
           const byNameImg = !!(meta?.original_filename || '').toLowerCase().match(/\.(jpe?g|png|webp|gif|heic|heif)$/i);
-          const hasImage = byCtImg || byNameImg || isImage(url);
+          const textLowerForDetect = String((m as any)?.content || '').toLowerCase();
+          const byTextImg = !!textLowerForDetect && !textLowerForDetect.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(textLowerForDetect);
+          const hasImage = byCtImg || byNameImg || isImage(url) || (byTextImg && !!url);
           const hasVideo = byCtVid || (!byCtAud && isVideo(url));
           const hasAudio = byCtAud || (!byCtVid && isAudio(url));
           const text = String(m?.content || '');
