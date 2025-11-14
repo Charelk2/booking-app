@@ -1469,6 +1469,7 @@ export function ReviewStep(props: {
     return () => { cancelled = true; };
   }, [subtotalForPreview, props.providerVatRegistered, props.providerVatRate]);
   const isProcessing = submitting || isLoadingReviewData;
+  const [acceptedTerms, setAcceptedTerms] = React.useState(false);
   const buttonLabel = (() => {
     if (isLoadingReviewData && !submitting) return 'Calculating estimates...';
     if (submitting && submitLabel === 'Submit Request') return 'Submitting...';
@@ -1623,7 +1624,13 @@ export function ReviewStep(props: {
 
       <div className="mt-6">
         <div className="flex items-start space-x-3 mb-4">
-          <input type="checkbox" id="terms" className="mt-1 h-3 w-3 bg-black rounded border-black/30 text-black" />
+          <input
+            type="checkbox"
+            id="terms"
+            className="mt-1 h-3 w-3 bg-black rounded border-black/30 text-black"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+          />
           <label htmlFor="terms" className="help-text">
             I have reviewed my details and agree to the{' '}
             <a href="#" className="text-black underline hover:underline underline-offset-4">
@@ -1635,7 +1642,7 @@ export function ReviewStep(props: {
           variant="primary"
           fullWidth
           isLoading={isProcessing}
-          disabled={reviewDataError !== null || travelResult === null}
+          disabled={reviewDataError !== null || travelResult === null || !acceptedTerms}
           onClick={(e) => {
             trackEvent('booking_submit');
             void props.onNext(e);
