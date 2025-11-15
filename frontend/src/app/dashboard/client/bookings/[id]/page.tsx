@@ -13,6 +13,7 @@ import { Spinner } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiUrl } from "@/lib/api";
 
+
 export default function BookingDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
