@@ -75,6 +75,21 @@ export default function ClientDashboardPage() {
       .slice(0, 5);
   }, [bookings]);
 
+  const getInvoiceHref = (booking: Booking): string | null => {
+    const anyBooking: any = booking as any;
+    const vis = Array.isArray(anyBooking.visible_invoices)
+      ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
+      : [];
+    const providerInv = vis.find(
+      (iv) => iv.type === 'provider_tax' || iv.type === 'provider_invoice',
+    );
+    const fallbackInv = vis.length ? vis[vis.length - 1] : undefined;
+    const target = providerInv || fallbackInv;
+    if (target && typeof target.id === 'number') return `/invoices/${target.id}`;
+    if (booking.invoice_id) return `/invoices/${booking.invoice_id}`;
+    return `/invoices/by-booking/${booking.id}?type=provider`;
+  };
+
   if (loading) {
     return (
       <MainLayout>
@@ -140,14 +155,20 @@ export default function ClientDashboardPage() {
                   </div>
                 </div>
                 <div className="mt-2">
-                  <a
-                    href={`/invoices/by-booking/${booking.id}?type=provider`}
-                    target="_blank"
-                    rel="noopener"
-                    className="text-brand-dark hover:underline text-sm"
-                  >
-                    View invoice
-                  </a>
+                  {(() => {
+                    const href = getInvoiceHref(booking);
+                    if (!href) return null;
+                    return (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener"
+                        className="text-brand-dark hover:underline text-sm"
+                      >
+                        View invoice
+                      </a>
+                    );
+                  })()}
                 </div>
               </div>
             )}
