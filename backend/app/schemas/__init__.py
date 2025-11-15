@@ -34,7 +34,7 @@ from .notification import (
     ThreadNotificationResponse,
     BookingDetailsSummary,
 )
-from .invoice import InvoiceRead, InvoiceMarkPaid
+from .invoice import InvoiceRead, InvoiceMarkPaid, InvoiceByBooking
 from .nlp import BookingParseRequest, ParsedBookingDetails
 from .service_category import ServiceCategoryResponse
 
@@ -100,4 +100,5 @@ __all__ = [
     "BookingParseRequest",
     "ParsedBookingDetails",
     "ServiceCategoryResponse",
+    "InvoiceByBooking",
 ]

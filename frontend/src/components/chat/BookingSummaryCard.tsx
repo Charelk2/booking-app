@@ -374,6 +374,52 @@ export default function BookingSummaryCard({
           } catch {}
           return null;
         })()}
+        {/* Booka tax invoice (client fee) – client only */}
+        {isClient &&
+          (() => {
+            try {
+              const paid = String(paymentInfo?.status || '').toLowerCase() === 'paid';
+              const status = String(bookingDetails?.status || '').toLowerCase();
+              const statusConfirmed = status.includes('confirmed') || status === 'completed';
+              const bookingId = bookingDetails?.id;
+              let bookaHref: string | null = null;
+              if (bookingId) {
+                const anyBooking: any = bookingDetails as any;
+                const vis = Array.isArray(anyBooking.visible_invoices)
+                  ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
+                  : [];
+                const clientFeeInv = vis.find((iv) => iv.type === 'client_fee_tax');
+                if (clientFeeInv && typeof clientFeeInv.id === 'number') {
+                  bookaHref = `/invoices/${clientFeeInv.id}`;
+                } else {
+                  bookaHref = `/invoices/by-booking/${bookingId}?type=client_fee`;
+                }
+              }
+              if ((paid || statusConfirmed) && bookaHref) {
+                return (
+                  <div className="mb-4 -mt-2">
+                    <a
+                      href={bookaHref}
+                      className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
+                      title="Download Booka Tax Invoice"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="w-4 h-4"
+                      >
+                        <path d="M6 3h9l3 3v15H6z" />
+                        <path d="M9 8h6v2H9zm0 4h6v2H9z" />
+                      </svg>
+                      Download Booka Tax Invoice
+                    </a>
+                  </div>
+                );
+              }
+            } catch {}
+            return null;
+          })()}
         {/* Event Details */}
         <section id="event-details" className="scroll-mt-20" aria-labelledby="event-details-h">
           <h2 id="event-details-h" className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
