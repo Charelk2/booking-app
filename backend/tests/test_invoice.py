@@ -15,6 +15,7 @@ from app.models import (
     QuoteStatusV2,
     BookingSimple,
     Invoice,
+    Booking,
 )
 from app.models.base import BaseModel
 from app.api.dependencies import get_db, get_current_user
@@ -156,4 +157,67 @@ def test_invoice_idempotency_by_type():
     com1 = inv.create_commission_invoice(db, bs)
     com2 = inv.create_commission_invoice(db, bs)
     assert com1.id == com2.id
+    db.close()
+
+
+def test_invoice_by_booking_provider_and_client_fee():
+    Session = setup_app()
+    db, client_user, artist_user, quote = create_records(Session)
+
+    # Accept quote to create Booking + BookingSimple
+    from app.crud import crud_quote_v2 as _cq
+    bs = _cq.accept_quote(db=db, quote_id=quote.id)
+    assert bs is not None
+
+    # Create provider and client-fee invoices for this booking_simple
+    from app.crud import crud_invoice as inv
+    provider = inv.create_provider_invoice(db, bs, vendor=True)
+    client_fee = inv.create_client_fee_invoice(db, bs)
+
+    booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
+    assert booking is not None
+
+    prev_db = app.dependency_overrides.get(get_db)
+    prev_user = app.dependency_overrides.get(get_current_user)
+
+    def _db_override():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = _db_override
+    app.dependency_overrides[get_current_user] = override_user(client_user)
+    client = TestClient(app)
+
+    # Provider invoice by formal booking id
+    res = client.get(f"/api/v1/invoices/by-booking/{booking.id}?type=provider")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["id"] == provider.id
+    assert data["booking_id"] == booking.id
+    assert data["booking_simple_id"] == bs.id
+    assert data["invoice_type"] in ("provider_tax", "provider_invoice")
+
+    # Client-fee (Booka tax) invoice by formal booking id
+    res = client.get(f"/api/v1/invoices/by-booking/{booking.id}?type=client_fee")
+    assert res.status_code == 200
+    data2 = res.json()
+    assert data2["id"] == client_fee.id
+    assert data2["booking_id"] == booking.id
+    assert data2["booking_simple_id"] == bs.id
+    assert data2["invoice_type"] == "client_fee_tax"
+
+    # No commission invoice yet → 404
+    res = client.get(f"/api/v1/invoices/by-booking/{booking.id}?type=commission")
+    assert res.status_code == 404
+
+    if prev_db is not None:
+        app.dependency_overrides[get_db] = prev_db
+    else:
+        app.dependency_overrides.pop(get_db, None)
+    if prev_user is not None:
+        app.dependency_overrides[get_current_user] = prev_user
+    else:
+        app.dependency_overrides.pop(get_current_user, None)
     db.close()

@@ -374,7 +374,7 @@ export default function BookingSummaryCard({
           } catch {}
           return null;
         })()}
-        {/* Booka tax invoice (client fee) – client only */}
+        {/* Booka tax invoice (client fee) – only when present for client */}
         {isClient &&
           (() => {
             try {
@@ -391,8 +391,6 @@ export default function BookingSummaryCard({
                 const clientFeeInv = vis.find((iv) => iv.type === 'client_fee_tax');
                 if (clientFeeInv && typeof clientFeeInv.id === 'number') {
                   bookaHref = `/invoices/${clientFeeInv.id}`;
-                } else {
-                  bookaHref = `/invoices/by-booking/${bookingId}?type=client_fee`;
                 }
               }
               if ((paid || statusConfirmed) && bookaHref) {
