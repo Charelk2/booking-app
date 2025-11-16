@@ -396,6 +396,11 @@ export default function InboxPage() {
       try {
         if (threads.find((r) => r.id === urlId)) applyLocalRead(urlId);
       } catch {}
+      // Persist selection so plain /inbox reloads restore this thread instead of falling back to threads[0]
+      try {
+        sessionStorage.setItem(SEL_KEY, String(urlId));
+        localStorage.setItem(SEL_KEY, JSON.stringify({ id: urlId, ts: Date.now() }));
+      } catch {}
       return;
     } else if (selectedThreadId == null) {
       // Try restore persisted selection first
