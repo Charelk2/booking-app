@@ -22,6 +22,7 @@ from app.models import (
     VisibleTo,
     MessageAction,
     BookingStatus,
+    Invoice,
 )
 from app.models.base import BaseModel
 from app.api.dependencies import get_db, get_current_active_client
@@ -156,6 +157,7 @@ def test_paystack_verify_sets_charged_total_amount(monkeypatch):
     prev_client = app.dependency_overrides.get(get_current_active_client)
     app.dependency_overrides[get_current_active_client] = override_client(client_user)
     monkeypatch.setattr(api_payment.settings, "PAYSTACK_SECRET_KEY", "sk_test")
+    monkeypatch.setattr(api_payment.settings, "ENABLE_SPLIT_INVOICING", True)
 
     client = TestClient(app)
     init_res = client.post(
@@ -200,6 +202,11 @@ def test_paystack_verify_sets_charged_total_amount(monkeypatch):
     assert Decimal(booking.charged_total_amount or 0) == Decimal("5550")
     total_to_pay, _, _ = api_payment._derive_receipt_amounts(booking, booking.quote)
     assert total_to_pay == pytest.approx(5550.0, rel=1e-6)
+    # Provider and Booka client-fee invoices should exist for this booking_simple when split invoicing is enabled
+    invoices = db.query(Invoice).filter(Invoice.booking_id == booking.id).all()
+    types = sorted((getattr(iv, "invoice_type", None) or "").lower() for iv in invoices)
+    assert any(t in ("provider_tax", "provider_invoice") for t in types)
+    assert "client_fee_tax" in types
     db.close()
 
     if prev_db is not None:

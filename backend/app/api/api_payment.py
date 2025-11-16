@@ -1002,6 +1002,12 @@ def paystack_verify(
             crud_invoice.create_provider_invoice(db, simple, vendor=is_vendor)
     except Exception:
         pass
+    # Best-effort: generate Booka client-fee tax invoice when split invoicing is enabled
+    try:
+        if settings.ENABLE_SPLIT_INVOICING:
+            crud_invoice.create_client_fee_invoice(db, simple)
+    except Exception:
+        pass
     try:
         hdr = timer.header()
         if hdr and response is not None:
@@ -1375,6 +1381,12 @@ async def paystack_webhook(
             prof = db.query(models.ServiceProviderProfile).filter(models.ServiceProviderProfile.user_id == int(simple.artist_id)).first()
             is_vendor = bool(getattr(prof, 'vat_registered', False))
             crud_invoice.create_provider_invoice(db, simple, vendor=is_vendor)
+    except Exception:
+        pass
+    # Best-effort: generate Booka client-fee tax invoice when split invoicing is enabled
+    try:
+        if settings.ENABLE_SPLIT_INVOICING:
+            crud_invoice.create_client_fee_invoice(db, simple)
     except Exception:
         pass
     # Metrics (best-effort)
