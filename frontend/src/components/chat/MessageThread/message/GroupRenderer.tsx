@@ -354,9 +354,9 @@ export default function GroupRenderer({
                 hasAnyQuote={hasAnyQuote}
                 onOpenDetails={onOpenDetailsPanel}
                 onOpenQuote={onOpenQuote}
-                onMarkCompleted={onMarkCompletedFromSystem}
-                onReportProblem={onReportProblemFromSystem}
-                onOpenReview={onOpenReviewFromSystem}
+                onMarkCompletedFromSystem={onMarkCompletedFromSystem}
+                onReportProblemFromSystem={onReportProblemFromSystem}
+                onOpenReviewFromSystem={onOpenReviewFromSystem}
               />
             );
           }
