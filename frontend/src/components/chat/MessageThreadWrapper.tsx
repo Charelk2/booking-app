@@ -938,9 +938,6 @@ export default function MessageThreadWrapper({
                 }
               } catch {}
             }}
-            canReviewClient={canProviderReviewClient}
-            isClientProfileOpen={isUserArtist && effectiveClientId > 0 ? showClientProfile : false}
-            onClientProfileOpenChange={setShowClientProfile}
             isPaidOverride={paymentStatus === 'paid'}
             onPresenceUpdate={isBookaModeration ? undefined : (s) => setPresenceHeader(s.label)}
             /** KEY: hide composer on mobile when details sheet is open */
@@ -949,6 +946,27 @@ export default function MessageThreadWrapper({
             disableComposer={isBookaModeration}
           />
         </div>
+
+        {/* Client profile panel anchored at wrapper level */}
+        {isUserArtist && effectiveClientId > 0 && (
+          <ClientProfilePanel
+            clientId={effectiveClientId}
+            clientName={
+              effectiveBookingRequest?.client
+                ? `${effectiveBookingRequest.client.first_name ?? ''} ${effectiveBookingRequest.client.last_name ?? ''}`.trim() || undefined
+                : undefined
+            }
+            clientAvatarUrl={
+              (effectiveBookingRequest?.client?.profile_picture_url ||
+                (effectiveBookingRequest as any)?.counterparty_avatar_url ||
+                null) as string | null
+            }
+            bookingRequestId={Number(bookingRequestId)}
+            canReview={canProviderReviewClient}
+            isOpen={showClientProfile}
+            onClose={() => setShowClientProfile(false)}
+          />
+        )}
 
         {/* Desktop side panel */}
         <section

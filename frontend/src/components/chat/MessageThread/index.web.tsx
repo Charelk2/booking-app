@@ -45,7 +45,6 @@ import { initAttachmentMessage, finalizeAttachmentMessage, apiUrl } from '@/lib/
 import { useDeclineQuote } from '@/hooks/useQuoteActions';
 import useTransportState from '@/hooks/useTransportState';
 import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
-import ClientProfilePanel from './ClientProfilePanel';
 // EventPrepCard previously rendered in the composer; now lives in Booking Details panel only.
 
 // ----------------------------------------------------------------
@@ -96,7 +95,6 @@ export type MessageThreadWebProps = {
   isActive?: boolean;
   clientName?: string;
   clientAvatarUrl?: string;
-   clientId?: number;
   artistName?: string;
   artistAvatarUrl?: string;
   onPayNow?: (quote: any) => void;
@@ -115,9 +113,6 @@ export type MessageThreadWebProps = {
     receiptUrl?: string | null,
     reference?: string | null,
   ) => void;
-  canReviewClient?: boolean;
-  isClientProfileOpen?: boolean;
-  onClientProfileOpenChange?: (open: boolean) => void;
   // allow passthrough
   [k: string]: any;
 };
@@ -131,7 +126,6 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     isActive = true,
     clientName,
     clientAvatarUrl,
-    clientId,
     artistName,
     artistAvatarUrl,
     onPayNow,
@@ -142,9 +136,6 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     initialBookingRequest,
     onContinueEventPrep,
     onPaymentStatusChange,
-    canReviewClient,
-    isClientProfileOpen,
-    onClientProfileOpenChange,
   } = props;
 
   // --- Auth / identity
@@ -175,19 +166,6 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const [highlightId, setHighlightId] = React.useState<number | null>(null);
   const [isAtBottom, setIsAtBottom] = React.useState(true);
   const [newAnchorId, setNewAnchorId] = React.useState<number | null>(null);
-  const [internalShowClientProfile, setInternalShowClientProfile] = React.useState(false);
-  const showClientProfile = typeof isClientProfileOpen === 'boolean' ? isClientProfileOpen : internalShowClientProfile;
-  const setShowClientProfile = (open: boolean) => {
-    try {
-      if (onClientProfileOpenChange) {
-        onClientProfileOpenChange(open);
-      } else {
-        setInternalShowClientProfile(open);
-      }
-    } catch {
-      // no-op
-    }
-  };
 
   // --- Quotes (must be initialized before useThreadData so we can pass ensureQuotesLoaded)
   const { quotesById, ensureQuoteLoaded, ensureQuotesLoaded, setQuote } = useQuotes(bookingRequestId) as any;
@@ -1450,55 +1428,10 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     } catch {}
   }, [acceptedQuoteForThread, ensureQuoteLoaded]);
 
-  const clientIdFromSnapshot = React.useMemo(() => {
-    if (typeof clientId === 'number' && Number.isFinite(clientId) && clientId > 0) {
-      return clientId;
-    }
-    try {
-      const raw = (initialBookingRequest as any) || {};
-      const cid = Number(raw?.client_id || 0);
-      return Number.isFinite(cid) && cid > 0 ? cid : 0;
-    } catch {
-      return 0;
-    }
-  }, [clientId, initialBookingRequest]);
-
-  // Event prep inline card is no longer shown in the composer.
-
   return (
     <>
       <ThreadView
-        header={
-          userType === 'service_provider' && clientIdFromSnapshot ? (
-            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-white/80">
-              <div className="flex items-center gap-2">
-                {clientAvatarUrl ? (
-                  <img
-                    src={clientAvatarUrl}
-                    alt={clientName || 'Client'}
-                    className="h-8 w-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold">
-                    {(clientName || 'C').charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-semibold text-gray-900">
-                    {clientName || 'Client'}
-                  </p>
-                  <button
-                    type="button"
-                    className="text-[11px] text-gray-600 hover:text-gray-900"
-                    onClick={() => setShowClientProfile(true)}
-                  >
-                    View client profile
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null
-        }
+        header={null}
         list={
         <ListComponent
           ref={listRef}
@@ -1566,17 +1499,6 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         </div>
       }
       />
-      {userType === 'service_provider' && clientIdFromSnapshot > 0 && (
-        <ClientProfilePanel
-          clientId={clientIdFromSnapshot}
-          clientName={clientName}
-          clientAvatarUrl={clientAvatarUrl}
-          bookingRequestId={bookingRequestId}
-          canReview={Boolean(canReviewClient)}
-          isOpen={showClientProfile}
-          onClose={() => setShowClientProfile(false)}
-        />
-      )}
     </>
   );
 }
