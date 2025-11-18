@@ -202,7 +202,7 @@ export default function SearchBar({
               <div
                 ref={popupContainerRef}
                 className={clsx(
-                  'absolute z-[60] rounded-2xl',
+                  'absolute z-[60] rounded-2xl p-4',
                   'bg-white border border-white/40 ring-1 ring-white/30 backdrop-blur-2xl shadow-xl',
                   'origin-top-left',
                 )}
