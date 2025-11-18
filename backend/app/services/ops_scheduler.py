@@ -477,6 +477,47 @@ def handle_auto_completion(db: Session) -> dict:
                 visible_to=models.VisibleTo.BOTH,
                 system_key="event_auto_completed_v1",
             )
+            # Best-effort review invite system line for the client
+            try:
+                existing_invite = (
+                    db.query(models.Message)
+                    .filter(
+                        models.Message.booking_request_id == br_id,
+                        models.Message.message_type == models.MessageType.SYSTEM,
+                        models.Message.system_key == "review_invite_client_v1",
+                    )
+                    .first()
+                )
+                if not existing_invite:
+                    client = (
+                        db.query(models.User)
+                        .filter(models.User.id == b.client_id)
+                        .first()
+                    )
+                    artist_profile = (
+                        db.query(models.ServiceProviderProfile)
+                        .filter(models.ServiceProviderProfile.user_id == b.artist_id)
+                        .first()
+                    )
+                    provider_name = (
+                        (artist_profile.business_name or "").strip()
+                        if artist_profile and artist_profile.business_name
+                        else ""
+                    )
+                    content = (
+                        f"How was your event with {provider_name or 'your service provider'}? "
+                        "Leave a rating and short review to help others book with confidence."
+                    )
+                    _post_system(
+                        db,
+                        br_id,
+                        actor_id=b.artist_id,
+                        content=content,
+                        visible_to=models.VisibleTo.CLIENT,
+                        system_key="review_invite_client_v1",
+                    )
+            except Exception:
+                pass
         try:
             from ..utils.notifications import notify_review_request
 

@@ -389,7 +389,8 @@ def update_booking_status(
     ):
         # Post a system message into the thread so both parties see that the
         # provider marked the event as completed, and trigger the existing
-        # review request notification for the client.
+        # review request notification for the client. Also emit a review invite
+        # system message for the client, deduped per thread.
         br_id = None
         try:
             from ..services.ops_scheduler import _resolve_booking_request_id  # type: ignore
@@ -402,7 +403,7 @@ def update_booking_status(
                 from ..crud import crud_message
                 from .. import models as _models
 
-                content = (
+                completion_content = (
                     f"{current_artist.first_name} has marked this event as completed. "
                     "If something was not as expected, you can report a problem within the next 12 hours."
                 )
@@ -411,11 +412,46 @@ def update_booking_status(
                     booking_request_id=br_id,
                     sender_id=current_artist.id,
                     sender_type=_models.SenderType.ARTIST,
-                    content=content,
+                    content=completion_content,
                     message_type=_models.MessageType.SYSTEM,
                     visible_to=_models.VisibleTo.BOTH,
                     system_key="booking_completed_v1",
                 )
+                # Review invite for the client (if not already present)
+                existing_invite = (
+                    db.query(_models.Message)
+                    .filter(
+                        _models.Message.booking_request_id == br_id,
+                        _models.Message.message_type == _models.MessageType.SYSTEM,
+                        _models.Message.system_key == "review_invite_client_v1",
+                    )
+                    .first()
+                )
+                if not existing_invite:
+                    artist_profile = (
+                        db.query(ServiceProviderProfile)
+                        .filter(ServiceProviderProfile.user_id == booking.artist_id)
+                        .first()
+                    )
+                    provider_name = (
+                        (artist_profile.business_name or "").strip()
+                        if artist_profile and artist_profile.business_name
+                        else ""
+                    )
+                    invite_content = (
+                        f"How was your event with {provider_name or 'your service provider'}? "
+                        "Leave a rating and short review to help others book with confidence."
+                    )
+                    crud_message.create_message(
+                        db=db,
+                        booking_request_id=br_id,
+                        sender_id=current_artist.id,
+                        sender_type=_models.SenderType.ARTIST,
+                        content=invite_content,
+                        message_type=_models.MessageType.SYSTEM,
+                        visible_to=_models.VisibleTo.CLIENT,
+                        system_key="review_invite_client_v1",
+                    )
             except Exception:
                 pass
 
