@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
 from typing import List, Any, Optional, Literal
+from pydantic import BaseModel
 import logging
 
 from .. import crud, models, schemas
@@ -144,7 +145,7 @@ def get_booking_id_for_request(
     return {"booking_id": (booking[0] if booking else None)}
 
 
-class ReportProblemPayload(schemas.BaseModel):  # type: ignore[misc]
+class ReportProblemPayload(BaseModel):
     category: Literal[
         "service_quality",
         "no_show",

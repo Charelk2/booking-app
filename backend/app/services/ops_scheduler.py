@@ -448,7 +448,9 @@ def handle_auto_completion(db: Session) -> dict:
     bookings = (
         db.query(models.Booking)
         .filter(
-            models.Booking.status == models.BookingStatus.CONFIRMED,
+            models.Booking.status.in_(
+                [models.BookingStatus.CONFIRMED, models.BookingStatus.COMPLETED]
+            ),
             models.Booking.end_time != None,  # noqa: E711
             models.Booking.end_time <= now - timedelta(hours=12),
         )
@@ -460,24 +462,28 @@ def handle_auto_completion(db: Session) -> dict:
             continue
 
         prev_status = b.status
-        b.status = models.BookingStatus.COMPLETED
-        db.add(b)
-        db.commit()
+        just_completed = False
+        if b.status == models.BookingStatus.CONFIRMED:
+            b.status = models.BookingStatus.COMPLETED
+            db.add(b)
+            db.commit()
+            just_completed = True
 
         br_id = _resolve_booking_request_id(db, b)
         if br_id:
-            _post_system(
-                db,
-                br_id,
-                actor_id=b.artist_id,
-                content=(
-                    "This event has been automatically marked as completed. "
-                    "If you still need help, you can contact support from this conversation."
-                ),
-                visible_to=models.VisibleTo.BOTH,
-                system_key="event_auto_completed_v1",
-            )
-            # Best-effort review invite system line for the client
+            if just_completed:
+                _post_system(
+                    db,
+                    br_id,
+                    actor_id=b.artist_id,
+                    content=(
+                        "This event has been automatically marked as completed. "
+                        "If you still need help, you can contact support from this conversation."
+                    ),
+                    visible_to=models.VisibleTo.BOTH,
+                    system_key="event_auto_completed_v1",
+                )
+            # Best-effort review invite system lines for both sides
             try:
                 existing_invite = (
                     db.query(models.Message)
@@ -489,11 +495,6 @@ def handle_auto_completion(db: Session) -> dict:
                     .first()
                 )
                 if not existing_invite:
-                    client = (
-                        db.query(models.User)
-                        .filter(models.User.id == b.client_id)
-                        .first()
-                    )
                     artist_profile = (
                         db.query(models.ServiceProviderProfile)
                         .filter(models.ServiceProviderProfile.user_id == b.artist_id)
@@ -516,12 +517,45 @@ def handle_auto_completion(db: Session) -> dict:
                         visible_to=models.VisibleTo.CLIENT,
                         system_key="review_invite_client_v1",
                     )
+                # Provider-side invite to review the client
+                existing_provider_invite = (
+                    db.query(models.Message)
+                    .filter(
+                        models.Message.booking_request_id == br_id,
+                        models.Message.message_type == models.MessageType.SYSTEM,
+                        models.Message.system_key == "review_invite_provider_v1",
+                    )
+                    .first()
+                )
+                if not existing_provider_invite:
+                    client = (
+                        db.query(models.User)
+                        .filter(models.User.id == b.client_id)
+                        .first()
+                    )
+                    client_label = (
+                        f"{client.first_name} {client.last_name}".strip()
+                        if client
+                        else "this client"
+                    )
+                    provider_invite_content = (
+                        f"How was your experience with {client_label}? "
+                        "Share a short review to help you and other providers identify reliable clients."
+                    )
+                    _post_system(
+                        db,
+                        br_id,
+                        actor_id=b.artist_id,
+                        content=provider_invite_content,
+                        visible_to=models.VisibleTo.ARTIST,
+                        system_key="review_invite_provider_v1",
+                    )
             except Exception:
                 pass
         try:
             from ..utils.notifications import notify_review_request
 
-            if prev_status != models.BookingStatus.COMPLETED:
+            if prev_status != models.BookingStatus.COMPLETED and just_completed:
                 client = (
                     db.query(models.User)
                     .filter(models.User.id == b.client_id)

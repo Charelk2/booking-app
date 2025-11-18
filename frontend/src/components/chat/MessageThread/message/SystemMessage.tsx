@@ -232,6 +232,43 @@ export default function SystemMessage({
       );
     }
 
+    // Review invite for provider (review the client)
+    if (key === 'review_invite_provider_v1') {
+      return (
+        <div className="my-2 w-full flex justify-center">
+          <div className="mx-auto flex max-w-2xl items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-black text-white text-xs font-semibold">
+                ★
+              </span>
+              <div>
+                <div className="text-sm font-semibold">
+                  {t('system.reviewInviteProviderTitle', 'How was your client?')}
+                </div>
+                <div className="text-xs text-gray-600">
+                  {t(
+                    'system.reviewInviteProviderBody',
+                    'Share feedback about communication, punctuality, and overall experience.',
+                  )}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="rounded-md bg-black px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-900"
+              onClick={() => {
+                try {
+                  onOpenReview?.();
+                } catch {}
+              }}
+            >
+              {t('system.reviewClient', 'Review client')}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     // Payment received
     if (key.includes('payment_received') || content.toLowerCase().includes('payment received')) {
       // Extract a receipt link from the content. Prefer absolute; fall back to

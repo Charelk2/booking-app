@@ -48,6 +48,10 @@ export function systemLabel(m: AnyMsg): string {
       return t('system.eventAutoCompleted', 'Event completed automatically');
     case 'dispute_opened_v1':
       return t('system.disputeOpened', 'Problem reported');
+    case 'review_invite_client_v1':
+      return t('system.reviewInviteClient', 'Review your event');
+    case 'review_invite_provider_v1':
+      return t('system.reviewInviteProvider', 'Review your client');
     default: {
       const content = (m.content || '').trim();
       if (!content) return t('system.update', 'Update');
