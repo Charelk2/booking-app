@@ -96,6 +96,7 @@ export type MessageThreadWebProps = {
   isActive?: boolean;
   clientName?: string;
   clientAvatarUrl?: string;
+   clientId?: number;
   artistName?: string;
   artistAvatarUrl?: string;
   onPayNow?: (quote: any) => void;
@@ -130,6 +131,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     isActive = true,
     clientName,
     clientAvatarUrl,
+    clientId,
     artistName,
     artistAvatarUrl,
     onPayNow,
@@ -1447,6 +1449,9 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   }, [acceptedQuoteForThread, ensureQuoteLoaded]);
 
   const clientIdFromSnapshot = React.useMemo(() => {
+    if (typeof clientId === 'number' && Number.isFinite(clientId) && clientId > 0) {
+      return clientId;
+    }
     try {
       const raw = (initialBookingRequest as any) || {};
       const cid = Number(raw?.client_id || 0);
@@ -1454,7 +1459,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     } catch {
       return 0;
     }
-  }, [initialBookingRequest]);
+  }, [clientId, initialBookingRequest]);
 
   // Event prep inline card is no longer shown in the composer.
 

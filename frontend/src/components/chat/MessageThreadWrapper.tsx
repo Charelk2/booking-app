@@ -286,11 +286,15 @@ export default function MessageThreadWrapper({
     };
   }, [bookingRequestId]);
 
+  const effectiveBookingRequest = useMemo(() => {
+    return (bookingRequestFull || bookingRequest || null) as BookingRequest | null;
+  }, [bookingRequestFull, bookingRequest]);
+
   const providerProfile = useMemo(() => {
-    const base: any = bookingRequestFull || bookingRequest || null;
+    const base: any = effectiveBookingRequest;
     if (!base) return null;
     return base.service_provider_profile ?? null;
-  }, [bookingRequest, bookingRequestFull]);
+  }, [effectiveBookingRequest]);
 
   const providerVatRegistered = Boolean(providerProfile?.vat_registered);
   const providerVatRate = useMemo(() => {
@@ -686,11 +690,21 @@ export default function MessageThreadWrapper({
 
   // Detect Booka moderation system message
   const isBookaModeration = (() => {
-    const text = (bookingRequest?.last_message_content || '').toString();
-    const synthetic = Boolean((bookingRequest as any)?.is_booka_synthetic);
-    const label = (bookingRequest as any)?.counterparty_label || '';
+    const text = (effectiveBookingRequest?.last_message_content || '').toString();
+    const synthetic = Boolean((effectiveBookingRequest as any)?.is_booka_synthetic);
+    const label = (effectiveBookingRequest as any)?.counterparty_label || '';
     return synthetic || label === 'Booka' || /^\s*listing\s+(approved|rejected)\s*:/i.test(text);
   })();
+
+  const effectiveClientId = useMemo(() => {
+    try {
+      const raw = (effectiveBookingRequest as any) || {};
+      const cid = Number(raw?.client_id || 0);
+      return Number.isFinite(cid) && cid > 0 ? cid : 0;
+    } catch {
+      return 0;
+    }
+  }, [effectiveBookingRequest]);
 
   const canProviderReviewClient = Boolean(
     isUserArtist && bookingRequest && String(bookingRequest.status || '').toLowerCase() === 'completed',
@@ -702,7 +716,7 @@ export default function MessageThreadWrapper({
       <header className="sticky top-0 z-10 bg-white text-gray-900 px-3 py-2 sm:px-5 sm:py-3 flex items-center justify-between border-b border-gray-200 md:min-h-[64px]">
         <div className="flex items-center gap-3">
           {/* Avatar */}
-          {bookingRequest ? (
+          {effectiveBookingRequest ? (
             isBookaModeration ? (
               <div className="h-10 w-10 rounded-full bg-black text-white flex items-center justify-center text-base font-medium" aria-label="Booka system">
                 B
@@ -720,26 +734,26 @@ export default function MessageThreadWrapper({
                 />
               ) : (
                 <div className="h-10 w-10 rounded-full bg-black flex items-center justify-center text-base font-medium text-white" aria-hidden>
-                  {(counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'U') || 'U').charAt(0)}
+                  {(counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'U') || 'U').charAt(0)}
                 </div>
               )
             ) : (bookingRequest.artist_profile?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ? (
               <Link
                 href={`/service-providers/${
-                  (bookingRequest as any).service_provider_id ||
-                  (bookingRequest as any).artist_id ||
-                  (bookingRequest as any).artist?.id ||
-                  (bookingRequest as any).artist_profile?.user_id ||
-                  (bookingRequest as any).service?.service_provider_id ||
-                  (bookingRequest as any).service?.artist_id ||
-                  (bookingRequest as any).service?.artist?.user_id ||
+                  (effectiveBookingRequest as any).service_provider_id ||
+                  (effectiveBookingRequest as any).artist_id ||
+                  (effectiveBookingRequest as any).artist?.id ||
+                  (effectiveBookingRequest as any).artist_profile?.user_id ||
+                  (effectiveBookingRequest as any).service?.service_provider_id ||
+                  (effectiveBookingRequest as any).service?.artist_id ||
+                  (effectiveBookingRequest as any).service?.artist?.user_id ||
                   ''
                 }`}
                 aria-label="Service Provider profile"
                 className="flex-shrink-0"
               >
                 <SafeImage
-                  src={(bookingRequest.artist_profile?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) as string}
+                  src={(effectiveBookingRequest.artist_profile?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) as string}
                   alt="Service Provider avatar"
                   width={40}
                   height={40}
@@ -750,7 +764,7 @@ export default function MessageThreadWrapper({
               </Link>
             ) : (
               <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-base font-medium text-gray-600" aria-hidden>
-                {(counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'U') || 'U').charAt(0)}
+                {(counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'U') || 'U').charAt(0)}
               </div>
             )
           ) : (
@@ -760,10 +774,10 @@ export default function MessageThreadWrapper({
           {/* Name + presence */}
           <div className="flex flex-col">
             <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
-              {bookingRequest
+              {effectiveBookingRequest
                 ? (isBookaModeration
                     ? 'Booka'
-                    : counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'User') || 'User')
+                    : counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'User') || 'User')
                 : 'Messages'}
             </span>
             {presenceHeader && !isBookaModeration ? (
@@ -776,7 +790,7 @@ export default function MessageThreadWrapper({
 
         {/* Actions */}
         <div className="flex items-center gap-2 px-2 sm:px-4">
-          {isUserArtist && bookingRequest?.client_id ? (
+          {isUserArtist && effectiveClientId ? (
             <button
               type="button"
               onClick={() => setShowClientProfile(true)}
@@ -808,26 +822,27 @@ export default function MessageThreadWrapper({
         >
           <MessageThread
             bookingRequestId={bookingRequestId}
-            initialBookingRequest={bookingRequest}
+            initialBookingRequest={effectiveBookingRequest}
             isActive={isActive}
-            serviceId={bookingRequest?.service_id ?? undefined}
+            serviceId={effectiveBookingRequest?.service_id ?? undefined}
             clientName={isUserArtist
-              ? (counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'Client') || 'Client')
+              ? (counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'Client') || 'Client')
               : (user?.first_name ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` : 'Client')}
             artistName={!isUserArtist
-              ? (counterpartyLabel(bookingRequest as any, user ?? undefined, (bookingRequest as any)?.counterparty_label || 'Service Provider') || 'Service Provider')
-              : (bookingRequest?.artist_profile?.business_name || (bookingRequest as any)?.artist?.business_name || (bookingRequest as any)?.artist?.first_name || 'Service Provider')}
+              ? (counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'Service Provider') || 'Service Provider')
+              : (effectiveBookingRequest?.artist_profile?.business_name || (effectiveBookingRequest as any)?.artist?.business_name || (effectiveBookingRequest as any)?.artist?.first_name || 'Service Provider')}
             artistAvatarUrl={!isUserArtist
-              ? ((bookingRequest?.artist_profile?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ?? null)
-              : (bookingRequest?.artist_profile?.profile_picture_url ?? null)}
+              ? ((effectiveBookingRequest?.artist_profile?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) ?? null)
+              : (effectiveBookingRequest?.artist_profile?.profile_picture_url ?? null)}
             clientAvatarUrl={isUserArtist
-              ? ((bookingRequest?.client?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ?? null)
-              : (bookingRequest?.client?.profile_picture_url ?? null)}
-            serviceName={bookingRequest?.service?.title}
-            initialNotes={bookingRequest?.message ?? null}
-            artistCancellationPolicy={bookingRequest?.artist_profile?.cancellation_policy ?? null}
-            initialBaseFee={bookingRequest?.service?.price ? Number(bookingRequest.service.price) : undefined}
-            initialTravelCost={bookingRequest && bookingRequest.travel_cost !== null && bookingRequest.travel_cost !== undefined ? Number(bookingRequest.travel_cost) : undefined}
+              ? ((effectiveBookingRequest?.client?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) ?? null)
+              : (effectiveBookingRequest?.client?.profile_picture_url ?? null)}
+            clientId={effectiveClientId || undefined}
+            serviceName={effectiveBookingRequest?.service?.title}
+            initialNotes={effectiveBookingRequest?.message ?? null}
+            artistCancellationPolicy={effectiveBookingRequest?.artist_profile?.cancellation_policy ?? null}
+            initialBaseFee={effectiveBookingRequest?.service?.price ? Number(effectiveBookingRequest.service.price) : undefined}
+            initialTravelCost={effectiveBookingRequest && effectiveBookingRequest.travel_cost !== null && effectiveBookingRequest.travel_cost !== undefined ? Number(effectiveBookingRequest.travel_cost) : undefined}
             initialSoundNeeded={parsedDetails?.soundNeeded?.toLowerCase() === 'yes'}
             onBookingDetailsParsed={handleParsedDetails}
             onBookingConfirmedChange={(confirmed: boolean, booking: any) => {
