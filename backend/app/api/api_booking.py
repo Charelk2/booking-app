@@ -387,6 +387,38 @@ def update_booking_status(
         prev_status != BookingStatus.COMPLETED
         and booking.status == BookingStatus.COMPLETED
     ):
+        # Post a system message into the thread so both parties see that the
+        # provider marked the event as completed, and trigger the existing
+        # review request notification for the client.
+        br_id = None
+        try:
+            from ..services.ops_scheduler import _resolve_booking_request_id  # type: ignore
+
+            br_id = _resolve_booking_request_id(db, booking)
+        except Exception:
+            br_id = None
+        if br_id:
+            try:
+                from ..crud import crud_message
+                from .. import models as _models
+
+                content = (
+                    f"{current_artist.first_name} has marked this event as completed. "
+                    "If something was not as expected, you can report a problem within the next 12 hours."
+                )
+                crud_message.create_message(
+                    db=db,
+                    booking_request_id=br_id,
+                    sender_id=current_artist.id,
+                    sender_type=_models.SenderType.ARTIST,
+                    content=content,
+                    message_type=_models.MessageType.SYSTEM,
+                    visible_to=_models.VisibleTo.BOTH,
+                    system_key="booking_completed_v1",
+                )
+            except Exception:
+                pass
+
         from ..utils.notifications import notify_review_request
 
         notify_review_request(db, booking.client, booking.id)

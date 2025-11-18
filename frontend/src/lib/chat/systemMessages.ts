@@ -41,6 +41,13 @@ export function systemLabel(m: AnyMsg): string {
       return t('system.quoteExpired', 'Quote expired');
     case 'booking_confirmed':
       return t('system.bookingConfirmed', 'Booking confirmed');
+    case 'event_finished_v1:client':
+    case 'event_finished_v1:artist':
+      return t('system.eventFinished', 'Event finished');
+    case 'event_auto_completed_v1':
+      return t('system.eventAutoCompleted', 'Event completed automatically');
+    case 'dispute_opened_v1':
+      return t('system.disputeOpened', 'Problem reported');
     default: {
       const content = (m.content || '').trim();
       if (!content) return t('system.update', 'Update');

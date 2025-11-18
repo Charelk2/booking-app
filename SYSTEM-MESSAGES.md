@@ -144,29 +144,76 @@ Payment‑side state changes performed alongside messaging:
 
 Deposit flow was removed. Clients pay the full amount upfront; no deposit reminders or CTAs are emitted.
 
-### E) Pre‑Event Reminders (T‑3d / T‑24h)
-
+### E) Pre‑Event Reminders (T‑7d / T‑3d / T‑day)
 Source: `backend/app/services/ops_scheduler.py::handle_pre_event_reminders` (runs every ~30 min via `ops_maintenance_loop` in `backend/app/main.py`). Only for `Booking.status==CONFIRMED`.
 
 1) Client‑facing reminder (SYSTEM_INFO)
-- Exact content:
-  - `Event in 3 days: {YYYY-MM-DD HH:MM}. Add to calendar: /api/v1/bookings/{booking_id}/calendar.ics. Please share any access/parking details and confirm guest count.`
-  - For T‑24h, label changes to `Event is tomorrow` (same format otherwise).
+- Exact content (normalized):
+  - **T‑7d**: `Event in 7 days: {YYYY-MM-DD}. Your event is in 7 days. Please review your booking details (time, address, guest count and any special requests) and use this chat if anything needs to change.`
+  - **T‑3d**: `Event in 3 days: {YYYY-MM-DD}. Your event is in 3 days. Please reconfirm the time and address, plan your arrival, and share any last-minute updates in this chat.`
+  - **T‑day**: `Event is today: {YYYY-MM-DD}. Your event is today. Please be ready at the confirmed time and keep your phone available so your service provider can reach you if needed.`
 - `visible_to`: `client`
 - Sender: artist
 - Notifications: Yes – created via `_post_system`, which invokes `notify_user_new_message` for both sides (unless filtered by its skip rules, which do not include these reminders).
 - Rendering (frontend normalization):
-  - Rewrites to short label: `Event in {n} days: {yyyy-mm-dd}. Add to calendar: {url}. If not done yet, please finalise event prep.`
-  - If a `.ics` URL can’t be resolved, renders the no‑link variant.
+  - Rewrites to short label: `Event in {n} days: {yyyy-mm-dd}.` / `Event is today: {yyyy-mm-dd}.`
 
 2) Artist‑facing reminder (SYSTEM_INFO)
-- Exact content:
-  - `Event in 3 days: {YYYY-MM-DD HH:MM}. Tech check and arrival time confirmed? If sound is required, ensure supplier status is up to date in this thread.`
-  - For T‑24h: `Event is tomorrow: {YYYY-MM-DD HH:MM}. ...` (same follow‑up text).
+- Exact content (normalized):
+  - **T‑7d**: `Event in 7 days: {YYYY-MM-DD}. You have an event in 7 days. Please review the booking details, confirm your schedule, travel and equipment, and message the client if you need any clarification.`
+  - **T‑3d**: `Event in 3 days: {YYYY-MM-DD}. Your event is in 3 days. Please confirm the time and address, check technical and setup requirements, and share your arrival plan with the client.`
+  - **T‑day**: `Event is today: {YYYY-MM-DD}. Your event is today. Please allow enough time for travel and setup, and use this chat to update the client immediately if anything changes.`
 - `visible_to`: `artist`
 - Sender: artist
 - Notifications: same as above.
 - Rendering: same centered system style; shorter normalized copy used when possible.
+
+### F) Post‑Event Completion & Complaints
+
+Source:
+- `backend/app/services/ops_scheduler.py::handle_post_event_prompts`
+- `backend/app/services/ops_scheduler.py::handle_auto_completion`
+- `backend/app/api/api_booking.py::update_booking_status`
+- `backend/app/api/api_booking_request.py::report_problem_for_request`
+
+1) Event finished prompts (SYSTEM_INFO)
+- Keys:
+  - `event_finished_v1:client`
+  - `event_finished_v1:artist`
+- Emitted when `now >= end_time` and `< end_time + 12h` for `Booking.status==CONFIRMED` (once per booking/thread).
+- Client content:
+  - `Event finished: {YYYY-MM-DD}. Your event has finished. If anything was not as expected, you can report a problem from this chat within 12 hours.`
+- Artist content:
+  - `Event finished: {YYYY-MM-DD}. Your event has finished. Review the event and mark this booking as completed, or report a problem if something went wrong.`
+- `visible_to`: `client` / `artist` respectively.
+- Rendering: rich CTA card with “Mark as completed” (artist only) and “Report a problem” buttons inline in the thread.
+
+2) Auto‑completion (SYSTEM_INFO)
+- Key: `event_auto_completed_v1`
+- Emitted by `handle_auto_completion` when:
+  - `Booking.status==CONFIRMED`,
+  - `now >= end_time + 12h`, and
+  - no open dispute exists in `disputes` for that booking.
+- Content:
+  - `This event has been automatically marked as completed. If you still need help, you can contact support from this conversation.`
+- `visible_to`: `both`
+- Rendering: centered banner; client also sees a “Leave review” button which opens the existing review flow.
+
+3) Manual completion (artist‑initiated)
+- Key: `booking_completed_v1`
+- Emitted by `PATCH /api/v1/bookings/{booking_id}/status` when an artist moves a booking to `COMPLETED`.
+- Content:
+  - `{ARTIST_NAME} has marked this event as completed. If something was not as expected, you can report a problem within the next 12 hours.`
+- `visible_to`: `both`
+- Rendering: centered line with optional “Report a problem” button in the client UI.
+
+4) Dispute / complaint opened
+- Key: `dispute_opened_v1`
+- Emitted by `POST /api/v1/booking-requests/{request_id}/report-problem`.
+- Content:
+  - `A problem has been reported for this event. Our team will review the details. Messages in this chat are still visible to both parties, but we may step in if needed.`
+- `visible_to`: `both`
+- Rendering: yellow banner indicating that a complaint is open; auto‑completion logic skips bookings with open disputes.
 
 
 ## Notifications vs. System Messages

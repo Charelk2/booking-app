@@ -14,6 +14,7 @@ from ..utils.notifications import (
 )
 from ..api.api_sound_outreach import _preferred_suppliers_for_city, _fallback_sound_services
 from ..crud import crud_sound, crud_service
+from sqlalchemy import and_
 
 
 def _resolve_booking_request_id(db: Session, booking: models.Booking) -> Optional[int]:
@@ -25,6 +26,21 @@ def _resolve_booking_request_id(db: Session, booking: models.Booking) -> Optiona
         return None
     qv2 = db.query(models.QuoteV2).filter(models.QuoteV2.id == booking.quote_id).first()
     return qv2.booking_request_id if qv2 else None
+
+
+def _has_open_dispute(db: Session, booking_id: int) -> bool:
+    """Return True if there is an open/active dispute row for this booking."""
+    try:
+        # Use raw SQL to match the lightweight disputes table created in db_utils.
+        row = db.execute(
+            models.text(
+                "SELECT 1 FROM disputes WHERE booking_id=:bid AND status IN ('open', 'needs_info') LIMIT 1"
+            ),
+            {"bid": int(booking_id)},
+        ).fetchone()
+        return row is not None
+    except Exception:
+        return False
 
 
 def _post_system(
@@ -344,6 +360,141 @@ def handle_pre_event_reminders(db: Session) -> int:
     return sent
 
 
+def handle_post_event_prompts(db: Session) -> dict:
+    """Send post-event prompts shortly after end_time to both parties."""
+    now = datetime.utcnow()
+    results = {"post_event_prompts_created": 0}
+
+    bookings = (
+        db.query(models.Booking)
+        .filter(
+            models.Booking.status == models.BookingStatus.CONFIRMED,
+            models.Booking.end_time != None,  # noqa: E711
+        )
+        .all()
+    )
+    for b in bookings:
+        if not b.end_time:
+            continue
+        # Only consider events that have ended but are still within the
+        # complaint window horizon; auto-completion covers the later phase.
+        if not (now >= b.end_time and now < b.end_time + timedelta(hours=12)):
+            continue
+
+        br_id = _resolve_booking_request_id(db, b)
+        if not br_id:
+            continue
+
+        # Dedupe: only send once per thread per role.
+        existing = (
+            db.query(models.Message)
+            .filter(
+                models.Message.booking_request_id == br_id,
+                models.Message.message_type == models.MessageType.SYSTEM,
+                models.Message.system_key.in_(
+                    ["event_finished_v1:client", "event_finished_v1:artist"]
+                ),
+            )
+            .first()
+        )
+        if existing:
+            continue
+
+        date_str = b.end_time.strftime("%Y-%m-%d")
+
+        client = db.query(models.User).filter(models.User.id == b.client_id).first()
+        artist = db.query(models.User).filter(models.User.id == b.artist_id).first()
+        if not client or not artist:
+            continue
+
+        client_content = (
+            f"Event finished: {date_str}. "
+            "Your event has finished. If anything was not as expected, you can "
+            "report a problem from this chat within 12 hours."
+        )
+        artist_content = (
+            f"Event finished: {date_str}. "
+            "Your event has finished. Review the event and mark this booking as "
+            "completed, or report a problem if something went wrong."
+        )
+
+        _post_system(
+            db,
+            br_id,
+            actor_id=artist.id,
+            content=client_content,
+            visible_to=models.VisibleTo.CLIENT,
+            system_key="event_finished_v1:client",
+        )
+        _post_system(
+            db,
+            br_id,
+            actor_id=artist.id,
+            content=artist_content,
+            visible_to=models.VisibleTo.ARTIST,
+            system_key="event_finished_v1:artist",
+        )
+
+        results["post_event_prompts_created"] += 2
+
+    return results
+
+
+def handle_auto_completion(db: Session) -> dict:
+    """Auto-complete bookings 12h after end_time when no dispute is open."""
+    now = datetime.utcnow()
+    results = {"auto_completed": 0, "skipped_due_to_dispute": 0}
+
+    bookings = (
+        db.query(models.Booking)
+        .filter(
+            models.Booking.status == models.BookingStatus.CONFIRMED,
+            models.Booking.end_time != None,  # noqa: E711
+            models.Booking.end_time <= now - timedelta(hours=12),
+        )
+        .all()
+    )
+    for b in bookings:
+        if _has_open_dispute(db, int(b.id)):
+            results["skipped_due_to_dispute"] += 1
+            continue
+
+        prev_status = b.status
+        b.status = models.BookingStatus.COMPLETED
+        db.add(b)
+        db.commit()
+
+        br_id = _resolve_booking_request_id(db, b)
+        if br_id:
+            _post_system(
+                db,
+                br_id,
+                actor_id=b.artist_id,
+                content=(
+                    "This event has been automatically marked as completed. "
+                    "If you still need help, you can contact support from this conversation."
+                ),
+                visible_to=models.VisibleTo.BOTH,
+                system_key="event_auto_completed_v1",
+            )
+        try:
+            from ..utils.notifications import notify_review_request
+
+            if prev_status != models.BookingStatus.COMPLETED:
+                client = (
+                    db.query(models.User)
+                    .filter(models.User.id == b.client_id)
+                    .first()
+                )
+                notify_review_request(db, client, int(b.id))
+        except Exception:
+            pass
+
+        results["auto_completed"] += 1
+
+    return results
+
+
 def run_maintenance() -> dict:
     """Run all operational maintenance tasks once and return a summary.
 
@@ -359,11 +510,19 @@ def run_maintenance() -> dict:
     with SessionLocal() as db:
         pre = handle_pre_event_reminders(db)
 
+    # Post-event prompts
+    with SessionLocal() as db:
+        post = handle_post_event_prompts(db)
+
+    # Auto-completion
+    with SessionLocal() as db:
+        auto = handle_auto_completion(db)
+
     # Artist accept timeouts
     with SessionLocal() as db:
         artist_timeouts = handle_artist_accept_timeouts(db)
 
-    return {**so, "pre_event_messages": pre, **artist_timeouts}
+    return {**so, "pre_event_messages": pre, **post, **auto, **artist_timeouts}
 
 
 def handle_artist_accept_timeouts(db: Session) -> dict:

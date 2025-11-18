@@ -53,6 +53,9 @@ export type GroupRendererProps = {
   isPaid?: boolean;
   /** Thread-wide hint: there is at least one quote message in this thread */
   threadHasQuote?: boolean;
+  onMarkCompletedFromSystem?: () => void;
+  onReportProblemFromSystem?: () => void;
+  onOpenReviewFromSystem?: () => void;
 };
 
 export default function GroupRenderer({
@@ -84,6 +87,9 @@ export default function GroupRenderer({
   resolveReplyPreview,
   isPaid = false,
   threadHasQuote = false,
+  onMarkCompletedFromSystem,
+  onReportProblemFromSystem,
+  onOpenReviewFromSystem,
 }: GroupRendererProps) {
   if (!group || !Array.isArray(group.messages) || group.messages.length === 0) return null;
 
@@ -348,6 +354,9 @@ export default function GroupRenderer({
                 hasAnyQuote={hasAnyQuote}
                 onOpenDetails={onOpenDetailsPanel}
                 onOpenQuote={onOpenQuote}
+                onMarkCompleted={onMarkCompletedFromSystem}
+                onReportProblem={onReportProblemFromSystem}
+                onOpenReview={onOpenReviewFromSystem}
               />
             );
           }

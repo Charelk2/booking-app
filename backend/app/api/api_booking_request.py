@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, UploadFile, File, Header, Respon
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
-from typing import List, Any
+from typing import List, Any, Optional, Literal
 import logging
 
 from .. import crud, models, schemas
@@ -142,6 +142,154 @@ def get_booking_id_for_request(
             .first()
         )
     return {"booking_id": (booking[0] if booking else None)}
+
+
+class ReportProblemPayload(schemas.BaseModel):  # type: ignore[misc]
+    category: Literal[
+        "service_quality",
+        "no_show",
+        "late",
+        "payment",
+        "other",
+    ] = "other"
+    description: Optional[str] = None
+
+
+@router.post(
+    "/{request_id}/report-problem",
+    status_code=status.HTTP_201_CREATED,
+    summary="Report a problem / open a dispute for a booking tied to this thread",
+)
+def report_problem_for_request(
+    request_id: int,
+    body: ReportProblemPayload,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Open or append to a dispute for the booking associated with this booking request.
+
+    Anchored in the inbox: only the client or artist on this thread may report
+    a problem. Uses the lightweight ``disputes`` table managed by db_utils.
+    """
+    db_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    if db_request is None:
+        raise error_response(
+            "Booking request not found",
+            {"request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    if current_user.id not in {db_request.client_id, db_request.artist_id}:
+        raise error_response(
+            "You are not allowed to report a problem on this request.",
+            {"request_id": "forbidden"},
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    resolved = get_booking_id_for_request(request_id=request_id, db=db)
+    booking_id = resolved.get("booking_id") if isinstance(resolved, dict) else None
+    if not booking_id:
+        raise error_response(
+            "Cannot report a problem for this request because no booking was created.",
+            {"booking_id": "missing"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    booking = db.query(models.Booking).filter(models.Booking.id == int(booking_id)).first()
+    if booking is None:
+        raise error_response(
+            "Booking not found for this request.",
+            {"booking_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    # For now, restrict to confirmed/completed events.
+    if booking.status not in [
+        models.BookingStatus.CONFIRMED,
+        models.BookingStatus.COMPLETED,
+    ]:
+        raise error_response(
+            "You can only report a problem for confirmed or completed bookings.",
+            {"status": booking.status.value},
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    Dispute = models.Dispute  # noqa: N806
+    dispute = (
+        db.query(Dispute)
+        .filter(
+            Dispute.booking_id == int(booking_id),
+            Dispute.status.in_(["open", "needs_info"]),
+        )
+        .first()
+    )
+
+    notes = {}
+    if dispute and dispute.notes and isinstance(dispute.notes, dict):
+        notes = dict(dispute.notes)
+
+    entry = {
+        "by_user_id": int(current_user.id),
+        "by_role": getattr(current_user, "user_type", None),
+        "category": body.category,
+        "description": body.description,
+    }
+    reports = []
+    if isinstance(notes.get("reports"), list):
+        reports.extend(notes["reports"])
+    reports.append(entry)
+    notes["reports"] = reports
+
+    if not dispute:
+        dispute = Dispute(
+            booking_id=int(booking_id),
+            status="open",
+            reason=body.category,
+            notes=notes,
+        )
+        db.add(dispute)
+    else:
+        dispute.reason = dispute.reason or body.category
+        dispute.notes = notes
+    db.commit()
+    db.refresh(dispute)
+
+    # Emit a system message into the thread so both parties see that a dispute
+    # is open; admins consume the disputes table via api_admin.
+    sender_type = (
+        models.SenderType.CLIENT
+        if current_user.user_type == models.UserType.CLIENT
+        else models.SenderType.ARTIST
+    )
+    msg = crud.crud_message.create_message(
+        db=db,
+        booking_request_id=request_id,
+        sender_id=current_user.id,
+        sender_type=sender_type,
+        content=(
+            "A problem has been reported for this event. Our team will review the "
+            "details. Messages in this chat are still visible to both parties, "
+            "but we may step in if needed."
+        ),
+        message_type=models.MessageType.SYSTEM,
+        visible_to=models.VisibleTo.BOTH,
+        system_key="dispute_opened_v1",
+    )
+    try:
+        artist = db.query(models.User).filter(models.User.id == db_request.artist_id).first()
+        client = db.query(models.User).filter(models.User.id == db_request.client_id).first()
+        if artist and client:
+            notify_user_new_message(db, client, artist, request_id, msg.content, models.MessageType.SYSTEM)  # type: ignore[arg-type]
+            notify_user_new_message(db, artist, artist, request_id, msg.content, models.MessageType.SYSTEM)  # type: ignore[arg-type]
+    except Exception:
+        pass
+
+    return {
+        "status": dispute.status,
+        "dispute_id": int(dispute.id),
+        "booking_id": int(booking_id),
+    }
 
 
 @router.post(

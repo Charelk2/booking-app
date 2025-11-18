@@ -1,4 +1,4 @@
-import { systemLabel } from '../systemMessages';
+import { systemLabel } from '../chat/systemMessages';
 
 describe('systemMessages: event prep keys', () => {
   const mk = (k: string) => ({ message_type: 'SYSTEM', system_key: k, content: '' });
@@ -10,4 +10,3 @@ describe('systemMessages: event prep keys', () => {
     expect(systemLabel(mk('event_prep_stage_power_confirmed')).toLowerCase()).toContain('power');
   });
 });
-

@@ -10,6 +10,9 @@ type SystemMessageProps = {
   onOpenDetails?: () => void;
   onOpenQuote?: () => void;
   hasAnyQuote?: boolean;
+  onMarkCompleted?: () => void;
+  onReportProblem?: () => void;
+  onOpenReview?: () => void;
 };
 
 const absUrlRegex = /(https?:\/\/[^\s]+)/i;
@@ -19,7 +22,15 @@ const urlRegex = /(https?:\/\/[^\s]+|\/[^\s]+)/i;
 
 
 
-export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQuote = false }: SystemMessageProps) {
+export default function SystemMessage({
+  msg,
+  onOpenDetails,
+  onOpenQuote,
+  hasAnyQuote = false,
+  onMarkCompleted,
+  onReportProblem,
+  onOpenReview,
+}: SystemMessageProps) {
   try {
     const { user } = useAuth() || {} as any;
     const key = String((msg?.system_key || msg?.action || '')).toLowerCase();
@@ -85,6 +96,137 @@ export default function SystemMessage({ msg, onOpenDetails, onOpenQuote, hasAnyQ
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Post-event flow: event finished prompts (client / provider)
+    if (key.startsWith('event_finished_v1')) {
+      const isProvider = (user?.user_type || '').toLowerCase() === 'service_provider';
+      const title = t('system.eventFinishedTitle', 'Event finished');
+      const subtitleClient = t(
+        'system.eventFinishedClient',
+        'If anything was not as expected, you can report a problem from this chat within 12 hours.',
+      );
+      const subtitleArtist = t(
+        'system.eventFinishedArtist',
+        'Review the event and mark this booking as completed, or report a problem if something went wrong.',
+      );
+      return (
+        <div className="my-2 w-full flex justify-center">
+          <div className="mx-auto flex max-w-2xl items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-black text-white text-xs font-semibold">
+                E
+              </span>
+              <div>
+                <div className="text-sm font-semibold">{title}</div>
+                <div className="text-xs text-gray-600">
+                  {isProvider ? subtitleArtist : subtitleClient}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {isProvider && (
+                <button
+                  type="button"
+                  className="rounded-md bg-black px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-900"
+                  onClick={() => {
+                    try {
+                      onMarkCompleted?.();
+                    } catch {}
+                  }}
+                >
+                  {t('system.markCompleted', 'Mark as completed')}
+                </button>
+              )}
+              <button
+                type="button"
+                className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50"
+                onClick={() => {
+                  try {
+                    onReportProblem?.();
+                  } catch {}
+                }}
+              >
+                {t('system.reportProblem', 'Report a problem')}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Auto-completed banner
+    if (key === 'event_auto_completed_v1') {
+      return (
+        <div className="my-2 w-full flex justify-center">
+          <div className="text-[12px] text-gray-700 bg-gray-100 border border-gray-200 px-2 py-1 rounded">
+            {t(
+              'system.eventAutoCompleted',
+              'This event has been automatically marked as completed. If you still need help, you can contact support from this conversation.',
+            )}
+            {' '}
+            <button
+              type="button"
+              className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium text-gray-700 hover:bg-gray-200"
+              onClick={() => {
+                try {
+                  onOpenReview?.();
+                } catch {}
+              }}
+            >
+              {t('system.leaveReview', 'Leave review')}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Dispute opened banner
+    if (key.startsWith('dispute_opened_v1')) {
+      return (
+        <div className="my-2 w-full flex justify-center">
+          <div className="text-[12px] text-gray-700 bg-yellow-50 border border-yellow-200 px-2 py-1 rounded">
+            {t(
+              'system.disputeOpened',
+              'A problem has been reported for this event. Our team will review the details.',
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Review invite for client
+    if (key === 'review_invite_client_v1') {
+      return (
+        <div className="my-2 w-full flex justify-center">
+          <div className="mx-auto flex max-w-2xl items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-black text-white text-xs font-semibold">
+                ★
+              </span>
+              <div>
+                <div className="text-sm font-semibold">
+                  {t('system.reviewInviteTitle', 'How was your event?')}
+                </div>
+                <div className="text-xs text-gray-600">
+                  {t('system.reviewInviteBody', 'Leave a rating and short review.')}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="rounded-md bg-black px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-900"
+              onClick={() => {
+                try {
+                  onOpenReview?.();
+                } catch {}
+              }}
+            >
+              {t('system.leaveReview', 'Leave review')}
+            </button>
           </div>
         </div>
       );

@@ -23,6 +23,7 @@ from .event_prep import EventPrep, EventPrepIdempotency, EventPrepAttachment
 from .webauthn_credential import WebAuthnCredential
 from .admin_user import AdminUser
 from .trusted_device import TrustedDevice
+from .dispute import Dispute
 
 __all__ = [
     "User",
@@ -64,4 +65,5 @@ __all__ = [
     "WebAuthnCredential",
     "AdminUser",
     "TrustedDevice",
+    "Dispute",
 ]

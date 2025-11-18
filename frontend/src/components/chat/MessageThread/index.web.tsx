@@ -1163,6 +1163,60 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         }
       }
     } catch {}
+
+    const markBookingCompletedFromChat = useStableCallback(async () => {
+      try {
+        const res = await axios.get(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/booking-id`));
+        const bookingId = (res.data as any)?.booking_id;
+        if (!bookingId) return;
+        await axios.patch(apiUrl(`/api/v1/bookings/${bookingId}/status`), { status: 'completed' });
+        try {
+          emitThreadsUpdated(
+            { threadId: bookingRequestId, reason: 'booking_completed', immediate: true },
+            { immediate: true, force: true },
+          );
+        } catch {}
+      } catch (err) {
+        // rely on global error handling
+        // eslint-disable-next-line no-console
+        console.error('Failed to mark booking completed from chat', err);
+      }
+    });
+
+    const reportProblemFromChat = useStableCallback(async () => {
+      try {
+        const ok = typeof window !== 'undefined'
+          ? window.confirm('Report a problem for this event? Our team will review it.')
+          : true;
+        if (!ok) return;
+        await axios.post(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/report-problem`), {
+          category: 'other',
+          description: null,
+        });
+        try {
+          emitThreadsUpdated(
+            { threadId: bookingRequestId, reason: 'dispute_opened', immediate: true },
+            { immediate: true, force: true },
+          );
+        } catch {}
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to report problem from chat', err);
+      }
+    });
+
+    const openReviewFromChat = useStableCallback(async () => {
+      try {
+        const res = await axios.get(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/booking-id`));
+        const bookingId = (res.data as any)?.booking_id;
+        if (!bookingId || typeof window === 'undefined') return;
+        window.location.href = `/dashboard/client/bookings/${bookingId}?review=1`;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to open review from chat', err);
+      }
+    });
+
     return (
       <GroupRenderer
         group={group as any}
@@ -1286,6 +1340,9 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         newMessageAnchorId={newAnchorId}
         onPayNow={onPayNow}
         onDecline={onDecline}
+        onMarkCompletedFromSystem={userType === 'service_provider' ? markBookingCompletedFromChat : undefined}
+        onReportProblemFromSystem={reportProblemFromChat}
+        onOpenReviewFromSystem={userType === 'client' ? openReviewFromChat : undefined}
       />
     );
   });
