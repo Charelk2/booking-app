@@ -1237,14 +1237,14 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       }
     });
 
-    const openProviderReviewFromChat = useStableCallback(async () => {
+    const openProviderReviewFromChat = () => {
       try {
         setShowClientProfile(true);
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Failed to open client profile from system card', err);
       }
-    });
+    };
 
     return (
       <GroupRenderer

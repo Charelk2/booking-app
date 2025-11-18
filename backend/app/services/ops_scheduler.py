@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from ..database import SessionLocal
 
 from .. import models
@@ -33,7 +34,7 @@ def _has_open_dispute(db: Session, booking_id: int) -> bool:
     try:
         # Use raw SQL to match the lightweight disputes table created in db_utils.
         row = db.execute(
-            models.text(
+            text(
                 "SELECT 1 FROM disputes WHERE booking_id=:bid AND status IN ('open', 'needs_info') LIMIT 1"
             ),
             {"bid": int(booking_id)},
