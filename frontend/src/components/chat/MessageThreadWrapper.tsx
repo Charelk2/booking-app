@@ -939,7 +939,7 @@ export default function MessageThreadWrapper({
               } catch {}
             }}
             canReviewClient={canProviderReviewClient}
-            isClientProfileOpen={isUserArtist && Boolean(bookingRequest?.client_id) ? showClientProfile : false}
+            isClientProfileOpen={isUserArtist && effectiveClientId > 0 ? showClientProfile : false}
             onClientProfileOpenChange={setShowClientProfile}
             isPaidOverride={paymentStatus === 'paid'}
             onPresenceUpdate={isBookaModeration ? undefined : (s) => setPresenceHeader(s.label)}
