@@ -4,6 +4,7 @@ from .service import Service
 from .booking import Booking
 from .booking_status import BookingStatus
 from .review import Review
+from .client_review import ClientReview
 from .request_quote import BookingRequest, Quote, QuoteStatus
 from .quote_v2 import QuoteV2, QuoteStatusV2
 from .quote_template import QuoteTemplate
@@ -31,6 +32,7 @@ __all__ = [
     "Service",
     "Booking",
     "Review",
+    "ClientReview",
     "BookingRequest",
     "Quote",
     "QuoteV2",

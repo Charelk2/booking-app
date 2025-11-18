@@ -63,6 +63,7 @@ from .api import (
     api_uploads,
     api_artist_alias,
     api_attachments,
+    api_client_profile,
 )
 
 # The “service-provider-profiles” router lives under app/api/v1/
@@ -610,6 +611,9 @@ if os.getenv("OPENAPI_MINIMAL", "0") != "1":
         pass
 app.include_router(api_attachments.router, prefix=f"{api_prefix}")
 
+
+# ─── SERVICE ROUTES (under /api/v1/services) ────────────────────────────────────────
+app.include_router(api_client_profile.router, prefix=f"{api_prefix}", tags=["client-profiles"])
 
 # ─── SERVICE ROUTES (under /api/v1/services) ────────────────────────────────────────
 app.include_router(

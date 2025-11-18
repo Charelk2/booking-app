@@ -3,13 +3,19 @@ from sqlalchemy.orm import Session, selectinload
 from typing import List, Any
 
 from ..database import get_db
-from ..models.user import User
-from ..models import ServiceProviderProfile
+from ..models.user import User, UserType
+from ..models import ServiceProviderProfile, ClientReview
 from ..models import Booking, BookingStatus
 from ..models.review import Review
 from ..models.service import Service
-from ..schemas.review import ReviewCreate, ReviewResponse, ReviewDetails
-from .dependencies import get_current_user, get_current_active_client
+from ..schemas.review import (
+    ReviewCreate,
+    ReviewResponse,
+    ReviewDetails,
+    ClientReviewCreate,
+    ClientReviewResponse,
+)
+from .dependencies import get_current_user, get_current_active_client, get_current_service_provider
 from ..utils import error_response
 
 # Using a nested route for creating reviews under bookings
@@ -192,3 +198,68 @@ def list_reviews_for_service(service_id: int, db: Session = Depends(get_db)) -> 
 
 
 # No update or delete for reviews for now to keep it simple.
+
+
+@router.post(
+    "/client/bookings/{booking_id}/reviews",
+    response_model=ClientReviewResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_client_review_for_booking(
+    *,
+    db: Session = Depends(get_db),
+    booking_id: int = Path(..., title="The ID of the booking to review as a client"),
+    review_in: ClientReviewCreate,
+    current_provider: User = Depends(get_current_service_provider),
+) -> Any:
+    """
+    Create a provider → client review for a specific booking.
+
+    Only the artist who owned the booking may review the client, and only once
+    the booking is completed.
+    """
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise error_response(
+            "Booking not found.",
+            {"booking_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    if booking.artist_id != current_provider.id:
+        raise error_response(
+            "You can only review clients for your own bookings.",
+            {},
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    if booking.status != BookingStatus.COMPLETED:
+        raise error_response(
+            "Booking must be completed to leave a review.",
+            {},
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    existing = (
+        db.query(ClientReview)
+        .filter(ClientReview.booking_id == booking_id)
+        .first()
+    )
+    if existing:
+        raise error_response(
+            "Review already submitted for this booking.",
+            {"booking_id": "review_exists"},
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    db_review = ClientReview(
+        booking_id=booking.id,
+        client_id=booking.client_id,
+        provider_id=booking.artist_id,
+        rating=review_in.rating,
+        comment=review_in.comment,
+    )
+    db.add(db_review)
+    db.commit()
+    db.refresh(db_review)
+    return db_review
