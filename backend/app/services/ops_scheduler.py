@@ -221,10 +221,9 @@ def handle_sound_outreach_nudges_and_expiry(db: Session) -> dict:
 
 
 def handle_pre_event_reminders(db: Session) -> int:
-    """Send 72h and 24h pre-event reminders with system messages to both parties."""
+    """Send 7-day, 3-day, and same-day pre-event reminders with system messages to both parties."""
     now = datetime.utcnow()
-    soon_72 = now + timedelta(hours=72)
-    soon_24 = now + timedelta(hours=24)
+    today = now.date()
 
     bookings = (
         db.query(models.Booking)
@@ -236,50 +235,109 @@ def handle_pre_event_reminders(db: Session) -> int:
         if b.start_time is None:
             continue
 
-        when = None
-        label = None
-        if now < b.start_time <= soon_24:
-            when = "24h"
-            label = "Event is tomorrow"
-        elif now < b.start_time <= soon_72:
-            when = "72h"
+        days_until = (b.start_time.date() - today).days
+        label: str | None = None
+        horizon: str | None = None
+
+        if days_until == 7:
+            horizon = "7d"
+            label = "Event in 7 days"
+        elif days_until == 3:
+            horizon = "3d"
             label = "Event in 3 days"
+        elif days_until == 0:
+            horizon = "0d"
+            label = "Event is today"
         else:
+            continue
+
+        if not label or not horizon:
             continue
 
         br_id = _resolve_booking_request_id(db, b)
         if not br_id:
             continue
 
+        system_key = f"event_reminder:{horizon}"
+
+        # Dedupe: only send each horizon reminder once per thread
+        existing = (
+            db.query(models.Message)
+            .filter(
+                models.Message.booking_request_id == br_id,
+                models.Message.message_type == models.MessageType.SYSTEM,
+                models.Message.system_key == system_key,
+            )
+            .first()
+        )
+        if existing:
+            continue
+
         # Compose concise, actionable reminders (date-only; no time)
         date_str = b.start_time.strftime("%Y-%m-%d")
-
-        # If sound is still pending, inform artist specifically
-        sound_pending = b.status == models.BookingStatus.PENDING_SOUND
 
         client = db.query(models.User).filter(models.User.id == b.client_id).first()
         artist = db.query(models.User).filter(models.User.id == b.artist_id).first()
         if not client or not artist:
             continue
 
-        # Unified message content for both client and artist
-        simplified = f"{label}: {date_str}. Please ensure Eventprep is updated."
+        # Role-specific, globally-standard copy while keeping a stable
+        # "Event in N days: YYYY-MM-DD" prefix for preview parsing.
+        if horizon == "7d":
+            client_content = (
+                f"{label}: {date_str}. "
+                "Your event is in 7 days. Please review your booking details "
+                "(time, address, guest count and any special requests) and use "
+                "this chat if anything needs to change."
+            )
+            artist_content = (
+                f"{label}: {date_str}. "
+                "You have an event in 7 days. Please review the booking details, "
+                "confirm your schedule, travel and equipment, and message the "
+                "client if you need any clarification."
+            )
+        elif horizon == "3d":
+            client_content = (
+                f"{label}: {date_str}. "
+                "Your event is in 3 days. Please reconfirm the time and address, "
+                "plan your arrival, and share any last-minute updates in this chat."
+            )
+            artist_content = (
+                f"{label}: {date_str}. "
+                "Your event is in 3 days. Please confirm the time and address, "
+                "check technical and setup requirements, and share your arrival "
+                "plan with the client."
+            )
+        else:
+            client_content = (
+                f"{label}: {date_str}. "
+                "Your event is today. Please be ready at the confirmed time and "
+                "keep your phone available so your service provider can reach you "
+                "if needed."
+            )
+            artist_content = (
+                f"{label}: {date_str}. "
+                "Your event is today. Please allow enough time for travel and "
+                "setup, and use this chat to update the client immediately if "
+                "anything changes."
+            )
+
         _post_system(
             db,
             br_id,
             actor_id=artist.id,
-            content=simplified,
+            content=client_content,
             visible_to=models.VisibleTo.CLIENT,
-            system_key="event_reminder",
+            system_key=system_key,
         )
 
         _post_system(
             db,
             br_id,
             actor_id=artist.id,
-            content=simplified,
+            content=artist_content,
             visible_to=models.VisibleTo.ARTIST,
-            system_key="event_reminder",
+            system_key=system_key,
         )
 
         sent += 2
