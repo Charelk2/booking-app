@@ -568,6 +568,7 @@ export default function InboxPage() {
   const handleSelect = useCallback(
     (id: number) => {
       if (!id) return;
+      const isBooka = Boolean(searchParams.get('booka') || searchParams.get('bookasystem'));
       manualSelectAtRef.current = Date.now();
       let selectedNow: any = null;
       let unreadBefore = 0;
