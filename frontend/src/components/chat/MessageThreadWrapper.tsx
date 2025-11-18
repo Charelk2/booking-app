@@ -112,6 +112,7 @@ export default function MessageThreadWrapper({
 }: MessageThreadWrapperProps) {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [confirmedBookingDetails, setConfirmedBookingDetails] = useState<Booking | null>(null);
+  const [showClientProfile, setShowClientProfile] = useState(false);
 
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
@@ -691,6 +692,10 @@ export default function MessageThreadWrapper({
     return synthetic || label === 'Booka' || /^\s*listing\s+(approved|rejected)\s*:/i.test(text);
   })();
 
+  const canProviderReviewClient = Boolean(
+    isUserArtist && bookingRequest && String(bookingRequest.status || '').toLowerCase() === 'completed',
+  );
+
   return (
     <div className="flex flex-col h-full w-full relative">
       {/* Unified header */}
@@ -771,6 +776,15 @@ export default function MessageThreadWrapper({
 
         {/* Actions */}
         <div className="flex items-center gap-2 px-2 sm:px-4">
+          {isUserArtist && bookingRequest?.client_id ? (
+            <button
+              type="button"
+              onClick={() => setShowClientProfile(true)}
+              className="hidden sm:inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+            >
+              View client profile
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setShowSidePanel((s) => !s)}
@@ -909,6 +923,9 @@ export default function MessageThreadWrapper({
                 }
               } catch {}
             }}
+            canReviewClient={canProviderReviewClient}
+            isClientProfileOpen={isUserArtist && Boolean(bookingRequest?.client_id) ? showClientProfile : false}
+            onClientProfileOpenChange={setShowClientProfile}
             isPaidOverride={paymentStatus === 'paid'}
             onPresenceUpdate={isBookaModeration ? undefined : (s) => setPresenceHeader(s.label)}
             /** KEY: hide composer on mobile when details sheet is open */

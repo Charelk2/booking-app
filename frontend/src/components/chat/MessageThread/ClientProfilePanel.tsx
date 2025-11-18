@@ -42,6 +42,7 @@ type Props = {
   clientName?: string;
   clientAvatarUrl?: string | null;
   bookingRequestId: number;
+  canReview?: boolean;
   isOpen: boolean;
   onClose: () => void;
 };
@@ -56,6 +57,7 @@ export default function ClientProfilePanel({
   clientName,
   clientAvatarUrl,
   bookingRequestId,
+  canReview,
   isOpen,
   onClose,
 }: Props) {
@@ -330,17 +332,19 @@ export default function ClientProfilePanel({
               ))}
           </div>
 
-          {/* Review CTA */}
-          <div className="pt-1">
-            <button
-              type="button"
-              className="inline-flex w-full items-center justify-center rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-gray-800"
-              onClick={handleOpenReview}
-            >
-              <StarIcon className="h-4 w-4 mr-1.5" />
-              Review this client
-            </button>
-          </div>
+          {/* Review CTA (only when allowed for this booking/status) */}
+          {canReview !== false && (
+            <div className="pt-1">
+              <button
+                type="button"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-gray-800"
+                onClick={handleOpenReview}
+              >
+                <StarIcon className="h-4 w-4 mr-1.5" />
+                Review this client
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Review modal overlay inside panel */}
@@ -443,4 +447,3 @@ function Badge({ active, label }: { active?: boolean; label: string }) {
     </span>
   );
 }
-

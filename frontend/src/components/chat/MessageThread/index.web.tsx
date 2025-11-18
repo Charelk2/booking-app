@@ -114,6 +114,9 @@ export type MessageThreadWebProps = {
     receiptUrl?: string | null,
     reference?: string | null,
   ) => void;
+  canReviewClient?: boolean;
+  isClientProfileOpen?: boolean;
+  onClientProfileOpenChange?: (open: boolean) => void;
   // allow passthrough
   [k: string]: any;
 };
@@ -137,6 +140,9 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     initialBookingRequest,
     onContinueEventPrep,
     onPaymentStatusChange,
+    canReviewClient,
+    isClientProfileOpen,
+    onClientProfileOpenChange,
   } = props;
 
   // --- Auth / identity
@@ -167,7 +173,19 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const [highlightId, setHighlightId] = React.useState<number | null>(null);
   const [isAtBottom, setIsAtBottom] = React.useState(true);
   const [newAnchorId, setNewAnchorId] = React.useState<number | null>(null);
-  const [showClientProfile, setShowClientProfile] = React.useState(false);
+  const [internalShowClientProfile, setInternalShowClientProfile] = React.useState(false);
+  const showClientProfile = typeof isClientProfileOpen === 'boolean' ? isClientProfileOpen : internalShowClientProfile;
+  const setShowClientProfile = (open: boolean) => {
+    try {
+      if (onClientProfileOpenChange) {
+        onClientProfileOpenChange(open);
+      } else {
+        setInternalShowClientProfile(open);
+      }
+    } catch {
+      // no-op
+    }
+  };
 
   // --- Quotes (must be initialized before useThreadData so we can pass ensureQuotesLoaded)
   const { quotesById, ensureQuoteLoaded, ensureQuotesLoaded, setQuote } = useQuotes(bookingRequestId) as any;
@@ -1207,7 +1225,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       }
     });
 
-    const openReviewFromChat = useStableCallback(async () => {
+    const openClientReviewFromChat = useStableCallback(async () => {
       try {
         const res = await axios.get(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/booking-id`));
         const bookingId = (res.data as any)?.booking_id;
@@ -1216,6 +1234,15 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Failed to open review from chat', err);
+      }
+    });
+
+    const openProviderReviewFromChat = useStableCallback(async () => {
+      try {
+        setShowClientProfile(true);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to open client profile from system card', err);
       }
     });
 
@@ -1344,7 +1371,13 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         onDecline={onDecline}
         onMarkCompletedFromSystem={userType === 'service_provider' ? markBookingCompletedFromChat : undefined}
         onReportProblemFromSystem={reportProblemFromChat}
-        onOpenReviewFromSystem={userType === 'client' ? openReviewFromChat : undefined}
+        onOpenReviewFromSystem={
+          userType === 'client'
+            ? openClientReviewFromChat
+            : userType === 'service_provider'
+              ? openProviderReviewFromChat
+              : undefined
+        }
       />
     );
   });
@@ -1532,6 +1565,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
           clientName={clientName}
           clientAvatarUrl={clientAvatarUrl}
           bookingRequestId={bookingRequestId}
+          canReview={Boolean(canReviewClient)}
           isOpen={showClientProfile}
           onClose={() => setShowClientProfile(false)}
         />
