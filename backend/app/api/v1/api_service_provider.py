@@ -11,7 +11,6 @@ import logging
 import hashlib
 import json
 from pathlib import Path
-import base64
 from typing import List, Optional, Tuple, Dict, Any
 from pydantic import BaseModel
 from io import BytesIO
@@ -51,9 +50,6 @@ from app.schemas.storage import PresignOut
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Track which artist profiles have had media migration applied in this process
-_MEDIA_MIGRATED: set[int] = set()
 
 # Price distribution buckets used for the histogram on the frontend.
 # Extend or modify these ranges as needed. Ensure the max aligns with
@@ -115,68 +111,6 @@ def read_current_artist_profile(
             status_code=404,
             detail="Artist profile not found.",
         )
-    # Opportunistic migration: convert legacy file paths to data URLs so media
-    # survives redeploys, mirroring AddServiceModalMusician behavior. Only run once per process per artist.
-    try:
-        if artist_profile.id in _MEDIA_MIGRATED:
-            return artist_profile
-        changed = False
-        # Helper to convert a single relative path under /static to data URL
-        def to_data_url_if_exists(rel_path: str | None) -> Optional[str]:
-            if not rel_path:
-                return rel_path
-            p = str(rel_path)
-            if p.startswith('/static/'):
-                rel = p.replace('/static/', '', 1)
-                fs_path = STATIC_DIR / rel
-                if fs_path.exists() and fs_path.is_file():
-                    mime = 'image/jpeg'
-                    ext = fs_path.suffix.lower()
-                    if ext in {'.png'}:
-                        mime = 'image/png'
-                    elif ext in {'.webp'}:
-                        mime = 'image/webp'
-                    elif ext in {'.svg'}:
-                        mime = 'image/svg+xml'
-                    try:
-                        data = fs_path.read_bytes()
-                        b64 = base64.b64encode(data).decode('ascii')
-                        return f'data:{mime};base64,{b64}'
-                    except Exception:
-                        return rel_path
-            return rel_path
-
-        # Profile picture
-        new_pp = to_data_url_if_exists(artist_profile.profile_picture_url)
-        if new_pp != artist_profile.profile_picture_url:
-            artist_profile.profile_picture_url = new_pp
-            changed = True
-        # Cover photo
-        new_cover = to_data_url_if_exists(artist_profile.cover_photo_url)
-        if new_cover != artist_profile.cover_photo_url:
-            artist_profile.cover_photo_url = new_cover
-            changed = True
-        # Portfolio images
-        if artist_profile.portfolio_image_urls:
-            new_list: List[str] = []
-            list_changed = False
-            for url in artist_profile.portfolio_image_urls:
-                new_url = to_data_url_if_exists(url)
-                new_list.append(new_url)
-                if new_url != url:
-                    list_changed = True
-            if list_changed:
-                artist_profile.portfolio_image_urls = new_list
-                changed = True
-        if changed:
-            db.add(artist_profile)
-            db.commit()
-            db.refresh(artist_profile)
-        _MEDIA_MIGRATED.add(artist_profile.id)
-    except Exception:
-        # Non-fatal: return profile even if migration failed
-        pass
-
     # Completed / cancelled events counts for this provider
     try:
         completed_count = (
@@ -348,31 +282,72 @@ async def upload_artist_profile_picture_me(
         )
 
     try:
-        # Store as data URL in DB to survive redeploys (same approach as service.media_url)
         content = await file.read()
+        if MAX_PROFILE_PIC_SIZE and len(content) > MAX_PROFILE_PIC_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Image too large. Max size is {MAX_PROFILE_PIC_SIZE} bytes.",
+            )
         # Validate that the uploaded bytes are a decodable image
         try:
+            if Image is None:
+                raise RuntimeError("PIL not available")
             img = Image.open(BytesIO(content))
             img.verify()
+        except HTTPException:
+            raise
         except Exception as img_err:
             logger.info("Invalid image uploaded for profile picture by user %s: %s", current_user.id, img_err)
             raise HTTPException(status_code=400, detail="Invalid image file.")
 
-        b64 = base64.b64encode(content).decode("ascii")
-        mime = file.content_type or "image/jpeg"
-        data_url = f"data:{mime};base64,{b64}"
-
-        # Best-effort cleanup for legacy file-based URLs
-        if artist_profile.profile_picture_url and artist_profile.profile_picture_url.startswith("/static/"):
-            old_rel = artist_profile.profile_picture_url.replace("/static/", "", 1)
-            old_file = STATIC_DIR / old_rel
-            if old_file.exists():
+        # Prefer R2 avatars/{user_id}/... when configured; fallback to /static/profile_pics
+        stored_url: Optional[str] = None
+        try:
+            cfg = r2utils.R2Config()
+            if cfg.is_configured():
+                # Reuse the avatar key pattern for consistent storage layout
                 try:
-                    old_file.unlink()
-                except OSError as e:
-                    logger.warning("Error deleting old profile picture %s: %s", old_file, e)
+                    key = r2utils._build_avatar_key(int(current_user.id), file.filename, file.content_type or "image/jpeg")  # type: ignore[attr-defined]
+                except Exception:
+                    # Fallback: simple avatars/{user_id}/{uuid}.ext naming
+                    import uuid
+                    ext = r2utils.guess_extension(file.filename, file.content_type) or ".jpg"
+                    key = f"avatars/{int(current_user.id)}/{uuid.uuid4().hex}{ext}"
+                r2utils.put_bytes(key, content, content_type=file.content_type or "image/jpeg")
+                stored_url = key
+        except Exception as exc:
+            logger.warning("R2 avatar upload failed for artist user_id=%s: %s", current_user.id, exc)
+            stored_url = None
 
-        artist_profile.profile_picture_url = data_url
+        if not stored_url:
+            # Local static fallback
+            import uuid
+
+            ext = r2utils.guess_extension(file.filename, file.content_type) or ".jpg"
+            name = f"{uuid.uuid4().hex}{ext}"
+            fs_path = PROFILE_PICS_DIR / name
+            try:
+                fs_path.write_bytes(content)
+            except Exception as exc:
+                logger.exception("Failed to write profile picture file %s: %s", fs_path, exc)
+                raise HTTPException(status_code=500, detail="Could not upload profile picture.")
+            stored_url = f"/static/profile_pics/{name}"
+
+        # Best-effort cleanup for legacy static URLs
+        try:
+            old = artist_profile.profile_picture_url or ""
+            if isinstance(old, str) and old.startswith("/static/"):
+                rel = old.replace("/static/", "", 1)
+                old_file = STATIC_DIR / rel
+                if old_file.exists():
+                    try:
+                        old_file.unlink()
+                    except OSError as e:
+                        logger.warning("Error deleting old profile picture %s: %s", old_file, e)
+        except Exception:
+            pass
+
+        artist_profile.profile_picture_url = stored_url
         db.add(artist_profile)
         db.commit()
         db.refresh(artist_profile)
@@ -416,31 +391,69 @@ async def upload_artist_cover_photo_me(
         )
 
     try:
-        # Store as data URL to persist across redeploys
         content = await file.read()
+        if MAX_PORTFOLIO_IMAGE_SIZE and len(content) > MAX_PORTFOLIO_IMAGE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Image too large. Max size is {MAX_PORTFOLIO_IMAGE_SIZE} bytes.",
+            )
         # Validate that the uploaded bytes are a decodable image
         try:
+            if Image is None:
+                raise RuntimeError("PIL not available")
             img = Image.open(BytesIO(content))
             img.verify()
+        except HTTPException:
+            raise
         except Exception as img_err:
             logger.info("Invalid image uploaded for cover photo by user %s: %s", current_user.id, img_err)
             raise HTTPException(status_code=400, detail="Invalid image file.")
 
-        b64 = base64.b64encode(content).decode("ascii")
-        mime = file.content_type or "image/jpeg"
-        data_url = f"data:{mime};base64,{b64}"
-
-        # Best-effort cleanup for legacy file-based URLs
-        if artist_profile.cover_photo_url and artist_profile.cover_photo_url.startswith("/static/"):
-            old_rel = artist_profile.cover_photo_url.replace("/static/", "", 1)
-            old_file = STATIC_DIR / old_rel
-            if old_file.exists():
+        stored_url: Optional[str] = None
+        # Prefer R2 cover_photos/{user_id}/... when configured; fallback to /static/cover_photos
+        try:
+            cfg = r2utils.R2Config()
+            if cfg.is_configured():
                 try:
-                    old_file.unlink()
-                except OSError as e:
-                    logger.warning("Error deleting old cover photo %s: %s", old_file, e)
+                    key = r2utils._build_user_scoped_key("cover_photos", int(current_user.id), file.filename, file.content_type or "image/jpeg")  # type: ignore[attr-defined]
+                except Exception:
+                    import uuid
+                    ext = r2utils.guess_extension(file.filename, file.content_type) or ".jpg"
+                    key = f"cover_photos/{int(current_user.id)}/{uuid.uuid4().hex}{ext}"
+                r2utils.put_bytes(key, content, content_type=file.content_type or "image/jpeg")
+                stored_url = key
+        except Exception as exc:
+            logger.warning("R2 cover upload failed for artist user_id=%s: %s", current_user.id, exc)
+            stored_url = None
 
-        artist_profile.cover_photo_url = data_url
+        if not stored_url:
+            import uuid
+
+            ext = r2utils.guess_extension(file.filename, file.content_type) or ".jpg"
+            name = f"{uuid.uuid4().hex}{ext}"
+            fs_path = COVER_PHOTOS_DIR / name
+            try:
+                fs_path.write_bytes(content)
+            except Exception as exc:
+                logger.exception("Failed to write cover photo file %s: %s", fs_path, exc)
+                raise HTTPException(status_code=500, detail="Could not upload cover photo.")
+            stored_url = f"/static/cover_photos/{name}"
+
+        # Best-effort cleanup for legacy static URLs
+        try:
+            old = artist_profile.cover_photo_url or ""
+            if isinstance(old, str) and old.startswith("/static/"):
+                rel = old.replace("/static/", "", 1)
+                old_file = STATIC_DIR / rel
+                if old_file.exists():
+                    try:
+                        old_file.unlink()
+                    except OSError as e:
+                        logger.warning("Error deleting old cover photo %s: %s", old_file, e)
+        except Exception:
+            pass
+
+        artist_profile.cover_photo_url = stored_url
         db.add(artist_profile)
         db.commit()
         db.refresh(artist_profile)
@@ -484,17 +497,54 @@ async def upload_artist_portfolio_images_me(
                     detail=f"Invalid image type. Allowed: {ALLOWED_PORTFOLIO_IMAGE_TYPES}",
                 )
             content = await up.read()
+            if MAX_PORTFOLIO_IMAGE_SIZE and len(content) > MAX_PORTFOLIO_IMAGE_SIZE:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Image too large. Max size is {MAX_PORTFOLIO_IMAGE_SIZE} bytes.",
+                )
             # Validate each image before storing
             try:
+                if Image is None:
+                    raise RuntimeError("PIL not available")
                 img = Image.open(BytesIO(content))
                 img.verify()
+            except HTTPException:
+                raise
             except Exception as img_err:
                 logger.info("Invalid portfolio image uploaded by user %s: %s", current_user.id, img_err)
                 raise HTTPException(status_code=400, detail="Invalid image file.")
-            b64 = base64.b64encode(content).decode("ascii")
-            mime = up.content_type or "image/jpeg"
-            data_url = f"data:{mime};base64,{b64}"
-            new_urls.append(data_url)
+
+            stored_url: Optional[str] = None
+            # Prefer R2 portfolio_images/{user_id}/...; fallback to /static/portfolio_images
+            try:
+                cfg = r2utils.R2Config()
+                if cfg.is_configured():
+                    try:
+                        key = r2utils._build_user_scoped_key("portfolio_images", int(current_user.id), up.filename, up.content_type or "image/jpeg")  # type: ignore[attr-defined]
+                    except Exception:
+                        import uuid
+                        ext = r2utils.guess_extension(up.filename, up.content_type) or ".jpg"
+                        key = f"portfolio_images/{int(current_user.id)}/{uuid.uuid4().hex}{ext}"
+                    r2utils.put_bytes(key, content, content_type=up.content_type or "image/jpeg")
+                    stored_url = key
+            except Exception as exc:
+                logger.warning("R2 portfolio upload failed for artist user_id=%s: %s", current_user.id, exc)
+                stored_url = None
+
+            if not stored_url:
+                import uuid
+
+                ext = r2utils.guess_extension(up.filename, up.content_type) or ".jpg"
+                name = f"{uuid.uuid4().hex}{ext}"
+                fs_path = PORTFOLIO_IMAGES_DIR / name
+                try:
+                    fs_path.write_bytes(content)
+                except Exception as exc:
+                    logger.exception("Failed to write portfolio image file %s: %s", fs_path, exc)
+                    raise HTTPException(status_code=500, detail="Could not upload portfolio image.")
+                stored_url = f"/static/portfolio_images/{name}"
+
+            new_urls.append(stored_url)
 
         artist_profile.portfolio_image_urls = new_urls
         db.add(artist_profile)
