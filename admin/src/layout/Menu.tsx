@@ -14,6 +14,7 @@ import SmsIcon from '@mui/icons-material/Sms';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import ChatIcon from '@mui/icons-material/Chat';
 import BuildIcon from '@mui/icons-material/Build';
+import InsightsIcon from '@mui/icons-material/Insights';
 
 export default function CustomMenu() {
   return (
@@ -38,6 +39,7 @@ export default function CustomMenu() {
       <Menu.Item to="/audit_events" primaryText="Audit Log" leftIcon={<SecurityIcon/>} />
       <Menu.Item to="/admin_users" primaryText="Admin Users" leftIcon={<AdminPanelSettingsIcon/>} />
       <Menu.Item to="/users" primaryText="Users" leftIcon={<ManageAccountsIcon/>} />
+      <Menu.Item to="/analytics" primaryText="Analytics" leftIcon={<InsightsIcon/>} />
       <Menu.Item to="/ops/migrations" primaryText="Migrations" leftIcon={<BuildIcon/>} />
     </Menu>
   );
