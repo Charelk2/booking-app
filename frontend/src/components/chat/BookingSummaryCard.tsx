@@ -604,7 +604,7 @@ export default function BookingSummaryCard({
           <div className="grid grid-cols-1 gap-4">
             <a
               href="/faq"
-              className="block text-center bg-white text-gray-800 font-semibold rounded-lg px-4 py-3 border border-gray-300  hover:bg-gray-50 transition"
+              className="block text-center bg-white text-gray-800 font-semibold rounded-lg px-4 py-3 border border-gray-300 hover:bg-gray-50 transition no-underline hover:no-underline"
             >
               Get Support
             </a>
