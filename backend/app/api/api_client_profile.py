@@ -74,6 +74,7 @@ def read_client_profile(
                     "provider": {
                         "id": int(prof.user_id),
                         "business_name": prof.business_name,
+                        "profile_picture_url": getattr(prof, "profile_picture_url", None),
                         "city": getattr(booking, "event_city", None),
                     },
                     "booking": {
@@ -117,4 +118,3 @@ def read_client_profile(
         },
         "reviews": reviews_payload,
     }
-

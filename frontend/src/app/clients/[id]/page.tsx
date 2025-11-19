@@ -29,7 +29,12 @@ type ClientProfileResponse = {
     rating: number;
     comment: string;
     created_at: string;
-    provider?: { id: number; business_name?: string | null; city?: string | null };
+    provider?: {
+      id: number;
+      business_name?: string | null;
+      profile_picture_url?: string | null;
+      city?: string | null;
+    };
   }>;
 };
 
@@ -45,9 +50,18 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
   return (
     <div className="min-w-[300px] max-w-[400px] flex-shrink-0 bg-white rounded-xl border border-gray-200 p-6 h-auto flex flex-col shadow-sm">
       <div className="flex items-center mb-3">
-        <div className="w-12 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-sm font-semibold">
-          {initial}
-        </div>
+        {review.provider?.profile_picture_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={review.provider.profile_picture_url}
+            alt={providerName}
+            className="w-12 h-12 rounded-full object-cover mr-3"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-sm font-semibold">
+            {initial}
+          </div>
+        )}
         <div>
           <h4 className="font-semibold text-gray-900">{providerName}</h4>
           {providerLocation && (
