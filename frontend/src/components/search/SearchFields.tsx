@@ -89,6 +89,10 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         currentValue !== '' &&
         !['Search', 'Add service', 'Add dates', 'Add location'].includes(currentValue);
 
+      const textSizeClass = isValuePresent
+        ? (compact ? 'text-sm' : 'text-base')
+        : 'text-sm';
+
       return (
         <div className="relative flex-1 min-w-0">
           {/* min-w-0 ensures flex children can shrink and truncate long values */}
@@ -119,8 +123,8 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             <span
               className={clsx(
                 'block truncate pointer-events-none select-none',
-                isValuePresent ? 'text-gray-800' : 'text-gray-500', // Uses italic for placeholders
-                compact ? 'text-sm' : 'text-base'
+                isValuePresent ? 'text-gray-800' : 'text-gray-500',
+                textSizeClass
               )}
             >
               {currentValue}
@@ -212,7 +216,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           placeholder="Add location"
           className="w-full"
           inputClassName={clsx(
-            'block truncate p-0 bg-transparent',
+            'block truncate p-0 bg-transparent placeholder:text-gray-500',
             location ? 'text-gray-800' : 'text-gray-500',
             compact ? 'text-sm' : 'text-base',
             // Avoid text under the submit button (slightly tighter)
