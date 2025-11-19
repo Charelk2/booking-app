@@ -17,6 +17,39 @@ const ReactCrop = dynamic(() => import('react-image-crop').then((m) => m.ReactCr
   ssr: false,
 });
 
+// Normalize a ReactCrop crop to natural-image pixel coordinates so the saved
+// avatar matches the on-screen crop preview.
+function toPixelCrop(img: HTMLImageElement, crop: Crop | PixelCrop | undefined): PixelCrop {
+  const naturalW = img.naturalWidth || 0;
+  const naturalH = img.naturalHeight || 0;
+  if (!crop) {
+    return { x: 0, y: 0, width: naturalW, height: naturalH, unit: 'px' } as PixelCrop;
+  }
+  // Percent unit
+  if ((crop as any).unit && (crop as any).unit !== 'px') {
+    const c: any = crop;
+    return {
+      x: Math.round(((c.x || 0) / 100) * naturalW),
+      y: Math.round(((c.y || 0) / 100) * naturalH),
+      width: Math.round(((c.width || 0) / 100) * naturalW),
+      height: Math.round(((c.height || 0) / 100) * naturalH),
+      unit: 'px',
+    } as PixelCrop;
+  }
+  // Pixel unit but relative to displayed size → scale to natural
+  const rect = img.getBoundingClientRect();
+  const scaleX = rect.width ? naturalW / rect.width : 1;
+  const scaleY = rect.height ? naturalH / rect.height : 1;
+  const c: any = crop;
+  return {
+    x: Math.round((c.x || 0) * scaleX),
+    y: Math.round((c.y || 0) * scaleY),
+    width: Math.round((c.width || 0) * scaleX),
+    height: Math.round((c.height || 0) * scaleY),
+    unit: 'px',
+  } as PixelCrop;
+}
+
 export default function ProfilePicturePage() {
   const { user, refreshUser } = useAuth();
   const [originalSrc, setOriginalSrc] = useState<string | null>(null);
@@ -110,7 +143,14 @@ export default function ProfilePicturePage() {
 
   const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
-    setCrop(centerAspectCrop(naturalWidth, naturalHeight, 1));
+    const base = centerAspectCrop(naturalWidth, naturalHeight, 1);
+    setCrop(base);
+    try {
+      const imgEl = e.currentTarget as HTMLImageElement;
+      setCompletedCrop(toPixelCrop(imgEl, base));
+    } catch {
+      // best-effort; onComplete will still update completedCrop
+    }
   };
 
   return (
@@ -159,7 +199,14 @@ export default function ProfilePicturePage() {
               <ReactCrop
                 crop={crop}
                 onChange={(_, c) => setCrop(c)}
-                onComplete={(c) => setCompletedCrop(c)}
+                onComplete={(c) => {
+                  const img = imgRef.current;
+                  if (img) {
+                    setCompletedCrop(toPixelCrop(img, c as any));
+                  } else {
+                    setCompletedCrop(c as PixelCrop);
+                  }
+                }}
                 aspect={1}
               >
                 <Image

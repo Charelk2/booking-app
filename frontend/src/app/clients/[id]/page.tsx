@@ -49,16 +49,16 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
   const initial = providerName.charAt(0).toUpperCase();
   return (
     <div className="min-w-[300px] max-w-[400px] flex-shrink-0 bg-white rounded-xl border border-gray-200 p-6 h-auto flex flex-col shadow-sm">
-      <div className="flex items-center mb-3">
+      <div className="flex items-start mb-3">
         {review.provider?.profile_picture_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={review.provider.profile_picture_url}
             alt={providerName}
-            className="w-9 h-9 rounded-full object-cover mr-3"
+            className="w-8 h-8 rounded-full object-cover mr-3"
           />
         ) : (
-          <div className="w-9 h-9 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-xs font-semibold">
+          <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-xs font-semibold">
             {initial}
           </div>
         )}
@@ -257,7 +257,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-16">
           {/* Left rail: sticky profile card */}
           <aside className="md:col-span-1">
-            <div className="sticky top-28 self-start p-6 border border-gray-200 rounded-[32px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] bg-white">
+            <div className="sticky top-28 self-start p-5 border border-gray-200 rounded-[32px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] bg-white">
               <div className="flex gap-4">
                 <div className="flex-shrink-0">
                   {profile.user.profile_picture_url ? (
