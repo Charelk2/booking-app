@@ -58,6 +58,103 @@ function pluralizeServiceLabel(label?: string) {
   return label ? pluralizeLastWord(label) : '';
 }
 
+type RouterLike = Parameters<typeof updateQueryParams>[0];
+
+function SearchRescuePanel({
+  serviceName,
+  location,
+  when,
+  router,
+  pathname,
+}: {
+  serviceName?: string;
+  location: string;
+  when: Date | null;
+  router: RouterLike;
+  pathname: string;
+}) {
+  const hasLocation = Boolean(location && location.trim().length > 0);
+  const hasDate = Boolean(when);
+  const hasCategory = Boolean(serviceName);
+
+  const parts: string[] = [];
+  if (hasCategory && serviceName) parts.push(pluralizeServiceLabel(serviceName));
+  if (hasLocation) parts.push(location);
+  if (hasDate && when) parts.push(format(when, 'd MMM yyyy'));
+
+  const summary =
+    parts.length > 0
+      ? `No results for ${parts.join(' · ')}`
+      : 'No matching service providers.';
+
+  const handleClearDate = () => {
+    updateQueryParams(router, pathname, {
+      category: serviceName,
+      location: location || undefined,
+      when: null,
+    });
+  };
+
+  const handleClearLocation = () => {
+    updateQueryParams(router, pathname, {
+      category: serviceName,
+      location: undefined,
+      when,
+    });
+  };
+
+  const handleClearAllFilters = () => {
+    updateQueryParams(router, pathname, {
+      category: undefined,
+      location: undefined,
+      when: null,
+    });
+  };
+
+  const suggestions: Array<{ label: string; onClick: () => void }> = [];
+  if (hasDate) {
+    suggestions.push({
+      label: 'Search without a date',
+      onClick: handleClearDate,
+    });
+  }
+  if (hasLocation) {
+    suggestions.push({
+      label: 'Search all locations',
+      onClick: handleClearLocation,
+    });
+  }
+  if (hasCategory || hasLocation || hasDate) {
+    suggestions.push({
+      label: 'Clear all filters',
+      onClick: handleClearAllFilters,
+    });
+  }
+
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <p className="text-sm font-medium text-slate-900">{summary}</p>
+      <p className="mt-1 text-xs text-slate-600">
+        Try adjusting your filters to see more service providers.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {suggestions.map((s) => (
+          <button
+            key={s.label}
+            type="button"
+            onClick={s.onClick}
+            className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 active:scale-[0.98] transition"
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // The category page previously used `react-window` to render each provider as a
 // full-width row. This looked inconsistent with the compact cards shown on the
 // homepage and resulted in a visually jarring full-screen layout. Since the
@@ -426,7 +523,18 @@ export default function ServiceProvidersPage() {
         {/* Artists grid */}
         {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
-        {!loading && artists.length === 0 && <p>No service providers found.</p>}
+        {!loading && artists.length === 0 && (
+          <>
+            <p className="text-sm text-slate-700">No service providers found.</p>
+            <SearchRescuePanel
+              serviceName={serviceName}
+              location={location}
+              when={when}
+              router={router}
+              pathname={pathname}
+            />
+          </>
+        )}
 
         {artists.length > 0 && (
           <div className="flex flex-wrap justify-center gap-4 sm:justify-start">

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request, Query, status
 from fastapi.responses import ORJSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 import logging
 import json
 
@@ -318,3 +318,201 @@ def get_search_history(
             }
         )
     return history
+
+
+@router.get("/search-analytics/summary")
+def get_search_analytics_summary(
+    limit: int = Query(default=10, ge=1, le=50),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Return aggregated search analytics for dashboards.
+
+    Includes:
+    - All-time totals (searches, clicks, unique sessions, unique users)
+    - Searches by source
+    - Top locations (by searches + clicks)
+    - Top categories (by searches + clicks)
+    """
+    # Totals
+    try:
+      total_searches = db.execute(
+          text("SELECT COUNT(*) FROM search_events")
+      ).scalar() or 0
+
+      total_clicks = db.execute(
+          text("SELECT COUNT(*) FROM search_events WHERE clicked_artist_id IS NOT NULL")
+      ).scalar() or 0
+
+      unique_sessions = db.execute(
+          text(
+              """
+              SELECT COUNT(DISTINCT session_id)
+              FROM search_events
+              WHERE session_id IS NOT NULL AND TRIM(session_id) != ''
+              """
+          )
+      ).scalar() or 0
+
+      unique_users = db.execute(
+          text(
+              """
+              SELECT COUNT(DISTINCT user_id)
+              FROM search_events
+              WHERE user_id IS NOT NULL
+              """
+          )
+      ).scalar() or 0
+    except Exception as exc:  # pragma: no cover - defensive
+      logger.warning("search summary totals query failed: %s", exc)
+      total_searches = total_clicks = unique_sessions = unique_users = 0
+
+    totals = {
+        "searches": int(total_searches),
+        "clicks": int(total_clicks),
+        "unique_sessions": int(unique_sessions),
+        "unique_users": int(unique_users),
+    }
+
+    # By source
+    try:
+        source_rows = db.execute(
+            text(
+                """
+                SELECT source, COUNT(*) AS c
+                FROM search_events
+                GROUP BY source
+                ORDER BY c DESC
+                """
+            )
+        ).fetchall()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("search summary by_source query failed: %s", exc)
+        source_rows = []
+
+    by_source: List[Dict[str, Any]] = [
+        {"source": row[0] or "", "searches": int(row[1] or 0)}
+        for row in source_rows
+        if row[0] is not None
+    ]
+
+    # Top locations
+    try:
+        loc_rows = db.execute(
+            text(
+                """
+                SELECT
+                  location,
+                  COUNT(*) AS searches,
+                  SUM(CASE WHEN clicked_artist_id IS NOT NULL THEN 1 ELSE 0 END) AS clicks
+                FROM search_events
+                WHERE location IS NOT NULL AND TRIM(location) != ''
+                GROUP BY location
+                ORDER BY searches DESC
+                LIMIT :limit
+                """
+            ),
+            {"limit": int(limit)},
+        ).fetchall()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("search summary locations query failed: %s", exc)
+        loc_rows = []
+
+    top_locations: List[Dict[str, Any]] = [
+        {
+            "location": row[0] or "",
+            "searches": int(row[1] or 0),
+            "clicks": int(row[2] or 0),
+        }
+        for row in loc_rows
+        if row[0] is not None
+    ]
+
+    # Top categories
+    try:
+        cat_rows = db.execute(
+            text(
+                """
+                SELECT
+                  category_value,
+                  COUNT(*) AS searches,
+                  SUM(CASE WHEN clicked_artist_id IS NOT NULL THEN 1 ELSE 0 END) AS clicks
+                FROM search_events
+                WHERE category_value IS NOT NULL AND TRIM(category_value) != ''
+                GROUP BY category_value
+                ORDER BY searches DESC
+                LIMIT :limit
+                """
+            ),
+            {"limit": int(limit)},
+        ).fetchall()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("search summary categories query failed: %s", exc)
+        cat_rows = []
+
+    top_categories: List[Dict[str, Any]] = [
+        {
+            "category_value": row[0] or "",
+            "searches": int(row[1] or 0),
+            "clicks": int(row[2] or 0),
+        }
+        for row in cat_rows
+        if row[0] is not None
+    ]
+
+    return {
+        "totals": totals,
+        "by_source": by_source,
+        "top_locations": top_locations,
+        "top_categories": top_categories,
+    }
+
+
+@router.get("/search-analytics/problem-queries")
+def get_search_problem_queries(
+    limit: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> List[Dict[str, Any]]:
+    """Return category/location pairs that frequently yield zero results."""
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT
+                  COALESCE(category_value, '') AS category_value,
+                  COALESCE(location, '') AS location,
+                  COUNT(*) AS total_searches,
+                  SUM(CASE WHEN results_count = 0 OR results_count IS NULL THEN 1 ELSE 0 END) AS zero_result_count
+                FROM search_events
+                GROUP BY COALESCE(category_value, ''), COALESCE(location, '')
+                HAVING SUM(CASE WHEN results_count = 0 OR results_count IS NULL THEN 1 ELSE 0 END) > 0
+                ORDER BY zero_result_count DESC, total_searches DESC
+                LIMIT :limit
+                """
+            ),
+            {"limit": int(limit)},
+        ).fetchall()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("search problem-queries query failed: %s", exc)
+        rows = []
+
+    items: List[Dict[str, Any]] = []
+    for row in rows:
+        category_value, location, total_searches, zero_result_count = row
+        try:
+            total = int(total_searches or 0)
+            zero = int(zero_result_count or 0)
+            rate = float(zero) / float(total) if total > 0 else 0.0
+        except Exception:
+            total = 0
+            zero = 0
+            rate = 0.0
+        items.append(
+            {
+                "category_value": category_value or None,
+                "location": location or None,
+                "total_searches": total,
+                "zero_result_count": zero,
+                "zero_result_rate": rate,
+            }
+        )
+    return items

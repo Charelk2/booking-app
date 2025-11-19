@@ -175,7 +175,7 @@ function HeaderMessagesLink({ unread }: { unread: number }) {
   return (
     <Link
       href="/inbox"
-      className="relative inline-flex items-center gap-2 px-3 py-2 rounded-lg text-white hover:bg-gray-900 hover:text-white hover:no-underline"
+      className="relative inline-flex items-center justify-center px-3 py-2 rounded-lg text-white hover:bg-gray-900 hover:text-white hover:no-underline"
       aria-label={unread > 0 ? `Messages (${unread} unread)` : 'Messages'}
       onMouseEnter={() => router.prefetch?.('/inbox')}
       onFocus={() => router.prefetch?.('/inbox')}
@@ -185,10 +185,9 @@ function HeaderMessagesLink({ unread }: { unread: number }) {
       ) : (
         <ChatOutline className="h-5 w-5" />
       )}
-      <span className="text-sm">Messages</span>
       {unread > 0 && (
         <span
-          className="ml-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 text-[10px] font-semibold leading-none px-1"
+          className="absolute -top-1 -right-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 text-[10px] font-semibold leading-none px-1"
           aria-label={`${unread} unread messages`}
         >
           {unread > 99 ? '99+' : unread}
