@@ -534,7 +534,7 @@ export default function BookingSummaryCard({
                         rel="noopener noreferrer"
                         className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
                       >
-                        View receipt &rarr;
+                        View Receipt &rarr;
                       </a>
                     )}
                     {providerHref && (
