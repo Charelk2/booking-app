@@ -44,8 +44,7 @@ Result: homepage lists load reliably; repeated requests HIT cache; avatars are s
     - Fast path: when `fields` is a lean subset, select only `{user_id, business_name, profile_picture_url, created_at, updated_at}`, paginate in SQL, group by artist to avoid duplicates, sort with `COALESCE(book_count,0) DESC` (SQLite‑safe), emit ETag/Cache‑Control, and cache in Redis (keys include normalized `fields`).
     - Full path: keep richer joins and optional price histogram, add ETag/304, and cache with `fields` in the key.
   - Rewrote any remaining `query.all()` usages to `count() + offset(limit)` pagination.
-  - Rewrote avatar fields in list payloads to a proxy URL (`/api/v1/img/avatar/{id}`) so lists never ship embedded base64 images.
-
+  - Standardized avatar fields in list payloads to use the image proxy (`/api/v1/img/avatar/{id}`) so clients always work with crisp, cached thumbnails.
 - backend/app/utils/redis_cache.py
   - Cache keys include normalized `fields` to prevent collisions; both fast‑path and full payloads are cached.
   - Added byte helpers used by the avatar proxy.

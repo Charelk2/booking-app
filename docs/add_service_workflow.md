@@ -22,7 +22,7 @@ All service categories share the BaseServiceWizard for a consistent layout and n
 Each category is identified by a canonical slug defined in `frontend/src/lib/categoryMap.ts`.
 This slug is sent to the backend so services map to the correct providers without relying on database IDs.
 
-Each category adds its own fields; for example, a **Musician** selects a service type such as Live Performance and sets pricing, while a **Photographer** captures camera details and pricing. All wizards submit to the existing `/api/v1/services/` endpoint. Media files are read client-side and sent as base64 strings in the `media_url` field. When a provider chooses a line of work, the wizard includes the selected slug as `service_category_slug` so the API links the new service to the correct backend category.
+Each category adds its own fields; for example, a **Musician** selects a service type such as Live Performance and sets pricing, while a **Photographer** captures camera details and pricing. All wizards submit to the existing `/api/v1/services/` endpoint. Media files are uploaded via the shared image pipeline (R2 + static) and referenced in the `media_url` field as stable URLs or storage keys. When a provider chooses a line of work, the wizard includes the selected slug as `service_category_slug` so the API links the new service to the correct backend category.
 
 The newly added **DJ** wizard records a preferred genre, while the **Sound Service** wizard captures a description of the offering. Both reuse the BaseServiceWizard to provide the same navigation and media upload experience as other categories.
 
@@ -32,7 +32,7 @@ POST /api/v1/services/
   "title": "My Service",
   "price": 100,
   "service_type": "Live Performance",
-  "media_url": "data:image/png;base64,..."
+  "media_url": "media/{user_id}/2025/11/<uuid>.jpg"
 }
 ```
 

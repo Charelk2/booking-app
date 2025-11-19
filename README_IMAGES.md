@@ -7,8 +7,8 @@ Overview
   - auto-falls back on errors,
   - auto-sets `unoptimized` for `data:`/`blob:` sources to avoid runtime optimizer errors.
 - Cloudflare groundwork in place: helper + optional loader toggle.
-- Upload-first flow: new or edited service media are uploaded via multipart; we never persist base64 in payloads.
-- Migrations: one-click POST endpoints to convert existing data URLs to static file URLs.
+- Upload-first flow: new or edited service media are uploaded via multipart and stored as stable URLs (R2 keys or `/static/...` paths).
+- Migrations: one-click POST endpoints to convert legacy inline media to static file URLs.
 - LCP and UX polish: hero images prioritized, blur placeholders on key images, subtle route progress bar, skeleton UIs, Safari-gated prefetch, and cache-based prefetch for category clicks.
  - LCP and UX polish: hero images prioritized, blur placeholders on key images, subtle route progress bar, skeleton UIs, Safari‑gated prefetch (1s post‑load), and cache‑based prefetch for category clicks.
 
@@ -28,8 +28,8 @@ Key Files
 - Backend
   - `backend/app/api/api_uploads.py`: `POST /api/v1/uploads/images` for generic image uploads, returns `/static/portfolio_images/...` URLs.
   - `backend/app/api/api_ops.py`:
-    - `POST /api/v1/ops/migrate-service-media-to-files` (services.media_url data: → file URLs)
-    - `POST /api/v1/ops/migrate-profile-images-to-files` (users/profile pics, cover photos, portfolio array data: → file URLs)
+    - `POST /api/v1/ops/migrate-service-media-to-files` (convert older inline media to file-backed URLs)
+    - `POST /api/v1/ops/migrate-profile-images-to-files` (users/profile pics, cover photos, portfolio arrays → file-backed URLs)
   - `backend/app/services/avatar_service.py` + `backend/app/api/api_user.py`:
     - `/api/v1/users/me/profile-picture` stores avatars via a shared helper:
       - Prefer Cloudflare R2 under `avatars/{user_id}/...` when `R2_*` is configured.
@@ -41,8 +41,8 @@ What We Implemented (Summary)
 1) Enabled Next/Image optimizer globally; guarded previews with `unoptimized` where needed.
 2) Standardized image usage to `SafeImage` across key components (avatars/cards/covers/heroes).
 3) Added Cloudflare support scaffolding: cf helpers + optional loader.
-4) Switched add-service flow to upload-first (multipart) and stopped embedding base64 in payloads.
-5) Added ops migrations to convert existing data URLs to static file URLs.
+4) Switched add-service flow to upload-first (multipart) so service and profile media are stored as R2/static URLs.
+5) Added ops migrations to convert older inline media to file-backed URLs when needed.
 6) Improved LCP & UX:
    - `priority + fetchPriority="high" + elementtiming="LCP-hero"` on true heroes.
    - Blur placeholders on heroes and cards.
