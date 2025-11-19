@@ -24,6 +24,14 @@ type ProviderProfile = {
   } | null;
 };
 
+type ProviderReview = {
+  id: number;
+  booking_id: number;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+};
+
 type Props = {
   providerId: number;
   providerName?: string | null;
@@ -54,6 +62,7 @@ export default function ProviderProfilePanel({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [profile, setProfile] = React.useState<ProviderProfile | null>(null);
+  const [reviews, setReviews] = React.useState<ProviderReview[]>([]);
   const [isReviewOpen, setIsReviewOpen] = React.useState(false);
   const [reviewForm, setReviewForm] = React.useState<ReviewForm>({ rating: 5, comment: "" });
   const [submittingReview, setSubmittingReview] = React.useState(false);
@@ -89,6 +98,29 @@ export default function ProviderProfilePanel({
     setIsReviewOpen(true);
     setReviewForm({ rating: 5, comment: "" });
   }, [isOpen, autoOpenReview]);
+
+  // Load existing reviews for this provider
+  React.useEffect(() => {
+    if (!isOpen || !providerId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/v1/reviews/service-provider-profiles/${providerId}/reviews`), {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as ProviderReview[];
+        if (!cancelled && Array.isArray(data)) {
+          setReviews(data);
+        }
+      } catch {
+        if (!cancelled) setReviews([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, providerId]);
 
   const displayName =
     providerName ||
@@ -154,6 +186,22 @@ export default function ProviderProfilePanel({
         throw new Error(detail);
       }
       setHasExistingReviewForBooking(true);
+      // Optimistically append the new review to the local list
+      try {
+        setReviews((prev) => {
+          const next: ProviderReview[] = [
+            {
+              id: Date.now(),
+              booking_id: bookingId,
+              rating: reviewForm.rating,
+              comment: reviewForm.comment || null,
+              created_at: new Date().toISOString(),
+            },
+            ...prev,
+          ];
+          return next;
+        });
+      } catch {}
       setIsReviewOpen(false);
     } catch (err: any) {
       setError(err?.message || "Failed to submit review.");
@@ -283,6 +331,53 @@ export default function ProviderProfilePanel({
             </div>
           )}
 
+          {/* Reviews list */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-900">Reviews from clients</p>
+            </div>
+            {loading && (
+              <div className="flex items-center justify-center py-4">
+                <Spinner size="sm" />
+              </div>
+            )}
+            {error && (
+              <p className="text-xs text-red-600">{error}</p>
+            )}
+            {!loading && !error && (!reviews || reviews.length === 0) && (
+              <p className="text-xs text-gray-500">
+                No client reviews yet. Completed bookings will show up here.
+              </p>
+            )}
+            {!loading &&
+              !error &&
+              reviews.map((r) => (
+                <div
+                  key={r.id}
+                  className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-xs text-gray-900">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <StarSolidIcon
+                          key={i}
+                          className={`h-3 w-3 ${
+                            i < (Number(r.rating) || 0) ? "text-yellow-400" : "text-gray-200"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-gray-500">
+                      {new Date(r.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {r.comment && (
+                    <p className="mt-1 text-[12px] leading-snug text-gray-700">{r.comment}</p>
+                  )}
+                </div>
+              ))}
+          </div>
+
           {/* Review CTA (client reviewing provider) */}
           {user?.user_type === "client" && canReview !== false && !hasExistingReviewForBooking && bookingId && (
             <div className="pt-1">
@@ -383,4 +478,3 @@ export default function ProviderProfilePanel({
     </div>
   );
 }
-
