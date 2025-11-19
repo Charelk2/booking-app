@@ -55,19 +55,19 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
           <img
             src={review.provider.profile_picture_url}
             alt={providerName}
-            className="w-12 h-12 rounded-full object-cover mr-3"
+            className="w-9 h-9 rounded-full object-cover mr-3"
           />
         ) : (
-          <div className="w-12 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-sm font-semibold">
+          <div className="w-9 h-9 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-xs font-semibold">
             {initial}
           </div>
         )}
-        <div>
-          <h4 className="font-semibold text-gray-900">{providerName}</h4>
+        <div className="leading-tight">
+          <h4 className="font-semibold text-gray-900 text-sm">{providerName}</h4>
           {providerLocation && (
-            <p className="text-xs text-gray-600">{providerLocation}</p>
+            <p className="text-[11px] text-gray-600">{providerLocation}</p>
           )}
-          <p className="text-xs text-gray-600 mt-0.5">{dateLabel}</p>
+          <p className="text-[11px] text-gray-600 mt-0.5">{dateLabel}</p>
         </div>
       </div>
       {review.comment && (
