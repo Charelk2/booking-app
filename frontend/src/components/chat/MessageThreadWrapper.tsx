@@ -12,6 +12,7 @@ import { getFullImageUrl } from '@/lib/utils';
 
 import MessageThread from '@/components/chat/MessageThread/index.web';
 import BookingDetailsPanel from '@/components/chat/BookingDetailsPanel';
+import ClientProfilePanel from '@/components/chat/MessageThread/ClientProfilePanel';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import InlineQuoteForm from '@/components/chat/InlineQuoteForm';
 import { createQuoteV2, getQuotesForBookingRequest, getQuoteV2, getBookingIdForRequest } from '@/lib/api';
@@ -655,12 +656,12 @@ export default function MessageThreadWrapper({
   /** Lock background scroll while any overlay is open */
   useEffect(() => {
     const prev = document.body.style.overflow;
-    if (showSidePanel || showQuoteModal || showDetailsModal) document.body.style.overflow = 'hidden';
+    if (showSidePanel || showQuoteModal || showDetailsModal || showClientProfile) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = prev || '';
     return () => {
       document.body.style.overflow = prev || '';
     };
-  }, [showSidePanel, showQuoteModal, showDetailsModal]);
+  }, [showSidePanel, showQuoteModal, showDetailsModal, showClientProfile]);
 
   const handleDownloadCalendar = useCallback(async () => {
     if (!confirmedBookingDetails?.id) return;
