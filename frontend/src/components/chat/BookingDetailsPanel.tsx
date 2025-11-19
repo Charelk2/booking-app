@@ -593,9 +593,13 @@ export default function BookingDetailsPanel({
   ).toLowerCase();
   const isPersonalized = serviceTypeText.includes('personalized video');
   const effectiveBooking = (confirmedBookingDetails || hydratedBooking) as (Booking & { review?: Review }) | null;
+  const bookingStatus = String(effectiveBooking?.status || '').toLowerCase();
+  const requestStatus = String(bookingRequest.status || '').toLowerCase();
+  const isCompletedBooking = bookingStatus === 'completed';
+  const isCompletedRequest = requestStatus === 'request_completed' || requestStatus === 'completed';
   const canClientReviewProvider =
     viewerIsClient &&
-    String(effectiveBooking?.status || '').toLowerCase() === 'completed' &&
+    (isCompletedBooking || isCompletedRequest) &&
     !effectiveBooking?.review;
 
   const clientReviewCta = canClientReviewProvider ? (
