@@ -871,9 +871,12 @@ export default function BookingDetailsPanel({
           />
         );
       })()}
-      {bookingConfirmed &&
-        confirmedBookingDetails?.status === 'completed' &&
-        !(confirmedBookingDetails as Booking & { review?: Review }).review && (
+      {(() => {
+        const completedBooking = (confirmedBookingDetails || hydratedBooking) as (Booking & { review?: Review }) | null;
+        const isCompleted = String(completedBooking?.status || '').toLowerCase() === 'completed';
+        const hasReview = Boolean(completedBooking?.review);
+        return !viewerIsProvider && isCompleted && !hasReview;
+      })() && (
           <div className="mt-4 text-center">
             <Button
               type="button"
