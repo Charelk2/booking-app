@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Toast, Spinner } from '@/components/ui';
+import { Toast, Spinner, Avatar } from '@/components/ui';
 
 import type { ServiceProviderProfile, Service, Review as ReviewType } from '@/types';
 import {
@@ -1179,16 +1179,66 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <ul className="space-y-4">
-                {filteredSortedReviews.map((review) => (
-                  <li key={`all-rev-${review.id}`} className="rounded-xl border border-gray-100 p-4 bg-white">
-                    <div className="flex items-start justify-between mb-2">
-                      <ReviewStars rating={Number(review.rating) || 0} />
-                      {review.client?.first_name && <p className="text-xs font-medium text-gray-700 ml-3">{review.client.first_name}</p>}
+                {filteredSortedReviews.map((review) => {
+                  const nameFromClient =
+                    `${review.client?.first_name || ''} ${review.client?.last_name || ''}`.trim();
+                  const clientName =
+                    review.client_display_name || nameFromClient || review.client?.email || 'Client';
+                  const initials =
+                    review.client?.first_name?.[0] ||
+                    clientName.trim().charAt(0) ||
+                    '•';
+                  const avatarSrc = review.client?.profile_picture_url || null;
+                  const reviewedOn = new Date(review.created_at).toLocaleDateString('en');
+                  const clientHref =
+                    typeof review.client_id === 'number'
+                      ? `/clients/${review.client_id}`
+                      : review.client?.id
+                      ? `/clients/${review.client.id}`
+                      : null;
+
+                  const avatarBlock = (
+                    <div className="flex items-center gap-2">
+                      <Avatar
+                        src={avatarSrc || undefined}
+                        initials={initials}
+                        size={32}
+                      />
+                      <div className="flex flex-col">
+                        <p className="text-xs font-medium text-gray-800">
+                          {clientName}
+                        </p>
+                        <p className="text-[11px] text-gray-500">
+                          Reviewed on: {reviewedOn}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-gray-600 text-xs leading-relaxed">{review.comment}</p>
-                    <p className="mt-2 text-xs text-gray-400">Reviewed on: {new Date(review.created_at).toLocaleDateString('en')}</p>
-                  </li>
-                ))}
+                  );
+
+                  return (
+                    <li
+                      key={`all-rev-${review.id}`}
+                      className="rounded-xl border border-gray-100 p-4 bg-white"
+                    >
+                      <div className="flex items-start justify-between mb-3 gap-3">
+                        <ReviewStars rating={Number(review.rating) || 0} />
+                        {clientHref ? (
+                          <Link
+                            href={clientHref}
+                            className="ml-3 no-underline hover:no-underline"
+                          >
+                            {avatarBlock}
+                          </Link>
+                        ) : (
+                          <div className="ml-3">{avatarBlock}</div>
+                        )}
+                      </div>
+                      <p className="text-gray-600 text-xs leading-relaxed">
+                        {review.comment}
+                      </p>
+                    </li>
+                  );
+                })}
               </ul>
               <div className="mt-4 flex justify-end">
                 <button type="button" onClick={() => setIsAllReviewsOpen(false)} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">Close</button>
