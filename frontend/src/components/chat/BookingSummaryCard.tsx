@@ -138,8 +138,12 @@ const AvatarHeader: React.FC<
               {serviceName || 'Booking Details'}
             </h1>
             {artistName && (
-              <div className="mt-0.5 flex items-center gap-2">
-                <p className="text-sm font-medium text-gray-600 truncate">with {artistName}</p>
+              <p className="mt-0.5 text-sm font-medium text-gray-600 truncate">
+                with {artistName}
+              </p>
+            )}
+            {clientReviewCta && (
+              <div className="mt-2">
                 {clientReviewCta}
               </div>
             )}
