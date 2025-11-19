@@ -1,7 +1,7 @@
 // src/components/search/SearchPopupContent.tsx
 'use client';
 
-import React, { useEffect, useState, RefObject, useCallback, useRef } from 'react';
+import React, { useEffect, useState, RefObject, useCallback, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import SafeImage from '@/components/ui/SafeImage';
 import ReactDatePicker from 'react-datepicker';
@@ -13,6 +13,10 @@ import useServiceCategories from '@/hooks/useServiceCategories';
 import { getServiceProviders } from '@/lib/api';
 import type { ServiceProviderProfile } from '@/types';
 import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
+import {
+  getRecentSearches,
+  type RecentSearch,
+} from '@/lib/recentSearchStore';
 
 import type { ActivePopup, Category } from './types';
 
@@ -71,6 +75,8 @@ export default function SearchPopupContent({
   const artistInputRef = useRef<HTMLInputElement>(null);
   const categories = useServiceCategories();
   const router = useRouter();
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+
   // Artist quick search state (unchanged)
 
   useEffect(() => {
@@ -97,6 +103,11 @@ export default function SearchPopupContent({
   }, [activeField, locationInputRef, categoryListboxOptionsRef]);
 
   useEffect(() => {
+    const recents = getRecentSearches();
+    setRecentSearches(recents);
+  }, []);
+
+  useEffect(() => {
     if (!artistQuery.trim()) {
       setArtistResults([]);
       return;
@@ -112,6 +123,18 @@ export default function SearchPopupContent({
     }, 300);
     return () => clearTimeout(handler);
   }, [artistQuery]);
+
+  const recentLocations = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          recentSearches
+            .map((s) => s.location?.trim())
+            .filter((loc): loc is string => !!loc),
+        ),
+      ),
+    [recentSearches],
+  );
 
   // no-op helpers removed
 
@@ -177,53 +200,93 @@ export default function SearchPopupContent({
           >
             Suggested destinations
           </h3>
-          {/* Enable vertical scrolling when suggestions exceed container height */}
-          {/* Use a single column on small screens and limit height to half the viewport */}
-          <ul
-            id={AUTOCOMPLETE_LISTBOX_ID}
-            role="listbox"
-            aria-labelledby="search-popup-label-location"
-            aria-activedescendant={activeId}
-            className="grid grid-cols-1 sm:grid-cols-1 gap-4 max-h-[50vh] overflow-y-auto scrollbar-thin"
-          >
-            {MOCK_LOCATION_SUGGESTIONS.map((s, index) => {
-              const optionId = `suggestion-${index}`;
-              return (
-                <li
-                  key={s.name}
-                  id={optionId}
-                  role="option"
-                  aria-selected={activeId === optionId}
-                  aria-label={`${s.name}${
-                    s.description ? `, ${s.description}` : ''
-                  }`}
-                  onClick={() =>
-                    handleLocationSelect({
-                      description: s.name,
-                      structured_formatting: { main_text: s.name, secondary_text: s.description || '' },
-                    } as unknown as google.maps.places.AutocompletePrediction)
-                  }
-                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
-                  tabIndex={-1}
-                >
-                  {s.image && (
-                    <SafeImage
-                      src={s.image}
-                      alt={s.name}
-                      width={40}
-                      height={40}
-                      sizes="40px"
-                      className="h-10 w-10 rounded-lg object-cover flex-shrink-0"
-                    />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{s.name}</p>
-                    <p className="text-xs text-gray-500">{s.description}</p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="space-y-4">
+            {recentLocations.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                  Recent locations
+                </h4>
+                <ul className="space-y-1">
+                  {recentLocations.slice(0, 4).map((loc) => (
+                    <li key={`recent-loc-${loc}`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocation(loc);
+                          closeAllPopups();
+                        }}
+                        className="flex w-full items-center space-x-3 rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-[11px] font-medium text-gray-600">
+                          {loc.slice(0, 2).toUpperCase()}
+                        </span>
+                        <span>{loc}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                Popular locations
+              </h4>
+              {/* Keep listbox for LocationInput a11y */}
+              <ul
+                id={AUTOCOMPLETE_LISTBOX_ID}
+                role="listbox"
+                aria-labelledby="search-popup-label-location"
+                aria-activedescendant={activeId}
+                className="space-y-1 max-h-[50vh] overflow-y-auto scrollbar-thin"
+              >
+                {MOCK_LOCATION_SUGGESTIONS.map((s, index) => {
+                  const optionId = `suggestion-${index}`;
+                  return (
+                    <li
+                      key={s.name}
+                      id={optionId}
+                      role="option"
+                      aria-selected={activeId === optionId}
+                      aria-label={`${s.name}${
+                        s.description ? `, ${s.description}` : ''
+                      }`}
+                      onClick={() =>
+                        handleLocationSelect({
+                          description: s.name,
+                          structured_formatting: {
+                            main_text: s.name,
+                            secondary_text: s.description || '',
+                          },
+                        } as unknown as google.maps.places.AutocompletePrediction)
+                      }
+                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
+                      tabIndex={-1}
+                    >
+                      {s.image && (
+                        <SafeImage
+                          src={s.image}
+                          alt={s.name}
+                          width={40}
+                          height={40}
+                          sizes="40px"
+                          className="h-10 w-10 rounded-lg object-cover flex-shrink-0"
+                        />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {s.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {s.description}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
         </div>
       );
     }
@@ -426,6 +489,78 @@ export default function SearchPopupContent({
           </button>
         ))}
       </div>
+
+      {recentSearches.length > 0 && (
+        <div className="mt-6">
+          <h4 className="text-md font-semibold text-gray-700 mb-3">
+            Recent searches on this device
+          </h4>
+          <div className="flex flex-wrap justify-center gap-2">
+            {recentSearches.slice(0, 6).map((search, index) => {
+              const hasLocation = !!search.location;
+              const hasWhen = !!search.whenISO;
+
+              const labelParts: string[] = [];
+
+              if (search.categoryLabel) {
+                labelParts.push(search.categoryLabel);
+              } else {
+                labelParts.push('Any service');
+              }
+
+              if (hasLocation) {
+                labelParts.push(search.location as string);
+              }
+
+              let subtitle: string | null = null;
+              if (hasWhen) {
+                try {
+                  const date = new Date(search.whenISO as string);
+                  const formatter = new Intl.DateTimeFormat('en-ZA', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                  });
+                  subtitle = formatter.format(date);
+                } catch {
+                  subtitle = null;
+                }
+              }
+
+              const label = labelParts.join(' · ');
+
+              return (
+                <button
+                  key={`${label}-${index}`}
+                  type="button"
+                  onClick={() => {
+                    if (search.location) {
+                      setLocation(search.location);
+                    }
+                    if (search.whenISO) {
+                      try {
+                        setWhen(new Date(search.whenISO));
+                      } catch {
+                        // ignore invalid date
+                      }
+                    }
+                    // For now we don't change category here to avoid rehydration complexity.
+                    closeAllPopups();
+                  }}
+                  className="inline-flex flex-col items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition"
+                >
+                  <span className="font-medium">{label}</span>
+                  {subtitle && (
+                    <span className="text-[11px] text-gray-500">
+                      {subtitle}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="mt-6">
         <h4 className="text-md font-semibold text-gray-700 mb-3">

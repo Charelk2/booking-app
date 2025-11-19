@@ -13,6 +13,7 @@ import {
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { SearchFields } from './SearchFields';
+import { addRecentSearch } from '@/lib/recentSearchStore';
 import type { Category, SearchFieldId, ActivePopup } from './types';
 import useClickOutside from '@/hooks/useClickOutside';
 import { Transition } from '@headlessui/react';
@@ -136,10 +137,21 @@ export default function SearchBar({
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    const whenISO =
+      when instanceof Date ? when.toISOString().slice(0, 10) : undefined;
+
     setSubmitting(true);
     closeThisSearchBarsInternalPopups();
     try {
       await onSearch({ category: category?.value, location: location || undefined, when });
+
+      addRecentSearch({
+        categoryLabel: category?.label,
+        categoryValue: category?.value,
+        location: location || undefined,
+        whenISO,
+      });
     } finally {
       setSubmitting(false);
     }
