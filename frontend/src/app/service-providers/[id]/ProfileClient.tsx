@@ -371,6 +371,10 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
 
   function openMobileServicePicker(prefillId?: number) {
     if (!services.length) return;
+    if (services.length === 1 && !prefillId) {
+      void handleBookService(services[0]);
+      return;
+    }
     startTransition(() => {
       setSelectedServiceId(prefillId ?? null);
       setIsServicePickerOpen(true);
