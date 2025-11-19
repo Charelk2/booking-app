@@ -306,8 +306,8 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
               {isVerified && (
                 <div className="mt-4 flex items-center space-x-3">
                   <ShieldCheck className="h-4 w-4 text-gray-800" />
-                  <span className="font-medium text-gray-700 underline">
-                    Identity &amp; payments verified
+                  <span className="font-medium text-gray-700">
+                    Identity verified
                   </span>
                 </div>
               )}
