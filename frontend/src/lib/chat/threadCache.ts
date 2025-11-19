@@ -7,6 +7,7 @@ import { safeParseDate } from '@/lib/chat/threadStore';
 
 export const THREAD_CACHE_PREFIX = 'inbox:thread';
 const THREAD_LRU_KEY = `${THREAD_CACHE_PREFIX}:lru:v1`;
+const THREAD_OWNER_KEY = `${THREAD_CACHE_PREFIX}:owner`;
 const MAX_THREADS_DEFAULT = 20;
 const IDB_MESSAGE_LIMIT = 200;
 const IDB_MAX_THREADS = 60;
@@ -20,6 +21,43 @@ type ThreadRecord = {
   messageCount: number;
 };
 export type ThreadStoreRecord = ThreadRecord;
+
+let threadOwnerId: number | null = null;
+
+export function getThreadCacheOwner(): number | null {
+  if (threadOwnerId != null) return threadOwnerId;
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw =
+      window.sessionStorage.getItem(THREAD_OWNER_KEY) ||
+      window.localStorage.getItem(THREAD_OWNER_KEY);
+    if (!raw) return null;
+    const id = Number(raw);
+    if (!Number.isFinite(id) || id <= 0) return null;
+    threadOwnerId = id;
+    return threadOwnerId;
+  } catch {
+    return null;
+  }
+}
+
+export function setThreadCacheOwner(userId: number | null): void {
+  try {
+    const id = Number(userId ?? 0);
+    threadOwnerId = Number.isFinite(id) && id > 0 ? id : null;
+    if (typeof window === 'undefined') return;
+    if (threadOwnerId) {
+      const v = String(threadOwnerId);
+      window.sessionStorage.setItem(THREAD_OWNER_KEY, v);
+      window.localStorage.setItem(THREAD_OWNER_KEY, v);
+    } else {
+      window.sessionStorage.removeItem(THREAD_OWNER_KEY);
+      window.localStorage.removeItem(THREAD_OWNER_KEY);
+    }
+  } catch {
+    // best-effort only
+  }
+}
 
 // Minimal summary record used by the conversation list
 export type ThreadSummary = {

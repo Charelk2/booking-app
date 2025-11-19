@@ -14,7 +14,7 @@ import {
   getCurrentUser,
   getServiceProviderProfileMe,
 } from '@/lib/api';
-import { clearThreadCaches } from '@/lib/chat/threadCache';
+import { clearThreadCaches, getThreadCacheOwner, setThreadCacheOwner } from '@/lib/chat/threadCache';
 import { ensureFreshAccess } from '@/lib/refreshCoordinator';
 import { getTransportStateSnapshot, runWithTransport } from '@/lib/transportState';
 
@@ -175,6 +175,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (userData) {
+          try {
+            const owner = getThreadCacheOwner();
+            if (owner && owner !== userData.id) {
+              await clearThreadCaches({ includeSession: true });
+            }
+            setThreadCacheOwner(userData.id);
+            if (typeof window !== 'undefined') {
+              (window as any).__currentUserId = Number(userData.id || 0) || null;
+            }
+          } catch {}
           setUser(userData);
           try {
             const serialized = JSON.stringify(userData);
@@ -275,11 +285,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const altStorage = remember ? sessionStorage : localStorage;
       try {
         const userData = await fetchCurrentUserWithArtist();
+        try {
+          const owner = getThreadCacheOwner();
+          if (owner && owner !== userData.id) {
+            await clearThreadCaches({ includeSession: true });
+          }
+          setThreadCacheOwner(userData.id);
+          if (typeof window !== 'undefined') {
+            (window as any).__currentUserId = Number(userData.id || 0) || null;
+          }
+        } catch {}
         setUser(userData);
         storage.setItem('user', JSON.stringify(userData));
         altStorage.removeItem('user');
       } catch (err) {
         console.error('Failed to fetch current user:', err);
+        try {
+          const owner = getThreadCacheOwner();
+          if (owner && owner !== fallbackUser.id) {
+            await clearThreadCaches({ includeSession: true });
+          }
+          setThreadCacheOwner(fallbackUser.id);
+          if (typeof window !== 'undefined') {
+            (window as any).__currentUserId = Number(fallbackUser.id || 0) || null;
+          }
+        } catch {}
         setUser(fallbackUser);
         storage.setItem('user', JSON.stringify(fallbackUser));
         altStorage.removeItem('user');
@@ -324,11 +354,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const userData = await fetchCurrentUserWithArtist();
+        try {
+          const owner = getThreadCacheOwner();
+          if (owner && owner !== userData.id) {
+            await clearThreadCaches({ includeSession: true });
+          }
+          setThreadCacheOwner(userData.id);
+          if (typeof window !== 'undefined') {
+            (window as any).__currentUserId = Number(userData.id || 0) || null;
+          }
+        } catch {}
         setUser(userData);
         storage.setItem('user', JSON.stringify(userData));
         altStorage.removeItem('user');
       } catch (err) {
         console.error('Failed to fetch current user:', err);
+        try {
+          const owner = getThreadCacheOwner();
+          if (owner && owner !== fallbackUser.id) {
+            await clearThreadCaches({ includeSession: true });
+          }
+          setThreadCacheOwner(fallbackUser.id);
+          if (typeof window !== 'undefined') {
+            (window as any).__currentUserId = Number(fallbackUser.id || 0) || null;
+          }
+        } catch {}
         setUser(fallbackUser);
         storage.setItem('user', JSON.stringify(fallbackUser));
         altStorage.removeItem('user');
@@ -357,6 +407,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = async () => {
     try {
       const userData = await fetchCurrentUserWithArtist();
+      try {
+        const owner = getThreadCacheOwner();
+        if (owner && owner !== userData.id) {
+          await clearThreadCaches({ includeSession: true });
+        }
+        setThreadCacheOwner(userData.id);
+        if (typeof window !== 'undefined') {
+          (window as any).__currentUserId = Number(userData.id || 0) || null;
+        }
+      } catch {}
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (err) {
@@ -394,6 +454,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setArtistViewActive(true);
     void clearThreadCaches({ includeSession: true });
+    try {
+      setThreadCacheOwner(null);
+      if (typeof window !== 'undefined') {
+        delete (window as any).__currentUserId;
+      }
+    } catch {}
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('artistViewActive');
