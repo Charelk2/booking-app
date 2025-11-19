@@ -396,11 +396,6 @@ export default function ClientProfilePanel({
                       {r.provider?.business_name || "Service provider"}
                       {r.booking?.service_title ? ` · ${r.booking.service_title}` : ""}
                     </span>
-                    {r.booking?.event_date && (
-                      <span>
-                        {new Date(r.booking.event_date).toLocaleDateString()}
-                      </span>
-                    )}
                   </div>
                 </div>
               ))}
