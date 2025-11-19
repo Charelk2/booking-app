@@ -23,7 +23,12 @@ class ReviewResponse(ReviewBase):
 
 class ReviewDetails(ReviewResponse):
   """Extended provider review details (used for lists)."""
-  pass
+  # For provider profiles we also want to surface which client left
+  # the review so the UI can render "by {client_name}" badges.
+  client_id: Optional[int] = None
+  client_first_name: Optional[str] = None
+  client_last_name: Optional[str] = None
+  client_display_name: Optional[str] = None
 
 
 class ClientReviewBase(BaseModel):

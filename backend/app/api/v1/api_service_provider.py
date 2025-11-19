@@ -177,6 +177,54 @@ def read_current_artist_profile(
         # Non-fatal: return profile even if migration failed
         pass
 
+    # Completed / cancelled events counts for this provider
+    try:
+        completed_count = (
+            db.query(Booking)
+            .filter(
+                Booking.artist_id == int(current_user.id),
+                Booking.status == BookingStatus.COMPLETED,
+            )
+            .count()
+        )
+        cancelled_count = (
+            db.query(Booking)
+            .filter(
+                Booking.artist_id == int(current_user.id),
+                Booking.status == BookingStatus.CANCELLED,
+            )
+            .count()
+        )
+        setattr(artist_profile, "completed_events", int(completed_count))
+        setattr(artist_profile, "cancelled_events", int(cancelled_count))
+    except Exception:
+        setattr(artist_profile, "completed_events", 0)
+        setattr(artist_profile, "cancelled_events", 0)
+
+    # Aggregate rating + review count for this provider so profile panels
+    # can display an accurate "reviews" badge alongside the reviews list.
+    try:
+        rating_row = (
+            db.query(func.avg(Review.rating), func.count(Review.id))
+            .filter(Review.artist_id == int(current_user.id))
+            .first()
+        )
+        if rating_row is not None:
+            avg_rating, rating_count = rating_row
+            setattr(
+                artist_profile,
+                "rating",
+                float(avg_rating) if avg_rating is not None else None,
+            )
+            setattr(
+                artist_profile,
+                "rating_count",
+                int(rating_count or 0),
+            )
+    except Exception:
+        # Leave default rating / rating_count on error
+        pass
+
     # Defensive: ensure timestamps present for response validation
     try:
         from datetime import datetime as _dt
@@ -1263,6 +1311,56 @@ def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
         db.refresh(artist)
     except Exception:
         pass
+
+    # Completed / cancelled events counts for this provider
+    try:
+        completed_count = (
+            db.query(Booking)
+            .filter(
+                Booking.artist_id == int(artist_id),
+                Booking.status == BookingStatus.COMPLETED,
+            )
+            .count()
+        )
+        cancelled_count = (
+            db.query(Booking)
+            .filter(
+                Booking.artist_id == int(artist_id),
+                Booking.status == BookingStatus.CANCELLED,
+            )
+            .count()
+        )
+        setattr(artist, "completed_events", int(completed_count))
+        setattr(artist, "cancelled_events", int(cancelled_count))
+    except Exception:
+        setattr(artist, "completed_events", 0)
+        setattr(artist, "cancelled_events", 0)
+
+    # Aggregate rating + review count for this provider so the client-side
+    # provider profile panel can show an accurate "reviews" badge that matches
+    # the reviews list.
+    try:
+        rating_row = (
+            db.query(func.avg(Review.rating), func.count(Review.id))
+            .filter(Review.artist_id == int(artist_id))
+            .first()
+        )
+        if rating_row is not None:
+            avg_rating, rating_count = rating_row
+            setattr(
+                artist,
+                "rating",
+                float(avg_rating) if avg_rating is not None else None,
+            )
+            setattr(
+                artist,
+                "rating_count",
+                int(rating_count or 0),
+            )
+    except Exception:
+        # Leave default rating / rating_count on error
+        pass
+
     return artist
 
 

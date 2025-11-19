@@ -143,7 +143,7 @@ def list_reviews_for_service_provider(service_provider_id: int, db: Session = De
         db.query(Review)
         .join(Booking, Review.booking_id == Booking.id)
         .filter(Booking.artist_id == service_provider_id)
-        .options(selectinload(Review.booking))
+        .options(selectinload(Review.booking).selectinload(Booking.client))
         .order_by(Review.created_at.desc())
         .all()
     )
@@ -158,6 +158,27 @@ def list_reviews_for_service_provider(service_provider_id: int, db: Session = De
         db.commit()
     except Exception:
         pass
+    # Attach lightweight client identity so the frontend can show
+    # which client left each review.
+    for r in reviews:
+        try:
+            booking = getattr(r, "booking", None)
+            client = getattr(booking, "client", None) if booking is not None else None
+            if client is None:
+                continue
+            try:
+                setattr(r, "client_id", int(getattr(client, "id")))
+            except Exception:
+                # Skip id if it isn't an int
+                pass
+            first_name = getattr(client, "first_name", None)
+            last_name = getattr(client, "last_name", None)
+            setattr(r, "client_first_name", first_name)
+            setattr(r, "client_last_name", last_name)
+            display = f"{first_name or ''} {last_name or ''}".strip()
+            setattr(r, "client_display_name", display or None)
+        except Exception:
+            continue
     return reviews
 
 

@@ -81,6 +81,8 @@ class ArtistProfileResponse(ArtistProfileBase):
     updated_at: datetime
     rating: Optional[float] = None
     rating_count: int = 0
+    completed_events: int = 0
+    cancelled_events: int = 0
     is_available: Optional[bool] = None
     service_price: Optional[Decimal] = None
     service_categories: List[str] = Field(default_factory=list)

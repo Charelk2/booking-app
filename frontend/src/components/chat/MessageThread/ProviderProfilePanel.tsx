@@ -31,6 +31,7 @@ type ProviderReview = {
   rating: number;
   comment: string | null;
   created_at: string;
+  client_display_name?: string | null;
 };
 
 type Props = {
@@ -187,7 +188,6 @@ export default function ProviderProfilePanel({
         throw new Error(detail);
       }
       setHasExistingReviewForBooking(true);
-      // Optimistically append the new review to the local list
       try {
         setReviews((prev) => {
           const next: ProviderReview[] = [
@@ -197,11 +197,27 @@ export default function ProviderProfilePanel({
               rating: reviewForm.rating,
               comment: reviewForm.comment || null,
               created_at: new Date().toISOString(),
+              client_display_name:
+                (user?.first_name || user?.last_name)
+                  ? `${user?.first_name || ""} ${user?.last_name || ""}`.trim()
+                  : null,
             },
             ...prev,
           ];
           return next;
         });
+        if (providerId) {
+          try {
+            const profileRes = await fetch(apiUrl(`/api/v1/service-provider-profiles/${providerId}`), {
+              credentials: "include",
+            });
+            if (profileRes.ok) {
+              const updated = (await profileRes.json()) as ProviderProfile;
+              setProfile(updated);
+            }
+          } catch {
+          }
+        }
       } catch {}
       setIsReviewOpen(false);
     } catch (err: any) {
@@ -296,7 +312,7 @@ export default function ProviderProfilePanel({
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-900">
-                {reviews.length}
+                {profile?.completed_events ?? 0}
               </p>
               <p className="mt-0.5 text-[11px] text-gray-500">completed events</p>
             </div>
@@ -364,15 +380,22 @@ export default function ProviderProfilePanel({
                   className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-xs text-gray-900">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <StarSolidIcon
-                          key={i}
-                          className={`h-3 w-3 ${
-                            i < (Number(r.rating) || 0) ? "text-yellow-400" : "text-gray-200"
-                          }`}
-                        />
-                      ))}
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1 text-xs text-gray-900">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <StarSolidIcon
+                            key={i}
+                            className={`h-3 w-3 ${
+                              i < (Number(r.rating) || 0) ? "text-yellow-400" : "text-gray-200"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      {r.client_display_name && (
+                        <p className="text-[11px] text-gray-600">
+                          by {r.client_display_name}
+                        </p>
+                      )}
                     </div>
                     <p className="text-[11px] text-gray-500">
                       {new Date(r.created_at).toLocaleDateString()}
