@@ -4,8 +4,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { apiUrl } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShieldCheck, Star, MapPin } from 'lucide-react';
 
+// --- Types ---
 type ClientProfileResponse = {
   user: {
     id: number;
@@ -39,11 +40,23 @@ type ClientProfileResponse = {
   }>;
 };
 
+// --- Sub-components ---
+
+function StatItem({ count, label }: { count: string | number; label: string }) {
+  return (
+    <div className="flex flex-col border-b border-gray-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+      <span className="text-xl font-bold text-gray-900">{count}</span>
+      <span className="text-[10px] uppercase tracking-wider font-medium text-gray-500">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][number] }) {
   const providerName = review.provider?.business_name || 'Service provider';
-  const providerLocation = review.provider?.city || '';
+  const providerLocation = review.provider?.city || 'South Africa';
   const dateLabel = new Date(review.created_at).toLocaleDateString('en', {
-    day: 'numeric',
     month: 'long',
     year: 'numeric',
   });
@@ -53,35 +66,46 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
     : null;
 
   return (
-    <div className="min-w-[300px] max-w-[400px] flex-shrink-0 bg-white rounded-xl border border-gray-200 p-6 h-auto flex flex-col shadow-sm">
-      <div className="flex items-start mb-3">
+    <div className="min-w-[300px] md:min-w-[400px] snap-start bg-white rounded-2xl border border-gray-200 p-6 flex flex-col h-full transition-shadow hover:shadow-md">
+      {/* Review Header */}
+      <div className="flex items-center mb-4">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={avatarUrl}
             alt={providerName}
-            className="w-10 h-10 rounded-full object-cover mr-3"
+            className="w-12 h-12 rounded-full object-cover mr-4 border border-gray-100"
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-xs font-semibold">
+          <div className="w-12 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center mr-4 text-sm font-bold">
             {initial}
           </div>
         )}
-        <div className="leading-tight">
-          <h4 className="font-semibold text-gray-900 text-sm">{providerName}</h4>
-          {providerLocation && (
-            <p className="text-[11px] text-gray-600">{providerLocation}</p>
-          )}
-          <p className="text-[11px] text-gray-600 mt-0.5">{dateLabel}</p>
+        <div>
+          <h4 className="font-semibold text-gray-900 text-base">{providerName}</h4>
+          <p className="text-sm text-gray-500">{providerLocation}</p>
         </div>
       </div>
-      {review.comment && (
-        <div className="text-gray-900">
-          <p className="text-sm text-gray-700 leading-relaxed">
-            {review.comment}
-          </p>
+
+      {/* Review Content */}
+      <div className="flex-grow">
+        <div className="flex items-center mb-2 space-x-1">
+          {[...Array(5)].map((_, i) => (
+            <Star
+              key={i}
+              className={`w-3.5 h-3.5 ${
+                i < Math.round(review.rating) ? 'text-black fill-black' : 'text-gray-300'
+              }`}
+            />
+          ))}
+          <span className="text-xs text-gray-500 ml-2 font-medium">{dateLabel}</span>
         </div>
-      )}
+        {review.comment && (
+          <p className="text-gray-700 text-[15px] leading-relaxed line-clamp-4">
+            &ldquo;{review.comment}&rdquo;
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -102,6 +126,7 @@ function ReviewsCarousel({
     if (!el) return;
     const { scrollLeft, scrollWidth, clientWidth } = el;
     setCanScrollLeft(scrollLeft > 0);
+    // A small buffer (5px) to account for browser rounding
     setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 5);
   };
 
@@ -114,40 +139,42 @@ function ReviewsCarousel({
   const scroll = (dir: 'left' | 'right') => {
     const el = scrollRef.current;
     if (!el) return;
-    const amount = 300;
+    const amount = 420; // Card width + gap
     el.scrollBy({
       left: dir === 'left' ? -amount : amount,
       behavior: 'smooth',
     });
-    setTimeout(checkScroll, 350);
+    // Wait for smooth scroll to finish roughly before checking buttons
+    setTimeout(checkScroll, 400);
   };
 
   if (!reviews.length) {
     return (
-      <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-        <p className="text-xs font-semibold text-gray-900 mb-1">
-          Reviews from providers
+      <div className="bg-gray-50 rounded-2xl p-8 border border-gray-100 text-center">
+        <Star className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+        <p className="text-gray-900 font-medium">No reviews yet</p>
+        <p className="text-gray-500 text-sm">
+          Once {firstName} completes a booking, provider reviews will appear here.
         </p>
-        <p className="text-xs text-gray-500">
-          No provider reviews yet. Completed bookings will show up here.
-        </p>
-      </section>
+      </div>
     );
   }
 
   return (
-    <section>
+    <section className="py-8">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900">
           What providers are saying about {firstName}
         </h2>
-        <div className="flex space-x-2">
+        <div className="hidden md:flex space-x-3">
           <button
             type="button"
             onClick={() => scroll('left')}
             disabled={!canScrollLeft}
-            className={`p-2 rounded-full border border-gray-300 transition hover:shadow-md ${
-              !canScrollLeft ? 'opacity-30 cursor-not-allowed' : 'hover:border-black'
+            className={`p-2.5 rounded-full border transition-colors duration-200 ${
+              !canScrollLeft
+                ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                : 'border-gray-800 text-gray-800 hover:bg-gray-50'
             }`}
             aria-label="Scroll reviews left"
           >
@@ -157,8 +184,10 @@ function ReviewsCarousel({
             type="button"
             onClick={() => scroll('right')}
             disabled={!canScrollRight}
-            className={`p-2 rounded-full border border-gray-300 transition hover:shadow-md ${
-              !canScrollRight ? 'opacity-30 cursor-not-allowed' : 'hover:border-black'
+            className={`p-2.5 rounded-full border transition-colors duration-200 ${
+              !canScrollRight
+                ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                : 'border-gray-800 text-gray-800 hover:bg-gray-50'
             }`}
             aria-label="Scroll reviews right"
           >
@@ -166,10 +195,11 @@ function ReviewsCarousel({
           </button>
         </div>
       </div>
+      
       <div
         ref={scrollRef}
         onScroll={checkScroll}
-        className="flex overflow-x-auto space-x-4 pb-4 scrollbar-hide -mx-4 px-4"
+        className="flex overflow-x-auto snap-x snap-mandatory space-x-5 pb-6 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' as any }}
       >
         {reviews.map((r) => (
@@ -227,115 +257,128 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-10">
-        <p className="text-sm text-gray-600">Loading client profile…</p>
-      </main>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center">
+           <div className="h-12 w-12 bg-gray-200 rounded-full mb-4"></div>
+           <p className="text-gray-400 font-medium">Loading profile...</p>
+        </div>
+      </div>
     );
   }
 
   if (error || !profile) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="text-xl font-semibold text-gray-900 mb-2">Client profile unavailable</h1>
-        <p className="text-sm text-gray-600">{error || 'We couldn’t load this client’s profile right now.'}</p>
-      </main>
+      <div className="mx-auto max-w-3xl px-4 py-20 text-center">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile Unavailable</h1>
+        <p className="text-gray-500">{error || 'We couldn’t load this profile right now.'}</p>
+      </div>
     );
   }
 
   const name =
     `${profile.user.first_name || ''} ${profile.user.last_name || ''}`.trim() || 'Client';
-  const firstName = profile.user.first_name || name.split(' ')[0] || 'This client';
+  const firstName = profile.user.first_name || name.split(' ')[0] || 'User';
   const memberSince = profile.user.member_since_year;
   const nowYear = new Date().getFullYear();
   const yearsOnBooka =
     typeof memberSince === 'number' && memberSince > 2000 && memberSince <= nowYear
       ? nowYear - memberSince
       : null;
+  
   const isVerified =
     profile.verifications.email_verified ||
     profile.verifications.phone_verified ||
     profile.verifications.payment_verified;
 
   return (
-    <main className="py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-16">
-          {/* Left rail: sticky profile card */}
-          <aside className="md:col-span-1">
-            <div className="sticky top-28 self-start p-5 border border-gray-200 rounded-[32px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] bg-white">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0">
-                  {profile.user.profile_picture_url ? (
-                    <img
-                      src={profile.user.profile_picture_url}
-                      alt={firstName}
-                      className="h-28 w-28 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-28 w-28 rounded-full bg-gray-900 text-white flex items-center justify-center text-3xl font-bold">
-                      {(firstName || 'C').charAt(0).toUpperCase()}
+    <main className="py-12 md:py-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-12 lg:gap-24">
+          
+          {/* LEFT COLUMN: Sticky Profile Card */}
+          <aside>
+            <div className="sticky top-24">
+              <div className="bg-white rounded-[32px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 p-6 lg:p-8 overflow-hidden">
+                <div className="flex gap-6 items-start">
+                  
+                  {/* Avatar Section */}
+                  <div className="flex flex-col items-center justify-center text-center w-1/2">
+                    <div className="relative mb-3">
+                      {profile.user.profile_picture_url ? (
+                        <img
+                          src={profile.user.profile_picture_url}
+                          alt={firstName}
+                          className="h-28 w-28 rounded-full object-cover shadow-sm"
+                        />
+                      ) : (
+                        <div className="h-28 w-28 rounded-full bg-gray-900 text-white flex items-center justify-center text-4xl font-bold shadow-sm">
+                          {firstName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      {isVerified && (
+                         <div className="absolute bottom-1 right-1 bg-rose-600 text-white p-1.5 rounded-full shadow-sm border-2 border-white">
+                           <ShieldCheck size={14} strokeWidth={3} />
+                         </div>
+                      )}
                     </div>
-                  )}
-                  <h1 className="text-3xl font-bold mt-3 text-gray-900">
-                    {firstName}
-                  </h1>
-                  {/* We do not currently store client location, so omit it. */}
-                  {memberSince && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Member since {memberSince}
-                    </p>
-                  )}
-                </div>
-                <div className="mt-1.5 space-y-3">
-                  <div>
-                    <p className="font-bold text-gray-900 text-lg">
-                      {profile.stats.completed_events}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Completed events
-                    </p>
+                    <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-1">
+                      {firstName}
+                    </h1>
+                    <p className="text-sm text-gray-500 font-medium">Client</p>
                   </div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-lg">
-                      {profile.stats.reviews_count}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Reviews
-                    </p>
-                  </div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-lg">
-                      {yearsOnBooka != null ? yearsOnBooka : '—'}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Years on Booka
-                    </p>
+
+                  {/* Stats Section (Right half of card) */}
+                  <div className="w-1/2 flex flex-col justify-center space-y-2 pl-2">
+                     <StatItem count={profile.stats.reviews_count} label="Reviews" />
+                     <StatItem count={profile.stats.completed_events} label="Events" />
+                     <StatItem count={yearsOnBooka ?? 1} label="Years active" />
                   </div>
                 </div>
               </div>
             </div>
           </aside>
 
-          {/* Right rail: about + identity verified */}
-          <div className="md:col-span-2 space-y-12">
-            <section className="mt-0">
-              <h2 className="text-[32px] font-bold text-gray-900">
+          {/* RIGHT COLUMN: Content */}
+          <div className="flex flex-col gap-10">
+            
+            {/* Intro / Verification */}
+            <section className="border-b border-gray-200 pb-10">
+              <h2 className="text-[32px] md:text-[40px] font-extrabold text-gray-900 mb-6">
                 About {firstName}
               </h2>
-              {isVerified && (
-                <div className="mt-4 flex items-center space-x-3">
-                  <ShieldCheck className="h-4 w-4 text-gray-800" />
-                  <span className="font-medium text-gray-700">
-                    Identity verified
-                  </span>
-                </div>
-              )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {isVerified && (
+                  <div className="flex items-start space-x-4">
+                    <ShieldCheck className="w-6 h-6 text-gray-900 mt-0.5" />
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Identity verified</h3>
+                      <p className="text-gray-500 text-sm mt-0.5">
+                        {firstName} has verified their identity details with Booka.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Placeholder for Location if you add it later */}
+                 <div className="flex items-start space-x-4">
+                    <MapPin className="w-6 h-6 text-gray-900 mt-0.5" />
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Based in South Africa</h3>
+                      <p className="text-gray-500 text-sm mt-0.5">
+                        Lives in {profile.reviews[0]?.provider?.city || 'South Africa'}.
+                      </p>
+                    </div>
+                  </div>
+              </div>
             </section>
-          </div>
-        </div>
 
-        <div className="mt-12 pt-8 border-t border-gray-200">
-          <ReviewsCarousel reviews={profile.reviews} firstName={firstName} />
+            {/* Reviews */}
+            <div className="pt-2">
+              <ReviewsCarousel reviews={profile.reviews} firstName={firstName} />
+            </div>
+
+          </div>
         </div>
       </div>
     </main>
@@ -347,9 +390,9 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
   if (!Number.isFinite(idNum) || idNum <= 0) {
     return (
       <MainLayout>
-        <main className="mx-auto max-w-3xl px-4 py-10">
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Client not found</h1>
-          <p className="text-sm text-gray-600">
+        <main className="mx-auto max-w-3xl px-4 py-20 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Client not found</h1>
+          <p className="text-gray-500">
             The client profile you’re looking for does not exist.
           </p>
         </main>
