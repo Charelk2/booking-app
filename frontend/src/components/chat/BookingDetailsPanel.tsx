@@ -117,6 +117,8 @@ export default function BookingDetailsPanel({
     return Boolean(user && user.user_type === 'service_provider');
   }, [user]);
 
+  const viewerIsClient = user?.user_type === 'client';
+
   const [selfProviderIdentity, setSelfProviderIdentity] = React.useState<{
     name: string | null;
     avatar: string | null;
@@ -196,13 +198,27 @@ export default function BookingDetailsPanel({
   // Hydrate a missing Booking object after payment/confirmation so the summary card
   // can render invoice links via /invoices/{invoice_id} or /invoices/by-booking/{id}.
   const [hydratedBooking, setHydratedBooking] = React.useState<Booking | null>(null);
+  const bookingHydrateAttemptedRef = React.useRef(false);
+
   React.useEffect(() => {
+    bookingHydrateAttemptedRef.current = false;
+  }, [bookingRequest?.id]);
+
+  React.useEffect(() => {
+    const threadId = Number(bookingRequest?.id || 0);
     const alreadyHave = Boolean(confirmedBookingDetails && confirmedBookingDetails.id);
+    if (alreadyHave || !threadId) return;
+
+    // For clients, hydrate as soon as the thread is opened so
+    // review eligibility and booking metadata are available early.
+    // For providers, keep the existing guard so we only fetch once
+    // payment/confirmation has happened.
     const paid = String(paymentStatus || '').toLowerCase() === 'paid';
     const confirmed = Boolean(bookingConfirmed);
-    const threadId = Number(bookingRequest?.id || 0);
-    if (alreadyHave || !threadId) return;
-    if (!(paid || confirmed)) return;
+    if (!viewerIsClient && !(paid || confirmed)) return;
+    if (bookingHydrateAttemptedRef.current) return;
+    bookingHydrateAttemptedRef.current = true;
+
     let cancelled = false;
     (async () => {
       try {
@@ -232,7 +248,7 @@ export default function BookingDetailsPanel({
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [confirmedBookingDetails, bookingConfirmed, paymentStatus, bookingRequest?.id]);
+  }, [confirmedBookingDetails, bookingConfirmed, paymentStatus, bookingRequest?.id, viewerIsClient]);
 
   React.useEffect(() => {
     if (!viewerIsProvider) return;
@@ -576,7 +592,6 @@ export default function BookingDetailsPanel({
     ''
   ).toLowerCase();
   const isPersonalized = serviceTypeText.includes('personalized video');
-  const viewerIsClient = user?.user_type === 'client';
   const effectiveBooking = (confirmedBookingDetails || hydratedBooking) as (Booking & { review?: Review }) | null;
   const canClientReviewProvider =
     viewerIsClient &&
