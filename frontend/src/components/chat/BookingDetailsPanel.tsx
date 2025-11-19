@@ -576,6 +576,12 @@ export default function BookingDetailsPanel({
     ''
   ).toLowerCase();
   const isPersonalized = serviceTypeText.includes('personalized video');
+  const viewerIsClient = user?.user_type === 'client';
+  const effectiveBooking = (confirmedBookingDetails || hydratedBooking) as (Booking & { review?: Review }) | null;
+  const canClientReviewProvider =
+    viewerIsClient &&
+    String(effectiveBooking?.status || '').toLowerCase() === 'completed' &&
+    !effectiveBooking?.review;
 
   // Render a rich, action‑oriented panel for Booka updates
   if (isBookaThread) {
@@ -782,9 +788,11 @@ export default function BookingDetailsPanel({
               status: paymentStatus,
               amount: paymentAmount,
               receiptUrl,
-              reference: paymentReference ?? (confirmedBookingDetails?.payment_id
-                ? String(confirmedBookingDetails.payment_id)
-                : null),
+              reference:
+                paymentReference ??
+                (confirmedBookingDetails?.payment_id
+                  ? String(confirmedBookingDetails.payment_id)
+                  : null),
             }}
             bookingDetails={confirmedBookingDetails || hydratedBooking}
             quotes={quotes}
@@ -793,7 +801,11 @@ export default function BookingDetailsPanel({
             bookingRequestId={bookingRequest.id}
             baseFee={Number(bookingRequest.service?.price || 0)}
             travelFee={Number(bookingRequest.travel_cost || 0)}
-            initialSound={String(parsedBookingDetails?.soundNeeded || '').trim().toLowerCase() === 'yes'}
+            initialSound={
+              String(parsedBookingDetails?.soundNeeded || '')
+                .trim()
+                .toLowerCase() === 'yes'
+            }
             artistCancellationPolicy={cancellationPolicy}
             currentArtistId={Number(currentArtistId) || 0}
             // Always render all sections for clarity
@@ -802,19 +814,40 @@ export default function BookingDetailsPanel({
             showPolicy={true}
             showEventDetails={true}
             showReceiptBelowTotal={isPersonalized}
-            belowHeader={showPrep ? (
-              <EventPrepCard
-                bookingId={Number(confirmedBookingDetails?.id || 0) || 0}
-                bookingRequestId={Number(bookingRequest.id)}
-                canEdit={true}
-                summaryOnly
-                linkOnly
-                headlineOnly
-                onContinuePrep={async (bidFromProp: number) => {
-                  try {
-                    if (Number.isFinite(bidFromProp) && bidFromProp > 0) {
-                      try { window.location.href = `/dashboard/events/${bidFromProp}`; } catch {}
-                      return;
+            belowHeader={
+              <>
+                {canClientReviewProvider && (
+                  <div className="mb-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-gray-800"
+                      onClick={() => setShowReviewModal(true)}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="h-4 w-4 mr-1.5 text-yellow-400"
+                      >
+                        <path d="M10 15.27L16.18 19l-1.64-7.03L20 7.24l-7.19-.61L10 0 7.19 6.63 0 7.24l5.46 4.73L3.82 19z" />
+                      </svg>
+                      Leave review
+                    </button>
+                  </div>
+                )}
+                {showPrep ? (
+                  <EventPrepCard
+                    bookingId={Number(confirmedBookingDetails?.id || 0) || 0}
+                    bookingRequestId={Number(bookingRequest.id)}
+                    canEdit={true}
+                    summaryOnly
+                    linkOnly
+                    headlineOnly
+                    onContinuePrep={async (bidFromProp: number) => {
+                      try {
+                        if (Number.isFinite(bidFromProp) && bidFromProp > 0) {
+                          try { window.location.href = `/dashboard/events/${bidFromProp}`; } catch {}
+                          return;
                     }
                     const threadId = Number(bookingRequest.id) || 0;
                     if (!threadId) return;
@@ -866,27 +899,13 @@ export default function BookingDetailsPanel({
                     } catch {}
                   } catch {}
                 }}
-              />
-            ) : null}
+                  />
+                ) : null}
+              </>
+            }
           />
         );
       })()}
-      {(() => {
-        const completedBooking = (confirmedBookingDetails || hydratedBooking) as (Booking & { review?: Review }) | null;
-        const isCompleted = String(completedBooking?.status || '').toLowerCase() === 'completed';
-        const hasReview = Boolean(completedBooking?.review);
-        return !viewerIsProvider && isCompleted && !hasReview;
-      })() && (
-          <div className="mt-4 text-center">
-            <Button
-              type="button"
-              onClick={() => setShowReviewModal(true)}
-              className="text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
-            >
-              Leave Review
-            </Button>
-          </div>
-        )}
       {paymentModal}
     </div>
   );
