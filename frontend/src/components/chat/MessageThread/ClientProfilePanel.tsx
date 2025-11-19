@@ -172,12 +172,28 @@ export default function ClientProfilePanel({
 
   if (!isOpen) return null;
 
+  const handleBackdropClick = () => {
+    try {
+      onClose();
+    } catch {
+      // no-op
+    }
+  };
+
+  const handlePanelClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
+    e.stopPropagation();
+  };
+
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/20 backdrop-blur-sm">
+    <div
+      className="fixed inset-x-0 bottom-0 z-40 flex justify-end bg-black/20 backdrop-blur-sm top-14 sm:top-16"
+      onClick={handleBackdropClick}
+    >
       <div
         className="relative h-full w-full max-w-md bg-white shadow-2xl border-l border-gray-200 transform transition-transform duration-200 ease-out translate-x-0"
         aria-modal="true"
         role="dialog"
+        onClick={handlePanelClick}
       >
         <button
           type="button"
