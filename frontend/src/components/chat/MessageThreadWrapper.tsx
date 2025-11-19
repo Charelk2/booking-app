@@ -708,7 +708,11 @@ export default function MessageThreadWrapper({
     }
   }, [effectiveBookingRequest]);
 
-  const canProviderReviewClient = Boolean(isUserArtist && effectiveClientId > 0);
+  const canProviderReviewClient = useMemo(() => {
+    if (!isUserArtist || !effectiveClientId) return false;
+    const status = String(confirmedBookingDetails?.status || "").toLowerCase();
+    return status === "completed";
+  }, [isUserArtist, effectiveClientId, confirmedBookingDetails?.status]);
 
   const providerBusinessName = useMemo(() => {
     const raw: any = effectiveBookingRequest;
