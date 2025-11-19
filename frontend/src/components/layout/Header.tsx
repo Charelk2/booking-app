@@ -181,9 +181,9 @@ function HeaderMessagesLink({ unread }: { unread: number }) {
       onFocus={() => router.prefetch?.('/inbox')}
     >
       {unread > 0 ? (
-        <ChatBubbleLeftRightIcon className="h-5 w-5" />
+        <ChatBubbleLeftRightIcon className="h-6 w-6" />
       ) : (
-        <ChatOutline className="h-5 w-5" />
+        <ChatOutline className="h-6 w-6" />
       )}
       {unread > 0 && (
         <span

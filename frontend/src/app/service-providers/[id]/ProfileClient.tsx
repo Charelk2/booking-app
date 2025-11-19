@@ -93,7 +93,7 @@ function ReviewStars({ rating }: { rating: number }) {
   return (
     <div className="flex items-center">
       {[...Array(5)].map((_, i) => (
-        <StarIcon key={i} className={`h-5 w-5 ${i < full ? 'text-yellow-400' : 'text-gray-300'}`} />
+        <StarSolidIcon key={i} className={`h-4 w-4 ${i < full ? 'text-black' : 'text-gray-300'}`} />
       ))}
     </div>
   );
@@ -121,7 +121,7 @@ function ReviewSummary({ reviews }: { reviews: ReviewType[] }) {
   return (
     <div className="rounded-2xl border border-gray-100 p-4 shadow-sm bg-gradient-to-br from-white to-gray-50">
       <div className="flex items-center gap-3">
-        <StarIcon className="h-6 w-6 text-yellow-400" />
+        <StarSolidIcon className="h-5 w-5 text-black" />
         <p className="text-lg font-semibold text-gray-900">
           {avg} · {total} {total === 1 ? 'review' : 'reviews'}
         </p>
@@ -832,7 +832,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-gray-500">
                       {averageRating && (
                         <span className="flex items-center cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
-                          <StarSolidIcon className="h-3 w-3 mr-1 text-yellow-400" />
+                          <StarSolidIcon className="h-3 w-3 mr-1 text-black" />
                           {averageRating} ({displayReviews.length} reviews)
                         </span>
                       )}
@@ -1154,7 +1154,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                 <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
                 {averageRating && (
                   <p className="text-xs text-gray-600 flex items-center gap-1">
-                    <StarIcon className="h-3 w-3 text-yellow-400" /> {averageRating} ({displayReviews.length})
+                    <StarSolidIcon className="h-3 w-3 text-black" /> {averageRating} ({displayReviews.length})
                   </p>
                 )}
               </div>
@@ -1207,7 +1207,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
             <div className="sticky top-0 z-10 bg-white border-b border-gray-100 pr-3 pl-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-gray-700 pb-6 text-2xl font-semibold">
-                  {averageRating ? (<><StarIcon className="h-7 w-7 text-yellow-400" /><span>{averageRating}</span><span className="text-gray-400">·</span><span>{displayReviews.length} Reviews</span></>) : (<span>{displayReviews.length} Reviews</span>)}
+                  {averageRating ? (<><StarSolidIcon className="h-5 w-5 text-black" /><span>{averageRating}</span><span className="text-gray-400">·</span><span>{displayReviews.length} Reviews</span></>) : (<span>{displayReviews.length} Reviews</span>)}
                 </div>
                 <div className="relative mb-6 font-bold">
                   <select value={reviewSort} onChange={(e) => setReviewSort(e.target.value as any)} className="appearance-none bg-transparent border border-gray-200 px-2 py-2 rounded-full text-xs text-gray-600 focus:outline-none cursor-pointer">
