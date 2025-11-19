@@ -535,7 +535,7 @@ export default function InboxPage() {
       // Full fetch only (no lite/delta) and hydrate quote sidecar for this thread.
       const res = await getMessagesForBookingRequest(
         id,
-        { limit: Math.max(100, limit), mode: 'full', include_quotes: true },
+        { limit, mode: 'full', include_quotes: true },
         { signal: ac.signal },
       );
       writeThreadCache(id, res.data.items);

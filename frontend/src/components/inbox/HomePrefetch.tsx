@@ -114,7 +114,7 @@ export default function HomePrefetch() {
       // One-shot batch warmup (best-effort)
       if (ids.length) {
         try {
-          const res = await getMessagesBatch(ids, 50, 'full');
+          const res = await getMessagesBatch(ids, 40, 'full');
           const map = (res?.data as any)?.threads as Record<string, any[]> | undefined;
           const quotes = (res?.data as any)?.quotes as Record<number, any> | undefined;
           if (map && typeof map === 'object') {
