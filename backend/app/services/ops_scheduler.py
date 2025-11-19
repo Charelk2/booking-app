@@ -238,7 +238,7 @@ def handle_sound_outreach_nudges_and_expiry(db: Session) -> dict:
 
 
 def handle_pre_event_reminders(db: Session) -> int:
-    """Send 7-day, 3-day, and same-day pre-event reminders with system messages to both parties."""
+    """Send 7-day and 3-day pre-event reminders with system messages to both parties."""
     now = datetime.utcnow()
     today = now.date()
 
@@ -262,9 +262,6 @@ def handle_pre_event_reminders(db: Session) -> int:
         elif days_until == 3:
             horizon = "3d"
             label = "Event in 3 days"
-        elif days_until == 0:
-            horizon = "0d"
-            label = "Event is today"
         else:
             continue
 
@@ -324,19 +321,6 @@ def handle_pre_event_reminders(db: Session) -> int:
                 "Your event is in 3 days. Please confirm the time and address, "
                 "check technical and setup requirements, and share your arrival "
                 "plan with the client."
-            )
-        else:
-            client_content = (
-                f"{label}: {date_str}. "
-                "Your event is today. Please be ready at the confirmed time and "
-                "keep your phone available so your service provider can reach you "
-                "if needed."
-            )
-            artist_content = (
-                f"{label}: {date_str}. "
-                "Your event is today. Please allow enough time for travel and "
-                "setup, and use this chat to update the client immediately if "
-                "anything changes."
             )
 
         _post_system(
