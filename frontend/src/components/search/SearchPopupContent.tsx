@@ -195,10 +195,10 @@ export default function SearchPopupContent({
       return (
         <div>
           <h3
-            className="text-sm font-semibold text-gray-800 mb-4"
+            className="sr-only"
             id="search-popup-label-location"
           >
-            Suggested destinations
+            Location suggestions
           </h3>
           <div className="space-y-4">
             {recentLocations.length > 0 && (
