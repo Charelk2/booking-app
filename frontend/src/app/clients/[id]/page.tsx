@@ -89,7 +89,10 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
 
       {/* Review Content */}
       <div className="flex-grow">
-        <div className="flex items-center mb-2 space-x-1">
+        {/* Date moved above stars */}
+        <p className="text-xs text-gray-500 font-medium mb-1">{dateLabel}</p>
+
+        <div className="flex items-center mb-3 space-x-1">
           {[...Array(5)].map((_, i) => (
             <Star
               key={i}
@@ -98,8 +101,8 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
               }`}
             />
           ))}
-          <span className="text-xs text-gray-500 ml-2 font-medium">{dateLabel}</span>
         </div>
+        
         {review.comment && (
           <p className="text-gray-700 text-[15px] leading-relaxed line-clamp-4">
             &ldquo;{review.comment}&rdquo;
