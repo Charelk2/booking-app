@@ -264,17 +264,25 @@ export default function ClientProfilePanel({
         <div className="h-full overflow-y-auto px-4 pt-10 pb-6 space-y-6">
           {/* Header */}
           <div className="flex items-center gap-4">
-            {clientAvatarUrl ? (
-              <img
-                src={clientAvatarUrl}
-                alt={displayName}
-                className="h-16 w-16 rounded-full object-cover shadow-sm"
-              />
-            ) : (
-              <div className="h-16 w-16 rounded-full bg-gray-900 text-white flex items-center justify-center text-xl font-semibold shadow-sm">
-                {(displayName || "C").charAt(0).toUpperCase()}
-              </div>
-            )}
+            <a
+              href={clientId ? `/clients/${clientId}` : undefined}
+              className="flex-shrink-0 no-underline hover:no-underline"
+              aria-label={displayName ? `View ${displayName}'s profile` : 'View client profile'}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {clientAvatarUrl ? (
+                <img
+                  src={clientAvatarUrl}
+                  alt={displayName}
+                  className="h-16 w-16 rounded-full object-cover shadow-sm"
+                />
+              ) : (
+                <div className="h-16 w-16 rounded-full bg-gray-900 text-white flex items-center justify-center text-xl font-semibold shadow-sm">
+                  {(displayName || "C").charAt(0).toUpperCase()}
+                </div>
+              )}
+            </a>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-gray-900">{displayName || "Client"}</h2>
