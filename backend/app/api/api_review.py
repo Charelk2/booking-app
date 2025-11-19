@@ -147,7 +147,8 @@ def list_reviews_for_service_provider(service_provider_id: int, db: Session = De
         .order_by(Review.created_at.desc())
         .all()
     )
-    # Coalesce timestamps on legacy rows
+    # Coalesce timestamps on legacy rows and attach lightweight client identity
+    # so the frontend can show which client left each review.
     try:
         from datetime import datetime as _dt
         for r in reviews:
@@ -158,18 +159,17 @@ def list_reviews_for_service_provider(service_provider_id: int, db: Session = De
         db.commit()
     except Exception:
         pass
-    # Attach lightweight client identity so the frontend can show
-    # which client left each review.
     for r in reviews:
         try:
             booking = getattr(r, "booking", None)
             client = getattr(booking, "client", None) if booking is not None else None
             if client is None:
                 continue
+            # Expose a nested `client` object for ReviewDetails
+            setattr(r, "client", client)
             try:
                 setattr(r, "client_id", int(getattr(client, "id")))
             except Exception:
-                # Skip id if it isn't an int
                 pass
             first_name = getattr(client, "first_name", None)
             last_name = getattr(client, "last_name", None)

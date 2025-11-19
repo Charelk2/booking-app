@@ -200,7 +200,13 @@ export interface Review {
   comment: string;
   created_at: string;
   updated_at: string;
+  // For provider/service reviews, the backend may include a nested client as
+  // well as denormalised identity fields for convenience.
   client?: User;
+  client_id?: number;
+  client_first_name?: string;
+  client_last_name?: string;
+  client_display_name?: string;
 }
 
 // ─── BookingRequest / Quote Interfaces ─────────────────────────────────────────

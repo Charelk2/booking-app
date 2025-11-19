@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Annotated
 from datetime import datetime
+from .user import UserResponse
 
 
 class ReviewBase(BaseModel):
@@ -23,8 +24,9 @@ class ReviewResponse(ReviewBase):
 
 class ReviewDetails(ReviewResponse):
   """Extended provider review details (used for lists)."""
-  # For provider profiles we also want to surface which client left
-  # the review so the UI can render "by {client_name}" badges.
+  # For provider/service review lists we also surface which client left
+  # the review so UIs can render avatars, names, and links.
+  client: Optional[UserResponse] = None
   client_id: Optional[int] = None
   client_first_name: Optional[str] = None
   client_last_name: Optional[str] = None

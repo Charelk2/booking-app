@@ -632,17 +632,39 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       <ReviewSummary reviews={displayReviews} />
                     </div>
                     <ul className="mt-3 space-y-3">
-                      {displayReviews.slice(0, 6).map((review) => (
-                        <li key={`rev-mobile-${review.id}`} className="rounded-xl border border-gray-100 p-3 bg-white">
-                          <div className="flex items-center justify-between mb-1">
-                            <ReviewStars rating={Number(review.rating) || 0} />
-                            {review.client?.first_name && (
-                              <p className="text-xs font-medium text-gray-700 ml-3">{review.client.first_name}</p>
+                      {displayReviews.slice(0, 6).map((review) => {
+                        const realReview = review.id > 0;
+                        const clientId = review.client?.id ?? review.client_id;
+                        const displayName =
+                          review.client_display_name ||
+                          (review.client_first_name || review.client?.first_name || '').trim();
+                        const initial = (displayName || 'C').charAt(0).toUpperCase();
+                        const content = (
+                          <div className="flex items-center gap-2">
+                            <div className="h-7 w-7 rounded-full bg-gray-900 text-white flex items-center justify-center text-[11px] font-semibold shadow-sm">
+                              {initial}
+                            </div>
+                            {displayName && (
+                              <p className="text-xs font-medium text-gray-700">{displayName}</p>
                             )}
                           </div>
-                          <p className="text-gray-600 text-sm leading-relaxed">{review.comment}</p>
-                        </li>
-                      ))}
+                        );
+                        return (
+                          <li key={`rev-mobile-${review.id}`} className="rounded-xl border border-gray-100 p-3 bg-white">
+                            <div className="flex items-center justify-between mb-1">
+                              <ReviewStars rating={Number(review.rating) || 0} />
+                              {realReview && clientId ? (
+                                <Link href={`/clients/${clientId}`} className="ml-3">
+                                  {content}
+                                </Link>
+                              ) : (
+                                <div className="ml-3">{content}</div>
+                              )}
+                            </div>
+                            <p className="text-gray-600 text-sm leading-relaxed">{review.comment}</p>
+                          </li>
+                        );
+                      })}
                     </ul>
                     {displayReviews.length > 6 && (
                       <div className="mt-2">
@@ -858,16 +880,44 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     <>
                       <ReviewSummary reviews={displayReviews} />
                       <ul className="mt-4 grid grid-cols-1 gap-3">
-                        {displayReviews.slice(0, 6).map((review) => (
-                          <li key={`rev-desktop-${review.id}`} className="rounded-xl border border-gray-100 p-4 bg-white">
-                            <div className="flex items-start justify-between mb-2">
-                              <ReviewStars rating={Number(review.rating) || 0} />
-                              {review.client?.first_name && <p className="text-xs font-medium text-gray-700 ml-3">{review.client.first_name}</p>}
+                        {displayReviews.slice(0, 6).map((review) => {
+                          const realReview = review.id > 0;
+                          const clientId = review.client?.id ?? review.client_id;
+                          const displayName =
+                            review.client_display_name ||
+                            (review.client_first_name || review.client?.first_name || '').trim();
+                          const initial = (displayName || 'C').charAt(0).toUpperCase();
+                          const header = (
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold shadow-sm">
+                                {initial}
+                              </div>
+                              <div className="flex flex-col">
+                                {displayName && (
+                                  <p className="text-xs font-medium text-gray-800">{displayName}</p>
+                                )}
+                                <p className="text-[11px] text-gray-500">
+                                  Reviewed on: {new Date(review.created_at).toLocaleDateString('en')}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-gray-600 text-sm leading-relaxed">{review.comment}</p>
-                            <p className="mt-2 text-xs text-gray-400">Reviewed on: {new Date(review.created_at).toLocaleDateString('en')}</p>
-                          </li>
-                        ))}
+                          );
+                          return (
+                            <li key={`rev-desktop-${review.id}`} className="rounded-xl border border-gray-100 p-4 bg-white">
+                              <div className="flex items-start justify-between mb-2">
+                                <ReviewStars rating={Number(review.rating) || 0} />
+                                {realReview && clientId ? (
+                                  <Link href={`/clients/${clientId}`} className="ml-3">
+                                    {header}
+                                  </Link>
+                                ) : (
+                                  <div className="ml-3">{header}</div>
+                                )}
+                              </div>
+                              <p className="text-gray-600 text-sm leading-relaxed">{review.comment}</p>
+                            </li>
+                          );
+                        })}
                       </ul>
                       {displayReviews.length > 6 && (
                         <div className="mt-2">
