@@ -157,4 +157,27 @@ def extract_booking_details(text: str) -> ParsedBookingDetails:
             event_text = doc[start:end].text.lower()
             result.event_type = _EVENT_LOOKUP.get(event_text)
 
+    # Fallback event type heuristics when matcher did not find anything.
+    # This keeps things lightweight but helps common prompts like "a birthday".
+    if not getattr(result, "event_type", None):
+        low = normalized.lower()
+        # Handle obvious birthday cues
+        if "birthday" in low or "bday" in low or "b-day" in low:
+            result.event_type = _EVENT_LOOKUP.get("birthday", "Birthday")
+        # Weddings
+        elif "wedding" in low:
+            result.event_type = _EVENT_LOOKUP.get("wedding", "Wedding")
+        # Corporate / work events
+        elif any(kw in low for kw in ("corporate", "work event", "office party", "year-end", "year end")):
+            result.event_type = _EVENT_LOOKUP.get("corporate", "Corporate")
+        # Festivals
+        elif "festival" in low:
+            result.event_type = _EVENT_LOOKUP.get("festival", "Festival")
+        # Restaurant / venue gigs
+        elif "restaurant" in low or "dinner" in low:
+            result.event_type = _EVENT_LOOKUP.get("restaurant", "Restaurant")
+        # Generic celebration
+        elif "party" in low or "celebration" in low:
+            result.event_type = _EVENT_LOOKUP.get("celebration", "Celebration")
+
     return result
