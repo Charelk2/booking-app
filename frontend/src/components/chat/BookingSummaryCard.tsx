@@ -489,7 +489,7 @@ export default function BookingSummaryCard({
                 const bookingId = bookingDetails?.id;
                 const anyBooking: any = bookingDetails as any;
                 const vis = Array.isArray(anyBooking?.visible_invoices)
-                  ? (anyBooking.visible_invoices as Array<{ type: string; id: number; type?: string }>)
+                  ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
                   : [];
 
                 const receiptUrl = buildReceiptUrl(
