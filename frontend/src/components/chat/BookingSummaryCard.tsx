@@ -323,7 +323,7 @@ export default function BookingSummaryCard({
             clientReviewCta={clientReviewCta}
           />
           {belowHeader && (
-            <div className="px-6 pt-2 sm:px-8 max-w-full overflow-x-hidden">
+            <div className="px-6 pt-2 pb-2 sm:px-8 max-w-full overflow-x-hidden">
               {belowHeader}
             </div>
           )}
