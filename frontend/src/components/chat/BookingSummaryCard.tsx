@@ -466,7 +466,7 @@ export default function BookingSummaryCard({
         </section>
 
         {/* Order Info */}
-        {(bookingConfirmed || paymentInfo.status) && (
+        {bookingDetails && (
           <section id="order-information" className="mt-8 scroll-mt-20" aria-labelledby="order-info-h">
             <h2 id="order-info-h" className="text-xl font-bold text-gray-900 mb-3">
               Order Information
@@ -534,7 +534,7 @@ export default function BookingSummaryCard({
                         rel="noopener noreferrer"
                         className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
                       >
-                        View Receipt &rarr;
+                        View receipt
                       </a>
                     )}
                     {providerHref && (
