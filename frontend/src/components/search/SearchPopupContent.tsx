@@ -200,6 +200,26 @@ export default function SearchPopupContent({
           >
             Suggested destinations
           </h3>
+          {/* Quick example chips (also shown in default panel) */}
+          <div className="mb-4 flex flex-wrap justify-start gap-2">
+            {[
+              { label: 'DJ · Cape Town', location: 'Cape Town' },
+              { label: 'Live band · Johannesburg', location: 'Johannesburg' },
+              { label: 'Photographer · Stellenbosch', location: 'Stellenbosch' },
+            ].map((example) => (
+              <button
+                key={example.label}
+                type="button"
+                onClick={() => {
+                  setLocation(example.location);
+                  closeAllPopups();
+                }}
+                className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition"
+              >
+                {example.label}
+              </button>
+            ))}
+          </div>
           <div className="space-y-4">
             {recentLocations.length > 0 && (
               <div>
