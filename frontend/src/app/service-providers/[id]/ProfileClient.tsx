@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState, useDeferredValue, startTransition, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import MainLayout from '@/components/layout/MainLayout';
