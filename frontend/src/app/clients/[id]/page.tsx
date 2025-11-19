@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { apiUrl } from '@/lib/api';
-import { ChevronLeftIcon, ChevronRightIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { ChevronLeft, ChevronRight, ShieldCheck, Check } from 'lucide-react';
 
 type ClientProfileResponse = {
   user: {
@@ -223,11 +223,11 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
 
   return (
     <main className="py-12">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-16">
           {/* Left rail: sticky profile card */}
           <aside className="md:col-span-1">
-            <div className="sticky top-28 self-start p-6 border border-gray-200 rounded-xl shadow-lg bg-white">
+            <div className="sticky top-28 self-start p-8 border border-gray-200 rounded-[32px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] bg-white">
               <div className="flex gap-6">
                 <div className="flex-shrink-0">
                   {profile.user.profile_picture_url ? (
@@ -284,7 +284,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
           {/* Right rail: about + identity verified */}
           <div className="md:col-span-2 space-y-12">
             <section className="mt-6">
-              <h2 className="text-2xl font-semibold text-gray-900">
+              <h2 className="text-[32px] font-bold text-gray-900">
                 About {firstName}
               </h2>
               {isVerified && (
