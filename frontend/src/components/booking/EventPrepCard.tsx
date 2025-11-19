@@ -247,7 +247,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
         tabIndex={0}
         summaryOnly={summaryOnly}
         aria-label="Event preparation"
-        className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-0"
+        className="cursor-pointer outline-none ring-0 hover:ring-0 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-0"
         onClick={() =>
           onContinuePrep ? onContinuePrep(bookingId) : router.push(`/dashboard/events/${bookingId}`)
         }
@@ -325,7 +325,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
         tabIndex={0}
         summaryOnly={summaryOnly}
         aria-label="Event preparation"
-        className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-0"
+        className="cursor-pointer outline-none ring-0 hover:ring-0 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-0"
         onClick={() =>
           onContinuePrep ? onContinuePrep(bookingId) : router.push(`/dashboard/events/${bookingId}`)
         }
@@ -399,7 +399,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
       tabIndex={0}
       summaryOnly={summaryOnly}
       aria-label="Event preparation"
-      className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-0"
+      className="cursor-pointer outline-none ring-0 hover:ring-0 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-0"
       onClick={() =>
         onContinuePrep ? onContinuePrep(bookingId) : router.push(`/dashboard/events/${bookingId}`)
       }
