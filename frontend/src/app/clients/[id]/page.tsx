@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import MainLayout from '@/components/layout/MainLayout';
 import { apiUrl } from '@/lib/api';
 
 type ClientProfileResponse = {
@@ -186,14 +187,19 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
   const idNum = Number(params.id);
   if (!Number.isFinite(idNum) || idNum <= 0) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="text-xl font-semibold text-gray-900 mb-2">Client not found</h1>
-        <p className="text-sm text-gray-600">
-          The client profile you’re looking for does not exist.
-        </p>
-      </main>
+      <MainLayout>
+        <main className="mx-auto max-w-3xl px-4 py-10">
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Client not found</h1>
+          <p className="text-sm text-gray-600">
+            The client profile you’re looking for does not exist.
+          </p>
+        </main>
+      </MainLayout>
     );
   }
-  return <SimpleClientProfile clientId={idNum} />;
+  return (
+    <MainLayout>
+      <SimpleClientProfile clientId={idNum} />
+    </MainLayout>
+  );
 }
-
