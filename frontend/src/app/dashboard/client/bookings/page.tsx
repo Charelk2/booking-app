@@ -24,7 +24,7 @@ function BookingList({
   onPayNow,
 }: {
   items: BookingWithReview[];
-  onReview: (id: number) => void;
+  onReview: (id: number, providerName?: string | null) => void;
   onPayNow: (id: number) => void;
 }) {
   const getInvoiceHref = (b: BookingWithReview | Booking) => {
@@ -140,7 +140,13 @@ function BookingList({
             {b.status === "completed" && !b.review && (
               <button
                 type="button"
-                onClick={() => onReview(b.id)}
+                onClick={() =>
+                  onReview(
+                    b.id,
+                    (b.service.artist ?? b.service.service_provider)
+                      .business_name,
+                  )
+                }
                 className="mt-2 text-brand-dark hover:underline text-sm"
               >
                 Leave review
@@ -211,8 +217,11 @@ export default function ClientBookingsPage() {
   }, [user]);
 
 
-  const handleOpenReview = (id: number) => {
-    setReviewId(id);
+  const [reviewProviderName, setReviewProviderName] = useState<string | null>(null);
+
+  const handleOpenReview = (bookingId: number, providerName?: string | null) => {
+    setReviewId(bookingId);
+    setReviewProviderName(providerName ?? null);
   };
 
   const handleOpenPayment = async (id: number) => {
@@ -332,6 +341,7 @@ export default function ClientBookingsPage() {
         <ReviewFormModal
           isOpen={reviewId !== null}
           bookingId={reviewId}
+          providerName={reviewProviderName}
           onClose={() => setReviewId(null)}
           onSubmitted={handleReviewSubmitted}
         />

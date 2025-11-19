@@ -1198,9 +1198,16 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       const bookingId = (res.data as any)?.booking_id;
       if (!bookingId || typeof window === 'undefined') return;
       try {
+        const providerName =
+          artistName ||
+          (initialBookingRequest as any)?.service?.service_provider_profile?.business_name ||
+          (initialBookingRequest as any)?.service?.artist_profile?.business_name ||
+          (initialBookingRequest as any)?.service?.service_provider?.business_name ||
+          (initialBookingRequest as any)?.service?.artist?.business_name ||
+          null;
         window.dispatchEvent(
           new CustomEvent('inbox:openClientReview', {
-            detail: { bookingId },
+            detail: { bookingId, providerName },
           }),
         );
         return;

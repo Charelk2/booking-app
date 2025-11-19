@@ -103,6 +103,7 @@ export default function InboxPage() {
   const [hydratedThreadIds, setHydratedThreadIds] = useState<number[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [overrideReviewBookingId, setOverrideReviewBookingId] = useState<number | null>(null);
+  const [reviewProviderName, setReviewProviderName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -271,10 +272,11 @@ export default function InboxPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return () => {};
     const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{ bookingId?: number }>).detail || {};
+      const detail = (event as CustomEvent<{ bookingId?: number; providerName?: string | null }>).detail || {};
       const bid = Number(detail.bookingId || 0);
       if (!Number.isFinite(bid) || bid <= 0) return;
       setOverrideReviewBookingId(bid);
+      setReviewProviderName(detail.providerName ?? null);
       setShowReviewModal(true);
     };
     window.addEventListener('inbox:openClientReview', handler as EventListener);
