@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState, useDeferredValue, startTransition, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import MainLayout from '@/components/layout/MainLayout';
@@ -632,7 +633,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     <div className="mt-3">
                       <ReviewSummary reviews={displayReviews} />
                     </div>
-                    <ul className="mt-3 space-y-3">
+                      <ul className="mt-3 space-y-3">
                       {displayReviews.slice(0, 6).map((review) => {
                         const clientId = review.client?.id ?? review.client_id;
                         const hasBooking = typeof review.booking_id === 'number' && review.booking_id > 0;
@@ -656,7 +657,12 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                             <div className="flex items-center justify-between mb-1">
                               <ReviewStars rating={Number(review.rating) || 0} />
                               {realReview && clientId ? (
-                                <Link href={`/clients/${clientId}`} className="ml-3">
+                                <Link
+                                  href={`/clients/${clientId}`}
+                                  target="_blank"
+                                  rel="noreferrer noopener"
+                                  className="ml-3"
+                                >
                                   {content}
                                 </Link>
                               ) : (
@@ -910,7 +916,12 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               <div className="flex items-start justify-between mb-2">
                                 <ReviewStars rating={Number(review.rating) || 0} />
                                 {realReview && clientId ? (
-                                  <Link href={`/clients/${clientId}`} className="ml-3">
+                                  <Link
+                                    href={`/clients/${clientId}`}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="ml-3"
+                                  >
                                     {header}
                                   </Link>
                                 ) : (
