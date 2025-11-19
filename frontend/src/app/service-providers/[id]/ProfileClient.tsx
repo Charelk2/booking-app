@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useDeferredValue, startTransition, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import MainLayout from '@/components/layout/MainLayout';
@@ -633,8 +634,9 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     </div>
                     <ul className="mt-3 space-y-3">
                       {displayReviews.slice(0, 6).map((review) => {
-                        const realReview = review.id > 0;
                         const clientId = review.client?.id ?? review.client_id;
+                        const hasBooking = typeof review.booking_id === 'number' && review.booking_id > 0;
+                        const realReview = Boolean(clientId && hasBooking);
                         const displayName =
                           review.client_display_name ||
                           (review.client_first_name || review.client?.first_name || '').trim();
@@ -881,8 +883,9 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       <ReviewSummary reviews={displayReviews} />
                       <ul className="mt-4 grid grid-cols-1 gap-3">
                         {displayReviews.slice(0, 6).map((review) => {
-                          const realReview = review.id > 0;
                           const clientId = review.client?.id ?? review.client_id;
+                          const hasBooking = typeof review.booking_id === 'number' && review.booking_id > 0;
+                          const realReview = Boolean(clientId && hasBooking);
                           const displayName =
                             review.client_display_name ||
                             (review.client_first_name || review.client?.first_name || '').trim();
