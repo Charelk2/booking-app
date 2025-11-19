@@ -262,7 +262,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
                   </h1>
                   {/* We do not currently store client location, so omit it. */}
                   {memberSince && (
-                    <p className="text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       Member since {memberSince}
                     </p>
                   )}
