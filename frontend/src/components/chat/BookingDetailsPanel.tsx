@@ -195,14 +195,9 @@ export default function BookingDetailsPanel({
   const derivedProviderName = derivedProviderIdentity.name;
   const derivedProviderAvatar = derivedProviderIdentity.avatar;
 
-  // Hydrate a missing Booking object after payment/confirmation so the summary card
-  // can render invoice links via /invoices/{invoice_id} or /invoices/by-booking/{id}.
+  // Hydrate a missing Booking object so the summary card can render invoice links
+  // via /invoices/{invoice_id} or /invoices/by-booking/{id}.
   const [hydratedBooking, setHydratedBooking] = React.useState<Booking | null>(null);
-  const bookingHydrateAttemptedRef = React.useRef(false);
-
-  React.useEffect(() => {
-    bookingHydrateAttemptedRef.current = false;
-  }, [bookingRequest?.id]);
 
   React.useEffect(() => {
     const threadId = Number(bookingRequest?.id || 0);
@@ -216,8 +211,6 @@ export default function BookingDetailsPanel({
     const paid = String(paymentStatus || '').toLowerCase() === 'paid';
     const confirmed = Boolean(bookingConfirmed);
     if (!viewerIsClient && !(paid || confirmed)) return;
-    if (bookingHydrateAttemptedRef.current) return;
-    bookingHydrateAttemptedRef.current = true;
 
     let cancelled = false;
     (async () => {
@@ -247,7 +240,6 @@ export default function BookingDetailsPanel({
       }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmedBookingDetails, bookingConfirmed, paymentStatus, bookingRequest?.id, viewerIsClient]);
 
   React.useEffect(() => {
