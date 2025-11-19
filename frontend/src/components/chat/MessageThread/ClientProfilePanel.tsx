@@ -5,6 +5,7 @@ import { XMarkIcon, ShieldCheckIcon, StarIcon, UserIcon } from "@heroicons/react
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { Spinner } from "@/components/ui";
 import { apiUrl } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 type ProviderReview = {
   id: number;
@@ -65,6 +66,7 @@ export default function ClientProfilePanel({
   autoOpenReview,
   onClose,
 }: Props) {
+  const { user } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [profile, setProfile] = React.useState<ClientProfile | null>(null);
@@ -72,6 +74,7 @@ export default function ClientProfilePanel({
   const [isReviewOpen, setIsReviewOpen] = React.useState(false);
   const [reviewForm, setReviewForm] = React.useState<ReviewForm>({ rating: 5, comment: "" });
   const [submittingReview, setSubmittingReview] = React.useState(false);
+  const [hasExistingReviewForBooking, setHasExistingReviewForBooking] = React.useState(false);
 
   React.useEffect(() => {
     if (!isOpen || !clientId) return;
@@ -115,6 +118,44 @@ export default function ClientProfilePanel({
     if (showAllReviews) return all;
     return all.slice(0, 4);
   }, [profile?.reviews, showAllReviews]);
+
+  // Detect if the current provider has already reviewed this client for the
+  // booking linked to this thread. If so, hide the CTA.
+  React.useEffect(() => {
+    if (!isOpen) {
+      setHasExistingReviewForBooking(false);
+      return;
+    }
+    const providerId = user?.id ? Number(user.id) : 0;
+    if (!providerId || !profile || !Array.isArray(profile.reviews) || !profile.reviews.length) {
+      setHasExistingReviewForBooking(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const resResolve = await fetch(
+          apiUrl(`/api/v1/booking-requests/${bookingRequestId}/booking-id`),
+          { credentials: "include" },
+        );
+        if (!resResolve.ok) return;
+        const resolved = await resResolve.json();
+        const bookingId = Number(resolved?.booking_id || 0);
+        if (!Number.isFinite(bookingId) || bookingId <= 0) return;
+        const already = profile.reviews.some((r) => {
+          const pid = Number(r.provider?.id || 0);
+          const bid = Number(r.booking?.id || 0);
+          return Number.isFinite(pid) && Number.isFinite(bid) && pid === providerId && bid === bookingId;
+        });
+        if (!cancelled) setHasExistingReviewForBooking(already);
+      } catch {
+        if (!cancelled) setHasExistingReviewForBooking(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, bookingRequestId, profile, user?.id]);
 
   const handleOpenReview = () => {
     setIsReviewOpen(true);
@@ -178,6 +219,7 @@ export default function ClientProfilePanel({
         };
         return next;
       });
+      setHasExistingReviewForBooking(true);
       setIsReviewOpen(false);
     } catch (err: any) {
       setError(err?.message || "Failed to submit review.");
@@ -365,7 +407,7 @@ export default function ClientProfilePanel({
           </div>
 
           {/* Review CTA (only when allowed for this booking/status) */}
-          {canReview !== false && (
+          {canReview !== false && !hasExistingReviewForBooking && (
             <div className="pt-1">
               <button
                 type="button"
