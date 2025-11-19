@@ -253,7 +253,7 @@ export default function SystemMessage({
           icon="★"
           tone="neutral"
           title={t('system.reviewInviteProviderTitle', 'Review your client')}
-          subtitle={t(
+          subtitle={content || t(
             'system.reviewInviteProviderBody',
             'Share feedback about communication, punctuality, and overall experience.',
           )}

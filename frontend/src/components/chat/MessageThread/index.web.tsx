@@ -113,6 +113,7 @@ export type MessageThreadWebProps = {
     receiptUrl?: string | null,
     reference?: string | null,
   ) => void;
+  onOpenProviderReviewFromSystem?: () => void;
   // allow passthrough
   [k: string]: any;
 };
@@ -136,6 +137,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     initialBookingRequest,
     onContinueEventPrep,
     onPaymentStatusChange,
+    onOpenProviderReviewFromSystem,
   } = props;
 
   // --- Auth / identity
@@ -1204,7 +1206,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
   const openProviderReviewFromChat = useStableCallback(() => {
     try {
-      setShowClientProfile(true);
+      onOpenProviderReviewFromSystem?.();
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to open client profile from system card', err);

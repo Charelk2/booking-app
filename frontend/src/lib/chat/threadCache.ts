@@ -144,6 +144,7 @@ export async function hasThreadCacheAsync(id: number): Promise<boolean> {
 
 export async function clearThreadCaches(options: { includeSession?: boolean } = {}) {
   const { includeSession = true } = options;
+  // Clear per-thread session caches + LRU list
   if (includeSession && typeof window !== 'undefined') {
     try {
       const lru = readLRU();
@@ -153,11 +154,19 @@ export async function clearThreadCaches(options: { includeSession?: boolean } = 
       sessionStorage.removeItem(THREAD_LRU_KEY);
     } catch {}
   }
+  // Clear IndexedDB backing store
   const db = await getThreadDb();
-  if (!db) return;
-  try {
-    await db.threads.clear();
-  } catch {}
+  if (db) {
+    try {
+      await db.threads.clear();
+    } catch {}
+  }
+  // Reset in-memory summaries/messages so a new login starts clean
+  summaries.clear();
+  summariesArray = [];
+  messagesById.clear();
+  lastReadById.clear();
+  notify();
 }
 
 export const isThreadStoreEnabled = () => isBrowserIndexedDBAvailable();

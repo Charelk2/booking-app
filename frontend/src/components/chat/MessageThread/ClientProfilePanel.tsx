@@ -44,6 +44,7 @@ type Props = {
   bookingRequestId: number;
   canReview?: boolean;
   isOpen: boolean;
+  autoOpenReview?: boolean;
   onClose: () => void;
 };
 
@@ -59,6 +60,7 @@ export default function ClientProfilePanel({
   bookingRequestId,
   canReview,
   isOpen,
+  autoOpenReview,
   onClose,
 }: Props) {
   const [loading, setLoading] = React.useState(false);
@@ -95,6 +97,12 @@ export default function ClientProfilePanel({
       cancelled = true;
     };
   }, [isOpen, clientId]);
+
+  React.useEffect(() => {
+    if (!isOpen || !autoOpenReview) return;
+    setIsReviewOpen(true);
+    setReviewForm({ rating: 5, comment: "" });
+  }, [isOpen, autoOpenReview]);
 
   const displayName =
     clientName ||

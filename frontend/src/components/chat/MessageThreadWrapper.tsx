@@ -114,6 +114,7 @@ export default function MessageThreadWrapper({
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [confirmedBookingDetails, setConfirmedBookingDetails] = useState<Booking | null>(null);
   const [showClientProfile, setShowClientProfile] = useState(false);
+  const [autoOpenClientReview, setAutoOpenClientReview] = useState(false);
 
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
@@ -707,9 +708,7 @@ export default function MessageThreadWrapper({
     }
   }, [effectiveBookingRequest]);
 
-  const canProviderReviewClient = Boolean(
-    isUserArtist && bookingRequest && String(bookingRequest.status || '').toLowerCase() === 'completed',
-  );
+  const canProviderReviewClient = Boolean(isUserArtist && effectiveClientId > 0);
 
   return (
     <div className="flex flex-col h-full w-full relative">
@@ -794,7 +793,10 @@ export default function MessageThreadWrapper({
           {isUserArtist && effectiveClientId ? (
             <button
               type="button"
-              onClick={() => setShowClientProfile(true)}
+              onClick={() => {
+                setAutoOpenClientReview(false);
+                setShowClientProfile(true);
+              }}
               className="hidden sm:inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
             >
               View client profile
@@ -871,6 +873,10 @@ export default function MessageThreadWrapper({
               }
             }}
             onShowReviewModal={setShowReviewModal}
+            onOpenProviderReviewFromSystem={() => {
+              setAutoOpenClientReview(true);
+              setShowClientProfile(true);
+            }}
             onOpenDetailsPanel={() => setShowDetailsModal((s) => !s)}
             onOpenQuote={() => setShowQuoteModal(true)}
             onPayNow={(quote: any) => {
@@ -965,7 +971,11 @@ export default function MessageThreadWrapper({
             bookingRequestId={Number(bookingRequestId)}
             canReview={canProviderReviewClient}
             isOpen={showClientProfile}
-            onClose={() => setShowClientProfile(false)}
+            autoOpenReview={autoOpenClientReview}
+            onClose={() => {
+              setShowClientProfile(false);
+              setAutoOpenClientReview(false);
+            }}
           />
         )}
 
