@@ -126,7 +126,6 @@ function ReviewsCarousel({
     if (!el) return;
     const { scrollLeft, scrollWidth, clientWidth } = el;
     setCanScrollLeft(scrollLeft > 0);
-    // A small buffer (5px) to account for browser rounding
     setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 5);
   };
 
@@ -139,12 +138,11 @@ function ReviewsCarousel({
   const scroll = (dir: 'left' | 'right') => {
     const el = scrollRef.current;
     if (!el) return;
-    const amount = 420; // Card width + gap
+    const amount = 420; 
     el.scrollBy({
       left: dir === 'left' ? -amount : amount,
       behavior: 'smooth',
     });
-    // Wait for smooth scroll to finish roughly before checking buttons
     setTimeout(checkScroll, 400);
   };
 
@@ -292,94 +290,93 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
 
   return (
     <main className="py-12 md:py-16">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-12 lg:gap-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* TOP SECTION: Card + About Info */}
+        <div className="flex flex-col md:flex-row gap-10 lg:gap-24 mb-12">
           
-          {/* LEFT COLUMN: Sticky Profile Card */}
-          <aside>
-            <div className="sticky top-24">
-              <div className="bg-white rounded-[32px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 p-6 lg:p-8 overflow-hidden">
-                <div className="flex gap-6 items-start">
-                  
-                  {/* Avatar Section */}
-                  <div className="flex flex-col items-center justify-center text-center w-1/2">
-                    <div className="relative mb-3">
-                      {profile.user.profile_picture_url ? (
-                        <img
-                          src={profile.user.profile_picture_url}
-                          alt={firstName}
-                          className="h-28 w-28 rounded-full object-cover shadow-sm"
-                        />
-                      ) : (
-                        <div className="h-28 w-28 rounded-full bg-gray-900 text-white flex items-center justify-center text-4xl font-bold shadow-sm">
-                          {firstName.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      {isVerified && (
-                         <div className="absolute bottom-1 right-1 bg-rose-600 text-white p-1.5 rounded-full shadow-sm border-2 border-white">
-                           <ShieldCheck size={14} strokeWidth={3} />
-                         </div>
-                      )}
-                    </div>
-                    <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-1">
-                      {firstName}
-                    </h1>
-                    <p className="text-sm text-gray-500 font-medium">Client</p>
+          {/* 1. The Profile Card (Left) */}
+          <div className="w-full md:w-[340px] flex-shrink-0">
+            <div className="bg-white rounded-[32px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 p-6 lg:p-8 overflow-hidden">
+              <div className="flex gap-6 items-start">
+                
+                {/* Avatar Side */}
+                <div className="flex flex-col items-center justify-center text-center w-1/2">
+                  <div className="relative mb-3">
+                    {profile.user.profile_picture_url ? (
+                      <img
+                        src={profile.user.profile_picture_url}
+                        alt={firstName}
+                        className="h-28 w-28 rounded-full object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div className="h-28 w-28 rounded-full bg-gray-900 text-white flex items-center justify-center text-4xl font-bold shadow-sm">
+                        {firstName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    {isVerified && (
+                       <div className="absolute bottom-1 right-1 bg-rose-600 text-white p-1.5 rounded-full shadow-sm border-2 border-white">
+                         <ShieldCheck size={14} strokeWidth={3} />
+                       </div>
+                    )}
                   </div>
+                  <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-1">
+                    {firstName}
+                  </h1>
+                  <p className="text-sm text-gray-500 font-medium">Client</p>
+                </div>
 
-                  {/* Stats Section (Right half of card) */}
-                  <div className="w-1/2 flex flex-col justify-center space-y-2 pl-2">
-                     <StatItem count={profile.stats.reviews_count} label="Reviews" />
-                     <StatItem count={profile.stats.completed_events} label="Events" />
-                     <StatItem count={yearsOnBooka ?? 1} label="Years active" />
-                  </div>
+                {/* Stats Side */}
+                <div className="w-1/2 flex flex-col justify-center space-y-2 pl-2">
+                   <StatItem count={profile.stats.reviews_count} label="Reviews" />
+                   <StatItem count={profile.stats.completed_events} label="Events" />
+                   <StatItem count={yearsOnBooka ?? 1} label="Years active" />
                 </div>
               </div>
             </div>
-          </aside>
+          </div>
 
-          {/* RIGHT COLUMN: Content */}
-          <div className="flex flex-col gap-10">
+          {/* 2. The "About" Section (Right) */}
+          <div className="flex-grow flex flex-col justify-center">
+            <h2 className="text-[32px] md:text-[40px] font-extrabold text-gray-900 mb-6">
+              About {firstName}
+            </h2>
             
-            {/* Intro / Verification */}
-            <section className="border-b border-gray-200 pb-10">
-              <h2 className="text-[32px] md:text-[40px] font-extrabold text-gray-900 mb-6">
-                About {firstName}
-              </h2>
+            <div className="space-y-4">
+              {isVerified && (
+                <div className="flex items-start space-x-4">
+                  <ShieldCheck className="w-6 h-6 text-gray-900 mt-0.5" />
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">Identity verified</h3>
+                    <p className="text-gray-500 text-sm mt-0.5">
+                      {firstName} has verified their identity details with Booka.
+                    </p>
+                  </div>
+                </div>
+              )}
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {isVerified && (
-                  <div className="flex items-start space-x-4">
-                    <ShieldCheck className="w-6 h-6 text-gray-900 mt-0.5" />
-                    <div>
-                      <h3 className="text-base font-bold text-gray-900">Identity verified</h3>
-                      <p className="text-gray-500 text-sm mt-0.5">
-                        {firstName} has verified their identity details with Booka.
-                      </p>
-                    </div>
+              {/* Location Placeholder */}
+               <div className="flex items-start space-x-4">
+                  <MapPin className="w-6 h-6 text-gray-900 mt-0.5" />
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">Based in South Africa</h3>
+                    <p className="text-gray-500 text-sm mt-0.5">
+                      Active in {profile.reviews[0]?.provider?.city || 'major cities'}.
+                    </p>
                   </div>
-                )}
-                
-                {/* Placeholder for Location if you add it later */}
-                 <div className="flex items-start space-x-4">
-                    <MapPin className="w-6 h-6 text-gray-900 mt-0.5" />
-                    <div>
-                      <h3 className="text-base font-bold text-gray-900">Based in South Africa</h3>
-                      <p className="text-gray-500 text-sm mt-0.5">
-                        Lives in {profile.reviews[0]?.provider?.city || 'South Africa'}.
-                      </p>
-                    </div>
-                  </div>
-              </div>
-            </section>
-
-            {/* Reviews */}
-            <div className="pt-2">
-              <ReviewsCarousel reviews={profile.reviews} firstName={firstName} />
+                </div>
             </div>
-
           </div>
         </div>
+
+        {/* MIDDLE SECTION: Full Width Line */}
+        <div className="border-t border-gray-200 my-10 w-full"></div>
+
+        {/* BOTTOM SECTION: Full Width Reviews */}
+        <div className="w-full">
+          <ReviewsCarousel reviews={profile.reviews} firstName={firstName} />
+        </div>
+
       </div>
     </main>
   );
