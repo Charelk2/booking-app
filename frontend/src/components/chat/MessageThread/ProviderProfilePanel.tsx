@@ -5,6 +5,7 @@ import { XMarkIcon, ShieldCheckIcon, StarIcon, UserIcon } from "@heroicons/react
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { Spinner, Button } from "@/components/ui";
 import { apiUrl } from "@/lib/api";
+import { getFullImageUrl } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
 type ProviderProfile = {
@@ -246,17 +247,23 @@ export default function ProviderProfilePanel({
         <div className="h-full overflow-y-auto px-4 pt-10 pb-6 space-y-6">
           {/* Header */}
           <div className="flex items-center gap-4">
-            {providerAvatarUrl || profile?.profile_picture_url ? (
-              <img
-                src={(providerAvatarUrl || profile?.profile_picture_url) as string}
-                alt={displayName || "Service provider"}
-                className="h-16 w-16 rounded-full object-cover shadow-sm"
-              />
-            ) : (
-              <div className="h-16 w-16 rounded-full bg-gray-900 text-white flex items-center justify-center text-xl font-semibold shadow-sm">
-                {(displayName || "P").charAt(0).toUpperCase()}
-              </div>
-            )}
+            {(() => {
+              const src = getFullImageUrl(profile?.profile_picture_url || providerAvatarUrl || null);
+              if (src) {
+                return (
+                  <img
+                    src={src}
+                    alt={displayName || "Service provider"}
+                    className="h-16 w-16 rounded-full object-cover shadow-sm"
+                  />
+                );
+              }
+              return (
+                <div className="h-16 w-16 rounded-full bg-gray-900 text-white flex items-center justify-center text-xl font-semibold shadow-sm">
+                  {(displayName || "P").charAt(0).toUpperCase()}
+                </div>
+              );
+            })()}
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-gray-900">
