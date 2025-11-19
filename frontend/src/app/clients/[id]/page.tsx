@@ -222,73 +222,87 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
     profile.verifications.payment_verified;
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 space-y-8">
-      {/* Header card */}
-      <section className="bg-white rounded-[2rem] shadow-xl border border-gray-100 p-6 md:p-8">
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-          {/* Left: avatar + identity */}
-          <div className="flex flex-col items-center md:items-start md:w-3/5 text-center md:text-left">
-            <div className="relative mb-4">
-              {profile.user.profile_picture_url ? (
-                <img
-                  src={profile.user.profile_picture_url}
-                  alt={name}
-                  className="h-24 w-24 md:h-28 md:w-28 rounded-full object-cover shadow-sm"
-                />
-              ) : (
-                <div className="h-24 w-24 md:h-28 md:w-28 rounded-full bg-gray-900 text-white flex items-center justify-center text-2xl font-semibold shadow-sm">
-                  {(name || 'C').charAt(0).toUpperCase()}
+    <main className="py-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-16">
+          {/* Left rail: sticky profile card */}
+          <aside className="md:col-span-1">
+            <div className="sticky top-28 self-start p-6 border border-gray-200 rounded-xl shadow-lg bg-white">
+              <div className="flex gap-6">
+                <div className="flex-shrink-0">
+                  {profile.user.profile_picture_url ? (
+                    <img
+                      src={profile.user.profile_picture_url}
+                      alt={firstName}
+                      className="h-28 w-28 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-28 w-28 rounded-full bg-gray-900 text-white flex items-center justify-center text-3xl font-bold">
+                      {(firstName || 'C').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <h1 className="text-3xl font-bold mt-4 text-gray-900">
+                    {firstName}
+                  </h1>
+                  {/* We do not currently store client location, so omit it. */}
+                  {memberSince && (
+                    <p className="text-gray-500 mt-1">
+                      Member since {memberSince}
+                    </p>
+                  )}
+                </div>
+                <div className="mt-2 space-y-4">
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg">
+                      {profile.stats.completed_events}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Completed events
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg">
+                      {profile.stats.reviews_count}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Reviews
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg">
+                      {yearsOnBooka != null ? yearsOnBooka : '—'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Years on Booka
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* Right rail: about + identity verified */}
+          <div className="md:col-span-2 space-y-12">
+            <section className="mt-6">
+              <h2 className="text-2xl font-semibold text-gray-900">
+                About {firstName}
+              </h2>
+              {isVerified && (
+                <div className="mt-4 flex items-center space-x-3">
+                  <ShieldCheckIcon className="h-4 w-4 text-gray-800" />
+                  <span className="font-medium text-gray-700 underline">
+                    Identity &amp; payments verified
+                  </span>
                 </div>
               )}
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">
-              {firstName}
-            </h1>
-            {memberSince && (
-              <p className="text-sm text-gray-500 mt-2">
-                Member since {memberSince}
-              </p>
-            )}
-            {isVerified && (
-              <div className="mt-3 flex items-center gap-2 text-sm text-gray-700">
-                <ShieldCheckIcon className="h-4 w-4 text-emerald-500" />
-                <span className="font-medium">Identity & payments verified</span>
-              </div>
-            )}
-          </div>
-
-          {/* Right: stats */}
-          <div className="flex flex-col md:w-2/5 justify-center divide-y divide-gray-200 text-center md:text-left">
-            <div className="pb-3">
-              <p className="text-2xl font-bold text-gray-900 leading-none">
-                {profile.stats.completed_events}
-              </p>
-              <p className="mt-1.5 text-[11px] font-semibold text-gray-700 uppercase tracking-wide">
-                Completed events
-              </p>
-            </div>
-            <div className="py-3">
-              <p className="text-2xl font-bold text-gray-900 leading-none">
-                {profile.stats.reviews_count}
-              </p>
-              <p className="mt-1.5 text-[11px] font-semibold text-gray-700 uppercase tracking-wide">
-                Reviews
-              </p>
-            </div>
-            <div className="pt-3">
-              <p className="text-2xl font-bold text-gray-900 leading-none">
-                {yearsOnBooka != null ? yearsOnBooka : '—'}
-              </p>
-              <p className="mt-1.5 text-[11px] font-semibold text-gray-700 uppercase tracking-wide">
-                Years on Booka
-              </p>
-            </div>
+            </section>
           </div>
         </div>
-      </section>
 
-      {/* Reviews carousel */}
-      <ReviewsCarousel reviews={profile.reviews} firstName={firstName} />
+        <div className="mt-12 pt-8 border-t border-gray-200">
+          <ReviewsCarousel reviews={profile.reviews} firstName={firstName} />
+        </div>
+      </div>
     </main>
   );
 }
