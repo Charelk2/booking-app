@@ -583,6 +583,24 @@ export default function BookingDetailsPanel({
     String(effectiveBooking?.status || '').toLowerCase() === 'completed' &&
     !effectiveBooking?.review;
 
+  const clientReviewCta = canClientReviewProvider ? (
+    <button
+      type="button"
+      onClick={() => setShowReviewModal(true)}
+      className="inline-flex items-center rounded-full bg-gray-900 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-gray-800"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        className="h-3.5 w-3.5 mr-1 text-yellow-400"
+      >
+        <path d="M10 15.27L16.18 19l-1.64-7.03L20 7.24l-7.19-.61L10 0 7.19 6.63 0 7.24l5.46 4.73L3.82 19z" />
+      </svg>
+      Leave review
+    </button>
+  ) : null;
+
   // Render a rich, action‑oriented panel for Booka updates
   if (isBookaThread) {
     const currentArtistId =
@@ -814,28 +832,9 @@ export default function BookingDetailsPanel({
             showPolicy={true}
             showEventDetails={true}
             showReceiptBelowTotal={isPersonalized}
+            clientReviewCta={clientReviewCta}
             belowHeader={
-              <>
-                {canClientReviewProvider && (
-                  <div className="mb-2">
-                    <button
-                      type="button"
-                      className="inline-flex items-center rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-gray-800"
-                      onClick={() => setShowReviewModal(true)}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        className="h-4 w-4 mr-1.5 text-yellow-400"
-                      >
-                        <path d="M10 15.27L16.18 19l-1.64-7.03L20 7.24l-7.19-.61L10 0 7.19 6.63 0 7.24l5.46 4.73L3.82 19z" />
-                      </svg>
-                      Leave review
-                    </button>
-                  </div>
-                )}
-                {showPrep ? (
+              showPrep ? (
                   <EventPrepCard
                     bookingId={Number(confirmedBookingDetails?.id || 0) || 0}
                     bookingRequestId={Number(bookingRequest.id)}
@@ -900,8 +899,7 @@ export default function BookingDetailsPanel({
                   } catch {}
                 }}
                   />
-                ) : null}
-              </>
+                ) : null
             }
           />
         );

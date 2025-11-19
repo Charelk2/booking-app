@@ -63,14 +63,15 @@ interface BookingSummaryCardProps {
   showReceiptBelowTotal?: boolean;
   showEventDetails?: boolean;
   belowHeader?: React.ReactNode;
+  clientReviewCta?: React.ReactNode;
 }
 
 const AvatarHeader: React.FC<
   Pick<
     BookingSummaryCardProps,
-    'imageUrl' | 'serviceName' | 'artistName' | 'bookingConfirmed' | 'parsedBookingDetails'
+    'imageUrl' | 'serviceName' | 'artistName' | 'bookingConfirmed' | 'parsedBookingDetails' | 'clientReviewCta'
   >
-> = ({ imageUrl, serviceName, artistName, bookingConfirmed, parsedBookingDetails }) => {
+> = ({ imageUrl, serviceName, artistName, bookingConfirmed, parsedBookingDetails, clientReviewCta }) => {
   const fullImageUrl = (getFullImageUrl(imageUrl || null) || imageUrl) as string | undefined;
   const eventDate = parsedBookingDetails?.date;
   const formattedDate =
@@ -137,7 +138,10 @@ const AvatarHeader: React.FC<
               {serviceName || 'Booking Details'}
             </h1>
             {artistName && (
-              <p className="text-sm font-medium text-gray-600 truncate">with {artistName}</p>
+              <div className="mt-0.5 flex items-center gap-2">
+                <p className="text-sm font-medium text-gray-600 truncate">with {artistName}</p>
+                {clientReviewCta}
+              </div>
             )}
           </div>
         </div>
@@ -200,6 +204,7 @@ export default function BookingSummaryCard({
   showReceiptBelowTotal = false,
   showEventDetails = true,
   belowHeader,
+  clientReviewCta,
 }: BookingSummaryCardProps) {
   const { user } = useAuth();
   const [briefLink, setBriefLink] = React.useState<string | null>(null);
@@ -310,6 +315,7 @@ export default function BookingSummaryCard({
               return Boolean(bookingConfirmed || paid || statusConfirmed);
             })()}
             parsedBookingDetails={parsedBookingDetails}
+            clientReviewCta={clientReviewCta}
           />
           {belowHeader && (
             <div className="px-6 pt-2 sm:px-8 max-w-full overflow-x-hidden">
