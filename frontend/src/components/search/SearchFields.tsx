@@ -93,7 +93,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       const isValuePresent =
         typeof currentValue === 'string' &&
         currentValue !== '' &&
-        !['Search', 'Add dates', 'Add location'].includes(currentValue);
+        !['Search', 'Add service', 'Add dates', 'Add location'].includes(currentValue);
       const Icon = (iconMap[id] as any) ?? MusicalNoteIcon;
 
       return (
@@ -117,11 +117,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           >
             <span
               className={clsx(
-                'flex items-center text-sm font-semibold pointer-events-none select-none',
-                isValuePresent ? 'text-gray-800' : 'text-gray-700',
+                'flex items-center text-xs font-semibold tracking-wide uppercase pointer-events-none select-none',
+                isValuePresent ? 'text-slate-900' : 'text-slate-600',
               )}
             >
-              <Icon className="mr-1 h-4 w-4 hidden "aria-hidden="true"/>
+              <Icon className="mr-1 h-4 w-4" aria-hidden="true" />
               {label}
             </span>
             <span
@@ -165,7 +165,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       {renderField(
         'category',
         'Category',
-        category ? category.label : 'Search',
+        category ? category.label : 'Add service',
         categoryButtonRef,
         () => setCategory(null),
         'hover:rounded-full' // Pass rounded-full as an additional class
@@ -200,11 +200,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       >
         <span
           className={clsx(
-            'flex items-center text-sm font-semibold pointer-events-none select-none',
-            location ? 'text-gray-800' : 'text-gray-700',
+            'flex items-center text-xs font-semibold tracking-wide uppercase pointer-events-none select-none',
+            location ? 'text-slate-900' : 'text-slate-600',
           )}
         >
-          <MapPinIcon className="mr-1 h-4 w-4 hidden "aria-hidden="true" />
+          <MapPinIcon className="mr-1 h-4 w-4" aria-hidden="true" />
           Where
         </span>
         <LocationInput
@@ -222,8 +222,8 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           className="w-full"
           inputClassName={clsx(
             'block truncate p-0 bg-transparent',
-            location ? 'text-gray-800' : 'text-gray-500',
-            compact ? 'text-sm' : 'text-base text-xs',
+            location ? 'text-slate-900' : 'text-slate-500',
+            compact ? 'text-sm' : 'text-base',
             // Avoid text under the submit button (slightly tighter)
             'pr-6',
           )}

@@ -150,16 +150,16 @@ export default function SearchBar({
       <form
         ref={formRef}
         onKeyDown={handleKeyDown}
-        onSubmit={handleSubmit}
-        autoComplete="off"
-        role="search"
-        aria-label="Service Provider booking search"
-        className={clsx(
-          'relative flex items-stretch rounded-full transition-all duration-200 ease-out',
-          'bg-white border border-black/10 ring-1 ring-white/20 backdrop-blur-2xl',
-          'shadow-sm',
-          compact ? 'text-sm' : 'text-base',
-        )}
+      onSubmit={handleSubmit}
+      autoComplete="off"
+      role="search"
+      aria-label="Service Provider booking search"
+      className={clsx(
+        'relative flex items-stretch rounded-full transition-all duration-200 ease-out min-h-[48px]',
+        'bg-white border border-slate-200 ring-1 ring-white/20 backdrop-blur-2xl',
+        'shadow-sm',
+        compact ? 'text-sm' : 'text-base',
+      )}
       >
         <SearchFields
           category={category}

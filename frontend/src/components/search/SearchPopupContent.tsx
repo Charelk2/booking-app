@@ -396,10 +396,41 @@ export default function SearchPopupContent({
 
   const renderDefault = () => (
     <div className="text-center text-gray-500 py-8">
-      <h3 className="text-lg font-semibold mb-2" id="search-popup-label-default">Find service providers for your event!</h3>
-      <p className="text-sm">Click &quot;Where&quot;, &quot;When&quot;, or &quot;Category&quot; to start.</p>
+      <h3
+        className="text-lg font-semibold mb-2 text-gray-900"
+        id="search-popup-label-default"
+      >
+        Plan your next event in seconds
+      </h3>
+      <p className="text-sm text-gray-600">
+        Start by choosing a service, then add a date and location. You can also tap one of these ideas:
+      </p>
+
+      {/* Quick example chips */}
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {[
+          { label: 'DJ · Cape Town', location: 'Cape Town' },
+          { label: 'Live band · Johannesburg', location: 'Johannesburg' },
+          { label: 'Photographer · Stellenbosch', location: 'Stellenbosch' },
+        ].map((example) => (
+          <button
+            key={example.label}
+            type="button"
+            onClick={() => {
+              setLocation(example.location);
+              closeAllPopups();
+            }}
+            className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition"
+          >
+            {example.label}
+          </button>
+        ))}
+      </div>
+
       <div className="mt-6">
-        <h4 className="text-md font-semibold text-gray-700 mb-3">Popular Service Provider Locations</h4>
+        <h4 className="text-md font-semibold text-gray-700 mb-3">
+          Popular Service Provider Locations
+        </h4>
         {/* Responsive grid: stack suggestions on small screens */}
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {MOCK_LOCATION_SUGGESTIONS.slice(0, 4).map((s) => (
