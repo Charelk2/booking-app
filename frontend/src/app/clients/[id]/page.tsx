@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { apiUrl } from '@/lib/api';
+import { getFullImageUrl } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
 
 type ClientProfileResponse = {
@@ -47,13 +48,17 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
     year: 'numeric',
   });
   const initial = providerName.charAt(0).toUpperCase();
+  const avatarUrl = review.provider?.profile_picture_url
+    ? getFullImageUrl(review.provider.profile_picture_url)
+    : null;
+
   return (
     <div className="min-w-[300px] max-w-[400px] flex-shrink-0 bg-white rounded-xl border border-gray-200 p-6 h-auto flex flex-col shadow-sm">
       <div className="flex items-start mb-3">
-        {review.provider?.profile_picture_url ? (
+        {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={review.provider.profile_picture_url}
+            src={avatarUrl}
             alt={providerName}
             className="w-8 h-8 rounded-full object-cover mr-3"
           />
