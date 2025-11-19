@@ -307,7 +307,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
           
           {/* 1. The Profile Card (Left) */}
           <div className="w-full md:w-[340px] flex-shrink-0">
-            <div className="bg-white rounded-[32px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 p-6 lg:p-8 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 p-6 lg:p-8 overflow-hidden">
               <div className="flex gap-6 items-start">
                 
                 {/* Avatar Side */}
