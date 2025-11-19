@@ -486,9 +486,6 @@ export default function BookingSummaryCard({
                 </span>
               </div>
               {(() => {
-                const paid = String(paymentInfo?.status || '').toLowerCase() === 'paid';
-                const status = String(bookingDetails?.status || '').toLowerCase();
-                const statusConfirmed = status.includes('confirmed') || status === 'completed';
                 const bookingId = bookingDetails?.id;
                 const anyBooking: any = bookingDetails as any;
                 const vis = Array.isArray(anyBooking?.visible_invoices)
@@ -521,46 +518,49 @@ export default function BookingSummaryCard({
                   const clientFeeInv = vis.find((iv) => iv.type === 'client_fee_tax');
                   if (clientFeeInv && typeof clientFeeInv.id === 'number') {
                     bookaHref = `/invoices/${clientFeeInv.id}`;
+                  } else {
+                    bookaHref = `/invoices/by-booking/${bookingId}?type=client_fee`;
                   }
                 }
 
-                const canShowInvoices = (paid || statusConfirmed) && (providerHref || bookaHref);
-                if (!receiptUrl && !canShowInvoices) return null;
+                if (!receiptUrl && !providerHref && !bookaHref) return null;
 
                 return (
-                  <div className="pt-2 border-t border-gray-100">
-                    <div className="flex flex-wrap gap-2 justify-end">
-                      {receiptUrl && (
-                        <a
-                          href={receiptUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition"
-                        >
-                          View receipt
-                        </a>
-                      )}
-                      {providerHref && (paid || statusConfirmed) && (
+                  <div className="pt-2 border-t border-gray-100 text-right space-y-1">
+                    {receiptUrl && (
+                      <a
+                        href={receiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
+                      >
+                        View receipt &rarr;
+                      </a>
+                    )}
+                    {providerHref && (
+                      <div>
                         <a
                           href={providerHref}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 shadow-sm hover:bg-gray-50 transition"
+                          className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
                         >
-                          Provider invoice
+                          Download provider invoice
                         </a>
-                      )}
-                      {bookaHref && (paid || statusConfirmed) && (
+                      </div>
+                    )}
+                    {bookaHref && (
+                      <div>
                         <a
                           href={bookaHref}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 shadow-sm hover:bg-gray-50 transition"
+                          className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
                         >
-                          Booka tax invoice
+                          Download Booka tax invoice
                         </a>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
