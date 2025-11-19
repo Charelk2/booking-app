@@ -710,6 +710,25 @@ export default function MessageThreadWrapper({
 
   const canProviderReviewClient = Boolean(isUserArtist && effectiveClientId > 0);
 
+  const providerBusinessName = useMemo(() => {
+    const raw: any = effectiveBookingRequest;
+    if (!raw) return null;
+    const providerProfile = raw.service_provider_profile || raw.artist_profile || null;
+    const nameCandidates = [
+      providerProfile?.business_name,
+      raw?.service?.service_provider_profile?.business_name,
+      raw?.service?.artist_profile?.business_name,
+      raw?.service?.service_provider?.business_name,
+      raw?.service?.artist?.business_name,
+    ];
+    for (const candidate of nameCandidates) {
+      if (!candidate) continue;
+      const trimmed = String(candidate).trim();
+      if (trimmed) return trimmed;
+    }
+    return null;
+  }, [effectiveBookingRequest]);
+
   return (
     <div className="flex flex-col h-full w-full relative">
       {/* Unified header */}
@@ -968,6 +987,7 @@ export default function MessageThreadWrapper({
                 (effectiveBookingRequest as any)?.counterparty_avatar_url ||
                 null) as string | null
             }
+            providerName={providerBusinessName}
             bookingRequestId={Number(bookingRequestId)}
             canReview={canProviderReviewClient}
             isOpen={showClientProfile}

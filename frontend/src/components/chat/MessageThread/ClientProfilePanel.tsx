@@ -41,6 +41,7 @@ type Props = {
   clientId: number;
   clientName?: string;
   clientAvatarUrl?: string | null;
+  providerName?: string | null;
   bookingRequestId: number;
   canReview?: boolean;
   isOpen: boolean;
@@ -57,6 +58,7 @@ export default function ClientProfilePanel({
   clientId,
   clientName,
   clientAvatarUrl,
+  providerName,
   bookingRequestId,
   canReview,
   isOpen,
@@ -158,7 +160,13 @@ export default function ClientProfilePanel({
           rating: created.rating,
           comment: created.comment || "",
           created_at: createdAt,
-          provider: undefined,
+          provider: providerName
+            ? {
+                id: Number(created?.provider_id || 0) || 0,
+                business_name: providerName,
+                city: undefined,
+              }
+            : undefined,
           booking: undefined,
         });
         const ratings = next.reviews.map((r) => Number(r.rating) || 0);
