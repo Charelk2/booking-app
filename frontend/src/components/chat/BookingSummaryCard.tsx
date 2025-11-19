@@ -340,95 +340,6 @@ export default function BookingSummaryCard({
         ].join(' ')}
         style={stickyPresent ? ({ ['--sticky-h' as any]: `${stickyH}px` } as React.CSSProperties) : undefined}
       >
-        {/* Provider Invoice download (when available) */}
-        {(() => {
-          try {
-            const paid = String(paymentInfo?.status || '').toLowerCase() === 'paid';
-            const status = String(bookingDetails?.status || '').toLowerCase();
-            const statusConfirmed = status.includes('confirmed') || status === 'completed';
-            const bookingId = bookingDetails?.id;
-            let invoiceHref: string | null = null;
-            if (bookingId) {
-              const anyBooking: any = bookingDetails as any;
-              const vis = Array.isArray(anyBooking.visible_invoices)
-                ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
-                : [];
-              const providerInv = vis.find(
-                (iv) => iv.type === 'provider_tax' || iv.type === 'provider_invoice',
-              );
-              const fallbackInv = vis.length ? vis[vis.length - 1] : undefined;
-              const target = providerInv || fallbackInv;
-              if (target && typeof target.id === 'number') {
-                invoiceHref = `/invoices/${target.id}`;
-              } else if (bookingDetails?.invoice_id) {
-                invoiceHref = `/invoices/${bookingDetails.invoice_id}`;
-              } else {
-                invoiceHref = `/invoices/by-booking/${bookingId}?type=provider`;
-              }
-            }
-            if ((paid || statusConfirmed) && invoiceHref) {
-              return (
-                <div className="mb-4">
-                  <a
-                    href={invoiceHref}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900"
-                    title="Download Provider Invoice"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                      <path d="M12 16.5l4-4h-3V3h-2v9.5H8l4 4z" /><path d="M5 18h14v2H5z" />
-                    </svg>
-                    Download Provider Invoice
-                  </a>
-                </div>
-              );
-            }
-          } catch {}
-          return null;
-        })()}
-        {/* Booka tax invoice (client fee) – only when present for client */}
-        {isClient &&
-          (() => {
-            try {
-              const paid = String(paymentInfo?.status || '').toLowerCase() === 'paid';
-              const status = String(bookingDetails?.status || '').toLowerCase();
-              const statusConfirmed = status.includes('confirmed') || status === 'completed';
-              const bookingId = bookingDetails?.id;
-              let bookaHref: string | null = null;
-              if (bookingId) {
-                const anyBooking: any = bookingDetails as any;
-                const vis = Array.isArray(anyBooking.visible_invoices)
-                  ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
-                  : [];
-                const clientFeeInv = vis.find((iv) => iv.type === 'client_fee_tax');
-                if (clientFeeInv && typeof clientFeeInv.id === 'number') {
-                  bookaHref = `/invoices/${clientFeeInv.id}`;
-                }
-              }
-              if ((paid || statusConfirmed) && bookaHref) {
-                return (
-                  <div className="mb-4 -mt-2">
-                    <a
-                      href={bookaHref}
-                      className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
-                      title="Download Booka Tax Invoice"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-4 h-4"
-                      >
-                        <path d="M6 3h9l3 3v15H6z" />
-                        <path d="M9 8h6v2H9zm0 4h6v2H9z" />
-                      </svg>
-                      Download Booka Tax Invoice
-                    </a>
-                  </div>
-                );
-              }
-            } catch {}
-            return null;
-          })()}
         {/* Event Details */}
         <section id="event-details" className="scroll-mt-20" aria-labelledby="event-details-h">
           <h2 id="event-details-h" className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
@@ -575,22 +486,83 @@ export default function BookingSummaryCard({
                 </span>
               </div>
               {(() => {
-                const url = buildReceiptUrl(
+                const paid = String(paymentInfo?.status || '').toLowerCase() === 'paid';
+                const status = String(bookingDetails?.status || '').toLowerCase();
+                const statusConfirmed = status.includes('confirmed') || status === 'completed';
+                const bookingId = bookingDetails?.id;
+                const anyBooking: any = bookingDetails as any;
+                const vis = Array.isArray(anyBooking?.visible_invoices)
+                  ? (anyBooking.visible_invoices as Array<{ type: string; id: number; type?: string }>)
+                  : [];
+
+                const receiptUrl = buildReceiptUrl(
                   paymentInfo.receiptUrl,
-                  bookingDetails?.payment_id ?? null
+                  bookingDetails?.payment_id ?? null,
                 );
-                return url ? (
-                  <div className="pt-2 border-t border-gray-100 text-right">
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
-                    >
-                      View Receipt &rarr;
-                    </a>
+
+                let providerHref: string | null = null;
+                if (bookingId) {
+                  const providerInv = vis.find(
+                    (iv) => iv.type === 'provider_tax' || iv.type === 'provider_invoice',
+                  );
+                  const fallbackInv = vis.length ? vis[vis.length - 1] : undefined;
+                  const target = providerInv || fallbackInv;
+                  if (target && typeof target.id === 'number') {
+                    providerHref = `/invoices/${target.id}`;
+                  } else if (bookingDetails?.invoice_id) {
+                    providerHref = `/invoices/${bookingDetails.invoice_id}`;
+                  } else {
+                    providerHref = `/invoices/by-booking/${bookingId}?type=provider`;
+                  }
+                }
+
+                let bookaHref: string | null = null;
+                if (bookingId && isClient) {
+                  const clientFeeInv = vis.find((iv) => iv.type === 'client_fee_tax');
+                  if (clientFeeInv && typeof clientFeeInv.id === 'number') {
+                    bookaHref = `/invoices/${clientFeeInv.id}`;
+                  }
+                }
+
+                const canShowInvoices = (paid || statusConfirmed) && (providerHref || bookaHref);
+                if (!receiptUrl && !canShowInvoices) return null;
+
+                return (
+                  <div className="pt-2 border-t border-gray-100">
+                    <div className="flex flex-wrap gap-2 justify-end">
+                      {receiptUrl && (
+                        <a
+                          href={receiptUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition"
+                        >
+                          View receipt
+                        </a>
+                      )}
+                      {providerHref && (paid || statusConfirmed) && (
+                        <a
+                          href={providerHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 shadow-sm hover:bg-gray-50 transition"
+                        >
+                          Provider invoice
+                        </a>
+                      )}
+                      {bookaHref && (paid || statusConfirmed) && (
+                        <a
+                          href={bookaHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 shadow-sm hover:bg-gray-50 transition"
+                        >
+                          Booka tax invoice
+                        </a>
+                      )}
+                    </div>
                   </div>
-                ) : null;
+                );
               })()}
             </div>
           </section>
