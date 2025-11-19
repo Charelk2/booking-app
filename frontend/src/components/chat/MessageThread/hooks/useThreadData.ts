@@ -544,7 +544,17 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         }
         if (isAxiosError(err) && err.response?.status === 403) {
           setLoading(false);
-          queueRetry('transient');
+          try {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('thread:missing', {
+                  detail: { id: threadId },
+                }),
+              );
+            }
+          } catch {}
+          missingThreadRef.current = true;
+          setMessages([]);
           return;
         }
         if (

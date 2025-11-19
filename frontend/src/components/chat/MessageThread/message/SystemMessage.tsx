@@ -223,10 +223,13 @@ export default function SystemMessage({
           icon="★"
           tone="neutral"
           title={t('system.reviewInviteTitle', 'How was your event?')}
-          subtitle={t(
-            'system.reviewInviteBody',
-            'Leave a rating and short review to help others book with confidence.',
-          )}
+          subtitle={
+            content ||
+            t(
+              'system.reviewInviteBody',
+              'Leave a rating and short review to help others book with confidence.',
+            )
+          }
           primaryAction={
             onOpenReviewFromSystem
               ? {

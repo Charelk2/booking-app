@@ -102,6 +102,7 @@ export default function InboxPage() {
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [hydratedThreadIds, setHydratedThreadIds] = useState<number[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [overrideReviewBookingId, setOverrideReviewBookingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -265,6 +266,22 @@ export default function InboxPage() {
     window.addEventListener('thread:missing', handleMissing as EventListener);
     return () => window.removeEventListener('thread:missing', handleMissing as EventListener);
   }, [CACHE_KEY, LATEST_CACHE_KEY, persistKey, SEL_KEY, mutateThreads, setSelectedThreadId]);
+
+  // Open client → provider review modal when chat layer requests it
+  useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ bookingId?: number }>).detail || {};
+      const bid = Number(detail.bookingId || 0);
+      if (!Number.isFinite(bid) || bid <= 0) return;
+      setOverrideReviewBookingId(bid);
+      setShowReviewModal(true);
+    };
+    window.addEventListener('inbox:openClientReview', handler as EventListener);
+    return () => {
+      window.removeEventListener('inbox:openClientReview', handler as EventListener);
+    };
+  }, []);
 
   // If the currently selected thread appears (or updates) with a non-zero
   // unread_count, immediately apply a local read so the per-thread pill,
@@ -808,10 +825,18 @@ export default function InboxPage() {
         <ReviewFormModal
           isOpen={showReviewModal}
           bookingId={
-            (selectedRequest as { booking_id?: number | null }).booking_id ?? 0
+            overrideReviewBookingId ??
+            (selectedRequest as { booking_id?: number | null }).booking_id ??
+            0
           }
-          onClose={() => setShowReviewModal(false)}
-          onSubmitted={() => setShowReviewModal(false)}
+          onClose={() => {
+            setShowReviewModal(false);
+            setOverrideReviewBookingId(null);
+          }}
+          onSubmitted={() => {
+            setShowReviewModal(false);
+            setOverrideReviewBookingId(null);
+          }}
         />
       )}
     </MainLayout>

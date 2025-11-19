@@ -1197,6 +1197,16 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       const res = await axios.get(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/booking-id`));
       const bookingId = (res.data as any)?.booking_id;
       if (!bookingId || typeof window === 'undefined') return;
+      try {
+        window.dispatchEvent(
+          new CustomEvent('inbox:openClientReview', {
+            detail: { bookingId },
+          }),
+        );
+        return;
+      } catch {
+        // fall through to navigation
+      }
       window.location.href = `/dashboard/client/bookings/${bookingId}?review=1`;
     } catch (err) {
       // eslint-disable-next-line no-console
