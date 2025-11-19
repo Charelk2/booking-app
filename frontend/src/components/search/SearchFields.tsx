@@ -213,7 +213,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           className="w-full"
           inputClassName={clsx(
             'block truncate p-0 bg-transparent',
-            location ? 'text-slate-900' : 'text-slate-500',
+            location ? 'text-gray-800' : 'text-gray-500',
             compact ? 'text-sm' : 'text-base',
             // Avoid text under the submit button (slightly tighter)
             'pr-6',
