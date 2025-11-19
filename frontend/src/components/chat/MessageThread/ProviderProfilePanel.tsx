@@ -296,9 +296,9 @@ export default function ProviderProfilePanel({
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-900">
-                {profile?.service_categories?.length ?? 0}
+                {reviews.length}
               </p>
-              <p className="mt-0.5 text-[11px] text-gray-500">service categories</p>
+              <p className="mt-0.5 text-[11px] text-gray-500">completed events</p>
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-900">
