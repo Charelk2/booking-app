@@ -787,6 +787,19 @@ export default function InboxPage() {
 
   const selectedRequest = threads.find((r) => r.id === selectedThreadId) || null;
 
+  let selectedBookingIdFromCache: number | null = null;
+  if (selectedRequest && typeof window !== 'undefined') {
+    try {
+      const cached = window.sessionStorage.getItem(`bookingId:br:${selectedRequest.id}`);
+      if (cached) {
+        const bid = Number(cached);
+        if (Number.isFinite(bid) && bid > 0) selectedBookingIdFromCache = bid;
+      }
+    } catch {
+      selectedBookingIdFromCache = null;
+    }
+  }
+
   return (
     <MainLayout fullWidthContent hideFooter={true}>
       {/* Lock inbox to viewport to prevent page scroll; headers stay visible */}
@@ -829,6 +842,7 @@ export default function InboxPage() {
           bookingId={
             overrideReviewBookingId ??
             (selectedRequest as { booking_id?: number | null }).booking_id ??
+            selectedBookingIdFromCache ??
             0
           }
           onClose={() => {

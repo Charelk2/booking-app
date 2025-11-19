@@ -460,66 +460,12 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         setLoading(false);
         initialLoadedRef.current = true;
 
-        // Exhaust older history in full mode using before_id paging
+        // Initial load: mark whether there might be older history. Do not auto‑page;
+        // fetchOlder() owns any explicit older-history fetch on scroll.
         let hasMoreFlag = false;
         try { hasMoreFlag = Boolean((res as any)?.data?.has_more); } catch { hasMoreFlag = false; }
+        setReachedHistoryStart(!hasMoreFlag);
         try { opts?.onMessagesFetched?.(normalized, 'fetch'); } catch {}
-
-        if (hasMoreFlag) {
-          // Walk older pages until no more; bounded by a generous guard
-          let guard = 0;
-          while (guard < 500) {
-            guard += 1;
-            const list = messagesRef.current || [];
-            let earliest: number | null = null;
-            for (let i = 0; i < list.length; i += 1) {
-              const idn = Number((list[i] as any)?.id || 0);
-              if (Number.isFinite(idn) && idn > 0) { earliest = idn; break; }
-            }
-            if (!earliest || earliest <= 1) break;
-            try {
-              const olderRes = await apiList(
-                threadId,
-                buildRequestParams({
-                  limit: FULL_LIMIT,
-                  mode: 'full' as any,
-                  before_id: earliest,
-                  fields: 'attachment_meta,reply_to_preview,quote_id,reactions,my_reactions',
-                }) as any,
-              );
-              try { ingestQuotes((olderRes as any)?.data?.quotes); } catch {}
-              const rows = Array.isArray((olderRes as any)?.data?.items) ? (olderRes as any).data.items : [];
-              if (!rows.length) break;
-              const older = rows.map(normalizeForRender).filter((m: any) => Number.isFinite(m.id) && m.id > 0);
-              if (older.length) hasRealMessages = true;
-              try {
-                const ids: number[] = [];
-                for (const m of older as any[]) {
-                  const qid = Number((m as any)?.quote_id || 0);
-                  if (Number.isFinite(qid) && qid > 0) ids.push(qid);
-                }
-                if (ids.length && typeof opts?.ensureQuotesLoaded === 'function') {
-                  try { await opts.ensureQuotesLoaded(Array.from(new Set(ids))); } catch {}
-                }
-              } catch {}
-              if (!older.length) break;
-              setMessages((prev) => {
-                const next = mergeMessages(older, prev);
-                const last = next[next.length - 1];
-                if (Number.isFinite(last?.id)) lastMessageIdRef.current = Number(last.id);
-                return next;
-              });
-              try { opts?.onMessagesFetched?.(older, 'fetch'); } catch {}
-              const olderHasMore = Boolean((olderRes as any)?.data?.has_more);
-              if (!olderHasMore) break;
-            } catch {
-              break;
-            }
-          }
-          setReachedHistoryStart(true);
-        } else {
-          setReachedHistoryStart(true);
-        }
 
         // Replace ephemeral stubs now that real data arrived for this viewer.
         if (hasRealMessages) {
