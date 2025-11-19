@@ -849,9 +849,30 @@ export default function InboxPage() {
             setShowReviewModal(false);
             setOverrideReviewBookingId(null);
           }}
-          onSubmitted={() => {
+          onSubmitted={(review) => {
             setShowReviewModal(false);
             setOverrideReviewBookingId(null);
+            try {
+              if (review?.booking_id && typeof window !== 'undefined') {
+                const bid = Number(review.booking_id);
+                if (Number.isFinite(bid) && bid > 0) {
+                  window.sessionStorage.setItem(`bookingReviewedByClient:${bid}`, '1');
+                }
+              }
+              const tid = Number(selectedThreadId || selectedRequest.id || 0);
+              if (tid && typeof window !== 'undefined') {
+                window.sessionStorage.setItem(`bookingReviewedByClientThread:${tid}`, '1');
+                try {
+                  window.dispatchEvent(
+                    new CustomEvent('booking:clientReviewed', {
+                      detail: { bookingId: review?.booking_id, threadId: tid },
+                    }),
+                  );
+                } catch {}
+              }
+            } catch {
+              // best-effort only
+            }
           }}
         />
       )}

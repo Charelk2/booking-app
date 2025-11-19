@@ -597,10 +597,48 @@ export default function BookingDetailsPanel({
   const requestStatus = String(bookingRequest.status || '').toLowerCase();
   const isCompletedBooking = bookingStatus === 'completed';
   const isCompletedRequest = requestStatus === 'request_completed' || requestStatus === 'completed';
+
+  const [reviewedByClient, setReviewedByClient] = React.useState(false);
+
+  React.useEffect(() => {
+    const threadId = Number(bookingRequest?.id || 0);
+    if (!threadId || typeof window === 'undefined') {
+      setReviewedByClient(false);
+      return;
+    }
+    try {
+      const key = `bookingReviewedByClientThread:${threadId}`;
+      const val = window.sessionStorage.getItem(key);
+      setReviewedByClient(val === '1');
+    } catch {
+      setReviewedByClient(false);
+    }
+  }, [bookingRequest?.id]);
+
+  React.useEffect(() => {
+    const handler = (event: Event) => {
+      try {
+        const detail = (event as CustomEvent<{ threadId?: number }>).detail || {};
+        const tid = Number(detail.threadId || 0);
+        if (tid && tid === Number(bookingRequest?.id || 0)) {
+          setReviewedByClient(true);
+        }
+      } catch {
+        // no-op
+      }
+    };
+    if (typeof window === 'undefined') return () => {};
+    window.addEventListener('booking:clientReviewed', handler as EventListener);
+    return () => {
+      window.removeEventListener('booking:clientReviewed', handler as EventListener);
+    };
+  }, [bookingRequest?.id]);
+
   const canClientReviewProvider =
     viewerIsClient &&
     (isCompletedBooking || isCompletedRequest) &&
-    !effectiveBooking?.review;
+    !effectiveBooking?.review &&
+    !reviewedByClient;
 
   const clientReviewCta = canClientReviewProvider ? (
     <button
