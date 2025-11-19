@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { apiUrl } from '@/lib/api';
-import { ChevronLeft, ChevronRight, ShieldCheck, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
 
 type ClientProfileResponse = {
   user: {
@@ -43,31 +43,25 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
   });
   const initial = providerName.charAt(0).toUpperCase();
   return (
-    <div className="space-y-4 h-full flex flex-col">
-      <div className="flex items-center space-x-4">
-        <div className="h-10 w-10 rounded-full bg-gray-900 text-white flex items-center justify-center text-sm font-semibold shadow-sm">
-          {initial}
-        </div>
-        <div>
-          <p className="font-semibold text-gray-900">
-            {providerName}
-          </p>
-          {providerLocation && (
-            <p className="text-sm text-gray-500">
-              {providerLocation}
-            </p>
-          )}
-        </div>
-      </div>
-      <div>
-        <p className="text-sm font-medium text-gray-500">
-          {dateLabel}
-        </p>
+    <div className="min-w-[300px] max-w-[400px] flex-shrink-0 bg-white rounded-xl border border-gray-200 p-6 h-auto flex flex-col shadow-sm">
+      <div className="text-gray-900 mb-4 flex-grow">
         {review.comment && (
-          <p className="mt-2 text-gray-700 leading-relaxed">
+          <p className="leading-relaxed">
             {review.comment}
           </p>
         )}
+      </div>
+      <div className="flex items-center mt-auto pt-4">
+        <div className="w-12 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-sm font-semibold">
+          {initial}
+        </div>
+        <div>
+          <h4 className="font-semibold text-gray-900">{providerName}</h4>
+          {providerLocation && (
+            <p className="text-xs text-gray-600">{providerLocation}</p>
+          )}
+          <p className="text-xs text-gray-600 mt-0.5">{dateLabel}</p>
+        </div>
       </div>
     </div>
   );
@@ -81,13 +75,32 @@ function ReviewsCarousel({
   firstName: string;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanScrollLeft(scrollLeft > 0);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 5);
+  };
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [reviews]);
 
   const scroll = (dir: 'left' | 'right') => {
     const el = scrollRef.current;
     if (!el) return;
-    const amount = el.offsetWidth / 2;
-    const target = dir === 'left' ? el.scrollLeft - amount : el.scrollLeft + amount;
-    el.scrollTo({ left: target, behavior: 'smooth' });
+    const amount = 300;
+    el.scrollBy({
+      left: dir === 'left' ? -amount : amount,
+      behavior: 'smooth',
+    });
+    setTimeout(checkScroll, 350);
   };
 
   if (!reviews.length) {
@@ -104,41 +117,44 @@ function ReviewsCarousel({
   }
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">
+    <section>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">
           What providers are saying about {firstName}
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex space-x-2">
           <button
             type="button"
             onClick={() => scroll('left')}
-            className="p-1.5 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50"
+            disabled={!canScrollLeft}
+            className={`p-2 rounded-full border border-gray-300 transition hover:shadow-md ${
+              !canScrollLeft ? 'opacity-30 cursor-not-allowed' : 'hover:border-black'
+            }`}
             aria-label="Scroll reviews left"
           >
-            <ChevronLeftIcon className="h-4 w-4" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             type="button"
             onClick={() => scroll('right')}
-            className="p-1.5 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition focus:outline-none focus:ring-2 focus:ring-gray-300"
+            disabled={!canScrollRight}
+            className={`p-2 rounded-full border border-gray-300 transition hover:shadow-md ${
+              !canScrollRight ? 'opacity-30 cursor-not-allowed' : 'hover:border-black'
+            }`}
             aria-label="Scroll reviews right"
           >
-            <ChevronRightIcon className="h-4 w-4" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
       <div
         ref={scrollRef}
-        className="flex gap-4 overflow-x-auto pb-2 -mb-2 scrollbar-hide no-scrollbar snap-x snap-mandatory"
+        onScroll={checkScroll}
+        className="flex overflow-x-auto space-x-4 pb-4 scrollbar-hide -mx-4 px-4"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' as any }}
       >
         {reviews.map((r) => (
-          <div
-            key={r.id}
-            className="flex-shrink-0 w-80 md:w-[calc(33.33%-1rem)] snap-start rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
-          >
-            <ReviewCard review={r} />
-          </div>
+          <ReviewCard key={r.id} review={r} />
         ))}
       </div>
     </section>
@@ -289,7 +305,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
               </h2>
               {isVerified && (
                 <div className="mt-4 flex items-center space-x-3">
-                  <ShieldCheckIcon className="h-4 w-4 text-gray-800" />
+                  <ShieldCheck className="h-4 w-4 text-gray-800" />
                   <span className="font-medium text-gray-700 underline">
                     Identity &amp; payments verified
                   </span>
