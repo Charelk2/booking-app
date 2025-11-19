@@ -914,29 +914,48 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       <ul className="mt-4 grid grid-cols-1 gap-3">
                         {displayReviews.slice(0, 6).map((review) => {
                           const clientId = review.client?.id ?? review.client_id;
-                          const hasBooking = typeof review.booking_id === 'number' && review.booking_id > 0;
+                          const hasBooking =
+                            typeof review.booking_id === 'number' && review.booking_id > 0;
                           const realReview = Boolean(clientId && hasBooking);
-                          const displayName =
+                          const nameFromClient =
+                            `${review.client?.first_name || review.client_first_name || ''} ${
+                              review.client?.last_name || review.client_last_name || ''
+                            }`.trim();
+                          const clientName =
                             review.client_display_name ||
-                            (review.client_first_name || review.client?.first_name || '').trim();
-                          const initial = (displayName || 'C').charAt(0).toUpperCase();
-                          const header = (
+                            nameFromClient ||
+                            review.client?.email ||
+                            'Client';
+                          const initials =
+                            review.client?.first_name?.[0] ||
+                            clientName.trim().charAt(0) ||
+                            '•';
+                          const avatarSrc = review.client?.profile_picture_url || null;
+                          const reviewedOn = new Date(review.created_at).toLocaleDateString('en');
+
+                          const avatarBlock = (
                             <div className="flex items-center gap-2">
-                              <div className="h-8 w-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold shadow-sm">
-                                {initial}
-                              </div>
+                              <Avatar
+                                src={avatarSrc || undefined}
+                                initials={initials}
+                                size={32}
+                              />
                               <div className="flex flex-col">
-                                {displayName && (
-                                  <p className="text-xs font-medium text-gray-800">{displayName}</p>
-                                )}
+                                <p className="text-xs font-medium text-gray-800">
+                                  {clientName}
+                                </p>
                                 <p className="text-[11px] text-gray-500">
-                                  Reviewed on: {new Date(review.created_at).toLocaleDateString('en')}
+                                  Reviewed on: {reviewedOn}
                                 </p>
                               </div>
                             </div>
                           );
+
                           return (
-                            <li key={`rev-desktop-${review.id}`} className="rounded-xl border border-gray-100 p-4 bg-white">
+                            <li
+                              key={`rev-desktop-${review.id}`}
+                              className="rounded-xl border border-gray-100 p-4 bg-white"
+                            >
                               <div className="flex items-start justify-between mb-2">
                                 <ReviewStars rating={Number(review.rating) || 0} />
                                 {realReview && clientId ? (
@@ -944,15 +963,17 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                                     href={`/clients/${clientId}`}
                                     target="_blank"
                                     rel="noreferrer noopener"
-                                    className="ml-3"
+                                    className="ml-3 no-underline hover:no-underline"
                                   >
-                                    {header}
+                                    {avatarBlock}
                                   </Link>
                                 ) : (
-                                  <div className="ml-3">{header}</div>
+                                  <div className="ml-3">{avatarBlock}</div>
                                 )}
                               </div>
-                              <p className="text-gray-600 text-sm leading-relaxed">{review.comment}</p>
+                              <p className="text-gray-600 text-sm leading-relaxed">
+                                {review.comment}
+                              </p>
                             </li>
                           );
                         })}
