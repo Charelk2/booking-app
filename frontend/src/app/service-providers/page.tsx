@@ -524,16 +524,13 @@ export default function ServiceProvidersPage() {
         {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
         {!loading && artists.length === 0 && (
-          <>
-            <p className="text-sm text-slate-700">No service providers found.</p>
-            <SearchRescuePanel
-              serviceName={serviceName}
-              location={location}
-              when={when}
-              router={router}
-              pathname={pathname}
-            />
-          </>
+          <SearchRescuePanel
+            serviceName={serviceName}
+            location={location}
+            when={when}
+            router={router}
+            pathname={pathname}
+          />
         )}
 
         {artists.length > 0 && (

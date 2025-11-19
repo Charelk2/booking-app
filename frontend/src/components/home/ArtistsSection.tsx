@@ -225,7 +225,7 @@ export default function ArtistsSection({
           </button>
         </div>
       ) : (
-        <p>No service providers found.</p>
+        <p className="text-sm text-slate-700">No service providers found.</p>
       )}
     </section>
   );
