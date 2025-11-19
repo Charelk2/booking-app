@@ -75,6 +75,7 @@ def read_client_profile(
                         "id": int(prof.user_id),
                         "business_name": prof.business_name,
                         "profile_picture_url": getattr(prof, "profile_picture_url", None),
+                        "location": getattr(prof, "location", None),
                         "city": getattr(booking, "event_city", None),
                     },
                     "booking": {

@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { apiUrl } from '@/lib/api';
-import { getFullImageUrl } from '@/lib/utils';
+import { getFullImageUrl, getTownProvinceFromAddress } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, ShieldCheck, Star, MapPin } from 'lucide-react';
 
 // --- Types ---
@@ -35,6 +35,7 @@ type ClientProfileResponse = {
       id: number;
       business_name?: string | null;
       profile_picture_url?: string | null;
+      location?: string | null;
       city?: string | null;
     };
   }>;
@@ -55,7 +56,11 @@ function StatItem({ count, label }: { count: string | number; label: string }) {
 
 function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][number] }) {
   const providerName = review.provider?.business_name || 'Service provider';
-  const providerLocation = review.provider?.city || 'South Africa';
+  const rawLocation =
+    review.provider?.location || review.provider?.city || '';
+  const providerLocation = rawLocation
+    ? getTownProvinceFromAddress(rawLocation) || rawLocation
+    : '';
   const dateLabel = new Date(review.created_at).toLocaleDateString('en', {
     month: 'long',
     year: 'numeric',
@@ -83,7 +88,9 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
         )}
         <div>
           <h4 className="font-semibold text-gray-900 text-base">{providerName}</h4>
-          <p className="text-sm text-gray-500">{providerLocation}</p>
+          {providerLocation && (
+            <p className="text-sm text-gray-500">{providerLocation}</p>
+          )}
         </div>
       </div>
 
@@ -364,7 +371,17 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
                   <div>
                     <h3 className="text-base font-bold text-gray-900">Based in South Africa</h3>
                     <p className="text-gray-500 text-sm mt-0.5">
-                      Active in {profile.reviews[0]?.provider?.city || 'major cities'}.
+                      {(() => {
+                        const firstProvider = profile.reviews[0]?.provider;
+                        const raw =
+                          firstProvider?.location ||
+                          firstProvider?.city ||
+                          '';
+                        const formatted = raw ? getTownProvinceFromAddress(raw) || raw : '';
+                        return formatted
+                          ? `Active in ${formatted}.`
+                          : 'Active in major cities.';
+                      })()}
                     </p>
                   </div>
                 </div>
