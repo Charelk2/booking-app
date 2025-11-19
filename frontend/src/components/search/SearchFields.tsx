@@ -97,7 +97,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             type="button"
             onClick={() => onFieldClick(id, buttonRef.current!)} // Pass the ID and the button element
             className={clsx(
-              'group relative z-10 w-full flex flex-col rounded-full justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0',
+              'group relative text-sm z-10 w-full flex flex-col rounded-full justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0',
               compact ? 'px-4 py-2' : 'px-6 py-2',
               isActive
                 ? 'bg-gray-100 rounded-full'
