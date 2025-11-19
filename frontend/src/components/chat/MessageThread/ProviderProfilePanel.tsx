@@ -3,7 +3,7 @@
 import * as React from "react";
 import { XMarkIcon, ShieldCheckIcon, StarIcon, UserIcon } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
-import { Spinner, Button } from "@/components/ui";
+import { Spinner, Button, Avatar } from "@/components/ui";
 import { apiUrl } from "@/lib/api";
 import { getFullImageUrl } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +32,16 @@ type ProviderReview = {
   comment: string | null;
   created_at: string;
   client_display_name?: string | null;
+  client_id?: number | null;
+  client_first_name?: string | null;
+  client_last_name?: string | null;
+  client?: {
+    id: number;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+    profile_picture_url?: string | null;
+  } | null;
 };
 
 type Props = {
@@ -172,8 +182,8 @@ export default function ProviderProfilePanel({
     if (!user || user.user_type !== "client") return;
     setSubmittingReview(true);
     setError(null);
-    try {
-      const res = await fetch(apiUrl(`/api/v1/reviews/bookings/${bookingId}/reviews`), {
+      try {
+        const res = await fetch(apiUrl(`/api/v1/reviews/bookings/${bookingId}/reviews`), {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -190,6 +200,8 @@ export default function ProviderProfilePanel({
       setHasExistingReviewForBooking(true);
       try {
         setReviews((prev) => {
+          const nameFromUser = `${user?.first_name || ""} ${user?.last_name || ""}`.trim();
+          const display = nameFromUser || user?.email || null;
           const next: ProviderReview[] = [
             {
               id: Date.now(),
@@ -197,10 +209,17 @@ export default function ProviderProfilePanel({
               rating: reviewForm.rating,
               comment: reviewForm.comment || null,
               created_at: new Date().toISOString(),
-              client_display_name:
-                (user?.first_name || user?.last_name)
-                  ? `${user?.first_name || ""} ${user?.last_name || ""}`.trim()
-                  : null,
+              client_display_name: display,
+              client_id: user?.id ?? null,
+              client_first_name: user?.first_name || null,
+              client_last_name: user?.last_name || null,
+              client: {
+                id: user?.id ?? 0,
+                first_name: user?.first_name || null,
+                last_name: user?.last_name || null,
+                email: user?.email || null,
+                profile_picture_url: user?.profile_picture_url ?? null,
+              },
             },
             ...prev,
           ];
@@ -380,22 +399,48 @@ export default function ProviderProfilePanel({
                   className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1 text-xs text-gray-900">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <StarSolidIcon
-                            key={i}
-                            className={`h-3 w-3 ${
-                              i < (Number(r.rating) || 0) ? "text-yellow-400" : "text-gray-200"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      {r.client_display_name && (
-                        <p className="text-[11px] text-gray-600">
-                          by {r.client_display_name}
-                        </p>
-                      )}
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const nameFromClient = `${r.client?.first_name || r.client_first_name || ""} ${
+                          r.client?.last_name || r.client_last_name || ""
+                        }`.trim();
+                        const clientName =
+                          r.client_display_name ||
+                          nameFromClient ||
+                          r.client?.email ||
+                          "Client";
+                        const initials =
+                          r.client?.first_name?.[0] ||
+                          clientName.trim().charAt(0) ||
+                          "•";
+                        const avatarSrc = r.client?.profile_picture_url || null;
+                        return (
+                          <>
+                            <Avatar
+                              src={avatarSrc || undefined}
+                              initials={initials}
+                              size={28}
+                            />
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1 text-xs text-gray-900">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <StarSolidIcon
+                                    key={i}
+                                    className={`h-3 w-3 ${
+                                      i < (Number(r.rating) || 0)
+                                        ? "text-yellow-400"
+                                        : "text-gray-200"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <p className="text-[11px] text-gray-600">
+                                by {clientName}
+                              </p>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                     <p className="text-[11px] text-gray-500">
                       {new Date(r.created_at).toLocaleDateString()}
