@@ -605,6 +605,13 @@ app.include_router(
     tags=["service-provider-profiles"],
 )
 
+# ─── SEARCH ANALYTICS ROUTES (under /api/v1) ─────────────────────────────────────────
+app.include_router(
+    api_search_analytics.router,
+    prefix=f"{api_prefix}",
+    tags=["search-analytics"],
+)
+
 # Lightweight image proxy routes (e.g., avatar thumbs)
 if os.getenv("OPENAPI_MINIMAL", "0") != "1":
     try:

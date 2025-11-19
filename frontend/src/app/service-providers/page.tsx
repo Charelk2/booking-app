@@ -244,6 +244,11 @@ export default function ServiceProvidersPage() {
               location: location || undefined,
               when: whenStr,
               results_count: typeof res.total === 'number' ? res.total : filtered.length,
+              meta: {
+                sort,
+                minPrice: debouncedMinPrice,
+                maxPrice: debouncedMaxPrice,
+              },
             });
           } catch {
             // best-effort; ignore analytics errors
@@ -460,7 +465,7 @@ export default function ServiceProvidersPage() {
                       void logSearchClick({
                         search_id: sid,
                         artist_id: a.id,
-                        rank: index,
+                        rank: index + 1,
                       });
                     } catch {
                       // best-effort

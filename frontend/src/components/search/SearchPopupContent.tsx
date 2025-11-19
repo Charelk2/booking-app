@@ -15,6 +15,7 @@ import {
   getPopularLocationSuggestions,
   getSearchHistory,
   type SearchHistoryItem,
+  type PopularLocationSuggestion,
 } from '@/lib/api';
 import type { ServiceProviderProfile } from '@/types';
 import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
@@ -81,7 +82,8 @@ export default function SearchPopupContent({
   const categories = useServiceCategories();
   const router = useRouter();
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
-  const [popularLocations, setPopularLocations] = useState<{ name: string; count: number }[]>([]);
+  type PopularLocation = PopularLocationSuggestion | (typeof MOCK_LOCATION_SUGGESTIONS)[number];
+  const [popularLocations, setPopularLocations] = useState<PopularLocation[]>([]);
 
   // Artist quick search state (unchanged)
 

@@ -83,16 +83,15 @@ def _get_optional_user_id(request: Request, db: Session) -> Optional[int]:
 
 
 @router.post("/search-events", status_code=status.HTTP_202_ACCEPTED)
-def log_search_event(request: Request, db: Session = Depends(get_db)):
+async def log_search_event(request: Request, db: Session = Depends(get_db)):
     """Record a search event for analytics (anonymous or user-linked).
 
     This endpoint is intentionally unauthenticated; it attempts to infer the
     user from cookies/headers but succeeds even when anonymous.
     """
     try:
-        body = request.json()  # type: ignore[attr-defined]
+        body = await request.json()
     except Exception:
-        # FastAPI will always provide .json() on Request, but guard defensively
         body = {}
     if not isinstance(body, dict):
         body = {}
@@ -164,10 +163,10 @@ def log_search_event(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/search-events/click", status_code=status.HTTP_202_ACCEPTED)
-def log_search_click(request: Request, db: Session = Depends(get_db)):
+async def log_search_click(request: Request, db: Session = Depends(get_db)):
     """Record a click on a search result for analytics."""
     try:
-        body = request.json()  # type: ignore[attr-defined]
+        body = await request.json()
     except Exception:
         body = {}
     if not isinstance(body, dict):
@@ -319,4 +318,3 @@ def get_search_history(
             }
         )
     return history
-
