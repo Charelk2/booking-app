@@ -39,6 +39,7 @@ from app.utils.auth import get_password_hash, normalize_email
 from app.utils import error_response
 from app.models import TrustedDevice
 from app.services.redis_client import redis
+from app.services.avatar_service import sync_google_avatar_from_url
 
 try:
     # Prefer google-auth for token verification
@@ -434,6 +435,16 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    # Best-effort Google avatar sync (non-blocking for login success)
+    try:
+        picture_url = profile.get("picture")
+    except Exception:
+        picture_url = None
+    try:
+        await sync_google_avatar_from_url(db, user, picture_url)
+    except Exception as exc:  # pragma: no cover - defensive; helper already swallows
+        logger.warning("google_avatar_sync_error user_id=%s error=%s", getattr(user, "id", None), exc)
+
     expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token({"sub": user.email}, expires)
     refresh_token, refresh_expires_at = _create_refresh_token(user.email)
@@ -526,6 +537,16 @@ async def google_onetap(request: Request, db: Session = Depends(get_db)):
         user.is_verified = True
     db.commit()
     db.refresh(user)
+
+    # Best-effort avatar sync from Google One Tap payload
+    try:
+        picture_url = payload.get("picture")
+    except Exception:
+        picture_url = None
+    try:
+        await sync_google_avatar_from_url(db, user, picture_url)
+    except Exception as exc:  # pragma: no cover - defensive; helper already swallows
+        logger.warning("google_onetap_avatar_sync_error user_id=%s error=%s", getattr(user, "id", None), exc)
 
     # Optionally remember trusted device (skip MFA for password logins)
     resp = Response(content=_json_dumps({"ok": True}), media_type="application/json")

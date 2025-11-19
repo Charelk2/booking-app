@@ -30,6 +30,11 @@ Key Files
   - `backend/app/api/api_ops.py`:
     - `POST /api/v1/ops/migrate-service-media-to-files` (services.media_url data: → file URLs)
     - `POST /api/v1/ops/migrate-profile-images-to-files` (users/profile pics, cover photos, portfolio array data: → file URLs)
+  - `backend/app/services/avatar_service.py` + `backend/app/api/api_user.py`:
+    - `/api/v1/users/me/profile-picture` stores avatars via a shared helper:
+      - Prefer Cloudflare R2 under `avatars/{user_id}/...` when `R2_*` is configured.
+      - Fall back to `/static/profile_pics/...` when R2 is not available.
+      - New uploads no longer persist `data:` URLs; legacy data URLs remain supported by the image pipeline.
   - `backend/app/main.py`: mounts uploads router, serves `/favicon.ico` to avoid 404 noise.
 
 What We Implemented (Summary)
@@ -135,3 +140,4 @@ RUM (Optional)
 Notes & Defaults
 - Blob/data previews remain `unoptimized` so uploads & crops stay instant.
 - If you want super-aggressive payload reduction on list pages, adjust `fields` queries further in `getServiceProviders` callers.
+- Google OAuth / One Tap login will, when enabled (`GOOGLE_AVATAR_SYNC_ENABLED=1`), best‑effort copy the user's Google `picture` into the same avatar pipeline (R2 or `/static/profile_pics`). It only seeds avatars for accounts that do not yet have a `profile_picture_url` and never overwrites a user‑chosen image; failures are non‑fatal and login still succeeds.

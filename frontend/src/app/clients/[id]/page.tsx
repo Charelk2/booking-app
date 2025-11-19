@@ -60,10 +60,10 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
           <img
             src={avatarUrl}
             alt={providerName}
-            className="w-8 h-8 rounded-full object-cover mr-3"
+            className="w-10 h-10 rounded-full object-cover mr-3"
           />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-xs font-semibold">
+          <div className="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-xs font-semibold">
             {initial}
           </div>
         )}
@@ -77,7 +77,7 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
       </div>
       {review.comment && (
         <div className="text-gray-900">
-          <p className="leading-relaxed">
+          <p className="text-sm text-gray-700 leading-relaxed">
             {review.comment}
           </p>
         </div>

@@ -1,8 +1,6 @@
 import logging
 import re
-import shutil
 from datetime import datetime
-import base64
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +26,7 @@ from .dependencies import get_current_user
 from ..utils.auth import verify_password, normalize_email
 from ..utils.email import send_email
 from ..utils import error_response
+from ..services.avatar_service import save_user_avatar_bytes, MAX_AVATAR_BYTES
 
 router = APIRouter(tags=["users"])
 logger = logging.getLogger(__name__)
@@ -120,29 +119,23 @@ async def upload_profile_picture_me(
         )
 
     try:
-        # Store as data URL in DB (same pattern as service media_url)
-        # This survives redeploys because it's persisted with the user record.
         content = await file.read()
-        b64 = base64.b64encode(content).decode("ascii")
-        mime = file.content_type or "image/jpeg"
-        data_url = f"data:{mime};base64,{b64}"
+        if MAX_AVATAR_BYTES and len(content) > MAX_AVATAR_BYTES:
+            raise error_response(
+                f"Image too large. Max size is {MAX_AVATAR_BYTES} bytes.",
+                {"file": "too_large"},
+                status.HTTP_400_BAD_REQUEST,
+            )
 
-        # Best-effort cleanup for legacy file-based URLs
-        if current_user.profile_picture_url:
-            old_rel = current_user.profile_picture_url.replace("/static/", "", 1)
-            old_file = STATIC_DIR / old_rel
-            if old_file.exists():
-                try:
-                    old_file.unlink()
-                except OSError as e:
-                    logger.warning("Error deleting old profile picture %s: %s", old_file, e)
-
-        current_user.profile_picture_url = data_url
-        db.add(current_user)
+        save_user_avatar_bytes(db, current_user, content, file.content_type, file.filename)
         db.commit()
         db.refresh(current_user)
         return current_user
     except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
         raise error_response(
             f"Could not upload profile picture: {e}",
             {"file": "upload_failed"},
