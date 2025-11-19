@@ -243,8 +243,8 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-16">
           {/* Left rail: sticky profile card */}
           <aside className="md:col-span-1">
-            <div className="sticky top-28 self-start p-8 border border-gray-200 rounded-[32px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] bg-white">
-              <div className="flex gap-6">
+            <div className="sticky top-28 self-start p-6 border border-gray-200 rounded-[32px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] bg-white">
+              <div className="flex gap-4">
                 <div className="flex-shrink-0">
                   {profile.user.profile_picture_url ? (
                     <img
@@ -257,7 +257,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
                       {(firstName || 'C').charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <h1 className="text-3xl font-bold mt-4 text-gray-900">
+                  <h1 className="text-3xl font-bold mt-3 text-gray-900">
                     {firstName}
                   </h1>
                   {/* We do not currently store client location, so omit it. */}
@@ -267,7 +267,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
                     </p>
                   )}
                 </div>
-                <div className="mt-2 space-y-4">
+                <div className="mt-1.5 space-y-3">
                   <div>
                     <p className="font-bold text-gray-900 text-lg">
                       {profile.stats.completed_events}
@@ -299,7 +299,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
 
           {/* Right rail: about + identity verified */}
           <div className="md:col-span-2 space-y-12">
-            <section className="mt-6">
+            <section className="mt-0">
               <h2 className="text-[32px] font-bold text-gray-900">
                 About {firstName}
               </h2>

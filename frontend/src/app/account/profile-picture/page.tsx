@@ -42,6 +42,36 @@ export default function ProfilePicturePage() {
     setCompletedCrop(undefined);
   };
 
+  const handleCropExisting = async () => {
+    setError(null);
+    setSuccess(null);
+    const currentUrl = user?.profile_picture_url
+      ? (getFullImageUrl(user.profile_picture_url) as string)
+      : null;
+    if (!currentUrl) {
+      setError('No existing profile picture to crop.');
+      return;
+    }
+    try {
+      const res = await fetch(currentUrl);
+      if (!res.ok) throw new Error('Unable to load current profile picture.');
+      const blob = await res.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setOriginalSrc(dataUrl);
+        setPreview(null);
+        setCrop(undefined);
+        setCompletedCrop(undefined);
+        setFileName('profile.jpg');
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error('Failed to prepare existing image for cropping:', err);
+      setError('Could not load your current picture for cropping.');
+    }
+  };
+
   const handleCropAndUpload = async () => {
     setError(null);
     setSuccess(null);
@@ -106,13 +136,24 @@ export default function ProfilePicturePage() {
           />
         ) : null}
         <div className="space-y-4">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleChange}
-            data-testid="file-input"
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light"
-          />
+          <div className="space-y-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleChange}
+              data-testid="file-input"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light"
+            />
+            {currentUrl && (
+              <button
+                type="button"
+                onClick={handleCropExisting}
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 hover:bg-gray-50"
+              >
+                Crop existing picture
+              </button>
+            )}
+          </div>
           {originalSrc && (
             <div>
               <ReactCrop
