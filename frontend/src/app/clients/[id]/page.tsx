@@ -1,4 +1,4 @@
-`use client`;
+'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
