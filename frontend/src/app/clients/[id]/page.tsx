@@ -37,21 +37,14 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
   const providerName = review.provider?.business_name || 'Service provider';
   const providerLocation = review.provider?.city || '';
   const dateLabel = new Date(review.created_at).toLocaleDateString('en', {
-    year: 'numeric',
-    month: 'short',
     day: 'numeric',
+    month: 'long',
+    year: 'numeric',
   });
   const initial = providerName.charAt(0).toUpperCase();
   return (
     <div className="min-w-[300px] max-w-[400px] flex-shrink-0 bg-white rounded-xl border border-gray-200 p-6 h-auto flex flex-col shadow-sm">
-      <div className="text-gray-900 mb-4 flex-grow">
-        {review.comment && (
-          <p className="leading-relaxed">
-            {review.comment}
-          </p>
-        )}
-      </div>
-      <div className="flex items-center mt-auto pt-4">
+      <div className="flex items-center mb-3">
         <div className="w-12 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center mr-3 text-sm font-semibold">
           {initial}
         </div>
@@ -63,6 +56,13 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
           <p className="text-xs text-gray-600 mt-0.5">{dateLabel}</p>
         </div>
       </div>
+      {review.comment && (
+        <div className="text-gray-900">
+          <p className="leading-relaxed">
+            {review.comment}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
