@@ -13,6 +13,7 @@ import { getFullImageUrl } from '@/lib/utils';
 import MessageThread from '@/components/chat/MessageThread/index.web';
 import BookingDetailsPanel from '@/components/chat/BookingDetailsPanel';
 import ClientProfilePanel from '@/components/chat/MessageThread/ClientProfilePanel';
+import ProviderProfilePanel from '@/components/chat/MessageThread/ProviderProfilePanel';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import InlineQuoteForm from '@/components/chat/InlineQuoteForm';
 import { createQuoteV2, getQuotesForBookingRequest, getQuoteV2, getBookingIdForRequest } from '@/lib/api';
@@ -115,6 +116,8 @@ export default function MessageThreadWrapper({
   const [confirmedBookingDetails, setConfirmedBookingDetails] = useState<Booking | null>(null);
   const [showClientProfile, setShowClientProfile] = useState(false);
   const [autoOpenClientReview, setAutoOpenClientReview] = useState(false);
+  const [showProviderProfile, setShowProviderProfile] = useState(false);
+  const [autoOpenProviderReview, setAutoOpenProviderReview] = useState(false);
 
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
@@ -714,6 +717,24 @@ export default function MessageThreadWrapper({
     return status === "completed";
   }, [isUserArtist, effectiveClientId, confirmedBookingDetails?.status]);
 
+  const providerIdForProfile = useMemo(() => {
+    try {
+      const raw = (effectiveBookingRequest as any) || {};
+      return (
+        Number(raw?.service_provider_id) ||
+        Number(raw?.artist_id) ||
+        Number(raw?.artist?.id) ||
+        Number(raw?.artist_profile?.user_id) ||
+        Number(raw?.service?.service_provider_id) ||
+        Number(raw?.service?.artist_id) ||
+        Number(raw?.service?.artist?.user_id) ||
+        0
+      );
+    } catch {
+      return 0;
+    }
+  }, [effectiveBookingRequest]);
+
   const providerBusinessName = useMemo(() => {
     const raw: any = effectiveBookingRequest;
     if (!raw) return null;
@@ -823,6 +844,18 @@ export default function MessageThreadWrapper({
               className="hidden sm:inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
             >
               View client profile
+            </button>
+          ) : null}
+          {!isUserArtist && providerIdForProfile ? (
+            <button
+              type="button"
+              onClick={() => {
+                setAutoOpenProviderReview(false);
+                setShowProviderProfile(true);
+              }}
+              className="hidden sm:inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+            >
+              View provider profile
             </button>
           ) : null}
           <button
@@ -999,6 +1032,27 @@ export default function MessageThreadWrapper({
             onClose={() => {
               setShowClientProfile(false);
               setAutoOpenClientReview(false);
+            }}
+          />
+        )}
+
+        {/* Provider profile panel for clients */}
+        {!isUserArtist && providerIdForProfile > 0 && (
+          <ProviderProfilePanel
+            providerId={providerIdForProfile}
+            providerName={providerBusinessName}
+            providerAvatarUrl={
+              (effectiveBookingRequest?.artist_profile?.profile_picture_url ||
+                (effectiveBookingRequest as any)?.counterparty_avatar_url ||
+                null) as string | null
+            }
+            bookingId={confirmedBookingDetails?.id ?? null}
+            canReview={Boolean(confirmedBookingDetails && String(confirmedBookingDetails.status || '').toLowerCase() === 'completed')}
+            isOpen={showProviderProfile}
+            autoOpenReview={autoOpenProviderReview}
+            onClose={() => {
+              setShowProviderProfile(false);
+              setAutoOpenProviderReview(false);
             }}
           />
         )}
