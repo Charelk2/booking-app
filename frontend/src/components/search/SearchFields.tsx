@@ -157,7 +157,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
-    <div ref={ref} className="flex flex-1 divide-x divide-gray-50 rounded-full">
+    <div ref={ref} className="flex flex-1 divide-x divide-gray-50 rounded-2xl">
       {renderField(
         'category',
         'Category',
