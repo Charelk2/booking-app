@@ -587,7 +587,7 @@ export default function BookingDetailsPanel({
     <button
       type="button"
       onClick={() => setShowReviewModal(true)}
-      className="inline-flex items-center rounded-full bg-gray-900 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-gray-800"
+      className="inline-flex items-center rounded-lg bg-gray-900 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-gray-800"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
