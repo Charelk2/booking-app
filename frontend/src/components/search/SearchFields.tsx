@@ -10,7 +10,7 @@ import {
 } from 'react';
 import clsx from 'clsx';
 import LocationInput, { PlaceResult } from '../ui/LocationInput';
-import { MusicalNoteIcon, CalendarIcon, MapPinIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 // Import types for consistency
 import type { ActivePopup, Category, SearchFieldId } from './types';
@@ -73,12 +73,6 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     const whenButtonRef = useRef<HTMLButtonElement>(null);
     const locationContainerRef = useRef<HTMLDivElement>(null);
 
-    const iconMap: Partial<Record<SearchFieldId, any>> = {
-      category: MusicalNoteIcon,
-      when: CalendarIcon,
-      location: MapPinIcon,
-    };
-
     // Helper to render a generic search field button
     const renderField = (
       id: SearchFieldId,
@@ -94,7 +88,6 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         typeof currentValue === 'string' &&
         currentValue !== '' &&
         !['Search', 'Add service', 'Add dates', 'Add location'].includes(currentValue);
-      const Icon = (iconMap[id] as any) ?? MusicalNoteIcon;
 
       return (
         <div className="relative flex-1 min-w-0">
@@ -121,7 +114,6 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
                 isValuePresent ? 'text-slate-900' : 'text-slate-600',
               )}
             >
-              <Icon className="mr-1 h-4 w-4" aria-hidden="true" />
               {label}
             </span>
             <span
@@ -204,7 +196,6 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             location ? 'text-slate-900' : 'text-slate-600',
           )}
         >
-          <MapPinIcon className="mr-1 h-4 w-4" aria-hidden="true" />
           Where
         </span>
         <LocationInput
