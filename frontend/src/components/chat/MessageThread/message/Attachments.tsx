@@ -219,7 +219,7 @@ export default function Attachments({ imageUrl, videoUrl, audioUrl, fileLabel, f
           href={href}
           target="_blank"
           rel="noreferrer"
-          className="flex max-w-xs items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm hover:bg-gray-50"
+          className="flex max-w-xs items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm hover:bg-gray-50 no-underline hover:no-underline"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded bg-red-100 text-red-600 text-xs font-semibold">PDF</div>
           <div className="min-w-0 flex-1">

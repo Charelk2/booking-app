@@ -609,7 +609,7 @@ export default function BookingSummaryCard({
               View Service Profile
             </a>
             <a
-              href="/support"
+              href="/faq"
               className="block text-center bg-white text-gray-800 font-semibold rounded-lg px-4 py-3 border border-gray-300  hover:bg-gray-50 transition"
             >
               Get Support
