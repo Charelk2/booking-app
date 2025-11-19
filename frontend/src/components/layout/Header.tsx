@@ -394,6 +394,19 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       if (location) params.set('location', location);
       if (when) params.set('when', when.toISOString());
 
+      // Attach a per-search identifier so the artists page can log analytics.
+      try {
+        const hasCrypto = typeof window !== 'undefined' && (window.crypto as Crypto | undefined);
+        const searchId =
+          hasCrypto && (window.crypto as Crypto).randomUUID
+            ? (window.crypto as Crypto).randomUUID()
+            : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+        params.set('sid', searchId);
+        params.set('src', 'header');
+      } catch {
+        // If anything goes wrong, skip analytics identifiers.
+      }
+
       const path = category ? `/category/${category}` : '/service-providers';
       const qs = params.toString();
       router.push(qs ? `${path}?${qs}` : path);

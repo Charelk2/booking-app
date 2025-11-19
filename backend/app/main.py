@@ -138,6 +138,7 @@ from .db_utils import (
     ensure_booking_requests_user_indexes,
     seed_service_categories,
     ensure_service_moderation_logs,
+    ensure_search_events_table,
 )
 from .middleware.security_headers import SecurityHeadersMiddleware
 from .models.booking import Booking
@@ -160,6 +161,7 @@ from .utils.status_logger import register_status_listeners
 from .api.v1.api_service_provider import read_all_service_provider_profiles
 import httpx
 from .utils.redis_cache import get_cached_artist_list
+from .api import api_search_analytics
 
 # Configure logging before creating any loggers
 setup_logging()
@@ -279,6 +281,7 @@ ensure_dispute_table(engine)
 ensure_email_sms_event_tables(engine)
 ensure_audit_events_table(engine)
 ensure_service_moderation_logs(engine)
+ensure_search_events_table(engine)
 try:
     from .db_utils import ensure_booka_system_user
     ensure_booka_system_user(engine)

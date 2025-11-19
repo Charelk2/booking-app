@@ -95,6 +95,23 @@ function ensureDeviceCookie() {
   } catch {}
 }
 
+function getDeviceId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    let did = _readCookie('did');
+    if (!did) {
+      try {
+        did = window.localStorage.getItem('booka.trusted_device_id') || '';
+      } catch {
+        did = '';
+      }
+    }
+    return did || null;
+  } catch {
+    return null;
+  }
+}
+
 try { if (typeof window !== 'undefined') ensureDeviceCookie(); } catch {}
 
 // Create a single axios instance for all requests.
@@ -613,6 +630,86 @@ export const getServiceProviderProfileMe = async () => {
 
 export const updateMyServiceProviderProfile = (data: Partial<ServiceProviderProfile>) =>
   api.put(`${API_V1}/service-provider-profiles/me`, data);
+
+// ─── SEARCH ANALYTICS & SUGGESTIONS ────────────────────────────────────────────
+
+export type SearchEventPayload = {
+  search_id: string;
+  source: string;
+  category_value?: string;
+  location?: string;
+  when?: string | null;
+  results_count?: number;
+  session_id?: string | null;
+  meta?: Record<string, unknown>;
+};
+
+export const logSearchEvent = async (payload: SearchEventPayload): Promise<void> => {
+  try {
+    const sessionId = payload.session_id ?? getDeviceId();
+    await api.post(
+      `${API_V1}/search-events`,
+      {
+        ...payload,
+        session_id: sessionId ?? undefined,
+      },
+      { timeout: 3000 },
+    );
+  } catch {
+    // Best-effort only; never surface to UX
+  }
+};
+
+export type SearchClickPayload = {
+  search_id: string;
+  artist_id: number;
+  rank?: number | null;
+};
+
+export const logSearchClick = async (payload: SearchClickPayload): Promise<void> => {
+  try {
+    await api.post(`${API_V1}/search-events/click`, payload, { timeout: 3000 });
+  } catch {
+    // Best-effort only
+  }
+};
+
+export interface PopularLocationSuggestion {
+  name: string;
+  count: number;
+}
+
+export const getPopularLocationSuggestions = async (limit = 6): Promise<PopularLocationSuggestion[]> => {
+  try {
+    const res = await api.get<PopularLocationSuggestion[]>(`${API_V1}/search/suggestions/locations`, {
+      params: { limit },
+      timeout: 3000,
+    });
+    return res.data || [];
+  } catch {
+    return [];
+  }
+};
+
+export interface SearchHistoryItem {
+  category_value?: string | null;
+  location?: string | null;
+  when?: string | null;
+  created_at: string;
+}
+
+export const getSearchHistory = async (limit = 10): Promise<SearchHistoryItem[]> => {
+  try {
+    const res = await api.get<SearchHistoryItem[]>(`${API_V1}/search/history`, {
+      params: { limit },
+      timeout: 3000,
+    });
+    return res.data || [];
+  } catch {
+    // 401 or network error → treat as no server history; caller can fall back to local
+    return [];
+  }
+};
 
 export const uploadMyServiceProviderProfilePicture = (file: File) => {
   const formData = new FormData();

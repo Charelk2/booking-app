@@ -4,7 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { getServiceProviders, getCachedServiceProviders, prefetchServiceProviders, type PriceBucket } from '@/lib/api';
+import {
+  getServiceProviders,
+  getCachedServiceProviders,
+  prefetchServiceProviders,
+  logSearchEvent,
+  logSearchClick,
+  type PriceBucket,
+} from '@/lib/api';
 import useServiceCategories from '@/hooks/useServiceCategories';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ServiceProviderProfile } from '@/types';
@@ -88,6 +95,9 @@ export default function ServiceProvidersPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 20;
+
+  const sid = searchParams.get('sid');
+  const sourceParam = searchParams.get('src') || undefined;
 
   // Derived backend service name for the selected UI category.
   const serviceName = category
@@ -222,6 +232,23 @@ export default function ServiceProvidersPage() {
         setHasMore(filtered.length === LIMIT);
         setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
         setPriceDistribution(res.price_distribution || []);
+
+        // Log the initial search event when arriving from a SearchBar/hero search.
+        if (!append && Number(pageNumber) === 1 && sid) {
+          try {
+            const whenStr = when ? format(when, 'yyyy-MM-dd') : undefined;
+            void logSearchEvent({
+              search_id: sid,
+              source: sourceParam || 'artists_page',
+              category_value: serviceName,
+              location: location || undefined,
+              when: whenStr,
+              results_count: typeof res.total === 'number' ? res.total : filtered.length,
+            });
+          } catch {
+            // best-effort; ignore analytics errors
+          }
+        }
       } catch (err) {
         console.error(err);
         setError('Failed to load artists.');
@@ -236,6 +263,8 @@ export default function ServiceProvidersPage() {
       sort,
       debouncedMinPrice,
       debouncedMaxPrice,
+      sid,
+      sourceParam,
     ],
   );
 
@@ -396,7 +425,7 @@ export default function ServiceProvidersPage() {
 
         {artists.length > 0 && (
           <div className="flex flex-wrap justify-center gap-4 sm:justify-start">
-            {artists.map((a) => {
+            {artists.map((a, index) => {
               const user = a.user;
               const name =
                 serviceName === 'DJ'
@@ -425,6 +454,18 @@ export default function ServiceProvidersPage() {
                   location={a.location}
                   categories={a.service_categories}
                   href={qs ? `/service-providers/${a.id}?${qs}` : `/service-providers/${a.id}`}
+                  onClick={() => {
+                    if (!sid) return;
+                    try {
+                      void logSearchClick({
+                        search_id: sid,
+                        artist_id: a.id,
+                        rank: index,
+                      });
+                    } catch {
+                      // best-effort
+                    }
+                  }}
                   className="w-40"
                 />
               );

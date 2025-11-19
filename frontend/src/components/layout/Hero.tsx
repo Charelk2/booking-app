@@ -34,6 +34,17 @@ export default function Hero() {
     const params = new URLSearchParams();
     if (loc) params.set('location', loc);
     if (date) params.set('when', date.toISOString());
+    try {
+      const hasCrypto = typeof window !== 'undefined' && (window.crypto as Crypto | undefined);
+      const searchId =
+        hasCrypto && (window.crypto as Crypto).randomUUID
+          ? (window.crypto as Crypto).randomUUID()
+          : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+      params.set('sid', searchId);
+      params.set('src', 'hero');
+    } catch {
+      // Best-effort; fall back to plain navigation
+    }
     const path = cat ? `/category/${cat}` : '/service-providers';
     const qs = params.toString();
     router.push(qs ? `${path}?${qs}` : path);

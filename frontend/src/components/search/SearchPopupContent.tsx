@@ -10,7 +10,12 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import useServiceCategories from '@/hooks/useServiceCategories';
-import { getServiceProviders } from '@/lib/api';
+import {
+  getServiceProviders,
+  getPopularLocationSuggestions,
+  getSearchHistory,
+  type SearchHistoryItem,
+} from '@/lib/api';
 import type { ServiceProviderProfile } from '@/types';
 import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
 import {
@@ -76,6 +81,7 @@ export default function SearchPopupContent({
   const categories = useServiceCategories();
   const router = useRouter();
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+  const [popularLocations, setPopularLocations] = useState<{ name: string; count: number }[]>([]);
 
   // Artist quick search state (unchanged)
 
@@ -103,8 +109,43 @@ export default function SearchPopupContent({
   }, [activeField, locationInputRef, categoryListboxOptionsRef]);
 
   useEffect(() => {
-    const recents = getRecentSearches();
-    setRecentSearches(recents);
+    const localRecents = getRecentSearches();
+    setRecentSearches(localRecents);
+
+    // Best-effort: if the user is logged in, merge server history with local recents.
+    (async () => {
+      try {
+        const serverHistory: SearchHistoryItem[] = await getSearchHistory(10);
+        if (!serverHistory || serverHistory.length === 0) {
+          return;
+        }
+        const mappedFromServer: RecentSearch[] = serverHistory.map((item) => ({
+          categoryLabel: item.category_value || undefined,
+          categoryValue: item.category_value || undefined,
+          location: item.location || undefined,
+          whenISO: item.when || null,
+          createdAt: item.created_at || new Date().toISOString(),
+        }));
+
+        const combined = [...localRecents, ...mappedFromServer];
+        const byKey = new Map<string, RecentSearch>();
+
+        for (const entry of combined) {
+          const key = `${entry.categoryValue ?? ''}|${(entry.location ?? '').trim()}|${entry.whenISO ?? ''}`;
+          const existing = byKey.get(key);
+          if (!existing || (entry.createdAt && entry.createdAt > existing.createdAt)) {
+            byKey.set(key, entry);
+          }
+        }
+
+        const merged = Array.from(byKey.values()).sort((a, b) =>
+          a.createdAt < b.createdAt ? 1 : -1,
+        );
+        setRecentSearches(merged);
+      } catch {
+        // 401 or network errors → keep local-only recents
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -135,6 +176,23 @@ export default function SearchPopupContent({
       ),
     [recentSearches],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const items = await getPopularLocationSuggestions(6);
+        if (!cancelled && items && items.length > 0) {
+          setPopularLocations(items);
+        }
+      } catch {
+        // Best-effort; fall back to mock suggestions
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // no-op helpers removed
 
@@ -202,10 +260,10 @@ export default function SearchPopupContent({
           </h3>
           <div className="space-y-4">
             {recentLocations.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                  Recent locations
-                </h4>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                Recent locations
+              </h4>
                 <ul className="space-y-1">
                   {recentLocations.slice(0, 4).map((loc) => (
                     <li key={`recent-loc-${loc}`}>
@@ -240,33 +298,35 @@ export default function SearchPopupContent({
                 aria-activedescendant={activeId}
                 className="space-y-1 max-h-[50vh] overflow-y-auto scrollbar-thin"
               >
-                {MOCK_LOCATION_SUGGESTIONS.map((s, index) => {
+                {(popularLocations.length > 0 ? popularLocations : MOCK_LOCATION_SUGGESTIONS).map((s, index) => {
+                  const name = (s as any).name as string;
+                  const description = (s as any).description as string | undefined;
                   const optionId = `suggestion-${index}`;
                   return (
                     <li
-                      key={s.name}
+                      key={name}
                       id={optionId}
                       role="option"
                       aria-selected={activeId === optionId}
-                      aria-label={`${s.name}${
-                        s.description ? `, ${s.description}` : ''
+                      aria-label={`${name}${
+                        description ? `, ${description}` : ''
                       }`}
                       onClick={() =>
                         handleLocationSelect({
-                          description: s.name,
+                          description: name,
                           structured_formatting: {
-                            main_text: s.name,
-                            secondary_text: s.description || '',
+                            main_text: name,
+                            secondary_text: description || '',
                           },
                         } as unknown as google.maps.places.AutocompletePrediction)
                       }
                       className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
                       tabIndex={-1}
-                    >
-                      {s.image && (
+                      >
+                      {(s as any).image && (
                         <SafeImage
-                          src={s.image}
-                          alt={s.name}
+                          src={(s as any).image}
+                          alt={name}
                           width={40}
                           height={40}
                           sizes="40px"
@@ -275,10 +335,10 @@ export default function SearchPopupContent({
                       )}
                       <div>
                         <p className="text-sm font-medium text-gray-800">
-                          {s.name}
+                          {name}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {s.description}
+                          {description}
                         </p>
                       </div>
                     </li>
@@ -547,28 +607,31 @@ export default function SearchPopupContent({
         </h4>
         {/* Responsive grid: stack suggestions on small screens */}
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {MOCK_LOCATION_SUGGESTIONS.slice(0, 4).map((s) => (
+          {(popularLocations.length > 0 ? popularLocations : MOCK_LOCATION_SUGGESTIONS).slice(0, 4).map((s) => {
+            const name = (s as any).name as string;
+            const image = (s as any).image as string | undefined;
+            return (
             <li
-              key={`default-${s.name}`}
+              key={`default-${name}`}
               onClick={() => {
-                setLocation(s.name);
+                setLocation(name);
                 closeAllPopups();
               }}
               className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer"
             >
-              {s.image && (
+              {image && (
                 <Image
-                  src={s.image}
-                  alt={s.name}
+                  src={image}
+                  alt={name}
                   width={32}
                   height={32}
                   sizes="32px"
                   className="h-8 w-8 rounded-lg object-cover"
                 />
               )}
-              <span className="text-sm">{s.name}</span>
+              <span className="text-sm">{name}</span>
             </li>
-          ))}
+          ); })}
         </ul>
       </div>
     </div>
