@@ -622,8 +622,11 @@ export default function BookingDetailsPanel({
     };
   }, [bookingRequest?.id]);
 
+  const bookingStatus = String(effectiveBooking?.status || '').toLowerCase();
+  const isCompletedBooking = bookingStatus === 'completed';
   const canClientReviewProvider =
     viewerIsClient &&
+    isCompletedBooking &&
     !effectiveBooking?.review &&
     !reviewedByClient;
 
