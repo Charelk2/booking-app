@@ -785,7 +785,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               {/* Left rail (sticky outer, scrollable inner) */}
               <aside className="md:w-2/5 md:flex md:flex-col bg-white md:sticky md:self-start md:border-gray-100 p-0" style={{ top: 'var(--sp-sticky-top)' }}>
                 <div ref={leftRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-6 scrollbar-hide">
-                <div className="relative h-48 overflow-hidden rounded-3xl shadow-xl" role="img" aria-label="Cover photo">
+                <div className="relative h-48 overflow-hidden rounded-3xl shadow-lg" role="img" aria-label="Cover photo">
                   {coverPhotoUrl ? (
                     <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover rounded-3xl" sizes="40vw" />
                   ) : (
