@@ -393,64 +393,84 @@ export default function ProviderProfilePanel({
             )}
             {!loading &&
               !error &&
-              reviews.map((r) => (
-                <div
-                  key={r.id}
-                  className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {(() => {
-                        const nameFromClient = `${r.client?.first_name || r.client_first_name || ""} ${
-                          r.client?.last_name || r.client_last_name || ""
-                        }`.trim();
-                        const clientName =
-                          r.client_display_name ||
-                          nameFromClient ||
-                          r.client?.email ||
-                          "Client";
-                        const initials =
-                          r.client?.first_name?.[0] ||
-                          clientName.trim().charAt(0) ||
-                          "•";
-                        const avatarSrc = r.client?.profile_picture_url || null;
-                        return (
-                          <>
-                            <Avatar
-                              src={avatarSrc || undefined}
-                              initials={initials}
-                              size={28}
-                            />
-                            <div className="flex flex-col gap-0.5">
-                              <div className="flex items-center gap-1 text-xs text-gray-900">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <StarSolidIcon
-                                    key={i}
-                                    className={`h-3 w-3 ${
-                                      i < (Number(r.rating) || 0)
-                                        ? "text-yellow-400"
-                                        : "text-gray-200"
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                              <p className="text-[11px] text-gray-600">
-                                by {clientName}
-                              </p>
-                            </div>
-                          </>
-                        );
-                      })()}
+              reviews.map((r) => {
+                const nameFromClient = `${r.client?.first_name || r.client_first_name || ""} ${
+                  r.client?.last_name || r.client_last_name || ""
+                }`.trim();
+                const clientName =
+                  r.client_display_name ||
+                  nameFromClient ||
+                  r.client?.email ||
+                  "Client";
+                const initials =
+                  r.client?.first_name?.[0] ||
+                  clientName.trim().charAt(0) ||
+                  "•";
+                const avatarSrc = r.client?.profile_picture_url || null;
+                const clientHref =
+                  typeof r.client_id === "number"
+                    ? `/clients/${r.client_id}`
+                    : r.client?.id
+                    ? `/clients/${r.client.id}`
+                    : null;
+
+                const avatarBlock = (
+                  <div className="flex items-center gap-2">
+                    <Avatar
+                      src={avatarSrc || undefined}
+                      initials={initials}
+                      size={28}
+                    />
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1 text-xs text-gray-900">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <StarSolidIcon
+                            key={i}
+                            className={`h-3 w-3 ${
+                              i < (Number(r.rating) || 0)
+                                ? "text-yellow-400"
+                                : "text-gray-200"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-gray-600">
+                        by {clientName}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-gray-500">
-                      {new Date(r.created_at).toLocaleDateString()}
-                    </p>
                   </div>
-                  {r.comment && (
-                    <p className="mt-1 text-[12px] leading-snug text-gray-700">{r.comment}</p>
-                  )}
-                </div>
-              ))}
+                );
+
+                return (
+                  <div
+                    key={r.id}
+                    className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      {clientHref ? (
+                        <a
+                          href={clientHref}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="flex items-center gap-2 no-underline hover:no-underline"
+                        >
+                          {avatarBlock}
+                        </a>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {avatarBlock}
+                        </div>
+                      )}
+                      <p className="text-[11px] text-gray-500">
+                        {new Date(r.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    {r.comment && (
+                      <p className="mt-1 text-[12px] leading-snug text-gray-700">{r.comment}</p>
+                    )}
+                  </div>
+                );
+              })}
           </div>
 
           {/* Review CTA (client reviewing provider) */}
