@@ -16,7 +16,14 @@ import ClientProfilePanel from '@/components/chat/MessageThread/ClientProfilePan
 import ProviderProfilePanel from '@/components/chat/MessageThread/ProviderProfilePanel';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import InlineQuoteForm from '@/components/chat/InlineQuoteForm';
-import { createQuoteV2, getQuotesForBookingRequest, getQuoteV2, getBookingIdForRequest } from '@/lib/api';
+import {
+  createQuoteV2,
+  getQuotesForBookingRequest,
+  getQuoteV2,
+  getBookingIdForRequest,
+  getBookingRequestById,
+  getBookingRequestCached,
+} from '@/lib/api';
 import BookingSummarySkeleton from '@/components/chat/BookingSummarySkeleton';
 
 import { XMarkIcon } from '@heroicons/react/24/outline';
