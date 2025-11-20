@@ -14,7 +14,7 @@ const SCROLL_THRESHOLD_DOWN = 60; // desktop scroll behavior only
 const SCROLL_THRESHOLD_UP = 10;
 const TRANSITION_DURATION = 500;
 
-function useIsMobile(breakpointPx = 768) {
+function useIsMobile(breakpointPx = 640) {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${breakpointPx - 1}px)`);
