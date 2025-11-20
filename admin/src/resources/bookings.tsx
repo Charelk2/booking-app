@@ -68,7 +68,8 @@ export const BookingList = () => (
 export const BookingShow = () => (
   <Show actions={<Actions/>}>
     <SimpleShowLayout>
-      <TextField source="id" />
+      <TextField source="id" label="Booking ID" />
+      <TextField source="simple_id" label="Simple Booking ID" />
       <TextField source="status" />
       <TextField source="client_id" />
       <TextField source="provider_id" />

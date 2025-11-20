@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { List, Datagrid, TextField, DateField, SelectInput, TextInput, useRecordContext, useNotify, useRefresh } from 'react-admin';
+import { List, Datagrid, TextField, DateField, SelectInput, TextInput, useRecordContext, useNotify, useRefresh, FunctionField } from 'react-admin';
 import MoneyCell from '../components/MoneyCell';
 import TimeCell from '../components/TimeCell';
 import StatusBadge from '../components/StatusBadge';
 import { Button, Stack } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 
 const payoutFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
@@ -59,11 +60,22 @@ const Actions = () => {
   );
 };
 
+const BookingLinkField: React.FC = () => {
+  const rec = useRecordContext<any>();
+  const id = rec?.booking_real_id;
+  if (!id) return <span>—</span>;
+  return (
+    <RouterLink to={`/bookings/${id}/show`}>
+      {id}
+    </RouterLink>
+  );
+};
+
 export const PayoutList = () => (
   <List filters={payoutFilters} perPage={25} sort={{ field:'created_at', order:'DESC' }}>
     <Datagrid bulkActionButtons={false} rowClick={false}>
       <TextField source="id" label="Payout ID" />
-      <TextField source="booking_real_id" label="Booking ID" />
+      <FunctionField label="Booking ID" render={() => <BookingLinkField />} />
       <TextField source="booking_id" label="Simple Booking ID" />
       <TextField source="provider_id" label="Provider ID" />
       <TextField source="type" label="Stage" />
