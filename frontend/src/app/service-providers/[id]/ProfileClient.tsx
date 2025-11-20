@@ -829,7 +829,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         )}
                       </div>
 
-                      <div className="px-6 pb-6 pt-8 text-left">
+                      <div className="px-6 pb-6 pt-8 text-center">
                         <h1 className="text-3xl font-bold tracking-tight text-gray-900">{displayName}</h1>
                         {serviceProvider.custom_subtitle && (
                           <p className="mt-2 text-sm text-gray-600">{serviceProvider.custom_subtitle}</p>
@@ -861,10 +861,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               <Chip key={`desk-pill-${h}`} leadingIcon={<CheckBadgeIcon className="h-4 w-4" />}>{h}</Chip>
                             ))}
                           </div>
-                        )}
-
-                        {aboutSnippet && (
-                          <p className="mt-4 text-sm leading-relaxed text-gray-600 line-clamp-3">{aboutSnippet}</p>
                         )}
                       </div>
                     </div>

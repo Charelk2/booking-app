@@ -3,8 +3,10 @@ import { List, Datagrid, TextField, DateField, SelectInput, TextInput, useRecord
 import MoneyCell from '../components/MoneyCell';
 import TimeCell from '../components/TimeCell';
 import StatusBadge from '../components/StatusBadge';
-import { Button, Stack } from '@mui/material';
+import { Button, Stack, Tooltip, IconButton, Typography, Chip, Box } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 
 const payoutFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
@@ -60,14 +62,109 @@ const Actions = () => {
   );
 };
 
+const CopyButton: React.FC<{ value?: string|null; tooltip: string }> = ({ value, tooltip }) => {
+  const notify = useNotify();
+  if (!value) return null;
+  const onCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      await navigator.clipboard.writeText(String(value));
+      notify('Copied');
+    } catch {
+      notify('Cannot copy', { type: 'warning' });
+    }
+  };
+  return (
+    <Tooltip title={tooltip}>
+      <IconButton size="small" onClick={onCopy} aria-label="Copy">
+        <ContentCopyIcon style={{ fontSize: 14 }} />
+      </IconButton>
+    </Tooltip>
+  );
+};
+
 const BookingLinkField: React.FC = () => {
   const rec = useRecordContext<any>();
   const id = rec?.booking_real_id;
   if (!id) return <span>—</span>;
   return (
-    <RouterLink to={`/bookings/${id}/show`}>
-      {id}
-    </RouterLink>
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <Tooltip title="Event record (bookings.id)">
+        <RouterLink to={`/bookings/${id}/show`}>
+          <Typography component="span" fontSize={13} fontWeight={600}>{id}</Typography>
+        </RouterLink>
+      </Tooltip>
+      <CopyButton value={id} tooltip="Copy Booking ID" />
+    </Stack>
+  );
+};
+
+const SimpleBookingField: React.FC = () => {
+  const rec = useRecordContext<any>();
+  const id = rec?.booking_id;
+  if (!id) return <span>—</span>;
+  const filterLink = `/payouts?filter=${encodeURIComponent(JSON.stringify({ booking_id: id }))}`;
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <Tooltip title="Finance snapshot (bookings_simple.id). Click to filter payouts for this booking.">
+        <RouterLink to={filterLink}>
+          <Typography component="span" fontSize={13} fontWeight={600}>{id}</Typography>
+        </RouterLink>
+      </Tooltip>
+      <CopyButton value={id} tooltip="Copy Simple Booking ID" />
+      <Tooltip title="Filter payouts to this Simple Booking ID">
+        <IconButton size="small" component={RouterLink} to={filterLink}>
+          <FilterAltOutlinedIcon fontSize="inherit" />
+        </IconButton>
+      </Tooltip>
+    </Stack>
+  );
+};
+
+const ContactCell: React.FC<{ which: 'client' | 'provider' }> = ({ which }) => {
+  const rec = useRecordContext<any>();
+  const name = which === 'client' ? rec?.client_name : (rec?.provider_name || rec?.artist_name);
+  const email = which === 'client' ? rec?.client_email : (rec?.provider_email || rec?.artist_email);
+  const phone = which === 'client' ? rec?.client_phone : (rec?.provider_phone || rec?.artist_phone);
+  const id = which === 'client' ? rec?.client_id : rec?.provider_id || rec?.artist_id;
+  const label = which === 'client' ? 'Client' : 'Artist/Provider';
+  if (!name && !email && !phone) return <span>—</span>;
+  return (
+    <Stack spacing={0} alignItems="flex-start">
+      <Typography variant="body2" fontWeight={600}>{name || '—'}</Typography>
+      <Typography variant="caption" color="text.secondary">{email || '—'}</Typography>
+      <Typography variant="caption" color="text.secondary">{phone || '—'}</Typography>
+      {id ? <Typography variant="caption" color="text.secondary">ID: {id}</Typography> : null}
+    </Stack>
+  );
+};
+
+const BankingCell: React.FC = () => {
+  const rec = useRecordContext<any>();
+  const missing = !!rec?.banking_missing;
+  const summary = rec?.banking_summary;
+  const bankName = rec?.bank_name;
+  const last4 = rec?.bank_account_last4;
+  const branch = rec?.bank_branch_code;
+  const accountName = rec?.bank_account_name;
+  const title = missing
+    ? 'Banking details missing. Add bank name and account in the provider profile.'
+    : [
+        bankName ? `Bank: ${bankName}` : null,
+        last4 ? `Account: …${last4}` : null,
+        accountName ? `Name: ${accountName}` : null,
+        branch ? `Branch: ${branch}` : null,
+      ].filter(Boolean).join(' • ');
+  return (
+    <Tooltip title={title || ''}>
+      <Chip
+        label={summary || 'Missing'}
+        color={missing ? 'error' : 'default'}
+        variant={missing ? 'outlined' : 'filled'}
+        size="small"
+        sx={{ maxWidth: 180 }}
+      />
+    </Tooltip>
   );
 };
 
@@ -76,8 +173,10 @@ export const PayoutList = () => (
     <Datagrid bulkActionButtons={false} rowClick={false}>
       <TextField source="id" label="Payout ID" />
       <FunctionField label="Booking ID" render={() => <BookingLinkField />} />
-      <TextField source="booking_id" label="Simple Booking ID" />
-      <TextField source="provider_id" label="Provider ID" />
+      <FunctionField label="Simple Booking ID" render={() => <SimpleBookingField />} />
+      <FunctionField label="Client" render={() => <ContactCell which="client" />} />
+      <FunctionField label="Artist / Provider" render={() => <ContactCell which="provider" />} />
+      <FunctionField label="Banking" render={() => <BankingCell />} />
       <TextField source="type" label="Stage" />
       <MoneyCell source="amount" />
       <StatusBadge source="status" />

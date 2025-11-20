@@ -1262,13 +1262,63 @@ def get_booking(booking_id: int, _: Tuple[User, AdminUser] = Depends(get_current
         raise HTTPException(status_code=404, detail="Not found")
     data = booking_to_admin(b)
     # Best-effort: include simple_id for UI payout worksheet
+    bs = None
     try:
-        bs = None
         if getattr(b, 'quote_id', None) is not None:
             from ..models import BookingSimple as _BS  # type: ignore
             bs = db.query(_BS).filter(_BS.quote_id == b.quote_id).first()
         if bs:
             data['simple_id'] = str(getattr(bs, 'id', '')) or None
+    except Exception:
+        pass
+    # Enrich with human-readable client/provider details and banking summary
+    try:
+        client = db.query(User).filter(User.id == b.client_id).first() if getattr(b, "client_id", None) else None
+        artist_user = db.query(User).filter(User.id == b.artist_id).first() if getattr(b, "artist_id", None) else None
+        profile = db.query(ServiceProviderProfile).filter(ServiceProviderProfile.user_id == b.artist_id).first() if getattr(b, "artist_id", None) else None
+        provider_snapshot = getattr(bs, "provider_profile_snapshot", None) if bs is not None else None
+
+        def _safe_last4(account_number: Any) -> str | None:
+            if not account_number:
+                return None
+            try:
+                s = "".join([c for c in str(account_number) if c.isdigit()])
+            except Exception:
+                s = str(account_number)
+            if len(s) >= 4:
+                return s[-4:]
+            return None
+
+        snap = provider_snapshot if isinstance(provider_snapshot, dict) else {}
+        bank_name = snap.get("bank_name") or getattr(profile, "bank_name", None)
+        bank_account_name = snap.get("bank_account_name") or getattr(profile, "bank_account_name", None)
+        bank_account_number = snap.get("bank_account_number") or getattr(profile, "bank_account_number", None)
+        bank_branch_code = snap.get("bank_branch_code") or getattr(profile, "bank_branch_code", None)
+        bank_last4 = _safe_last4(bank_account_number)
+        bank_parts = [p for p in [bank_name, f"…{bank_last4}" if bank_last4 else None, bank_account_name] if p]
+        bank_summary = " • ".join(bank_parts) if bank_parts else None
+        banking_missing = not (bank_name and bank_last4)
+
+        def _full_name(u: User | None) -> str | None:
+            if not u:
+                return None
+            full = f"{getattr(u, 'first_name', '')} {getattr(u, 'last_name', '')}".strip()
+            return full or getattr(u, "email", None)
+
+        data.update({
+            "client_name": _full_name(client),
+            "client_email": getattr(client, "email", None),
+            "client_phone": getattr(client, "phone_number", None),
+            "provider_name": getattr(profile, "business_name", None) or _full_name(artist_user),
+            "provider_email": getattr(profile, "contact_email", None) or getattr(artist_user, "email", None),
+            "provider_phone": getattr(profile, "contact_phone", None) or getattr(artist_user, "phone_number", None),
+            "bank_name": bank_name,
+            "bank_account_name": bank_account_name,
+            "bank_account_last4": bank_last4,
+            "bank_branch_code": bank_branch_code,
+            "banking_summary": bank_summary,
+            "banking_missing": banking_missing,
+        })
     except Exception:
         pass
     return data
