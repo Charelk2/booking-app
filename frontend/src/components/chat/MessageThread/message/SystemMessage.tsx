@@ -117,6 +117,21 @@ export default function SystemMessage({
         'system.eventFinishedArtist',
         'Review the event and mark this booking as completed, or report a problem if something went wrong.',
       );
+      // Only allow the "Report a problem" action within ~12 hours of the system
+      // message timestamp; after that, rely on auto-completion + support links.
+      let withinComplaintWindow = true;
+      try {
+        const rawTs: any = (msg as any)?.timestamp || (msg as any)?.created_at;
+        if (rawTs) {
+          const ts = new Date(rawTs as any);
+          if (Number.isFinite(ts.getTime())) {
+            const hours = (Date.now() - ts.getTime()) / 3600000;
+            withinComplaintWindow = hours <= 12;
+          }
+        }
+      } catch {
+        withinComplaintWindow = true;
+      }
       if (isProvider) {
         return (
           <SystemCard
@@ -138,7 +153,7 @@ export default function SystemMessage({
                 : undefined
             }
             secondaryAction={
-              onReportProblemFromSystem
+              withinComplaintWindow && onReportProblemFromSystem
                 ? {
                     label: t('system.reportProblem', 'Report a problem'),
                     variant: 'secondary',
@@ -160,7 +175,7 @@ export default function SystemMessage({
           title={title}
           subtitle={subtitleClient}
           primaryAction={
-            onReportProblemFromSystem
+            withinComplaintWindow && onReportProblemFromSystem
               ? {
                   label: t('system.reportProblem', 'Report a problem'),
                   variant: 'primary',
@@ -178,7 +193,8 @@ export default function SystemMessage({
 
     // Auto-completed banner
     // Auto-completed banner: show a richer card whenever either the key or the
-    // canonical auto-complete copy is present.
+    // canonical auto-complete copy is present. At this stage, steer users to
+    // support rather than opening another review entrypoint.
     if (key === 'event_auto_completed_v1' || lower.startsWith('this event has been automatically marked as completed')) {
       return (
         <SystemCard
@@ -190,13 +206,13 @@ export default function SystemMessage({
             'This event has been automatically marked as completed. If you still need help, you can contact support from this conversation.',
           )}
           primaryAction={
-            onOpenReviewFromSystem
+            typeof window !== 'undefined'
               ? {
-                  label: t('system.leaveReview', 'Leave review'),
+                  label: t('system.getSupport', 'Get support'),
                   variant: 'secondary',
                   onClick: () => {
                     try {
-                      onOpenReviewFromSystem?.();
+                      window.location.href = '/faq';
                     } catch {}
                   },
                 }
