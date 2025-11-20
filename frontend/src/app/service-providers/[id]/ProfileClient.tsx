@@ -890,13 +890,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                             Request booking
                           </button>
                         </div>
-                        <button
-                          onClick={openMessageModalOrLogin}
-                          className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900"
-                        >
-                          <ChatBubbleOvalLeftIcon className="h-4 w-4" />
-                          Message the provider
-                        </button>
                       </div>
                     )}
                   </div>
