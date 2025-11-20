@@ -819,11 +819,11 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                             src={profilePictureUrl}
                             width={96}
                             height={96}
-                            className="absolute left-4 bottom-4 z-10 h-20 w-20 rounded-full object-cover shadow-lg ring-4 ring-white"
+                            className="absolute left-1/2 top-full z-10 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full object-cover shadow-lg ring-4 ring-white"
                             alt={displayName}
                           />
                         ) : (
-                          <div className="absolute left-4 bottom-4 z-10 h-20 w-20 rounded-full bg-gray-200 grid place-items-center text-gray-500 shadow-lg ring-4 ring-white">
+                          <div className="absolute left-1/2 top-full z-10 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gray-200 grid place-items-center text-gray-500 shadow-lg ring-4 ring-white">
                             <UserIcon className="h-10 w-10 text-gray-400" />
                           </div>
                         )}
@@ -877,7 +877,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                             <p className="text-lg font-semibold text-gray-900">
                               {priceFloor || priceBand || 'Select a service'}
                             </p>
-                            {priceFloor && <p className="text-xs text-rose-500">Free cancellation</p>}
                           </div>
                           <button
                             onClick={() => openMobileServicePicker()}

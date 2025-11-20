@@ -1921,6 +1921,9 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
         if filters.get('type'):
             where.append("type = :tp")
             params['tp'] = filters['type']
+        if filters.get('q'):
+            where.append("(CAST(id AS TEXT) ILIKE :q OR CAST(booking_id AS TEXT) ILIKE :q OR CAST(provider_id AS TEXT) ILIKE :q OR reference ILIKE :q)")
+            params['q'] = f"%{filters.get('q')}%"
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
     rows = db.execute(text(f"""
         SELECT id, booking_id, provider_id, amount, currency, status, type, scheduled_at, paid_at, method, reference, batch_id, created_at, meta
@@ -1929,18 +1932,67 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
         ORDER BY created_at DESC
         LIMIT :lim OFFSET :off
     """), params).fetchall()
-    total = db.execute(text(f"SELECT COUNT(*) FROM payouts {where_sql}"), {k:v for k,v in params.items() if k in ('bid','pid','st','tp')}).scalar() or 0
-    # Map payouts.booking_id (BookingSimple.id) to the canonical Booking.id when possible
+    total = db.execute(text(f"SELECT COUNT(*) FROM payouts {where_sql}"), {k:v for k,v in params.items() if k in ('bid','pid','st','tp','q')}).scalar() or 0
+
+    # Helpers
+    def _safe_last4(account_number: Any) -> str | None:
+        if not account_number:
+            return None
+        try:
+            s = "".join([c for c in str(account_number) if c.isdigit()])
+        except Exception:
+            s = str(account_number)
+        if len(s) >= 4:
+            return s[-4:]
+        return None
+
+    def _extract_bank(snapshot: Dict[str, Any] | None, profile: ServiceProviderProfile | None) -> Dict[str, Any]:
+        snap = snapshot if isinstance(snapshot, dict) else {}
+        bank_name = snap.get("bank_name") or getattr(profile, "bank_name", None)
+        account_name = snap.get("bank_account_name") or getattr(profile, "bank_account_name", None)
+        account_number = snap.get("bank_account_number") or getattr(profile, "bank_account_number", None)
+        branch_code = snap.get("bank_branch_code") or getattr(profile, "bank_branch_code", None)
+        last4 = _safe_last4(account_number)
+        parts = []
+        if bank_name:
+            parts.append(str(bank_name))
+        if last4:
+            parts.append(f"…{last4}")
+        if account_name:
+            parts.append(str(account_name))
+        summary = " • ".join([p for p in parts if p])
+        banking_missing = not (bank_name and last4)
+        return {
+            "bank_name": bank_name,
+            "bank_account_name": account_name,
+            "bank_account_last4": last4,
+            "bank_branch_code": branch_code,
+            "banking_missing": banking_missing,
+            "banking_summary": summary or None,
+        }
+
+    # Lookups we need for enrichment
     simple_to_booking: Dict[int, int | None] = {}
+    simple_meta: Dict[int, Dict[str, Any]] = {}
+    user_ids: set[int] = set()
+    provider_ids: set[int] = set()
     try:
         simple_ids = [int(r[1]) for r in rows if r[1] is not None]
-        if simple_ids:
+        provider_ids = {int(r[2]) for r in rows if r[2] is not None}
+    except Exception:
+        simple_ids = []
+        provider_ids = set()
+
+    # Map BookingSimple.id → Booking.id and gather client/artist ids + snapshots
+    if simple_ids:
+        try:
             placeholders = ", ".join(f":sid{i}" for i in range(len(simple_ids)))
             id_params = {f"sid{i}": sid for i, sid in enumerate(simple_ids)}
             bs_rows = db.execute(
                 text(
                     f"""
-                    SELECT bs.id AS simple_id, b.id AS booking_id
+                    SELECT bs.id AS simple_id, bs.client_id, bs.artist_id, bs.quote_id, bs.provider_profile_snapshot,
+                           bs.client_billing_snapshot, b.id AS booking_id
                     FROM bookings_simple AS bs
                     LEFT JOIN bookings AS b ON b.quote_id = bs.quote_id
                     WHERE bs.id IN ({placeholders})
@@ -1948,7 +2000,7 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
                 ),
                 id_params,
             ).fetchall()
-            for simple_id, booking_id in bs_rows:
+            for simple_id, client_id, artist_id, _quote_id, provider_snapshot, client_snapshot, booking_id in bs_rows:
                 try:
                     sid = int(simple_id)
                 except Exception:
@@ -1958,9 +2010,79 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
                 except Exception:
                     bid = None
                 simple_to_booking[sid] = bid
-    except Exception:
-        # Best-effort only; if mapping fails we still return payouts with their simple booking ids.
-        simple_to_booking = {}
+                simple_meta[sid] = {
+                    "client_id": int(client_id) if client_id is not None else None,
+                    "artist_id": int(artist_id) if artist_id is not None else None,
+                    "provider_profile_snapshot": provider_snapshot,
+                    "client_snapshot": client_snapshot,
+                }
+                if client_id:
+                    try:
+                        user_ids.add(int(client_id))
+                    except Exception:
+                        pass
+                if artist_id:
+                    try:
+                        user_ids.add(int(artist_id))
+                    except Exception:
+                        pass
+        except Exception:
+            simple_to_booking = {}
+            simple_meta = {}
+
+    # Fetch user basics for client/artist display
+    users_map: Dict[int, Dict[str, Any]] = {}
+    if user_ids:
+        try:
+            users = db.query(User).filter(User.id.in_(list(user_ids))).all()
+            for u in users:
+                try:
+                    uid = int(getattr(u, "id", None))
+                except Exception:
+                    continue
+                users_map[uid] = {
+                    "first_name": getattr(u, "first_name", None),
+                    "last_name": getattr(u, "last_name", None),
+                    "email": getattr(u, "email", None),
+                    "phone": getattr(u, "phone_number", None),
+                }
+        except Exception:
+            users_map = {}
+
+    # Fetch provider profiles for banking/business names
+    provider_profiles: Dict[int, ServiceProviderProfile] = {}
+    if provider_ids:
+        try:
+            profiles = db.query(ServiceProviderProfile).filter(ServiceProviderProfile.user_id.in_(list(provider_ids))).all()
+            for p in profiles:
+                try:
+                    pid = int(getattr(p, "user_id", None))
+                except Exception:
+                    continue
+                provider_profiles[pid] = p
+        except Exception:
+            provider_profiles = {}
+
+    def _name_of(uid: int | None) -> str | None:
+        if uid is None:
+            return None
+        info = users_map.get(uid)
+        if not info:
+            return None
+        first = info.get("first_name") or ""
+        last = info.get("last_name") or ""
+        full = f"{first} {last}".strip()
+        return full or info.get("email") or None
+
+    def _user_email(uid: int | None) -> str | None:
+        if uid is None:
+            return None
+        return users_map.get(uid, {}).get("email")
+
+    def _user_phone(uid: int | None) -> str | None:
+        if uid is None:
+            return None
+        return users_map.get(uid, {}).get("phone")
     def _iso(dt):
         try:
             return dt.isoformat() if dt is not None else None
@@ -1969,12 +2091,36 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
     items = []
     for r in rows:
         simple_id = r[1]
+        provider_id = None
+        try:
+            provider_id = int(r[2]) if r[2] is not None else None
+        except Exception:
+            provider_id = None
+
         real_booking_id = None
+        client_id = None
+        artist_id = None
+        bank_payload: Dict[str, Any] = _extract_bank(None, provider_profiles.get(provider_id) if provider_id else None)
         if simple_id is not None:
             try:
                 real_booking_id = simple_to_booking.get(int(simple_id))
             except Exception:
                 real_booking_id = None
+            meta = simple_meta.get(int(simple_id), {})
+            client_id = meta.get("client_id")
+            artist_id = meta.get("artist_id")
+            bank_payload = _extract_bank(meta.get("provider_profile_snapshot"), provider_profiles.get(provider_id) if provider_id else None)
+
+        provider_profile = provider_profiles.get(provider_id) if provider_id else None
+        provider_business = getattr(provider_profile, "business_name", None) if provider_profile else None
+        provider_name = provider_business or _name_of(provider_id)
+        provider_email = getattr(provider_profile, "contact_email", None) if provider_profile else None
+        provider_phone = getattr(provider_profile, "contact_phone", None) if provider_profile else None
+        if not provider_email:
+            provider_email = _user_email(provider_id)
+        if not provider_phone:
+            provider_phone = _user_phone(provider_id)
+
         items.append(
             {
                 "id": str(r[0]),
@@ -1982,7 +2128,10 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
                 "booking_id": str(simple_id) if simple_id is not None else None,
                 "booking_simple_id": str(simple_id) if simple_id is not None else None,
                 "booking_real_id": str(real_booking_id) if real_booking_id is not None else None,
-                "provider_id": str(r[2]) if r[2] is not None else None,
+                "provider_id": str(provider_id) if provider_id is not None else None,
+                "provider_name": provider_name,
+                "provider_email": provider_email,
+                "provider_phone": provider_phone,
                 "amount": float(r[3] or 0),
                 "currency": r[4] or "ZAR",
                 "status": r[5] or "queued",
@@ -1994,6 +2143,20 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
                 "batch_id": r[11],
                 "created_at": _iso(r[12]),
                 "meta": r[13],
+                "client_id": str(client_id) if client_id is not None else None,
+                "client_name": _name_of(client_id),
+                "client_email": _user_email(client_id),
+                "client_phone": _user_phone(client_id),
+                "artist_id": str(artist_id) if artist_id is not None else None,
+                "artist_name": _name_of(artist_id),
+                "artist_email": _user_email(artist_id),
+                "artist_phone": _user_phone(artist_id),
+                "bank_name": bank_payload.get("bank_name"),
+                "bank_account_name": bank_payload.get("bank_account_name"),
+                "bank_account_last4": bank_payload.get("bank_account_last4"),
+                "bank_branch_code": bank_payload.get("bank_branch_code"),
+                "banking_missing": bool(bank_payload.get("banking_missing")),
+                "banking_summary": bank_payload.get("banking_summary"),
             }
         )
     return _with_total(items, int(total), "payouts", start, start + len(items) - 1)
