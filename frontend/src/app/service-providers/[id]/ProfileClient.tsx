@@ -31,6 +31,7 @@ import {
   LinkIcon,
   ChevronDownIcon,
   MagnifyingGlassIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 
@@ -274,15 +275,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
     return min === max ? formatZAR(min) : `${formatZAR(min)} – ${formatZAR(max)}`;
   }, [services]);
 
-  const priceFloor = useMemo(() => {
-    if (!services.length) return null;
-    const prices = services
-      .map((s) => getServiceDisplay(s).priceNumber)
-      .filter((n): n is number => typeof n === 'number' && Number.isFinite(n));
-    if (!prices.length) return null;
-    return formatZAR(Math.min(...prices));
-  }, [services]);
-
   const highlights: string[] = useMemo(() => {
     const out: string[] = [];
     const sp: any = serviceProvider;
@@ -348,10 +340,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const displayName = serviceProvider.business_name || `${serviceProvider.user.first_name} ${serviceProvider.user.last_name}`;
   const formattedLocation = serviceProvider.location ? getTownProvinceFromAddress(serviceProvider.location) : '';
   const selectedServiceObj = selectedServiceId ? services.find((s) => s.id === selectedServiceId) ?? null : null;
-  const aboutSnippet =
-    (serviceProvider?.description || serviceProvider?.custom_subtitle || '')
-      ?.replace(/\s+/g, ' ')
-      .trim();
 
   async function handleBookService(service: Service) {
     const type = (service as any).service_type;
@@ -636,15 +624,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               {(serviceProvider?.description || serviceProvider?.custom_subtitle || highlights.length) && (
                 <>
                   <div className="mt-12 mb-8 h-px w-full bg-gray-200" />
-                  <AboutSection
-                    variant="mobile"
-                    displayName={displayName}
-                    profilePictureUrl={profilePictureUrl}
-                    serviceProvider={serviceProvider}
-                    highlights={highlights}
-                    onMessageClick={openMessageModalOrLogin}
-                    bare
-                  />
+                  <AboutSection variant="mobile" displayName={displayName} profilePictureUrl={profilePictureUrl} serviceProvider={serviceProvider} highlights={highlights} onMessageClick={openMessageModalOrLogin} />
                 </>
               )}
 
@@ -698,7 +678,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         return (
                           <li
                             key={`rev-mobile-${review.id}`}
-                            className="rounded-xl p-3 bg-white"
+                            className="rounded-xl border border-gray-100 p-3 bg-white"
                           >
                             <div className="flex items-center justify-between mb-1">
                               <ReviewStars rating={Number(review.rating) || 0} />
@@ -805,261 +785,258 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               {/* Left rail (sticky outer, scrollable inner) */}
               <aside className="md:w-2/5 md:flex md:flex-col bg-white md:sticky md:self-start md:border-gray-100 p-0" style={{ top: 'var(--sp-sticky-top)' }}>
                 <div ref={leftRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-6 scrollbar-hide">
-                  <div className="flex flex-col gap-5">
-                    <div className="relative rounded-3xl">
-                      <div className="relative h-48 overflow-hidden rounded-3xl" role="img" aria-label="Cover photo">
-                        {coverPhotoUrl ? (
-                          <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="40vw" />
-                        ) : (
-                          <div className="h-full grid place-items-center text-gray-500">No cover photo</div>
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/15 to-transparent" />
-                        <div className="absolute right-3 top-3 flex gap-1.5">
-                          <button className="rounded-full bg-white/95 p-2 transition hover:bg-white" aria-label="Share profile" onClick={() => setIsShareOpen(true)}>
-                            <ShareIcon className="h-4 w-4 text-gray-700" />
-                          </button>
-                          <button className="rounded-full bg-white/95 p-2 transition hover:bg-white" aria-label="Save profile">
-                            <HeartIcon className="h-4 w-4 text-gray-700" />
-                          </button>
-                        </div>
-                      </div>
+                <div className="relative h-48 overflow-hidden rounded-3xl shadow-sm" role="img" aria-label="Cover photo">
+                  {coverPhotoUrl ? (
+                    <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover rounded-3xl" sizes="40vw" />
+                  ) : (
+                    <div className="h-full grid place-items-center text-gray-500">No cover photo</div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent rounded-3xl" />
+                  <div className="absolute right-3 top-3 flex gap-1.5">
+                    <button className="rounded-full bg-white/90 p-1.5 shadow-sm" aria-label="Share profile" onClick={() => setIsShareOpen(true)}>
+                      <ShareIcon className="h-4 w-4 text-gray-700" />
+                    </button>
+                    <button className="rounded-full bg-white/90 p-1.5 shadow-sm" aria-label="Save profile">
+                      <HeartIcon className="h-4 w-4 text-gray-700" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-0 bg-white">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="relative -mt-12">
                       {profilePictureUrl ? (
                         <SafeImage
                           src={profilePictureUrl}
                           width={96}
                           height={96}
-                          className="absolute left-1/2 -bottom-10 z-10 h-20 w-20 -translate-x-1/2 rounded-full object-cover ring-4 ring-white"
+                          className="h-24 w-24 rounded-full object-cover shadow-md ring-4 ring-white"
                           alt={displayName}
                         />
                       ) : (
-                        <div className="absolute left-1/2 -bottom-10 z-10 h-20 w-20 -translate-x-1/2 rounded-full bg-gray-200 grid place-items-center text-gray-500 ring-4 ring-white">
-                          <UserIcon className="h-10 w-10 text-gray-400" />
+                        <div className="h-24 w-24 rounded-full bg-gray-300 grid place-items-center text-gray-500 shadow-md ring-4 ring-white">
+                          <UserIcon className="h-12 w-12 text-gray-400" />
                         </div>
                       )}
                     </div>
+                    <h1 className="mt-4 text-4xl font-bold text-gray-900">{displayName}</h1>
 
-                      <div className="px-6 pb-6 pt-14 text-center">
-                        <h1 className="text-3xl font-bold tracking-tight text-gray-900">{displayName}</h1>
-                        {serviceProvider.custom_subtitle && (
-                          <p className="mt-2 text-sm text-gray-600">{serviceProvider.custom_subtitle}</p>
-                        )}
+                    {serviceProvider.custom_subtitle && (
+                      <p className="mt-2 text-sm text-gray-600">{serviceProvider.custom_subtitle}</p>
+                    )}
 
-                        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-gray-500">
-                          {averageRating && (
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1 hover:text-gray-700"
-                              onClick={() => setIsAllReviewsOpen(true)}
-                            >
-                              <StarSolidIcon className="h-3 w-3 text-black" />
-                              {averageRating} ({displayReviews.length})
-                            </button>
-                          )}
-                          {averageRating && formattedLocation && <span aria-hidden className="text-gray-300">•</span>}
-                          {formattedLocation && (
-                            <span className="inline-flex items-center gap-1">
-                              <MapPinIcon className="h-4 w-4" />
-                              {formattedLocation}
-                            </span>
-                          )}
-                        </div>
-
-                        {!!highlights.length && (
-                          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                            {highlights.slice(0, 6).map((h) => (
-                              <Chip key={`desk-pill-${h}`} leadingIcon={<CheckBadgeIcon className="h-4 w-4" />}>{h}</Chip>
-                            ))}
-                          </div>
-                        )}
+                    {!!highlights.length && (
+                      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                        {highlights.slice(0, 8).map((h) => (
+                          <Chip key={`desk-pill-${h}`} leadingIcon={<CheckBadgeIcon className="h-4 w-4" />}>{h}</Chip>
+                        ))}
                       </div>
-                    </div>
+                    )}
 
-                    {!!services.length && (
-                      <div className="rounded-3xl bg-white shadow-sm p-4 space-y-3" aria-label="Quick booking actions">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-left">
-                            <p className="text-xs uppercase tracking-wide text-gray-500">From</p>
-                            <p className="text-lg font-semibold text-gray-900">
-                              {priceFloor || priceBand || 'Select a service'}
-                            </p>
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-gray-500">
+                      {averageRating && (
+                        <span className="flex items-center cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
+                          <StarSolidIcon className="h-3 w-3 mr-1 text-black" />
+                          {averageRating} ({displayReviews.length} reviews)
+                        </span>
+                      )}
+                      {averageRating && formattedLocation && (
+                        <span aria-hidden className="text-gray-300">•</span>
+                      )}
+                      {formattedLocation && (
+                        <span className="flex items-center">{formattedLocation}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sticky Action Dock (left rail) */}
+                  {!!services.length && (
+                    <div className="mt-6 sticky z-10" style={{ top: 'calc(100vh - 9.5rem)' }} aria-label="Quick booking actions">
+                      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-600">
+                            {priceBand ? (
+                              <>
+                                <span className="font-semibold text-gray-900">Typical price:</span> {priceBand}
+                              </>
+                            ) : (
+                              'Select a service to see pricing'
+                            )}
                           </div>
-                          <button
-                            onClick={() => openMobileServicePicker()}
-                            className="inline-flex items-center justify-center gap-2 rounded-full bg-rose-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600 active:scale-[0.99]"
-                          >
+                          <ShieldCheckIcon className="h-5 w-5 text-emerald-500" aria-hidden="true" />
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <button onClick={() => openMobileServicePicker()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-semibold text-white">
                             <BoltIcon className="h-4 w-4" />
                             Request booking
                           </button>
+                          <button onClick={openMessageModalOrLogin} className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800">
+                            <ChatBubbleOvalLeftIcon className="h-4 w-4" />
+                            Message
+                          </button>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+                </div>
                 </div>
               </aside>
 
               {/* Right rail (sticky outer, scrollable inner) */}
               <section className="md:w-3/5 md:sticky md:self-start p-0" style={{ top: 'var(--sp-sticky-top)' }}>
                 <div ref={rightRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-6 space-y-4 scrollbar-hide">
-                  {/* Removed sticky price/request bar per request */}
+                {/* Removed sticky price/request bar per request */}
 
-                  <section id="services-desktop" aria-labelledby="services-heading-desktop" className="pb-10">
-                    {services.length ? (
-                      <ul className="space-y-6">
-                        {services.map((s) => (
-                          <li key={`service-desktop-${s.id}`}>
-                            <ServiceCard service={s} variant="desktop" onClick={() => { setDetailedService(s); setIsDetailsOpen(true); }} />
+                <section id="services-desktop" aria-labelledby="services-heading-desktop" className="pb-10">
+                  {services.length ? (
+                    <ul className="space-y-6">
+                      {services.map((s) => (
+                        <li key={`service-desktop-${s.id}`}>
+                          <ServiceCard service={s} variant="desktop" onClick={() => { setDetailedService(s); setIsDetailsOpen(true); }} />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-600">This service provider currently has no services listed.</p>
+                  )}
+                </section>
+
+                {/* About (desktop) */}
+                {(serviceProvider?.description || serviceProvider?.custom_subtitle || highlights.length) && (
+                  <>
+                    <div className="mt-12 mb-8 h-px w-full bg-gray-200" />
+                    <AboutSection variant="desktop" displayName={displayName} profilePictureUrl={profilePictureUrl} serviceProvider={serviceProvider} highlights={highlights} onMessageClick={openMessageModalOrLogin} />
+                  </>
+                )}
+
+                {/* Reviews (desktop) */}
+                <section aria-labelledby="reviews-heading-desktop">
+                  <h2 id="reviews-heading-desktop" className="text-2xl font-bold text-gray-800 mb-3">Reviews</h2>
+                  {displayReviews.length ? (
+                    <>
+                      <ReviewSummary reviews={displayReviews} />
+                      <ul className="mt-4 grid grid-cols-1 gap-3">
+                        {displayReviews.slice(0, 6).map((review) => {
+                          const clientId = review.client?.id ?? review.client_id;
+                          const hasBooking =
+                            typeof review.booking_id === 'number' && review.booking_id > 0;
+                          const realReview = Boolean(clientId && hasBooking);
+                          const nameFromClient =
+                            `${review.client?.first_name || review.client_first_name || ''} ${
+                              review.client?.last_name || review.client_last_name || ''
+                            }`.trim();
+                          const clientName =
+                            review.client_display_name ||
+                            nameFromClient ||
+                            review.client?.email ||
+                            'Client';
+                          const initials =
+                            review.client?.first_name?.[0] ||
+                            clientName.trim().charAt(0) ||
+                            '•';
+                          const avatarSrc = review.client?.profile_picture_url || null;
+                          const reviewedOn = new Date(review.created_at).toLocaleDateString('en');
+
+                          const avatarBlock = (
+                            <div className="flex items-center gap-2">
+                              <Avatar
+                                src={avatarSrc || undefined}
+                                initials={initials}
+                                size={32}
+                              />
+                              <div className="flex flex-col">
+                                <p className="text-xs font-medium text-gray-800">
+                                  {clientName}
+                                </p>
+                                <p className="text-[11px] text-gray-500">
+                                  Reviewed on: {reviewedOn}
+                                </p>
+                              </div>
+                            </div>
+                          );
+
+                          return (
+                            <li
+                              key={`rev-desktop-${review.id}`}
+                              className="rounded-xl border border-gray-100 p-4 bg-white"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <ReviewStars rating={Number(review.rating) || 0} />
+                                {realReview && clientId ? (
+                                  <Link
+                                    href={`/clients/${clientId}`}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="ml-3 no-underline hover:no-underline"
+                                  >
+                                    {avatarBlock}
+                                  </Link>
+                                ) : (
+                                  <div className="ml-3">{avatarBlock}</div>
+                                )}
+                              </div>
+                              <p className="text-gray-600 text-sm leading-relaxed">
+                                {review.comment}
+                              </p>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {displayReviews.length > 6 && (
+                        <div className="mt-2">
+                          <button type="button" className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition" onClick={() => setIsAllReviewsOpen(true)}>
+                            Show all reviews
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-gray-600">No reviews yet for this service provider.</p>
+                  )}
+                </section>
+
+                {/* Portfolio (desktop) */}
+                {!!galleryImages.length && (
+                  <>
+                    <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
+                    <section id="portfolio-desktop" aria-labelledby="portfolio-heading-desktop">
+                      <h2 id="portfolio-heading-desktop" className="text-2xl font-bold text-gray-800 mb-6 mt-10">My Portfolio</h2>
+                      <ul className="grid grid-cols-4 gap-2">
+                        {galleryImages.slice(0, 9).map((src, i) => (
+                          <li key={`portfolio-desktop-${i}`} className="relative aspect-square overflow-hidden rounded-lg border border-gray-100">
+                            <SafeImage src={src} alt="" fill className="object-cover" sizes="33vw" />
                           </li>
                         ))}
                       </ul>
-                    ) : (
-                      <p className="text-gray-600">This service provider currently has no services listed.</p>
-                    )}
-                  </section>
+                    </section>
+                  </>
+                )}
 
-                  {/* About (desktop) */}
-                  {(serviceProvider?.description || serviceProvider?.custom_subtitle || highlights.length) && (
-                    <>
-                      <div className="mt-12 mb-8 h-px w-full bg-gray-200" />
-                      <AboutSection
-                        variant="desktop"
-                        displayName={displayName}
-                        profilePictureUrl={profilePictureUrl}
-                        serviceProvider={serviceProvider}
-                        highlights={highlights}
-                        onMessageClick={openMessageModalOrLogin}
-                        bare
-                      />
-                    </>
-                  )}
-
-                  {/* Reviews (desktop) */}
-                  <section aria-labelledby="reviews-heading-desktop">
-                    <h2 id="reviews-heading-desktop" className="text-2xl font-bold text-gray-800 mb-3">Reviews</h2>
-                    {displayReviews.length ? (
-                      <>
-                        <ReviewSummary reviews={displayReviews} />
-                        <ul className="mt-4 grid grid-cols-1 gap-3">
-                          {displayReviews.slice(0, 6).map((review) => {
-                            const clientId = review.client?.id ?? review.client_id;
-                            const hasBooking =
-                              typeof review.booking_id === 'number' && review.booking_id > 0;
-                            const realReview = Boolean(clientId && hasBooking);
-                            const nameFromClient =
-                              `${review.client?.first_name || review.client_first_name || ''} ${
-                                review.client?.last_name || review.client_last_name || ''
-                              }`.trim();
-                            const clientName =
-                              review.client_display_name ||
-                              nameFromClient ||
-                              review.client?.email ||
-                              'Client';
-                            const initials =
-                              review.client?.first_name?.[0] ||
-                              clientName.trim().charAt(0) ||
-                              '•';
-                            const avatarSrc = review.client?.profile_picture_url || null;
-                            const reviewedOn = new Date(review.created_at).toLocaleDateString('en');
-
-                            const avatarBlock = (
-                              <div className="flex items-center gap-2">
-                                <Avatar
-                                  src={avatarSrc || undefined}
-                                  initials={initials}
-                                  size={32}
-                                />
-                                <div className="flex flex-col">
-                                  <p className="text-xs font-medium text-gray-800">
-                                    {clientName}
-                                  </p>
-                                  <p className="text-[11px] text-gray-500">
-                                    Reviewed on: {reviewedOn}
-                                  </p>
-                                </div>
-                              </div>
-                            );
-
-                            return (
-                              <li
-                                key={`rev-desktop-${review.id}`}
-                                className="rounded-xl p-4 bg-white"
-                              >
-                                <div className="flex items-start justify-between mb-2">
-                                  <ReviewStars rating={Number(review.rating) || 0} />
-                                  {realReview && clientId ? (
-                                    <Link
-                                      href={`/clients/${clientId}`}
-                                      target="_blank"
-                                      rel="noreferrer noopener"
-                                      className="ml-3 no-underline hover:no-underline"
-                                    >
-                                      {avatarBlock}
-                                    </Link>
-                                  ) : (
-                                    <div className="ml-3">{avatarBlock}</div>
-                                  )}
-                                </div>
-                                <p className="text-gray-600 text-sm leading-relaxed">
-                                  {review.comment}
-                                </p>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        {displayReviews.length > 6 && (
-                          <div className="mt-2">
-                            <button type="button" className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition" onClick={() => setIsAllReviewsOpen(true)}>
-                              Show all reviews
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-gray-600">No reviews yet for this service provider.</p>
-                    )}
-                  </section>
-
-                  {/* Portfolio (desktop) */}
-                  {!!galleryImages.length && (
+                {/* Policies (desktop) */}
+                {(serviceProvider as any)?.cancellation_policy && (() => {
+                  const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
+                  return (
                     <>
                       <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
-                      <section id="portfolio-desktop" aria-labelledby="portfolio-heading-desktop">
-                        <h2 id="portfolio-heading-desktop" className="text-2xl font-bold text-gray-800 mb-6 mt-10">My Portfolio</h2>
-                        <ul className="grid grid-cols-4 gap-2">
-                          {galleryImages.slice(0, 9).map((src, i) => (
-                            <li key={`portfolio-desktop-${i}`} className="relative aspect-square overflow-hidden rounded-lg border border-gray-100">
-                              <SafeImage src={src} alt="" fill className="object-cover" sizes="33vw" />
-                            </li>
-                          ))}
-                        </ul>
+                      <section aria-labelledby="policies-heading-desktop">
+                        <h2 id="policies-heading-desktop" className="text-2xl font-bold text-gray-800 mb-1">Policies</h2>
+                        <div className="rounded-2xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
+                          <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">Cancellation Policy</p>
+                          {intro && <p className="mb-3 leading-relaxed">{intro}</p>}
+                          {!!bullets.length && (
+                            <ul className="list-disc pl-6 space-y-1">
+                              {bullets.map((b, i) => (
+                                <li key={`desktop-pol-${i}`}>{b}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                       </section>
                     </>
-                  )}
+                  );
+                })()}
 
-                  {/* Policies (desktop) */}
-                  {(serviceProvider as any)?.cancellation_policy && (() => {
-                    const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
-                    return (
-                      <>
-                        <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
-                        <section aria-labelledby="policies-heading-desktop">
-                          <h2 id="policies-heading-desktop" className="text-2xl font-bold text-gray-800 mb-1">Policies</h2>
-                          <div className="rounded-2xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
-                            <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">Cancellation Policy</p>
-                            {intro && <p className="mb-3 leading-relaxed">{intro}</p>}
-                            {!!bullets.length && (
-                              <ul className="list-disc pl-6 space-y-1">
-                                {bullets.map((b, i) => (
-                                  <li key={`desktop-pol-${i}`}>{b}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        </section>
-                      </>
-                    );
-                  })()}
-
-                  <VettedBanner displayName={displayName} />
+                <VettedBanner displayName={displayName} />
                 </div>
               </section>
             </div>
@@ -1083,20 +1060,15 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       )}
 
       {/* Personalized Video sheet */}
-      {isVideoOpen && selectedVideoService && (() => {
-        const videoService = selectedVideoService as Service;
-        const basePrice =
-          getServiceDisplay(videoService).priceNumber || 0;
-        return (
-          <BookinWizardPersonilsedVideo
-            artistId={serviceProviderId}
-            isOpen={isVideoOpen}
-            onClose={() => setIsVideoOpen(false)}
-            basePriceZar={basePrice}
-            serviceId={videoService.id}
-          />
-        );
-      })()}
+      {isVideoOpen && (
+        <BookinWizardPersonilsedVideo
+          artistId={serviceProviderId}
+          isOpen={isVideoOpen}
+          onClose={() => setIsVideoOpen(false)}
+          basePriceZar={(selectedVideoService ? (getServiceDisplay(selectedVideoService).priceNumber || 0) : 0)}
+          serviceId={selectedVideoService?.id}
+        />
+      )}
 
       {/* Service Picker Sheet (mobile + desktop) */}
       {isServicePickerOpen && (
@@ -1113,7 +1085,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
             </div>
             <div className="px-4 py-3">
               {selectedServiceObj && (() => {
-                const d = getServiceDisplay(selectedServiceObj as Service);
+                const d = getServiceDisplay(selectedServiceObj);
                 return (
                   <div className="mb-4 overflow-hidden rounded-xl border border-gray-100">
                     <div className="relative h-40 w-full bg-gray-100">
@@ -1296,7 +1268,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                   return (
                     <li
                       key={`all-rev-${review.id}`}
-                      className="rounded-xl p-4 bg-white"
+                      className="rounded-xl border border-gray-100 p-4 bg-white"
                     >
                       <div className="flex items-start justify-between mb-3 gap-3">
                         <ReviewStars rating={Number(review.rating) || 0} />
@@ -1416,65 +1388,45 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
 
       {/* Service Details Modal */}
       {isDetailsOpen && detailedService && (() => {
-        const svc = detailedService as Service;
-        const d = getServiceDisplay(svc);
+        const d = getServiceDisplay(detailedService);
         return (
-          <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Service details">
-            <div className="absolute inset-0 bg-black/40 transition-opacity duration-200" onClick={() => setIsDetailsOpen(false)} aria-hidden="true" />
-            <div className="absolute inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white shadow-2xl md:fixed md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:inset-auto md:max-w-lg md:max-h-[90vh] md:rounded-2xl transition-all duration-200 md:min-h-[400px]">
-              <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3 md:py-4">
-                <div className="mx-auto max-w-5xl flex items-center justify-between">
-                  <h3 className="text-base font-semibold text-gray-900 md:text-lg truncate">{d.title}</h3>
-                  <button onClick={() => setIsDetailsOpen(false)} className="p-2 rounded-lg hover:bg-gray-50" aria-label="Close">
-                    <XMarkIcon className="h-5 w-5 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-              <div className="px-4 py-3 md:px-6 md:py-4 flex flex-col h-full">
-                <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 shadow-sm flex-grow min-h-[200px]">
-                  <div className="relative h-40 w-full bg-gray-100 md:h-48">
-                    {d.mediaUrl ? (
-                      <SafeImage src={d.mediaUrl} alt="" fill className="object-cover" sizes="100vw" />
-                    ) : (
-                      <div className="h-full w-full grid place-items-center text-gray-400">No image available</div>
-                    )}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-                      <div className="flex items-end justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-white text-sm font-medium truncate md:text-base">{d.title}</p>
-                          <p className="text-white/80 text-xs md:text-sm">{[d.type, d.durationLabel].filter(Boolean).join(' • ')}</p>
-                        </div>
-                        <div className="shrink-0 text-white text-sm font-semibold md:text-base">{d.priceText}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {svc.description && (
-                  <div className="p-3 text-sm text-gray-700 whitespace-pre-line md:p-4 md:text-base max-h-40 overflow-y-auto">
-                    {svc.description}
-                  </div>
-                )}
-                <div className="mt-auto flex gap-3 pt-2">
-                  <button
-                    onClick={() => setIsDetailsOpen(false)}
-                    className="w-1/2 inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleBookService(svc);
-                      setIsDetailsOpen(false);
-                    }}
-                    className="w-1/2 inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition"
-                  >
-                    Book this service
-                  </button>
-                </div>
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Service details">
+          <div className="absolute inset-0 bg-black/40 transition-opacity duration-200" onClick={() => setIsDetailsOpen(false)} aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white shadow-2xl md:fixed md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:inset-auto md:max-w-lg md:max-h-[90vh] md:rounded-2xl transition-all duration-200 md:min-h-[400px]">
+            <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3 md:py-4">
+              <div className="mx-auto max-w-5xl flex items-center justify-between">
+                <h3 className="text-base font-semibold text-gray-900 md:text-lg truncate">{d.title}</h3>
+                <button onClick={() => setIsDetailsOpen(false)} className="p-2 rounded-lg hover:bg-gray-50" aria-label="Close">
+                  <XMarkIcon className="h-5 w-5 text-gray-600" />
+                </button>
               </div>
             </div>
+            <div className="px-4 py-3 md:px-6 md:py-4 flex flex-col h-full">
+              <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 shadow-sm flex-grow min-h-[200px]">
+                <div className="relative h-40 w-full bg-gray-100 md:h-48">
+                  {d.mediaUrl ? <SafeImage src={d.mediaUrl} alt="" fill className="object-cover" sizes="100vw" /> : <div className="h-full w-full grid place-items-center text-gray-400">No image available</div>}
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-white text-sm font-medium truncate md:text-base">{d.title}</p>
+                <p className="text-white/80 text-xs md:text-sm">{[d.type, d.durationLabel].filter(Boolean).join(' • ')}</p>
+              </div>
+              <div className="shrink-0 text-white text-sm font-semibold md:text-base">{d.priceText}</div>
+            </div>
           </div>
-        );
+        </div>
+        {detailedService.description && (
+          <div className="p-3 text-sm text-gray-700 whitespace-pre-line md:p-4 md:text-base max-h-40 overflow-y-auto">{detailedService.description}</div>
+        )}
+      </div>
+      <div className="mt-auto flex gap-3 pt-2">
+        <button onClick={() => setIsDetailsOpen(false)} className="w-1/2 inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">Close</button>
+        <button onClick={() => { handleBookService(detailedService); setIsDetailsOpen(false); }} className="w-1/2 inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition">Book this service</button>
+      </div>
+    </div>
+  </div>
+        </div>
+      );
       })()}
     </>
   );
