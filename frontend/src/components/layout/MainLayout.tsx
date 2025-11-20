@@ -54,6 +54,7 @@ export default function MainLayout({
     user?.user_type === 'service_provider' && artistViewActive;
   // Keep header fully visible on Event Prep pages to avoid focus/scroll flicker
   const isEventPrep = pathname.startsWith('/dashboard/events/');
+  const isHome = pathname === '/';
 
   const [headerState, setHeaderState] = useState<HeaderState>('initial');
 
@@ -118,11 +119,20 @@ export default function MainLayout({
     }
     if (isMobile) {
       setHeaderState('initial');
+      return;
+    }
+
+    // Desktop initial state:
+    // - Home: full header
+    // - Search pages (/service-providers, /category/*): full header
+    // - Everything else: compact header
+    if (isHome || isArtistsPage) {
+      setHeaderState('initial');
     } else {
-      setHeaderState(isArtistsRoot ? 'compacted' : 'initial');
+      setHeaderState('compacted');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, isArtistsRoot, isArtistView, isEventPrep, pathname]);
+  }, [isMobile, isArtistsPage, isHome, isArtistView, isEventPrep, pathname]);
 
   // Outside the Inbox route, keep a lightweight SSE connection to
   // /api/v1/inbox/stream that pushes unread_total into the global
@@ -332,6 +342,11 @@ export default function MainLayout({
     const headerIsLocked = headerRef.current?.dataset.lockCompact === 'true';
     if (headerIsLocked) return;
 
+    // Desktop: only animate header on home + search pages.
+    // Everywhere else (dashboard, profile, etc.) keep the header in its
+    // compact state so the big search chrome doesn't reappear on scroll.
+    if (!isHome && !isArtistsPage) return;
+
     const currentScrollY = window.scrollY;
     const scrollDirection = currentScrollY > prevScrollY.current ? 'down' : 'up';
     prevScrollY.current = currentScrollY;
@@ -356,25 +371,23 @@ export default function MainLayout({
         }
       }
     } else {
-      if (!isArtistsPage) {
-        if (currentScrollY < SCROLL_THRESHOLD_UP) {
+      if (currentScrollY < SCROLL_THRESHOLD_UP) {
+        setHeaderState('initial');
+      } else if (
+        currentScrollY >= SCROLL_THRESHOLD_UP &&
+        currentScrollY <= SCROLL_THRESHOLD_DOWN
+      ) {
+        if (headerState === 'compacted') {
+          isAdjustingScroll.current = true;
           setHeaderState('initial');
-        } else if (
-          currentScrollY >= SCROLL_THRESHOLD_UP &&
-          currentScrollY <= SCROLL_THRESHOLD_DOWN
-        ) {
-          if (headerState === 'compacted') {
-            isAdjustingScroll.current = true;
-            setHeaderState('initial');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            setTimeout(() => {
-              isAdjustingScroll.current = false;
-            }, TRANSITION_DURATION + 150);
-          }
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          setTimeout(() => {
+            isAdjustingScroll.current = false;
+          }, TRANSITION_DURATION + 150);
         }
       }
     }
-  }, [headerState, isArtistsPage, isArtistView, isMobile, isEventPrep]);
+  }, [headerState, isArtistsPage, isArtistView, isMobile, isEventPrep, isHome]);
 
   // rAF scroll listener
   const optimizedScrollHandler = useCallback(() => {
