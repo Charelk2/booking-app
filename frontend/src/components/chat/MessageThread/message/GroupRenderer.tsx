@@ -265,9 +265,12 @@ export default function GroupRenderer({
           const byNameImg = !!(meta?.original_filename || '').toLowerCase().match(/\.(jpe?g|png|webp|gif|heic|heif)$/i);
           const textLowerForDetect = String((m as any)?.content || '').toLowerCase();
           const byTextImg = !!textLowerForDetect && !textLowerForDetect.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(textLowerForDetect);
+          const filenameLower = String(meta?.original_filename || '').toLowerCase();
+          const urlLower = String(url || '').toLowerCase();
+          const looksVoice = filenameLower.includes('voice') || urlLower.includes('/voice') || urlLower.includes('voicenote');
           const hasImage = byCtImg || byNameImg || isImage(url) || (byTextImg && !!url);
-          const hasVideo = byCtVid || (!byCtAud && isVideo(url));
-          const hasAudio = byCtAud || (!byCtVid && isAudio(url));
+          const hasAudio = byCtAud || (!byCtVid && isAudio(url)) || looksVoice;
+          const hasVideo = !looksVoice && (byCtVid || (!byCtAud && isVideo(url)));
           const text = String(m?.content || '');
           const isSystem = String(m?.message_type || '').toUpperCase() === 'SYSTEM';
           const isInquiryCard = text.includes('inquiry_sent_v1');
@@ -502,10 +505,20 @@ export default function GroupRenderer({
                   // Show caption text for media unless the text is just a filename/placeholder
                   const rawTextForHide = String(m?.content || '').trim();
                   const lowTextForHide = rawTextForHide.toLowerCase();
-                  const isPlaceholderText = !rawTextForHide || lowTextForHide === 'image' || lowTextForHide === '[image]' || lowTextForHide === 'attachment' || lowTextForHide === '[attachment]';
+                  const isPlaceholderText =
+                    !rawTextForHide ||
+                    lowTextForHide === 'image' ||
+                    lowTextForHide === '[image]' ||
+                    lowTextForHide === 'attachment' ||
+                    lowTextForHide === '[attachment]' ||
+                    lowTextForHide === 'voice note' ||
+                    lowTextForHide === 'voicenote';
                   const looksLikeFilenameText = !lowTextForHide.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(lowTextForHide);
                   const equalsOriginalName = Boolean((meta?.original_filename || '').toLowerCase() === lowTextForHide && lowTextForHide.length > 0);
-                  const hideTextForMedia = (hasImage || hasVideo) && (isPlaceholderText || looksLikeFilenameText || equalsOriginalName);
+                  const isVoiceNote = hasAudio && looksVoice;
+                  const hideTextForMedia =
+                    (hasImage || hasVideo || isVoiceNote) &&
+                    (isPlaceholderText || looksLikeFilenameText || equalsOriginalName);
                   const shouldShowTextNode = Boolean(textNode) && !hideTextForMedia;
                   if (shouldShowTextNode) {
                     blocks.push(
