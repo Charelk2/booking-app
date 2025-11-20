@@ -246,6 +246,39 @@ export default function SystemMessage({
       );
     }
 
+    // Pre‑event reminders: "Event in 7 days: YYYY‑MM‑DD." / "Event in 3 days: …"
+    // These are emitted with system_key `event_reminder:7d` / `event_reminder:3d`
+    // but also include a stable text prefix, so support both.
+    if (
+      key.startsWith('event_reminder:') ||
+      lower.startsWith('event in 7 days:') ||
+      lower.startsWith('event in 3 days:')
+    ) {
+      let title = t('system.eventReminderTitle', 'Event reminder');
+      if (lower.startsWith('event in 7 days:') || key.endsWith(':7d')) {
+        title = t('system.eventIn7DaysTitle', 'Event in 7 days');
+      } else if (lower.startsWith('event in 3 days:') || key.endsWith(':3d')) {
+        title = t('system.eventIn3DaysTitle', 'Event in 3 days');
+      }
+      let subtitle = content;
+      try {
+        const m = content.match(/^Event in\s+\d+\s+days:\s*\d{4}-\d{2}-\d{2}\.\s*(.*)$/i);
+        if (m && m[1]) {
+          subtitle = m[1];
+        }
+      } catch {
+        subtitle = content;
+      }
+      return (
+        <SystemCard
+          icon="✓"
+          tone="info"
+          title={title}
+          subtitle={subtitle}
+        />
+      );
+    }
+
     // Dispute opened banner
     if (key.startsWith('dispute_opened_v1')) {
       return (
