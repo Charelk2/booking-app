@@ -348,16 +348,28 @@ export default function GroupRenderer({
               }
             } catch {}
             return (
-              <SystemMessage
-                key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)}
-                msg={m}
-                hasAnyQuote={hasAnyQuote}
-                onOpenDetails={onOpenDetailsPanel}
-                onOpenQuote={onOpenQuote}
-                onMarkCompletedFromSystem={onMarkCompletedFromSystem}
-                onReportProblemFromSystem={onReportProblemFromSystem}
-                onOpenReviewFromSystem={onOpenReviewFromSystem}
-              />
+                <SystemMessage
+                  key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)}
+                  msg={m}
+                  hasAnyQuote={hasAnyQuote}
+                  onOpenDetails={onOpenDetailsPanel}
+                  onOpenQuote={onOpenQuote}
+                  onMarkCompletedFromSystem={onMarkCompletedFromSystem}
+                  onReportProblemFromSystem={onReportProblemFromSystem}
+                  onOpenReviewFromSystem={onOpenReviewFromSystem}
+                  onOpenEventPrepFromSystem={
+                    typeof onContinueEventPrep === 'function'
+                      ? () => {
+                          try {
+                            const tid = Number((m as any)?.booking_request_id || bookingRequestId || 0);
+                            if (Number.isFinite(tid) && tid > 0) onContinueEventPrep?.(tid);
+                          } catch {
+                            // no-op
+                          }
+                        }
+                      : undefined
+                  }
+                />
             );
           }
           return (

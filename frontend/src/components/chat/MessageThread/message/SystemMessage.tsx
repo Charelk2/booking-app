@@ -15,6 +15,7 @@ type SystemMessageProps = {
   onMarkCompletedFromSystem?: () => void;
   onReportProblemFromSystem?: () => void;
   onOpenReviewFromSystem?: () => void;
+  onOpenEventPrepFromSystem?: () => void;
 };
 
 const absUrlRegex = /(https?:\/\/[^\s]+)/i;
@@ -32,6 +33,7 @@ export default function SystemMessage({
   onMarkCompletedFromSystem,
   onReportProblemFromSystem,
   onOpenReviewFromSystem,
+  onOpenEventPrepFromSystem,
 }: SystemMessageProps) {
   try {
     const { user } = useAuth() || {} as any;
@@ -242,6 +244,19 @@ export default function SystemMessage({
           tone="info"
           title={title}
           subtitle={subtitle}
+          primaryAction={
+            onOpenEventPrepFromSystem
+              ? {
+                  label: t('system.viewEventDetails', 'Event details'),
+                  variant: 'secondary',
+                  onClick: () => {
+                    try {
+                      onOpenEventPrepFromSystem?.();
+                    } catch {}
+                  },
+                }
+              : undefined
+          }
         />
       );
     }
