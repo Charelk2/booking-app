@@ -265,9 +265,6 @@ export default function GroupRenderer({
           const byNameImg = !!(meta?.original_filename || '').toLowerCase().match(/\.(jpe?g|png|webp|gif|heic|heif)$/i);
           const textLowerForDetect = String((m as any)?.content || '').toLowerCase();
           const byTextImg = !!textLowerForDetect && !textLowerForDetect.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(textLowerForDetect);
-          const filenameLower = String(meta?.original_filename || '').toLowerCase();
-          const urlLower = String(url || '').toLowerCase();
-          const looksVoice = filenameLower.includes('voice') || urlLower.includes('/voice') || urlLower.includes('voicenote');
           const hasImage = byCtImg || byNameImg || isImage(url) || (byTextImg && !!url);
           const hasVideo = byCtVid || (!byCtAud && isVideo(url));
           const hasAudio = byCtAud || (!byCtVid && isAudio(url));
@@ -510,14 +507,11 @@ export default function GroupRenderer({
                     lowTextForHide === 'image' ||
                     lowTextForHide === '[image]' ||
                     lowTextForHide === 'attachment' ||
-                    lowTextForHide === '[attachment]' ||
-                    lowTextForHide === 'voice note' ||
-                    lowTextForHide === 'voicenote';
+                    lowTextForHide === '[attachment]';
                   const looksLikeFilenameText = !lowTextForHide.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(lowTextForHide);
                   const equalsOriginalName = Boolean((meta?.original_filename || '').toLowerCase() === lowTextForHide && lowTextForHide.length > 0);
-                  const isVoiceNote = hasAudio && looksVoice;
                   const hideTextForMedia =
-                    (hasImage || hasVideo || isVoiceNote) &&
+                    (hasImage || hasVideo) &&
                     (isPlaceholderText || looksLikeFilenameText || equalsOriginalName);
                   const shouldShowTextNode = Boolean(textNode) && !hideTextForMedia;
                   if (shouldShowTextNode) {

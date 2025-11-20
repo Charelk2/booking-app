@@ -307,12 +307,10 @@ function computeRow(
 
   // Attachment-aware preview via local thread cache (best-effort, no extra network)
   let attachmentType: "photo" | "video" | "voice" | null = null;
-  let lastCachedMessage: any = null;
   try {
     const cached = readThreadCache(thread.id);
     const last =
       Array.isArray(cached) && cached.length ? cached[cached.length - 1] : null;
-    lastCachedMessage = last;
     if (
       last &&
       (last.attachment_url ||
@@ -329,13 +327,10 @@ function computeRow(
         filename.includes("voice") ||
         url.toLowerCase().includes("/voice") ||
         url.toLowerCase().includes("voicenote");
-      if (ct.startsWith("audio/") || isAudio(url) || looksVoice) {
+      if (ct.startsWith("image/") || isImage(url)) attachmentType = "photo";
+      else if (ct.startsWith("video/") || isVideo(url)) attachmentType = "video";
+      else if (ct.startsWith("audio/") || isAudio(url) || looksVoice)
         attachmentType = "voice";
-      } else if (ct.startsWith("image/") || isImage(url)) {
-        attachmentType = "photo";
-      } else if (ct.startsWith("video/") || isVideo(url)) {
-        attachmentType = "video";
-      }
     }
   } catch {}
 
@@ -347,28 +342,6 @@ function computeRow(
       : attachmentType === "voice"
       ? "Voice note"
       : null;
-
-  // For voice notes, collapse filename-style previews so the row shows only
-  // the attachment label (e.g., mic icon + "Voice note") instead of
-  // duplicating a raw "voice_1234.webm" filename.
-  let effectivePreview = displayPreview;
-  if (attachmentType === "voice") {
-    const previewLower = rawPreviewLower;
-    const meta = (lastCachedMessage?.attachment_meta || {}) as {
-      original_filename?: string;
-    };
-    const filename = (meta.original_filename || "").toString().toLowerCase();
-    const looksFilename =
-      !!previewLower &&
-      !previewLower.includes(" ") &&
-      /\.(webm|mp3|m4a|ogg|wav)(?:\?.*)?$/i.test(previewLower);
-    const equalsName = !!filename && filename === previewLower;
-    const looksVoicePlaceholder =
-      previewLower === "voice note" || previewLower === "voicenote" || previewLower.startsWith("voice_");
-    if (looksFilename || equalsName || looksVoicePlaceholder) {
-      effectivePreview = "";
-    }
-  }
 
   const { isUnread, count: unreadCount } = normalizeUnread(
     (thread as any).unread_count,
@@ -384,7 +357,7 @@ function computeRow(
   if (isBookaModeration && !tags.includes("BOOKA")) tags.unshift("BOOKA");
 
   const nameParts = highlight(counterpartyName, queryLower);
-  const previewParts = highlight(effectivePreview, queryLower);
+  const previewParts = highlight(displayPreview, queryLower);
 
   return {
     id: thread.id,
