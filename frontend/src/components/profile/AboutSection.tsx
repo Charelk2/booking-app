@@ -61,10 +61,18 @@ export default function AboutSection({ variant = 'mobile', displayName, profileP
           const firstLine = (parts[0] || '').trim();
 
           // Take only the first sentence from the first line.
+          // If we can't find a clear sentence boundary, treat the whole
+          // first line as the only sentence and don't duplicate it in
+          // the "rest" block.
           const sentenceMatch = firstLine.match(/(.+?[.!?])(\s+|$)/);
-          const firstSentence = (sentenceMatch?.[1] || firstLine).trim();
-          const restOfFirstLine =
-            firstLine.slice((sentenceMatch?.[0] || '').length).trimStart();
+          let firstSentence: string;
+          let restOfFirstLine = '';
+          if (sentenceMatch) {
+            firstSentence = sentenceMatch[1].trim();
+            restOfFirstLine = firstLine.slice(sentenceMatch[0].length).trimStart();
+          } else {
+            firstSentence = firstLine;
+          }
 
           const restCombined = [restOfFirstLine, ...parts.slice(1)]
             .filter(Boolean)
