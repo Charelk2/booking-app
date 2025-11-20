@@ -900,7 +900,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               {/* Right rail (sticky outer, scrollable inner) */}
               <section className="md:w-3/5 md:sticky md:self-start p-0" style={{ top: 'var(--sp-sticky-top)' }}>
                 <div ref={rightRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-6 space-y-4 scrollbar-hide">
-                {/* Removed sticky price/request bar per request */}
+                  {/* Removed sticky price/request bar per request */}
 
                 <section id="services-desktop" aria-labelledby="services-heading-desktop" className="pb-10">
                   {services.length ? (
