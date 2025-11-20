@@ -799,7 +799,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                 <div ref={leftRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-6 scrollbar-hide">
                   <div className="flex flex-col gap-5">
                     <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-                      <div className="relative aspect-[5/4]" role="img" aria-label="Cover photo">
+                      <div className="relative h-44" role="img" aria-label="Cover photo">
                         {coverPhotoUrl ? (
                           <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="40vw" />
                         ) : (
@@ -817,19 +817,19 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         {profilePictureUrl ? (
                           <SafeImage
                             src={profilePictureUrl}
-                            width={104}
-                            height={104}
-                            className="absolute left-1/2 top-[72%] z-10 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full object-cover shadow-lg ring-4 ring-white"
+                            width={96}
+                            height={96}
+                            className="absolute left-4 bottom-4 z-10 h-20 w-20 rounded-full object-cover shadow-lg ring-4 ring-white"
                             alt={displayName}
                           />
                         ) : (
-                          <div className="absolute left-1/2 top-[72%] z-10 -translate-x-1/2 -translate-y-1/2 h-24 w-24 rounded-full bg-gray-200 grid place-items-center text-gray-500 shadow-lg ring-4 ring-white">
-                            <UserIcon className="h-12 w-12 text-gray-400" />
+                          <div className="absolute left-4 bottom-4 z-10 h-20 w-20 rounded-full bg-gray-200 grid place-items-center text-gray-500 shadow-lg ring-4 ring-white">
+                            <UserIcon className="h-10 w-10 text-gray-400" />
                           </div>
                         )}
                       </div>
 
-                      <div className="px-6 pb-6 pt-12 text-center">
+                      <div className="px-6 pb-6 pt-8 text-left">
                         <h1 className="text-3xl font-bold tracking-tight text-gray-900">{displayName}</h1>
                         {serviceProvider.custom_subtitle && (
                           <p className="mt-2 text-sm text-gray-600">{serviceProvider.custom_subtitle}</p>
