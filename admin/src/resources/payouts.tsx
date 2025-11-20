@@ -62,9 +62,10 @@ const Actions = () => {
 export const PayoutList = () => (
   <List filters={payoutFilters} perPage={25} sort={{ field:'created_at', order:'DESC' }}>
     <Datagrid bulkActionButtons={false} rowClick={false}>
-      <TextField source="id" />
-      <TextField source="booking_id" />
-      <TextField source="provider_id" />
+      <TextField source="id" label="Payout ID" />
+      <TextField source="booking_real_id" label="Booking ID" />
+      <TextField source="booking_id" label="Simple Booking ID" />
+      <TextField source="provider_id" label="Provider ID" />
       <TextField source="type" label="Stage" />
       <MoneyCell source="amount" />
       <StatusBadge source="status" />

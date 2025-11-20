@@ -1930,27 +1930,72 @@ def list_payouts(request: Request, _: Tuple[User, AdminUser] = Depends(require_r
         LIMIT :lim OFFSET :off
     """), params).fetchall()
     total = db.execute(text(f"SELECT COUNT(*) FROM payouts {where_sql}"), {k:v for k,v in params.items() if k in ('bid','pid','st','tp')}).scalar() or 0
+    # Map payouts.booking_id (BookingSimple.id) to the canonical Booking.id when possible
+    simple_to_booking: Dict[int, int | None] = {}
+    try:
+        simple_ids = [int(r[1]) for r in rows if r[1] is not None]
+        if simple_ids:
+            placeholders = ", ".join(f":sid{i}" for i in range(len(simple_ids)))
+            id_params = {f"sid{i}": sid for i, sid in enumerate(simple_ids)}
+            bs_rows = db.execute(
+                text(
+                    f"""
+                    SELECT bs.id AS simple_id, b.id AS booking_id
+                    FROM bookings_simple AS bs
+                    LEFT JOIN bookings AS b ON b.quote_id = bs.quote_id
+                    WHERE bs.id IN ({placeholders})
+                    """
+                ),
+                id_params,
+            ).fetchall()
+            for simple_id, booking_id in bs_rows:
+                try:
+                    sid = int(simple_id)
+                except Exception:
+                    continue
+                try:
+                    bid = int(booking_id) if booking_id is not None else None
+                except Exception:
+                    bid = None
+                simple_to_booking[sid] = bid
+    except Exception:
+        # Best-effort only; if mapping fails we still return payouts with their simple booking ids.
+        simple_to_booking = {}
     def _iso(dt):
         try:
             return dt.isoformat() if dt is not None else None
         except Exception:
             return None
-    items = [{
-        "id": str(r[0]),
-        "booking_id": str(r[1]) if r[1] is not None else None,
-        "provider_id": str(r[2]) if r[2] is not None else None,
-        "amount": float(r[3] or 0),
-        "currency": r[4] or "ZAR",
-        "status": r[5] or "queued",
-        "type": r[6],
-        "scheduled_at": _iso(r[7]),
-        "paid_at": _iso(r[8]),
-        "method": r[9],
-        "reference": r[10],
-        "batch_id": r[11],
-        "created_at": _iso(r[12]),
-        "meta": r[13],
-    } for r in rows]
+    items = []
+    for r in rows:
+        simple_id = r[1]
+        real_booking_id = None
+        if simple_id is not None:
+            try:
+                real_booking_id = simple_to_booking.get(int(simple_id))
+            except Exception:
+                real_booking_id = None
+        items.append(
+            {
+                "id": str(r[0]),
+                # For backwards compatibility, keep booking_id as the simple (bookings_simple.id) identifier
+                "booking_id": str(simple_id) if simple_id is not None else None,
+                "booking_simple_id": str(simple_id) if simple_id is not None else None,
+                "booking_real_id": str(real_booking_id) if real_booking_id is not None else None,
+                "provider_id": str(r[2]) if r[2] is not None else None,
+                "amount": float(r[3] or 0),
+                "currency": r[4] or "ZAR",
+                "status": r[5] or "queued",
+                "type": r[6],
+                "scheduled_at": _iso(r[7]),
+                "paid_at": _iso(r[8]),
+                "method": r[9],
+                "reference": r[10],
+                "batch_id": r[11],
+                "created_at": _iso(r[12]),
+                "meta": r[13],
+            }
+        )
     return _with_total(items, int(total), "payouts", start, start + len(items) - 1)
 
 
