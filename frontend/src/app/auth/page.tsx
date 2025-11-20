@@ -358,10 +358,19 @@ export default function AuthPage() {
   const appleHref = `${base}/auth/apple/login?next=${encodeURIComponent(nextPath)}`;
   const facebookHref = `${base}/auth/facebook/login?next=${encodeURIComponent(nextPath)}`;
 
+  const markExternalAuthPending = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('auth:external_pending', '1');
+      }
+    } catch {}
+  };
+
   const SocialRow = () => (
     <div className="flex items-center justify-center gap-4">
       <a
         href={googleHref}
+        onClick={markExternalAuthPending}
         className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-white text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand/60"
         aria-label="Sign in with Google"
         title="Sign in with Google"

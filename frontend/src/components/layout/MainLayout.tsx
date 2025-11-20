@@ -41,7 +41,7 @@ export default function MainLayout({
   fullWidthContent = false,
   hideFooter = false,
 }: Props) {
-  const { user, artistViewActive } = useAuth();
+  const { user, artistViewActive, refreshUser } = useAuth();
   const pathname = usePathname();
   const isMobile = useIsMobile();
 
@@ -74,6 +74,24 @@ export default function MainLayout({
     !isArtistView &&
     !headerLocked &&
     !isMobile;
+
+  const externalAuthProbeRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (user || !refreshUser) return;
+    if (externalAuthProbeRef.current) return;
+    let pending = false;
+    try {
+      pending = sessionStorage.getItem('auth:external_pending') === '1';
+    } catch {}
+    if (!pending) return;
+    externalAuthProbeRef.current = true;
+    try {
+      sessionStorage.removeItem('auth:external_pending');
+    } catch {}
+    void refreshUser();
+  }, [user, refreshUser]);
 
   useEffect(() => {
     if (!showSearchOverlay) {
