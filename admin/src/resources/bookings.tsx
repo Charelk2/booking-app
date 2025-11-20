@@ -1,11 +1,13 @@
 import * as React from 'react';
-import { List, Datagrid, TextField, DateField, TextInput, SelectInput, Show, SimpleShowLayout, useNotify, useRefresh, Button, useRecordContext, usePermissions } from 'react-admin';
+import { List, Datagrid, TextField, DateField, TextInput, SelectInput, Show, SimpleShowLayout, useNotify, useRefresh, Button, useRecordContext, usePermissions, FunctionField } from 'react-admin';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import type { ExtendedDataProvider } from '../dataProvider';
 import MoneyCell from '../components/MoneyCell';
 import TimeCell from '../components/TimeCell';
-import { Card, CardContent, Stack, Typography, Divider } from '@mui/material';
+import { Card, CardContent, Stack, Typography, Divider, Tooltip, IconButton, Chip } from '@mui/material';
+import StatusBadge from '../components/StatusBadge';
 
 const bookingFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
@@ -50,6 +52,84 @@ const Actions = () => {
   );
 };
 
+const CopyButton: React.FC<{ value?: string|null; tooltip: string }> = ({ value, tooltip }) => {
+  const notify = useNotify();
+  if (!value) return null;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(String(value));
+      notify('Copied');
+    } catch {
+      notify('Cannot copy', { type:'warning' });
+    }
+  };
+  return (
+    <Tooltip title={tooltip}>
+      <IconButton size="small" onClick={copy}>
+        <ContentCopyIcon fontSize="inherit" />
+      </IconButton>
+    </Tooltip>
+  );
+};
+
+const BookingIdField: React.FC<{ kind: 'booking' | 'simple' }> = ({ kind }) => {
+  const rec = useRecordContext<any>();
+  const value = kind === 'booking' ? rec?.id : rec?.simple_id;
+  const label = kind === 'booking' ? 'Event record (bookings.id)' : 'Finance snapshot (bookings_simple.id)';
+  if (!value) return <span>—</span>;
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <Tooltip title={label}>
+        <Typography component="span" fontSize={13} fontWeight={700} fontFamily="monospace">
+          {value}
+        </Typography>
+      </Tooltip>
+      <CopyButton value={value} tooltip={`Copy ${kind === 'booking' ? 'Booking' : 'Simple Booking'} ID`} />
+    </Stack>
+  );
+};
+
+const ContactField: React.FC<{ which: 'client' | 'provider' }> = ({ which }) => {
+  const rec = useRecordContext<any>();
+  const name = which === 'client' ? rec?.client_name : (rec?.provider_name || rec?.artist_name);
+  const email = which === 'client' ? rec?.client_email : (rec?.provider_email || rec?.artist_email);
+  const phone = which === 'client' ? rec?.client_phone : (rec?.provider_phone || rec?.artist_phone);
+  const id = which === 'client' ? rec?.client_id : (rec?.provider_id || rec?.artist_id);
+  if (!name && !email && !phone) return <span>—</span>;
+  return (
+    <Stack spacing={0} alignItems="flex-start">
+      <Typography variant="body2" fontWeight={600}>{name || '—'}</Typography>
+      <Typography variant="caption" color="text.secondary">{email || '—'}</Typography>
+      <Typography variant="caption" color="text.secondary">{phone || '—'}</Typography>
+      {id ? <Typography variant="caption" color="text.secondary">ID: {id}</Typography> : null}
+    </Stack>
+  );
+};
+
+const BankingSummaryField: React.FC = () => {
+  const rec = useRecordContext<any>();
+  const missing = !!rec?.banking_missing;
+  const summary = rec?.banking_summary || 'Missing';
+  const title = missing
+    ? 'Banking details missing. Add bank name and account in provider profile.'
+    : [
+        rec?.bank_name ? `Bank: ${rec.bank_name}` : null,
+        rec?.bank_account_last4 ? `Account: …${rec.bank_account_last4}` : null,
+        rec?.bank_account_name ? `Name: ${rec.bank_account_name}` : null,
+        rec?.bank_branch_code ? `Branch: ${rec.bank_branch_code}` : null,
+      ].filter(Boolean).join(' • ');
+  return (
+    <Tooltip title={title || ''}>
+      <Chip
+        label={summary}
+        color={missing ? 'error' : 'default'}
+        variant={missing ? 'outlined' : 'filled'}
+        size="small"
+      />
+    </Tooltip>
+  );
+};
+
 export const BookingList = () => (
   <List filters={bookingFilters} sort={{ field: 'created_at', order: 'DESC' }} perPage={25}>
     <Datagrid rowClick="show">
@@ -68,11 +148,12 @@ export const BookingList = () => (
 export const BookingShow = () => (
   <Show actions={<Actions/>}>
     <SimpleShowLayout>
-      <TextField source="id" label="Booking ID" />
-      <TextField source="simple_id" label="Simple Booking ID" />
+      <FunctionField label="Booking ID" render={() => <BookingIdField kind="booking" />} />
+      <FunctionField label="Simple Booking ID" render={() => <BookingIdField kind="simple" />} />
       <TextField source="status" />
-      <TextField source="client_id" />
-      <TextField source="provider_id" />
+      <FunctionField label="Client" render={() => <ContactField which="client" />} />
+      <FunctionField label="Artist / Provider" render={() => <ContactField which="provider" />} />
+      <FunctionField label="Banking" render={() => <BankingSummaryField />} />
       <TextField source="listing_id" />
       <DateField source="event_date" showTime />
       <TextField source="location" />
@@ -143,9 +224,18 @@ function PayoutWorksheet() {
           <Divider />
           <Typography variant="subtitle2">Stages</Typography>
           {rows.map((r) => (
-            <Stack key={r.id} direction="row" justifyContent="space-between">
-              <span>{String(r.type).toUpperCase()} — Scheduled {r.scheduled_at ? new Date(r.scheduled_at).toLocaleString() : '—'}</span>
-              <strong>{fmt(r.amount)}</strong>
+            <Stack key={r.id} direction="row" justifyContent="space-between" alignItems="center">
+              <Stack spacing={0.25} alignItems="flex-start">
+                <Typography variant="body2" fontWeight={600}>{String(r.type).toUpperCase()} • Payout {r.id}</Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <StatusBadge value={r.status} />
+                  <Typography variant="caption" color="text.secondary">
+                    {r.scheduled_at ? `Scheduled ${new Date(r.scheduled_at).toLocaleString()}` : 'Scheduled —'}
+                    {r.paid_at ? ` • Paid ${new Date(r.paid_at).toLocaleString()}` : ''}
+                  </Typography>
+                </Stack>
+              </Stack>
+              <Typography component="span" fontWeight={700}>{fmt(r.amount)}</Typography>
             </Stack>
           ))}
         </Stack>

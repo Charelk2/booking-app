@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { List, Datagrid, TextField, DateField, SelectInput, TextInput, useRecordContext, useNotify, useRefresh, FunctionField } from 'react-admin';
+import { List, Datagrid, TextField, SelectInput, TextInput, useRecordContext, useNotify, useRefresh, FunctionField } from 'react-admin';
 import MoneyCell from '../components/MoneyCell';
 import TimeCell from '../components/TimeCell';
 import StatusBadge from '../components/StatusBadge';
-import { Button, Stack, Tooltip, IconButton, Typography, Chip, Box } from '@mui/material';
+import { Button, Stack, Tooltip, IconButton, Typography, Chip } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';

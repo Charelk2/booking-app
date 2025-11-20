@@ -14,16 +14,20 @@ type Props = {
   serviceProvider: ServiceProviderProfile;
   highlights: string[];
   onMessageClick?: () => void;
+  bare?: boolean;
 };
 
-export default function AboutSection({ variant = 'mobile', displayName, profilePictureUrl, serviceProvider, highlights, onMessageClick }: Props) {
+export default function AboutSection({ variant = 'mobile', displayName, profilePictureUrl, serviceProvider, highlights, onMessageClick, bare = false }: Props) {
   const isMobile = variant === 'mobile';
-  const withCard = (children: React.ReactNode) => (
-    <div className="mt-4 relative isolate overflow-hidden rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100 md:p-8 dark:bg-gray-900 dark:ring-gray-800">
-      <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-300/30 blur-3xl dark:bg-amber-400/10" />
-      {children}
-    </div>
-  );
+  const withCard = (children: React.ReactNode) =>
+    bare ? (
+      <div className="mt-4">{children}</div>
+    ) : (
+      <div className="mt-4 relative isolate overflow-hidden rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100 md:p-8 dark:bg-gray-900 dark:ring-gray-800">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-300/30 blur-3xl dark:bg-amber-400/10" />
+        {children}
+      </div>
+    );
 
   const formattedLocation = serviceProvider?.location ? getTownProvinceFromAddress(serviceProvider.location) : '';
 

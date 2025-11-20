@@ -636,7 +636,15 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               {(serviceProvider?.description || serviceProvider?.custom_subtitle || highlights.length) && (
                 <>
                   <div className="mt-12 mb-8 h-px w-full bg-gray-200" />
-                  <AboutSection variant="mobile" displayName={displayName} profilePictureUrl={profilePictureUrl} serviceProvider={serviceProvider} highlights={highlights} onMessageClick={openMessageModalOrLogin} />
+                  <AboutSection
+                    variant="mobile"
+                    displayName={displayName}
+                    profilePictureUrl={profilePictureUrl}
+                    serviceProvider={serviceProvider}
+                    highlights={highlights}
+                    onMessageClick={openMessageModalOrLogin}
+                    bare
+                  />
                 </>
               )}
 
@@ -690,7 +698,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         return (
                           <li
                             key={`rev-mobile-${review.id}`}
-                            className="rounded-xl border border-gray-100 p-3 bg-white"
+                            className="rounded-xl p-3 bg-white"
                           >
                             <div className="flex items-center justify-between mb-1">
                               <ReviewStars rating={Number(review.rating) || 0} />
@@ -798,8 +806,8 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               <aside className="md:w-2/5 md:flex md:flex-col bg-white md:sticky md:self-start md:border-gray-100 p-0" style={{ top: 'var(--sp-sticky-top)' }}>
                 <div ref={leftRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-6 scrollbar-hide">
                   <div className="flex flex-col gap-5">
-                    <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-                      <div className="relative h-44" role="img" aria-label="Cover photo">
+                    <div className="overflow-hidden rounded-3xl shadow-sm">
+                      <div className="relative h-44 overflow-hidden rounded-3xl" role="img" aria-label="Cover photo">
                         {coverPhotoUrl ? (
                           <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="40vw" />
                         ) : (
@@ -829,7 +837,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         )}
                       </div>
 
-                      <div className="px-6 pb-6 pt-8 text-center">
+                      <div className="px-6 pb-6 pt-14 text-center">
                         <h1 className="text-3xl font-bold tracking-tight text-gray-900">{displayName}</h1>
                         {serviceProvider.custom_subtitle && (
                           <p className="mt-2 text-sm text-gray-600">{serviceProvider.custom_subtitle}</p>
@@ -866,7 +874,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     </div>
 
                     {!!services.length && (
-                      <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4 space-y-3" aria-label="Quick booking actions">
+                      <div className="rounded-3xl bg-white shadow-sm p-4 space-y-3" aria-label="Quick booking actions">
                         <div className="flex items-center justify-between gap-3">
                           <div className="text-left">
                             <p className="text-xs uppercase tracking-wide text-gray-500">From</p>
@@ -918,7 +926,15 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                 {(serviceProvider?.description || serviceProvider?.custom_subtitle || highlights.length) && (
                   <>
                     <div className="mt-12 mb-8 h-px w-full bg-gray-200" />
-                    <AboutSection variant="desktop" displayName={displayName} profilePictureUrl={profilePictureUrl} serviceProvider={serviceProvider} highlights={highlights} onMessageClick={openMessageModalOrLogin} />
+                    <AboutSection
+                      variant="desktop"
+                      displayName={displayName}
+                      profilePictureUrl={profilePictureUrl}
+                      serviceProvider={serviceProvider}
+                      highlights={highlights}
+                      onMessageClick={openMessageModalOrLogin}
+                      bare
+                    />
                   </>
                 )}
 
@@ -971,7 +987,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           return (
                             <li
                               key={`rev-desktop-${review.id}`}
-                              className="rounded-xl border border-gray-100 p-4 bg-white"
+                              className="rounded-xl p-4 bg-white"
                             >
                               <div className="flex items-start justify-between mb-2">
                                 <ReviewStars rating={Number(review.rating) || 0} />
@@ -1281,7 +1297,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                   return (
                     <li
                       key={`all-rev-${review.id}`}
-                      className="rounded-xl border border-gray-100 p-4 bg-white"
+                      className="rounded-xl p-4 bg-white"
                     >
                       <div className="flex items-start justify-between mb-3 gap-3">
                         <ReviewStars rating={Number(review.rating) || 0} />
