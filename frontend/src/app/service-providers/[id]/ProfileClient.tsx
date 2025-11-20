@@ -31,7 +31,6 @@ import {
   LinkIcon,
   ChevronDownIcon,
   MagnifyingGlassIcon,
-  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 
@@ -275,6 +274,15 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
     return min === max ? formatZAR(min) : `${formatZAR(min)} – ${formatZAR(max)}`;
   }, [services]);
 
+  const priceFloor = useMemo(() => {
+    if (!services.length) return null;
+    const prices = services
+      .map((s) => getServiceDisplay(s).priceNumber)
+      .filter((n): n is number => typeof n === 'number' && Number.isFinite(n));
+    if (!prices.length) return null;
+    return formatZAR(Math.min(...prices));
+  }, [services]);
+
   const highlights: string[] = useMemo(() => {
     const out: string[] = [];
     const sp: any = serviceProvider;
@@ -340,6 +348,10 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const displayName = serviceProvider.business_name || `${serviceProvider.user.first_name} ${serviceProvider.user.last_name}`;
   const formattedLocation = serviceProvider.location ? getTownProvinceFromAddress(serviceProvider.location) : '';
   const selectedServiceObj = selectedServiceId ? services.find((s) => s.id === selectedServiceId) ?? null : null;
+  const aboutSnippet =
+    (serviceProvider?.description || serviceProvider?.custom_subtitle || '')
+      ?.replace(/\s+/g, ' ')
+      .trim();
 
   async function handleBookService(service: Service) {
     const type = (service as any).service_type;
@@ -785,100 +797,106 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               {/* Left rail (sticky outer, scrollable inner) */}
               <aside className="md:w-2/5 md:flex md:flex-col bg-white md:sticky md:self-start md:border-gray-100 p-0" style={{ top: 'var(--sp-sticky-top)' }}>
                 <div ref={leftRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-6 scrollbar-hide">
-                <div className="relative h-48 overflow-hidden rounded-3xl shadow-sm" role="img" aria-label="Cover photo">
-                  {coverPhotoUrl ? (
-                    <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover rounded-3xl" sizes="40vw" />
-                  ) : (
-                    <div className="h-full grid place-items-center text-gray-500">No cover photo</div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent rounded-3xl" />
-                  <div className="absolute right-3 top-3 flex gap-1.5">
-                    <button className="rounded-full bg-white/90 p-1.5 shadow-sm" aria-label="Share profile" onClick={() => setIsShareOpen(true)}>
-                      <ShareIcon className="h-4 w-4 text-gray-700" />
-                    </button>
-                    <button className="rounded-full bg-white/90 p-1.5 shadow-sm" aria-label="Save profile">
-                      <HeartIcon className="h-4 w-4 text-gray-700" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pt-0 bg-white">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="relative -mt-12">
-                      {profilePictureUrl ? (
-                        <SafeImage
-                          src={profilePictureUrl}
-                          width={96}
-                          height={96}
-                          className="h-24 w-24 rounded-full object-cover shadow-md ring-4 ring-white"
-                          alt={displayName}
-                        />
-                      ) : (
-                        <div className="h-24 w-24 rounded-full bg-gray-300 grid place-items-center text-gray-500 shadow-md ring-4 ring-white">
-                          <UserIcon className="h-12 w-12 text-gray-400" />
+                  <div className="flex flex-col gap-5">
+                    <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+                      <div className="relative aspect-[5/4]" role="img" aria-label="Cover photo">
+                        {coverPhotoUrl ? (
+                          <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="40vw" />
+                        ) : (
+                          <div className="h-full grid place-items-center text-gray-500">No cover photo</div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/15 to-transparent" />
+                        <div className="absolute right-3 top-3 flex gap-1.5">
+                          <button className="rounded-full bg-white/95 p-2 shadow-sm transition hover:bg-white" aria-label="Share profile" onClick={() => setIsShareOpen(true)}>
+                            <ShareIcon className="h-4 w-4 text-gray-700" />
+                          </button>
+                          <button className="rounded-full bg-white/95 p-2 shadow-sm transition hover:bg-white" aria-label="Save profile">
+                            <HeartIcon className="h-4 w-4 text-gray-700" />
+                          </button>
                         </div>
-                      )}
-                    </div>
-                    <h1 className="mt-4 text-4xl font-bold text-gray-900">{displayName}</h1>
-
-                    {serviceProvider.custom_subtitle && (
-                      <p className="mt-2 text-sm text-gray-600">{serviceProvider.custom_subtitle}</p>
-                    )}
-
-                    {!!highlights.length && (
-                      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                        {highlights.slice(0, 8).map((h) => (
-                          <Chip key={`desk-pill-${h}`} leadingIcon={<CheckBadgeIcon className="h-4 w-4" />}>{h}</Chip>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-gray-500">
-                      {averageRating && (
-                        <span className="flex items-center cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
-                          <StarSolidIcon className="h-3 w-3 mr-1 text-black" />
-                          {averageRating} ({displayReviews.length} reviews)
-                        </span>
-                      )}
-                      {averageRating && formattedLocation && (
-                        <span aria-hidden className="text-gray-300">•</span>
-                      )}
-                      {formattedLocation && (
-                        <span className="flex items-center">{formattedLocation}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Sticky Action Dock (left rail) */}
-                  {!!services.length && (
-                    <div className="mt-6 sticky z-10" style={{ top: 'calc(100vh - 9.5rem)' }} aria-label="Quick booking actions">
-                      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm text-gray-600">
-                            {priceBand ? (
-                              <>
-                                <span className="font-semibold text-gray-900">Typical price:</span> {priceBand}
-                              </>
-                            ) : (
-                              'Select a service to see pricing'
-                            )}
+                        {profilePictureUrl ? (
+                          <SafeImage
+                            src={profilePictureUrl}
+                            width={104}
+                            height={104}
+                            className="absolute left-1/2 top-[72%] z-10 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full object-cover shadow-lg ring-4 ring-white"
+                            alt={displayName}
+                          />
+                        ) : (
+                          <div className="absolute left-1/2 top-[72%] z-10 -translate-x-1/2 -translate-y-1/2 h-24 w-24 rounded-full bg-gray-200 grid place-items-center text-gray-500 shadow-lg ring-4 ring-white">
+                            <UserIcon className="h-12 w-12 text-gray-400" />
                           </div>
-                          <ShieldCheckIcon className="h-5 w-5 text-emerald-500" aria-hidden="true" />
+                        )}
+                      </div>
+
+                      <div className="px-6 pb-6 pt-12 text-center">
+                        <h1 className="text-3xl font-bold tracking-tight text-gray-900">{displayName}</h1>
+                        {serviceProvider.custom_subtitle && (
+                          <p className="mt-2 text-sm text-gray-600">{serviceProvider.custom_subtitle}</p>
+                        )}
+
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-gray-500">
+                          {averageRating && (
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 hover:text-gray-700"
+                              onClick={() => setIsAllReviewsOpen(true)}
+                            >
+                              <StarSolidIcon className="h-3 w-3 text-black" />
+                              {averageRating} ({displayReviews.length})
+                            </button>
+                          )}
+                          {averageRating && formattedLocation && <span aria-hidden className="text-gray-300">•</span>}
+                          {formattedLocation && (
+                            <span className="inline-flex items-center gap-1">
+                              <MapPinIcon className="h-4 w-4" />
+                              {formattedLocation}
+                            </span>
+                          )}
                         </div>
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <button onClick={() => openMobileServicePicker()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-semibold text-white">
+
+                        {!!highlights.length && (
+                          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                            {highlights.slice(0, 6).map((h) => (
+                              <Chip key={`desk-pill-${h}`} leadingIcon={<CheckBadgeIcon className="h-4 w-4" />}>{h}</Chip>
+                            ))}
+                          </div>
+                        )}
+
+                        {aboutSnippet && (
+                          <p className="mt-4 text-sm leading-relaxed text-gray-600 line-clamp-3">{aboutSnippet}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {!!services.length && (
+                      <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4 space-y-3" aria-label="Quick booking actions">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-left">
+                            <p className="text-xs uppercase tracking-wide text-gray-500">From</p>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {priceFloor || priceBand || 'Select a service'}
+                            </p>
+                            {priceFloor && <p className="text-xs text-rose-500">Free cancellation</p>}
+                          </div>
+                          <button
+                            onClick={() => openMobileServicePicker()}
+                            className="inline-flex items-center justify-center gap-2 rounded-full bg-rose-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600 active:scale-[0.99]"
+                          >
                             <BoltIcon className="h-4 w-4" />
                             Request booking
                           </button>
-                          <button onClick={openMessageModalOrLogin} className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800">
-                            <ChatBubbleOvalLeftIcon className="h-4 w-4" />
-                            Message
-                          </button>
                         </div>
+                        <button
+                          onClick={openMessageModalOrLogin}
+                          className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900"
+                        >
+                          <ChatBubbleOvalLeftIcon className="h-4 w-4" />
+                          Message the provider
+                        </button>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
                 </div>
               </aside>
 
