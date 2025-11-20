@@ -1083,15 +1083,20 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       )}
 
       {/* Personalized Video sheet */}
-      {isVideoOpen && selectedVideoService && (
-        <BookinWizardPersonilsedVideo
-          artistId={serviceProviderId}
-          isOpen={isVideoOpen}
-          onClose={() => setIsVideoOpen(false)}
-          basePriceZar={getServiceDisplay(selectedVideoService as Service).priceNumber || 0}
-          serviceId={selectedVideoService.id}
-        />
-      )}
+      {isVideoOpen && selectedVideoService && (() => {
+        const videoService = selectedVideoService as Service;
+        const basePrice =
+          getServiceDisplay(videoService).priceNumber || 0;
+        return (
+          <BookinWizardPersonilsedVideo
+            artistId={serviceProviderId}
+            isOpen={isVideoOpen}
+            onClose={() => setIsVideoOpen(false)}
+            basePriceZar={basePrice}
+            serviceId={videoService.id}
+          />
+        );
+      })()}
 
       {/* Service Picker Sheet (mobile + desktop) */}
       {isServicePickerOpen && (
@@ -1411,7 +1416,8 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
 
       {/* Service Details Modal */}
       {isDetailsOpen && detailedService && (() => {
-        const d = getServiceDisplay(detailedService as Service);
+        const svc = detailedService as Service;
+        const d = getServiceDisplay(svc);
         return (
           <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Service details">
             <div className="absolute inset-0 bg-black/40 transition-opacity duration-200" onClick={() => setIsDetailsOpen(false)} aria-hidden="true" />
@@ -1443,9 +1449,9 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     </div>
                   </div>
                 </div>
-                {detailedService.description && (
+                {svc.description && (
                   <div className="p-3 text-sm text-gray-700 whitespace-pre-line md:p-4 md:text-base max-h-40 overflow-y-auto">
-                    {detailedService.description}
+                    {svc.description}
                   </div>
                 )}
                 <div className="mt-auto flex gap-3 pt-2">
@@ -1457,7 +1463,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                   </button>
                   <button
                     onClick={() => {
-                      handleBookService(detailedService as Service);
+                      handleBookService(svc);
                       setIsDetailsOpen(false);
                     }}
                     className="w-1/2 inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition"
