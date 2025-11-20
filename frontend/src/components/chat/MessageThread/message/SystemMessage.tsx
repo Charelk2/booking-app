@@ -4,6 +4,7 @@ import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { apiUrl } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { t } from '@/lib/i18n';
+import SafeImage from '@/components/ui/SafeImage';
 import SystemCard from './SystemCard';
 
 type SystemMessageProps = {
@@ -441,13 +442,12 @@ export default function SystemMessage({
                 ) : null}
               </div>
               {cover ? (
-                <img
+                <SafeImage
                   alt=""
+                  src={cover}
                   width={56}
                   height={56}
-                  decoding="async"
                   className="ml-auto h-14 w-14 rounded-lg object-cover"
-                  src={cover}
                 />
               ) : null}
             </div>
