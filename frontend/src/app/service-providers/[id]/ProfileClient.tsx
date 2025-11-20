@@ -806,8 +806,8 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               <aside className="md:w-2/5 md:flex md:flex-col bg-white md:sticky md:self-start md:border-gray-100 p-0" style={{ top: 'var(--sp-sticky-top)' }}>
                 <div ref={leftRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-6 scrollbar-hide">
                   <div className="flex flex-col gap-5">
-                    <div className="rounded-3xl">
-                      <div className="relative h-48 rounded-3xl" role="img" aria-label="Cover photo" style={{ overflow: 'visible' }}>
+                    <div className="relative rounded-3xl">
+                      <div className="relative h-48 overflow-hidden rounded-3xl" role="img" aria-label="Cover photo">
                         {coverPhotoUrl ? (
                           <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="40vw" />
                         ) : (
@@ -815,27 +815,28 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/15 to-transparent" />
                         <div className="absolute right-3 top-3 flex gap-1.5">
-                          <button className="rounded-full bg-white/95 p-2 shadow-sm transition hover:bg-white" aria-label="Share profile" onClick={() => setIsShareOpen(true)}>
+                          <button className="rounded-full bg-white/95 p-2 transition hover:bg-white" aria-label="Share profile" onClick={() => setIsShareOpen(true)}>
                             <ShareIcon className="h-4 w-4 text-gray-700" />
                           </button>
-                          <button className="rounded-full bg-white/95 p-2 shadow-sm transition hover:bg-white" aria-label="Save profile">
+                          <button className="rounded-full bg-white/95 p-2 transition hover:bg-white" aria-label="Save profile">
                             <HeartIcon className="h-4 w-4 text-gray-700" />
                           </button>
                         </div>
-                        {profilePictureUrl ? (
-                          <SafeImage
-                            src={profilePictureUrl}
-                            width={96}
-                            height={96}
-                            className="absolute left-1/2 top-full z-10 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full object-cover shadow-lg ring-4 ring-white"
-                            alt={displayName}
-                          />
-                        ) : (
-                          <div className="absolute left-1/2 top-full z-10 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gray-200 grid place-items-center text-gray-500 shadow-lg ring-4 ring-white">
-                            <UserIcon className="h-10 w-10 text-gray-400" />
-                          </div>
-                        )}
                       </div>
+                      {profilePictureUrl ? (
+                        <SafeImage
+                          src={profilePictureUrl}
+                          width={96}
+                          height={96}
+                          className="absolute left-1/2 -bottom-10 z-10 h-20 w-20 -translate-x-1/2 rounded-full object-cover ring-4 ring-white"
+                          alt={displayName}
+                        />
+                      ) : (
+                        <div className="absolute left-1/2 -bottom-10 z-10 h-20 w-20 -translate-x-1/2 rounded-full bg-gray-200 grid place-items-center text-gray-500 ring-4 ring-white">
+                          <UserIcon className="h-10 w-10 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
 
                       <div className="px-6 pb-6 pt-14 text-center">
                         <h1 className="text-3xl font-bold tracking-tight text-gray-900">{displayName}</h1>
