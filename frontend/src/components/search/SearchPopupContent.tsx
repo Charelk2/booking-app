@@ -300,7 +300,7 @@ export default function SearchPopupContent({
                 aria-activedescendant={activeId}
                 className="space-y-1 max-h-[50vh] overflow-y-auto scrollbar-thin"
               >
-                {(popularLocations.length > 0 ? popularLocations : MOCK_LOCATION_SUGGESTIONS).map((s, index) => {
+                {(popularLocations.length > 0 ? popularLocations : MOCK_LOCATION_SUGGESTIONS).slice(0, 3).map((s, index) => {
                   const name = (s as any).name as string;
                   const description = (s as any).description as string | undefined;
                   const optionId = `suggestion-${index}`;
