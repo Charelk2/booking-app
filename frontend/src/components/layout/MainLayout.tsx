@@ -54,7 +54,6 @@ export default function MainLayout({
     user?.user_type === 'service_provider' && artistViewActive;
   // Keep header fully visible on Event Prep pages to avoid focus/scroll flicker
   const isEventPrep = pathname.startsWith('/dashboard/events/');
-  const isHome = pathname === '/';
 
   const [headerState, setHeaderState] = useState<HeaderState>('initial');
 
@@ -284,9 +283,6 @@ export default function MainLayout({
     // Route guard: skip auto-hide/compact on Event Prep pages
     if (isEventPrep) return;
 
-    // On homepage, keep header in its initial state and skip compaction
-    if (isHome) return;
-
     // Guard period after manual expand
     if (isAdjustingScroll.current) return;
 
@@ -360,7 +356,7 @@ export default function MainLayout({
         }
       }
     }
-  }, [headerState, isArtistsPage, isArtistView, isMobile, isEventPrep, isHome]);
+  }, [headerState, isArtistsPage, isArtistView, isMobile, isEventPrep]);
 
   // rAF scroll listener
   const optimizedScrollHandler = useCallback(() => {
