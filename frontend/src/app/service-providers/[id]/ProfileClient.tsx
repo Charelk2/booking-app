@@ -902,164 +902,164 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                 <div ref={rightRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-6 space-y-4 scrollbar-hide">
                   {/* Removed sticky price/request bar per request */}
 
-                <section id="services-desktop" aria-labelledby="services-heading-desktop" className="pb-10">
-                  {services.length ? (
-                    <ul className="space-y-6">
-                      {services.map((s) => (
-                        <li key={`service-desktop-${s.id}`}>
-                          <ServiceCard service={s} variant="desktop" onClick={() => { setDetailedService(s); setIsDetailsOpen(true); }} />
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-600">This service provider currently has no services listed.</p>
-                  )}
-                </section>
-
-                {/* About (desktop) */}
-                {(serviceProvider?.description || serviceProvider?.custom_subtitle || highlights.length) && (
-                  <>
-                    <div className="mt-12 mb-8 h-px w-full bg-gray-200" />
-                    <AboutSection
-                      variant="desktop"
-                      displayName={displayName}
-                      profilePictureUrl={profilePictureUrl}
-                      serviceProvider={serviceProvider}
-                      highlights={highlights}
-                      onMessageClick={openMessageModalOrLogin}
-                      bare
-                    />
-                  </>
-                )}
-
-                {/* Reviews (desktop) */}
-                <section aria-labelledby="reviews-heading-desktop">
-                  <h2 id="reviews-heading-desktop" className="text-2xl font-bold text-gray-800 mb-3">Reviews</h2>
-                  {displayReviews.length ? (
-                    <>
-                      <ReviewSummary reviews={displayReviews} />
-                      <ul className="mt-4 grid grid-cols-1 gap-3">
-                        {displayReviews.slice(0, 6).map((review) => {
-                          const clientId = review.client?.id ?? review.client_id;
-                          const hasBooking =
-                            typeof review.booking_id === 'number' && review.booking_id > 0;
-                          const realReview = Boolean(clientId && hasBooking);
-                          const nameFromClient =
-                            `${review.client?.first_name || review.client_first_name || ''} ${
-                              review.client?.last_name || review.client_last_name || ''
-                            }`.trim();
-                          const clientName =
-                            review.client_display_name ||
-                            nameFromClient ||
-                            review.client?.email ||
-                            'Client';
-                          const initials =
-                            review.client?.first_name?.[0] ||
-                            clientName.trim().charAt(0) ||
-                            '•';
-                          const avatarSrc = review.client?.profile_picture_url || null;
-                          const reviewedOn = new Date(review.created_at).toLocaleDateString('en');
-
-                          const avatarBlock = (
-                            <div className="flex items-center gap-2">
-                              <Avatar
-                                src={avatarSrc || undefined}
-                                initials={initials}
-                                size={32}
-                              />
-                              <div className="flex flex-col">
-                                <p className="text-xs font-medium text-gray-800">
-                                  {clientName}
-                                </p>
-                                <p className="text-[11px] text-gray-500">
-                                  Reviewed on: {reviewedOn}
-                                </p>
-                              </div>
-                            </div>
-                          );
-
-                          return (
-                            <li
-                              key={`rev-desktop-${review.id}`}
-                              className="rounded-xl p-4 bg-white"
-                            >
-                              <div className="flex items-start justify-between mb-2">
-                                <ReviewStars rating={Number(review.rating) || 0} />
-                                {realReview && clientId ? (
-                                  <Link
-                                    href={`/clients/${clientId}`}
-                                    target="_blank"
-                                    rel="noreferrer noopener"
-                                    className="ml-3 no-underline hover:no-underline"
-                                  >
-                                    {avatarBlock}
-                                  </Link>
-                                ) : (
-                                  <div className="ml-3">{avatarBlock}</div>
-                                )}
-                              </div>
-                              <p className="text-gray-600 text-sm leading-relaxed">
-                                {review.comment}
-                              </p>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                      {displayReviews.length > 6 && (
-                        <div className="mt-2">
-                          <button type="button" className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition" onClick={() => setIsAllReviewsOpen(true)}>
-                            Show all reviews
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-gray-600">No reviews yet for this service provider.</p>
-                  )}
-                </section>
-
-                {/* Portfolio (desktop) */}
-                {!!galleryImages.length && (
-                  <>
-                    <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
-                    <section id="portfolio-desktop" aria-labelledby="portfolio-heading-desktop">
-                      <h2 id="portfolio-heading-desktop" className="text-2xl font-bold text-gray-800 mb-6 mt-10">My Portfolio</h2>
-                      <ul className="grid grid-cols-4 gap-2">
-                        {galleryImages.slice(0, 9).map((src, i) => (
-                          <li key={`portfolio-desktop-${i}`} className="relative aspect-square overflow-hidden rounded-lg border border-gray-100">
-                            <SafeImage src={src} alt="" fill className="object-cover" sizes="33vw" />
+                  <section id="services-desktop" aria-labelledby="services-heading-desktop" className="pb-10">
+                    {services.length ? (
+                      <ul className="space-y-6">
+                        {services.map((s) => (
+                          <li key={`service-desktop-${s.id}`}>
+                            <ServiceCard service={s} variant="desktop" onClick={() => { setDetailedService(s); setIsDetailsOpen(true); }} />
                           </li>
                         ))}
                       </ul>
-                    </section>
-                  </>
-                )}
+                    ) : (
+                      <p className="text-gray-600">This service provider currently has no services listed.</p>
+                    )}
+                  </section>
 
-                {/* Policies (desktop) */}
-                {(serviceProvider as any)?.cancellation_policy && (() => {
-                  const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
-                  return (
+                  {/* About (desktop) */}
+                  {(serviceProvider?.description || serviceProvider?.custom_subtitle || highlights.length) && (
+                    <>
+                      <div className="mt-12 mb-8 h-px w-full bg-gray-200" />
+                      <AboutSection
+                        variant="desktop"
+                        displayName={displayName}
+                        profilePictureUrl={profilePictureUrl}
+                        serviceProvider={serviceProvider}
+                        highlights={highlights}
+                        onMessageClick={openMessageModalOrLogin}
+                        bare
+                      />
+                    </>
+                  )}
+
+                  {/* Reviews (desktop) */}
+                  <section aria-labelledby="reviews-heading-desktop">
+                    <h2 id="reviews-heading-desktop" className="text-2xl font-bold text-gray-800 mb-3">Reviews</h2>
+                    {displayReviews.length ? (
+                      <>
+                        <ReviewSummary reviews={displayReviews} />
+                        <ul className="mt-4 grid grid-cols-1 gap-3">
+                          {displayReviews.slice(0, 6).map((review) => {
+                            const clientId = review.client?.id ?? review.client_id;
+                            const hasBooking =
+                              typeof review.booking_id === 'number' && review.booking_id > 0;
+                            const realReview = Boolean(clientId && hasBooking);
+                            const nameFromClient =
+                              `${review.client?.first_name || review.client_first_name || ''} ${
+                                review.client?.last_name || review.client_last_name || ''
+                              }`.trim();
+                            const clientName =
+                              review.client_display_name ||
+                              nameFromClient ||
+                              review.client?.email ||
+                              'Client';
+                            const initials =
+                              review.client?.first_name?.[0] ||
+                              clientName.trim().charAt(0) ||
+                              '•';
+                            const avatarSrc = review.client?.profile_picture_url || null;
+                            const reviewedOn = new Date(review.created_at).toLocaleDateString('en');
+
+                            const avatarBlock = (
+                              <div className="flex items-center gap-2">
+                                <Avatar
+                                  src={avatarSrc || undefined}
+                                  initials={initials}
+                                  size={32}
+                                />
+                                <div className="flex flex-col">
+                                  <p className="text-xs font-medium text-gray-800">
+                                    {clientName}
+                                  </p>
+                                  <p className="text-[11px] text-gray-500">
+                                    Reviewed on: {reviewedOn}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+
+                            return (
+                              <li
+                                key={`rev-desktop-${review.id}`}
+                                className="rounded-xl p-4 bg-white"
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <ReviewStars rating={Number(review.rating) || 0} />
+                                  {realReview && clientId ? (
+                                    <Link
+                                      href={`/clients/${clientId}`}
+                                      target="_blank"
+                                      rel="noreferrer noopener"
+                                      className="ml-3 no-underline hover:no-underline"
+                                    >
+                                      {avatarBlock}
+                                    </Link>
+                                  ) : (
+                                    <div className="ml-3">{avatarBlock}</div>
+                                  )}
+                                </div>
+                                <p className="text-gray-600 text-sm leading-relaxed">
+                                  {review.comment}
+                                </p>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        {displayReviews.length > 6 && (
+                          <div className="mt-2">
+                            <button type="button" className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition" onClick={() => setIsAllReviewsOpen(true)}>
+                              Show all reviews
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-gray-600">No reviews yet for this service provider.</p>
+                    )}
+                  </section>
+
+                  {/* Portfolio (desktop) */}
+                  {!!galleryImages.length && (
                     <>
                       <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
-                      <section aria-labelledby="policies-heading-desktop">
-                        <h2 id="policies-heading-desktop" className="text-2xl font-bold text-gray-800 mb-1">Policies</h2>
-                        <div className="rounded-2xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
-                          <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">Cancellation Policy</p>
-                          {intro && <p className="mb-3 leading-relaxed">{intro}</p>}
-                          {!!bullets.length && (
-                            <ul className="list-disc pl-6 space-y-1">
-                              {bullets.map((b, i) => (
-                                <li key={`desktop-pol-${i}`}>{b}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
+                      <section id="portfolio-desktop" aria-labelledby="portfolio-heading-desktop">
+                        <h2 id="portfolio-heading-desktop" className="text-2xl font-bold text-gray-800 mb-6 mt-10">My Portfolio</h2>
+                        <ul className="grid grid-cols-4 gap-2">
+                          {galleryImages.slice(0, 9).map((src, i) => (
+                            <li key={`portfolio-desktop-${i}`} className="relative aspect-square overflow-hidden rounded-lg border border-gray-100">
+                              <SafeImage src={src} alt="" fill className="object-cover" sizes="33vw" />
+                            </li>
+                          ))}
+                        </ul>
                       </section>
                     </>
-                  );
-                })()}
+                  )}
 
-                <VettedBanner displayName={displayName} />
+                  {/* Policies (desktop) */}
+                  {(serviceProvider as any)?.cancellation_policy && (() => {
+                    const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
+                    return (
+                      <>
+                        <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
+                        <section aria-labelledby="policies-heading-desktop">
+                          <h2 id="policies-heading-desktop" className="text-2xl font-bold text-gray-800 mb-1">Policies</h2>
+                          <div className="rounded-2xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
+                            <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">Cancellation Policy</p>
+                            {intro && <p className="mb-3 leading-relaxed">{intro}</p>}
+                            {!!bullets.length && (
+                              <ul className="list-disc pl-6 space-y-1">
+                                {bullets.map((b, i) => (
+                                  <li key={`desktop-pol-${i}`}>{b}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </section>
+                      </>
+                    );
+                  })()}
+
+                  <VettedBanner displayName={displayName} />
                 </div>
               </section>
             </div>
@@ -1083,13 +1083,13 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       )}
 
       {/* Personalized Video sheet */}
-      {isVideoOpen && (
+      {isVideoOpen && selectedVideoService && (
         <BookinWizardPersonilsedVideo
           artistId={serviceProviderId}
           isOpen={isVideoOpen}
           onClose={() => setIsVideoOpen(false)}
-          basePriceZar={(selectedVideoService ? (getServiceDisplay(selectedVideoService).priceNumber || 0) : 0)}
-          serviceId={selectedVideoService?.id}
+          basePriceZar={getServiceDisplay(selectedVideoService as Service).priceNumber || 0}
+          serviceId={selectedVideoService.id}
         />
       )}
 
@@ -1108,7 +1108,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
             </div>
             <div className="px-4 py-3">
               {selectedServiceObj && (() => {
-                const d = getServiceDisplay(selectedServiceObj);
+                const d = getServiceDisplay(selectedServiceObj as Service);
                 return (
                   <div className="mb-4 overflow-hidden rounded-xl border border-gray-100">
                     <div className="relative h-40 w-full bg-gray-100">
@@ -1411,45 +1411,64 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
 
       {/* Service Details Modal */}
       {isDetailsOpen && detailedService && (() => {
-        const d = getServiceDisplay(detailedService);
+        const d = getServiceDisplay(detailedService as Service);
         return (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Service details">
-          <div className="absolute inset-0 bg-black/40 transition-opacity duration-200" onClick={() => setIsDetailsOpen(false)} aria-hidden="true" />
-          <div className="absolute inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white shadow-2xl md:fixed md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:inset-auto md:max-w-lg md:max-h-[90vh] md:rounded-2xl transition-all duration-200 md:min-h-[400px]">
-            <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3 md:py-4">
-              <div className="mx-auto max-w-5xl flex items-center justify-between">
-                <h3 className="text-base font-semibold text-gray-900 md:text-lg truncate">{d.title}</h3>
-                <button onClick={() => setIsDetailsOpen(false)} className="p-2 rounded-lg hover:bg-gray-50" aria-label="Close">
-                  <XMarkIcon className="h-5 w-5 text-gray-600" />
-                </button>
+          <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Service details">
+            <div className="absolute inset-0 bg-black/40 transition-opacity duration-200" onClick={() => setIsDetailsOpen(false)} aria-hidden="true" />
+            <div className="absolute inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white shadow-2xl md:fixed md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:inset-auto md:max-w-lg md:max-h-[90vh] md:rounded-2xl transition-all duration-200 md:min-h-[400px]">
+              <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3 md:py-4">
+                <div className="mx-auto max-w-5xl flex items-center justify-between">
+                  <h3 className="text-base font-semibold text-gray-900 md:text-lg truncate">{d.title}</h3>
+                  <button onClick={() => setIsDetailsOpen(false)} className="p-2 rounded-lg hover:bg-gray-50" aria-label="Close">
+                    <XMarkIcon className="h-5 w-5 text-gray-600" />
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="px-4 py-3 md:px-6 md:py-4 flex flex-col h-full">
-              <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 shadow-sm flex-grow min-h-[200px]">
-                <div className="relative h-40 w-full bg-gray-100 md:h-48">
-                  {d.mediaUrl ? <SafeImage src={d.mediaUrl} alt="" fill className="object-cover" sizes="100vw" /> : <div className="h-full w-full grid place-items-center text-gray-400">No image available</div>}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-            <div className="flex items-end justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-white text-sm font-medium truncate md:text-base">{d.title}</p>
-                <p className="text-white/80 text-xs md:text-sm">{[d.type, d.durationLabel].filter(Boolean).join(' • ')}</p>
+              <div className="px-4 py-3 md:px-6 md:py-4 flex flex-col h-full">
+                <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 shadow-sm flex-grow min-h-[200px]">
+                  <div className="relative h-40 w-full bg-gray-100 md:h-48">
+                    {d.mediaUrl ? (
+                      <SafeImage src={d.mediaUrl} alt="" fill className="object-cover" sizes="100vw" />
+                    ) : (
+                      <div className="h-full w-full grid place-items-center text-gray-400">No image available</div>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                      <div className="flex items-end justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-medium truncate md:text-base">{d.title}</p>
+                          <p className="text-white/80 text-xs md:text-sm">{[d.type, d.durationLabel].filter(Boolean).join(' • ')}</p>
+                        </div>
+                        <div className="shrink-0 text-white text-sm font-semibold md:text-base">{d.priceText}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {detailedService.description && (
+                  <div className="p-3 text-sm text-gray-700 whitespace-pre-line md:p-4 md:text-base max-h-40 overflow-y-auto">
+                    {detailedService.description}
+                  </div>
+                )}
+                <div className="mt-auto flex gap-3 pt-2">
+                  <button
+                    onClick={() => setIsDetailsOpen(false)}
+                    className="w-1/2 inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleBookService(detailedService as Service);
+                      setIsDetailsOpen(false);
+                    }}
+                    className="w-1/2 inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition"
+                  >
+                    Book this service
+                  </button>
+                </div>
               </div>
-              <div className="shrink-0 text-white text-sm font-semibold md:text-base">{d.priceText}</div>
             </div>
           </div>
-        </div>
-        {detailedService.description && (
-          <div className="p-3 text-sm text-gray-700 whitespace-pre-line md:p-4 md:text-base max-h-40 overflow-y-auto">{detailedService.description}</div>
-        )}
-      </div>
-      <div className="mt-auto flex gap-3 pt-2">
-        <button onClick={() => setIsDetailsOpen(false)} className="w-1/2 inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">Close</button>
-        <button onClick={() => { handleBookService(detailedService); setIsDetailsOpen(false); }} className="w-1/2 inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition">Book this service</button>
-      </div>
-    </div>
-  </div>
-        </div>
-      );
+        );
       })()}
     </>
   );
