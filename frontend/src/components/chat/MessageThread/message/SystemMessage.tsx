@@ -140,7 +140,7 @@ export default function SystemMessage({
             title={title}
             subtitle={subtitleArtist}
             primaryAction={
-              onMarkCompletedFromSystem
+              withinComplaintWindow && onMarkCompletedFromSystem
                 ? {
                     label: t('system.markCompleted', 'Mark as completed'),
                     variant: 'primary',
