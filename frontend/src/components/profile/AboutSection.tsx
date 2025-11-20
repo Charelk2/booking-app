@@ -56,21 +56,39 @@ export default function AboutSection({ variant = 'mobile', displayName, profileP
         {(() => {
           const desc = (serviceProvider?.description || '').trim();
           if (!desc) return null;
+
           const parts = desc.split(/\r?\n/);
-          const first = (parts[0] || '').trim();
-          const rest = parts.slice(1).join('\n').trim();
+          const firstLine = (parts[0] || '').trim();
+
+          // Take only the first sentence from the first line.
+          const sentenceMatch = firstLine.match(/(.+?[.!?])(\s+|$)/);
+          const firstSentence = (sentenceMatch?.[1] || firstLine).trim();
+          const restOfFirstLine =
+            firstLine.slice((sentenceMatch?.[0] || '').length).trimStart();
+
+          const restCombined = [restOfFirstLine, ...parts.slice(1)]
+            .filter(Boolean)
+            .join('\n')
+            .trim();
+
           return (
             <>
-              <p className="mt-3 text-sm text-gray-800 dark:text-gray-100">{first}</p>
-              {rest && (
+              <p className="mt-3 text-sm text-gray-800 dark:text-gray-100">
+                {firstSentence}
+              </p>
+              {restCombined && (
                 <details className="mt-2 group/open">
                   <summary className="mb-2 cursor-pointer list-none text-sm font-medium text-gray-900 hover:opacity-80 dark:text-gray-100">
-                    <span className="underline decoration-dotted underline-offset-4">Read more</span>
+                    <span className="underline decoration-dotted underline-offset-4">
+                      Read more
+                    </span>
                   </summary>
                   <div className="text-sm text-gray-700 dark:text-gray-300">
-                    <p className="whitespace-pre-line">{rest}</p>
+                    <p className="whitespace-pre-line">{restCombined}</p>
                   </div>
-                  <div className="mt-2 hidden text-xs text-gray-500 group-open:block">Click to collapse</div>
+                  <div className="mt-2 hidden text-xs text-gray-500 group-open:block">
+                    Click to collapse
+                  </div>
                 </details>
               )}
             </>
