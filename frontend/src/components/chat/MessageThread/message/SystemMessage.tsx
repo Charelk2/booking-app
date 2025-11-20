@@ -104,7 +104,9 @@ export default function SystemMessage({
     }
 
     // Post-event flow: event finished prompts (client / provider)
-    if (key.startsWith('event_finished_v1')) {
+    // Prefer explicit system_key, but also fall back to content matching for
+    // legacy rows that predate system_key or when keys are missing.
+    if (key.startsWith('event_finished_v1') || lower.startsWith('event finished:')) {
       const isProvider = (user?.user_type || '').toLowerCase() === 'service_provider';
       const title = t('system.eventFinishedTitle', 'Event finished');
       const subtitleClient = t(
@@ -175,7 +177,9 @@ export default function SystemMessage({
     }
 
     // Auto-completed banner
-    if (key === 'event_auto_completed_v1') {
+    // Auto-completed banner: show a richer card whenever either the key or the
+    // canonical auto-complete copy is present.
+    if (key === 'event_auto_completed_v1' || lower.startsWith('this event has been automatically marked as completed')) {
       return (
         <SystemCard
           icon="✓"
@@ -218,7 +222,12 @@ export default function SystemMessage({
     }
 
     // Review invite for client
-    if (key === 'review_invite_client_v1') {
+    // Match either the structured system_key or the canonical invite copy.
+    if (
+      key === 'review_invite_client_v1' ||
+      lower.startsWith('how was your event with') ||
+      lower.startsWith('how was your event?')
+    ) {
       return (
         <SystemCard
           icon="★"
@@ -249,7 +258,8 @@ export default function SystemMessage({
     }
 
     // Review invite for provider (review the client)
-    if (key === 'review_invite_provider_v1') {
+    // Match either the structured key or the canonical invite copy.
+    if (key === 'review_invite_provider_v1' || lower.startsWith('how was your experience with')) {
       const isProvider = (user?.user_type || '').toLowerCase() === 'service_provider';
       if (!isProvider) return null;
       return (
