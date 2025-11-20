@@ -269,8 +269,8 @@ export default function GroupRenderer({
           const urlLower = String(url || '').toLowerCase();
           const looksVoice = filenameLower.includes('voice') || urlLower.includes('/voice') || urlLower.includes('voicenote');
           const hasImage = byCtImg || byNameImg || isImage(url) || (byTextImg && !!url);
-          const hasAudio = byCtAud || (!byCtVid && isAudio(url)) || looksVoice;
-          const hasVideo = !looksVoice && (byCtVid || (!byCtAud && isVideo(url)));
+          const hasVideo = byCtVid || (!byCtAud && isVideo(url));
+          const hasAudio = byCtAud || (!byCtVid && isAudio(url));
           const text = String(m?.content || '');
           const isSystem = String(m?.message_type || '').toUpperCase() === 'SYSTEM';
           const isInquiryCard = text.includes('inquiry_sent_v1');

@@ -1,5 +1,6 @@
 // components/chat/MessageThread/message/Attachments.tsx
 import * as React from 'react';
+import { MicrophoneIcon } from '@heroicons/react/24/outline';
 
 type Props = {
   imageUrl?: string | null;
@@ -199,13 +200,99 @@ export default function Attachments({ imageUrl, videoUrl, audioUrl, fileLabel, f
     );
   }
   if (audioUrl) {
+    const audioRef = React.useRef<HTMLAudioElement | null>(null);
+    const [isPlaying, setIsPlaying] = React.useState(false);
+    const [currentTime, setCurrentTime] = React.useState(0);
+    const [duration, setDuration] = React.useState(0);
+
+    const togglePlay = () => {
+      try {
+        const el = audioRef.current;
+        if (!el) return;
+        if (el.paused) {
+          void el.play();
+          setIsPlaying(true);
+        } else {
+          el.pause();
+          setIsPlaying(false);
+        }
+      } catch {
+        // ignore play errors (e.g., autoplay restrictions)
+      }
+    };
+
+    const handleLoadedMetadata: React.ReactEventHandler<HTMLAudioElement> = (e) => {
+      try {
+        const el = e.currentTarget;
+        setDuration(Number(el.duration) || 0);
+      } catch {}
+      try { onMediaLoad?.(); } catch {}
+    };
+
+    const handleTimeUpdate: React.ReactEventHandler<HTMLAudioElement> = (e) => {
+      try {
+        const el = e.currentTarget;
+        setCurrentTime(Number(el.currentTime) || 0);
+      } catch {}
+    };
+
+    const handleEnded: React.ReactEventHandler<HTMLAudioElement> = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+
+    const pct = React.useMemo(() => {
+      if (!duration || !Number.isFinite(duration) || duration <= 0) return 0;
+      return Math.max(0, Math.min(100, (currentTime / duration) * 100));
+    }, [currentTime, duration]);
+
+    const formatTime = (v: number) => {
+      if (!Number.isFinite(v) || v < 0) return '0:00';
+      const total = Math.floor(v);
+      const mins = Math.floor(total / 60);
+      const secs = total % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
     return (
-      <audio
-        className="w-full"
-        controls
-        src={audioUrl || undefined}
-        onLoadedMetadata={onMediaLoad}
-      />
+      <div className="inline-flex w-[min(420px,62vw)] items-center gap-3 rounded-2xl bg-gray-100 px-3 py-2">
+        {/* Hidden native player for cross-browser playback semantics */}
+        <audio
+          className="hidden"
+          src={audioUrl || undefined}
+          ref={audioRef}
+          onLoadedMetadata={handleLoadedMetadata}
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={handleEnded}
+        />
+        <button
+          type="button"
+          onClick={togglePlay}
+          aria-label={isPlaying ? 'Pause voice note' : 'Play voice note'}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-white shadow-sm hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-700"
+        >
+          {isPlaying ? (
+            <span className="flex items-center justify-center h-4 w-4">
+              <span className="inline-block h-4 w-[3px] bg-white mx-[1px]" />
+              <span className="inline-block h-4 w-[3px] bg-white mx-[1px]" />
+            </span>
+          ) : (
+            <MicrophoneIcon className="h-4 w-4" aria-hidden />
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="h-1.5 w-full rounded-full bg-gray-300 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gray-800 transition-[width] duration-150 ease-out"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="mt-1 flex items-center justify-between text-[11px] text-gray-600">
+            <span>Voice note</span>
+            <span>{formatTime(currentTime || duration || 0)}</span>
+          </div>
+        </div>
+      </div>
     );
   }
   if (fileLabel) {
