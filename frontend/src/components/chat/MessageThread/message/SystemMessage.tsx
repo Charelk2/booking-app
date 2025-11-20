@@ -222,6 +222,30 @@ export default function SystemMessage({
       );
     }
 
+    // Day-of reminder: "Event is today: YYYY-MM-DD. …"
+    // Render as a card so it matches other post-event/pre-event system messages.
+    if (lower.startsWith('event is today:')) {
+      const title = t('system.eventTodayTitle', 'Event today');
+      let subtitle = content;
+      try {
+        // Strip the leading "Event is today: YYYY-MM-DD." prefix for a cleaner subtitle
+        const m = content.match(/^Event is today:\s*\d{4}-\d{2}-\d{2}\.\s*(.*)$/i);
+        if (m && m[1]) {
+          subtitle = m[1];
+        }
+      } catch {
+        subtitle = content;
+      }
+      return (
+        <SystemCard
+          icon="✓"
+          tone="info"
+          title={title}
+          subtitle={subtitle}
+        />
+      );
+    }
+
     // Dispute opened banner
     if (key.startsWith('dispute_opened_v1')) {
       return (
