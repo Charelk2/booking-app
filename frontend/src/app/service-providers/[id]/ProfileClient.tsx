@@ -863,7 +863,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               'Select a service to see pricing'
                             )}
                           </div>
-                          <ShieldCheckIcon className="h-5 w-5 text-emerald-500" aria-hidden="true" />
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-2">
                           <button onClick={() => openMobileServicePicker()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-semibold text-white">
