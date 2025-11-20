@@ -806,8 +806,8 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               <aside className="md:w-2/5 md:flex md:flex-col bg-white md:sticky md:self-start md:border-gray-100 p-0" style={{ top: 'var(--sp-sticky-top)' }}>
                 <div ref={leftRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-6 scrollbar-hide">
                   <div className="flex flex-col gap-5">
-                    <div className="overflow-hidden rounded-3xl shadow-sm">
-                      <div className="relative h-44 overflow-hidden rounded-3xl" role="img" aria-label="Cover photo">
+                    <div className="rounded-3xl">
+                      <div className="relative h-48 rounded-3xl" role="img" aria-label="Cover photo" style={{ overflow: 'visible' }}>
                         {coverPhotoUrl ? (
                           <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="40vw" />
                         ) : (
