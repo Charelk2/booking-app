@@ -766,9 +766,10 @@ export default function MessageThreadWrapper({
                 B
               </div>
             ) : isUserArtist ? (
-              (bookingRequest.client?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ? (
+              ((effectiveBookingRequest as any)?.client?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) ? (
                 <SafeImage
-                  src={(bookingRequest.client?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) as string}
+                  src={(((effectiveBookingRequest as any)?.client?.profile_picture_url ||
+                    (effectiveBookingRequest as any)?.counterparty_avatar_url) as string)}
                   alt="Client avatar"
                   width={40}
                   height={40}
@@ -781,7 +782,7 @@ export default function MessageThreadWrapper({
                   {(counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'U') || 'U').charAt(0)}
                 </div>
               )
-            ) : (bookingRequest.artist_profile?.profile_picture_url || (bookingRequest as any)?.counterparty_avatar_url) ? (
+            ) : ((effectiveBookingRequest as any)?.artist_profile?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) ? (
               <Link
                 href={`/service-providers/${
                   (effectiveBookingRequest as any).service_provider_id ||
@@ -797,7 +798,8 @@ export default function MessageThreadWrapper({
                 className="flex-shrink-0"
               >
                 <SafeImage
-                  src={(effectiveBookingRequest.artist_profile?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) as string}
+                  src={(((effectiveBookingRequest as any)?.artist_profile?.profile_picture_url ||
+                    (effectiveBookingRequest as any)?.counterparty_avatar_url) as string)}
                   alt="Service Provider avatar"
                   width={40}
                   height={40}

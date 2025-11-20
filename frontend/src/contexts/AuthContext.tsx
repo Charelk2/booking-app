@@ -450,6 +450,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     // Also invalidate server-side session
     try { void import('@/lib/api').then(m => m.logout()); } catch {}
+    // Clear inbox selection and preview caches for the current user
+    try {
+      if (typeof window !== 'undefined') {
+        const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
+        const uid = user?.id ? String(user.id) : null;
+        if (uid) {
+          const base = `inbox:threadsCache:v2:${role}:${uid}`;
+          const selKey = `${base}:selected`;
+          const persistKey = `${base}:persist`;
+          const latestKey = 'inbox:threadsCache:latest';
+          try { sessionStorage.removeItem(base); } catch {}
+          try { sessionStorage.removeItem(latestKey); } catch {}
+          try { sessionStorage.removeItem(selKey); } catch {}
+          try { localStorage.removeItem(selKey); } catch {}
+          try { localStorage.removeItem(persistKey); } catch {}
+        }
+      }
+    } catch {}
     setUser(null);
     setToken(null);
     setArtistViewActive(true);
