@@ -1126,7 +1126,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                   </>
                 )}
 
-                {/* Policies (desktop) */}
+                {/* Policies - (desktop) */}
                 {(serviceProvider as any)?.cancellation_policy && (() => {
                   const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
                   return (
