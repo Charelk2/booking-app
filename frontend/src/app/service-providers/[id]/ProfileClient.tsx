@@ -772,7 +772,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                                 </span>
                               </div>
                             </div>
-                            <p className="text-gray-600 text-sm leading-relaxed">
+                            <p className="text-gray-800 text-sm leading-relaxed">
                               {review.comment}
                             </p>
                           </li>
@@ -1086,7 +1086,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                                   </span>
                                 </div>
                               </div>
-                              <p className="text-gray-600 text-sm leading-relaxed">
+                              <p className="text-gray-800 text-sm leading-relaxed">
                                 {review.comment}
                               </p>
                             </li>
