@@ -110,7 +110,7 @@ export default function AboutSection({ variant = 'mobile', displayName, profileP
   );
 
   return (
-    <section aria-labelledby={`about-heading-${variant}`} className="group">
+    <section aria-labelledby={`about-heading-${variant}`} className="group pb-10">
       <h2 id={`about-heading-${variant}`} className={isMobile ? 'mt-12 text-2xl font-bold tracking-tight text-gray-900' : 'text-2xl font-bold tracking-tight text-gray-900'}>
         About
       </h2>
