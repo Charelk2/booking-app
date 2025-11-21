@@ -253,10 +253,18 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       const max = Math.max(0, right.scrollHeight - right.clientHeight);
       if (max <= 0) return;
       const prev = right.scrollTop;
-      const next = Math.max(0, Math.min(prev + (e.deltaY || 0), max));
+      const rawDelta = e.deltaY || 0;
+      const next = Math.max(0, Math.min(prev + rawDelta, max));
       if (next !== prev) {
-        right.scrollTop = next;
         try { e.preventDefault(); } catch {}
+        const delta = next - prev;
+        try {
+          // Smoothly scroll the right rail by the clamped delta
+          right.scrollBy({ top: delta, behavior: 'smooth' });
+        } catch {
+          // Fallback for environments without scrollBy/behavior support
+          right.scrollTop = next;
+        }
       }
     };
 
