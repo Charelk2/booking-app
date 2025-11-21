@@ -93,7 +93,7 @@ function ReviewStars({ rating }: { rating: number }) {
   return (
     <div className="flex items-center">
       {[...Array(5)].map((_, i) => (
-        <StarSolidIcon key={i} className={`h-2 w-2 ${i < full ? 'text-black' : 'text-gray-300'}`} />
+        <StarSolidIcon key={i} className={`h-2.5 w-2.5 ${i < full ? 'text-black' : 'text-gray-300'}`} />
       ))}
     </div>
   );
