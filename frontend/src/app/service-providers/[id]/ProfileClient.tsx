@@ -858,7 +858,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       <div className="flex items-baseline justify-between mb-6">
         <div>
           <span className="text-xl font-bold text-gray-900">
-            {priceBand || 'Contact us'}
+            'From' {priceBand || 'Contact us'}
           </span>
         </div>
 
