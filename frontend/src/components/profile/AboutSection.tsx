@@ -112,20 +112,6 @@ export default function AboutSection({
           </p>
         )}
 
-        {/* Highlights */}
-        {hasHighlights && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {highlights.slice(0, 4).map((item) => (
-              <span
-                key={item}
-                className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        )}
-
         {/* Description */}
         {firstSentence && (
           <>
