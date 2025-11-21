@@ -23,7 +23,7 @@ export default function AboutSection({ variant = 'mobile', displayName, profileP
     bare ? (
       <div className="mt-4">{children}</div>
     ) : (
-      <div className="mt-4 relative isolate overflow-hidden rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100 md:p-8 dark:bg-gray-900 dark:ring-gray-800">
+      <div className="mt-4 relative isolate overflow-hidden  bg-white p-4 md:p-4">
         {children}
       </div>
     );
