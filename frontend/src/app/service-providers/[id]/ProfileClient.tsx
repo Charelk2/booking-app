@@ -813,9 +813,9 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       {profilePictureUrl ? (
                         <SafeImage
                           src={profilePictureUrl}
-                          width={96}
-                          height={96}
-                          className="h-24 w-24 rounded-full object-cover shadow-md ring-4 ring-white"
+                          width={80}
+                          height={80}
+                          className="h-24 w-24 rounded-full object-cover shadow-md ring-2 ring-white"
                           alt={displayName}
                         />
                       ) : (
