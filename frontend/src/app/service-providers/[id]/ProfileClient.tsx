@@ -845,16 +845,16 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       )}
                     </div>
 
-                    <div className="mt-4 flex items-center justify-center gap-2">
+                    <div className="mt-6 flex items-center justify-center gap-2">
                       <button
-                        className="rounded-full bg-white/90 p-2 shadow-sm border border-gray-100"
+                        className="hover:rounded-full hover:shadow-sm hover:bg-gray-50 p-3"
                         aria-label="Share profile"
                         onClick={() => setIsShareOpen(true)}
                       >
                         <ShareIcon className="h-4 w-4 text-gray-700" />
                       </button>
                       <button
-                        className="rounded-full bg-white/90 p-2 shadow-sm border border-gray-100"
+                        className="hover:rounded-full hover:shadow-sm hover:bg-gray-50 p-3"
                         aria-label="Save profile"
                       >
                         <HeartIcon className="h-4 w-4 text-gray-700" />
