@@ -1064,19 +1064,21 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               key={`rev-desktop-${review.id}`}
                               className="w-full md:w-[calc(50%-0.75rem)] rounded-xl border border-gray-100 p-4 bg-white"
                             >
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                                {realReview && clientId ? (
-                                  <Link
-                                    href={`/clients/${clientId}`}
-                                    target="_blank"
-                                    rel="noreferrer noopener"
-                                    className="sm:mr-3 no-underline hover:no-underline"
-                                  >
-                                    {headerMain}
-                                  </Link>
-                                ) : (
-                                  headerMain
-                                )}
+                              <div className="mb-2 space-y-1">
+                                <div>
+                                  {realReview && clientId ? (
+                                    <Link
+                                      href={`/clients/${clientId}`}
+                                      target="_blank"
+                                      rel="noreferrer noopener"
+                                      className="no-underline hover:no-underline"
+                                    >
+                                      {headerMain}
+                                    </Link>
+                                  ) : (
+                                    headerMain
+                                  )}
+                                </div>
                                 <div className="flex items-center gap-1 text-xs text-gray-700">
                                   <ReviewStars rating={Number(review.rating) || 0} />
                                   <span aria-hidden className="text-gray-400">
