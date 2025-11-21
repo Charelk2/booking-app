@@ -871,12 +871,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       >
         Request Booking
       </button>
-
-      {/* Microcopy */}
-      <div className="mt-4 text-center">
-        <p className="text-xs text-gray-500">You won't be charged yet</p>
-      </div>
-
     </div>
   </div>
 )}
