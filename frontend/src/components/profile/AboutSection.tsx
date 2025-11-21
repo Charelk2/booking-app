@@ -38,18 +38,42 @@ export default function AboutSection({
     ? getTownProvinceFromAddress(serviceProvider.location)
     : "";
 
-  // Use the full description and handle truncation via CSS/State
+  // Use the full description and handle truncation via sentence logic
   const description = (serviceProvider?.description || "").trim();
 
-  // Logic: Only show "Read more" if there is more than one sentence OR newlines, 
-  // AND the text is long enough (approx > 150 chars) to actually warrant collapsing.
-  const hasNewlines = description.includes('\n');
-  const sentenceMatch = description.match(/[.!?](\s+)/);
-  const hasMultipleSentences = sentenceMatch 
-    ? (sentenceMatch.index! + sentenceMatch[0].length < description.length) 
-    : false;
+  // Split description into rough "sentences" using punctuation and newlines.
+  // This isn't perfect English sentence parsing, but it's simple and robust enough
+  // for bios and avoids advanced regex features (lookbehind) for browser safety.
+  const sentences: string[] = React.useMemo(() => {
+    if (!description) return [];
+    const out: string[] = [];
+    let current = "";
+    for (let i = 0; i < description.length; i += 1) {
+      const ch = description[i];
+      current += ch;
+      const next = description[i + 1];
 
-  const isLongText = description.length > 150 && (hasNewlines || hasMultipleSentences);
+      if (ch === "\n") {
+        if (current.trim()) out.push(current.trim());
+        current = "";
+        continue;
+      }
+
+      if (ch === "." || ch === "!" || ch === "?") {
+        if (!next || /\s/.test(next)) {
+          if (current.trim()) out.push(current.trim());
+          current = "";
+        }
+      }
+    }
+    if (current.trim()) out.push(current.trim());
+    return out;
+  }, [description]);
+
+  const hasMoreThanOneSentence = sentences.length > 1;
+  const collapsedText =
+    hasMoreThanOneSentence && sentences[0] ? sentences[0] : description;
+  const expandedText = description;
 
   const withCard = (children: React.ReactNode) =>
     bare ? (
@@ -117,13 +141,13 @@ export default function AboutSection({
         <div className="relative">
           <div
             className={`text-[15px] leading-relaxed text-gray-600 whitespace-pre-line transition-all duration-200 ${
-              !isExpanded && isLongText ? "line-clamp-4" : ""
+              ""
             }`}
           >
-            {description}
+            {isExpanded ? expandedText : collapsedText}
           </div>
 
-          {isLongText && (
+          {hasMoreThanOneSentence && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="mt-2 flex items-center gap-1 text-sm font-semibold text-gray-900 underline decoration-gray-300 underline-offset-4 hover:text-gray-700 focus:outline-none"
