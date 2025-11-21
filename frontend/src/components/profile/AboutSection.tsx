@@ -121,7 +121,7 @@ export default function AboutSection({ variant = 'mobile', displayName, profileP
             <div className="mt-4">
               <button
                 onClick={onMessageClick}
-                className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition"
+                className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-200 transition"
               >
                 Message {displayName}
               </button>
