@@ -119,7 +119,10 @@ export default function AboutSection({ variant = 'mobile', displayName, profileP
           {content}
           {onMessageClick && (
             <div className="mt-4">
-              <button onClick={onMessageClick} className="w-full inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white">
+              <button
+                onClick={onMessageClick}
+                className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition"
+              >
                 Message {displayName}
               </button>
               <p className="mt-2 text-[11px] text-gray-500">To help protect your payment, always use Booka to send money and communicate with artists.</p>
