@@ -1041,7 +1041,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               <Avatar
                                 src={avatarSrc || undefined}
                                 initials={initials}
-                                size={32}
+                                size={38}
                               />
                               <div className="flex flex-col">
                                 <p className="text-xs font-semibold text-gray-900">
