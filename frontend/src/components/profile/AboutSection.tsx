@@ -7,7 +7,6 @@ import {
   UserIcon,
   MapPinIcon,
   BriefcaseIcon,
-  SparklesIcon,
   CheckBadgeIcon,
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
@@ -103,21 +102,6 @@ export default function AboutSection({
           </div>
         </div>
       </div>
-
-      {/* 2. Highlights Section (The "Fun Facts" Row) */}
-      {highlights && highlights.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {highlights.slice(0, 4).map((highlight, i) => (
-            <span
-              key={i}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700"
-            >
-              <SparklesIcon className="h-3.5 w-3.5 text-gray-400" />
-              {highlight}
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* 3. Bio / Description */}
       {description && (
