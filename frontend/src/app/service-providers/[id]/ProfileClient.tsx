@@ -840,10 +840,10 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       <p className="mt-1 text-sm text-gray-800">{serviceProvider.custom_subtitle}</p>
                     )}
 
-                    <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-gray-800">
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-gray-800 leading-none">
                       {averageRating && (
-                        <span className="flex items-center cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
-                          <StarSolidIcon className="h-3 w-3 mr-1 text-black" />
+                        <span className="inline-flex items-center justify-center gap-1 cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
+                          <StarSolidIcon className="h-3 w-3 text-black" />
                           {averageRating} ({displayReviews.length} reviews)
                         </span>
                       )}
