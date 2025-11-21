@@ -93,7 +93,7 @@ function ReviewStars({ rating }: { rating: number }) {
   return (
     <div className="flex items-center">
       {[...Array(5)].map((_, i) => (
-        <StarSolidIcon key={i} className={`h-4 w-4 ${i < full ? 'text-black' : 'text-gray-300'}`} />
+        <StarSolidIcon key={i} className={`h-3 w-3 ${i < full ? 'text-black' : 'text-gray-300'}`} />
       ))}
     </div>
   );
@@ -1064,7 +1064,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               key={`rev-desktop-${review.id}`}
                               className="w-full md:w-[calc(50%-0.75rem)] rounded-xl border border-gray-100 p-4 bg-white"
                             >
-                              <div className="mb-2 space-y-1">
+                              <div className="mb-4 space-y-2">
                                 <div>
                                   {realReview && clientId ? (
                                     <Link
