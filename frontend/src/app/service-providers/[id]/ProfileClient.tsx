@@ -125,17 +125,6 @@ function ReviewSummary({ reviews }: { reviews: ReviewType[] }) {
           {avg} · {total} {total === 1 ? 'review' : 'reviews'}
         </p>
       </div>
-      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {breakdown.map((row) => (
-          <div key={`row-${row.stars}`} className="flex items-center gap-3">
-            <span className="w-8 text-sm text-gray-600">{row.stars}★</span>
-            <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-full bg-gray-900" style={{ width: `${row.pct}%` }} />
-            </div>
-            <span className="w-10 text-right text-sm text-gray-600">{row.pct}%</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
