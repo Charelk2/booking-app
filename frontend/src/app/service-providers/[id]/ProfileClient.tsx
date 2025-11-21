@@ -762,7 +762,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               ) : (
                                 headerMain
                               )}
-                              <div className="flex items-center gap-1 text-xs text-gray-700">
+                              <div className="flex items-center gap-1 pt-4 text-xs text-gray-700">
                                 <ReviewStars rating={Number(review.rating) || 0} />
                                 <span aria-hidden className="text-gray-400">
                                   •
@@ -1079,7 +1079,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                                     headerMain
                                   )}
                                 </div>
-                                <div className="flex items-center gap-1 text-xs text-gray-700">
+                                <div className="flex items-center pt-4 gap-1 text-xs text-gray-700">
                                   <ReviewStars rating={Number(review.rating) || 0} />
                                   <span aria-hidden className="text-gray-400">
                                     •
