@@ -146,7 +146,7 @@ function ShareArrowUpIcon(props: React.SVGProps<SVGSVGElement>) {
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
-      strokeWidth={1.5}
+      strokeWidth={2}
       stroke="currentColor"
       {...props}
     >
@@ -863,7 +863,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       )}
                     </div>
 
-                    <div className="mt-6 flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <button
                         className="hover:rounded-full hover:shadow-sm hover:bg-gray-50 p-3"
                         aria-label="Share profile"
@@ -875,7 +875,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         className="hover:rounded-full hover:shadow-sm hover:bg-gray-50 p-3"
                         aria-label="Save profile"
                       >
-                        <HeartIcon className="h-4 w-4 text-gray-700" />
+                        <HeartIcon className="h-4 w-4 text-gray-700" strokeWidth={2} />
                       </button>
                     </div>
                   </div>
