@@ -874,6 +874,20 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         <HeartIcon className="h-4 w-4 text-gray-900" strokeWidth={2.5} />
                       </button>
                     </div>
+
+                    {!!highlights.length && (
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        {highlights.slice(0, 4).map((h) => (
+                          <span
+                            key={`left-highlight-${h}`}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-800"
+                          >
+                            <CheckBadgeIcon className="h-3.5 w-3.5 text-gray-700" />
+                            {h}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                 {/* Sticky Action Dock -   Airbnb Style Card */}
@@ -937,26 +951,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       onMessageClick={openMessageModalOrLogin}
                     />
                   </>
-                )}
-
-                {/* Highlights (desktop, summary above reviews) */}
-                {!!highlights.length && (
-                  <section aria-label="Key highlights" className="pb-4">
-                    <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                      Highlights
-                    </h2>
-                    <div className="flex flex-wrap gap-2">
-                      {highlights.slice(0, 6).map((h) => (
-                        <span
-                          key={`desk-highlight-${h}`}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-800"
-                        >
-                          <CheckBadgeIcon className="h-3.5 w-3.5 text-gray-700" />
-                          {h}
-                        </span>
-                      ))}
-                    </div>
-                  </section>
                 )}
 
                 {/* Reviews (desktop) */}
