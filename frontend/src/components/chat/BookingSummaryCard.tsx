@@ -126,7 +126,7 @@ const AvatarHeader: React.FC<
           <div className="flex-1 min-w-0">
             {bookingConfirmed && (
               <div
-                className="mb-1 inline-flex items-center rounded-full bg-green-500/90 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-white shadow"
+                className="mb-1 inline-flex items-center rounded-full bg-white px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-black shadow"
                 aria-label="Booking confirmed"
               >
                 <CheckCircle className="w-3 h-3 mr-1" />
