@@ -173,7 +173,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
-  // Data state from serve
+  // Data state from serve 
   const [serviceProvider] = useState<ServiceProviderProfile | null>(initialServiceProvider || null);
   const [services] = useState<Service[]>(() => (initialServices || []).map(normalizeService));
   const [reviews, setReviews] = useState<ReviewType[]>(initialReviews || []);
