@@ -120,7 +120,7 @@ function ReviewSummary({ reviews }: { reviews: ReviewType[] }) {
   if (!total) return null;
   return (
     <div className="rounded-2xl">
-      <div className="flex items-center gap-3">
+      <div className="mt-12 mb-12 flex items-center gap-3">
         <StarSolidIcon className="h-5 w-5 text-black" />
         <p className="text-lg font-semibold text-gray-900">
           {avg} · {total} {total === 1 ? 'review' : 'reviews'}
@@ -1062,7 +1062,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           return (
                             <li
                               key={`rev-desktop-${review.id}`}
-                              className={`w-full md:w-[calc(50%-0.75rem)] rounded-xl p-2 bg-white ${idx >= 2 ? 'pt-6' : ''}`}
+                              className={`w-full md:w-[calc(50%-0.75rem)] rounded-xl bg-white ${idx >= 2 ? 'pt-6' : ''}`}
                             >
                               <div className="mb-4 space-y-2">
                                 <div>
