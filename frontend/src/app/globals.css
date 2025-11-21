@@ -77,8 +77,8 @@ html, body {
   --shadow-sm: 0 6px 20px rgb(var(--color-foreground-rgb) / 8%);
   --shadow-md: 0 8px 24px rgb(var(--color-foreground-rgb) / 15%);
 
-  /* Sticky offset for service provider desktop rails (aligned with dynamic header height) */
-  --sp-sticky-top: var(--app-header-height, 64px);
+  /* Sticky offset for service provider desktop rails (aligned with dynamic header height + extra spacing) */
+  --sp-sticky-top: calc(var(--app-header-height, 64px) + 16px);
 }
 
 @layer base {
