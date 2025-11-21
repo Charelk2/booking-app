@@ -85,7 +85,7 @@ export default function AboutSection({
         {/* Name & Role Column */}
         <div className="flex flex-col justify-center">
           <h3 className="text-2xl font-bold text-gray-900 md:text-3xl">
-            {displayName.split(" ")[0]}
+            {displayName}
           </h3>
           <div className="mt-1 flex flex-col gap-0.5">
             {serviceProvider?.primary_role && (
@@ -161,7 +161,7 @@ export default function AboutSection({
             : "mt-12 text-2xl font-bold tracking-tight text-gray-900"
         }
       >
-        About {displayName.split(" ")[0]}
+        About {displayName}
       </h2>
 
       {withCard(
