@@ -1006,7 +1006,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                 {/* Reviews (desktop) */}
                 <section aria-labelledby="reviews-heading-desktop" className="group pb-10">
                   <div className="h-px w-full bg-gray-200" />
-                  <h2 id="reviews-heading-desktop" className="mt-12 text-2xl font-bold text-gray-800 mb-3">Reviews</h2>
+                  <h2 id="reviews-heading-desktop" className="mt-12 text-2xl font-bold text-gray-800 mb-3 hidden">Reviews</h2>
                   {displayReviews.length ? (
                     <>
                       <ReviewSummary reviews={displayReviews} />
