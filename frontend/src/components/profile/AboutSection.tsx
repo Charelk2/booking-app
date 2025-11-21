@@ -40,7 +40,16 @@ export default function AboutSection({
 
   // Use the full description and handle truncation via CSS/State
   const description = (serviceProvider?.description || "").trim();
-  const isLongText = description.length > 240;
+
+  // Logic: Only show "Read more" if there is more than one sentence OR newlines, 
+  // AND the text is long enough (approx > 150 chars) to actually warrant collapsing.
+  const hasNewlines = description.includes('\n');
+  const sentenceMatch = description.match(/[.!?](\s+)/);
+  const hasMultipleSentences = sentenceMatch 
+    ? (sentenceMatch.index! + sentenceMatch[0].length < description.length) 
+    : false;
+
+  const isLongText = description.length > 150 && (hasNewlines || hasMultipleSentences);
 
   const withCard = (children: React.ReactNode) =>
     bare ? (
