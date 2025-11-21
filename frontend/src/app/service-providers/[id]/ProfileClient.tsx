@@ -944,24 +944,21 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
 {!!services.length && (
   <div className="mt-2 sticky z-10 top-24 w-full">
     <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)] p-6">
-      
-      {/* Header: Price & Rating */}
-      <div className="flex items-baseline justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <span className="text-xl font-bold text-gray-900">
-            From {priceBand || 'Contact us'}
-          </span>
+          <p className="text-[11px] uppercase tracking-wide text-gray-500">From</p>
+          <p className="text-sm font-semibold text-gray-900">
+            {priceBand || 'Contact us'}
+          </p>
         </div>
 
+        <button
+          onClick={() => openMobileServicePicker()}
+          className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-gray-800 via-black to-gray-800 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
+        >
+          Request booking
+        </button>
       </div>
-
-      {/* Big Gradient CTA Button */}
-      <button
-        onClick={() => openMobileServicePicker()}
-        className="w-full rounded-xl bg-gradient-to-r from-gray-800 via-black to-gray-800 py-2.5 text-base font-bold text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
-      >
-        Request Booking
-      </button>
     </div>
   </div>
 )}
