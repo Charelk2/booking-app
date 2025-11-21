@@ -772,7 +772,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                 <div className="mx-auto max-w-5xl">
                   <button
                     onClick={() => openMobileServicePicker()}
-                    className="w-full inline-flex items-center justify-center rounded-xl px-4 py-3 text-base font-semibold bg-gradient-to-r from-gray-900 via-black to-gray-900 text-white shadow-sm active:scale-[0.99] transition disabled:opacity-50"
+                    className="w-full inline-flex items-center justify-center rounded-xl px-4 py-3 text-base font-semibold bg-gradient-to-r from-gray-900 via-gray-700 to-black text-white shadow-sm active:scale-[0.99] transition disabled:opacity-50"
                     disabled={!services.length}
                     aria-label="Request booking"
                   >
@@ -872,7 +872,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       {/* Big Gradient CTA Button */}
       <button
         onClick={() => openMobileServicePicker()}
-        className="w-full rounded-xl bg-gradient-to-r from-gray-900 via-black to-gray-900 py-2.5 text-base font-bold text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
+        className="w-full rounded-xl bg-gradient-to-r from-gray-900 via-gray-700 to-black py-2.5 text-base font-bold text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
       >
         Request Booking
       </button>
