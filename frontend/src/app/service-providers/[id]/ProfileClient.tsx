@@ -845,7 +845,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     )}
 
                     {!!highlights.length && (
-                      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                      <div className="mt-3 hidden flex-wrap items-center justify-center gap-2">
                         {highlights.slice(0, 4).map((h) => (
                           <span
                             key={`left-highlight-${h}`}
