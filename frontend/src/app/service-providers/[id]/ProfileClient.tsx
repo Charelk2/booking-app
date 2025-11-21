@@ -849,30 +849,80 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     </div>
                   </div>
 
-                  {/* Sticky Action Dock (left rail) */}
-                  {!!services.length && (
-                    <div className="mt-6 sticky z-10" style={{ top: 'calc(100vh - 9.5rem)' }} aria-label="Quick booking actions">
-                      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm text-gray-600">
-                            {priceBand ? (
-                              <>
-                                <span className="font-semibold text-gray-900">Typical price:</span> {priceBand}
-                              </>
-                            ) : (
-                              'Select a service to see pricing'
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <button onClick={() => openMobileServicePicker()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-semibold text-white">
-                            <BoltIcon className="h-4 w-4" />
-                            Request booking
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                {/* Sticky Action Dock - Airbnb Style Card */}
+{!!services.length && (
+  <div className="mt-6 sticky z-10 top-24 w-full">
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)] p-6">
+      
+      {/* Header: Price & Rating */}
+      <div className="flex items-baseline justify-between mb-6">
+        <div>
+          <span className="text-2xl font-bold text-gray-900">
+            {priceBand || 'Contact us'}
+          </span>
+          {priceBand && <span className="text-gray-500 text-sm ml-1 font-normal">total</span>}
+        </div>
+        <div className="flex items-center gap-1 text-sm font-medium text-gray-800">
+             <StarSolidIcon className="h-3 w-3" />
+             <span className="underline">{averageRating || 'New'}</span>
+        </div>
+      </div>
+
+      {/* "Inputs" Border Box Facade */}
+      <div className="rounded-xl border border-gray-400 mb-4 overflow-hidden">
+        {/* Top Half: Service Selection */}
+        <button 
+          onClick={() => openMobileServicePicker()}
+          className="w-full text-left px-3 py-2.5 border-b border-gray-400 hover:bg-gray-50 transition bg-white"
+        >
+           <div className="text-[10px] font-extrabold text-gray-800 uppercase tracking-wider">Service</div>
+           <div className="text-sm text-gray-600 truncate mt-0.5">
+              {selectedServiceObj ? selectedServiceObj.title : 'Select a package'}
+           </div>
+        </button>
+        
+        {/* Bottom Half: Date & Guests (Visual placeholder to match look) */}
+        <button 
+           onClick={openMessageModalOrLogin} 
+           className="w-full flex text-left bg-white hover:bg-gray-50 transition"
+        >
+           <div className="flex-1 border-r border-gray-400 px-3 py-2.5">
+              <div className="text-[10px] font-extrabold text-gray-800 uppercase tracking-wider">Date</div>
+              <div className="text-sm text-gray-400 mt-0.5">Add date</div>
+           </div>
+           <div className="flex-1 px-3 py-2.5">
+              <div className="text-[10px] font-extrabold text-gray-800 uppercase tracking-wider">Guests</div>
+              <div className="text-sm text-gray-400 mt-0.5">Add guests</div>
+           </div>
+        </button>
+      </div>
+
+      {/* Big Gradient CTA Button */}
+      <button
+        onClick={() => openMobileServicePicker()}
+        className="w-full rounded-xl bg-gradient-to-r from-[#FF385C] to-[#E01D46] py-3.5 text-base font-bold text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
+      >
+        Check availability
+      </button>
+
+      {/* Microcopy */}
+      <div className="mt-4 text-center">
+        <p className="text-xs text-gray-500">You won't be charged yet</p>
+      </div>
+      
+      {/* Footer Links */}
+      <div className="mt-4 flex items-center justify-center pt-2">
+          <button 
+            onClick={openMessageModalOrLogin} 
+            className="text-sm font-semibold text-gray-500 underline decoration-gray-300 hover:text-gray-900"
+          >
+            Message Artist
+          </button>
+      </div>
+
+    </div>
+  </div>
+)}
                 </div>
                 </div>
               </aside>
