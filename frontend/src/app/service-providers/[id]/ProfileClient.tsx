@@ -819,7 +819,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     <h1 className="mt-4 text-4xl font-bold text-gray-900">{displayName}</h1>
 
                     {serviceProvider.custom_subtitle && (
-                      <p className="mt-2 text-sm text-gray-600">{serviceProvider.custom_subtitle}</p>
+                      <p className="mt-1 text-sm text-gray-800">{serviceProvider.custom_subtitle}</p>
                     )}
 
                     {!!highlights.length && (
