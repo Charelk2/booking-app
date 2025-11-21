@@ -1530,7 +1530,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
           </div>
         </div>
         {detailedService.description && (
-          <div className="p-3 text-sm text-gray-700 whitespace-pre-line md:p-4 md:text-base max-h-40 overflow-y-auto">{detailedService.description}</div>
+          <div className="p-2 md:p-3 text-sm text-gray-700 whitespace-pre-line md:text-base max-h-40 overflow-y-auto">{detailedService.description}</div>
         )}
       </div>
       <div className="mt-auto flex gap-3 pt-2">
