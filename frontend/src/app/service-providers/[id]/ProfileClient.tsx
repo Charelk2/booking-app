@@ -12,6 +12,7 @@ import { Toast, Spinner, Avatar } from '@/components/ui';
 
 import type { ServiceProviderProfile, Service, Review as ReviewType } from '@/types';
 import {
+  apiUrl,
   createBookingRequest,
   postMessageToBookingRequest,
   startMessageThread,
@@ -172,7 +173,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
-  // Data state from server props ---
+  // Data state from server props
   const [serviceProvider] = useState<ServiceProviderProfile | null>(initialServiceProvider || null);
   const [services] = useState<Service[]>(() => (initialServices || []).map(normalizeService));
   const [reviews, setReviews] = useState<ReviewType[]>(initialReviews || []);
@@ -229,6 +230,48 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
     }
     return arr;
   }, [displayReviews, reviewQueryDeferred, reviewSort]);
+
+  // Lightweight per-client location for reviews (last booking city/region via client profile)
+  const [clientLocations, setClientLocations] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    const ids = Array.from(
+      new Set(
+        displayReviews
+          .map((r) => r.client?.id ?? r.client_id)
+          .filter((id): id is number => typeof id === 'number' && id > 0),
+      ),
+    );
+    if (!ids.length) return;
+
+    ids.forEach((id) => {
+      // Avoid refetching if we already have a location cached
+      if (clientLocations[id]) return;
+      (async () => {
+        try {
+          const res = await fetch(apiUrl(`/api/v1/users/${id}/profile`), {
+            credentials: 'include',
+          });
+          if (!res.ok) return;
+          const data: any = await res.json();
+          const firstProvider = data?.reviews?.[0]?.provider;
+          const rawLocation =
+            firstProvider?.location ||
+            firstProvider?.city ||
+            '';
+          if (!rawLocation) return;
+          const formatted =
+            getTownProvinceFromAddress(rawLocation) || rawLocation;
+          if (!formatted) return;
+          setClientLocations((prev) =>
+            prev[id] ? prev : { ...prev, [id]: formatted },
+          );
+        } catch {
+          // Best-effort only; ignore failures
+        }
+      })();
+    });
+  }, [displayReviews, clientLocations]);
 
   // Desktop scroll-sync: left and right rails
   const leftRef = useRef<HTMLDivElement | null>(null);
@@ -667,6 +710,10 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           firstName ||
                           review.client?.email ||
                           'Client';
+                        const clientLocation =
+                          typeof clientId === 'number'
+                            ? clientLocations[clientId] || ''
+                            : '';
                         const initials =
                           review.client?.first_name?.[0] ||
                           clientName.trim().charAt(0) ||
@@ -688,6 +735,11 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               <p className="text-xs font-semibold text-gray-900">
                                 {clientName}
                               </p>
+                              {clientLocation && (
+                                <p className="text-[11px] text-gray-500">
+                                  {clientLocation}
+                                </p>
+                              )}
                             </div>
                           </div>
                         );
@@ -973,6 +1025,10 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                             firstName ||
                             review.client?.email ||
                             'Client';
+                          const clientLocation =
+                            typeof clientId === 'number'
+                              ? clientLocations[clientId] || ''
+                              : '';
                           const initials =
                             review.client?.first_name?.[0] ||
                             clientName.trim().charAt(0) ||
@@ -994,6 +1050,11 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                                 <p className="text-xs font-semibold text-gray-900">
                                   {clientName}
                                 </p>
+                                {clientLocation && (
+                                  <p className="text-[11px] text-gray-500">
+                                    {clientLocation}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           );
