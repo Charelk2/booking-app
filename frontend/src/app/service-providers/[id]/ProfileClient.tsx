@@ -231,59 +231,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    let frameId: number | null = null;
-    let velocity = 0;
-    let lastTime: number | null = null;
-
-    const step = (time: number) => {
-      const right = rightRef.current;
-      if (!right) {
-        frameId = null;
-        velocity = 0;
-        lastTime = null;
-        return;
-      }
-      if (lastTime == null) lastTime = time;
-      const dtMs = time - lastTime;
-      lastTime = time;
-      let dt = dtMs > 0 && Number.isFinite(dtMs) ? dtMs / 16.67 : 1;
-      // Clamp dt so tab switches or long frames don't cause huge jumps
-      if (!Number.isFinite(dt) || dt <= 0) dt = 1;
-      if (dt < 0.5) dt = 0.5;
-      if (dt > 2) dt = 2;
-
-      // Apply friction to approximate inertial scroll decay
-      const friction = 0.9;
-      velocity *= Math.pow(friction, dt);
-
-      if (Math.abs(velocity) < 0.1) {
-        velocity = 0;
-        frameId = null;
-        lastTime = null;
-        return;
-      }
-
-      const max = Math.max(0, right.scrollHeight - right.clientHeight);
-      if (max <= 0) {
-        velocity = 0;
-        frameId = null;
-        lastTime = null;
-        return;
-      }
-
-      let next = right.scrollTop + velocity * dt;
-      if (next < 0) {
-        next = 0;
-        velocity = 0;
-      } else if (next > max) {
-        next = max;
-        velocity = 0;
-      }
-      right.scrollTop = next;
-
-      frameId = window.requestAnimationFrame(step);
-    };
-
     const onWheel = (e: WheelEvent) => {
       // Desktop only
       const mql = window.matchMedia('(min-width: 768px)');
@@ -298,7 +245,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       while (node) {
         const role = node.getAttribute?.('role');
         const modal = node.getAttribute?.('aria-modal');
-        if ((role === 'dialog') || (modal === 'true')) return;
+        if (role === 'dialog' || modal === 'true') return;
         node = node.parentElement;
       }
 
@@ -306,32 +253,20 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       if (!right) return;
       const max = Math.max(0, right.scrollHeight - right.clientHeight);
       if (max <= 0) return;
-      try { e.preventDefault(); } catch {}
-
-      const delta = e.deltaY || 0;
-      if (!delta) return;
-
-      // Accumulate wheel delta into a velocity term; let rAF handle the smoothing.
-      const SCALE = 0.25;
-      velocity += delta * SCALE;
-      const maxVelocity = 40;
-      if (velocity > maxVelocity) velocity = maxVelocity;
-      if (velocity < -maxVelocity) velocity = -maxVelocity;
-
-      if (frameId == null) {
-        frameId = window.requestAnimationFrame(step);
+      const prev = right.scrollTop;
+      const next = Math.max(0, Math.min(prev + (e.deltaY || 0), max));
+      if (next !== prev) {
+        right.scrollTop = next;
+        try {
+          e.preventDefault();
+        } catch {
+          // ignore
+        }
       }
     };
 
     window.addEventListener('wheel', onWheel, { passive: false, capture: true });
-    return () => {
-      window.removeEventListener('wheel', onWheel as any, true);
-      if (frameId != null) {
-        try { window.cancelAnimationFrame(frameId); } catch {}
-      }
-      velocity = 0;
-      lastTime = null;
-    };
+    return () => window.removeEventListener('wheel', onWheel as any, true);
   }, []);
 
   const priceBand = useMemo(() => {
