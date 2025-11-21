@@ -869,10 +869,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                             <BoltIcon className="h-4 w-4" />
                             Request booking
                           </button>
-                          <button onClick={openMessageModalOrLogin} className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800">
-                            <ChatBubbleOvalLeftIcon className="h-4 w-4" />
-                            Message
-                          </button>
                         </div>
                       </div>
                     </div>
