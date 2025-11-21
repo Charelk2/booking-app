@@ -672,9 +672,12 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           clientName.trim().charAt(0) ||
                           '•';
                         const avatarSrc = review.client?.profile_picture_url || null;
-                        const reviewedOn = new Date(review.created_at).toLocaleDateString('en');
+                        const reviewedOn = new Date(review.created_at).toLocaleDateString('en', {
+                          month: 'long',
+                          year: 'numeric',
+                        });
 
-                        const avatarBlock = (
+                        const headerMain = (
                           <div className="flex items-center gap-2">
                             <Avatar
                               src={avatarSrc || undefined}
@@ -682,11 +685,8 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               size={28}
                             />
                             <div className="flex flex-col">
-                              <p className="text-xs font-medium text-gray-700">
+                              <p className="text-xs font-semibold text-gray-900">
                                 {clientName}
-                              </p>
-                              <p className="text-[11px] text-gray-500">
-                                Reviewed on: {reviewedOn}
                               </p>
                             </div>
                           </div>
@@ -697,20 +697,28 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                             key={`rev-mobile-${review.id}`}
                             className="rounded-xl border border-gray-100 p-3 bg-white"
                           >
-                            <div className="flex items-center justify-between mb-1">
-                              <ReviewStars rating={Number(review.rating) || 0} />
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
                               {realReview && clientId ? (
                                 <Link
                                   href={`/clients/${clientId}`}
                                   target="_blank"
                                   rel="noreferrer noopener"
-                                  className="ml-3"
+                                  className="sm:mr-3"
                                 >
-                                  {avatarBlock}
+                                  {headerMain}
                                 </Link>
                               ) : (
-                                <div className="ml-3">{avatarBlock}</div>
+                                headerMain
                               )}
+                              <div className="flex items-center gap-1 text-xs text-gray-700">
+                                <ReviewStars rating={Number(review.rating) || 0} />
+                                <span aria-hidden className="text-gray-400">
+                                  •
+                                </span>
+                                <span className="text-[11px] text-gray-500">
+                                  {reviewedOn}
+                                </span>
+                              </div>
                             </div>
                             <p className="text-gray-600 text-sm leading-relaxed">
                               {review.comment}
@@ -970,9 +978,12 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                             clientName.trim().charAt(0) ||
                             '•';
                           const avatarSrc = review.client?.profile_picture_url || null;
-                          const reviewedOn = new Date(review.created_at).toLocaleDateString('en');
+                          const reviewedOn = new Date(review.created_at).toLocaleDateString('en', {
+                            month: 'long',
+                            year: 'numeric',
+                          });
 
-                          const avatarBlock = (
+                          const headerMain = (
                             <div className="flex items-center gap-2">
                               <Avatar
                                 src={avatarSrc || undefined}
@@ -980,11 +991,8 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                                 size={32}
                               />
                               <div className="flex flex-col">
-                                <p className="text-xs font-medium text-gray-800">
+                                <p className="text-xs font-semibold text-gray-900">
                                   {clientName}
-                                </p>
-                                <p className="text-[11px] text-gray-500">
-                                  Reviewed on: {reviewedOn}
                                 </p>
                               </div>
                             </div>
@@ -995,20 +1003,28 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               key={`rev-desktop-${review.id}`}
                               className="rounded-xl border border-gray-100 p-4 bg-white"
                             >
-                              <div className="flex items-start justify-between mb-2">
-                                <ReviewStars rating={Number(review.rating) || 0} />
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                                 {realReview && clientId ? (
                                   <Link
                                     href={`/clients/${clientId}`}
                                     target="_blank"
                                     rel="noreferrer noopener"
-                                    className="ml-3 no-underline hover:no-underline"
+                                    className="sm:mr-3 no-underline hover:no-underline"
                                   >
-                                    {avatarBlock}
+                                    {headerMain}
                                   </Link>
                                 ) : (
-                                  <div className="ml-3">{avatarBlock}</div>
+                                  headerMain
                                 )}
+                                <div className="flex items-center gap-1 text-xs text-gray-700">
+                                  <ReviewStars rating={Number(review.rating) || 0} />
+                                  <span aria-hidden className="text-gray-400">
+                                    •
+                                  </span>
+                                  <span className="text-[11px] text-gray-500">
+                                    {reviewedOn}
+                                  </span>
+                                </div>
                               </div>
                               <p className="text-gray-600 text-sm leading-relaxed">
                                 {review.comment}
