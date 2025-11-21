@@ -98,7 +98,7 @@ function ReviewStars({ rating }: { rating: number }) {
     </div>
   );
 }
-
+ 
 function ReviewSummary({ reviews }: { reviews: ReviewType[] }) {
   const total = reviews.length;
   const avg = useMemo(() => {
