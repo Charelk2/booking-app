@@ -711,7 +711,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       <div className="mt-2">
                         <button
                           type="button"
-                          className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition"
+                          className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition"
                           onClick={() => setIsAllReviewsOpen(true)}
                         >
                           Show all reviews
@@ -986,7 +986,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       </ul>
                       {displayReviews.length > 6 && (
                         <div className="mt-2">
-                          <button type="button" className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition" onClick={() => setIsAllReviewsOpen(true)}>
+                          <button type="button" className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition" onClick={() => setIsAllReviewsOpen(true)}>
                             Show all reviews
                           </button>
                         </div>
