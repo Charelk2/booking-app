@@ -127,8 +127,7 @@ export default function AboutSection({
               </div>
             )}
             {formattedLocation && (
-              <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                <MapPinIcon className="h-4 w-4 text-gray-400" />
+              <div className="flex items-center gap-1.5 text-sm text-gray-600">
                 <span>{formattedLocation}</span>
               </div>
             )}
