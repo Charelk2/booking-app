@@ -1062,7 +1062,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           return (
                             <li
                               key={`rev-desktop-${review.id}`}
-                              className="w-full md:w-[calc(50%-0.75rem)] rounded-xl border border-gray-100 p-4 bg-white"
+                              className="w-full md:w-[calc(50%-0.75rem)] rounded-xl p-2 bg-white"
                             >
                               <div className="mb-4 space-y-2">
                                 <div>
