@@ -111,7 +111,7 @@ export default function AboutSection({ variant = 'mobile', displayName, profileP
 
   return (
     <section aria-labelledby={`about-heading-${variant}`} className="group">
-      <h2 id={`about-heading-${variant}`} className={isMobile ? 'text-2xl font-bold tracking-tight text-gray-900' : 'text-2xl font-bold tracking-tight text-gray-900'}>
+      <h2 id={`about-heading-${variant}`} className={isMobile ? 'mt-12 text-2xl font-bold tracking-tight text-gray-900' : 'text-2xl font-bold tracking-tight text-gray-900'}>
         About
       </h2>
       {withCard(
