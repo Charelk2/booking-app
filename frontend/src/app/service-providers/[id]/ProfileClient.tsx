@@ -118,7 +118,7 @@ function ReviewSummary({ reviews }: { reviews: ReviewType[] }) {
 
   if (!total) return null;
   return (
-    <div className="rounded-2xl border border-gray-100 p-4 shadow-sm bg-gradient-to-br from-white to-gray-50">
+    <div className="rounded-2xl">
       <div className="flex items-center gap-3">
         <StarSolidIcon className="h-5 w-5 text-black" />
         <p className="text-lg font-semibold text-gray-900">
