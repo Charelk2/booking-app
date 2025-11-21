@@ -861,13 +861,13 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         aria-label="Share profile"
                         onClick={() => setIsShareOpen(true)}
                       >
-                        <ShareArrowUpIcon className="h-4 w-4 text-gray-700" />
+                        <ShareArrowUpIcon className="h-4 w-4 text-gray-900" />
                       </button>
                       <button
                         className="hover:rounded-full hover:shadow-sm hover:bg-gray-50 p-3"
                         aria-label="Save profile"
                       >
-                        <HeartIcon className="h-4 w-4 text-gray-700" strokeWidth={2.5} />
+                        <HeartIcon className="h-4 w-4 text-gray-900" strokeWidth={2.5} />
                       </button>
                     </div>
                   </div>
