@@ -838,7 +838,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       </div>
                     )}
 
-                    <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-gray-500">
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-gray-800">
                       {averageRating && (
                         <span className="flex items-center cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
                           <StarSolidIcon className="h-3 w-3 mr-1 text-black" />
