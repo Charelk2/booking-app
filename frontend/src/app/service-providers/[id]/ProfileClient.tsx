@@ -309,7 +309,11 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
     if (typeof sp.avg_response_minutes === 'number') {
       out.push(sp.avg_response_minutes <= 60 ? '< 1h response' : `~ ${Math.round(sp.avg_response_minutes / 60)}h response`);
     }
-    if ((sp.bookings_count || 0) > 0) out.push(`${sp.bookings_count}+ bookings`);
+    const completedEvents = Number(sp.completed_events || 0);
+    if (Number.isFinite(completedEvents) && completedEvents > 0) {
+      if (completedEvents === 1) out.push('1 completed booking');
+      else out.push(`${completedEvents} completed bookings`);
+    }
     if (sp.verified) out.push('Verified');
     return out;
   }, [serviceProvider]);
