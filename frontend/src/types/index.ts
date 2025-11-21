@@ -17,7 +17,7 @@ export interface ServiceProviderProfile {
   id: number;
   user_id: number;
   business_name: string;
-  /** Optional primary role or headline, e.g. 'DJ' */
+  /** Optional primary role or  headline, e.g. 'DJ' */
   primary_role?: string | null;
   custom_subtitle?: string | null;
   description?: string | null;
