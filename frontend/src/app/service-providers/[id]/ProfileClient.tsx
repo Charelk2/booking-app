@@ -867,7 +867,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       {/* Big Gradient CTA Button */}
       <button
         onClick={() => openMobileServicePicker()}
-        className="w-full rounded-xl bg-gradient-to-r from-[#FF385C] to-[#E01D46] py-3.5 text-base font-bold text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
+        className="w-full rounded-xl bg-gradient-to-r from-[#FF385C] to-[#E01D46] py-2.5 text-base font-bold text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
       >
         Request Booking
       </button>
