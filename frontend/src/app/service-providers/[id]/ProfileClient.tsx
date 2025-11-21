@@ -797,14 +797,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     <div className="h-full grid place-items-center text-gray-500">No cover photo</div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent rounded-3xl" />
-                  <div className="absolute right-3 top-3 flex gap-1.5">
-                    <button className="rounded-full bg-white/90 p-1.5 shadow-sm" aria-label="Share profile" onClick={() => setIsShareOpen(true)}>
-                      <ShareIcon className="h-4 w-4 text-gray-700" />
-                    </button>
-                    <button className="rounded-full bg-white/90 p-1.5 shadow-sm" aria-label="Save profile">
-                      <HeartIcon className="h-4 w-4 text-gray-700" />
-                    </button>
-                  </div>
                 </div>
 
                 <div className="pt-0 bg-white">
@@ -851,6 +843,22 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       {formattedLocation && (
                         <span className="flex items-center">{formattedLocation}</span>
                       )}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-center gap-2">
+                      <button
+                        className="rounded-full bg-white/90 p-2 shadow-sm border border-gray-100"
+                        aria-label="Share profile"
+                        onClick={() => setIsShareOpen(true)}
+                      >
+                        <ShareIcon className="h-4 w-4 text-gray-700" />
+                      </button>
+                      <button
+                        className="rounded-full bg-white/90 p-2 shadow-sm border border-gray-100"
+                        aria-label="Save profile"
+                      >
+                        <HeartIcon className="h-4 w-4 text-gray-700" />
+                      </button>
                     </div>
                   </div>
 
