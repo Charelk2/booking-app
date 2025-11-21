@@ -1011,7 +1011,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     <>
                       <ReviewSummary reviews={displayReviews} />
                       <ul className="mt-4 flex flex-wrap gap-3">
-                        {displayReviews.slice(0, 6).map((review) => {
+                        {displayReviews.slice(0, 6).map((review, idx) => {
                           const clientId = review.client?.id ?? review.client_id;
                           const hasBooking =
                             typeof review.booking_id === 'number' && review.booking_id > 0;
@@ -1040,7 +1040,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           });
 
                           const headerMain = (
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-6">
                               <Avatar
                                 src={avatarSrc || undefined}
                                 initials={initials}
@@ -1062,7 +1062,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           return (
                             <li
                               key={`rev-desktop-${review.id}`}
-                              className="w-full md:w-[calc(50%-0.75rem)] rounded-xl p-2 bg-white"
+                              className={`w-full md:w-[calc(50%-0.75rem)] rounded-xl p-2 bg-white ${idx >= 2 ? 'pt-6' : ''}`}
                             >
                               <div className="mb-4 space-y-2">
                                 <div>
