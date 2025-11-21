@@ -840,14 +840,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       <p className="mt-1 text-sm text-gray-800">{serviceProvider.custom_subtitle}</p>
                     )}
 
-                    {!!highlights.length && (
-                      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                        {highlights.slice(0, 8).map((h) => (
-                          <Chip key={`desk-pill-${h}`} leadingIcon={<CheckBadgeIcon className="h-4 w-4" />}>{h}</Chip>
-                        ))}
-                      </div>
-                    )}
-
                     <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-gray-800">
                       {averageRating && (
                         <span className="flex items-center cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
