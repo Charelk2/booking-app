@@ -246,7 +246,11 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       if (lastTime == null) lastTime = time;
       const dtMs = time - lastTime;
       lastTime = time;
-      const dt = dtMs > 0 && Number.isFinite(dtMs) ? dtMs / 16.67 : 1;
+      let dt = dtMs > 0 && Number.isFinite(dtMs) ? dtMs / 16.67 : 1;
+      // Clamp dt so tab switches or long frames don't cause huge jumps
+      if (!Number.isFinite(dt) || dt <= 0) dt = 1;
+      if (dt < 0.5) dt = 0.5;
+      if (dt > 2) dt = 2;
 
       // Apply friction to approximate inertial scroll decay
       const friction = 0.9;
@@ -308,8 +312,9 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       if (!delta) return;
 
       // Accumulate wheel delta into a velocity term; let rAF handle the smoothing.
-      velocity += delta;
-      const maxVelocity = 80;
+      const SCALE = 0.25;
+      velocity += delta * SCALE;
+      const maxVelocity = 40;
       if (velocity > maxVelocity) velocity = maxVelocity;
       if (velocity < -maxVelocity) velocity = -maxVelocity;
 
