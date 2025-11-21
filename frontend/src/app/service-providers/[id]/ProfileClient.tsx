@@ -848,7 +848,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         </span>
                       )}
                       {averageRating && formattedLocation && (
-                        <span aria-hidden className="text-gray-800">•</span>
+                        <span aria-hidden className="text-gray-800 text-[10px]">•</span>
                       )}
                       {formattedLocation && (
                         <span className="flex items-center">{formattedLocation}</span>
