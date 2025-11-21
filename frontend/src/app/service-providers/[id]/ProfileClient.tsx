@@ -689,7 +689,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
 
               {/* Reviews (mobile preview) */}
               <section aria-labelledby="reviews-heading-mobile">
-                <h2 id="reviews-heading-mobile" className="text-lg font-bold text-gray-900">Reviews</h2>
+                <h2 id="reviews-heading-mobile" className="text-lg font-bold text-gray-900 hidden">Reviews</h2>
                 {displayReviews.length ? (
                   <>
                     <div className="mt-3">
@@ -762,7 +762,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                               ) : (
                                 headerMain
                               )}
-                              <div className="flex items-center gap-1 pt-4 text-xs text-gray-700">
+                              <div className="flex items-center gap-1 text-xs text-gray-700">
                                 <ReviewStars rating={Number(review.rating) || 0} />
                                 <span aria-hidden className="text-gray-400">
                                   •
