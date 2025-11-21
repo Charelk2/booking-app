@@ -838,7 +838,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       </div>
                     )}
 
-                    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-gray-500">
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-gray-500">
                       {averageRating && (
                         <span className="flex items-center cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
                           <StarSolidIcon className="h-3 w-3 mr-1 text-black" />
@@ -856,7 +856,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
 
                 {/* Sticky Action Dock - Airbnb Style Card */}
 {!!services.length && (
-  <div className="mt-6 sticky z-10 top-24 w-full">
+  <div className="mt-2 sticky z-10 top-24 w-full">
     <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)] p-6">
       
       {/* Header: Price & Rating */}
