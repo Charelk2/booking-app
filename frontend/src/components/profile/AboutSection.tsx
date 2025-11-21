@@ -135,7 +135,7 @@ export default function AboutSection({
         </div>
       </div>
 
-      {/* 3. Bio / Description  */}
+      {/* 3. Bio / Description */}
       {description && (
         <div className="relative">
           <div
