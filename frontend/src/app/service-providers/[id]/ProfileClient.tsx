@@ -93,7 +93,7 @@ function ReviewStars({ rating }: { rating: number }) {
   return (
     <div className="flex items-center">
       {[...Array(5)].map((_, i) => (
-        <StarSolidIcon key={i} className={`h-2.5 w-2.5 ${i < full ? 'text-black' : 'text-gray-300'}`} />
+        <StarSolidIcon key={i} className={`h-3 w-3 ${i < full ? 'text-black' : 'text-gray-300'}`} />
       ))}
     </div>
   );
@@ -1040,11 +1040,11 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           });
 
                           const headerMain = (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-4">
                               <Avatar
                                 src={avatarSrc || undefined}
                                 initials={initials}
-                                size={38}
+                                size={42}
                               />
                               <div className="flex flex-col">
                                 <p className="text-xs font-semibold text-gray-900">
@@ -1362,7 +1362,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       : null;
 
                   const avatarBlock = (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-4">
                       <Avatar
                         src={avatarSrc || undefined}
                         initials={initials}
