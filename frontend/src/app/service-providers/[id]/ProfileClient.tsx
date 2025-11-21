@@ -890,7 +890,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     </div>
                   </div>
 
-                {/* Sticky Action Dock -   Airbnb Style Card */}
+                {/* Sticky Action Dock -  Airbnb Style Card */}
 {!!services.length && (
   <div className="mt-2 sticky z-10 top-24 w-full">
     <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)] p-6">
