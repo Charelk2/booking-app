@@ -74,7 +74,7 @@ export default function Loading() {
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="rounded-xl bg-white">
                   <div className="flex gap-4">
-                    <div className="relative h-32 w-32 rounded-3xl overflow-hidden bg-gray-200 animate-pulse shrink-0" />
+                    <div className="relative h-36 w-36 rounded-3xl overflow-hidden bg-gray-200 animate-pulse shrink-0" />
                     <div className="flex-1 py-1">
                       <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse" />
                       <div className="mt-2 h-3 bg-gray-200 rounded w-1/3 animate-pulse" />
