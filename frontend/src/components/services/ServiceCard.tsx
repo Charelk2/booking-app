@@ -18,28 +18,23 @@ export default function ServiceCard({ service, variant = 'mobile', onClick }: Pr
 
   if (variant === 'desktop') {
     return (
-      <div
-        className="group cursor-pointer rounded-2xl p-2 transition hover:bg-gray-50 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0"
-        onClick={onClick}
-      >
-        <div className="flex items-start gap-4">
-          <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-gray-100 ring-1 ring-gray-100 transition group-hover:ring-rose-100">
+      <div className="group cursor-pointer rounded-xl bg-white transition outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0" onClick={onClick}>
+        <div className="flex items-center gap-4">
+          <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-3xl bg-gray-100 group-hover:scale-105 transition-transform duration-200">
             {d.mediaUrl ? (
               <SafeImage src={d.mediaUrl} alt="" fill className="object-cover" sizes="(max-width: 1024px) 33vw, 25vw" />
             ) : (
-              <div className="h-full w-full grid place-items-center text-gray-400 text-xs">No image</div>
+              <div className="h-full w-full grid place-items-center text-gray-400">No image</div>
             )}
           </div>
-          <div className="min-w-0 flex-1 space-y-1">
-            <h3 className="text-base font-semibold leading-snug text-gray-900 group-hover:text-gray-700 transition-colors line-clamp-2">
-              {d.title}
-            </h3>
-            <p className="text-sm font-semibold text-gray-900">
-              {[d.priceText, d.durationLabel].filter(Boolean).join(' · ') || d.type}
-            </p>
-            {description && (
-              <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">{description}</p>
-            )}
+          <div className="min-w-0 flex-1">
+            <div>
+              <h3 className="text-md font-semibold text-gray-900 group-hover:text-gray-700 transition-colors truncate">{d.title}</h3>
+              <p className="text-sm text-gray-900">{[d.type, d.durationLabel, d.priceText].filter(Boolean).join(' · ')}</p>
+              {description && (
+                <p className="mt-2 text-sm text-gray-500 line-clamp-3">{description}</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
