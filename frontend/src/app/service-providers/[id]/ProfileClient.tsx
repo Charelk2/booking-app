@@ -172,7 +172,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
-  // Data state from server props ----
+  // Data state from server props ---
   const [serviceProvider] = useState<ServiceProviderProfile | null>(initialServiceProvider || null);
   const [services] = useState<Service[]>(() => (initialServices || []).map(normalizeService));
   const [reviews, setReviews] = useState<ReviewType[]>(initialReviews || []);
@@ -658,12 +658,13 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                         const hasBooking =
                           typeof review.booking_id === 'number' && review.booking_id > 0;
                         const realReview = Boolean(clientId && hasBooking);
-                        const nameFromClient = `${review.client?.first_name || review.client_first_name || ''} ${
-                          review.client?.last_name || review.client_last_name || ''
-                        }`.trim();
+                        const firstName =
+                          review.client?.first_name ||
+                          review.client_first_name ||
+                          (review.client_display_name || '').split(' ')[0] ||
+                          '';
                         const clientName =
-                          review.client_display_name ||
-                          nameFromClient ||
+                          firstName ||
                           review.client?.email ||
                           'Client';
                         const initials =
@@ -955,13 +956,13 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           const hasBooking =
                             typeof review.booking_id === 'number' && review.booking_id > 0;
                           const realReview = Boolean(clientId && hasBooking);
-                          const nameFromClient =
-                            `${review.client?.first_name || review.client_first_name || ''} ${
-                              review.client?.last_name || review.client_last_name || ''
-                            }`.trim();
+                          const firstName =
+                            review.client?.first_name ||
+                            review.client_first_name ||
+                            (review.client_display_name || '').split(' ')[0] ||
+                            '';
                           const clientName =
-                            review.client_display_name ||
-                            nameFromClient ||
+                            firstName ||
                             review.client?.email ||
                             'Client';
                           const initials =
