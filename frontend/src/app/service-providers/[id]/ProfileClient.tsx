@@ -1089,7 +1089,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                                   </span>
                                 </div>
                               </div>
-                              <p className="text-gray-800 text-sm leading-relaxed">
+                              <p className="pr-10 text-gray-800 text-sm leading-relaxed">
                                 {review.comment}
                               </p>
                             </li>
