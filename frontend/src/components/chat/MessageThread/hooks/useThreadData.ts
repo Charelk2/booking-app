@@ -164,6 +164,49 @@ const sortChrono = (a: ThreadMessage, b: ThreadMessage) => {
   return (a.id || 0) - (b.id || 0);
 };
 
+function dedupeDisplaySystemMessages(list: ThreadMessage[]): ThreadMessage[] {
+  if (!Array.isArray(list) || list.length === 0) return list;
+
+  const seenByKeyContent = new Set<string>();
+  let seenEventFinished = false;
+
+  const out: ThreadMessage[] = [];
+  for (const m of list) {
+    if (!m) continue;
+    const isSystem = String(m.message_type || '').toUpperCase() === 'SYSTEM';
+    if (!isSystem) {
+      out.push(m);
+      continue;
+    }
+
+    const rawContent = String(m.content ?? (m as any).text ?? '').trim();
+    const contentNorm = rawContent.replace(/\s+/g, ' ');
+    const sysKey = String((m as any).system_key ?? '').trim().toLowerCase();
+    const keyContent = `${sysKey}|${contentNorm.toLowerCase()}`;
+
+    if (contentNorm && keyContent) {
+      if (seenByKeyContent.has(keyContent)) {
+        continue;
+      }
+      seenByKeyContent.add(keyContent);
+    }
+
+    const lowerContent = contentNorm.toLowerCase();
+    const isEventFinished =
+      sysKey.startsWith('event_finished_v1') || lowerContent.startsWith('event finished:');
+    if (isEventFinished) {
+      if (seenEventFinished) {
+        continue;
+      }
+      seenEventFinished = true;
+    }
+
+    out.push(m);
+  }
+
+  return out;
+}
+
 function mergeMessages(prev: ThreadMessage[], incoming: ThreadMessage[]): ThreadMessage[] {
   if (!incoming?.length) return prev;
   const byId = new Map<number, ThreadMessage>();
@@ -209,7 +252,7 @@ function mergeMessages(prev: ThreadMessage[], incoming: ThreadMessage[]): Thread
   }
   const out = Array.from(byId.values());
   out.sort(sortChrono);
-  return out;
+  return dedupeDisplaySystemMessages(out);
 }
 
 // ---------- hook ----------
@@ -223,7 +266,11 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     try {
       const cached = readCache(threadId);
       if (!Array.isArray(cached) || cached.length === 0) return [];
-      return cached.map(normalizeForRender).filter(m => Number.isFinite(m.id)).sort(sortChrono);
+      const normalized = cached
+        .map(normalizeForRender)
+        .filter(m => Number.isFinite(m.id))
+        .sort(sortChrono);
+      return dedupeDisplaySystemMessages(normalized);
     } catch {
       return [];
     }
@@ -324,12 +371,16 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
       try {
         const cached = readCache(threadId);
         if (cancelled || !Array.isArray(cached) || cached.length === 0) return;
-        const normalized = cached.map(normalizeForRender).filter(m => Number.isFinite(m.id)).sort(sortChrono);
-        if (normalized.length) {
-          lastMessageIdRef.current = normalized[normalized.length - 1]?.id ?? null;
-          setMessages(normalized);
+        const normalized = cached
+          .map(normalizeForRender)
+          .filter(m => Number.isFinite(m.id))
+          .sort(sortChrono);
+        const deduped = dedupeDisplaySystemMessages(normalized);
+        if (deduped.length) {
+          lastMessageIdRef.current = deduped[deduped.length - 1]?.id ?? null;
+          setMessages(deduped);
           setLoading(false);
-          try { opts?.onMessagesFetched?.(normalized, 'hydrate'); } catch {}
+          try { opts?.onMessagesFetched?.(deduped, 'hydrate'); } catch {}
         }
       } catch {}
     })();
