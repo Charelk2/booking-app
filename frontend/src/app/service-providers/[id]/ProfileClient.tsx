@@ -249,8 +249,20 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
         node = node.parentElement;
       }
 
+      const left = leftRef.current;
       const right = rightRef.current;
       if (!right) return;
+
+      // If the event target is inside either scrollable rail, let the browser handle it normally.
+      node = target;
+      while (node) {
+        if (node === left || node === right) {
+          return;
+        }
+        node = node.parentElement;
+      }
+
+      // Otherwise (gutter/background), route scroll into the right rail.
       const max = Math.max(0, right.scrollHeight - right.clientHeight);
       if (max <= 0) return;
       const prev = right.scrollTop;

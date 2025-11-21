@@ -49,8 +49,8 @@ export default function AboutSection({ variant = 'mobile', displayName, profileP
           )}
         </div>
         {formattedLocation && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="inline-flex items-center rounded-lg bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-200 dark:bg-gray-800/60 dark:text-gray-200 dark:ring-gray-700">
+          <div className="flex flex-wrap gap-2">
+            <span className="pb-1 text-xs font-medium text-gray-700">
               Based in {formattedLocation}
             </span>
           </div>
