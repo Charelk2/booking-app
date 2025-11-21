@@ -32,7 +32,7 @@ export default function AboutSection({ variant = 'mobile', displayName, profileP
 
   const content = (
     <div className="flex items-start gap-5">
-      <div className="relative h-40 w-40 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)]">
+      <div className="relative py-2 px-2 h-32 w-32 shrink-0 rounded-full overflow-hidden border border-gray-200 bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)]">
         {profilePictureUrl ? (
           <SafeImage src={profilePictureUrl} alt={displayName || 'Profile photo'} fill className="object-cover" sizes="64px" />
         ) : (
