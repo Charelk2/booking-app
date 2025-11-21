@@ -1010,7 +1010,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                   {displayReviews.length ? (
                     <>
                       <ReviewSummary reviews={displayReviews} />
-                      <ul className="mt-4 grid grid-cols-1 gap-3">
+                      <ul className="mt-4 flex flex-wrap gap-3">
                         {displayReviews.slice(0, 6).map((review) => {
                           const clientId = review.client?.id ?? review.client_id;
                           const hasBooking =
@@ -1062,7 +1062,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           return (
                             <li
                               key={`rev-desktop-${review.id}`}
-                              className="rounded-xl border border-gray-100 p-4 bg-white"
+                              className="w-full md:w-[calc(50%-0.75rem)] rounded-xl border border-gray-100 p-4 bg-white"
                             >
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                                 {realReview && clientId ? (
