@@ -1,9 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { ServiceProviderProfile } from "@/types";
 import SafeImage from "@/components/ui/SafeImage";
-import { UserIcon } from "@heroicons/react/24/outline";
+import {
+  UserIcon,
+  MapPinIcon,
+  BriefcaseIcon,
+  SparklesIcon,
+  CheckBadgeIcon,
+  ChevronRightIcon,
+} from "@heroicons/react/24/outline";
 import { getTownProvinceFromAddress } from "@/lib/utils";
 
 type Props = {
@@ -21,121 +28,123 @@ export default function AboutSection({
   displayName,
   profilePictureUrl,
   serviceProvider,
-  highlights,
+  highlights = [],
   onMessageClick,
   bare = false,
 }: Props) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const isMobile = variant === "mobile";
-
-  const withCard = (children: React.ReactNode) =>
-    bare ? (
-      <div className="mt-4">{children}</div>
-    ) : (
-      <div className="mt-4 relative isolate overflow-hidden rounded-xl border bg-white p-4 md:p-5">
-        {children}
-      </div>
-    );
 
   const formattedLocation = serviceProvider?.location
     ? getTownProvinceFromAddress(serviceProvider.location)
     : "";
 
-  // --- Description handling: first sentence + expandable rest -----------------
-  const rawDescription = (serviceProvider?.description || "").trim();
+  // Use the full description and handle truncation via CSS/State
+  const description = (serviceProvider?.description || "").trim();
+  const isLongText = description.length > 240;
 
-  let firstSentence: string | null = null;
-  let restCombined: string | null = null;
-
-  if (rawDescription) {
-    const parts = rawDescription.split(/\r?\n/);
-    const firstLine = (parts[0] || "").trim();
-
-    const sentenceMatch = firstLine.match(/(.+?[.!?])(\s+|$)/);
-    let restOfFirstLine = "";
-
-    if (sentenceMatch) {
-      firstSentence = sentenceMatch[1].trim();
-      restOfFirstLine = firstLine.slice(sentenceMatch[0].length).trimStart();
-    } else {
-      firstSentence = firstLine;
-    }
-
-    const rest = [restOfFirstLine, ...parts.slice(1)]
-      .filter(Boolean)
-      .join("\n")
-      .trim();
-
-    restCombined = rest || null;
-  }
-
-  const hasHighlights = Array.isArray(highlights) && highlights.length > 0;
+  const withCard = (children: React.ReactNode) =>
+    bare ? (
+      <div className="mt-4">{children}</div>
+    ) : (
+      // Changed to a cleaner, softer card style to match the "Air" aesthetic
+      <div className="mt-6 relative isolate overflow-hidden rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
+        {children}
+      </div>
+    );
 
   const content = (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-      {/* Avatar */}
-      <div className="flex justify-center sm:block">
-        <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)]">
-          {profilePictureUrl ? (
-            <SafeImage
-              src={profilePictureUrl}
-              alt={displayName || "Profile photo"}
-              fill
-              className="object-cover"
-              sizes="112px"
-            />
-          ) : (
-            <div className="grid h-full w-full place-items-center text-gray-400">
-              <UserIcon className="h-8 w-8" />
+    <div className="flex flex-col gap-6">
+      {/* 1. The "Passport" Header: Avatar + Key Details */}
+      <div className="flex flex-row items-center gap-5">
+        {/* Avatar Column */}
+        <div className="relative shrink-0">
+          <div className="relative h-24 w-24 md:h-28 md:w-28 overflow-hidden rounded-full border border-gray-100 bg-white shadow-lg">
+            {profilePictureUrl ? (
+              <SafeImage
+                src={profilePictureUrl}
+                alt={displayName || "Profile photo"}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 96px, 112px"
+              />
+            ) : (
+              <div className="grid h-full w-full place-items-center text-gray-300">
+                <UserIcon className="h-10 w-10" />
+              </div>
+            )}
+          </div>
+          {/* Verified Badge floating on Avatar */}
+          {serviceProvider.verified && (
+            <div className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md border border-gray-50">
+              <CheckBadgeIcon className="h-5 w-5 text-rose-500" />
             </div>
           )}
         </div>
+
+        {/* Name & Role Column */}
+        <div className="flex flex-col justify-center">
+          <h3 className="text-2xl font-bold text-gray-900 md:text-3xl">
+            {displayName.split(" ")[0]}
+          </h3>
+          <div className="mt-1 flex flex-col gap-0.5">
+            {serviceProvider?.primary_role && (
+              <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
+                <BriefcaseIcon className="h-4 w-4 text-gray-400" />
+                <span>{serviceProvider.primary_role}</span>
+              </div>
+            )}
+            {formattedLocation && (
+              <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                <MapPinIcon className="h-4 w-4 text-gray-400" />
+                <span>{formattedLocation}</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Text content */}
-      <div className="min-w-0 flex-1">
-        {/* Name + role */}
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <p className="truncate text-lg font-semibold text-gray-900 dark:text-white">
-            {displayName}
-          </p>
-          {serviceProvider?.primary_role && (
-            <span className="text-sm text-gray-600">
-              · {serviceProvider.primary_role}
+      {/* 2. Highlights Section (The "Fun Facts" Row) */}
+      {highlights && highlights.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {highlights.slice(0, 4).map((highlight, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700"
+            >
+              <SparklesIcon className="h-3.5 w-3.5 text-gray-400" />
+              {highlight}
             </span>
+          ))}
+        </div>
+      )}
+
+      {/* 3. Bio / Description */}
+      {description && (
+        <div className="relative">
+          <div
+            className={`text-[15px] leading-relaxed text-gray-600 whitespace-pre-line transition-all duration-200 ${
+              !isExpanded && isLongText ? "line-clamp-4" : ""
+            }`}
+          >
+            {description}
+          </div>
+
+          {isLongText && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="mt-2 flex items-center gap-1 text-sm font-semibold text-gray-900 underline decoration-gray-300 underline-offset-4 hover:text-gray-700 focus:outline-none"
+            >
+              {isExpanded ? "Show less" : "Read more"}
+              <ChevronRightIcon
+                className={`h-3 w-3 transition-transform duration-200 ${
+                  isExpanded ? "-rotate-90" : "rotate-90"
+                }`}
+              />
+            </button>
           )}
         </div>
-
-        {/* Location */}
-        {formattedLocation && (
-          <p className="mt-1 text-xs font-medium text-gray-700">
-            Based in {formattedLocation}
-          </p>
-        )}
-
-        {/* Description */}
-        {firstSentence && (
-          <>
-            <p className="mt-3 text-sm text-gray-800 dark:text-gray-100">
-              {firstSentence}
-            </p>
-            {restCombined && (
-              <details className="mt-2 group/open">
-                <summary className="mb-2 cursor-pointer list-none text-sm font-medium text-gray-900 hover:opacity-80 dark:text-gray-100">
-                  <span className="underline decoration-dotted underline-offset-4">
-                    Read more
-                  </span>
-                </summary>
-                <div className="text-sm text-gray-700 dark:text-gray-300">
-                  <p className="whitespace-pre-line">{restCombined}</p>
-                </div>
-                <div className="mt-2 hidden text-xs text-gray-500 group-open:block">
-                  Click to collapse
-                </div>
-              </details>
-            )}
-          </>
-        )}
-      </div>
+      )}
     </div>
   );
 
@@ -152,14 +161,14 @@ export default function AboutSection({
             : "mt-12 text-2xl font-bold tracking-tight text-gray-900"
         }
       >
-        About {displayName}
+        About {displayName.split(" ")[0]}
       </h2>
 
       {withCard(
         <>
           {content}
 
-          {/* Message button block left exactly as before */}
+          {/* --- Message Button (Left exactly as requested) --- */}
           {onMessageClick && (
             <div className="mt-4">
               <button
