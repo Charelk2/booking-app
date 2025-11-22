@@ -542,7 +542,7 @@ export default function MainLayout({
           style={{
             paddingBottom: 'var(--mobile-bottom-nav-height, 0px)',
             paddingTop: isMobile
-              ? 'calc(var(--app-header-height, 64px) - 16px)'
+              ? 'calc(var(--app-header-height, 64px) - 64px)'
               : 'var(--app-header-height, 64px)',
           }}
         >
