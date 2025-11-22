@@ -178,7 +178,7 @@ export default function CategoriesCarousel() {
   };
 
   return (
-    <section className="full-width mx-auto mt-4 px-4 sm:px-6 lg:px-8" aria-labelledby="categories-heading">
+    <section className="full-width mx-auto mt-0 sm:mt-4 px-4 sm:px-6 lg:px-8" aria-labelledby="categories-heading">
       <div className="flex items-center justify-between">
         <h2 id="categories-heading" className="text-xl font-semibold">Services Near You</h2>
         <div className="hidden sm:flex gap-2">
