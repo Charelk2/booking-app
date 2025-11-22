@@ -541,7 +541,9 @@ export default function MainLayout({
           className={clsx('', {})}
           style={{
             paddingBottom: 'var(--mobile-bottom-nav-height, 0px)',
-            paddingTop: 'var(--app-header-height, 64px)',
+            paddingTop: isMobile
+              ? 'calc(var(--app-header-height, 64px) - 16px)'
+              : 'var(--app-header-height, 64px)',
           }}
         >
           <div
