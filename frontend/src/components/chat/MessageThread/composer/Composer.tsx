@@ -359,7 +359,7 @@ export default function Composer({ onSend, onUploadFiles, disabled, onTyping }: 
     <div
       data-testid="composer-container"
       className="border-t border-gray-200 bg-[#f0f2f5] relative"
-      style={{ paddingBottom: 'var(--mobile-bottom-nav-offset, var(--mobile-bottom-nav-height,56px))' }}
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}

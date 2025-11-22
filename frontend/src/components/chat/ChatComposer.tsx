@@ -155,7 +155,7 @@ const ChatComposer = React.forwardRef<HTMLTextAreaElement, ChatComposerProps>(
       myUserId,
       userType,
       disabled = false,
-      autoFocus = true,
+      autoFocus = !isMobileUA(),
       replyTarget,
       onCancelReply,
       onTyping,
