@@ -717,8 +717,9 @@ def purge_user(user_id: int, payload: Dict[str, Any], current: Tuple[User, Admin
         db.execute(text("DELETE FROM webauthn_credentials WHERE user_id=:uid"), {"uid": user_id})
         db.execute(text("DELETE FROM calendar_accounts WHERE user_id=:uid"), {"uid": user_id})
         db.execute(text("DELETE FROM quote_templates WHERE artist_id=:uid"), {"uid": user_id})
-        db.execute(text("DELETE FROM profile_views WHERE artist_id=:uid"), {"uid": user_id})
-        db.execute(text("DELETE FROM profile_views WHERE viewer_id=:uid"), {"uid": user_id})
+        # Artist profile views use the artist_profile_views table
+        db.execute(text("DELETE FROM artist_profile_views WHERE artist_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM artist_profile_views WHERE viewer_id=:uid"), {"uid": user_id})
         db.execute(text("DELETE FROM email_events WHERE user_id=:uid"), {"uid": user_id})
         db.execute(text("DELETE FROM sms_events WHERE user_id=:uid"), {"uid": user_id})
         db.execute(text("DELETE FROM service_provider_profiles WHERE user_id=:uid"), {"uid": user_id})
