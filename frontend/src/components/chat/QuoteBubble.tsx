@@ -633,7 +633,7 @@ export default function QuotePeek(props: QuotePeekProps) {
 
                   {/* Client-facing platform fee (informational; applied at checkout) */}
                   {isClientView && (
-                        <Row label="Booka Service Fee (3% — VAT included)" value={platformFeeIncl !== undefined ? money(platformFeeIncl) : QUOTE_TOTALS_PLACEHOLDER} />
+                        <Row label="Booka Service Fee (3% - VAT included)" value={platformFeeIncl !== undefined ? money(platformFeeIncl) : QUOTE_TOTALS_PLACEHOLDER} />
                   )}
 
                   {/* Total / Total To Pay (client) */}

@@ -1420,6 +1420,12 @@ export function ReviewStep(props: {
   providerVatRate?: number | null;
   needTaxInvoice?: boolean;
   onToggleTaxInvoice?: (checked: boolean) => void;
+  clientCompanyName?: string;
+  clientVatNumber?: string;
+  clientBillingAddress?: string;
+  onChangeClientCompanyName?: (value: string) => void;
+  onChangeClientVatNumber?: (value: string) => void;
+  onChangeClientBillingAddress?: (value: string) => void;
 }) {
   const {
     isLoadingReviewData,
@@ -1437,6 +1443,12 @@ export function ReviewStep(props: {
     providerVatRate,
     needTaxInvoice,
     onToggleTaxInvoice,
+    clientCompanyName,
+    clientVatNumber,
+    clientBillingAddress,
+    onChangeClientCompanyName,
+    onChangeClientVatNumber,
+    onChangeClientBillingAddress,
   } = props;
 
   const { details } = useBooking();
@@ -1627,7 +1639,7 @@ export function ReviewStep(props: {
           </div>
         )}
         <div className="flex justify-between items-center">
-          <span>Booka Service Fee (3% — VAT included)</span>
+          <span>Booka Service Fee (3% - VAT included)</span>
           <span>
             {typeof platformFeeIncl === 'number' && Number.isFinite(platformFeeIncl)
               ? formatCurrency(platformFeeIncl)
@@ -1686,8 +1698,8 @@ export function ReviewStep(props: {
                     <label className="block text-xs text-gray-600">Company name</label>
                     <input
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      value={d.clientCompanyName || ''}
-                      onChange={(e) => set({ clientCompanyName: e.target.value } as any)}
+                      value={clientCompanyName ?? ''}
+                      onChange={(e) => onChangeClientCompanyName?.(e.target.value)}
                       placeholder="XYZ Corp (Pty) Ltd"
                     />
                   </div>
@@ -1695,8 +1707,8 @@ export function ReviewStep(props: {
                     <label className="block text-xs text-gray-600">Company VAT number</label>
                     <input
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      value={d.clientVatNumber || ''}
-                      onChange={(e) => set({ clientVatNumber: e.target.value } as any)}
+                      value={clientVatNumber ?? ''}
+                      onChange={(e) => onChangeClientVatNumber?.(e.target.value)}
                       placeholder="4XXXXXXXXX"
                     />
                   </div>
@@ -1704,8 +1716,8 @@ export function ReviewStep(props: {
                     <label className="block text-xs text-gray-600">Billing address</label>
                     <input
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      value={d.clientBillingAddress || ''}
-                      onChange={(e) => set({ clientBillingAddress: e.target.value } as any)}
+                      value={clientBillingAddress ?? ''}
+                      onChange={(e) => onChangeClientBillingAddress?.(e.target.value)}
                       placeholder="456 Business Park, Sandton, 2196"
                     />
                   </div>

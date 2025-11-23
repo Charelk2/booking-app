@@ -236,7 +236,7 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
             fee_incl = None
     if isinstance(fee_incl, float) and fee_incl > 0:
         totals_rows.append([
-            Paragraph("Booka Service Fee (3% — VAT included)", styles["NormalSmall"]),
+            Paragraph("Booka Service Fee (3% - VAT included)", styles["NormalSmall"]),
             Paragraph(_zar(fee_incl), styles["NormalSmall"]),
         ])
 

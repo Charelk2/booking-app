@@ -1856,7 +1856,7 @@ def _generate_receipt_pdf_with_reportlab(db: Session, payment_id: str, output_pa
     # Booka service fee (VAT included) as a single line
     try:
         if _fee_incl > 0:
-            totals_rows.append([Paragraph("Booka Service Fee (3% — VAT included)", styles["NormalSmall"]), Paragraph(_zar(_fee_incl), styles["NormalSmall"])])
+            totals_rows.append([Paragraph("Booka Service Fee (3% - VAT included)", styles["NormalSmall"]), Paragraph(_zar(_fee_incl), styles["NormalSmall"])])
     except Exception:
         pass
     # Final: Total To Pay equals amount charged if present, else total + fee incl

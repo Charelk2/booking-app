@@ -177,7 +177,7 @@ export async function findNearestAirport(
     const entries = Object.entries(AIRPORT_ADDRESSES);
     for (const [code, addr] of entries) {
       try {
-        const metrics = await getDrivingMetrics(city, addr);
+        const metrics = await getDrivingMetricsCached(city, addr);
         const distKm = metrics?.distanceKm ?? 0;
         if (distKm > 0 && distKm < minDist) {
           minDist = distKm;

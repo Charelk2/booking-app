@@ -101,7 +101,7 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
       {/* All fee/VAT math lives on the backend. Show a placeholder if preview totals are missing. */}
       {isClient && (
         <p className="text-sm">
-          Booka Service Fee (3% — VAT included): {platformFeeIncl !== undefined ? formatCurrency(platformFeeIncl) : QUOTE_TOTALS_PLACEHOLDER}{' '}
+          Booka Service Fee (3% - VAT included): {platformFeeIncl !== undefined ? formatCurrency(platformFeeIncl) : QUOTE_TOTALS_PLACEHOLDER}{' '}
           <span className="text-xs text-gray-500">(added at checkout)</span>
         </p>
       )}
