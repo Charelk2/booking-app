@@ -923,7 +923,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       )}
                     </div>
 
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="pt-3 flex items-center justify-center gap-2">
                       <button
                         className="hover:rounded-full hover:shadow-sm hover:bg-gray-50 p-3"
                         aria-label="Share profile"
