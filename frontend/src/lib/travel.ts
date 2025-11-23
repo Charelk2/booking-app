@@ -85,12 +85,21 @@ const FLIGHT_ROUTES: Record<string, string[]> = {
   PLZ: ['CPT', 'JNB'],
 };
 
+const MINUTE = 60_000;
+const FLIGHT_CACHE_TTL = 60 * MINUTE;
+const flightCache = new Map<string, { at: number; price: number }>();
+
 export async function fetchFlightCost(
   depCode: string,
   arrCode: string,
   date: string | Date,
 ): Promise<number> {
   const d = typeof date === 'string' ? date : date.toISOString().slice(0, 10);
+  const key = `${depCode}__${arrCode}__${d}`;
+  const hit = flightCache.get(key);
+  if (hit && Date.now() - hit.at < FLIGHT_CACHE_TTL) {
+    return hit.price;
+  }
   const url = `/api/v1/flights/cheapest?departure=${depCode}&arrival=${arrCode}&date=${d}`;
   try {
     const res = await fetch(url);
@@ -102,10 +111,13 @@ export async function fetchFlightCost(
     if (typeof price !== 'number') {
       throw new Error('Invalid price');
     }
+    flightCache.set(key, { at: Date.now(), price });
     return price;
   } catch (err) {
     console.error('Flight cost fetch failed:', err);
-    throw err;
+    const fallback = DEFAULT_FLIGHT_COST_PER_PERSON;
+    flightCache.set(key, { at: Date.now(), price: fallback });
+    return fallback;
   }
 }
 
@@ -163,39 +175,56 @@ export function haversineDistance(
   return R * c;
 }
 
+const airportCache = new Map<string, { at: number; code: string | null }>();
+const AIRPORT_CACHE_TTL = 12 * 60 * MINUTE;
+
 export async function findNearestAirport(
   city: string,
   coordFn: typeof getCoordinates = getCoordinates,
 ): Promise<string | null> {
-  // Primary strategy: use driving distance to each known airport address via
-  // the distance API so we can work with any South African town/city string
-  // without requiring browser-side geocoding. This delegates address parsing
-  // to the backend and its configured maps provider.
+  const k = (city || '').trim().toLowerCase();
+  if (!k) return null;
+
+  const cached = airportCache.get(k);
+  if (cached && Date.now() - cached.at < AIRPORT_CACHE_TTL) {
+    return cached.code;
+  }
+
   let nearest: string | null = null;
   let minDist = Infinity;
   try {
     const entries = Object.entries(AIRPORT_ADDRESSES);
-    for (const [code, addr] of entries) {
-      try {
-        const metrics = await getDrivingMetricsCached(city, addr);
-        const distKm = metrics?.distanceKm ?? 0;
-        if (distKm > 0 && distKm < minDist) {
-          minDist = distKm;
-          nearest = code;
+    const results = await Promise.all(
+      entries.map(async ([code, addr]) => {
+        try {
+          const metrics = await getDrivingMetricsCached(city, addr);
+          return { code, distKm: metrics?.distanceKm ?? 0 };
+        } catch {
+          return { code, distKm: 0 };
         }
-      } catch {
-        // Ignore individual failures and continue trying other airports
+      }),
+    );
+    for (const { code, distKm } of results) {
+      if (distKm > 0 && distKm < minDist) {
+        minDist = distKm;
+        nearest = code;
       }
     }
   } catch {
     // Fall through to coordinate-based fallback below
   }
-  if (nearest) return nearest;
+  if (nearest) {
+    airportCache.set(k, { at: Date.now(), code: nearest });
+    return nearest;
+  }
 
   // Fallback: when the distance API is unavailable, fall back to geocoding +
   // haversine so behavior in development remains graceful.
   const coords = await coordFn(city);
-  if (!coords) return null;
+  if (!coords) {
+    airportCache.set(k, { at: Date.now(), code: null });
+    return null;
+  }
   nearest = null;
   minDist = Infinity;
   Object.entries(AIRPORT_LOCATIONS).forEach(([code, loc]) => {
@@ -205,6 +234,7 @@ export async function findNearestAirport(
       nearest = code;
     }
   });
+  airportCache.set(k, { at: Date.now(), code: nearest });
   return nearest;
 }
 
@@ -234,7 +264,6 @@ export interface DriveMetrics {
 // Small in-memory caches to reduce repeated geocoding and routing calls
 export type DrivingMetrics = { distanceKm: number; durationMin: number; durationHrs: number };
 
-const MINUTE = 60_000;
 const routeCache = new Map<string, { at: number; v: DrivingMetrics }>();
 const geoCache = new Map<string, { at: number; v: { lat: number; lng: number } }>();
 
@@ -334,8 +363,10 @@ export async function calculateTravelMode(
   metricsFn: typeof getDrivingMetrics = getDrivingMetricsCached,
   airportFn: typeof findNearestAirport = findNearestAirport,
 ): Promise<TravelResult> {
-  const depCode = await airportFn(input.artistLocation);
-  const arrCode = await airportFn(input.eventLocation);
+  const [depCode, arrCode] = await Promise.all([
+    airportFn(input.artistLocation),
+    airportFn(input.eventLocation),
+  ]);
   if (!depCode || !arrCode) {
     console.warn('Unable to resolve nearest airports', {
       artistLocation: input.artistLocation,
@@ -351,50 +382,46 @@ export async function calculateTravelMode(
     };
   }
 
-  let flightPrice = input.flightPricePerPerson ?? DEFAULT_FLIGHT_COST_PER_PERSON;
-  if (input.flightPricePerPerson == null) {
-    try {
-      flightPrice = await fetchFlightCost(
-        depCode,
-        arrCode,
-        input.travelDate,
-      );
-    } catch (err) {
-      // eslint-disable-next-line no-console -- log and fall back to default price
-      console.error('Flight price lookup failed:', err);
-    }
-  }
   if (!FLIGHT_ROUTES[depCode]?.includes(arrCode)) {
+    const price = input.flightPricePerPerson ?? DEFAULT_FLIGHT_COST_PER_PERSON;
     return {
       mode: 'drive',
       totalCost: input.drivingEstimate,
       breakdown: {
         drive: { estimate: input.drivingEstimate },
-        fly: makeEmptyFlyBreakdown(input, flightPrice),
+        fly: makeEmptyFlyBreakdown(input, price),
       },
     };
   }
 
-  const direct = await metricsFn(input.artistLocation, input.eventLocation);
-  const depXfer = await metricsFn(
-    input.artistLocation,
-    AIRPORT_ADDRESSES[depCode],
-  );
-  const arrXfer = await metricsFn(
-    AIRPORT_ADDRESSES[arrCode],
-    input.eventLocation,
-  );
+  const rate = input.travelRate ?? RATE_PER_KM;
+  const hasCustomFlightPrice = input.flightPricePerPerson != null;
+
+  const [direct, depXfer, arrXfer, flightPrice] = await Promise.all([
+    metricsFn(input.artistLocation, input.eventLocation),
+    metricsFn(input.artistLocation, AIRPORT_ADDRESSES[depCode]),
+    metricsFn(AIRPORT_ADDRESSES[arrCode], input.eventLocation),
+    (async () => {
+      if (hasCustomFlightPrice) return input.flightPricePerPerson!;
+      return fetchFlightCost(depCode, arrCode, input.travelDate);
+    })(),
+  ]);
 
   const flightsReachable =
     depXfer.durationHrs <= MAX_TRANSFER_HOURS &&
     arrXfer.durationHrs <= MAX_TRANSFER_HOURS;
 
+  const drivingEstimate =
+    input.drivingEstimate && input.drivingEstimate > 0
+      ? input.drivingEstimate
+      : direct.distanceKm * rate;
+
   if (!flightsReachable) {
     return {
       mode: 'drive',
-      totalCost: input.drivingEstimate,
+      totalCost: drivingEstimate,
       breakdown: {
-        drive: { estimate: input.drivingEstimate },
+        drive: { estimate: drivingEstimate },
         fly: makeEmptyFlyBreakdown(input, flightPrice),
       },
     };
@@ -407,12 +434,18 @@ export async function calculateTravelMode(
   const totalFlyTime =
     depXfer.durationHrs + arrXfer.durationHrs + FLIGHT_OVERHEAD_HOURS;
   if (totalFlyTime > direct.durationHrs + DRIVE_COMFORT_BUFFER_HOURS) {
+    const flyBreakdown = computeFlyBreakdown(
+      input,
+      depXfer,
+      arrXfer,
+      flightPrice,
+    );
     return {
       mode: 'drive',
-      totalCost: input.drivingEstimate,
+      totalCost: drivingEstimate,
       breakdown: {
-        drive: { estimate: input.drivingEstimate },
-        fly: computeFlyBreakdown(input, depXfer, arrXfer, flightPrice),
+        drive: { estimate: drivingEstimate },
+        fly: flyBreakdown,
       },
     };
   }
@@ -420,8 +453,14 @@ export async function calculateTravelMode(
   const drivePenalty = direct.durationHrs * TIME_COST_RATE;
   const flyPenalty = totalFlyTime * TIME_COST_RATE;
 
-  const adjustedDriveCost = input.drivingEstimate + drivePenalty;
-  const flyBreakdown = computeFlyBreakdown(input, depXfer, arrXfer, flightPrice);
+  const flyBreakdown = computeFlyBreakdown(
+    input,
+    depXfer,
+    arrXfer,
+    flightPrice,
+  );
+
+  const adjustedDriveCost = drivingEstimate + drivePenalty;
   const adjustedFlyCost = flyBreakdown.total + flyPenalty;
 
   if (adjustedFlyCost < adjustedDriveCost) {
@@ -429,7 +468,7 @@ export async function calculateTravelMode(
       mode: 'fly',
       totalCost: flyBreakdown.total,
       breakdown: {
-        drive: { estimate: input.drivingEstimate },
+        drive: { estimate: drivingEstimate },
         fly: flyBreakdown,
       },
     };
@@ -437,9 +476,9 @@ export async function calculateTravelMode(
 
   return {
     mode: 'drive',
-    totalCost: input.drivingEstimate,
+    totalCost: drivingEstimate,
     breakdown: {
-      drive: { estimate: input.drivingEstimate },
+      drive: { estimate: drivingEstimate },
       fly: flyBreakdown,
     },
   };

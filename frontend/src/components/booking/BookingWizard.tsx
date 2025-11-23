@@ -1030,26 +1030,25 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               lastTravelSigRef.current = travelSig;
               setTravelResult(cachedTravel);
               applyArtistVariableSoundForMode(cachedTravel.mode === 'fly' ? 'fly' : 'drive');
+            } else if (Number.isFinite(travelCost) && travelCost > 0) {
+              // Trust backend travel when present; skip heavy client travel calc.
+              lastTravelSigRef.current = travelSig;
+              travelResultCache.current.set(travelSig, baseTravelRes);
+              setTravelResult(baseTravelRes);
+              applyArtistVariableSoundForMode(baseTravelRes.mode);
             } else {
-              let drivingEstimate = 0;
-              try {
-                const dm = await getDrivingMetricsCached(artistLoc, eventLoc);
-                const distKm = Number(dm?.distanceKm || 0);
-                if (Number.isFinite(distKm) && distKm > 0) drivingEstimate = distKm * travelRate;
-              } catch {}
               const airportFn = async (city: string) => {
-                const geo = await geocodeCached(city);
-                if (geo) return findNearestAirport(city, async () => geo);
                 const mock = getMockCoordinates(city);
                 if (mock) return findNearestAirport(city, async () => mock as any);
-                return findNearestAirport(city);
+                return findNearestAirport(city, geocodeCached);
               };
               const tr = await calculateTravelMode(
                 {
                   artistLocation: artistLoc,
                   eventLocation: eventLoc,
                   numTravellers: Number(numTravelMembers || 1),
-                  drivingEstimate,
+                  // Let calculateTravelMode derive driving estimate from distance
+                  drivingEstimate: 0,
                   travelRate,
                   travelDate: dt,
                   carRentalPrice: carRentalPrice,
@@ -1142,26 +1141,22 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               if (cachedTravel) {
                 lastTravelSigRef.current = travelSig;
                 setTravelResult(cachedTravel);
+              } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
+                lastTravelSigRef.current = travelSig;
+                travelResultCache.current.set(travelSig, baseTravelRes);
+                setTravelResult(baseTravelRes);
               } else {
-                let drivingEstimate = 0;
-                try {
-                  const dm = await getDrivingMetricsCached(artistLoc, eventLoc);
-                  const distKm = Number(dm?.distanceKm || 0);
-                  if (Number.isFinite(distKm) && distKm > 0) drivingEstimate = distKm * travelRate;
-                } catch {}
                 const airportFn = async (city: string) => {
-                  const geo = await geocodeCached(city);
-                  if (geo) return findNearestAirport(city, async () => geo);
                   const mock = getMockCoordinates(city);
                   if (mock) return findNearestAirport(city, async () => mock as any);
-                  return findNearestAirport(city);
+                  return findNearestAirport(city, geocodeCached);
                 };
                 const tr = await calculateTravelMode(
                   {
                     artistLocation: artistLoc,
                     eventLocation: eventLoc,
                     numTravellers: Number(numTravelMembers || 1),
-                    drivingEstimate,
+                    drivingEstimate: 0,
                     travelRate,
                     travelDate: dt,
                     carRentalPrice: carRentalPrice,
@@ -1174,11 +1169,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   lastTravelSigRef.current = travelSig;
                   travelResultCache.current.set(travelSig, tr as any);
                   setTravelResult(tr as any);
-                } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
-                  lastTravelSigRef.current = travelSig;
-                  travelResultCache.current.set(travelSig, baseTravelRes);
-                  // If client engine failed or produced 0, fall back to backend aggregate.
-                  setTravelResult(baseTravelRes);
                 }
               }
             } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
