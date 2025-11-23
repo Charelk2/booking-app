@@ -748,7 +748,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   hoverNeutralLink2
                                   )}
                                 >
-                                  <UserCircleIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
+                                  <UserCircleIcon className="mr-3 h-5 w-5 text-black" />
                                   Edit Profile
                                 </Link>
                               )}
@@ -769,7 +769,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                     hoverNeutralLink2
                                   )}
                                 >
-                                  <span className="mr-3 inline-flex h-5 w-5 items-center justify-center text-slate-500 group-hover:text-slate-600">⭐</span>
+                                  <span className="mr-3 inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-amber-50 text-[10px] font-semibold text-black shadow-sm">
+                                    ★
+                                  </span>
                                   List your service
                                 </button>
                               )}
@@ -818,7 +820,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   hoverNeutralLink2
                                   )}
                                 >
-                                  <UserCircleIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
+                                  <UserCircleIcon className="mr-3 h-5 w-5 text-black" />
                                   Edit Profile
                                 </Link>
                               )}
