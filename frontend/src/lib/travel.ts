@@ -232,7 +232,7 @@ export interface DriveMetrics {
 }
 
 // Small in-memory caches to reduce repeated geocoding and routing calls
-export type DrivingMetrics = { distanceKm: number; durationMin: number };
+export type DrivingMetrics = { distanceKm: number; durationMin: number; durationHrs: number };
 
 const MINUTE = 60_000;
 const routeCache = new Map<string, { at: number; v: DrivingMetrics }>();
@@ -267,7 +267,11 @@ export async function getDrivingMetricsCached(from: string, to: string): Promise
   const e = routeCache.get(key);
   if (e && Date.now() - e.at < 30 * MINUTE) return e.v;
   const raw = await getDrivingMetrics(from, to);
-  const v: DrivingMetrics = { distanceKm: raw?.distanceKm || 0, durationMin: Math.round((raw?.durationHrs || 0) * 60) };
+  const v: DrivingMetrics = {
+    distanceKm: raw?.distanceKm || 0,
+    durationMin: Math.round((raw?.durationHrs || 0) * 60),
+    durationHrs: raw?.durationHrs || 0,
+  };
   remember(routeCache, key, v, 30 * MINUTE);
   return v;
 }
