@@ -17,16 +17,23 @@ import {
 import { useMediaQuery } from '@mui/material';
 import ConfirmButton from '../components/ConfirmButton';
 
+const inferAdminApiUrl = (): string => {
+  const env = (import.meta as any).env?.VITE_API_URL as string | undefined;
+  if (env) return env;
+  const host = window.location.hostname;
+  if (host.endsWith('booka.co.za')) return 'https://api.booka.co.za/admin';
+  return `${window.location.protocol}//${window.location.hostname}:8000/admin`;
+};
+
 const clientFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn />,
   <TextInput key="email" source="email" label="Email" />,
 ];
 
 const ExportCSVButton: React.FC = () => {
-  const dp: any = useDataProvider();
   const handle = async () => {
     try {
-      const base: string = (dp?.API_URL) || `${window.location.protocol}//${window.location.hostname}:8000/admin`;
+      const base = inferAdminApiUrl();
       const token = localStorage.getItem('booka_admin_token');
       const res = await fetch(`${base}/clients/export`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' },
@@ -54,10 +61,7 @@ const RowActions: React.FC = () => {
   if (!rec) return null;
 
   const getAdminBase = (): string => {
-    const base: string | undefined = dp?.API_URL;
-    if (base) return base;
-    const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:8000/admin`;
+    return inferAdminApiUrl();
   };
 
   const onToggleActive = async () => {

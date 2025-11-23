@@ -237,6 +237,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const activeCalcRef = useRef(0);
   const lastSigRef = useRef<string | null>(null);
   const lastTravelSigRef = useRef<string | null>(null);
+  const travelResultCache = useRef<Map<string, TravelResult>>(new Map());
   const isLoadingRef = useRef(false);
   const missingPricebookRef = useRef<Set<number>>(new Set());
   const missingServiceRef = useRef<Set<number>>(new Set());
@@ -1024,9 +1025,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               carRentalPrice: carRentalPrice ?? null,
               flightPrice: flightPrice ?? null,
             });
-            if (lastTravelSigRef.current === travelSig && travelResult) {
-              // Reuse previous travel result; only re-align sound pricing.
-              applyArtistVariableSoundForMode(travelResult.mode === 'fly' ? 'fly' : 'drive');
+            const cachedTravel = travelResultCache.current.get(travelSig);
+            if (cachedTravel) {
+              lastTravelSigRef.current = travelSig;
+              setTravelResult(cachedTravel);
+              applyArtistVariableSoundForMode(cachedTravel.mode === 'fly' ? 'fly' : 'drive');
             } else {
               let drivingEstimate = 0;
               try {
@@ -1057,10 +1060,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               );
               if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
                 lastTravelSigRef.current = travelSig;
+                travelResultCache.current.set(travelSig, tr as any);
                 setTravelResult(tr as any);
                 applyArtistVariableSoundForMode(tr.mode === 'fly' ? 'fly' : 'drive');
               } else if (Number.isFinite(travelCost) && travelCost > 0) {
                 lastTravelSigRef.current = travelSig;
+                travelResultCache.current.set(travelSig, baseTravelRes);
                 setTravelResult(baseTravelRes);
                 applyArtistVariableSoundForMode(baseTravelRes.mode);
               }
@@ -1133,9 +1138,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 carRentalPrice: carRentalPrice ?? null,
                 flightPrice: flightPrice ?? null,
               });
-              if (lastTravelSigRef.current === travelSig && travelResult) {
-                // Reuse previous travel result when locations/members/rate are unchanged.
-                setTravelResult(travelResult);
+              const cachedTravel = travelResultCache.current.get(travelSig);
+              if (cachedTravel) {
+                lastTravelSigRef.current = travelSig;
+                setTravelResult(cachedTravel);
               } else {
                 let drivingEstimate = 0;
                 try {
@@ -1166,9 +1172,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 );
                 if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
                   lastTravelSigRef.current = travelSig;
+                  travelResultCache.current.set(travelSig, tr as any);
                   setTravelResult(tr as any);
                 } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
                   lastTravelSigRef.current = travelSig;
+                  travelResultCache.current.set(travelSig, baseTravelRes);
                   // If client engine failed or produced 0, fall back to backend aggregate.
                   setTravelResult(baseTravelRes);
                 }
@@ -1222,7 +1230,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     // Setter from context (stable but included for correctness)
     setTravelResult,
     reviewDataError,
-    travelResult,
   ]);
 
   // Trigger the calculation when approaching the Review step to prefetch data

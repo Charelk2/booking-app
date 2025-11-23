@@ -291,7 +291,8 @@ const ConversationPanel = () => {
                   });
                   const toReject = (all?.data || []).filter((l: any) => String(l.status).toLowerCase() !== 'rejected').map((l:any) => l.id);
                   if (toReject.length) {
-                    const base = ((dp as any).API_URL) || `${window.location.protocol}//${window.location.hostname}:8000/admin`;
+                    const env = (import.meta as any).env?.VITE_API_URL as string | undefined;
+                    const base = env || `${window.location.protocol}//${window.location.hostname}:8000/admin`;
                     await fetch(base + '/listings/bulk_reject', {
                       method: 'POST',
                       headers: {

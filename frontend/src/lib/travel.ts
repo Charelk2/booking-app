@@ -263,7 +263,7 @@ export async function geocodeCached(address: string): Promise<{ lat: number; lng
 }
 
 export async function getDrivingMetricsCached(from: string, to: string): Promise<DrivingMetrics> {
-  const key = `${from}__${to}`.toLowerCase();
+  const key = `${(from || '').trim().toLowerCase()}__${(to || '').trim().toLowerCase()}`;
   const e = routeCache.get(key);
   if (e && Date.now() - e.at < 30 * MINUTE) return e.v;
   const raw = await getDrivingMetrics(from, to);
@@ -327,7 +327,7 @@ export async function getDrivingDistance(
  */
 export async function calculateTravelMode(
   input: TravelInput,
-  metricsFn: typeof getDrivingMetrics = getDrivingMetrics,
+  metricsFn: typeof getDrivingMetrics = getDrivingMetricsCached,
   airportFn: typeof findNearestAirport = findNearestAirport,
 ): Promise<TravelResult> {
   const depCode = await airportFn(input.artistLocation);
