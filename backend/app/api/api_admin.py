@@ -640,7 +640,12 @@ def search_users(email: str, _: Tuple[User, AdminUser] = Depends(require_roles("
 
 @router.post("/users/{user_id}/purge")
 def purge_user(user_id: int, payload: Dict[str, Any], current: Tuple[User, AdminUser] = Depends(require_roles("superadmin")), db: Session = Depends(get_db)):
-    """Purge any user (client or provider). Reuses provider purge logic but removes the role check."""
+    """Purge any user (client or provider).
+
+    This is the canonical hard-delete implementation; other endpoints (like
+    /providers/{id}/purge) delegate to it after performing their own role/type
+    checks so FK ordering stays consistent.
+    """
     confirm = str(payload.get("confirm") or "").strip().lower()
     force = bool(payload.get("force") or False)
     u = db.query(User).filter(User.id == user_id).first()
@@ -973,131 +978,12 @@ def purge_provider(user_id: int, payload: Dict[str, Any], current: Tuple[User, A
         "messages": int(msg_count),
         "active_bookings": int(active_bookings),
     }
-    # Best-effort cascading deletes for dependent resources that may not have DB-level cascades
-    try:
-        # Invoices issued by this provider
-        try:
-            db.execute(text("DELETE FROM invoices WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Messages under threads owned by this provider will be deleted with booking_requests below (ORM cascade). As a safety, force-delete via SQL too.
-        try:
-            db.execute(text(
-                "DELETE FROM messages WHERE booking_request_id IN (SELECT id FROM booking_requests WHERE artist_id=:uid)"
-            ), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Messages sent by this user anywhere
-        try:
-            db.execute(text("DELETE FROM messages WHERE sender_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Message reactions by this user or on their thread messages
-        try:
-            db.execute(text("DELETE FROM message_reactions WHERE user_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        try:
-            db.execute(text(
-                "DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM messages WHERE booking_request_id IN (SELECT id FROM booking_requests WHERE artist_id=:uid))"
-            ), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Reviews for this artist (delete before bookings to avoid FK issues)
-        try:
-            db.execute(text("DELETE FROM reviews WHERE artist_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Quotes (v2) owned by this provider or on their threads; also quotes created for this client
-        try:
-            db.execute(text("DELETE FROM quotes_v2 WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Legacy quotes table if present
-        try:
-            db.execute(text("DELETE FROM quotes WHERE artist_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # BookingSimple rows
-        try:
-            db.execute(text("DELETE FROM bookings_simple WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Bookings (FK via service_provider_profiles.user_id)
-        try:
-            db.execute(text("DELETE FROM bookings WHERE artist_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Booking requests (threads) where artist or client is this user
-        try:
-            db.execute(text("DELETE FROM booking_requests WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Services
-        try:
-            db.execute(text("DELETE FROM services WHERE artist_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Notification events
-        try:
-            db.execute(text("DELETE FROM notifications WHERE user_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Email confirmation tokens
-        try:
-            db.execute(text("DELETE FROM email_tokens WHERE user_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Admin user mapping
-        try:
-            db.execute(text("DELETE FROM admin_users WHERE user_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # WebAuthn credentials
-        try:
-            db.execute(text("DELETE FROM webauthn_credentials WHERE user_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Calendar accounts
-        try:
-            db.execute(text("DELETE FROM calendar_accounts WHERE user_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Quote templates
-        try:
-            db.execute(text("DELETE FROM quote_templates WHERE artist_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Profile views
-        try:
-            db.execute(text("DELETE FROM profile_views WHERE artist_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        try:
-            db.execute(text("DELETE FROM profile_views WHERE viewer_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Email/SMS event rows (best-effort; no FKs)
-        try:
-            db.execute(text("DELETE FROM email_events WHERE user_id=:uid"), {"uid": user_id})
-            db.execute(text("DELETE FROM sms_events WHERE user_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-        # Service provider profile
-        try:
-            db.execute(text("DELETE FROM service_provider_profiles WHERE user_id=:uid"), {"uid": user_id})
-        except Exception:
-            db.rollback()
-
-        # Finally, delete the user via raw SQL to avoid ORM trying to NULL FKs
-        db.execute(text("DELETE FROM users WHERE id=:uid"), {"uid": user_id})
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        # Surface the underlying error to aid debugging from the admin UI
-        raise HTTPException(status_code=400, detail=f"Purge failed: {exc}")
+    # Delegate the actual deletion work to purge_user so FK ordering stays
+    # consistent and we don't duplicate the raw SQL cascade.
+    resp = purge_user(user_id, {"confirm": confirm, "force": force}, current, db)
+    # Also record a provider-scoped audit event with the precomputed summary.
     _audit(db, current[1].id, "provider", str(user_id), "purge", before, None)
-    return {"purged": True, "summary": before}
+    return resp
 
 
 # ────────────────────────────────────────────────────────────────────────────────

@@ -1664,18 +1664,60 @@ export function ReviewStep(props: {
           </label>
         </div>
         {providerVatRegistered && (
-          <div className="flex items-start space-x-3 mb-4">
-            <input
-              type="checkbox"
-              id="tax-invoice"
-              className="mt-1 h-3 w-3 bg-black rounded border-black/30 text-black"
-              checked={!!needTaxInvoice}
-              onChange={(e) => onToggleTaxInvoice?.(e.target.checked)}
-            />
-            <label htmlFor="tax-invoice" className="help-text">
-              I need a Tax Invoice for my business
-            </label>
-          </div>
+          <>
+            <div className="flex items-start space-x-3 mb-4">
+              <input
+                type="checkbox"
+                id="tax-invoice"
+                className="mt-1 h-3 w-3 bg-black rounded border-black/30 text-black"
+                checked={!!needTaxInvoice}
+                onChange={(e) => onToggleTaxInvoice?.(e.target.checked)}
+              />
+              <label htmlFor="tax-invoice" className="help-text">
+                I need a Tax Invoice for my business
+              </label>
+            </div>
+            {needTaxInvoice && (
+              <div className="mb-4 rounded-xl border border-gray-200 p-4">
+                <h3 className="text-sm font-semibold mb-2">Business billing (optional)</h3>
+                <p className="text-xs text-gray-600 mb-3">
+                  Provide your company details if you need a Tax Invoice from the supplier. These details will be attached to your booking.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600">Company name</label>
+                    <input
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      value={d.clientCompanyName || ''}
+                      onChange={(e) => set({ clientCompanyName: e.target.value } as any)}
+                      placeholder="XYZ Corp (Pty) Ltd"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600">Company VAT number</label>
+                    <input
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      value={d.clientVatNumber || ''}
+                      onChange={(e) => set({ clientVatNumber: e.target.value } as any)}
+                      placeholder="4XXXXXXXXX"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs text-gray-600">Billing address</label>
+                    <input
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      value={d.clientBillingAddress || ''}
+                      onChange={(e) => set({ clientBillingAddress: e.target.value } as any)}
+                      placeholder="456 Business Park, Sandton, 2196"
+                    />
+                  </div>
+                  <div className="sm:col-span-2 text-xs text-gray-500">
+                    We’ll attach these details to your booking and pass them to the supplier’s Tax Invoice.
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
         <Button
           variant="primary"
