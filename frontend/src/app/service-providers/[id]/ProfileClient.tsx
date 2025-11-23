@@ -946,7 +946,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
     <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)] p-6">
       
       {/* Header: Price & Rating */}
-      <div className="flex items-baseline justify-between mb-6">
+      <div className="flex items-baseline justify-between mb-3">
         <div>
           <span className="text-xl font-bold text-gray-900">
             From {priceBand || 'Contact us'}

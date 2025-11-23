@@ -26,6 +26,18 @@ function useIsMobile(breakpointPx = 640) {
   return isMobile;
 }
 
+function useIsSmToMd() {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 640px) and (max-width: 767px)');
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+  return matches;
+}
+
 interface Props {
   children: React.ReactNode;
   headerAddon?: React.ReactNode;
@@ -44,6 +56,7 @@ export default function MainLayout({
   const { user, artistViewActive, refreshUser } = useAuth();
   const pathname = usePathname();
   const isMobile = useIsMobile();
+  const isSmToMd = useIsSmToMd();
 
   const isArtistDetail =
     /^\/service-providers\//.test(pathname) && pathname.split('/').length > 2;
@@ -541,9 +554,12 @@ export default function MainLayout({
           className={clsx('', {})}
           style={{
             paddingBottom: 'var(--mobile-bottom-nav-height, 0px)',
-            paddingTop: isMobile
-              ? 'calc(var(--app-header-height, 64px) - 70px)'
-              : 'var(--app-header-height, 64px)',
+            paddingTop:
+              isMobile || isSmToMd
+                ? isMobile
+                  ? 'calc(var(--app-header-height, 64px) - 70px)'
+                  : 'calc(var(--app-header-height, 64px) - 64px)'
+                : 'var(--app-header-height, 64px)',
           }}
         >
           <div
