@@ -1652,23 +1652,25 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             steps={steps}
             onBack={prev}
             onSaveDraft={saveDraft}
-          onNext={submitRequest}
-          submitting={submitting}
-          isLoadingReviewData={isLoadingReviewData}
-          reviewDataError={reviewDataError}
-          calculatedPrice={calculatedPrice}
-          travelResult={travelResult}
-          submitLabel="Submit Request"
-          baseServicePrice={baseServicePrice}
-          soundCost={soundCost}
-          soundMode={soundMode}
-          soundModeOverridden={soundModeOverridden}
-          selectedSupplierName={selectedSupplierName}
-          servicePriceItems={servicePriceItems}
-          serviceCategorySlug={serviceCategorySlug}
-          providerVatRegistered={artistVatRegistered === true}
-          providerVatRate={artistVatRate}
-        />
+            onNext={submitRequest}
+            submitting={submitting}
+            isLoadingReviewData={isLoadingReviewData}
+            reviewDataError={reviewDataError}
+            calculatedPrice={calculatedPrice}
+            travelResult={travelResult}
+            submitLabel="Submit Request"
+            baseServicePrice={baseServicePrice}
+            soundCost={soundCost}
+            soundMode={soundMode}
+            soundModeOverridden={soundModeOverridden}
+            selectedSupplierName={selectedSupplierName}
+            servicePriceItems={servicePriceItems}
+            serviceCategorySlug={serviceCategorySlug}
+            providerVatRegistered={artistVatRegistered === true}
+            providerVatRate={artistVatRate}
+            needTaxInvoice={needTaxInvoice}
+            onToggleTaxInvoice={(checked) => setNeedTaxInvoice(checked)}
+          />
       );
       default: return null;
     }
@@ -1738,35 +1740,45 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 className="flex-1 overflow-y-auto px-6 pt-2 pb-5"
               >
                 {renderStep()}
-                {/* Business billing details (client) on Review step */}
-                {step === steps.length - 1 && (
+                {/* Business billing details (client) on Review step; only for VAT-registered providers when enabled */}
+                {step === steps.length - 1 && artistVatRegistered === true && needTaxInvoice && (
                   <div className="mt-6 rounded-xl border border-gray-200 p-4">
                     <h3 className="text-sm font-semibold mb-2">Business billing (optional)</h3>
-                    <p className="text-xs text-gray-600 mb-3">Provide your company details if you need a Tax Invoice from the supplier. These details will be attached to your booking.</p>
-                    <label className="inline-flex items-center gap-2 text-sm mb-3">
-                      <input type="checkbox" className="h-4 w-4" checked={needTaxInvoice} onChange={(e)=>{ const v=e.target.checked; setNeedTaxInvoice(v); }} />
-                      I need a Tax Invoice for my business
-                    </label>
-                    {needTaxInvoice && artistVatRegistered === false && (
-                      <div className="mb-3 text-xs text-red-600">This provider is not VAT-registered and cannot issue a Tax Invoice. Please choose a VAT-registered provider or untick this option.</div>
-                    )}
-                    {needTaxInvoice && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs text-gray-600">Company name</label>
-                          <input className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={clientCompanyName} onChange={(e)=> setClientCompanyName(e.target.value)} placeholder="XYZ Corp (Pty) Ltd" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-600">Company VAT number</label>
-                          <input className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={clientVatNumber} onChange={(e)=> setClientVatNumber(e.target.value)} placeholder="4XXXXXXXXX" />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="block text-xs text-gray-600">Billing address</label>
-                          <input className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={clientBillingAddress} onChange={(e)=> setClientBillingAddress(e.target.value)} placeholder="456 Business Park, Sandton, 2196" />
-                        </div>
-                        <div className="sm:col-span-2 text-xs text-gray-500">We’ll attach these details to your booking and pass them to the supplier’s Tax Invoice.</div>
+                    <p className="text-xs text-gray-600 mb-3">
+                      Provide your company details if you need a Tax Invoice from the supplier. These details will be attached to your booking.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-600">Company name</label>
+                        <input
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          value={clientCompanyName}
+                          onChange={(e) => setClientCompanyName(e.target.value)}
+                          placeholder="XYZ Corp (Pty) Ltd"
+                        />
                       </div>
-                    )}
+                      <div>
+                        <label className="block text-xs text-gray-600">Company VAT number</label>
+                        <input
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          value={clientVatNumber}
+                          onChange={(e) => setClientVatNumber(e.target.value)}
+                          placeholder="4XXXXXXXXX"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs text-gray-600">Billing address</label>
+                        <input
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          value={clientBillingAddress}
+                          onChange={(e) => setClientBillingAddress(e.target.value)}
+                          placeholder="456 Business Park, Sandton, 2196"
+                        />
+                      </div>
+                      <div className="sm:col-span-2 text-xs text-gray-500">
+                        We’ll attach these details to your booking and pass them to the supplier’s Tax Invoice.
+                      </div>
+                    </div>
                   </div>
                 )}
                 {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}

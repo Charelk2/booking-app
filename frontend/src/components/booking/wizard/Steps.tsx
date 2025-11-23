@@ -1418,6 +1418,8 @@ export function ReviewStep(props: {
   onToggle?: () => void;
   providerVatRegistered?: boolean;
   providerVatRate?: number | null;
+  needTaxInvoice?: boolean;
+  onToggleTaxInvoice?: (checked: boolean) => void;
 }) {
   const {
     isLoadingReviewData,
@@ -1431,6 +1433,10 @@ export function ReviewStep(props: {
     soundMode,
     open = true,
     onToggle = () => {},
+    providerVatRegistered,
+    providerVatRate,
+    needTaxInvoice,
+    onToggleTaxInvoice,
   } = props;
 
   const { details } = useBooking();
@@ -1486,7 +1492,7 @@ export function ReviewStep(props: {
       }
     })();
     return () => { cancelled = true; };
-  }, [subtotalForPreview, props.providerVatRegistered, props.providerVatRate]);
+  }, [subtotalForPreview, providerVatRegistered, providerVatRate]);
   const isProcessing = submitting || isLoadingReviewData;
   const [acceptedTerms, setAcceptedTerms] = React.useState(false);
   const buttonLabel = (() => {
@@ -1616,10 +1622,10 @@ export function ReviewStep(props: {
           <span className="font-medium">Subtotal</span>
           <span className="font-medium">{formatCurrency(subtotalBeforeTaxes)}</span>
         </div>
-        {props.providerVatRegistered && (
+        {providerVatRegistered && (
           <div className="flex justify-between items-center">
             <span>Provider VAT</span>
-            <span>{formatCurrency(subtotalForPreview * ((typeof props.providerVatRate === 'number' && props.providerVatRate > 0) ? (props.providerVatRate > 1 ? (props.providerVatRate / 100) : props.providerVatRate) : 0.15))}</span>
+            <span>{formatCurrency(subtotalForPreview * ((typeof providerVatRate === 'number' && providerVatRate > 0) ? (providerVatRate > 1 ? (providerVatRate / 100) : providerVatRate) : 0.15))}</span>
           </div>
         )}
         <div className="flex justify-between items-center">
@@ -1657,6 +1663,20 @@ export function ReviewStep(props: {
             </a>.
           </label>
         </div>
+        {providerVatRegistered && (
+          <div className="flex items-start space-x-3 mb-4">
+            <input
+              type="checkbox"
+              id="tax-invoice"
+              className="mt-1 h-3 w-3 bg-black rounded border-black/30 text-black"
+              checked={!!needTaxInvoice}
+              onChange={(e) => onToggleTaxInvoice?.(e.target.checked)}
+            />
+            <label htmlFor="tax-invoice" className="help-text">
+              I need a Tax Invoice for my business
+            </label>
+          </div>
+        )}
         <Button
           variant="primary"
           fullWidth
