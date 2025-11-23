@@ -769,7 +769,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                     hoverNeutralLink2
                                   )}
                                 >
-                                  <span className="mr-3 inline-flex h-5 w-5 items-center justify-center rounded-full border border-black bg-amber-50 text-[10px] font-semibold text-yellow-500 shadow-sm transform transition-transform duration-200 group-hover:-rotate-12 group-hover:scale-110">
+                                  <span className="mr-3 inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-amber-50 text-[10px] font-semibold text-black shadow-sm transform transition-transform duration-200 group-hover:-rotate-12 group-hover:scale-110">
                                     ★
                                   </span>
                                   List your service
