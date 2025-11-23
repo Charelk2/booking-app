@@ -1446,9 +1446,7 @@ export function ReviewStep(props: {
   const travelCost = Number(travelResult?.totalCost) || 0;
   const soundFee = Number(soundCost) || 0;
   const subtotalBeforeTaxes = baseFee + travelCost + soundFee;
-  const subtotalForPreview = Number.isFinite(props.calculatedPrice ?? NaN)
-    ? Number(props.calculatedPrice)
-    : subtotalBeforeTaxes;
+  const subtotalForPreview = subtotalBeforeTaxes;
   // Fetch backend-only fee/VAT preview for the current subtotal/total
   const [platformFeeIncl, setPlatformFeeIncl] = React.useState<number | null>(null);
   const [estimatedTotal, setEstimatedTotal] = React.useState<number | null>(null);
