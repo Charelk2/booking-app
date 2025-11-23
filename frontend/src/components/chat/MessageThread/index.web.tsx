@@ -24,6 +24,7 @@ import { groupMessages } from './grouping/groupMessages';
 import GroupRenderer from './message/GroupRenderer';
 
 import { isImage, isVideo } from './utils/media';
+import { Dialog, Transition } from '@headlessui/react';
 import axios from 'axios';
 import { selectAdapter } from './utils/adapter';
 import { isAtBottom as isAtBottomUtil } from './utils/scroll';
@@ -41,7 +42,7 @@ import { getSummaries as cacheGetSummaries, subscribe as cacheSubscribe } from '
 
 import { format } from 'date-fns';
 import { readThreadCache } from '@/lib/chat/threadCache';
-import { initAttachmentMessage, finalizeAttachmentMessage, apiUrl } from '@/lib/api';
+import api, { initAttachmentMessage, finalizeAttachmentMessage, apiUrl } from '@/lib/api';
 import { useDeclineQuote } from '@/hooks/useQuoteActions';
 import useTransportState from '@/hooks/useTransportState';
 import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
@@ -168,6 +169,11 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const [highlightId, setHighlightId] = React.useState<number | null>(null);
   const [isAtBottom, setIsAtBottom] = React.useState(true);
   const [newAnchorId, setNewAnchorId] = React.useState<number | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = React.useState(false);
+  const [reportCategory, setReportCategory] = React.useState<'service_quality' | 'no_show' | 'late' | 'payment' | 'other'>('other');
+  const [reportDescription, setReportDescription] = React.useState('');
+  const [reportSubmitting, setReportSubmitting] = React.useState(false);
+  const [reportError, setReportError] = React.useState<string | null>(null);
 
   // --- Quotes (must be initialized before useThreadData so we can pass ensureQuotesLoaded)
   const { quotesById, ensureQuoteLoaded, ensureQuotesLoaded, setQuote } = useQuotes(bookingRequestId) as any;
@@ -1153,10 +1159,10 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   // Thread-level actions exposed to system cards (top-level hooks)
   const markBookingCompletedFromChat = useStableCallback(async () => {
     try {
-      const res = await axios.get(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/booking-id`));
+      const res = await api.get(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/booking-id`));
       const bookingId = (res.data as any)?.booking_id;
       if (!bookingId) return;
-      await axios.patch(apiUrl(`/api/v1/bookings/${bookingId}/status`), { status: 'completed' });
+      await api.patch(apiUrl(`/api/v1/bookings/${bookingId}/status`), { status: 'completed' });
       try {
         emitThreadsUpdated(
           { threadId: bookingRequestId, reason: 'booking_completed', immediate: true },
@@ -1172,29 +1178,49 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
   const reportProblemFromChat = useStableCallback(async () => {
     try {
-      const ok = typeof window !== 'undefined'
-        ? window.confirm('Report a problem for this event? Our team will review it.')
-        : true;
-      if (!ok) return;
-      await axios.post(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/report-problem`), {
-        category: 'other',
-        description: null,
+      setReportError(null);
+      setReportCategory('other');
+      setReportDescription('');
+      setIsReportModalOpen(true);
+    } catch {
+    }
+  });
+
+  const submitReportProblem = useStableCallback(async () => {
+    try {
+      setReportSubmitting(true);
+      setReportError(null);
+      await api.post(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/report-problem`), {
+        category: reportCategory,
+        description: reportDescription.trim() || null,
       });
       try {
         emitThreadsUpdated(
           { threadId: bookingRequestId, reason: 'dispute_opened', immediate: true },
           { immediate: true, force: true },
         );
-      } catch {}
-    } catch (err) {
+      } catch {
+      }
+      setIsReportModalOpen(false);
+    } catch (err: any) {
+      let message = 'Failed to report problem. Please try again.';
+      try {
+        if (err?.response?.data?.detail) {
+          message = String(err.response.data.detail);
+        }
+      } catch {
+      }
+      setReportError(message);
       // eslint-disable-next-line no-console
       console.error('Failed to report problem from chat', err);
+    } finally {
+      setReportSubmitting(false);
     }
   });
 
   const openClientReviewFromChat = useStableCallback(async () => {
     try {
-      const res = await axios.get(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/booking-id`));
+      const res = await api.get(apiUrl(`/api/v1/booking-requests/${bookingRequestId}/booking-id`));
       const bookingId = (res.data as any)?.booking_id;
       if (!bookingId || typeof window === 'undefined') return;
       try {
@@ -1518,6 +1544,106 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         </div>
       }
       />
+      <Transition show={isReportModalOpen} as={React.Fragment}>
+        <Dialog
+          as="div"
+          className="fixed inset-0 z-50 overflow-y-auto"
+          open={isReportModalOpen}
+          onClose={() => {
+            if (reportSubmitting) return;
+            setIsReportModalOpen(false);
+          }}
+        >
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <Transition.Child
+              as={React.Fragment}
+              enter="ease-out duration-200"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="ease-in duration-150"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <Dialog.Overlay className="fixed inset-0 bg-black/40" />
+            </Transition.Child>
+            <Transition.Child
+              as={React.Fragment}
+              enter="ease-out duration-200"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-150"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-5 text-left align-middle shadow-xl">
+                <Dialog.Title className="text-sm font-semibold text-gray-900">
+                  Report a problem
+                </Dialog.Title>
+                <div className="mt-3 space-y-3">
+                  <p className="text-xs text-gray-600">
+                    Tell us what went wrong. We&apos;ll open a case that our team can review from this conversation.
+                  </p>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-gray-700">Problem type</label>
+                    <select
+                      className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-0"
+                      value={reportCategory}
+                      onChange={(e) => setReportCategory(e.target.value as any)}
+                      disabled={reportSubmitting}
+                    >
+                      <option value="service_quality">Service quality issue</option>
+                      <option value="no_show">No show</option>
+                      <option value="late">Arrived late</option>
+                      <option value="payment">Payment or refund issue</option>
+                      <option value="other">Something else</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-gray-700">
+                      Details (optional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="block w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-0"
+                      value={reportDescription}
+                      onChange={(e) => setReportDescription(e.target.value)}
+                      placeholder="Briefly describe what happened"
+                      disabled={reportSubmitting}
+                    />
+                  </div>
+                  {reportError && (
+                    <p className="text-xs text-red-600">{reportError}</p>
+                  )}
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                    onClick={() => {
+                      if (reportSubmitting) return;
+                      setIsReportModalOpen(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center rounded-md bg-black px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 disabled:opacity-60"
+                    onClick={() => {
+                      if (!reportSubmitting) {
+                        void submitReportProblem();
+                      }
+                    }}
+                    disabled={reportSubmitting}
+                  >
+                    {reportSubmitting ? 'Submitting…' : 'Submit'}
+                  </button>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition>
     </>
   );
 }
