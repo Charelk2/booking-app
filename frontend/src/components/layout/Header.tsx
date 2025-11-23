@@ -770,9 +770,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                     hoverNeutralLink2
                                   )}
                                 >
-                                  <span className="mr-3 inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-amber-50 text-[10px] font-semibold text-black shadow-sm transform transition-transform duration-200 group-hover:-rotate-12 group-hover:scale-110">
-                                    <SparklesIcon className="h-3.5 w-3.5" />
-                                  </span>
+                                  <SparklesIcon className="mr-3 h-5 w-5 text-black transform transition-transform duration-200 group-hover:-rotate-12 group-hover:scale-110" />
                                   List your service
                                 </button>
                               )}
