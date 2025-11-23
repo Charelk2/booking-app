@@ -33,37 +33,45 @@ def _status_val(v):
     return getattr(v, "value", v)
 
 
-def calculate_totals(quote_in: schemas.QuoteV2Create) -> tuple[Decimal, Decimal]:
+def calculate_totals(
+    quote_in: schemas.QuoteV2Create,
+    *,
+    vat_registered: bool | None = None,
+    vat_rate: Decimal | None = None,
+) -> tuple[Decimal, Decimal]:
     """Calculate subtotal (pre‑VAT) and total (VAT‑inclusive).
 
     - Subtotal: sum of service items + sound + travel, before discount and VAT.
     - Discount: applied to the subtotal before VAT.
-    - VAT: 15% applied to (subtotal - discount).
+    - VAT: applied only when the provider is VAT‑registered (default rate from env or profile).
     - Total: (subtotal - discount) + VAT.
     """
-    # Read VAT from env to stay consistent with backend-configured rates.
+    # Read Booka/provider VAT defaults from env; fall back to 15% if unset.
     try:
         import os
-        vat_rate = Decimal(os.getenv("VAT_RATE", "0.15") or "0.15")
+        vat_env = Decimal(os.getenv("VAT_RATE", "0.15") or "0.15")
     except Exception:
-        vat_rate = Decimal("0.15")
+        vat_env = Decimal("0.15")
+    # Normalize provider VAT rate: only apply when explicitly registered.
+    vat_rate_to_use = Decimal("0")
+    if vat_registered is True:
+        if vat_rate is not None and vat_rate > Decimal("0"):
+            # Accept stored rate as %, fractional, or decimal
+            vat_rate_to_use = vat_rate / Decimal("100") if vat_rate > Decimal("1") else vat_rate
+        else:
+            vat_rate_to_use = vat_env
     subtotal = sum(item.price for item in quote_in.services)
     subtotal += quote_in.sound_fee + quote_in.travel_fee
     discount = quote_in.discount or Decimal("0")
     pre_vat = subtotal - discount
     if pre_vat < Decimal("0"):
         pre_vat = Decimal("0")
-    vat_amount = (pre_vat * vat_rate)
+    vat_amount = (pre_vat * vat_rate_to_use)
     total = pre_vat + vat_amount
     return subtotal, total
 
 
 def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2:
-    subtotal, total = calculate_totals(quote_in)
-    services = [
-        {"description": s.description, "price": float(s.price)}
-        for s in quote_in.services
-    ]
     booking_request = (
         db.query(models.BookingRequest)
         .filter(models.BookingRequest.id == quote_in.booking_request_id)
@@ -75,6 +83,32 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
             {"booking_request_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    vat_registered = None
+    vat_rate = None
+    try:
+        prof = (
+            db.query(models.ServiceProviderProfile)
+            .filter(models.ServiceProviderProfile.user_id == booking_request.artist_id)
+            .first()
+        )
+        if prof is not None:
+            flag = getattr(prof, "vat_registered", None)
+            vat_registered = True if flag is True else False if flag is False else None
+            try:
+                raw_rate = getattr(prof, "vat_rate", None)
+                if raw_rate is not None:
+                    vat_rate = Decimal(str(raw_rate))
+            except Exception:
+                vat_rate = None
+    except Exception:
+        vat_registered = None
+        vat_rate = None
+
+    subtotal, total = calculate_totals(quote_in, vat_registered=vat_registered, vat_rate=vat_rate)
+    services = [
+        {"description": s.description, "price": float(s.price)}
+        for s in quote_in.services
+    ]
     # Always rely on the booking request for the artist and client IDs. This
     # avoids situations where the payload omits or mislabels these values,
     # ensuring downstream notifications target the correct recipient.

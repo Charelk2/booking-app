@@ -111,7 +111,10 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                   <div className="flex items-start gap-3">
                     <input id="acceptProviderTerms" type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300" {...register('acceptProviderTerms', { required: 'Please accept the provider terms' })} />
                     <label htmlFor="acceptProviderTerms" className="text-sm text-gray-700">
-                      I agree to the <a href="/terms" className="underline">Provider Terms</a>.
+                      I agree to the{' '}
+                      <a href="/terms" className="underline text-black hover:text-black">
+                        Provider Terms
+                      </a>.
                     </label>
                   </div>
                   {errors.acceptProviderTerms && (
@@ -149,4 +152,3 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
     </Transition>
   );
 }
-
