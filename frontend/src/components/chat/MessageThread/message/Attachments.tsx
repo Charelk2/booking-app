@@ -49,10 +49,7 @@ export default function Attachments({ imageUrl, videoUrl, audioUrl, fileLabel, f
           loading="lazy"
           onLoad={() => { try { onMediaLoad?.(); } catch {} }}
         />
-        <div className="pointer-events-none absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/60 via-black/0 to-transparent px-2 py-1 text-xs text-white">
-          <span className="truncate opacity-80">{fileLabel || 'Image'}</span>
-          <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide opacity-80">View</span>
-        </div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent" />
         {typeof progressPct === 'number' && (
           <div className="absolute inset-0 grid place-items-center">
             <ProgressRing pct={progressPct} />
