@@ -22,7 +22,7 @@ import {
   calculateQuote,
   estimatePriceSafe,
 } from '@/lib/api';
-import { calculateTravelMode, getDrivingMetricsCached, geocodeCached, findNearestAirport, getMockCoordinates } from '@/lib/travel';
+import { calculateTravelMode, getDrivingMetricsCached, geocodeCached, findNearestAirport, getMockCoordinates, type TravelResult } from '@/lib/travel';
   import { trackEvent } from '@/lib/analytics';
   import { format } from 'date-fns';
   import { computeSoundServicePrice, type LineItem } from '@/lib/soundPricing';
