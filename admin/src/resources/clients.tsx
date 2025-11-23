@@ -15,6 +15,7 @@ import {
   SimpleList,
 } from 'react-admin';
 import { useMediaQuery } from '@mui/material';
+import ConfirmButton from '../components/ConfirmButton';
 
 const clientFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn />,
@@ -52,6 +53,13 @@ const RowActions: React.FC = () => {
   const refresh = useRefresh();
   if (!rec) return null;
 
+  const getAdminBase = (): string => {
+    const base: string | undefined = dp?.API_URL;
+    if (base) return base;
+    const { protocol, hostname } = window.location;
+    return `${protocol}//${hostname}:8000/admin`;
+  };
+
   const onToggleActive = async () => {
     try {
       if (rec.is_active) await dp.deactivateClient(rec.id);
@@ -60,6 +68,30 @@ const RowActions: React.FC = () => {
       refresh();
     } catch (e) {
       notify('Action failed', { type: 'warning' });
+    }
+  };
+
+  const onPurge = async (confirmEmail?: string) => {
+    try {
+      const base = getAdminBase();
+      const token = localStorage.getItem('booka_admin_token');
+      const res = await fetch(`${base}/users/${rec.id}/purge`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ confirm: confirmEmail || '', force: true }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as any)?.detail || `Purge failed (${res.status})`);
+      }
+      notify('app.user.purged', { type: 'info' });
+      refresh();
+    } catch (e: any) {
+      notify(e?.message || 'Purge failed', { type: 'warning' });
     }
   };
 
@@ -77,6 +109,14 @@ const RowActions: React.FC = () => {
     <>
       <Button label={rec.is_active ? 'Deactivate' : 'Activate'} onClick={() => void onToggleActive()} />
       <Button label="Impersonate" onClick={() => void onImpersonate()} />
+      <ConfirmButton
+        label="Purge"
+        color="error"
+        confirmTitle="Type email to confirm purge"
+        confirmPlaceholder="email@example.com"
+        confirmTextRequired={rec.email}
+        onConfirm={onPurge}
+      />
     </>
   );
 };
@@ -116,4 +156,3 @@ export const ClientList: React.FC = () => {
 };
 
 export default ClientList;
-

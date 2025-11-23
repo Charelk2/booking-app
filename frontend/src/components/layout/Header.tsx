@@ -27,8 +27,7 @@ import {
   Bars3Icon,
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
-  CalendarDaysIcon,
-  ChatBubbleLeftEllipsisIcon,
+  CalendarIcon,
   // kept for parity (unused here)
   FilmIcon,
   MusicalNoteIcon,
@@ -729,10 +728,10 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                     'group flex items-center px-4 py-2 text-sm',
                                     'text-black',
                                     active && 'bg-slate-100',
-                                    hoverNeutralLink
+                                    hoverNeutralLink2
                                   )}
                                 >
-                                  <CalendarDaysIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
+                                  <CalendarIcon className="mr-3 h-5 w-5 text-black" />
                                   Dashboard
                                 </Link>
                               )}
@@ -744,9 +743,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                 href="/dashboard/profile/edit"
                                 className={clsx(
                                   'group flex items-center px-4 py-2 text-sm',
-                                    'text-black',
-                                    active && 'bg-slate-100',
-                                    hoverNeutralLink
+                                  'text-black',
+                                  active && 'bg-slate-100',
+                                  hoverNeutralLink2
                                   )}
                                 >
                                   <UserCircleIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
@@ -767,7 +766,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                     'group flex w-full items-center px-4 py-2 text-sm',
                                     'text-black',
                                     active && 'bg-slate-100',
-                                    hoverNeutralLink
+                                    hoverNeutralLink2
                                   )}
                                 >
                                   <span className="mr-3 inline-flex h-5 w-5 items-center justify-center text-slate-500 group-hover:text-slate-600">⭐</span>
@@ -776,17 +775,17 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                               )}
                             </Menu.Item>
                             <Menu.Item>
-                              {({ active }) => (
-                                <Link
-                                  href="/dashboard/client"
-                                  className={clsx(
-                                    'group flex items-center px-4 py-2 text-sm',
-                                    'text-black',
-                                    active && 'bg-slate-100',
-                                    hoverNeutralLink
+                            {({ active }) => (
+                              <Link
+                                href="/dashboard/client"
+                                className={clsx(
+                                  'group flex items-center px-4 py-2 text-sm',
+                                  'text-black',
+                                  active && 'bg-slate-100',
+                                  hoverNeutralLink2
                                   )}
                                 >
-                                  <CalendarDaysIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
+                                  <CalendarIcon className="mr-3 h-5 w-5 text-black" />
                                   Events
                                 </Link>
                               )}
@@ -798,25 +797,25 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                 href="/inbox"
                                 className={clsx(
                                   'group flex items-center px-4 py-2 text-sm',
-                                    'text-black',
-                                    active && 'bg-slate-100',
-                                    hoverNeutralLink
+                                  'text-black',
+                                  active && 'bg-slate-100',
+                                  hoverNeutralLink2
                                   )}
                                 >
-                                  <ChatBubbleLeftEllipsisIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
+                                  <ChatOutline className="mr-3 h-5 w-5 text-black" />
                                   Messages
                                 </Link>
                               )}
                             </Menu.Item>
                             <Menu.Item>
-                              {({ active }) => (
-                                <Link
-                                  href="/account"
-                                  className={clsx(
-                                    'group flex items-center px-4 py-2 text-sm',
-                                    'text-black',
-                                    active && 'bg-slate-100',
-                                    hoverNeutralLink
+                            {({ active }) => (
+                              <Link
+                                href="/account"
+                                className={clsx(
+                                  'group flex items-center px-4 py-2 text-sm',
+                                  'text-black',
+                                  active && 'bg-slate-100',
+                                  hoverNeutralLink2
                                   )}
                                 >
                                   <UserCircleIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
@@ -837,10 +836,10 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   'group flex items-center px-4 py-2 text-sm',
                                   'text-black',
                                   active && 'bg-slate-100',
-                                  hoverNeutralLink
+                                  hoverNeutralLink2
                                 )}
                               >
-                                <CalendarDaysIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
+                                <CalendarIcon className="mr-3 h-5 w-5 text-black" />
                                 Event Prep
                               </Link>
                             )}
@@ -854,7 +853,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                               className={clsx(
                                 'group flex w-full items-center px-4 py-2 text-sm',
                                 active ? 'bg-red-50 text-red-700' : 'text-red-600',
-                                hoverNeutralLink
+                                hoverNeutralLink2
                               )}
                             >
                               <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5" />

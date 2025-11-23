@@ -131,6 +131,7 @@ export const ProviderList = () => {
   );
   return (
     <List
+      resource="providers"
       filters={providerFilters}
       filterDefaultValues={isDeletedView ? { is_active: false as any } : undefined}
       perPage={25}
