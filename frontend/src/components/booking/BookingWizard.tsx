@@ -951,6 +951,28 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         setSoundMode(quote.sound_mode);
         setSoundModeOverridden(quote.sound_mode_overridden);
 
+        // If the artist uses variable own-sound pricing, allow the preview
+        // sound fee to follow the chosen travel mode (drive vs fly) using
+        // the configured driving/flying sound prices.
+        const spSound: any = svcRes?.details?.sound_provisioning || {};
+        const isArtistVariableSound = spSound?.mode === 'artist_provides_variable';
+        const applyArtistVariableSoundForMode = (modeStr: 'drive' | 'fly') => {
+          if (!isArtistVariableSound || details.sound !== 'yes') return;
+          const drivePrice = parseNumber(
+            spSound.price_driving_sound_zar ?? spSound.price_driving_sound ?? 0,
+            0,
+          );
+          const flyPrice = parseNumber(
+            spSound.price_flying_sound_zar ?? spSound.price_flying_sound ?? 0,
+            0,
+          );
+          const chosen = modeStr === 'fly' ? flyPrice : drivePrice;
+          if (!Number.isFinite(chosen) || chosen <= 0) return;
+          setSoundCost(chosen);
+          setSoundMode('provided_by_artist');
+          setSoundModeOverridden(false);
+        };
+
         // Travel: when sound is required for a non-sound service, trust the
         // backend's travel_cost/travel_mode first. If the backend did not
         // compute travel (travel_cost <= 0), fall back to the client travel
@@ -1016,15 +1038,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             }, undefined as any, airportFn as any);
             if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
               setTravelResult(tr as any);
+              applyArtistVariableSoundForMode(tr.mode === 'fly' ? 'fly' : 'drive');
             } else if (Number.isFinite(travelCost) && travelCost > 0) {
               setTravelResult(baseTravelRes);
+              applyArtistVariableSoundForMode(baseTravelRes.mode);
             }
           } else if (Number.isFinite(travelCost) && travelCost > 0) {
             setTravelResult(baseTravelRes);
+            applyArtistVariableSoundForMode(baseTravelRes.mode);
           }
         } catch {
           if (Number.isFinite(travelCost) && travelCost > 0) {
             setTravelResult(baseTravelRes);
+            applyArtistVariableSoundForMode(baseTravelRes.mode);
           }
         }
       } else {
