@@ -541,11 +541,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         return;
       }
 
-      if (!artistPos) {
-        throw new Error(`Could not find geographic coordinates for artist's base location: "${artistLocation}".`);
-      }
-      if (!eventPos) {
-        throw new Error(`Could not find geographic coordinates for event location: "${details.location}".`);
+      if (!artistPos || !eventPos) {
+        if (activeCalcRef.current === calcId) setIsLoadingReviewData(false);
+        setReviewDataError('Could not resolve locations. Please pick a full city name.');
+        setCalculatedPrice(null);
+        setTravelResult(null);
+        return;
       }
 
       // Helper to safely parse numeric fields that may arrive as formatted strings
@@ -1030,12 +1031,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               lastTravelSigRef.current = travelSig;
               setTravelResult(cachedTravel);
               applyArtistVariableSoundForMode(cachedTravel.mode === 'fly' ? 'fly' : 'drive');
-            } else if (Number.isFinite(travelCost) && travelCost > 0) {
-              // Trust backend travel when present; skip heavy client travel calc.
-              lastTravelSigRef.current = travelSig;
-              travelResultCache.current.set(travelSig, baseTravelRes);
-              setTravelResult(baseTravelRes);
-              applyArtistVariableSoundForMode(baseTravelRes.mode);
             } else {
               const airportFn = async (city: string) => {
                 const mock = getMockCoordinates(city);
@@ -1141,10 +1136,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               if (cachedTravel) {
                 lastTravelSigRef.current = travelSig;
                 setTravelResult(cachedTravel);
-              } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
-                lastTravelSigRef.current = travelSig;
-                travelResultCache.current.set(travelSig, baseTravelRes);
-                setTravelResult(baseTravelRes);
               } else {
                 const airportFn = async (city: string) => {
                   const mock = getMockCoordinates(city);
@@ -1163,12 +1154,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     flightPricePerPerson: flightPrice,
                   },
                   undefined as any,
-                  airportFn as any,
-                );
-                if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
-                  lastTravelSigRef.current = travelSig;
-                  travelResultCache.current.set(travelSig, tr as any);
-                  setTravelResult(tr as any);
+                    airportFn as any,
+                  );
+                  if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
+                    lastTravelSigRef.current = travelSig;
+                    travelResultCache.current.set(travelSig, tr as any);
+                    setTravelResult(tr as any);
                 }
               }
             } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
@@ -1207,19 +1198,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     details.date,
     // Sound flags and selections
     details.sound,
-    (details as any).soundMode,
-    (details as any).soundSupplierServiceId,
-    // Context that changes sound sizing and pricing
-    (details as any).guests,
-    (details as any).venueType,
-    (details as any).stageRequired,
-    (details as any).stageSize,
-    (details as any).lightingEvening,
-    (details as any).lightingUpgradeAdvanced,
-    (details as any).backlineRequired,
-    // Setter from context (stable but included for correctness)
-    setTravelResult,
-    reviewDataError,
+                (details as any).soundMode,
+                (details as any).soundSupplierServiceId,
+                // Context that changes sound sizing and pricing
+                (details as any).guests,
+                (details as any).venueType,
+                (details as any).stageRequired,
+                (details as any).stageSize,
+                (details as any).lightingEvening,
+                (details as any).lightingUpgradeAdvanced,
+                (details as any).backlineRequired,
+                // Setter from context (stable but included for correctness)
+                setTravelResult,
+                reviewDataError,
   ]);
 
   // Trigger the calculation when approaching the Review step to prefetch data
