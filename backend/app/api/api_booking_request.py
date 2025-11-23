@@ -263,6 +263,11 @@ def report_problem_for_request(
         if current_user.user_type == models.UserType.CLIENT
         else models.SenderType.ARTIST
     )
+    visible_to = (
+        models.VisibleTo.CLIENT
+        if current_user.user_type == models.UserType.CLIENT
+        else models.VisibleTo.ARTIST
+    )
     msg = crud.crud_message.create_message(
         db=db,
         booking_request_id=request_id,
@@ -274,15 +279,20 @@ def report_problem_for_request(
             "but we may step in if needed."
         ),
         message_type=models.MessageType.SYSTEM,
-        visible_to=models.VisibleTo.BOTH,
+        visible_to=visible_to,
         system_key="dispute_opened_v1",
     )
     try:
         artist = db.query(models.User).filter(models.User.id == db_request.artist_id).first()
         client = db.query(models.User).filter(models.User.id == db_request.client_id).first()
         if artist and client:
-            notify_user_new_message(db, client, artist, request_id, msg.content, models.MessageType.SYSTEM)  # type: ignore[arg-type]
-            notify_user_new_message(db, artist, artist, request_id, msg.content, models.MessageType.SYSTEM)  # type: ignore[arg-type]
+            # Only notify the reporter; the counterparty should not see a new
+            # system bubble for the complaint itself, but admins can still
+            # review it via the disputes table.
+            if current_user.id == client.id:
+                notify_user_new_message(db, client, artist, request_id, msg.content, models.MessageType.SYSTEM)  # type: ignore[arg-type]
+            elif current_user.id == artist.id:
+                notify_user_new_message(db, artist, client, request_id, msg.content, models.MessageType.SYSTEM)  # type: ignore[arg-type]
     except Exception:
         pass
 

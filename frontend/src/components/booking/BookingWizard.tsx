@@ -1235,6 +1235,15 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   // Trigger the calculation when approaching the Review step to prefetch data
   const hasPrefetched = useRef(false);
   const soundPrefetchStarted = useRef(false);
+  const earlyTravelPrefetched = useRef(false);
+
+  // Kick off a one-time early travel calculation as soon as we have date + location
+  useEffect(() => {
+    if (earlyTravelPrefetched.current) return;
+    if (!serviceId || !artistLocation || !(details as any)?.location || !(details as any)?.date) return;
+    earlyTravelPrefetched.current = true;
+    void calculateReviewData();
+  }, [serviceId, artistLocation, details, calculateReviewData]);
   useEffect(() => {
     if (step >= steps.length - 2 && !hasPrefetched.current) {
       hasPrefetched.current = true;
@@ -1246,8 +1255,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   useEffect(() => {
     const s = (details as any)?.sound;
     const hasLoc = !!(details as any)?.location;
+    const hasDate = !!(details as any)?.date;
     const soundIdx = steps.indexOf('Sound');
-    if (isOpen && step >= soundIdx && s && hasLoc && !soundPrefetchStarted.current) {
+    if (isOpen && step >= soundIdx && s && hasLoc && hasDate && !soundPrefetchStarted.current) {
       soundPrefetchStarted.current = true;
       startTransition(() => { void calculateReviewData(); });
     }
