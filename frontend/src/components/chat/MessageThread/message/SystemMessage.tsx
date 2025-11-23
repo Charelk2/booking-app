@@ -295,10 +295,13 @@ export default function SystemMessage({
     }
 
     // Dispute opened banner
-    if (key.startsWith('dispute_opened_v1')) {
+    if (
+      key.startsWith('dispute_opened_v1') ||
+      lower.startsWith('a problem has been reported for this event')
+    ) {
       // Only show this banner to the user who reported the problem. The message
       // still exists in the thread for auditing/admins, but the counterparty
-      // does not see an inline complaint marker.
+      // does not see an inline complaint marker (nor the generic system line).
       const viewerId = Number((user as any)?.id || 0);
       const senderId = Number((msg as any)?.sender_id || 0);
       if (viewerId && senderId && viewerId !== senderId) return null;
