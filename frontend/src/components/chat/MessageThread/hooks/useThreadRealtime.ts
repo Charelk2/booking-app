@@ -191,7 +191,18 @@ export function useThreadRealtime({
           for (const [uid, status] of Object.entries(updates)) {
             const id = Number(uid);
             if (!Number.isFinite(id) || id === myUserId) continue;
-            cacheUpdateSummary(threadId, { presence: (status || '').toString(), last_presence_at: Date.now() });
+            const s = (status || '').toString();
+            // Only move last_presence_at forward for explicit online/away
+            // states so "Last seen" reflects the last time we observed the
+            // counterparty as active. Offline snapshots (e.g., from fresh
+            // subscribes) should not overwrite that marker; in those cases we
+            // fall back to the last counterparty message timestamp.
+            const patch: any = { presence: s };
+            const low = s.trim().toLowerCase();
+            if (low === 'online' || low === 'away') {
+              patch.last_presence_at = Date.now();
+            }
+            cacheUpdateSummary(threadId, patch);
             break;
           }
         } catch {}
