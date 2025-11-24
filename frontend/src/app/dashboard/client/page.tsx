@@ -30,6 +30,8 @@ export default function ClientDashboardPage() {
   const [error, setError] = useState("");
   const [fetchedBookings, setFetchedBookings] = useState(false);
   const [fetchedRequests, setFetchedRequests] = useState(false);
+  const bookingsInflightRef = React.useRef<Promise<Booking[] | null> | null>(null);
+  const requestsInflightRef = React.useRef<Promise<BookingRequest[] | null> | null>(null);
 
   const initialTab = params.get("tab") === "bookings" ? "bookings" : "requests";
   const [activeTab, setActiveTab] = useState<"requests" | "bookings" | "services">(initialTab);
@@ -64,9 +66,15 @@ export default function ClientDashboardPage() {
       if (!fetchedBookings && activeTab === 'bookings') {
         setLoadingBookings(true);
         try {
-          const bookingsData = await getMyClientBookingsCached();
-          setBookings(bookingsData);
-          setFetchedBookings(true);
+          if (!bookingsInflightRef.current) {
+            bookingsInflightRef.current = getMyClientBookingsCached().catch(() => null);
+          }
+          const bookingsData = await bookingsInflightRef.current;
+          bookingsInflightRef.current = null;
+          if (bookingsData) {
+            setBookings(bookingsData);
+            setFetchedBookings(true);
+          }
         } catch (err) {
           console.error("Client dashboard bookings fetch error:", err);
           setError("Failed to load bookings. Please try again.");
@@ -77,9 +85,15 @@ export default function ClientDashboardPage() {
       if (!fetchedRequests && activeTab === 'requests') {
         setLoadingRequests(true);
         try {
-          const requestsData = await getMyBookingRequestsCached();
-          setBookingRequests(requestsData);
-          setFetchedRequests(true);
+          if (!requestsInflightRef.current) {
+            requestsInflightRef.current = getMyBookingRequestsCached().catch(() => null);
+          }
+          const requestsData = await requestsInflightRef.current;
+          requestsInflightRef.current = null;
+          if (requestsData) {
+            setBookingRequests(requestsData);
+            setFetchedRequests(true);
+          }
         } catch (err) {
           console.error("Client dashboard requests fetch error:", err);
           setError("Failed to load requests. Please try again.");

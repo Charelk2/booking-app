@@ -440,6 +440,7 @@ def read_my_client_booking_requests(
     skip: int = 0,
     limit: int = 100,
     lite: bool = False,
+    if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(
         get_current_active_client
@@ -448,6 +449,27 @@ def read_my_client_booking_requests(
     """
     Retrieve booking requests made by the current client.
     """
+    # Cheap snapshot for ETag: max ids + count
+    try:
+        max_br = (
+            db.query(func.coalesce(func.max(models.BookingRequest.id), 0))
+            .filter(models.BookingRequest.client_id == current_user.id)
+            .scalar()
+        ) or 0
+    except Exception:
+        max_br = 0
+    try:
+        total_count = (
+            db.query(func.count(models.BookingRequest.id))
+            .filter(models.BookingRequest.client_id == current_user.id)
+            .scalar()
+        ) or 0
+    except Exception:
+        total_count = 0
+    etag = f'W/"brc:{int(current_user.id)}:{int(max_br)}:{int(total_count)}:{int(skip)}:{int(limit)}:{int(bool(lite))}"'
+    if if_none_match and if_none_match.strip() == etag:
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag, "Vary": "If-None-Match"})
+
     requests = crud.crud_booking_request.get_booking_requests_with_last_message(
         db=db,
         client_id=current_user.id,
@@ -464,6 +486,14 @@ def read_my_client_booking_requests(
             req.updated_at = req.created_at
         if not lite:
             _prepare_quotes_for_response(list(req.quotes or []))
+    try:
+        # Attach ETag headers to normal response path
+        response: Response = Response()
+        response.headers["ETag"] = etag
+        response.headers["Cache-Control"] = "no-cache, private"
+        response.headers["Vary"] = "If-None-Match"
+    except Exception:
+        response = None  # type: ignore
     return requests
 
 
