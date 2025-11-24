@@ -319,7 +319,7 @@ export default function BookingSummaryCard({
             Event Details
           </h2>
 
-          <ul className="rounded-lg bg-white border border-gray-200 p-4 space-y-2 shadow-sm overflow-x-hidden">
+          <ul className="rounded-lg bg-white border border-gray-200 p-3 space-y-2 shadow-sm overflow-x-hidden">
             {showEventDetails && parsedBookingDetails?.eventType && (
               <li className="flex items-start">
                 <span className="font-semibold w-28 text-gray-600 shrink-0">Event Type:</span>
@@ -444,7 +444,7 @@ export default function BookingSummaryCard({
             <h2 id="order-info-h" className="text-xl font-bold text-gray-900 mb-3">
               Order Information
             </h2>
-            <div className="rounded-lg bg-white border border-gray-200 p-4 space-y-2 shadow-sm overflow-x-hidden">
+            <div className="rounded-lg bg-white border border-gray-200 p-3 space-y-2 shadow-sm overflow-x-hidden">
               <div className="flex items-center justify-between">
                 <span className="text-gray-700 font-medium">Order Number</span>
                 <span className="font-semibold flex items-center gap-2 text-gray-900">
@@ -565,7 +565,7 @@ export default function BookingSummaryCard({
             <h2 id="policy-h" className="text-xl font-bold text-gray-900 mb-3">
               Cancellation Policy
             </h2>
-            <p className="rounded-lg bg-white border border-gray-200 p-4 space-y-2 shadow-sm overflow-x-hidden">
+            <p className="rounded-lg bg-white border border-gray-200 p-3 space-y-2 shadow-sm overflow-x-hidden">
               {artistCancellationPolicy?.trim() ||
                 'Free cancellation within 48 hours of booking. 50% refund up to 7 days before the event. Policies may vary by provider. Please review the full terms before confirming.'}
             </p>
@@ -663,7 +663,7 @@ function CostBreakdown({
       : QUOTE_TOTALS_PLACEHOLDER;
 
   return (
-    <div className="rounded-lg bg-white border border-gray-200 p-4 space-y-2 shadow-sm overflow-x-hidden">
+    <div className="rounded-lg bg-white border border-gray-200 p-3 space-y-2 shadow-sm overflow-x-hidden">
       <div className="flex justify-between text-gray-700">
         <span>Base Service Fee</span>
         <span>{formatCurrency(base)}</span>
