@@ -1,17 +1,22 @@
 import ProfileClient from './ProfileClient';
-import { getServiceProvider, getServiceProviderServices, getServiceProviderReviews } from '@/lib/api';
+import {
+  getServiceProvider,
+  getServiceProviderServices,
+  getServiceProviderReviews,
+} from '@/lib/api';
 
 export const revalidate = 60;
 
-export default async function Page({ params }: { params: { id: string } }) {
+type Params = { params: { id: string } };
+
+export default async function Page({ params }: Params) {
   const id = Number(params.id);
+
   if (!Number.isFinite(id) || id <= 0) {
-    // Graceful fallback: avoid throwing to keep a soft 200 with not found UI
-    const empty: any = null;
     return (
       <ProfileClient
         serviceProviderId={0}
-        initialServiceProvider={empty}
+        initialServiceProvider={null as any}
         initialServices={[]}
         initialReviews={[]}
       />
@@ -33,4 +38,3 @@ export default async function Page({ params }: { params: { id: string } }) {
     />
   );
 }
-

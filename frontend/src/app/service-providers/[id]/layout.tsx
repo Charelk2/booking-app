@@ -4,14 +4,27 @@ import { getFullImageUrl } from '@/lib/utils';
 
 export const revalidate = 60;
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+type Params = { params: { id: string } };
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const id = Number(params.id);
-  if (!Number.isFinite(id)) return { title: 'Service Provider' };
+  if (!Number.isFinite(id) || id <= 0) {
+    return { title: 'Service Provider' };
+  }
+
   try {
     const { data: sp } = await getServiceProvider(id);
-    const displayName = sp.business_name || `${sp.user?.first_name ?? ''} ${sp.user?.last_name ?? ''}`.trim() || 'Service Provider';
-    const image = sp.profile_picture_url ? getFullImageUrl(sp.profile_picture_url) : undefined;
+    const displayName =
+      sp.business_name ||
+      `${sp.user?.first_name ?? ''} ${sp.user?.last_name ?? ''}`.trim() ||
+      'Service Provider';
+
+    const image = sp.profile_picture_url
+      ? getFullImageUrl(sp.profile_picture_url)
+      : undefined;
+
     const description = sp.description || undefined;
+
     return {
       title: displayName,
       description,
@@ -35,4 +48,3 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return children;
 }
-
