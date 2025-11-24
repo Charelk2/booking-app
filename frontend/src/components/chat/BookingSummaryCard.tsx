@@ -150,33 +150,6 @@ const AvatarHeader: React.FC<
             {clientReviewCta}
           </div>
         )}
-
-        <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-gray-700">
-          <div className="flex items-center">
-            <Calendar className="w-4 h-4 mr-2" />
-            <span>
-              {formattedDate}
-            </span>
-          </div>
-          {parsedBookingDetails?.location && (
-            <div className="flex items-center">
-              <MapPin className="w-4 h-4 mr-2" />
-              {mapsUrl ? (
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="truncate no-underline hover:no-underline hover:cursor-pointer text-gray-700 visited:text-gray-700"
-                  title={rawLocation}
-                >
-                  {parsedBookingDetails.location.split(',')[0].trim()}
-                </a>
-              ) : (
-                <span className="truncate">{parsedBookingDetails.location.split(',')[0].trim()}</span>
-              )}
-            </div>
-          )}
-        </div>
       </div>
     </header>
   );
