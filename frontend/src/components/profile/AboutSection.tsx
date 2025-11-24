@@ -173,8 +173,8 @@ export default function AboutSection({
         id={`about-heading-${variant}`}
         className={
           isMobile
-            ? "text-2xl font-bold tracking-tight text-gray-900"
-            : "mt-12 text-2xl font-bold tracking-tight text-gray-900"
+            ? "text-lg font-bold tracking-tight text-gray-900"
+            : "mt-12 text-lg font-bold tracking-tight text-gray-900"
         }
       >
         About {displayName}

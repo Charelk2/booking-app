@@ -1006,7 +1006,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                 {/* Reviews (desktop) */}
                 <section aria-labelledby="reviews-heading-desktop" className="group pb-10">
                   <div className="h-px w-full bg-gray-200" />
-                  <h2 id="reviews-heading-desktop" className="mt-12 text-2xl font-bold text-gray-800 mb-3 hidden">Reviews</h2>
+                  <h2 id="reviews-heading-desktop" className="mt-12 text-lg font-bold text-gray-800 mb-3 hidden">Reviews</h2>
                   {displayReviews.length ? (
                     <>
                       <ReviewSummary reviews={displayReviews} />
@@ -1133,7 +1133,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     <>
                       <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
                       <section aria-labelledby="policies-heading-desktop">
-                        <h2 id="policies-heading-desktop" className="mt-12 text-2xl font-bold text-gray-800 mb-3">Policies</h2>
+                        <h2 id="policies-heading-desktop" className="mt-12 text-lg font-bold text-gray-800 mb-3">Policies</h2>
                         <div className="rounded-2xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
                           <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">Cancellation Policy</p>
                           {intro && <p className="mb-3 leading-relaxed">{intro}</p>}
