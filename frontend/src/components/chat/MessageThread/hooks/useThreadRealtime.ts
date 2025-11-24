@@ -30,7 +30,7 @@ export function useThreadRealtime({
   applyDelivered,
   pokeDelta,
 }: UseThreadRealtimeOptions) {
-  const { subscribe } = useRealtimeContext();
+  const { subscribe, publish } = useRealtimeContext();
   const seenIdsRef = (typeof window !== 'undefined') ? (window as any).__threadSeenIds ?? new Map<number, Set<number>>() : new Map<number, Set<number>>();
   if (typeof window !== 'undefined' && !(window as any).__threadSeenIds) {
     try { (window as any).__threadSeenIds = seenIdsRef; } catch {}
@@ -42,6 +42,18 @@ export function useThreadRealtime({
   useEffect(() => {
     if (!threadId || !isActive) return;
     const topic = `${THREAD_TOPIC_PREFIX}${threadId}`;
+
+    // Announce our presence for this thread so the counterparty sees an
+    // accurate online state even when connected to another instance. The
+    // server already emits a snapshot on subscribe; this update fans out via
+    // the multiplex bus and keeps per-thread presence fresh.
+    try {
+      if (Number.isFinite(myUserId) && myUserId > 0) {
+        publish(topic, { type: 'presence', updates: { [myUserId]: 'online' } });
+      }
+    } catch {
+      // best-effort only
+    }
     let typingTimer: number | null = null;
     const scheduleTypingClear = () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
@@ -259,7 +271,17 @@ export function useThreadRealtime({
 
     return () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
+      // Best-effort: mark this user offline for this thread when tearing
+      // down the subscription so the counterparty does not see a stuck
+      // "Online" label indefinitely.
+      try {
+        if (Number.isFinite(myUserId) && myUserId > 0) {
+          publish(topic, { type: 'presence', updates: { [myUserId]: 'offline' } });
+        }
+      } catch {
+        // ignore
+      }
       unsubscribe();
     };
-  }, [threadId, isActive, subscribe, ingestMessage, applyReadReceipt, myUserId]);
+  }, [threadId, isActive, subscribe, publish, ingestMessage, applyReadReceipt, myUserId]);
 }
