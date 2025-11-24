@@ -177,8 +177,6 @@ def read_my_bookings(
             selectinload(Booking.source_quote),
         )
         .filter(Booking.client_id == current_client.id)
-        .offset(skip)
-        .limit(limit)
     )
 
     if status_filter:
@@ -205,7 +203,12 @@ def read_my_bookings(
                 detail="Invalid status filter",
             ) from exc
 
-    rows = query.order_by(Booking.start_time.desc()).all()
+    rows = (
+        query.order_by(Booking.start_time.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     bookings: List[Booking] = []
     for (
         booking,

@@ -944,25 +944,41 @@ const canUseSessionStorage = typeof window !== 'undefined' && (() => {
   try { return typeof window.sessionStorage !== 'undefined'; } catch { return false; }
 })();
 
+// In-memory fallback cache when sessionStorage is unavailable (SSR or restricted environments).
+const memoryCache = new Map<string, CacheEntry<any>>();
+
 function readCacheEntry<T>(key: string, ttlMs: number): CacheEntry<T> | null {
-  if (!canUseSessionStorage) return null;
-  try {
-    const raw = sessionStorage.getItem(key);
-    if (!raw) return null;
-    const obj = JSON.parse(raw) as CacheEntry<T>;
-    if (!obj || typeof obj.ts !== 'number') return null;
-    if (Date.now() - obj.ts > ttlMs) return null;
-    if (!obj.data) return null;
-    return obj;
-  } catch {
+  if (canUseSessionStorage) {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return null;
+      const obj = JSON.parse(raw) as CacheEntry<T>;
+      if (!obj || typeof obj.ts !== 'number') return null;
+      if (Date.now() - obj.ts > ttlMs) return null;
+      if (!obj.data) return null;
+      return obj;
+    } catch {
+      return null;
+    }
+  }
+  const mem = memoryCache.get(key);
+  if (!mem) return null;
+  if (Date.now() - mem.ts > ttlMs) {
+    memoryCache.delete(key);
     return null;
   }
+  return mem as CacheEntry<T>;
 }
 function writeCacheEntry<T>(key: string, entry: CacheEntry<T>): void {
-  if (!canUseSessionStorage) return;
-  try {
-    sessionStorage.setItem(key, JSON.stringify(entry));
-  } catch {}
+  if (canUseSessionStorage) {
+    try {
+      sessionStorage.setItem(key, JSON.stringify(entry));
+      return;
+    } catch {
+      // fall through to memory cache
+    }
+  }
+  memoryCache.set(key, entry);
 }
 const etagFrom = (res: any): string | undefined =>
   (res?.headers?.etag as string) || (res?.headers?.ETag as string) || undefined;
@@ -972,15 +988,19 @@ async function getWithCache<T>(
   request: (etag?: string) => Promise<any>,
   ttlMs = 60_000,
 ): Promise<T> {
-  if (!canUseSessionStorage) {
-    const res = await request(undefined);
-    return res?.data as T;
-  }
   const cached = readCacheEntry<T>(key, ttlMs);
   const etag = cached?.etag || undefined;
   try {
     const res = await request(etag);
     if (res?.status === 304 && cached) return cached.data;
+    if (res?.status === 304 && !cached) {
+      // Fallback: re-fetch without ETag if we somehow got a 304 and have no body cached
+      const res2 = await request(undefined);
+      const data2 = res2?.data as T;
+      const newEtag2 = etagFrom(res2) || etagFrom(res) || undefined;
+      writeCacheEntry<T>(key, { ts: Date.now(), etag: newEtag2 ?? null, data: data2 });
+      return data2;
+    }
     const data = res?.data as T;
     const newEtag = etagFrom(res) || etag;
     writeCacheEntry<T>(key, { ts: Date.now(), etag: newEtag ?? null, data });
