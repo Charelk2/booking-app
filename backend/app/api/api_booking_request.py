@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status, UploadFile, File, Header, Response, Query
+from fastapi.responses import ORJSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
@@ -30,6 +31,7 @@ import shutil
 # Prefix is added when this router is included in `app/main.py`.
 router = APIRouter(
     tags=["Booking Requests"],
+    default_response_class=ORJSONResponse,
 )
 
 logger = logging.getLogger(__name__)

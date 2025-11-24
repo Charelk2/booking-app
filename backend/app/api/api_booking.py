@@ -3,7 +3,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, BackgroundTasks, Body, Header, Response
 from sqlalchemy.orm import Session, selectinload
-from fastapi.responses import Response
+from fastapi.responses import Response, ORJSONResponse
 try:
     from ics import Calendar, Event  # type: ignore
 except Exception:  # pragma: no cover - optional for tooling environments
@@ -45,7 +45,7 @@ from .api_sound_outreach import kickoff_sound_outreach
 from pydantic import BaseModel
 from .. import crud
 
-router = APIRouter(tags=["bookings"])
+router = APIRouter(tags=["bookings"], default_response_class=ORJSONResponse)
 logger = logging.getLogger(__name__)
 # ‣ Note: no prefix here.  main.py already does:
 #     app.include_router(router, prefix="/api/v1/bookings", …)
