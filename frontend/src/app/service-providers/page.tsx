@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import {
+  useRouter,
+  useSearchParams,
+  usePathname,
+} from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import {
   getServiceProviders,
@@ -22,11 +26,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { updateQueryParams } from '@/lib/urlParams';
 import { Spinner } from '@/components/ui';
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Pluralization helpers
-// ──────────────────────────────────────────────────────────────────────────────
 function pluralizeLastWord(label: string): string {
-  // Exact-name exceptions first
   const exceptions: Record<string, string> = {
     DJ: 'DJs',
     MC: 'MCs',
@@ -35,7 +35,6 @@ function pluralizeLastWord(label: string): string {
   };
   if (exceptions[label]) return exceptions[label];
 
-  // Split so multi-word labels like "Sound Engineer" → "Sound Engineers"
   const parts = label.split(' ');
   const last = parts.pop()!;
   const w = last;
@@ -44,11 +43,11 @@ function pluralizeLastWord(label: string): string {
   let plural = w;
 
   if (/[sxz]$/i.test(w) || endsWith('ch') || endsWith('sh')) {
-    plural = w + 'es'; // e.g., "Coach" → "Coaches"
+    plural = w + 'es';
   } else if (/[^\Waeiou]y$/i.test(w)) {
-    plural = w.slice(0, -1) + 'ies'; // consonant + y → ies
+    plural = w.slice(0, -1) + 'ies';
   } else {
-    plural = w + 's'; // default
+    plural = w + 's';
   }
 
   return [...parts, plural].join(' ');
@@ -155,11 +154,19 @@ function SearchRescuePanel({
   );
 }
 
-// The category page previously used `react-window` to render each provider as a
-// full-width row. This looked inconsistent with the compact cards shown on the
-// homepage and resulted in a visually jarring full-screen layout. Since the
-// lists are relatively small, a simple flexbox grid is sufficient and lets us
-// reuse the same compact card layout for consistency across pages.
+function SkeletonGrid() {
+  return (
+    <div className="flex flex-wrap justify-center gap-4 sm:justify-start">
+      {Array.from({ length: 12 }).map((_, i) => (
+        <div key={i} className="w-40">
+          <div className="aspect-square rounded-xl bg-gray-200 animate-pulse" />
+          <div className="mt-2 h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
+          <div className="mt-1 h-2 bg-gray-200 rounded w-1/2 animate-pulse" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function ServiceProvidersPage() {
   const router = useRouter();
@@ -170,8 +177,6 @@ export default function ServiceProvidersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Store the selected category as a UI slug (e.g. "dj") so we can map it
-  // to the backend service name whenever querying the API.
   const categories = useServiceCategories();
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [location, setLocation] = useState('');
@@ -179,11 +184,10 @@ export default function ServiceProvidersPage() {
   const [when, setWhen] = useState<Date | null>(null);
   const [minPrice, setMinPrice] = useState<number>(SLIDER_MIN);
   const [maxPrice, setMaxPrice] = useState<number>(SLIDER_MAX);
-  const [priceDistribution, setPriceDistribution] = useState<PriceBucket[]>([]);
+  const [priceDistribution, setPriceDistribution] = useState<PriceBucket[]>(
+    [],
+  );
 
-  // Avoid fetching artists until all filters (including category from the
-  // URL) have been parsed. This prevents an initial unfiltered request that
-  // briefly shows providers from other categories.
   const [filtersReady, setFiltersReady] = useState(false);
 
   const debouncedMinPrice = useDebounce(minPrice, 300);
@@ -196,20 +200,19 @@ export default function ServiceProvidersPage() {
   const sid = searchParams.get('sid');
   const sourceParam = searchParams.get('src') || undefined;
 
-  // Derived backend service name for the selected UI category.
   const serviceName = category
     ? categories.find((c) => c.value === category)?.label
     : undefined;
 
+  // Parse filters from URL
   useEffect(() => {
-    // ``category`` may arrive either as a backend service name ("DJ") or
-    // as a UI slug ("dj"). Normalize both forms to the UI slug so the rest of
-    // the page logic can derive the backend name from the loaded categories.
     if (!categories.length) return;
 
     let value = searchParams.get('category') || undefined;
     if (!value) {
-      const match = pathname.match(/\/(?:service-providers\/category|category)\/([^/?]+)/);
+      const match = pathname.match(
+        /\/(?:service-providers\/category|category)\/([^/?]+)/,
+      );
       if (match) {
         value = match[1];
       }
@@ -244,18 +247,33 @@ export default function ServiceProvidersPage() {
     }
 
     setSort(searchParams.get('sort') || undefined);
-    setMinPrice(searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN);
-    setMaxPrice(searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : SLIDER_MAX);
+    setMinPrice(
+      searchParams.get('minPrice')
+        ? Number(searchParams.get('minPrice'))
+        : SLIDER_MIN,
+    );
+    setMaxPrice(
+      searchParams.get('maxPrice')
+        ? Number(searchParams.get('maxPrice'))
+        : SLIDER_MAX,
+    );
+
     setFiltersReady(true);
   }, [searchParams, pathname, categories]);
 
   const fetchArtists = useCallback(
-    async ({ append = false, pageNumber }: { append?: boolean; pageNumber: number }) => {
+    async ({
+      append = false,
+      pageNumber,
+    }: {
+      append?: boolean;
+      pageNumber: number;
+    }) => {
       setLoading(true);
       setError(null);
+
       try {
-        // Quick show from cache if present
-        const cacheParams = {
+        const params = {
           category: serviceName,
           location: location || undefined,
           when: when || undefined,
@@ -264,83 +282,91 @@ export default function ServiceProvidersPage() {
           maxPrice: debouncedMaxPrice,
           page: pageNumber,
           limit: LIMIT,
-          // Full payload used for hydration after initial fast paint
           fields: [
-            'id','business_name','custom_subtitle','profile_picture_url','portfolio_urls','hourly_rate','price_visible','rating','rating_count','location','service_categories','service_price','user.first_name','user.last_name'
+            'id',
+            'business_name',
+            'custom_subtitle',
+            'profile_picture_url',
+            'portfolio_urls',
+            'hourly_rate',
+            'price_visible',
+            'rating',
+            'rating_count',
+            'location',
+            'service_categories',
+            'service_price',
+            'user.first_name',
+            'user.last_name',
           ] as string[],
+          includePriceDistribution: true,
         };
 
-        const cached = getCachedServiceProviders(cacheParams);
-        if (cached && !append) {
-          const filteredCached = cached.data.filter((a: ServiceProviderProfile) => {
+        // Quick show from cache if present (only on first page and not append)
+        if (!append && pageNumber === 1) {
+          const cached = getCachedServiceProviders(params);
+          if (cached) {
+            const filteredCached = cached.data.filter(
+              (a: ServiceProviderProfile) => {
+                if (serviceName === 'DJ') {
+                  const business = a.business_name
+                    ?.trim()
+                    .toLowerCase();
+                  const fullName = `${a.user?.first_name ?? ''} ${
+                    a.user?.last_name ?? ''
+                  }`
+                    .trim()
+                    .toLowerCase();
+                  return !!business && business !== fullName;
+                }
+                return !!(a.business_name || a.user);
+              },
+            );
+            setHasMore(filteredCached.length === LIMIT);
+            setArtists(filteredCached as any);
+            setPriceDistribution(
+              cached.price_distribution || [],
+            );
+          }
+        }
+
+        const res = await getServiceProviders(params);
+
+        const filtered = res.data.filter(
+          (a: ServiceProviderProfile) => {
             if (serviceName === 'DJ') {
               const business = a.business_name?.trim().toLowerCase();
-              const fullName = `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`
+              const fullName = `${a.user?.first_name ?? ''} ${
+                a.user?.last_name ?? ''
+              }`
                 .trim()
                 .toLowerCase();
               return !!business && business !== fullName;
             }
             return !!(a.business_name || a.user);
-          });
-          setHasMore(filteredCached.length === LIMIT);
-          setArtists(filteredCached as any);
-          setPriceDistribution(cached.price_distribution || []);
-        }
-
-        // Fast path: for first page (non-append), fetch minimal fields to hit
-        // the backend's tiny fast path, then hydrate with full fields.
-        if (!append && Number(pageNumber) === 1) {
-          try {
-            const fast = await getServiceProviders({
-              category: serviceName,
-              location: location || undefined,
-              when: when || undefined,
-              sort,
-              minPrice: debouncedMinPrice,
-              maxPrice: debouncedMaxPrice,
-              page: 1,
-              limit: LIMIT,
-              fields: ['id','business_name','profile_picture_url'],
-            });
-            const fastItems = fast.data.filter((a: ServiceProviderProfile) => !!a.business_name);
-            setHasMore(fastItems.length === LIMIT);
-            setArtists(fastItems as any);
-          } catch {}
-        }
-
-        // Hydration fetch (full payload). Price histogram is fetched lazily below.
-        const res = await getServiceProviders({ ...cacheParams });
-
-        // Filter client-side to guard against any backend responses that
-        // include artists from other service categories. For the DJ category,
-        // only include profiles with a business name so personal artist names
-        // never appear.
-        const filtered = res.data.filter((a: ServiceProviderProfile) => {
-          if (serviceName === 'DJ') {
-            const business = a.business_name?.trim().toLowerCase();
-            const fullName = `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`
-              .trim()
-              .toLowerCase();
-            return !!business && business !== fullName;
-          }
-          return !!(a.business_name || a.user);
-        });
+          },
+        );
 
         setHasMore(filtered.length === LIMIT);
-        setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
+        setArtists((prev) =>
+          append ? [...prev, ...filtered] : filtered,
+        );
         setPriceDistribution(res.price_distribution || []);
 
-        // Log the initial search event when arriving from a SearchBar/hero search.
-        if (!append && Number(pageNumber) === 1 && sid) {
+        if (!append && pageNumber === 1 && sid) {
           try {
-            const whenStr = when ? format(when, 'yyyy-MM-dd') : undefined;
+            const whenStr = when
+              ? format(when, 'yyyy-MM-dd')
+              : undefined;
             void logSearchEvent({
               search_id: sid,
               source: sourceParam || 'artists_page',
               category_value: serviceName,
               location: location || undefined,
               when: whenStr,
-              results_count: typeof res.total === 'number' ? res.total : filtered.length,
+              results_count:
+                typeof res.total === 'number'
+                  ? res.total
+                  : filtered.length,
               meta: {
                 sort,
                 minPrice: debouncedMinPrice,
@@ -348,7 +374,7 @@ export default function ServiceProvidersPage() {
               },
             });
           } catch {
-            // best-effort; ignore analytics errors
+            // best-effort
           }
         }
       } catch (err) {
@@ -370,59 +396,7 @@ export default function ServiceProvidersPage() {
     ],
   );
 
-  // Lazily fetch price distribution after the initial list loads to keep the list cacheable.
-  useEffect(() => {
-    if (!filtersReady) return;
-    const controller = new AbortController();
-    (async () => {
-      try {
-        const res = await getServiceProviders({
-          category: serviceName,
-          location: location || undefined,
-          when: when || undefined,
-          sort,
-          minPrice: debouncedMinPrice,
-          maxPrice: debouncedMaxPrice,
-          page: 1,
-          limit: LIMIT,
-          includePriceDistribution: true,
-        });
-        setPriceDistribution(res.price_distribution || []);
-      } catch {
-        // best-effort; histogram is non-blocking
-      }
-    })();
-    return () => controller.abort();
-  }, [
-    filtersReady,
-    serviceName,
-    location,
-    when,
-    sort,
-    debouncedMinPrice,
-    debouncedMaxPrice,
-  ]);
-
-  // Idle prefetch page 2 for current filters to make pagination snappy
-  useEffect(() => {
-    if (!filtersReady) return;
-    const idler = () => prefetchServiceProviders({
-      category: serviceName,
-      location: location || undefined,
-      sort,
-      page: 2,
-      limit: LIMIT,
-      fields: ['id','business_name','profile_picture_url','user.first_name','user.last_name']
-    });
-    const id = ('requestIdleCallback' in window)
-      ? (window as any).requestIdleCallback(idler, { timeout: 1500 })
-      : setTimeout(idler, 1000) as any;
-    return () => {
-      if ('cancelIdleCallback' in window) (window as any).cancelIdleCallback?.(id);
-      else clearTimeout(id as any);
-    };
-  }, [filtersReady, serviceName, location, sort]);
-
+  // Initial + filter changes
   useEffect(() => {
     if (!filtersReady) return;
     setPage(1);
@@ -438,6 +412,44 @@ export default function ServiceProvidersPage() {
     fetchArtists,
   ]);
 
+  // Idle prefetch page 2
+  useEffect(() => {
+    if (!filtersReady) return;
+    if (typeof window === 'undefined') return;
+
+    const idler = () =>
+      prefetchServiceProviders({
+        category: serviceName,
+        location: location || undefined,
+        sort,
+        page: 2,
+        limit: LIMIT,
+        fields: [
+          'id',
+          'business_name',
+          'profile_picture_url',
+          'user.first_name',
+          'user.last_name',
+        ],
+      });
+
+    const id =
+      'requestIdleCallback' in window
+        ? (window as any).requestIdleCallback(idler, {
+            timeout: 1500,
+          })
+        : setTimeout(idler, 1000);
+
+    return () => {
+      if (typeof window === 'undefined') return;
+      if ('cancelIdleCallback' in window) {
+        (window as any).cancelIdleCallback?.(id);
+      } else {
+        clearTimeout(id as number);
+      }
+    };
+  }, [filtersReady, serviceName, location, sort]);
+
   const loadMore = () => {
     const next = page + 1;
     setPage(next);
@@ -449,7 +461,9 @@ export default function ServiceProvidersPage() {
     searchParams.get('location') ||
     searchParams.get('when');
 
-  const categoryPath = /\/(?:service-providers\/category|category)\//.test(pathname);
+  const categoryPath = /\/(?:service-providers\/category|category)\//.test(
+    pathname,
+  );
   const showFilter = Boolean(hasQuery || categoryPath);
 
   const filterControl = showFilter ? (
@@ -492,7 +506,7 @@ export default function ServiceProvidersPage() {
     <MainLayout headerFilter={filterControl}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 fade-in">
         {serviceName && (
-          <div className="flex items-center space-x-2 mb-4">
+          <div className="flex items-center space-x-2 mb-2">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-8 w-8 text-brand"
@@ -513,16 +527,16 @@ export default function ServiceProvidersPage() {
                 d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              {/* e.g., "Musician" → "Explore Musicians", "DJ" → "Explore DJs" */}
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
               Explore {pluralizeServiceLabel(serviceName)}
             </h1>
           </div>
         )}
 
-        {/* Artists grid */}
-        {loading && <Spinner className="my-4" />}
+        {loading && artists.length === 0 && <SkeletonGrid />}
+        {loading && artists.length > 0 && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
+
         {!loading && artists.length === 0 && (
           <SearchRescuePanel
             serviceName={serviceName}
@@ -540,7 +554,10 @@ export default function ServiceProvidersPage() {
               const name =
                 serviceName === 'DJ'
                   ? a.business_name!
-                  : a.business_name || `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim();
+                  : a.business_name ||
+                    `${user?.first_name ?? ''} ${
+                      user?.last_name ?? ''
+                    }`.trim();
 
               return (
                 <ServiceProviderCardCompact
@@ -549,21 +566,27 @@ export default function ServiceProvidersPage() {
                   name={name}
                   subtitle={a.custom_subtitle || undefined}
                   imageUrl={
-                    getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) ||
-                    undefined
+                    getFullImageUrl(
+                      a.profile_picture_url ||
+                        a.portfolio_urls?.[0],
+                    ) || undefined
                   }
                   price={
                     category && a.service_price != null
                       ? Number(a.service_price)
                       : a.hourly_rate && a.price_visible
-                        ? Number(a.hourly_rate)
-                        : undefined
+                      ? Number(a.hourly_rate)
+                      : undefined
                   }
                   rating={a.rating ?? undefined}
                   ratingCount={a.rating_count ?? undefined}
                   location={a.location}
                   categories={a.service_categories}
-                  href={qs ? `/service-providers/${a.id}?${qs}` : `/service-providers/${a.id}`}
+                  href={
+                    qs
+                      ? `/service-providers/${a.id}?${qs}`
+                      : `/service-providers/${a.id}`
+                  }
                   onClick={() => {
                     if (!sid) return;
                     try {
@@ -586,6 +609,7 @@ export default function ServiceProvidersPage() {
         {hasMore && !loading && (
           <div className="flex justify-center mt-4">
             <button
+              type="button"
               onClick={loadMore}
               className="px-4 py-2 rounded-md bg-brand text-white hover:bg-brand-dark"
             >

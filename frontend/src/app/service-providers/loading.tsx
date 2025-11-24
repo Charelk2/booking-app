@@ -5,7 +5,7 @@ export default function Loading() {
       <div className="flex flex-wrap gap-4">
         {Array.from({ length: 12 }).map((_, i) => (
           <div key={i} className="w-40">
-            <div className="aspect-[4/4] rounded-xl bg-gray-200 animate-pulse" />
+            <div className="aspect-square rounded-xl bg-gray-200 animate-pulse" />
             <div className="mt-2 h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
             <div className="mt-1 h-2 bg-gray-200 rounded w-1/2 animate-pulse" />
           </div>
@@ -14,4 +14,3 @@ export default function Loading() {
     </div>
   );
 }
-
