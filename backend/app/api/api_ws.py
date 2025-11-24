@@ -713,7 +713,18 @@ class _CompatManager:
             env.topic = env.topic or topic
             env.type = env.type or "message"
         elif isinstance(message, dict):
-            env = Envelope(v=1, type="message", topic=topic, payload={"data": message, "message": message})
+            msg_type = ""
+            try:
+                raw_type = message.get("type")  # type: ignore[union-attr]
+                if isinstance(raw_type, str):
+                    msg_type = raw_type.strip().lower()
+            except Exception:
+                msg_type = ""
+            if msg_type in {"read", "delivered", "reaction_added", "reaction_removed", "message_deleted"}:
+                env_type = msg_type
+            else:
+                env_type = "message"
+            env = Envelope(v=1, type=env_type, topic=topic, payload={"data": message, "message": message})
         else:
             env = Envelope(v=1, type="message", topic=topic, payload={"data": message})
 

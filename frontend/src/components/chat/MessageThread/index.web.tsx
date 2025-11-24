@@ -1130,7 +1130,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const throttledTyping = useThrottled(() => {
     try {
       const topic = `booking-requests:${bookingRequestId}`;
-      publish(topic, { type: 'typing', user_id: myUserId });
+      publish(topic, { type: 'typing', payload: { user_id: myUserId } });
     } catch {}
     // Best-effort: for active thread, nudge a tiny delta reconcile so tail
     // reflects quickly if the echo is delayed (no synthetic bubble needed).

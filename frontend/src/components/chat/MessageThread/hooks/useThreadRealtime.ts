@@ -49,7 +49,7 @@ export function useThreadRealtime({
     // the multiplex bus and keeps per-thread presence fresh.
     try {
       if (Number.isFinite(myUserId) && myUserId > 0) {
-        publish(topic, { type: 'presence', updates: { [myUserId]: 'online' } });
+        publish(topic, { type: 'presence', payload: { updates: { [myUserId]: 'online' } } });
       }
     } catch {
       // best-effort only
@@ -287,7 +287,7 @@ export function useThreadRealtime({
       // "Online" label indefinitely.
       try {
         if (Number.isFinite(myUserId) && myUserId > 0) {
-          publish(topic, { type: 'presence', updates: { [myUserId]: 'offline' } });
+          publish(topic, { type: 'presence', payload: { updates: { [myUserId]: 'offline' } } });
         }
       } catch {
         // ignore
@@ -307,7 +307,7 @@ export function useThreadRealtime({
     const pushStatus = (status: string) => {
       try {
         if (!Number.isFinite(myUserId) || myUserId <= 0) return;
-        publish(topic, { type: 'presence', updates: { [myUserId]: status } });
+        publish(topic, { type: 'presence', payload: { updates: { [myUserId]: status } } });
       } catch {
         // ignore
       }
