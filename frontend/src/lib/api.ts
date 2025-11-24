@@ -992,7 +992,7 @@ async function getWithCache<T>(
 }
 
 // Client dashboard: bookings + requests (lite)
-export const getMyClientBookingsCached = (ttlMs = 60_000, limit = 20) =>
+export const getMyClientBookingsCached = (ttlMs = 60_000, limit = 10) =>
   getWithCache<Booking[]>(
     DASH_CACHE_KEYS.clientBookings,
     (etag?: string) =>
@@ -1004,7 +1004,7 @@ export const getMyClientBookingsCached = (ttlMs = 60_000, limit = 20) =>
     ttlMs,
   );
 
-export const getMyBookingRequestsCached = (ttlMs = 60_000, limit = 20) =>
+export const getMyBookingRequestsCached = (ttlMs = 60_000, limit = 10) =>
   getWithCache<BookingRequest[]>(
     DASH_CACHE_KEYS.clientRequests,
     (etag?: string) =>

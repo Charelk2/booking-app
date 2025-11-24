@@ -67,7 +67,7 @@ export default function ClientDashboardPage() {
         setLoadingBookings(true);
         try {
           if (!bookingsInflightRef.current) {
-            bookingsInflightRef.current = getMyClientBookingsCached().catch(() => null);
+            bookingsInflightRef.current = getMyClientBookingsCached(undefined, 10).catch(() => null);
           }
           const bookingsData = await bookingsInflightRef.current;
           bookingsInflightRef.current = null;
@@ -86,7 +86,7 @@ export default function ClientDashboardPage() {
         setLoadingRequests(true);
         try {
           if (!requestsInflightRef.current) {
-            requestsInflightRef.current = getMyBookingRequestsCached().catch(() => null);
+            requestsInflightRef.current = getMyBookingRequestsCached(undefined, 10).catch(() => null);
           }
           const requestsData = await requestsInflightRef.current;
           requestsInflightRef.current = null;
@@ -112,7 +112,7 @@ export default function ClientDashboardPage() {
     if (!fetchedBookings && !bookingsInflightRef.current) {
       (async () => {
         try {
-          const bookingsData = await getMyClientBookingsCached();
+          const bookingsData = await getMyClientBookingsCached(undefined, 10);
           setBookings(bookingsData);
           setFetchedBookings(true);
         } catch {}
@@ -121,7 +121,7 @@ export default function ClientDashboardPage() {
     if (!fetchedRequests && !requestsInflightRef.current) {
       (async () => {
         try {
-          const requestsData = await getMyBookingRequestsCached();
+          const requestsData = await getMyBookingRequestsCached(undefined, 10);
           setBookingRequests(requestsData);
           setFetchedRequests(true);
         } catch {}
