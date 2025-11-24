@@ -946,6 +946,8 @@ const canUseSessionStorage = typeof window !== 'undefined' && (() => {
 
 // In-memory fallback cache when sessionStorage is unavailable (SSR or restricted environments).
 const memoryCache = new Map<string, CacheEntry<any>>();
+// In-flight dedupe to avoid duplicate network hits for the same key.
+const inflightCache = new Map<string, Promise<any>>();
 
 function readCacheEntry<T>(key: string, ttlMs: number): CacheEntry<T> | null {
   if (canUseSessionStorage) {
@@ -990,25 +992,35 @@ async function getWithCache<T>(
 ): Promise<T> {
   const cached = readCacheEntry<T>(key, ttlMs);
   const etag = cached?.etag || undefined;
-  try {
-    const res = await request(etag);
-    if (res?.status === 304 && cached) return cached.data;
-    if (res?.status === 304 && !cached) {
-      // Fallback: re-fetch without ETag if we somehow got a 304 and have no body cached
-      const res2 = await request(undefined);
-      const data2 = res2?.data as T;
-      const newEtag2 = etagFrom(res2) || etagFrom(res) || undefined;
-      writeCacheEntry<T>(key, { ts: Date.now(), etag: newEtag2 ?? null, data: data2 });
-      return data2;
+  const existing = inflightCache.get(key);
+  if (existing) return existing as Promise<T>;
+
+  const p = (async () => {
+    try {
+      const res = await request(etag);
+      if (res?.status === 304 && cached) return cached.data;
+      if (res?.status === 304 && !cached) {
+        // Fallback: re-fetch without ETag if we somehow got a 304 and have no body cached
+        const res2 = await request(undefined);
+        const data2 = res2?.data as T;
+        const newEtag2 = etagFrom(res2) || etagFrom(res) || undefined;
+        writeCacheEntry<T>(key, { ts: Date.now(), etag: newEtag2 ?? null, data: data2 });
+        return data2;
+      }
+      const data = res?.data as T;
+      const newEtag = etagFrom(res) || etag;
+      writeCacheEntry<T>(key, { ts: Date.now(), etag: newEtag ?? null, data });
+      return data;
+    } catch (err) {
+      if (cached) return cached.data;
+      throw err;
+    } finally {
+      inflightCache.delete(key);
     }
-    const data = res?.data as T;
-    const newEtag = etagFrom(res) || etag;
-    writeCacheEntry<T>(key, { ts: Date.now(), etag: newEtag ?? null, data });
-    return data;
-  } catch (err) {
-    if (cached) return cached.data;
-    throw err;
-  }
+  })();
+
+  inflightCache.set(key, p);
+  return p;
 }
 
 // Client dashboard: bookings + requests (lite)
