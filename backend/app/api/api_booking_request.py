@@ -59,6 +59,105 @@ def _prepare_quotes_for_response(quotes: list[Any] | None) -> None:
             continue
 
 
+def _to_lite_booking_request_response(
+    br: models.BookingRequest,
+) -> schemas.BookingRequestResponse:
+    """
+    Build a lightweight BookingRequestResponse for list views.
+
+    This intentionally avoids traversing heavy relationships like
+    portfolio images on service provider profiles. Only small,
+    frequently used fields are included so serialization stays fast.
+    """
+    # Service provider profile (artist_profile / service_provider_profile)
+    provider_profile = None
+    prof = getattr(br, "artist_profile", None)
+    if prof is None and getattr(br, "artist", None) is not None:
+        prof = getattr(br.artist, "artist_profile", None)
+    if prof is not None:
+        try:
+            created_at = getattr(prof, "created_at", None) or getattr(
+                br, "created_at", datetime.utcnow()
+            )
+            updated_at = getattr(prof, "updated_at", None) or created_at
+            provider_profile = schemas.ArtistProfileResponse(
+                user_id=int(prof.user_id),
+                business_name=getattr(prof, "business_name", None),
+                profile_picture_url=getattr(prof, "profile_picture_url", None),
+                cancellation_policy=getattr(prof, "cancellation_policy", None),
+                created_at=created_at,
+                updated_at=updated_at,
+            )
+        except Exception:
+            provider_profile = None
+
+    # Service (only minimal fields needed for cards/filters)
+    service_model: schemas.ServiceResponse | None = None
+    svc = getattr(br, "service", None)
+    if svc is not None:
+        try:
+            svc_created = getattr(svc, "created_at", None) or getattr(
+                br, "created_at", datetime.utcnow()
+            )
+            svc_updated = getattr(svc, "updated_at", None) or svc_created
+            service_model = schemas.ServiceResponse(
+                id=int(svc.id),
+                artist_id=int(svc.artist_id),
+                title=getattr(svc, "title", None),
+                description=None,
+                media_url=getattr(svc, "media_url", "") or "",
+                duration_minutes=getattr(svc, "duration_minutes", None),
+                price=getattr(svc, "price", None),
+                currency=getattr(svc, "currency", "ZAR") or "ZAR",
+                display_order=getattr(svc, "display_order", 0) or 0,
+                service_type=getattr(svc, "service_type", None),
+                travel_rate=getattr(svc, "travel_rate", None),
+                travel_members=getattr(svc, "travel_members", None),
+                car_rental_price=getattr(svc, "car_rental_price", None),
+                flight_price=getattr(svc, "flight_price", None),
+                service_category_id=getattr(svc, "service_category_id", None),
+                service_category_slug=getattr(svc, "service_category_slug", None),
+                details=None,
+                status=getattr(svc, "status", None),
+                has_pricebook=getattr(svc, "has_pricebook", None),
+                created_at=svc_created,
+                updated_at=svc_updated,
+                artist=None,
+                service_category=None,
+            )
+        except Exception:
+            service_model = None
+
+    created_at = getattr(br, "created_at", None) or datetime.utcnow()
+    updated_at = getattr(br, "updated_at", None) or created_at
+
+    return schemas.BookingRequestResponse(
+        id=int(br.id),
+        client_id=int(br.client_id),
+        artist_id=int(br.artist_id),
+        status=br.status,
+        created_at=created_at,
+        updated_at=updated_at,
+        service_id=getattr(br, "service_id", None),
+        message=getattr(br, "message", None),
+        attachment_url=getattr(br, "attachment_url", None),
+        proposed_datetime_1=getattr(br, "proposed_datetime_1", None),
+        proposed_datetime_2=getattr(br, "proposed_datetime_2", None),
+        travel_mode=getattr(br, "travel_mode", None),
+        travel_cost=getattr(br, "travel_cost", None),
+        travel_breakdown=getattr(br, "travel_breakdown", None),
+        client=None,
+        artist=None,
+        artist_profile=provider_profile,
+        service_provider_profile=provider_profile,
+        service=service_model,
+        quotes=[],
+        accepted_quote_id=getattr(br, "accepted_quote_id", None),
+        last_message_content=getattr(br, "last_message_content", None),
+        last_message_timestamp=getattr(br, "last_message_timestamp", None),
+    )
+
+
 @router.post("/attachments", status_code=status.HTTP_201_CREATED)
 async def upload_booking_attachment(file: UploadFile = File(...)):
     """Upload a temporary attachment prior to creating a booking request."""
@@ -480,7 +579,8 @@ def read_my_client_booking_requests(
         limit=limit,
         include_relationships=not lite,
         viewer=models.VisibleTo.CLIENT,
-        per_request_messages=1 if lite else 3,
+        # For lite list views, skip pulling messages entirely to minimize payload and query cost.
+        per_request_messages=0 if lite else 3,
     )
     for req in requests:
         # Defensive: ensure timestamps present for response validation
@@ -496,6 +596,12 @@ def read_my_client_booking_requests(
         response.headers["Vary"] = "If-None-Match"
     except Exception:
         pass
+    if lite:
+        # For lite list views (dashboard, booking requests overview), return a
+        # trimmed payload that avoids heavy nested relations such as portfolio
+        # image arrays on service provider profiles. This keeps the response
+        # both smaller on the wire and faster to serialize.
+        return [_to_lite_booking_request_response(req) for req in requests]
     return requests
 
 

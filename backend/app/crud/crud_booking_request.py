@@ -174,6 +174,12 @@ def get_booking_requests_with_last_message(
                 models.User.first_name,
                 models.User.last_name,
                 models.User.profile_picture_url,
+                models.User.email,
+                models.User.phone_number,
+                models.User.user_type,
+                models.User.is_active,
+                models.User.is_verified,
+                models.User.mfa_enabled,
             ),
             selectinload(models.BookingRequest.artist)
             .load_only(
@@ -181,6 +187,12 @@ def get_booking_requests_with_last_message(
                 models.User.first_name,
                 models.User.last_name,
                 models.User.profile_picture_url,
+                models.User.email,
+                models.User.phone_number,
+                models.User.user_type,
+                models.User.is_active,
+                models.User.is_verified,
+                models.User.mfa_enabled,
             )
             .selectinload(models.User.artist_profile)
             .load_only(
@@ -188,6 +200,8 @@ def get_booking_requests_with_last_message(
                 models.ServiceProviderProfile.business_name,
                 models.ServiceProviderProfile.profile_picture_url,
                 models.ServiceProviderProfile.cancellation_policy,
+                models.ServiceProviderProfile.created_at,
+                models.ServiceProviderProfile.updated_at,
             ),
             selectinload(models.BookingRequest.service).load_only(
                 models.Service.id,
@@ -195,6 +209,10 @@ def get_booking_requests_with_last_message(
                 models.Service.title,
                 models.Service.price,
                 models.Service.details,
+                models.Service.media_url,
+                models.Service.duration_minutes,
+                models.Service.currency,
+                models.Service.display_order,
             ),
             selectinload(models.BookingRequest.quotes)
             .load_only(
@@ -226,6 +244,12 @@ def get_booking_requests_with_last_message(
                     models.User.first_name,
                     models.User.last_name,
                     models.User.profile_picture_url,
+                    models.User.email,
+                    models.User.phone_number,
+                    models.User.user_type,
+                    models.User.is_active,
+                    models.User.is_verified,
+                    models.User.mfa_enabled,
                 ),
                 selectinload(models.BookingRequest.artist)
                 .load_only(
@@ -233,6 +257,12 @@ def get_booking_requests_with_last_message(
                     models.User.first_name,
                     models.User.last_name,
                     models.User.profile_picture_url,
+                    models.User.email,
+                    models.User.phone_number,
+                    models.User.user_type,
+                    models.User.is_active,
+                    models.User.is_verified,
+                    models.User.mfa_enabled,
                 )
                 .selectinload(models.User.artist_profile)
                 .load_only(
@@ -240,12 +270,20 @@ def get_booking_requests_with_last_message(
                     models.ServiceProviderProfile.business_name,
                     models.ServiceProviderProfile.profile_picture_url,
                     models.ServiceProviderProfile.cancellation_policy,
+                    models.ServiceProviderProfile.created_at,
+                    models.ServiceProviderProfile.updated_at,
                 ),
-                # For preview (include_relationships=False), we only need service_type to gate PV threads.
-                # Avoid loading title/price/details to reduce hydration cost.
+                # For preview (include_relationships=False), keep service light but include title/type
+                # so list views can show basic context without hydrating heavy relations.
                 selectinload(models.BookingRequest.service).load_only(
                     models.Service.id,
                     models.Service.service_type,
+                    models.Service.title,
+                    models.Service.media_url,
+                    models.Service.duration_minutes,
+                    models.Service.price,
+                    models.Service.currency,
+                    models.Service.display_order,
                 ),
             )
 
