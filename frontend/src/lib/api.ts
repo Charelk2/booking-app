@@ -996,7 +996,7 @@ export const getMyClientBookingsCached = (ttlMs = 60_000) =>
   getWithCache<Booking[]>(
     DASH_CACHE_KEYS.clientBookings,
     (etag?: string) =>
-      api.get<Booking[]>(`${API_V1}/bookings/me/client`, {
+      api.get<Booking[]>(`${API_V1}/bookings/my-bookings`, {
         headers: etag ? { 'If-None-Match': etag } : undefined,
         validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
       }),
@@ -1027,7 +1027,7 @@ export const getMyArtistBookingsCached = (ttlMs = 60_000) =>
   getWithCache<Booking[]>(
     DASH_CACHE_KEYS.artistBookings,
     (etag?: string) =>
-      api.get<Booking[]>(`${API_V1}/bookings/me/artist`, {
+      api.get<Booking[]>(`${API_V1}/bookings/artist-bookings`, {
         headers: etag ? { 'If-None-Match': etag } : undefined,
         validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
       }),
