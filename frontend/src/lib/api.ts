@@ -930,6 +930,134 @@ export const getDashboardStats = () =>
     response_rate: number;
   }>(`${API_V1}/booking-requests/stats`);
 
+// ─── DASHBOARD CACHED FETCH HELPERS (ETag + sessionStorage) ────────────────
+type CacheEntry<T> = { ts: number; etag?: string | null; data: T };
+const DASH_CACHE_KEYS = {
+  clientBookings: 'dash:client:bookings:v1',
+  clientRequests: 'dash:client:requests:v1',
+  artistBookings: 'dash:artist:bookings:v1',
+  artistRequests: 'dash:artist:requests:v1',
+  artistStats: 'dash:artist:stats:v1',
+};
+
+function readCacheEntry<T>(key: string, ttlMs: number): CacheEntry<T> | null {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as CacheEntry<T>;
+    if (!obj || typeof obj.ts !== 'number') return null;
+    if (Date.now() - obj.ts > ttlMs) return null;
+    if (!obj.data) return null;
+    return obj;
+  } catch {
+    return null;
+  }
+}
+function writeCacheEntry<T>(key: string, entry: CacheEntry<T>): void {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(entry));
+  } catch {}
+}
+const etagFrom = (res: any): string | undefined =>
+  (res?.headers?.etag as string) || (res?.headers?.ETag as string) || undefined;
+
+async function getWithCache<T>(
+  key: string,
+  request: (etag?: string) => Promise<any>,
+  ttlMs = 60_000,
+): Promise<T> {
+  const cached = readCacheEntry<T>(key, ttlMs);
+  const etag = cached?.etag || undefined;
+  try {
+    const res = await request(etag);
+    if (res?.status === 304 && cached) return cached.data;
+    const data = res?.data as T;
+    const newEtag = etagFrom(res) || etag;
+    writeCacheEntry<T>(key, { ts: Date.now(), etag: newEtag ?? null, data });
+    return data;
+  } catch (err) {
+    if (cached) return cached.data;
+    throw err;
+  }
+}
+
+// Client dashboard: bookings + requests (lite)
+export const getMyClientBookingsCached = (ttlMs = 60_000) =>
+  getWithCache<Booking[]>(
+    DASH_CACHE_KEYS.clientBookings,
+    (etag?: string) =>
+      api.get<Booking[]>(`${API_V1}/bookings/me/client`, {
+        headers: etag ? { 'If-None-Match': etag } : undefined,
+        validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+      }),
+    ttlMs,
+  );
+
+export const getMyBookingRequestsCached = (ttlMs = 60_000) =>
+  getWithCache<BookingRequest[]>(
+    DASH_CACHE_KEYS.clientRequests,
+    (etag?: string) =>
+      api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/client`, {
+        params: { lite: true },
+        headers: etag ? { 'If-None-Match': etag } : undefined,
+        validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+      }),
+    ttlMs,
+  );
+
+export const peekClientDashboardCache = () => {
+  return {
+    bookings: readCacheEntry<Booking[]>(DASH_CACHE_KEYS.clientBookings, 24 * 60 * 60 * 1000)?.data ?? null,
+    requests: readCacheEntry<BookingRequest[]>(DASH_CACHE_KEYS.clientRequests, 24 * 60 * 60 * 1000)?.data ?? null,
+  };
+};
+
+// Artist dashboard: bookings, requests, stats
+export const getMyArtistBookingsCached = (ttlMs = 60_000) =>
+  getWithCache<Booking[]>(
+    DASH_CACHE_KEYS.artistBookings,
+    (etag?: string) =>
+      api.get<Booking[]>(`${API_V1}/bookings/me/artist`, {
+        headers: etag ? { 'If-None-Match': etag } : undefined,
+        validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+      }),
+    ttlMs,
+  );
+
+export const getBookingRequestsForArtistCached = (ttlMs = 60_000) =>
+  getWithCache<BookingRequest[]>(
+    DASH_CACHE_KEYS.artistRequests,
+    (etag?: string) =>
+      api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/artist`, {
+        headers: etag ? { 'If-None-Match': etag } : undefined,
+        validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+      }),
+    ttlMs,
+  );
+
+export const getDashboardStatsCached = (ttlMs = 60_000) =>
+  getWithCache<{ monthly_new_inquiries: number; profile_views: number; response_rate: number }>(
+    DASH_CACHE_KEYS.artistStats,
+    (etag?: string) =>
+      api.get(`${API_V1}/booking-requests/stats`, {
+        headers: etag ? { 'If-None-Match': etag } : undefined,
+        validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+      }),
+    ttlMs,
+  );
+
+export const peekArtistDashboardCache = () => {
+  const ttl = 24 * 60 * 60 * 1000;
+  return {
+    bookings: readCacheEntry<Booking[]>(DASH_CACHE_KEYS.artistBookings, ttl)?.data ?? null,
+    requests: readCacheEntry<BookingRequest[]>(DASH_CACHE_KEYS.artistRequests, ttl)?.data ?? null,
+    stats: readCacheEntry<{ monthly_new_inquiries: number; profile_views: number; response_rate: number }>(
+      DASH_CACHE_KEYS.artistStats,
+      ttl,
+    )?.data ?? null,
+  };
+};
+
 // If you want to fetch a single booking request by ID:
 export const getBookingRequestById = (id: number, etag?: string) =>
   api.get<BookingRequest>(`${API_V1}/booking-requests/${id}` , {

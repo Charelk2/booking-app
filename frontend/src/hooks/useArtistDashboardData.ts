@@ -1,12 +1,13 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import {
-  getMyArtistBookings,
+  getMyArtistBookingsCached,
   getMyServices,
   getServiceProviderProfileMe,
-  getBookingRequestsForArtist,
-  getDashboardStats,
+  getBookingRequestsForArtistCached,
+  getDashboardStatsCached,
   updateService,
+  peekArtistDashboardCache,
 } from "@/lib/api";
 import { normalizeService, applyDisplayOrder } from "@/lib/utils";
 import type { Booking, BookingRequest, Service, ServiceProviderProfile } from "@/types";
@@ -29,19 +30,28 @@ export function useArtistDashboardData(userId?: number) {
     if (!userId) return;
     setLoading(true);
     setError("");
+    // Hydrate from cache first for instant paint
+    try {
+      const cached = peekArtistDashboardCache();
+      if (cached.bookings) setBookings(cached.bookings);
+      if (cached.requests) setBookingRequests(cached.requests);
+      if (cached.stats) setDashboardStats(cached.stats);
+      if (cached.bookings || cached.requests || cached.stats) setLoading(false);
+    } catch {}
+
     try {
       const [bookingsRes, servicesRes, profileRes, requestsRes, statsRes] = await Promise.all([
-        getMyArtistBookings(),
+        getMyArtistBookingsCached(),
         getMyServices(),
         getServiceProviderProfileMe(),
-        getBookingRequestsForArtist(),
-        getDashboardStats(),
+        getBookingRequestsForArtistCached(),
+        getDashboardStatsCached(),
       ]);
 
-      setBookings(bookingsRes.data);
-      setBookingRequests(requestsRes.data);
+      setBookings(bookingsRes);
+      setBookingRequests(requestsRes);
       setArtistProfile(profileRes.data);
-      setDashboardStats(statsRes.data);
+      setDashboardStats(statsRes);
 
       const processedServices = (servicesRes.data as Service[])
         .map((s) => normalizeService(s))

@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Booking, BookingRequest } from "@/types";
-import { getMyClientBookings, getMyBookingRequests } from "@/lib/api";
+import { getMyClientBookingsCached, getMyBookingRequestsCached, peekClientDashboardCache } from "@/lib/api";
 import {
   SectionList,
   BookingRequestCard,
@@ -48,14 +48,22 @@ export default function ClientDashboardPage() {
       return;
     }
 
+    // Hydrate immediately from cache to avoid empty-state flash
+    try {
+      const cached = peekClientDashboardCache();
+      if (cached.bookings) setBookings(cached.bookings);
+      if (cached.requests) setBookingRequests(cached.requests);
+      if (cached.bookings || cached.requests) setLoading(false);
+    } catch {}
+
     const fetchData = async () => {
       try {
         const [bookingsData, requestsData] = await Promise.all([
-          getMyClientBookings(),
-          getMyBookingRequests(),
+          getMyClientBookingsCached(),
+          getMyBookingRequestsCached(),
         ]);
-        setBookings(bookingsData.data);
-        setBookingRequests(requestsData.data);
+        setBookings(bookingsData);
+        setBookingRequests(requestsData);
       } catch (err) {
         console.error("Client dashboard fetch error:", err);
         setError("Failed to load dashboard data. Please try again.");
