@@ -120,17 +120,10 @@ export default function useUnreadThreadsCount() {
 
       // 1) Authoritative snapshot from backend (notifications WS or inbox SSE)
       if (typeof detail.total === 'number' && Number.isFinite(detail.total)) {
-        const local = sumFromCache();
-        let next = local;
-        try {
-          const summaries = cacheGetSummaries();
-          const hasLocal = Array.isArray(summaries) && summaries.length > 0;
-          if (!hasLocal) {
-            next = Number(detail.total);
-          }
-        } catch {
-          if (!next) next = Number(detail.total);
-        }
+        // Treat the backend aggregate as source of truth so the header badge
+        // updates immediately even when thread summaries are stale. Local
+        // cache is still used for bootstrap and for offline heuristics.
+        const next = Math.max(0, Number(detail.total));
         if (next !== countRef.current) {
           setCount(next);
         }

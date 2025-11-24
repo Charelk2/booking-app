@@ -48,7 +48,12 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hasSession) return;
-    const unsubscribe = rt.subscribe('notifications', (payload: any) => {
+    const userId = Number(user?.id || 0);
+    // Subscribe to a user-scoped notifications topic so messages from
+    // the multiplex bus (`notifications:{user_id}`) are routed correctly.
+    const topic = Number.isFinite(userId) && userId > 0 ? `notifications:${userId}` : 'notifications';
+
+    const unsubscribe = rt.subscribe(topic, (payload: any) => {
       try {
         // Header aggregate push: unread_total → forward total so header can
         // treat it as authoritative outside the Inbox page.
@@ -83,7 +88,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return () => { try { unsubscribe(); } catch {} };
-  }, [rt, hasSession]);
+  }, [rt, hasSession, user?.id]);
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }
