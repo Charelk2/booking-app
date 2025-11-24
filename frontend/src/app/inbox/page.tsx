@@ -415,7 +415,6 @@ export default function InboxPage() {
       try {
         if (threads.find((r) => r.id === urlId)) applyLocalRead(urlId);
       } catch {}
-      // Persist selection so plain /inbox reloads restore this thread instead of falling back to threads[0]
       try {
         sessionStorage.setItem(SEL_KEY, String(urlId));
         localStorage.setItem(SEL_KEY, JSON.stringify({ id: urlId, ts: Date.now() }));
@@ -443,18 +442,19 @@ export default function InboxPage() {
           recordThreadSwitchStart(selId, { source: 'restored' });
           setSelectedThreadId(selId);
           applyLocalRead(selId);
+          // Write back to URL to establish canonical selection
+          try {
+            const p = new URLSearchParams(searchParams.toString());
+            p.delete('booka');
+            p.delete('bookasystem');
+            p.set('requestId', String(selId));
+            router.replace(`?${p.toString()}`, { scroll: false });
+          } catch {}
           return;
         }
       } catch {}
-      // Fallback to most recent
-      const fallbackId = threads[0]?.id;
-      if (fallbackId && fallbackId !== selectedThreadId) {
-        recordThreadSwitchStart(fallbackId, { source: 'restored' });
-        setSelectedThreadId(fallbackId);
-        applyLocalRead(fallbackId);
-      }
     }
-  }, [threads, searchParams, selectedThreadId, SEL_KEY, PERSIST_TTL_MS, applyLocalRead]);
+  }, [threads, searchParams, selectedThreadId, SEL_KEY, PERSIST_TTL_MS, applyLocalRead, router]);
 
 
   const filteredRequests = useMemo(() => {
@@ -598,6 +598,14 @@ export default function InboxPage() {
       recordThreadSwitchStart(id, { source: 'list_click', unreadBefore });
       setSelectedThreadId(id);
       applyLocalRead(id);
+      // Canonicalize selection in the URL so reloads/back/forward keep the same thread
+      try {
+        const p = new URLSearchParams(searchParams.toString());
+        p.delete('booka');
+        p.delete('bookasystem');
+        p.set('requestId', String(id));
+        router.replace(`?${p.toString()}`, { scroll: false });
+      } catch {}
 
       // Prime quote cache from any locally cached messages.
       try {
@@ -643,6 +651,7 @@ export default function InboxPage() {
               applyLocalRead(realId);
               const p = new URLSearchParams(searchParams.toString());
               p.delete('booka');
+              p.delete('bookasystem');
               p.set('requestId', String(realId));
               try {
                 const nextSearch = `?${p.toString()}`;

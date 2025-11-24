@@ -2202,6 +2202,25 @@ def list_disputes(request: Request, _: Tuple[User, AdminUser] = Depends(require_
     return _with_total(items, int(total), "disputes", start, start + len(items) - 1)
 
 
+@router.get("/disputes/{dispute_id}")
+def get_dispute(dispute_id: int, _: Tuple[User, AdminUser] = Depends(require_roles("trust", "admin", "superadmin")), db: Session = Depends(get_db)):
+    row = db.execute(
+        text("SELECT id, booking_id, status, reason, created_at, notes, assigned_admin_id FROM disputes WHERE id=:id"),
+        {"id": dispute_id},
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Not Found")
+    return {
+        "id": str(row[0]),
+        "booking_id": str(row[1]),
+        "status": row[2],
+        "reason": row[3],
+        "created_at": row[4],
+        "notes": row[5],
+        "assigned_admin_id": (str(row[6]) if row[6] is not None else None),
+    }
+
+
 @router.get("/email_events")
 def list_email_events(request: Request, _: Tuple[User, AdminUser] = Depends(require_roles("support", "admin", "superadmin")), db: Session = Depends(get_db)):
     offset, limit, start, end = _get_offset_limit(request.query_params)
