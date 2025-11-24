@@ -17,6 +17,7 @@ from .. import crud
 from ..utils.messages import preview_label_for_message
 import re
 import json
+import os
 from pydantic import BaseModel
 from datetime import datetime
 import hashlib
@@ -28,8 +29,12 @@ from ..utils.redis_cache import get_redis_client, cache_bytes, get_cached_bytes
 from threading import BoundedSemaphore
 from fastapi.concurrency import run_in_threadpool
 from ..database import get_db_session
-import os
 import random
+
+try:
+    import msgpack  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    msgpack = None
 
 
 router = APIRouter(tags=["threads"])
@@ -479,7 +484,7 @@ def get_threads_preview(
     # ---- Serialize + headers -------------------------------------------------
     payload: Dict[str, Any] = {"items": items, "next_cursor": None}
     t_ser_start = time.perf_counter()
-    body = _json_dumps(payload)
+    body_json = _json_dumps(payload)
     t_ser_ms = (time.perf_counter() - t_ser_start) * 1000.0
 
     pre_ms = (t_brs_start - t_start) * 1000.0
@@ -491,6 +496,18 @@ def get_threads_preview(
         "Vary": "If-None-Match, X-After-Write",
         "ETag": etag,
     }
+
+    # Optional MessagePack encoding for inbox preview (opt-in via env + library)
+    body: bytes | str = body_json
+    media_type = "application/json"
+    allow_msgpack = os.getenv("ENABLE_THREAD_PREVIEW_MSGPACK", "0").strip().lower() in {"1", "true", "yes"}
+    if allow_msgpack and msgpack:
+        try:
+            body = msgpack.dumps(payload, use_bin_type=True)
+            media_type = "application/msgpack"
+        except Exception:
+            body = body_json
+            media_type = "application/json"
 
     # Write to cache for subsequent requests (best-effort)
     try:
@@ -515,13 +532,13 @@ def get_threads_preview(
             except Exception:
                 pass
             try:
-                cache_bytes(body_key, body, ttl_j)
+                cache_bytes(body_key, body if isinstance(body, (bytes, bytearray)) else body_json, ttl_j)
             except Exception:
                 pass
     except Exception:
         pass
 
-    return Response(content=body, media_type="application/json", headers=headers)
+    return Response(content=body, media_type=media_type, headers=headers)
 
 
 # ---- /threads (unified index) -----------------------------------------------
@@ -658,8 +675,15 @@ def get_threads_index(
         "Cache-Control": "no-cache, private",
         "Vary": "If-None-Match, X-After-Write",
     }
-    body = _json_dumps(payload)
-    return Response(content=body, media_type="application/json", headers=headers)
+    allow_msgpack = os.getenv("ENABLE_THREAD_PREVIEW_MSGPACK", "0").strip().lower() in {"1", "true", "yes"}
+    body_json = _json_dumps(payload)
+    if allow_msgpack and msgpack:
+        try:
+            body = msgpack.dumps(payload, use_bin_type=True)
+            return Response(content=body, media_type="application/msgpack", headers=headers)
+        except Exception:
+            pass
+    return Response(content=body_json, media_type="application/json", headers=headers)
 
 
 # ---- /message-threads/ensure-booka-thread -----------------------------------
