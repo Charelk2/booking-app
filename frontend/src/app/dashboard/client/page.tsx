@@ -1,11 +1,15 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Booking, BookingRequest } from "@/types";
-import { getMyClientBookingsCached, getMyBookingRequestsCached, peekClientDashboardCache } from "@/lib/api";
+import {
+  getMyClientBookingsCached,
+  getMyBookingRequestsCached,
+  peekClientDashboardCache,
+} from "@/lib/api";
 import {
   SectionList,
   BookingRequestCard,
@@ -17,62 +21,97 @@ import { formatCurrency, formatStatus } from "@/lib/utils";
 import { statusChipClass } from "@/components/ui/status";
 import Link from "next/link";
 
+type TabId = "requests" | "bookings";
+
 export default function ClientDashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
+  const searchParams = useSearchParams();
+
+  const initialTabParam = searchParams.get("tab");
+  const initialTab: TabId =
+    initialTabParam === "bookings" ? "bookings" : "requests";
+
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
-  const [loadingBookings, setLoadingBookings] = useState(true);
-  const [loadingRequests, setLoadingRequests] = useState(true);
-  const [error, setError] = useState("");
+
+  const [loadingBookings, setLoadingBookings] = useState(false);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+
   const [fetchedBookings, setFetchedBookings] = useState(false);
   const [fetchedRequests, setFetchedRequests] = useState(false);
-  const bookingsInflightRef = React.useRef<Promise<Booking[] | null> | null>(null);
-  const requestsInflightRef = React.useRef<Promise<BookingRequest[] | null> | null>(null);
 
-  const initialTab = params.get("tab") === "bookings" ? "bookings" : "requests";
-  const [activeTab, setActiveTab] = useState<"requests" | "bookings" | "services">(initialTab);
+  const [error, setError] = useState<string | null>(null);
 
+  const bookingsInflightRef = useRef<Promise<Booking[] | null> | null>(null);
+  const requestsInflightRef = useRef<Promise<BookingRequest[] | null> | null>(
+    null,
+  );
+
+  // Keep tab in the URL, but don't rely on window directly
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("tab", activeTab);
     router.replace(`${pathname}?${params.toString()}`);
-  }, [activeTab, router, pathname]);
+  }, [activeTab, router, pathname, searchParams]);
 
+  // Auth + initial cache hydration
   useEffect(() => {
     if (authLoading) return;
+
     if (!user) {
-      router.push(`/auth?intent=login&next=${encodeURIComponent(pathname)}`);
+      router.push(
+        `/auth?intent=login&next=${encodeURIComponent(pathname || "/")}`,
+      );
       return;
     }
+
     if (user.user_type !== "client") {
       router.push("/dashboard/artist");
       return;
     }
 
-    // Hydrate immediately from cache to avoid empty-state flash
+    // Hydrate from cache to avoid blank screen when we already have data
     try {
       const cached = peekClientDashboardCache();
-      if (cached.bookings) setBookings(cached.bookings);
-      if (cached.requests) setBookingRequests(cached.requests);
-      if (cached.bookings || cached.requests) setLoading(false);
-    } catch {}
+      if (cached.bookings && !fetchedBookings) {
+        setBookings(cached.bookings);
+        setFetchedBookings(true);
+      }
+      if (cached.requests && !fetchedRequests) {
+        setBookingRequests(cached.requests);
+        setFetchedRequests(true);
+      }
+    } catch {
+      // cache is best-effort
+    }
+  }, [authLoading, user, router, pathname, fetchedBookings, fetchedRequests]);
 
-    const fetchData = async () => {
-      // Lazy fetch by tab to reduce upfront latency
-      if (!fetchedBookings && activeTab === 'bookings') {
+  // Fetch data for the active tab (only when needed)
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || user.user_type !== "client") return;
+
+    const fetchActiveTab = async () => {
+      // BOOKINGS
+      if (
+        activeTab === "bookings" &&
+        !fetchedBookings &&
+        !bookingsInflightRef.current
+      ) {
         setLoadingBookings(true);
+        setError(null);
         try {
-          if (!bookingsInflightRef.current) {
-            bookingsInflightRef.current = getMyClientBookingsCached(undefined, 10).catch(() => null);
-          }
-          const bookingsData = await bookingsInflightRef.current;
+          bookingsInflightRef.current = getMyClientBookingsCached().catch(
+            () => null,
+          );
+          const data = await bookingsInflightRef.current;
           bookingsInflightRef.current = null;
-          if (bookingsData) {
-            setBookings(bookingsData);
+          if (data) {
+            setBookings(data);
             setFetchedBookings(true);
           }
         } catch (err) {
@@ -82,16 +121,23 @@ export default function ClientDashboardPage() {
           setLoadingBookings(false);
         }
       }
-      if (!fetchedRequests && activeTab === 'requests') {
+
+      // REQUESTS
+      if (
+        activeTab === "requests" &&
+        !fetchedRequests &&
+        !requestsInflightRef.current
+      ) {
         setLoadingRequests(true);
+        setError(null);
         try {
-          if (!requestsInflightRef.current) {
-            requestsInflightRef.current = getMyBookingRequestsCached(undefined, 10).catch(() => null);
-          }
-          const requestsData = await requestsInflightRef.current;
+          requestsInflightRef.current = getMyBookingRequestsCached().catch(
+            () => null,
+          );
+          const data = await requestsInflightRef.current;
           requestsInflightRef.current = null;
-          if (requestsData) {
-            setBookingRequests(requestsData);
+          if (data) {
+            setBookingRequests(data);
             setFetchedRequests(true);
           }
         } catch (err) {
@@ -103,37 +149,68 @@ export default function ClientDashboardPage() {
       }
     };
 
-    fetchData();
-  }, [user, authLoading, router, pathname, activeTab, fetchedBookings, fetchedRequests]);
+    void fetchActiveTab();
+  }, [
+    authLoading,
+    user,
+    activeTab,
+    fetchedBookings,
+    fetchedRequests,
+  ]);
 
-  // Preload the opposite tab in the background after initial fetch
+  // Background preload of the opposite tab (best-effort)
   useEffect(() => {
+    if (authLoading) return;
     if (!user || user.user_type !== "client") return;
+
+    // Preload bookings
     if (!fetchedBookings && !bookingsInflightRef.current) {
-      (async () => {
-        try {
-          const bookingsData = await getMyClientBookingsCached(undefined, 10);
-          setBookings(bookingsData);
+      bookingsInflightRef.current = getMyClientBookingsCached()
+        .then((data) => {
+          if (data && !bookings.length) {
+            setBookings(data);
+          }
           setFetchedBookings(true);
-        } catch {}
-      })();
+          return data;
+        })
+        .catch(() => null)
+        .finally(() => {
+          bookingsInflightRef.current = null;
+        });
     }
+
+    // Preload requests
     if (!fetchedRequests && !requestsInflightRef.current) {
-      (async () => {
-        try {
-          const requestsData = await getMyBookingRequestsCached(undefined, 10);
-          setBookingRequests(requestsData);
+      requestsInflightRef.current = getMyBookingRequestsCached()
+        .then((data) => {
+          if (data && !bookingRequests.length) {
+            setBookingRequests(data);
+          }
           setFetchedRequests(true);
-        } catch {}
-      })();
+          return data;
+        })
+        .catch(() => null)
+        .finally(() => {
+          requestsInflightRef.current = null;
+        });
     }
-  }, [user, fetchedBookings, fetchedRequests]);
+  }, [
+    authLoading,
+    user,
+    fetchedBookings,
+    fetchedRequests,
+    bookings.length,
+    bookingRequests.length,
+  ]);
 
   const upcomingBookings = useMemo(() => {
-    const now = new Date().getTime();
+    const now = Date.now();
     return bookings
       .filter((b) => new Date(b.start_time).getTime() >= now)
-      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+      .sort(
+        (a, b) =>
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+      )
       .slice(0, 5);
   }, [bookings]);
 
@@ -143,29 +220,33 @@ export default function ClientDashboardPage() {
       ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
       : [];
     const providerInv = vis.find(
-      (iv) => iv.type === 'provider_tax' || iv.type === 'provider_invoice',
+      (iv) => iv.type === "provider_tax" || iv.type === "provider_invoice",
     );
     const fallbackInv = vis.length ? vis[vis.length - 1] : undefined;
     const target = providerInv || fallbackInv;
-    if (target && typeof target.id === 'number') return `/invoices/${target.id}`;
+    if (target && typeof target.id === "number") return `/invoices/${target.id}`;
     if (booking.invoice_id) return `/invoices/${booking.invoice_id}`;
     return `/invoices/by-booking/${booking.id}?type=provider`;
   };
 
-  const loadingCurrent = activeTab === 'bookings' ? loadingBookings : loadingRequests;
-
-  if (loadingCurrent) {
+  // While auth is resolving, show a simple spinner
+  if (authLoading) {
     return (
       <MainLayout>
-        <div className="p-8 flex justify-center"><Spinner /></div>
+        <div className="p-8 flex justify-center">
+          <Spinner />
+        </div>
       </MainLayout>
     );
   }
 
   if (error) {
+    // Still render layout; just show error message at top
     return (
       <MainLayout>
-        <div className="p-8 text-red-600">{error}</div>
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <p className="text-red-600">{error}</p>
+        </div>
       </MainLayout>
     );
   }
@@ -175,13 +256,16 @@ export default function ClientDashboardPage() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <DashboardTabs
           tabs={[
-            { id: 'requests', label: 'Requests' },
-            { id: 'bookings', label: 'Bookings' },
+            { id: "requests", label: "Requests" },
+            { id: "bookings", label: "Bookings" },
           ]}
           active={activeTab}
-          onChange={(id) => setActiveTab(id === 'requests' ? 'requests' : 'bookings')}
+          onChange={(id) =>
+            setActiveTab(id === "requests" ? "requests" : "bookings")
+          }
           variant="segmented"
         />
+
         <div className="mt-6">
           {activeTab === "requests" && (
             <section>
@@ -189,57 +273,96 @@ export default function ClientDashboardPage() {
                 title="Booking Requests"
                 data={bookingRequests}
                 renderItem={(r) => <BookingRequestCard req={r} />}
-                emptyState={<span>No requests yet</span>}
+                emptyState={
+                  loadingRequests ? (
+                    <div className="py-8 flex justify-center">
+                      <Spinner />
+                    </div>
+                  ) : (
+                    <span>No requests yet</span>
+                  )
+                }
               />
             </section>
           )}
+
           {activeTab === "bookings" && (
             <section>
               <SectionList
                 title="Upcoming Bookings"
                 data={upcomingBookings}
-                emptyState={<span>No bookings yet</span>}
+                emptyState={
+                  loadingBookings ? (
+                    <div className="py-8 flex justify-center">
+                      <Spinner />
+                    </div>
+                  ) : (
+                    <span>No bookings yet</span>
+                  )
+                }
                 renderItem={(booking) => (
-                  <div key={booking.id} className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md">
+                  <div
+                    key={booking.id}
+                    className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md"
+                  >
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">
                           {booking.service?.service_provider?.business_name ||
-                           (booking.service as any)?.artist?.business_name ||
-                           booking.service_provider?.business_name ||
-                           (booking as any)?.artist?.business_name ||
-                           'Unknown Service Provider'}
+                            (booking.service as any)?.artist?.business_name ||
+                            booking.service_provider?.business_name ||
+                            (booking as any)?.artist?.business_name ||
+                            "Unknown Service Provider"}
                         </div>
-                        <div className="mt-0.5 text-sm text-gray-600 truncate">{booking.service?.title || "—"}</div>
-                    <div className="mt-1 text-xs text-gray-500">{format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}</div>
+                        <div className="mt-0.5 text-sm text-gray-600 truncate">
+                          {booking.service?.title || "—"}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {format(
+                            new Date(booking.start_time),
+                            "MMM d, yyyy h:mm a",
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(
+                            booking.status,
+                          )}`}
+                        >
+                          {formatStatus(booking.status)}
+                        </span>
+                        <div className="mt-2 text-sm font-semibold text-gray-900">
+                          {formatCurrency(Number(booking.total_price))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      {(() => {
+                        const href = getInvoiceHref(booking);
+                        if (!href) return null;
+                        return (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener"
+                            className="text-brand-dark hover:underline text-sm"
+                          >
+                            View invoice
+                          </a>
+                        );
+                      })()}
+                    </div>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(booking.status)}`}>{formatStatus(booking.status)}</span>
-                    <div className="mt-2 text-sm font-semibold text-gray-900">{formatCurrency(Number(booking.total_price))}</div>
-                  </div>
-                </div>
-                <div className="mt-2">
-                  {(() => {
-                    const href = getInvoiceHref(booking);
-                    if (!href) return null;
-                    return (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener"
-                        className="text-brand-dark hover:underline text-sm"
-                      >
-                        View invoice
-                      </a>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-          />
+                )}
+              />
+
               {bookings.length > upcomingBookings.length && (
                 <div className="mt-2">
-                  <Link href="/dashboard/client/bookings" className="text-brand-dark hover:underline text-sm">
+                  <Link
+                    href="/dashboard/client/bookings"
+                    className="text-brand-dark hover:underline text-sm"
+                  >
                     View All Bookings
                   </Link>
                 </div>

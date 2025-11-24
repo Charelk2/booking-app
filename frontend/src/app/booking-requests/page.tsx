@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
-// Avoid re-export indirection to prevent TDZ in Next/Flight
 import useNotifications from '@/hooks/useNotifications.tsx';
 import clsx from 'clsx';
 import { Spinner } from '@/components/ui';
@@ -12,41 +11,62 @@ import { BookingRequestCard } from '@/components/dashboard';
 import {
   getMyBookingRequests,
   getBookingRequestsForArtist,
+  getMyBookingRequestsCached,
+  getBookingRequestsForArtistCached,
 } from '@/lib/api';
 import type { BookingRequest, ThreadNotification } from '@/types';
 
 export default function BookingRequestsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { items, markItem } = useNotifications();
+
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [serviceFilter, setServiceFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
 
-
-
+  // Fetch booking requests (cached first, then fallback)
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
+    if (hasFetched) return;
+
     const fetchRequests = async () => {
-      if (!user) return;
       setLoading(true);
+      setError(null);
       try {
-        const res =
-          user.user_type === 'service_provider'
-            ? await getBookingRequestsForArtist()
-            : await getMyBookingRequests();
-        setRequests(res.data);
+        let data: BookingRequest[] | null = null;
+
+        if (user.user_type === 'service_provider') {
+          data = await getBookingRequestsForArtistCached().catch(() => null);
+          if (!data) {
+            const res = await getBookingRequestsForArtist();
+            data = res.data;
+          }
+        } else {
+          data = await getMyBookingRequestsCached().catch(() => null);
+          if (!data) {
+            const res = await getMyBookingRequests();
+            data = res.data;
+          }
+        }
+
+        setRequests(data || []);
       } catch (err) {
         console.error('Failed to fetch booking requests', err);
         setError('Failed to load booking requests.');
       } finally {
         setLoading(false);
+        setHasFetched(true);
       }
     };
-    fetchRequests();
-  }, [user]);
+
+    void fetchRequests();
+  }, [authLoading, user, hasFetched]);
 
   const unreadCounts = useMemo(() => {
     const map: Record<number, number> = {};
@@ -72,24 +92,24 @@ export default function BookingRequestsPage() {
 
   const filtered = useMemo(() => {
     const lowerSearch = search.toLowerCase();
-    return requests
-      .filter((r) => {
-        const name = user?.user_type === 'service_provider'
+    return requests.filter((r) => {
+      const name =
+        user?.user_type === 'service_provider'
           ? r.client
             ? `${r.client.first_name} ${r.client.last_name}`.toLowerCase()
             : ''
           : r.artist_profile
-            ? (r.artist_profile.business_name || r.artist?.first_name || '').toLowerCase()
-            : '';
-        const matchesSearch = name.includes(lowerSearch);
-        const matchesStatus =
-          !statusFilter || r.status === statusFilter;
-        const matchesService =
-          !serviceFilter || r.service?.service_type === serviceFilter;
-        return matchesSearch && matchesStatus && matchesService;
-      });
-  }, [requests, search, statusFilter, serviceFilter, user]);
+          ? (r.artist_profile.business_name || r.artist?.first_name || '').toLowerCase()
+          : '';
 
+      const matchesSearch = name.includes(lowerSearch);
+      const matchesStatus = !statusFilter || r.status === statusFilter;
+      const matchesService =
+        !serviceFilter || r.service?.service_type === serviceFilter;
+
+      return matchesSearch && matchesStatus && matchesService;
+    });
+  }, [requests, search, statusFilter, serviceFilter, user]);
 
   const handleRowClick = async (id: number) => {
     const related = items.filter((n) => {
@@ -103,11 +123,25 @@ export default function BookingRequestsPage() {
       }
       return false;
     });
-    for (const n of related) {
-      await markItem(n);
+
+    try {
+      await Promise.all(related.map((n) => markItem(n)));
+    } catch {
+      // best-effort
     }
+
     router.push(`/booking-requests/${id}`);
   };
+
+  if (authLoading) {
+    return (
+      <MainLayout>
+        <div className="p-8 flex justify-center">
+          <Spinner />
+        </div>
+      </MainLayout>
+    );
+  }
 
   if (!user) {
     return (
@@ -121,15 +155,25 @@ export default function BookingRequestsPage() {
     <MainLayout>
       <div className="max-w-4xl mx-auto space-y-4">
         <h1 className="text-xl font-semibold">Booking Requests</h1>
+
         {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
+
         {!loading && !error && (
           <div className="bg-white rounded-md shadow overflow-hidden">
             <div className="p-2 space-y-2 sm:flex sm:space-y-0 sm:space-x-2 bg-gray-50">
               <input
                 type="text"
-                placeholder={user?.user_type === 'service_provider' ? 'Search by client name' : 'Search by artist name'}
-                aria-label={user?.user_type === 'service_provider' ? 'Search by client name' : 'Search by artist name'}
+                placeholder={
+                  user.user_type === 'service_provider'
+                    ? 'Search by client name'
+                    : 'Search by artist name'
+                }
+                aria-label={
+                  user.user_type === 'service_provider'
+                    ? 'Search by client name'
+                    : 'Search by artist name'
+                }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="border rounded-md p-1 text-sm flex-1"
@@ -179,8 +223,8 @@ export default function BookingRequestsPage() {
                       unread
                         ? 'bg-brand-light border-l-4 border-brand'
                         : isNew
-                          ? 'bg-blue-50'
-                          : 'bg-white',
+                        ? 'bg-blue-50'
+                        : 'bg-white',
                     )}
                   >
                     {count > 0 && (
