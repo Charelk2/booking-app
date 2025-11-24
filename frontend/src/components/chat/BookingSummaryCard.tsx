@@ -342,7 +342,7 @@ export default function BookingSummaryCard({
       >
         {/* Event Details */}
         <section id="event-details" className="scroll-mt-20" aria-labelledby="event-details-h">
-          <h2 id="event-details-h" className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
+          <h2 id="event-details-h" className="text-xl font-bold text-gray-900 mb-3">
             Event Details
           </h2>
 
