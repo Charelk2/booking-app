@@ -6,6 +6,7 @@ import { setTransportErrorMeta, runWithTransport, noteTransportOnline, noteTrans
 import logger from './logger';
 import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
+import { decodeMsgpack } from './msgpackDecode';
 import {
   User,
   ServiceProviderProfile,
@@ -1563,10 +1564,11 @@ export const getMessageThreadsPreview = (
     `${API_V1}/message-threads/preview`,
     {
       params: { role, limit },
-      headers: _maybeAfterWriteHeaders(etag ? { 'If-None-Match': etag } : undefined),
+      headers: withMsgpackAccept(_maybeAfterWriteHeaders(etag ? { 'If-None-Match': etag } : undefined)),
       validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+      ...(ENABLE_MSGPACK_THREADS ? { responseType: 'arraybuffer' as const } : {}),
     }
-  );
+  ).then((res) => decodeMaybeMsgpack<ThreadPreviewResponse>(res));
 
 export const ensureBookaThread = () =>
   api.post<{ booking_request_id: number | null }>(
@@ -1595,10 +1597,10 @@ export const getThreadsIndex = (
   limit = 50,
   etag?: string,
 ) =>
-  getDeduped<ThreadsIndexResponse>(
+  getDedupedMaybeMsgpack<ThreadsIndexResponse>(
     `${API_V1}/threads`,
     { role, limit },
-    _maybeAfterWriteHeaders(etag ? { 'If-None-Match': etag } : undefined),
+    withMsgpackAccept(_maybeAfterWriteHeaders(etag ? { 'If-None-Match': etag } : undefined)),
     (s) => (s >= 200 && s < 300) || s === 304,
   );
 
@@ -1619,6 +1621,57 @@ function getDeduped<T>(url: string, params?: Record<string, any>, headers?: Reco
     // small delay to coalesce fast duplicates
     setTimeout(() => inflight.delete(key), 100);
   });
+  inflight.set(key, prom as unknown as Promise<any>);
+  return prom as Promise<{ data: T }>;
+}
+
+// ─── MessagePack (optional) helpers for inbox preview/index ───────────────
+const ENABLE_MSGPACK_THREADS = (process.env.NEXT_PUBLIC_ENABLE_MSGPACK_THREADS ?? '1') !== '0';
+const utf8Decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder() : new (require('util').TextDecoder)('utf-8');
+const toUint8 = (data: any): Uint8Array | null => {
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  return null;
+};
+const decodeMaybeMsgpack = <T,>(res: any): any => {
+  if (!ENABLE_MSGPACK_THREADS) return res;
+  if (!res || res.status === 304) return res;
+  const ctype = String(res?.headers?.['content-type'] || '').toLowerCase();
+  const u8 = toUint8(res.data);
+  const isMsgpack = ctype.includes('msgpack');
+  if (isMsgpack && u8) {
+    try { return { ...res, data: decodeMsgpack(u8) as T }; } catch {}
+  }
+  if (u8 && ctype.includes('json')) {
+    try {
+      const text = utf8Decoder.decode(u8);
+      return { ...res, data: JSON.parse(text) as T };
+    } catch {}
+  }
+  // Fallback: if server sent msgpack but no content-type, still try decode
+  if (u8 && isMsgpack) {
+    try { return { ...res, data: decodeMsgpack(u8) as T }; } catch {}
+  }
+  return res;
+};
+const withMsgpackAccept = (base?: Record<string, string>) => {
+  const headers: Record<string, string> = { ...(base || {}) };
+  if (ENABLE_MSGPACK_THREADS && !headers['Accept']) {
+    headers['Accept'] = 'application/msgpack, application/json';
+  }
+  return headers;
+};
+function getDedupedMaybeMsgpack<T>(url: string, params?: Record<string, any>, headers?: Record<string, string>, validateStatus?: (s: number) => boolean) {
+  const key = keyFor(url, params);
+  const existing = inflight.get(key);
+  if (existing) return existing as Promise<{ data: T }>;
+  const config: AxiosRequestConfig = { params, headers, validateStatus };
+  if (ENABLE_MSGPACK_THREADS) (config as any).responseType = 'arraybuffer';
+  const prom = api.get<T>(url, config)
+    .then((res) => decodeMaybeMsgpack<T>(res))
+    .finally(() => {
+      setTimeout(() => inflight.delete(key), 100);
+    });
   inflight.set(key, prom as unknown as Promise<any>);
   return prom as Promise<{ data: T }>;
 }
