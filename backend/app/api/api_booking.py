@@ -147,6 +147,8 @@ def read_my_bookings(
             "past": {"summary": "Past", "value": "past"},
         },
     ),
+    if_none_match: str | None = Header(default=None, convert_underscores=False, alias="If-None-Match"),
+    response: Response = None,  # type: ignore
 ) -> Any:
     """Return bookings for the authenticated client, optionally filtered."""
     # Precompute latest invoice per BookingSimple (if any)
@@ -246,6 +248,21 @@ def read_my_bookings(
             if not getattr(b, "updated_at", None):
                 b.updated_at = b.created_at
         db.commit()
+    except Exception:
+        pass
+    # ETag based on max booking id + count + status filter
+    try:
+        max_id = max((getattr(b, "id", 0) or 0) for b in bookings) if bookings else 0
+    except Exception:
+        max_id = 0
+    etag = f'W/"mb:{int(current_client.id)}:{int(max_id)}:{len(bookings)}:{status_filter or ""}"'
+    if if_none_match and if_none_match.strip() == etag:
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag, "Vary": "If-None-Match"})
+    try:
+        if response is not None:
+            response.headers["ETag"] = etag
+            response.headers["Cache-Control"] = "no-cache, private"
+            response.headers["Vary"] = "If-None-Match"
     except Exception:
         pass
     return bookings

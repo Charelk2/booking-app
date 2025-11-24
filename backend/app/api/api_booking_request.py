@@ -445,6 +445,7 @@ def read_my_client_booking_requests(
     current_user: models.User = Depends(
         get_current_active_client
     ),  # Changed to active client
+    response: Response = None,  # type: ignore
 ):
     """
     Retrieve booking requests made by the current client.
@@ -487,13 +488,12 @@ def read_my_client_booking_requests(
         if not lite:
             _prepare_quotes_for_response(list(req.quotes or []))
     try:
-        # Attach ETag headers to normal response path
-        response: Response = Response()
-        response.headers["ETag"] = etag
-        response.headers["Cache-Control"] = "no-cache, private"
-        response.headers["Vary"] = "If-None-Match"
+        if response is not None:
+            response.headers["ETag"] = etag
+            response.headers["Cache-Control"] = "no-cache, private"
+            response.headers["Vary"] = "If-None-Match"
     except Exception:
-        response = None  # type: ignore
+        pass
     return requests
 
 

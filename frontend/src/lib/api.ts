@@ -1646,6 +1646,22 @@ export const getNotifications = (skip = 0, limit = 20, config?: AxiosRequestConf
     `${API_NOTIFICATIONS}/notifications`,
     { params: { skip, limit }, ...(config || {}) },
   );
+// Cached notifications to avoid duplicate fetches on mount
+const NOTIF_CACHE_KEY = 'dash:notifs:v1';
+export const getNotificationsCached = (skip = 0, limit = 20, ttlMs = 30_000) =>
+  getWithCache<Notification[]>(
+    NOTIF_CACHE_KEY,
+    (etag?: string) =>
+      api.get<Notification[]>(
+        `${API_NOTIFICATIONS}/notifications`,
+        {
+          params: { skip, limit },
+          headers: etag ? { 'If-None-Match': etag } : undefined,
+          validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+        },
+      ),
+    ttlMs,
+  );
 
 export const markNotificationRead = (id: number) =>
   api.put<Notification>(`${API_NOTIFICATIONS}/notifications/${id}/read`);
