@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, UploadFile, File, Header, Response
+from fastapi import APIRouter, Depends, status, UploadFile, File, Header, Response, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
@@ -437,15 +437,15 @@ def create_booking_request(
     response_model_exclude_none=True,
 )
 def read_my_client_booking_requests(
-    skip: int = 0,
-    limit: int = 100,
-    lite: bool = False,
+    response: Response,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
+    lite: bool = Query(True, description="Return a lighter shape for list views"),
     if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(
         get_current_active_client
     ),  # Changed to active client
-    response: Response = None,  # type: ignore
 ):
     """
     Retrieve booking requests made by the current client.
@@ -478,6 +478,7 @@ def read_my_client_booking_requests(
         limit=limit,
         include_relationships=not lite,
         viewer=models.VisibleTo.CLIENT,
+        per_request_messages=1 if lite else 3,
     )
     for req in requests:
         # Defensive: ensure timestamps present for response validation
@@ -488,10 +489,9 @@ def read_my_client_booking_requests(
         if not lite:
             _prepare_quotes_for_response(list(req.quotes or []))
     try:
-        if response is not None:
-            response.headers["ETag"] = etag
-            response.headers["Cache-Control"] = "no-cache, private"
-            response.headers["Vary"] = "If-None-Match"
+        response.headers["ETag"] = etag
+        response.headers["Cache-Control"] = "no-cache, private"
+        response.headers["Vary"] = "If-None-Match"
     except Exception:
         pass
     return requests

@@ -992,23 +992,24 @@ async function getWithCache<T>(
 }
 
 // Client dashboard: bookings + requests (lite)
-export const getMyClientBookingsCached = (ttlMs = 60_000) =>
+export const getMyClientBookingsCached = (ttlMs = 60_000, limit = 20) =>
   getWithCache<Booking[]>(
     DASH_CACHE_KEYS.clientBookings,
     (etag?: string) =>
       api.get<Booking[]>(`${API_V1}/bookings/my-bookings`, {
+        params: { limit },
         headers: etag ? { 'If-None-Match': etag } : undefined,
         validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
       }),
     ttlMs,
   );
 
-export const getMyBookingRequestsCached = (ttlMs = 60_000) =>
+export const getMyBookingRequestsCached = (ttlMs = 60_000, limit = 20) =>
   getWithCache<BookingRequest[]>(
     DASH_CACHE_KEYS.clientRequests,
     (etag?: string) =>
       api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/client`, {
-        params: { lite: true },
+        params: { lite: true, limit },
         headers: etag ? { 'If-None-Match': etag } : undefined,
         validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
       }),

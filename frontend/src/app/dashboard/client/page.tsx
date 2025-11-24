@@ -109,7 +109,7 @@ export default function ClientDashboardPage() {
   // Preload the opposite tab in the background after initial fetch
   useEffect(() => {
     if (!user || user.user_type !== "client") return;
-    if (!fetchedBookings) {
+    if (!fetchedBookings && !bookingsInflightRef.current) {
       (async () => {
         try {
           const bookingsData = await getMyClientBookingsCached();
@@ -118,7 +118,7 @@ export default function ClientDashboardPage() {
         } catch {}
       })();
     }
-    if (!fetchedRequests) {
+    if (!fetchedRequests && !requestsInflightRef.current) {
       (async () => {
         try {
           const requestsData = await getMyBookingRequestsCached();

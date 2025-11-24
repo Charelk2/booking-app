@@ -1,7 +1,7 @@
 # backend/app/api/v1/api_booking.py
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, BackgroundTasks, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, BackgroundTasks, Body, Header, Response
 from sqlalchemy.orm import Session, selectinload
 from fastapi.responses import Response
 try:
@@ -138,6 +138,8 @@ def read_my_bookings(
     *,
     db: Session = Depends(get_db),
     current_client: User = Depends(get_current_active_client),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
     status_filter: str | None = Query(
         None,
         alias="status",
@@ -148,7 +150,7 @@ def read_my_bookings(
         },
     ),
     if_none_match: str | None = Header(default=None, convert_underscores=False, alias="If-None-Match"),
-    response: Response = None,  # type: ignore
+    response: Response,
 ) -> Any:
     """Return bookings for the authenticated client, optionally filtered."""
     # Precompute latest invoice per BookingSimple (if any)
@@ -175,6 +177,8 @@ def read_my_bookings(
             selectinload(Booking.source_quote),
         )
         .filter(Booking.client_id == current_client.id)
+        .offset(skip)
+        .limit(limit)
     )
 
     if status_filter:
@@ -255,7 +259,7 @@ def read_my_bookings(
         max_id = max((getattr(b, "id", 0) or 0) for b in bookings) if bookings else 0
     except Exception:
         max_id = 0
-    etag = f'W/"mb:{int(current_client.id)}:{int(max_id)}:{len(bookings)}:{status_filter or ""}"'
+    etag = f'W/"mb:{int(current_client.id)}:{int(max_id)}:{len(bookings)}:{status_filter or ""}:{int(skip)}:{int(limit)}"'
     if if_none_match and if_none_match.strip() == etag:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag, "Vary": "If-None-Match"})
     try:
