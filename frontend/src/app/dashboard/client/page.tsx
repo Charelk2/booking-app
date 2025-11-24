@@ -25,8 +25,11 @@ export default function ClientDashboardPage() {
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingBookings, setLoadingBookings] = useState(true);
+  const [loadingRequests, setLoadingRequests] = useState(true);
   const [error, setError] = useState("");
+  const [fetchedBookings, setFetchedBookings] = useState(false);
+  const [fetchedRequests, setFetchedRequests] = useState(false);
 
   const initialTab = params.get("tab") === "bookings" ? "bookings" : "requests";
   const [activeTab, setActiveTab] = useState<"requests" | "bookings" | "services">(initialTab);
@@ -57,23 +60,60 @@ export default function ClientDashboardPage() {
     } catch {}
 
     const fetchData = async () => {
-      try {
-        const [bookingsData, requestsData] = await Promise.all([
-          getMyClientBookingsCached(),
-          getMyBookingRequestsCached(),
-        ]);
-        setBookings(bookingsData);
-        setBookingRequests(requestsData);
-      } catch (err) {
-        console.error("Client dashboard fetch error:", err);
-        setError("Failed to load dashboard data. Please try again.");
-      } finally {
-        setLoading(false);
+      // Lazy fetch by tab to reduce upfront latency
+      if (!fetchedBookings && activeTab === 'bookings') {
+        setLoadingBookings(true);
+        try {
+          const bookingsData = await getMyClientBookingsCached();
+          setBookings(bookingsData);
+          setFetchedBookings(true);
+        } catch (err) {
+          console.error("Client dashboard bookings fetch error:", err);
+          setError("Failed to load bookings. Please try again.");
+        } finally {
+          setLoadingBookings(false);
+        }
+      }
+      if (!fetchedRequests && activeTab === 'requests') {
+        setLoadingRequests(true);
+        try {
+          const requestsData = await getMyBookingRequestsCached();
+          setBookingRequests(requestsData);
+          setFetchedRequests(true);
+        } catch (err) {
+          console.error("Client dashboard requests fetch error:", err);
+          setError("Failed to load requests. Please try again.");
+        } finally {
+          setLoadingRequests(false);
+        }
       }
     };
 
     fetchData();
-  }, [user, authLoading, router, pathname]);
+  }, [user, authLoading, router, pathname, activeTab, fetchedBookings, fetchedRequests]);
+
+  // Preload the opposite tab in the background after initial fetch
+  useEffect(() => {
+    if (!user || user.user_type !== "client") return;
+    if (!fetchedBookings) {
+      (async () => {
+        try {
+          const bookingsData = await getMyClientBookingsCached();
+          setBookings(bookingsData);
+          setFetchedBookings(true);
+        } catch {}
+      })();
+    }
+    if (!fetchedRequests) {
+      (async () => {
+        try {
+          const requestsData = await getMyBookingRequestsCached();
+          setBookingRequests(requestsData);
+          setFetchedRequests(true);
+        } catch {}
+      })();
+    }
+  }, [user, fetchedBookings, fetchedRequests]);
 
   const upcomingBookings = useMemo(() => {
     const now = new Date().getTime();
@@ -98,7 +138,9 @@ export default function ClientDashboardPage() {
     return `/invoices/by-booking/${booking.id}?type=provider`;
   };
 
-  if (loading) {
+  const loadingCurrent = activeTab === 'bookings' ? loadingBookings : loadingRequests;
+
+  if (loadingCurrent) {
     return (
       <MainLayout>
         <div className="p-8 flex justify-center"><Spinner /></div>
