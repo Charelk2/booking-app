@@ -940,7 +940,12 @@ const DASH_CACHE_KEYS = {
   artistStats: 'dash:artist:stats:v1',
 };
 
+const canUseSessionStorage = typeof window !== 'undefined' && (() => {
+  try { return typeof window.sessionStorage !== 'undefined'; } catch { return false; }
+})();
+
 function readCacheEntry<T>(key: string, ttlMs: number): CacheEntry<T> | null {
+  if (!canUseSessionStorage) return null;
   try {
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
@@ -954,6 +959,7 @@ function readCacheEntry<T>(key: string, ttlMs: number): CacheEntry<T> | null {
   }
 }
 function writeCacheEntry<T>(key: string, entry: CacheEntry<T>): void {
+  if (!canUseSessionStorage) return;
   try {
     sessionStorage.setItem(key, JSON.stringify(entry));
   } catch {}
@@ -966,6 +972,10 @@ async function getWithCache<T>(
   request: (etag?: string) => Promise<any>,
   ttlMs = 60_000,
 ): Promise<T> {
+  if (!canUseSessionStorage) {
+    const res = await request(undefined);
+    return res?.data as T;
+  }
   const cached = readCacheEntry<T>(key, ttlMs);
   const etag = cached?.etag || undefined;
   try {
