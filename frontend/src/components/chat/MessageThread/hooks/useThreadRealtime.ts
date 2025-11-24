@@ -284,4 +284,49 @@ export function useThreadRealtime({
       unsubscribe();
     };
   }, [threadId, isActive, subscribe, publish, ingestMessage, applyReadReceipt, myUserId]);
+
+  // Visibility-aware presence: when this thread is active in the current tab,
+  // send "online"/"away" updates as the document visibility changes so the
+  // presence header reflects reality instead of a stale snapshot.
+  useEffect(() => {
+    if (!threadId || !isActive) return;
+
+    const topic = `${THREAD_TOPIC_PREFIX}${threadId}`;
+
+    const pushStatus = (status: string) => {
+      try {
+        if (!Number.isFinite(myUserId) || myUserId <= 0) return;
+        publish(topic, { type: 'presence', updates: { [myUserId]: status } });
+      } catch {
+        // ignore
+      }
+    };
+
+    const handleVisibility = () => {
+      try {
+        if (typeof document === 'undefined') return;
+        const hidden = document.hidden;
+        pushStatus(hidden ? 'away' : 'online');
+      } catch {
+        // ignore
+      }
+    };
+
+    // Align with current visibility immediately
+    handleVisibility();
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibility);
+    }
+
+    return () => {
+      try {
+        if (typeof document !== 'undefined') {
+          document.removeEventListener('visibilitychange', handleVisibility);
+        }
+      } catch {
+        // ignore
+      }
+    };
+  }, [threadId, isActive, myUserId, publish]);
 }
