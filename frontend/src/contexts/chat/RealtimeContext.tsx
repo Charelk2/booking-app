@@ -65,6 +65,21 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
           }
           return;
         }
+        // Aggregate unread_total snapshot for header badge (do not touch per-thread unread).
+        if (payload && payload.type === 'unread_total') {
+          const totalRaw = (payload?.payload && (payload.payload.total ?? payload.payload.count)) ?? payload.total ?? payload.count;
+          const totalNum = Number(totalRaw);
+          if (Number.isFinite(totalNum) && typeof window !== 'undefined') {
+            try {
+              window.dispatchEvent(
+                new CustomEvent('inbox:unread_total', {
+                  detail: { total: Math.max(0, totalNum) },
+                }),
+              );
+            } catch {}
+          }
+          return;
+        }
         // Ignore per-thread/unicast bumps; chat WS events own thread list updates.
         return;
       } catch {

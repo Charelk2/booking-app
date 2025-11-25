@@ -137,5 +137,29 @@ export default function useUnreadThreadsCount() {
     };
   }, [syncFromServer]);
 
+  // Realtime aggregate updates from notifications (unread_total over WS).
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent<{ total?: number }>).detail || {};
+        const raw = detail.total;
+        if (typeof raw !== 'number' || !Number.isFinite(raw)) return;
+        const next = Math.max(0, Number(raw));
+        if (next !== countRef.current) {
+          setCount(next);
+        }
+      } catch {
+        // best-effort only
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('inbox:unread_total', handler as EventListener);
+      return () => {
+        try { window.removeEventListener('inbox:unread_total', handler as EventListener); } catch {}
+      };
+    }
+    return () => {};
+  }, []);
+
   return { count };
 }
