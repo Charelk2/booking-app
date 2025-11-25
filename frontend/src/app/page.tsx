@@ -3,6 +3,7 @@ export const revalidate = 60;
 import MainLayout from '@/components/layout/MainLayout'
 import ArtistsSection from '@/components/home/ArtistsSection'
 import dynamic from 'next/dynamic'
+import Hero from '@/components/layout/Hero'
 const GoogleOneTap = dynamic(() => import('@/components/auth/GoogleOneTap'), { ssr: false });
 import CategoriesCarouselServer from '@/components/home/CategoriesCarouselServer';
 
@@ -51,6 +52,7 @@ export default async function HomePage() {
   ]);
   return (
     <MainLayout>
+      <Hero />
       {/* Surface Google One Tap on the homepage for logged-out users */}
       <GoogleOneTap />
       <CategoriesCarouselServer />
