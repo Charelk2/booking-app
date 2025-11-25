@@ -33,7 +33,7 @@ import {
   writeThreadCache as writeCache,
   updateSummary as cacheUpdateSummary,
 } from '@/lib/chat/threadCache';
-import { safeParseDate } from '@/lib/chat/threadStore';
+import { safeParseDate } from '@/lib/dates';
 import { normalizeMessage as normalizeShared } from '@/lib/normalizers/messages';
 import { normalizeMessage as normalizeGeneric } from '@/utils/messages';
 import { isAttachmentCandidate, isAttachmentReady } from '@/components/chat/MessageThread/utils/media';

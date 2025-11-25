@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { safeParseDate } from '@/lib/chat/threadStore';
+import { safeParseDate } from '@/lib/dates';
 
 // Unified chat cache: one cache → two subscribers → zero wasted work.
 // This file owns summaries, per-thread messages, and unread bookkeeping,
@@ -73,6 +73,8 @@ export type ThreadSummary = {
   typing?: boolean;
   presence?: string | null;
   last_presence_at?: number | null;
+  // Derived presence status for UI surfaces
+  presence_status?: 'online' | 'recently' | 'offline' | string | null;
 };
 
 class ThreadCacheDatabase extends Dexie {

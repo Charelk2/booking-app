@@ -14,7 +14,7 @@ import SystemMessage from './SystemMessage';
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal';
 import QuoteBubble from '@/components/chat/QuoteBubble';
 import { resolveQuoteTotalsPreview } from '@/lib/quoteTotals';
-import { safeParseDate } from '@/lib/chat/threadStore';
+import { safeParseDate } from '@/lib/dates';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import MessageActions from './MessageActions';
 

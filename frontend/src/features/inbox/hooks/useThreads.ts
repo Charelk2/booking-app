@@ -10,7 +10,7 @@ import { initCrossTabSync } from '@/features/inbox/state/crossTab';
  * useThreads: lightweight ETag-aware refresher for the unified threads index.
  *
  * Leaves cache hydration and persistence to the page-level effects which
- * already subscribe to threadStore and mirror to session/local storage.
+ * already subscribe to the unified thread cache and mirror to session/local storage.
  */
 export function useThreads(user: User | null | undefined) {
   const etagKey = useMemo(() => {

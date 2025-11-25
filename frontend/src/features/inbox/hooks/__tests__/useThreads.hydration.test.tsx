@@ -1,15 +1,15 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { useThreads } from '@/features/inbox/hooks/useThreads';
-import { threadStore } from '@/lib/chat/threadStore';
+import { getSummaries as cacheGetSummaries } from '@/lib/chat/threadCache';
 
 const TestComp = ({ user }: any) => {
   useThreads(user);
-  return <div data-count={threadStore.getThreads().length} />;
+  return <div data-count={cacheGetSummaries().length} />;
 };
 
 describe('useThreads hydration', () => {
-  it('hydrates threadStore from session cache', async () => {
+  it('hydrates thread cache from session cache', async () => {
     const user = { id: 1, user_type: 'client' } as any;
     const key = `inbox:threadsCache:v2:client:1`;
     const sample = [
@@ -33,4 +33,3 @@ describe('useThreads hydration', () => {
     });
   });
 });
-

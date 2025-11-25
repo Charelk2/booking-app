@@ -1,6 +1,6 @@
 // frontend/src/lib/normalizers/messages.ts
 import type { Message } from '@/types';
-import { safeParseDate } from '@/lib/chat/threadStore';
+import { safeParseDate } from '@/lib/dates';
 
 /**
  * Normalize inbound messages so legacy payloads using 'artist' don't break the UI.

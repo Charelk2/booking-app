@@ -1,6 +1,6 @@
 // components/chat/MessageThread/grouping/groupMessages.ts
 import type { ThreadMessage, MessageGroup } from './types';
-import { safeParseDate } from '@/lib/chat/threadStore';
+import { safeParseDate } from '@/lib/dates';
 
 /**
  * WhatsApp-like grouping: break on timestamp gaps, system boundaries, or sender changes.

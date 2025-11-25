@@ -205,16 +205,35 @@ export function useThreadRealtime({
             const id = Number(uid);
             if (!Number.isFinite(id) || id === myUserId) continue;
             const s = (status || '').toString();
-            // Only move last_presence_at forward for explicit online/away
-            // states so "Last seen" reflects the last time we observed the
-            // counterparty as active. Offline snapshots (e.g., from fresh
-            // subscribes) should not overwrite that marker; in those cases we
-            // fall back to the last counterparty message timestamp.
-            const patch: any = { presence: s };
             const low = s.trim().toLowerCase();
+            const patch: any = { presence: s };
             if (low === 'online' || low === 'away') {
               patch.last_presence_at = Date.now();
             }
+            // Derive a coarse presence_status for reuse in UI:
+            // - 'online' when explicitly online
+            // - 'recently' when last_presence_at is recent (<5 minutes)
+            // - 'offline' when we have a stale last_presence_at marker
+            try {
+              const summaries = cacheGetSummaries() as any[];
+              const existing = summaries.find((t) => Number(t?.id) === Number(threadId)) as any;
+              const lastAt: number | null =
+                typeof patch.last_presence_at === 'number'
+                  ? patch.last_presence_at
+                  : (existing?.last_presence_at ?? null);
+              let presenceStatus: string | null = null;
+              if (low === 'online') {
+                presenceStatus = 'online';
+              } else if (lastAt && Number.isFinite(lastAt)) {
+                const age = Date.now() - Number(lastAt);
+                if (age < 5 * 60_000) {
+                  presenceStatus = 'recently';
+                } else {
+                  presenceStatus = 'offline';
+                }
+              }
+              patch.presence_status = presenceStatus;
+            } catch {}
             cacheUpdateSummary(threadId, patch);
             break;
           }

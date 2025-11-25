@@ -37,7 +37,7 @@ import { useQuotes } from '@/hooks/useQuotes';
 
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
-import { safeParseDate } from '@/lib/chat/threadStore';
+import { safeParseDate } from '@/lib/dates';
 import { getSummaries as cacheGetSummaries, subscribe as cacheSubscribe } from '@/lib/chat/threadCache';
 
 import { format } from 'date-fns';
@@ -233,7 +233,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   }, [messages]);
 
   // ----------------------------------------------------------------
-  // Presence / typing header label derived from threadStore
+  // Presence / typing header label derived from threadCache + last counterparty activity
   const messagesRef = useLatest(messages);
   // Debounce reaction toggles per message id to avoid rapid double-taps
   const lastReactionToggleRef = React.useRef<Record<number, number>>({});
@@ -246,16 +246,18 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         const t = (cacheGetSummaries() as any[]).find((s) => Number(s?.id) === Number(bookingRequestId)) as any;
         const typing = Boolean(t?.typing);
         const presence: string | null = (t?.presence ?? null) as any; // e.g., 'online'
+        const presenceStatus: string | null = (t?.presence_status ?? null) as any; // 'online' | 'recently' | 'offline'
         const lastPresenceAt: number | null = (t?.last_presence_at ?? null) as any;
 
         // 1) Typing overrides everything
         if (typing) {
-          onPresenceUpdate({ label: 'typing…', typing: true, status: presence === 'online' ? 'online' : null });
+          const status = presenceStatus === 'online' || presence === 'online' ? 'online' : null;
+          onPresenceUpdate({ label: 'typing…', typing: true, status });
           return;
         }
 
-        // 2) If explicitly online
-        if (typeof presence === 'string' && presence.trim().toLowerCase() === 'online') {
+        // 2) If explicitly online (from derived status or raw presence)
+        if (presenceStatus === 'online' || (typeof presence === 'string' && presence.trim().toLowerCase() === 'online')) {
           onPresenceUpdate({ label: 'Online', typing: false, status: 'online' });
           return;
         }

@@ -20,7 +20,7 @@ import {
   writeThreadCache,
   readThreadCache,
 } from "@/lib/chat/threadCache";
-import { safeParseDate } from "@/lib/chat/threadStore";
+import { safeParseDate } from "@/lib/dates";
 import { isImage, isVideo, isAudio } from "./utils/media";
 import { BOOKING_DETAILS_PREFIX } from "@/lib/constants";
 import {
