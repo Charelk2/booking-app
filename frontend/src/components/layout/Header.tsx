@@ -629,13 +629,37 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   >
                     <div className="flex flex-1 divide-x divide-slate-200">
                       <div className="flex-1 px-2 truncate">
-                        {category ? category.label : 'Add service'}
+                        {category ? (
+                          <span className="text-sm text-black truncate">
+                            {category.label}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-600 truncate">
+                            Add service
+                          </span>
+                        )}
                       </div>
                       <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
-                        {location ? getStreetFromAddress(location) : 'Add location'}
+                        {location ? (
+                          <span className="text-sm text-black whitespace-nowrap overflow-hidden text-ellipsis">
+                            {getStreetFromAddress(location)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                            Add location
+                          </span>
+                        )}
                       </div>
                       <div className="flex-1 px-2 truncate">
-                        {when ? dateFormatter.format(when) : 'Add dates'}
+                        {when ? (
+                          <span className="text-sm text-black truncate">
+                            {dateFormatter.format(when)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-600 truncate">
+                            Add dates
+                          </span>
+                        )}
                       </div>
                     </div>
                     <MagnifyingGlassIcon className="ml-3 h-5 w-5 text-slate-600 shrink-0" />
