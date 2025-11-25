@@ -240,7 +240,7 @@ export default function CategoriesCarousel() {
               onMouseEnter={() => router.prefetch?.(`/category/${encodeURIComponent(cat.value)}`)}
               onFocus={() => router.prefetch?.(`/category/${encodeURIComponent(cat.value)}`)}
             >
-              <div className="relative h-36 w-36 overflow-hidden rounded-lg bg-gray-100">
+              <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
                 <img
                   src={CATEGORY_IMAGES[cat.value] || '/bartender.png'}
                   alt={cat.display}
