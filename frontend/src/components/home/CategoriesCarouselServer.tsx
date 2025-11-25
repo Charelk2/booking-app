@@ -30,7 +30,7 @@ export default function CategoriesCarouselServer() {
   return (
     <section className="full-width mx-auto mt-4 px-4 sm:px-6 lg:px-8 animate-fadeIn" aria-labelledby="categories-heading">
       <div className="flex items-center justify-between">
-        <h2 id="categories-heading" className="text-xl font-semibold">Services Near You</h2>
+        <h2 id="categories-heading" className="text-xl font-semibold">Services</h2>
       </div>
 
       <div className="relative mt-3" role="region" aria-roledescription="carousel" aria-label="Service categories">
