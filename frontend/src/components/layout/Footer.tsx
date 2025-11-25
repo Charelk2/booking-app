@@ -1,15 +1,11 @@
 import Link from 'next/link';
-import { 
-  User, 
-  Music, 
-  FileText, 
-  LifeBuoy, 
+import {
+  User,
+  Music,
+  FileText,
+  LifeBuoy,
   MapPin,
-  Facebook,
-  Instagram,
-  Linkedin, // Assuming you might want LinkedIn, or we can stick to the SVG paths provided
 } from 'lucide-react';
-import type { ComponentProps } from 'react';
 
 // --- Configuration ---
 
@@ -82,28 +78,53 @@ const navigation = [
   },
 ];
 
-// 3. Social Media Icons
+// 3. Social Media Icons (uniform outline style)
 const social = [
   {
     name: 'Instagram',
     href: 'https://instagram.com',
-    icon: Instagram,
+    label: 'IG',
   },
   {
     name: 'Facebook',
     href: 'https://facebook.com',
-    icon: Facebook,
+    label: 'f',
   },
   {
     name: 'Pinterest',
     href: 'https://pinterest.com',
-    icon: (props: ComponentProps<'svg'>) => (
-      <svg viewBox="0 0 256 256" fill="currentColor" {...props}>
-         <path d="M224,112c0,22.57-7.9,43.2-22.23,58.11C188.39,184,170.25,192,152,192c-17.88,0-29.82-5.86-37.43-12l-10.78,45.82A8,8,0,0,1,96,232a8.24,8.24,0,0,1-1.84-.21,8,8,0,0,1-6-9.62l32-136a8,8,0,0,1,15.58,3.66l-16.9,71.8C122,166,131.3,176,152,176c27.53,0,56-23.94,56-64A72,72,0,1,0,73.63,148a8,8,0,0,1-13.85,8A88,88,0,1,1,224,112Z"></path>
-      </svg>
-    ),
-  }
+    label: 'P',
+  },
 ];
+
+function SocialIcon({ label, className }: { label: string; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.6}
+      />
+      <text
+        x="12"
+        y="15"
+        textAnchor="middle"
+        fontSize="10"
+        fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        fill="currentColor"
+      >
+        {label}
+      </text>
+    </svg>
+  );
+}
 
 export default function Footer() {
   return (
@@ -111,11 +132,11 @@ export default function Footer() {
       {/* TOP BORDER LINE 
          Mimicking the strong separator from the inspo
       */}
-      <div className="full-width mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="h-0.5 bg-black" />
       </div>
 
-      <div className="full-width mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="flex flex-col lg:flex-row gap-16 lg:gap-24">
           
           {/* LEFT COLUMN: UTILITY / QUICK ACTIONS
@@ -171,7 +192,7 @@ export default function Footer() {
       {/* BOTTOM SECTION: BRANDING & SOCIALS
          Thick separator, large logo, socials on right.
       */}
-      <div className="border-t-2 border-black full-width mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 border-t-2 border-black">
         <div className="py-12 flex flex-col md:flex-row items-start md:items-end justify-between gap-8">
           
           {/* Big Brand Logo */}
@@ -188,14 +209,14 @@ export default function Footer() {
           {/* Socials & Copyright */}
           <div className="flex flex-col md:items-end gap-6">
             <div className="flex gap-4">
-              {social.map(({ name, href, icon: Icon }) => (
+              {social.map(({ name, href, label }) => (
                 <a
                   key={name}
                   href={href}
                   className="text-black hover:scale-110 transition-transform duration-200"
                 >
                   <span className="sr-only">{name}</span>
-                  <Icon className="h-8 w-8" />
+                  <SocialIcon label={label} className="h-8 w-8" />
                 </a>
               ))}
             </div>
