@@ -91,7 +91,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
 
       const textSizeClass = isValuePresent
         ? (compact ? 'text-sm' : 'text-base')
-        : 'text-sm';
+        : 'text-xs';
 
       return (
         <div className="relative flex-1 min-w-0">
@@ -114,7 +114,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           >
             <span
               className={clsx(
-                'flex items-center text-xs font-semibold tracking-wide uppercase pointer-events-none select-none',
+                'flex items-center text-xs font-semibold tracking-wide pointer-events-none select-none',
                 isValuePresent ? 'text-slate-900' : 'text-slate-600',
               )}
             >
@@ -123,7 +123,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             <span
               className={clsx(
                 'block truncate pointer-events-none select-none',
-                isValuePresent ? 'text-gray-800' : 'text-gray-500',
+                isValuePresent ? 'text-gray-800' : 'text-gray-600',
                 textSizeClass
               )}
             >
@@ -155,6 +155,10 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
 
     // Use a stable date formatter for consistent output across server/client
     const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    const locationTextSizeClass = location
+      ? (compact ? 'text-sm' : 'text-base')
+      : 'text-xs';
 
   return (
     <div ref={ref} className="flex flex-1 divide-x divide-gray-50 rounded-2xl">
@@ -196,7 +200,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       >
         <span
           className={clsx(
-            'flex items-center text-xs font-semibold tracking-wide uppercase pointer-events-none select-none',
+            'flex items-center text-xs font-semibold tracking-wide pointer-events-none select-none',
             location ? 'text-slate-900' : 'text-slate-600',
           )}
         >
@@ -216,9 +220,9 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           placeholder="Add location"
           className="w-full"
           inputClassName={clsx(
-            'block truncate p-0 bg-transparent placeholder:text-gray-500',
-            location ? 'text-gray-800' : 'text-gray-500',
-            compact ? 'text-sm' : 'text-base',
+            'block truncate p-0 bg-transparent placeholder:text-gray-600',
+            location ? 'text-gray-800' : 'text-gray-600',
+            locationTextSizeClass,
             // Avoid text under the submit button (slightly tighter)
             'pr-6',
           )}
