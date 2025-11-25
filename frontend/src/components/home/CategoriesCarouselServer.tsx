@@ -48,7 +48,7 @@ export default function CategoriesCarouselServer() {
               className="flex-shrink-0 flex flex-col hover:no-underline snap-start"
               aria-label={cat.display}
             >
-              <div className="relative h-36 w-36 overflow-hidden rounded-lg bg-gray-100">
+              <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
                 <img
                   src={cat.img}
                   alt={cat.display}
