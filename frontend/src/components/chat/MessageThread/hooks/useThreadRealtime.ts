@@ -183,7 +183,13 @@ export function useThreadRealtime({
 
       if (type === 'typing') {
         const p = (evt?.payload || evt);
-        const users = Array.isArray(p.users) ? p.users : [];
+        // Support both legacy { users: [...] } and newer { user_id } shapes
+        let users: any[] = [];
+        if (Array.isArray(p.users)) {
+          users = p.users;
+        } else if (p.user_id != null || p.userId != null) {
+          users = [p.user_id ?? p.userId];
+        }
         const typing = users.some((id: any) => Number(id) !== myUserId);
         cacheUpdateSummary(threadId, { typing });
         if (typing) scheduleTypingClear();
