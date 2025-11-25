@@ -1,16 +1,35 @@
 import Link from 'next/link';
-import {
-  User,
-  Music,
-  FileText,
-  LifeBuoy,
+import { 
+  User, 
+  Music, 
+  FileText, 
+  LifeBuoy, 
   MapPin,
+  Facebook,
+  Instagram,
 } from 'lucide-react';
+import type { ComponentProps } from 'react';
 
 // --- Configuration ---
 
+// Custom Pinterest Icon to match Lucide style (Stroke only, no fill/background)
+const Pinterest = (props: ComponentProps<'svg'>) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    {...props}
+  >
+    <line x1="8" y1="20" x2="12" y2="11" />
+    <path d="M10.7 14c.43-.9 1.6-1.2 2.3-1.2 1.3 0 2.3.5 2.3 2.6 0 3.4-2.5 7.6-2.5 7.6" />
+    <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8" />
+  </svg>
+);
+
 // 1. The "Bash-style" Quick Actions (Left Column)
-// These are your high-value actions that need to stand out like "Track Order" did in the inspo.
 const quickActions = [
   { 
     name: 'Log in to your account', 
@@ -78,69 +97,37 @@ const navigation = [
   },
 ];
 
-// 3. Social Media Icons (uniform outline style)
+// 3. Social Media Icons (Now using consistent stroked components)
 const social = [
   {
     name: 'Instagram',
     href: 'https://instagram.com',
-    label: 'IG',
+    icon: Instagram,
   },
   {
     name: 'Facebook',
     href: 'https://facebook.com',
-    label: 'f',
+    icon: Facebook,
   },
   {
     name: 'Pinterest',
     href: 'https://pinterest.com',
-    label: 'P',
-  },
+    icon: Pinterest,
+  }
 ];
-
-function SocialIcon({ label, className }: { label: string; className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.6}
-      />
-      <text
-        x="12"
-        y="15"
-        textAnchor="middle"
-        fontSize="10"
-        fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        fill="currentColor"
-      >
-        {label}
-      </text>
-    </svg>
-  );
-}
 
 export default function Footer() {
   return (
     <footer className="bg-white text-gray-900 font-sans">
-      {/* TOP BORDER LINE (matches main layout width) */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="h-0.5 bg-black" />
-      </div>
+      {/* TOP BORDER LINE 
+         Using exact same border width as bottom for consistency
+      */}
+      <div className="w-full border-t-2 border-black" />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+      <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-16 lg:gap-24">
           
-          {/* LEFT COLUMN: UTILITY / QUICK ACTIONS
-            This mimics the "Pay Account", "Track Order" section.
-            Bold, icon-driven, high utility.
-          */}
+          {/* LEFT COLUMN: UTILITY / QUICK ACTIONS */}
           <div className="lg:w-1/4 shrink-0 space-y-8">
              <div className="space-y-6">
                 {quickActions.map((action) => (
@@ -160,9 +147,7 @@ export default function Footer() {
              </div>
           </div>
 
-          {/* RIGHT GRID: NAVIGATION LINKS
-            Clean, bold headers, simple list.
-          */}
+          {/* RIGHT GRID: NAVIGATION LINKS */}
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 w-full">
             {navigation.map((section) => (
               <div key={section.title}>
@@ -187,15 +172,14 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* BOTTOM SECTION: BRANDING & SOCIALS (same width as top border) */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="border-t-2 border-black" />
+      {/* BOTTOM SECTION: BRANDING & SOCIALS */}
+      <div className="border-t-2 border-black mx-6 lg:mx-auto max-w-7xl">
         <div className="py-12 flex flex-col md:flex-row items-start md:items-end justify-between gap-8">
           
           {/* Big Brand Logo */}
           <div className="space-y-2">
             <Link href="/" className="block text-5xl md:text-6xl font-black tracking-tighter text-black hover:opacity-80 transition-opacity">
-              Booka
+              booka
             </Link>
             <p className="text-xs text-gray-500 font-medium max-w-sm">
               Peace, Love & Gigs ® <br/>
@@ -206,14 +190,14 @@ export default function Footer() {
           {/* Socials & Copyright */}
           <div className="flex flex-col md:items-end gap-6">
             <div className="flex gap-4">
-              {social.map(({ name, href, label }) => (
+              {social.map(({ name, href, icon: Icon }) => (
                 <a
                   key={name}
                   href={href}
                   className="text-black hover:scale-110 transition-transform duration-200"
                 >
                   <span className="sr-only">{name}</span>
-                  <SocialIcon label={label} className="h-8 w-8" />
+                  <Icon className="h-6 w-6" strokeWidth={2} />
                 </a>
               ))}
             </div>
