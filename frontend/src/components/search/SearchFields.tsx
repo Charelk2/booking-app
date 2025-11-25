@@ -89,9 +89,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         currentValue !== '' &&
         !['Search', 'Add service', 'Add dates', 'Add location'].includes(currentValue);
 
-      const textSizeClass = isValuePresent
-        ? (compact ? 'text-sm' : 'text-base')
-        : 'text-xs';
+      const textSizeClass = 'text-xs';
 
       return (
         <div className="relative flex-1 min-w-0">
@@ -156,9 +154,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     // Use a stable date formatter for consistent output across server/client
     const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-    const locationTextSizeClass = location
-      ? (compact ? 'text-sm' : 'text-base')
-      : 'text-xs';
+    const locationTextSizeClass = 'text-xs';
 
   return (
     <div ref={ref} className="flex flex-1 divide-x divide-gray-50 rounded-2xl">

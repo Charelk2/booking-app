@@ -630,7 +630,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <div className="flex flex-1 divide-x divide-slate-200">
                       <div className="flex-1 px-2 truncate">
                         {category ? (
-                          <span className="text-sm text-black truncate">
+                          <span className="text-xs text-black truncate">
                             {category.label}
                           </span>
                         ) : (
@@ -641,7 +641,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       </div>
                       <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
                         {location ? (
-                          <span className="text-sm text-black whitespace-nowrap overflow-hidden text-ellipsis">
+                          <span className="text-xs text-black whitespace-nowrap overflow-hidden text-ellipsis">
                             {getStreetFromAddress(location)}
                           </span>
                         ) : (
@@ -652,7 +652,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       </div>
                       <div className="flex-1 px-2 truncate">
                         {when ? (
-                          <span className="text-sm text-black truncate">
+                          <span className="text-xs text-black truncate">
                             {dateFormatter.format(when)}
                           </span>
                         ) : (
