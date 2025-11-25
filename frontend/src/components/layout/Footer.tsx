@@ -108,14 +108,12 @@ const social = [
 export default function Footer() {
   return (
     <footer className="bg-white text-gray-900 font-sans">
-      {/* TOP BORDER LINE 
-         Mimicking the strong separator from the inspo
-      */}
-      <div className="full-width mx-auto px-4 sm:px-6 lg:px-8">
+      {/* TOP BORDER LINE (matches main layout width) */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="h-0.5 bg-black" />
       </div>
 
-      <div className="full-width mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="flex flex-col lg:flex-row gap-16 lg:gap-24">
           
           {/* LEFT COLUMN: UTILITY / QUICK ACTIONS
@@ -168,10 +166,9 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* BOTTOM SECTION: BRANDING & SOCIALS
-         Thick separator, large logo, socials on right.
-      */}
-      <div className="border-t-2 border-black full-width mx-auto px-4 sm:px-6 lg:px-8">
+      {/* BOTTOM SECTION: BRANDING & SOCIALS (same width as top border) */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="border-t-2 border-black" />
         <div className="py-12 flex flex-col md:flex-row items-start md:items-end justify-between gap-8">
           
           {/* Big Brand Logo */}
