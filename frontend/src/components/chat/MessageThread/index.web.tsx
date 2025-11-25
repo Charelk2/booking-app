@@ -148,7 +148,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const userType = (user?.user_type as any) || 'client';
 
   // --- Realtime
-  const { publish, status: rtStatus, mode: rtMode, failureCount: rtFailures } = useRealtimeContext();
+  const { status: rtStatus, mode: rtMode, failureCount: rtFailures } = useRealtimeContext();
 
   // --- Anchoring + list control
   const listRef = React.useRef<ChatListHandle | null>(null);
@@ -766,7 +766,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
 
   // ----------------------------------------------------------------
   // Realtime wire-up
-  useThreadRealtime({
+  const { sendTypingPing } = useThreadRealtime({
     threadId: bookingRequestId,
     isActive,
     myUserId,
@@ -1129,8 +1129,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   // --- Typing (throttled to 1 event / 1.2s for hygiene)
   const throttledTyping = useThrottled(() => {
     try {
-      const topic = `booking-requests:${bookingRequestId}`;
-      publish(topic, { type: 'typing', user_id: myUserId });
+      sendTypingPing();
     } catch {}
     // Best-effort: for active thread, nudge a tiny delta reconcile so tail
     // reflects quickly if the echo is delayed (no synthetic bubble needed).

@@ -60,16 +60,6 @@ export default function InboxPage() {
   const applyLocalRead = useCallback((id: number) => {
     if (!id) return;
     const record = (cacheGetSummaries() as any[]).find((t) => t.id === id) as any;
-    const unreadBefore = Number(record?.unread_count || 0) || 0;
-    if (unreadBefore > 0 && typeof window !== 'undefined') {
-      try {
-        window.dispatchEvent(
-          new CustomEvent('inbox:unread', {
-            detail: { delta: -unreadBefore, threadId: id },
-          }),
-        );
-      } catch {}
-    }
     const lastMessageId = Number(
       record?.last_message_id ??
         record?.lastMessageId ??

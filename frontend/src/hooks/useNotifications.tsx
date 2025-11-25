@@ -21,9 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Notification, UnifiedNotification } from '@/types';
 import { toUnifiedFromNotification } from './notificationUtils';
 import { authAwareMessage } from '@/lib/utils';
-import { threadStore } from '@/lib/chat/threadStore';
-import { readThreadCache, updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
-import { addEphemeralStub } from '@/lib/chat/ephemeralStubs';
+import { updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
 import { requestThreadPrefetch, kickThreadPrefetcher } from '@/lib/chat/threadPrefetcher';
 import { emitThreadsUpdated } from '@/lib/chat/threadsEvents';
 
@@ -117,7 +115,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => { clearTimeout(t); clearInterval(id); };
   }, [fetchNotifications, user]);
 
-  const { subscribe, publish } = useRealtimeContext();
+  const { subscribe } = useRealtimeContext();
 
   useEffect(() => {
     if (!user) return;
@@ -130,8 +128,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         setUnreadCount((c) => c + 1);
         const threadId = extractThreadId(newNotif);
         if (threadId) {
-          const isActive = threadStore.getActiveThreadId() === threadId;
-          const prev = threadStore.getThread(threadId);
+          const isActive =
+            typeof window !== 'undefined' &&
+            Number((window as any).__inboxActiveThreadId || 0) === Number(threadId);
           // If the notification looks like a pending attachment (filename-only or placeholder) and we don't yet have a durable URL,
           // skip preview/unread updates here; fetch the finalized message shortly instead.
           try {
@@ -144,20 +143,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               return; // ignore preview/unread for now
             }
           } catch {}
-          if (isActive) {
-            threadStore.applyRead(threadId, prev?.last_message_id ?? null);
-            // Keep cache summaries in sync so ConversationList updates immediately
-            // Best-effort: dynamic import avoids bundling issues in edge runtimes
-            void (async () => {
-              try {
-                const lastId = Number(prev?.last_message_id ?? 0) || undefined;
-                const { setLastRead: cacheSetLastRead } = await import('@/lib/chat/threadCache');
-                cacheSetLastRead(threadId, lastId);
-              } catch {}
-            })();
-          }
           // Do not bump per-thread unread here; chat WS owns per-thread unread.
-          const nextUnread = Number(prev?.unread_count || 0);
           // Derive a friendly preview label locally for known system lines to
           // avoid a brief flicker from raw content (e.g., order numbers) to the
           // server-normalized label after the subsequent fetch.
@@ -168,15 +154,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           if (lowText.startsWith('payment received')) {
             previewLabel = 'Payment received';
           }
-          threadStore.upsert({
-            id: threadId,
-            // leave unread untouched; preview update only
-            last_message_content: previewLabel,
-            last_message_timestamp: newNotif.timestamp,
-            counterparty_label: newNotif.sender_name || prev?.counterparty_label || undefined,
-          } as any);
-
-          // Also update the shared cache summaries so the ConversationList reorders instantly
+          // Update the shared cache summaries so the ConversationList reorders instantly
           // without waiting for a server refresh. This mirrors the active-thread path
           // where setMessages() updates summaries. Best-effort only.
           try {
@@ -195,47 +173,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             emitThreadsUpdated({ threadId, source: 'realtime', immediate: true }, { immediate: true, force: true });
           } catch {}
 
-          // Best-effort synthetic stub via ephemeral overlay (overwritten by the subsequent fetch)
-          try {
-            const base = (readThreadCache(threadId) || []) as any[];
-            const text = String(newNotif.message || '');
-            const low = text.trim().toLowerCase();
-            const isSystem = (
-              low.startsWith('booking details:') ||
-              low.startsWith('payment received') ||
-              low.startsWith('booking confirmed') ||
-              low.startsWith('listing approved:') ||
-              low.startsWith('listing rejected:')
-            );
-            // Skip ephemeral stub for new booking requests only for service providers.
-            const isNewRequest = low.startsWith('booking details:') || low.includes('new booking request') || low.includes('you have a new booking request');
-            const isProvider = String((user as any)?.user_type || '').toLowerCase() === 'service_provider';
-            // Skip injecting an ephemeral stub for the active thread to avoid
-            // transient left-bubble artifacts and sticky unread in previews.
-            if (!isActive && !(isProvider && isNewRequest)) {
-              const stub = {
-                id: -Date.now(),
-                booking_request_id: threadId,
-                sender_id: 0,
-                sender_type: 'client',
-                content: text,
-                message_type: isSystem ? 'SYSTEM' : 'USER',
-                visible_to: 'both',
-                is_read: false,
-                timestamp: newNotif.timestamp,
-                avatar_url: null,
-              } as any;
-              // Push stub to ephemeral overlay; persist layer remains clean
-              addEphemeralStub(threadId, stub);
-            }
-            // If the active thread matches, nudge a delta reconcile only
-            if (isActive && typeof window !== 'undefined') {
-              try { window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId, source: 'notification' } })); } catch {}
-            }
-          } catch {}
-          // Bump global badge once for inactive threads so header updates with preview
-          if (!isActive && typeof window !== 'undefined') {
-            try { window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { delta: 1, threadId } })); } catch {}
+          // For active threads, nudge a tiny delta reconcile so the open view
+          // picks up the latest state without relying on notification stubs.
+          if (isActive && typeof window !== 'undefined') {
+            try {
+              window.dispatchEvent(
+                new CustomEvent('thread:pokedelta', {
+                  detail: { threadId, source: 'notification' },
+                }),
+              );
+            } catch {}
           }
         }
       } catch (e) {

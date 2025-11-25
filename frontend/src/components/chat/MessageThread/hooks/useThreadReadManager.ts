@@ -44,20 +44,8 @@ export function useThreadReadManager({ threadId, messages, isActive, myUserId }:
       if (!threadId) return;
       inflightRef.current = lastMessageId;
 
-      const prev = (cacheGetSummaries() as any[]).find((t) => t.id === threadId);
-      const prevUnread = Number(prev?.unread_count || 0);
-      if (prevUnread > 0 && typeof window !== 'undefined') {
-        try {
-          window.dispatchEvent(
-            new CustomEvent('inbox:unread', {
-              detail: { delta: -prevUnread, threadId },
-            }),
-          );
-        } catch {}
-      }
-      // Always set local lastRead to enforce unread=0 merge guard; then poke a header recompute
+      // Always set local lastRead to enforce unread=0 merge guard
       cacheSetLastRead(threadId, lastMessageId);
-      try { if (typeof window !== 'undefined') window.dispatchEvent(new Event('inbox:unread')); } catch {}
       fireEvent(lastMessageId);
 
       const maybe = runWithTransport(

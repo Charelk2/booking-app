@@ -113,43 +113,6 @@ export default function useUnreadThreadsCount() {
     });
   }, [recomputeFromCache]);
 
-  // Global unread events: total snapshots + local deltas
-  useEffect(() => {
-    const onBadgeDelta = (ev: Event) => {
-      const detail = (ev as CustomEvent<InboxUnreadDetail>).detail || {};
-
-      // 1) Authoritative snapshot from backend (notifications WS or inbox SSE)
-      if (typeof detail.total === 'number' && Number.isFinite(detail.total)) {
-        // Treat the backend aggregate as source of truth so the header badge
-        // updates immediately even when thread summaries are stale. Local
-        // cache is still used for bootstrap and for offline heuristics.
-        const next = Math.max(0, Number(detail.total));
-        if (next !== countRef.current) {
-          setCount(next);
-        }
-        return;
-      }
-
-      // 2) Local delta (e.g., we just opened a thread and marked it read)
-      if (typeof detail.delta === 'number' && Number.isFinite(detail.delta)) {
-        const delta = Number(detail.delta);
-        if (!delta) return;
-        setCount((prev) => Math.max(0, prev + delta));
-        // Best-effort heal from server shortly after local change
-        void syncFromServer();
-      }
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('inbox:unread', onBadgeDelta as EventListener);
-    }
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('inbox:unread', onBadgeDelta as EventListener);
-      }
-    };
-  }, [syncFromServer]);
-
   // Safety net: refetch on focus / visibility
   useEffect(() => {
     const onFocus = () => { void syncFromServer({ force: true }); };
