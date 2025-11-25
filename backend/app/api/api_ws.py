@@ -713,7 +713,23 @@ class _CompatManager:
             env.topic = env.topic or topic
             env.type = env.type or "message"
         elif isinstance(message, dict):
-            env = Envelope(v=1, type="message", topic=topic, payload={"data": message, "message": message})
+            # Distinguish between full message payloads and typed control events.
+            # Chat messages (MessageResponse) do not include a top-level 'type';
+            # control envelopes (read, typing, presence, message_deleted, etc.)
+            # do. For the latter, preserve the type and move remaining fields into
+            # the payload so multiplex clients see a consistent shape.
+            msg_type = str(message.get("type") or "").strip().lower()
+            if msg_type and msg_type != "message":
+                # Build an Envelope where payload carries all non-envelope keys.
+                payload: Dict[str, Any] = {}
+                for k, v in message.items():
+                    if k in {"v", "type", "topic"}:
+                        continue
+                    payload[k] = v
+                v = int(message.get("v", 1) or 1)
+                env = Envelope(v=v, type=msg_type, topic=topic, payload=payload)
+            else:
+                env = Envelope(v=1, type="message", topic=topic, payload={"data": message, "message": message})
         else:
             env = Envelope(v=1, type="message", topic=topic, payload={"data": message})
 
