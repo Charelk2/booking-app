@@ -750,7 +750,15 @@ class _CompatNotificationsManager:
                 env = Envelope(type="notification", payload={"data": message})
         except Exception:
             env = Envelope(type="notification")
+        # Push to dedicated /ws/notifications connections
         await notify.push(int(user_id), env)
+        # Also fan out to the multiplex bus under notifications:{user_id}
+        try:
+            topic = env.topic or f"notifications:{int(user_id)}"
+            env.topic = topic
+            await mux.broadcast_topic(topic, env)
+        except Exception:
+            pass
 
 manager = _CompatManager()
 notifications_manager = _CompatNotificationsManager()
@@ -804,8 +812,16 @@ async def _bus_dispatch(topic: str, data: dict) -> None:
             try: user_id = int(topic.split(":", 1)[1])
             except Exception: user_id = None
             if isinstance(user_id, int):
-                try: await notify.push(user_id, env, publish=False)
-                except Exception: pass
+                try:
+                    # Keep /ws/notifications connections updated
+                    await notify.push(user_id, env, publish=False)
+                except Exception:
+                    pass
+                try:
+                    # Mirror notifications to multiplex subscribers as well
+                    await mux.broadcast_topic(topic, env, publish=False)
+                except Exception:
+                    pass
     except Exception:
         pass
 
