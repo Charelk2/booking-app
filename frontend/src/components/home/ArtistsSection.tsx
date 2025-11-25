@@ -209,7 +209,7 @@ export default function ArtistsSection({
                   location={a.location}
                   categories={a.service_categories}
                   href={`/service-providers/${a.id}`}
-                  className="w-56 flex-shrink-0"
+                  className="w-48 flex-shrink-0"
                 />
               );
             })}
