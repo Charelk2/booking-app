@@ -1,15 +1,15 @@
 import Link from 'next/link';
-import { 
-  User, 
-  Music, 
-  FileText, 
-  LifeBuoy, 
+import {
+  User,
+  Music,
+  FileText,
+  LifeBuoy,
   MapPin,
   Facebook,
   Instagram,
   Linkedin, // Assuming you might want LinkedIn, or we can stick to the SVG paths provided
 } from 'lucide-react';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ElementType } from 'react';
 
 // --- Configuration ---
 
@@ -82,27 +82,23 @@ const navigation = [
   },
 ];
 
-// 3. Social Media Icons (Using SVG paths for custom branding feel, or Lucide if preferred)
-const social = [
+type SocialLink = {
+  name: string;
+  href: string;
+  icon: ElementType;
+};
+
+// 3. Social Media Icons (now using Lucide for Instagram/Facebook outlines)
+const social: SocialLink[] = [
   {
     name: 'Instagram',
     href: 'https://instagram.com',
-    icon: (props: ComponentProps<'svg'>) => (
-      <svg viewBox="0 0 256 256" fill="currentColor" {...props}>
-        <path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l-6.52-25.95a12,12,0,0,1,11.08-14.89h0a12,12,0,0,0,10.6-17.61l-14.77-24.89a12,12,0,0,1,4.47-16.14l1.37-.87A12,12,0,0,0,227,8.68L199.3,2.37A12,12,0,0,1,188,12.28l-1.57.17a12,12,0,0,0-9.83,7.12L165.23,45.3a12,12,0,0,1-16.32,5.81l-1.74-.69a48,48,0,1,0-38.34,0l-1.74.69a12,12,0,0,1-16.32-5.81L79.4,19.57a12,12,0,0,0-9.83-7.12L68,12.28A12,12,0,0,1,56.7,2.37L29,8.68a12,12,0,0,0-4.75,16.66l1.37.87a12,12,0,0,1,4.47,16.14L15.32,67.24a12,12,0,0,0,10.6,17.61h0a12,12,0,0,1,11.08,14.89L30.48,125.68A12,12,0,0,0,42.12,140h0a12,12,0,0,1,11.75,15.69l-3.32,12.38A12,12,0,0,0,62.14,182.6l24.2,6.48a12,12,0,0,1,8.63,14.28l-1.12,4.64a48,48,0,1,0,68.3,0l-1.12-4.64a12,12,0,0,1,8.63-14.28l24.2-6.48a12,12,0,0,0,11.59-14.53l-3.32-12.38A12,12,0,0,1,213.88,140h0A12,12,0,0,0,216,130.16ZM128,192a32,32,0,1,1,32-32A32,32,0,0,1,128,192Zm0-160a32,32,0,1,1-32,32A32,32,0,0,1,128,32Z" opacity="0.2"/>
-        <path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160ZM176,24H80A56.06,56.06,0,0,0,24,80v96a56.06,56.06,0,0,0,56,56h96a56.06,56.06,0,0,0,56-56V80A56.06,56.06,0,0,0,176,24Zm40,152a40,40,0,0,1-40,40H80a40,40,0,0,1-40-40V80A40,40,0,0,1,80,40h96a40,40,0,0,1,40,40Z"/>
-      </svg>
-    ),
+    icon: Instagram,
   },
   {
     name: 'Facebook',
     href: 'https://facebook.com',
-    icon: (props: ComponentProps<'svg'>) => (
-      <svg viewBox="0 0 256 256" fill="currentColor" {...props}>
-        <path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.2"></path>
-        <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm8,191.63V152h24a8,8,0,0,0,0-16H136V112a16,16,0,0,1,16-16h16a8,8,0,0,0,0-16H152a32,32,0,0,0-32,32v24H96a8,8,0,0,0,0,16h24v63.63a88,88,0,1,1,16,0Z"></path>
-      </svg>
-    ),
+    icon: Facebook,
   },
   {
     name: 'Pinterest',
@@ -121,7 +117,9 @@ export default function Footer() {
       {/* TOP BORDER LINE 
          Mimicking the strong separator from the inspo
       */}
-      <div className="w-full h-0.5 bg-black" />
+      <div className="mx-6 lg:mx-auto max-w-7xl">
+        <div className="border-t-2 border-black" />
+      </div>
 
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-16 lg:gap-24">
