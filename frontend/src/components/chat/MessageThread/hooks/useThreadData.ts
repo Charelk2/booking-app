@@ -37,7 +37,6 @@ import {
 import { safeParseDate } from '@/lib/chat/threadStore';
 import { normalizeMessage as normalizeShared } from '@/lib/normalizers/messages';
 import { normalizeMessage as normalizeGeneric } from '@/utils/messages';
-import { getEphemeralStubs, clearEphemeralStubs } from '@/lib/chat/ephemeralStubs';
 import { isAttachmentCandidate, isAttachmentReady } from '@/components/chat/MessageThread/utils/media';
 
 export type ThreadMessage = {
@@ -337,32 +336,6 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     lastMessageIdRef.current = messages.length ? messages[messages.length - 1]?.id ?? null : null;
   }, [threadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Merge ephemeral stubs for instant render
-  React.useEffect(() => {
-    const applyStubs = () => {
-      try {
-        const stubs = getEphemeralStubs(threadId) || [];
-        if (!Array.isArray(stubs) || stubs.length === 0) return;
-        setMessages(prev => mergeMessages(prev, stubs.map(normalizeForRender)));
-      } catch {}
-    };
-    applyStubs();
-
-    const handler = (e: Event) => {
-      try {
-        const detail = (e as CustomEvent<{ threadId?: number }>).detail || {};
-        if (Number(detail.threadId) !== Number(threadId)) return;
-      } catch {}
-      applyStubs();
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('ephemeral:stubs', handler as any);
-      return () => window.removeEventListener('ephemeral:stubs', handler as any);
-    }
-    return () => {};
-  }, [threadId]);
-
   // Async hydrate from cache if initial mount was empty
   React.useEffect(() => {
     if (messagesRef.current.length > 0) return;
@@ -518,13 +491,6 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
         setReachedHistoryStart(!hasMoreFlag);
         try { opts?.onMessagesFetched?.(normalized, 'fetch'); } catch {}
 
-        // Replace ephemeral stubs now that real data arrived for this viewer.
-        if (hasRealMessages) {
-          try {
-            clearEphemeralStubs(threadId);
-            setMessages(prev => prev.filter((m: any) => Number(m.id) > 0));
-          } catch {}
-        }
       } catch (err) {
         if (isAxiosError(err) && (err as any).code === 'ERR_CANCELED') {
           setLoading(false);

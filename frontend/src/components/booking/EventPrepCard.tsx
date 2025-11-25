@@ -7,7 +7,8 @@ import Link from "next/link";
 
 import { EventPrep } from "@/types";
 import { getEventPrep } from "@/lib/api";
-import { threadStore } from "@/lib/chat/threadStore";
+import { updateSummary as cacheUpdateSummary } from "@/lib/chat/threadCache";
+import { emitThreadsUpdated } from "@/lib/chat/threadsEvents";
 import { useRealtimeContext } from "@/contexts/chat/RealtimeContext";
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -195,13 +196,21 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({
           return next;
         });
         try {
-          // Keep inbox preview-style summary in sync
-          const label = 'Event prep updated';
-          threadStore.update(Number(bookingRequestId), {
-            id: Number(bookingRequestId),
-            last_message_content: label,
-            last_message_timestamp: new Date().toISOString(),
-          } as any);
+          // Keep inbox preview-style summary in sync via thread cache + events
+          const label = "Event prep updated";
+          const tid = Number(bookingRequestId);
+          if (Number.isFinite(tid) && tid > 0) {
+            cacheUpdateSummary(tid, {
+              last_message_content: label,
+              last_message_timestamp: new Date().toISOString(),
+            } as any);
+            try {
+              emitThreadsUpdated(
+                { threadId: tid, reason: "event_prep", immediate: true },
+                { immediate: true, force: true }
+              );
+            } catch {}
+          }
         } catch {}
       } catch {
         // ignore parse errors

@@ -6,9 +6,8 @@ import { usePathname } from 'next/navigation';
 import { useThreads } from '@/features/inbox/hooks/useThreads';
 import { initThreadPrefetcher, enqueueThreadPrefetch, kickThreadPrefetcher } from '@/lib/chat/threadPrefetcher';
 import { getMessagesForBookingRequest, getMessagesBatch } from '@/lib/api';
-import { writeThreadCache } from '@/lib/chat/threadCache';
+import { writeThreadCache, getSummaries as cacheGetSummaries } from '@/lib/chat/threadCache';
 import { prefetchQuotesByIds, seedGlobalQuotes } from '@/hooks/useQuotes';
-import { threadStore } from '@/lib/chat/threadStore';
 
 function useIdle(fn: () => void, timeout = 800) {
   React.useEffect(() => {
@@ -71,7 +70,8 @@ export default function HomePrefetch() {
       try { await refreshThreads(); } catch {}
 
       try {
-        const hasThreads = Array.isArray(threadStore.getThreads()) && threadStore.getThreads().length > 0;
+        const list = cacheGetSummaries() as any[];
+        const hasThreads = Array.isArray(list) && list.length > 0;
         const last = Number(sessionStorage.getItem(lastWarmKey) || '0');
         const withinCooldown = Date.now() - last < COOLDOWN_MS;
         if (hasThreads && withinCooldown) {
@@ -105,7 +105,7 @@ export default function HomePrefetch() {
       }, { defaultLimit: 50, staleMs: 5 * 60 * 1000 });
 
       // Identify top threads by recency for a small batch warmup
-      const list = threadStore.getThreads();
+      const list = cacheGetSummaries() as any[];
       if (!Array.isArray(list) || list.length === 0) return;
       const BATCH = 10;
       const ids = list.slice(0, BATCH)
@@ -135,7 +135,9 @@ export default function HomePrefetch() {
 
       // Enqueue broader set for background warming
       try {
-        const candidates = list.slice(0, 50).map((r: any, i: number) => ({ id: Number(r.id), priority: 220 - i * 2, reason: 'home' as const }))
+        const candidates = list
+          .slice(0, 50)
+          .map((r: any, i: number) => ({ id: Number(r.id), priority: 220 - i * 2, reason: 'home' as const }))
           .filter((c) => Number.isFinite(c.id) && c.id > 0);
         if (candidates.length) {
           enqueueThreadPrefetch(candidates as any);

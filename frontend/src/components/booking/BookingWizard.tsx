@@ -32,8 +32,6 @@ import './wizard/wizard.css';
 import toast from '../ui/Toast';
 import { apiUrl, setClientBillingByBookingRequest } from '@/lib/api';
 import { updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
-import { addEphemeralStub } from '@/lib/chat/ephemeralStubs';
-import { threadStore } from '@/lib/chat/threadStore';
 // 404-aware service cache (tombstones)
 const svcCache = new Map<number, any | null>();
 type ServiceJson = any | null; // null = tombstone (missing)
@@ -1566,45 +1564,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             // Best-effort only; do not block submit on cache issues.
           }
 
-          // 2) Keep threadStore in sync for prefetchers/presence.
-          try {
-            threadStore.upsert({
-              id: Number(id),
-              status: 'pending_quote' as any,
-              created_at: createdAt || ts,
-              updated_at: updatedAt || ts,
-              last_message_timestamp: ts,
-              last_message_content: 'New Booking Request',
-              unread_count: 0,
-              counterparty_label: counterpartyLabel,
-              counterparty_avatar_url: counterpartyAvatar,
-            } as any);
-          } catch {
-            // Non-fatal; threadStore is a best-effort optimization.
-          }
-
-          // 3) Add an ephemeral booking-details system stub so the thread
-          // timeline is not empty while the real message is still in-flight.
-          try {
-            if (message && user?.id) {
-              const stubId = -Math.floor(Date.now());
-              const stub = {
-                id: stubId,
-                booking_request_id: Number(id),
-                sender_id: Number(user.id),
-                sender_type: 'client',
-                content: message,
-                message_type: 'SYSTEM',
-                visible_to: 'both',
-                timestamp: ts,
-                status: 'sent',
-                avatar_url: (user as any)?.profile_picture_url ?? counterpartyAvatar ?? null,
-              };
-              addEphemeralStub(Number(id), stub);
-            }
-          } catch {
-            // Ephemeral-only; safe to ignore failures.
-          }
+          // 2) Ephemeral booking-details system stub removed:
+          // threadCache + backend echo keep the timeline populated.
         } catch {
           // Hydration is best-effort; never block submit.
         }
