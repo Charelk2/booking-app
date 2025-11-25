@@ -491,7 +491,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   );
 
   const brandLinkClasses = clsx(
-    'font-bold tracking-tight no-underline hover:no-underline',
+    'font-bold tracking-tight no-underline hover:no-underline transition-transform duration-200 hover:scale-110',
     isAuthVariant
       ? 'text-gray-900 hover:text-gray-900 focus-visible:ring-black/20'
       : 'text-white hover:text-white focus-visible:ring-white/50',
