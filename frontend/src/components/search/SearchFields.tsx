@@ -114,7 +114,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           >
             <span
               className={clsx(
-                'flex items-center text-xs font-semibold tracking-wide pointer-events-none select-none',
+                'flex items-center text-sm font-semibold tracking-wide pointer-events-none select-none',
                 isValuePresent ? 'text-slate-900' : 'text-slate-600',
               )}
             >
@@ -200,7 +200,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       >
         <span
           className={clsx(
-            'flex items-center text-xs font-semibold tracking-wide pointer-events-none select-none',
+            'flex items-center text-sm font-semibold tracking-wide pointer-events-none select-none',
             location ? 'text-slate-900' : 'text-slate-600',
           )}
         >
