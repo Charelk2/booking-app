@@ -15,20 +15,14 @@ async function fetchInitial(category: string, limit = 12) {
     limit: String(limit),
     category,
     sort: 'most_booked',
-    // Include rating, price, and location so home cards can show review + location immediately
+    // Only what home cards actually need: rating + location
     fields: [
       'id',
       'business_name',
       'profile_picture_url',
-      'custom_subtitle',
-      'hourly_rate',
-      'price_visible',
       'rating',
       'rating_count',
       'location',
-      'service_categories',
-      'user.first_name',
-      'user.last_name',
     ].join(','),
   });
   const url = `${API_BASE}/api/v1/service-provider-profiles/?${params.toString()}`;
