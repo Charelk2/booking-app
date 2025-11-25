@@ -31,8 +31,7 @@ import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import {
   readThreadCache as readCache,
   writeThreadCache as writeCache,
-  getSummaries as cacheGetSummaries,
-  setSummaries as cacheSetSummaries,
+  updateSummary as cacheUpdateSummary,
 } from '@/lib/chat/threadCache';
 import { safeParseDate } from '@/lib/chat/threadStore';
 import { normalizeMessage as normalizeShared } from '@/lib/normalizers/messages';
@@ -945,14 +944,6 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     const lastId = Number(last?.id || 0);
     if (Number.isFinite(lastId)) lastMessageIdRef.current = lastId;
 
-    const list = cacheGetSummaries() as any[];
-    const existing = list.find(s => Number(s?.id) === Number(threadId));
-    const nextTimestamp = tsNum(last?.timestamp ?? new Date().toISOString());
-    if (existing) {
-      const existingTs = tsNum((existing as any).last_message_timestamp || (existing as any).updated_at || (existing as any).created_at);
-      if (existingTs > nextTimestamp) return;
-    }
-
     const previewLabel = String((last as any)?.preview_label || '');
     const contentText = String((last?.content ?? last?.text ?? '') || '');
     const lowText = contentText.toLowerCase();
@@ -968,18 +959,12 @@ export function useThreadData(threadId: number, opts?: HookOpts) {
     }
 
     try {
-      const nextList = list.map((s: any) =>
-        Number(s?.id) === Number(threadId)
-          ? {
-              ...s,
-              last_message_id: Number(last?.id || 0) || s.last_message_id || undefined,
-              last_message_content: collapsedPreview,
-              last_message_timestamp: last?.timestamp ?? new Date().toISOString(),
-              last_sender_id: Number(last?.sender_id ?? (last as any)?.senderId ?? 0) || s.last_sender_id || undefined,
-            }
-          : s,
-      );
-      cacheSetSummaries(nextList as any);
+      cacheUpdateSummary(threadId, {
+        last_message_id: Number(last?.id || 0) || undefined,
+        last_message_content: collapsedPreview,
+        last_message_timestamp: last?.timestamp ?? new Date().toISOString(),
+        last_sender_id: Number(last?.sender_id ?? (last as any)?.senderId ?? 0) || undefined,
+      } as any);
     } catch {}
   }, [messages, threadId]);
 
