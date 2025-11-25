@@ -103,7 +103,7 @@ export default function ServiceProviderCardCompact({
       <div className="p-1 space-y-0.5">
         <p className="text-sm font-semibold truncate text-black">{name}</p>
         {location && (
-          <p className="text-xs text-gray-400 truncate">
+          <p className="text-xs text-gray-600 truncate">
             {getTownProvinceFromAddress(location)}
           </p>
         )}
