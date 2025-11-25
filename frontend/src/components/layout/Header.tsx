@@ -620,7 +620,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     }}
                     className={clsx(
                       'w-full flex items-center justify-between rounded-full',
-                      'border border-black/10 bg-white/95 shadow-sm hover:shadow-md',
+                      'bg-white',
                       // extra right padding is not needed since icon is *outside*
                       'px-4 py-2 text-sm',
                       hoverNeutralLink,
