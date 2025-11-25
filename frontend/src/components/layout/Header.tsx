@@ -89,7 +89,7 @@ const useCurrentPathWithQuery = () => {
 
 // Shared classes to *ensure* no red/underline on hover
 const hoverNeutralLink =
-  'no-underline hover:no-underline hover:text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
+  'no-underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
 const hoverNeutralLink2 =
   'no-underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
 
