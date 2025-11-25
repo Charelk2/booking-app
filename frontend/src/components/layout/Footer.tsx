@@ -88,17 +88,25 @@ type SocialLink = {
   icon: ElementType;
 };
 
-// 3. Social Media Icons (now using Lucide for Instagram/Facebook outlines)
+// 3. Social Media Icons (custom SVGs; background removed from Insta/Facebook)
 const social: SocialLink[] = [
   {
     name: 'Instagram',
     href: 'https://instagram.com',
-    icon: Instagram,
+    icon: (props: ComponentProps<'svg'>) => (
+      <svg viewBox="0 0 256 256" fill="currentColor" {...props}>
+        <path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160ZM176,24H80A56.06,56.06,0,0,0,24,80v96a56.06,56.06,0,0,0,56,56h96a56.06,56.06,0,0,0,56-56V80A56.06,56.06,0,0,0,176,24Zm40,152a40,40,0,0,1-40,40H80a40,40,0,0,1-40-40V80A40,40,0,0,1,80,40h96a40,40,0,0,1,40,40Z" />
+      </svg>
+    ),
   },
   {
     name: 'Facebook',
     href: 'https://facebook.com',
-    icon: Facebook,
+    icon: (props: ComponentProps<'svg'>) => (
+      <svg viewBox="0 0 256 256" fill="currentColor" {...props}>
+        <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm8,191.63V152h24a8,8,0,0,0,0-16H136V112a16,16,0,0,1,16-16h16a8,8,0,0,0,0-16H152a32,32,0,0,0-32,32v24H96a8,8,0,0,0,0,16h24v63.63a88,88,0,1,1,16,0Z" />
+      </svg>
+    ),
   },
   {
     name: 'Pinterest',
