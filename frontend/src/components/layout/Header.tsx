@@ -619,7 +619,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       openDesktopSearchFromCompact();
                     }}
                     className={clsx(
-                      'w-full flex items-center justify-between rounded-full',
+                      'w-full flex items-center justify-between rounded-2xl',
                       'bg-white',
                       // extra right padding is not needed since icon is *outside*
                       'px-4 py-2 text-sm',
