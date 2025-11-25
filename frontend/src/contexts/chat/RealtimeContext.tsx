@@ -55,22 +55,6 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = rt.subscribe(topic, (payload: any) => {
       try {
-        // Header aggregate push: unread_total → forward total so header can
-        // treat it as authoritative outside the Inbox page.
-        if (payload && (payload.type === 'unread_total' || (payload.payload && typeof payload.payload.total === 'number'))) {
-          const totalRaw =
-            (payload?.payload && typeof payload.payload.total === 'number'
-              ? payload.payload.total
-              : typeof payload.total === 'number'
-                ? payload.total
-                : null);
-          if (typeof totalRaw === 'number' && Number.isFinite(totalRaw) && totalRaw >= 0) {
-            try { window.dispatchEvent(new CustomEvent('inbox:unread', { detail: { total: Number(totalRaw) } })); } catch {}
-          } else {
-            try { window.dispatchEvent(new CustomEvent('inbox:unread')); } catch {}
-          }
-          return;
-        }
         // Attachment finalized event → ensure the affected thread reconciles now
         if (payload && payload.type === 'message_finalized') {
           const threadId = Number(payload?.payload?.booking_request_id ?? 0);

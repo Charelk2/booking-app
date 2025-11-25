@@ -2,7 +2,6 @@ import { useCallback, useEffect } from 'react';
 import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
 import { isAttachmentCandidate, isAttachmentReady } from '@/components/chat/MessageThread/utils/media';
 import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, setLastRead as cacheSetLastRead, updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
-import { threadStore } from '@/lib/chat/threadStore';
 
 type UseThreadRealtimeOptions = {
   threadId: number;
@@ -268,8 +267,7 @@ export function useThreadRealtime({
         }
         if (Number.isFinite(tid) && tid === Number(threadId)) {
           try {
-            threadStore.update(tid, {
-              id: tid,
+            cacheUpdateSummary(tid, {
               last_message_id: Number.isFinite(lastId) && lastId > 0 ? lastId : (undefined as any),
               last_message_timestamp: (lastTs || undefined) as any,
               last_message_content: previewLabel || undefined,

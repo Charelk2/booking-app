@@ -148,9 +148,7 @@ export default function MainLayout({
   }, [isMobile, isArtistsPage, isHome, isArtistView, isEventPrep, pathname]);
 
   // Outside the Inbox route, keep a lightweight SSE connection to
-  // /api/v1/inbox/stream that pushes unread_total into the global
-  // inbox:unread event so the header badge updates live on pages
-  // like the homepage without a manual refresh.
+  // /api/v1/inbox/stream that can optionally push unread_total snapshots.
   useEffect(() => {
     if (!user) return;
     if (pathname.startsWith('/inbox')) return;
@@ -174,17 +172,8 @@ export default function MainLayout({
           ? `${API_BASE}/api/v1/inbox/stream?role=${role}`
           : `/api/v1/inbox/stream?role=${role}`;
         es = new EventSource(url, { withCredentials: true });
-        const handlePayload = (payload: any) => {
-          try {
-            const total = typeof payload?.unread_total === 'number' ? payload.unread_total : null;
-            if (total != null && typeof window !== 'undefined') {
-              window.dispatchEvent(
-                new CustomEvent('inbox:unread', {
-                  detail: { total: Number(total) },
-                }),
-              );
-            }
-          } catch {}
+        const handlePayload = (_payload: any) => {
+          // Snapshot currently not wired into header; kept for future use.
         };
         es.addEventListener('hello', (e: MessageEvent) => {
           try { handlePayload(JSON.parse(String(e.data || '{}'))); } catch {}

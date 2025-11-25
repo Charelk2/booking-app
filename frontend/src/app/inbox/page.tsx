@@ -24,7 +24,6 @@ import ConversationPane from '@/features/inbox/components/ConversationPane';
 import ThreadPane from '@/features/inbox/components/ThreadPane';
 import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
 import { writeThreadCache, readThreadCache, readThreadFromIndexedDb } from '@/lib/chat/threadCache';
-import { threadStore } from '@/lib/chat/threadStore';
 import { broadcastActiveThread } from '@/features/inbox/state/crossTab';
 import { prefetchQuotesByIds, seedGlobalQuotes } from '@/hooks/useQuotes';
 import {
@@ -140,7 +139,6 @@ export default function InboxPage() {
 
   useEffect(() => {
     setActivePrefetchThread(selectedThreadId ?? null);
-    try { threadStore.setActiveThread(selectedThreadId ?? null); } catch {}
     try { broadcastActiveThread(selectedThreadId ?? null); } catch {}
   }, [selectedThreadId]);
 
@@ -353,7 +351,6 @@ export default function InboxPage() {
           let snapshot: any = null;
           try { snapshot = JSON.parse(String(e.data || '{}')); } catch {}
           try { emitThreadsUpdated({ source: 'inbox:sse', immediate: true }, { immediate: true, force: true }); } catch {}
-          try { window.dispatchEvent(new Event('inbox:unread')); } catch {}
           // Best-effort: if a thread is active, poke its delta fetch so the
           // new message appears immediately even if WS is flapping.
           try {
