@@ -15,10 +15,11 @@ async function fetchInitial(category: string, limit = 12) {
     limit: String(limit),
     category,
     sort: 'most_booked',
-    // Only what home cards actually need: rating + location
+    // Only what home cards actually need: rating + location + slug for URLs
     fields: [
       'id',
       'business_name',
+      'slug',
       'profile_picture_url',
       'rating',
       'rating_count',
