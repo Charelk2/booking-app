@@ -414,7 +414,7 @@ export async function calculateTravelMode(
   const drivingEstimate =
     input.drivingEstimate && input.drivingEstimate > 0
       ? input.drivingEstimate
-      : direct.distanceKm * rate;
+      : direct.distanceKm * rate * 2;
 
   if (!flightsReachable) {
     return {

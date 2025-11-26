@@ -980,33 +980,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         // engine once to derive a meaningful estimate. Cache travel by a
         // narrow signature so we don't recompute heavy routing when only
         // sound/venue details change.
-        const tm = (quote?.travel_mode || '').toLowerCase();
-        const estimates = Array.isArray((quote as any)?.travel_estimates) ? (quote as any).travel_estimates : [];
-        const driveRow = estimates.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
-        const travelCost = Number(quote?.travel_cost || 0);
-        const baseTravelRes = {
-          mode: tm === 'flight' ? 'fly' : 'drive',
-          totalCost: travelCost,
-          breakdown: {
-            drive: {
-              estimate: Number(
-                driveRow?.cost ||
-                (tm === 'flight' ? 0 : travelCost),
-              ),
-            },
-            fly: {
-              perPerson: 0,
-              travellers: numTravelMembers,
-              flightSubtotal: 0,
-              carRental: Number(carRentalPrice || 0),
-              localTransferKm: 0,
-              departureTransferKm: 0,
-              transferCost: 0,
-              total: tm === 'flight' ? travelCost : 0,
-            },
-          },
-        } as any;
-
         try {
           const dt = (() => {
             const dd = (details as any)?.date;
@@ -1024,12 +997,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               carRentalPrice: carRentalPrice ?? null,
               flightPrice: flightPrice ?? null,
             });
-            const cachedTravel = travelResultCache.current.get(travelSig);
-            if (cachedTravel) {
-              lastTravelSigRef.current = travelSig;
-              setTravelResult(cachedTravel);
-              applyArtistVariableSoundForMode(cachedTravel.mode === 'fly' ? 'fly' : 'drive');
-            } else {
+              const cachedTravel = travelResultCache.current.get(travelSig);
+              if (cachedTravel) {
+                lastTravelSigRef.current = travelSig;
+                setTravelResult(cachedTravel);
+                applyArtistVariableSoundForMode(cachedTravel.mode === 'fly' ? 'fly' : 'drive');
+              } else {
               const airportFn = async (city: string) => {
                 const mock = getMockCoordinates(city);
                 if (mock) return findNearestAirport(city, async () => mock as any);
@@ -1050,27 +1023,49 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 undefined as any,
                 airportFn as any,
               );
-              if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
+              let finalTravel = tr as any;
+              if (!(finalTravel && typeof finalTravel.totalCost === 'number' && Number.isFinite(finalTravel.totalCost) && finalTravel.totalCost > 0)) {
+                // Frontend-only drive fallback when the rich calculator cannot
+                // produce a usable total (e.g., missing airports). This uses
+                // driving distance × travelRate × 2 (round-trip) and ignores
+                // any backend quote travel_cost.
+                try {
+                  const metrics = await getDrivingMetricsCached(artistLoc, eventLoc);
+                  const distKm = metrics?.distanceKm || 0;
+                  if (Number.isFinite(distKm) && distKm > 0) {
+                    const driveCost = distKm * travelRate * 2;
+                    finalTravel = {
+                      mode: 'drive',
+                      totalCost: driveCost,
+                      breakdown: {
+                        drive: { estimate: driveCost },
+                        fly: {
+                          perPerson: 0,
+                          travellers: numTravelMembers,
+                          flightSubtotal: 0,
+                          carRental: Number(carRentalPrice || 0),
+                          localTransferKm: 0,
+                          departureTransferKm: 0,
+                          transferCost: 0,
+                          total: 0,
+                        },
+                      },
+                    } as any;
+                  }
+                } catch {
+                  // If even metrics fail, leave finalTravel as-is (likely null)
+                }
+              }
+              if (finalTravel && typeof finalTravel.totalCost === 'number' && Number.isFinite(finalTravel.totalCost) && finalTravel.totalCost > 0) {
                 lastTravelSigRef.current = travelSig;
-                travelResultCache.current.set(travelSig, tr as any);
-                setTravelResult(tr as any);
-                applyArtistVariableSoundForMode(tr.mode === 'fly' ? 'fly' : 'drive');
-              } else if (Number.isFinite(travelCost) && travelCost > 0) {
-                lastTravelSigRef.current = travelSig;
-                travelResultCache.current.set(travelSig, baseTravelRes);
-                setTravelResult(baseTravelRes);
-                applyArtistVariableSoundForMode(baseTravelRes.mode);
+                travelResultCache.current.set(travelSig, finalTravel);
+                setTravelResult(finalTravel);
+                applyArtistVariableSoundForMode(finalTravel.mode === 'fly' ? 'fly' : 'drive');
               }
             }
-          } else if (Number.isFinite(travelCost) && travelCost > 0) {
-            setTravelResult(baseTravelRes);
-            applyArtistVariableSoundForMode(baseTravelRes.mode);
           }
         } catch {
-          if (Number.isFinite(travelCost) && travelCost > 0) {
-            setTravelResult(baseTravelRes);
-            applyArtistVariableSoundForMode(baseTravelRes.mode);
-          }
+          // On failure, leave travelResult as-is; do not fall back to backend quote travel.
         }
       } else {
         // Still compute totals (including travel) on the server even if no external sound.
@@ -1087,32 +1082,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           setSoundModeOverridden(false);
 
           const tm2 = (quote2?.travel_mode || '').toLowerCase();
-          const estimates2 = Array.isArray((quote2 as any)?.travel_estimates) ? (quote2 as any).travel_estimates : [];
-          const driveRow2 = estimates2.find((e: any) => (e?.mode || '').toLowerCase().includes('driv'));
-          const travelCost2 = Number(quote2?.travel_cost || 0);
-          const baseTravelRes = {
-            mode: tm2 === 'flight' ? 'fly' : 'drive',
-            totalCost: travelCost2,
-            breakdown: {
-              drive: {
-                estimate: Number(
-                  driveRow2?.cost ||
-                  (tm2 === 'flight' ? 0 : travelCost2),
-                ),
-              },
-              fly: {
-                perPerson: 0,
-                travellers: numTravelMembers,
-                flightSubtotal: 0,
-                carRental: Number(carRentalPrice || 0),
-                localTransferKm: 0,
-                departureTransferKm: 0,
-                transferCost: 0,
-                total: tm2 === 'flight' ? travelCost2 : 0,
-              },
-            },
-          } as any;
-
           try {
             const dt = (() => {
               const dd = (details as any)?.date;
@@ -1147,26 +1116,54 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     numTravellers: Number(numTravelMembers || 1),
                     drivingEstimate: 0,
                     travelRate,
-                    travelDate: dt,
-                    carRentalPrice: carRentalPrice,
-                    flightPricePerPerson: flightPrice,
-                  },
-                  undefined as any,
-                    airportFn as any,
+                  travelDate: dt,
+                  carRentalPrice: carRentalPrice,
+                  flightPricePerPerson: flightPrice,
+                },
+                undefined as any,
+                  airportFn as any,
                   );
-                  if (tr && typeof tr.totalCost === 'number' && Number.isFinite(tr.totalCost) && tr.totalCost > 0) {
+                  let finalTravel = tr as any;
+                  if (!(finalTravel && typeof finalTravel.totalCost === 'number' && Number.isFinite(finalTravel.totalCost) && finalTravel.totalCost > 0)) {
+                    // Frontend-only drive fallback when the rich calculator cannot
+                    // produce a usable total (e.g., missing airports). Use
+                    // driving distance × travelRate × 2 (round-trip).
+                    try {
+                      const metrics = await getDrivingMetricsCached(artistLoc, eventLoc);
+                      const distKm = metrics?.distanceKm || 0;
+                      if (Number.isFinite(distKm) && distKm > 0) {
+                        const driveCost = distKm * travelRate * 2;
+                        finalTravel = {
+                          mode: 'drive',
+                          totalCost: driveCost,
+                          breakdown: {
+                            drive: { estimate: driveCost },
+                            fly: {
+                              perPerson: 0,
+                              travellers: numTravelMembers,
+                              flightSubtotal: 0,
+                              carRental: Number(carRentalPrice || 0),
+                              localTransferKm: 0,
+                              departureTransferKm: 0,
+                              transferCost: 0,
+                              total: 0,
+                            },
+                          },
+                        } as any;
+                      }
+                    } catch {
+                      // If even metrics fail, leave finalTravel as-is
+                    }
+                  }
+                  if (finalTravel && typeof finalTravel.totalCost === 'number' && Number.isFinite(finalTravel.totalCost) && finalTravel.totalCost > 0) {
                     lastTravelSigRef.current = travelSig;
-                    travelResultCache.current.set(travelSig, tr as any);
-                    setTravelResult(tr as any);
-                }
+                    travelResultCache.current.set(travelSig, finalTravel);
+                    setTravelResult(finalTravel);
+                  }
               }
-            } else if (Number.isFinite(travelCost2) && travelCost2 > 0) {
-              setTravelResult(baseTravelRes);
             }
           } catch {
-            if (Number.isFinite(travelCost2) && travelCost2 > 0) {
-              setTravelResult(baseTravelRes);
-            }
+            // On failure, leave travelResult unchanged instead of falling back to backend travel.
           }
         } catch {
           setCalculatedPrice(basePrice);
