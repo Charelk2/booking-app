@@ -188,22 +188,29 @@ def ai_assistant(
             detail={"messages": "at least one message is required"},
         )
 
-    # Use the latest user message as the primary query text.
+    # Use recent user messages (not just the last one) as the query text so
+    # names mentioned earlier (e.g. "Charel Kleinhans") stay in context when
+    # the user follows up with pronouns like "book him on 19 Jan".
     user_messages = [m for m in payload.messages if m.role == "user"]
     if not user_messages:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"messages": "at least one user message is required"},
         )
-    last_query = user_messages[-1].content.strip()
-    if not last_query:
+    recent_texts = [
+        (m.content or "").strip()
+        for m in user_messages[-3:]
+        if (m.content or "").strip()
+    ]
+    combined_query = " ".join(recent_texts).strip()
+    if not combined_query:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"query": "required"},
         )
 
     search_payload: Dict[str, Any] = {
-        "query": last_query,
+        "query": combined_query,
         "category": payload.category,
         "location": payload.location,
         "when": payload.when,

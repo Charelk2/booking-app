@@ -901,6 +901,26 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
             # Never let AI rerank/explanation failures break the endpoint.
             logger.warning("GenAI rerank/explanation failed: %s", exc)
 
+    # Append lightweight, deterministic follow-up questions when key details
+    # are missing so the assistant feels more conversational and can guide
+    # users toward a bookable brief.
+    try:
+        followups: List[str] = []
+        if effective_filters.when is None:
+            followups.append("Do you have a specific date in mind?")
+        if not (effective_filters.location or "").strip():
+            followups.append("Which town or city is your event in?")
+        if effective_filters.min_price is None and effective_filters.max_price is None:
+            followups.append("Roughly what budget range are you thinking of?")
+        if followups:
+            explanation = explanation.rstrip()
+            if explanation and explanation[-1] not in ".!?":
+                explanation += "."
+            explanation = explanation + " " + " ".join(followups[:2])
+    except Exception:
+        # Never break the endpoint on follow-up formatting issues.
+        pass
+
     return {
         "providers": providers,
         "filters": filters_out,
