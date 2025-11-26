@@ -1186,12 +1186,13 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                         onChange={(e) => {
                           const raw = e.target.value;
                           // Mirror backend slugify: lowercase, spaces → dashes,
-                          // strip invalid chars, collapse dashes, trim edges.
+                          // strip invalid chars, collapse dashes. Do not trim
+                          // edges so the user can freely type '-'; the backend
+                          // will canonicalize on save.
                           let s = raw.toLowerCase();
                           s = s.replace(/\s+/g, '-');
                           s = s.replace(/[^a-z0-9-]/g, '');
                           s = s.replace(/-+/g, '-');
-                          s = s.replace(/^-+|-+$/g, '');
                           setSlugInput(s);
                           if (raw && /[^a-zA-Z0-9-\s]/.test(raw)) {
                             setSlugError('Only letters, numbers, and dashes are allowed.');
