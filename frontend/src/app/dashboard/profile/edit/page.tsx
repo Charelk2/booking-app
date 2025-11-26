@@ -153,6 +153,9 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
 
   // Business‐form fields
   const [businessNameInput, setBusinessNameInput] = useState('');
+  const [slugInput, setSlugInput] = useState('');
+  const [slugSaving, setSlugSaving] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
   const [customSubtitleInput, setCustomSubtitleInput] = useState('');
   const [descriptionInput, setDescriptionInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
@@ -336,6 +339,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
 
         // Initialize form inputs
         setBusinessNameInput(fetchedProfile.business_name || '');
+        setSlugInput(fetchedProfile.slug || '');
         setCustomSubtitleInput(fetchedProfile.custom_subtitle || '');
         setDescriptionInput(fetchedProfile.description || '');
         setLocationInput(fetchedProfile.location || '');
@@ -1163,6 +1167,69 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
               <div className="absolute right-4 top-4"><SavedPill saving={bizHint.saving} saved={bizHint.saved} /></div>
               <h2 className="text-xl font-medium text-gray-700 mb-6">Business Details</h2>
               <div className="space-y-4">
+                <div>
+                  <label htmlFor="publicUrl" className={labelClasses}>
+                    Public URL
+                  </label>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500 select-none">
+                        {typeof window === 'undefined'
+                          ? 'booka.co.za/service-providers/'
+                          : `${window.location.origin.replace(/\/+$/, '')}/service-providers/`}
+                      </span>
+                      <input
+                        type="text"
+                        id="publicUrl"
+                        value={slugInput}
+                        onChange={(e) => {
+                          setSlugInput(e.target.value);
+                          setSlugError(null);
+                        }}
+                        onBlur={async (e) => {
+                          const raw = e.target.value.trim();
+                          if (!raw) {
+                            // Allow clearing slug; backend may regenerate or accept null.
+                            setSlugSaving(true);
+                            setSlugError(null);
+                            try {
+                              await updateMyServiceProviderProfile({ slug: null } as any);
+                              setProfile((prev) => ({ ...prev, slug: null }));
+                            } catch (err) {
+                              console.error('Failed to clear slug', err);
+                              setSlugError('Could not update URL. Please try again.');
+                            } finally {
+                              setSlugSaving(false);
+                            }
+                            return;
+                          }
+                          setSlugSaving(true);
+                          setSlugError(null);
+                          try {
+                            await updateMyServiceProviderProfile({ slug: raw } as any);
+                            setProfile((prev) => ({ ...prev, slug: raw }));
+                          } catch (err) {
+                            console.error('Failed to update slug', err);
+                            setSlugError('That URL may already be taken or invalid.');
+                          } finally {
+                            setSlugSaving(false);
+                          }
+                        }}
+                        className={inputClasses}
+                        placeholder="your-stage-name"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      This controls your public profile link (letters, numbers, and dashes only). We’ll add a number if someone already uses the same URL.
+                    </p>
+                    {slugSaving && (
+                      <p className="text-xs text-gray-500 mt-1">Saving URL…</p>
+                    )}
+                    {slugError && (
+                      <p className="text-xs text-red-600 mt-1">{slugError}</p>
+                    )}
+                  </div>
+                </div>
                 <div>
                   <label htmlFor="businessName" className={labelClasses}>
                     Business Name *
