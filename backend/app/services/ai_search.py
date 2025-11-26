@@ -5,7 +5,8 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
+import re
 
 from app.core.config import settings, FRONTEND_PRIMARY
 from app.models.service_provider_profile import ServiceProviderProfile as Artist
@@ -239,7 +240,9 @@ def _ai_derive_filters(query: str, base: AiSearchFilters) -> AiSearchFilters:
     return merged
 
 
-def _search_providers_with_filters(db: Session, filters: AiSearchFilters, limit: int) -> List[Dict[str, Any]]:
+def _search_providers_with_filters(
+    db: Session, filters: AiSearchFilters, limit: int, query_text: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """Execute a lightweight provider search using the given filters.
 
     This reuses a subset of the logic from read_all_service_provider_profiles
@@ -324,6 +327,69 @@ def _search_providers_with_filters(db: Session, filters: AiSearchFilters, limit:
         if filters.max_price is not None:
             query = query.filter(category_subq.c.service_min_price <= filters.max_price)
 
+    # Optional: name-based narrowing/boosting when the query looks like a name.
+    if query_text:
+        try:
+            q = (query_text or "").lower()
+            tokens = re.findall(r"[a-z0-9]+", q)
+            stopwords = {
+                "i",
+                "im",
+                "i'm",
+                "looking",
+                "for",
+                "a",
+                "an",
+                "the",
+                "please",
+                "need",
+                "want",
+                "search",
+                "find",
+                "booking",
+                "book",
+            }
+            raw_tokens = [t for t in tokens if t not in stopwords and len(t) >= 3]
+            # Words that are likely "type" descriptors rather than names
+            type_words = {
+                "dj",
+                "deejay",
+                "musician",
+                "musicians",
+                "band",
+                "bands",
+                "guitarist",
+                "singer",
+                "singers",
+                "duo",
+                "trio",
+                "quartet",
+                "photographer",
+                "photography",
+                "videographer",
+                "videography",
+                "sound",
+                "service",
+                "caterer",
+                "catering",
+                "bartender",
+                "barman",
+                "speaker",
+                "venue",
+                "wedding",
+            }
+            name_tokens = [t for t in raw_tokens if t not in type_words]
+            if name_tokens:
+                # Require at least one token to appear in the business name.
+                name_clauses = [
+                    func.lower(Artist.business_name).ilike(f"%{tok}%")
+                    for tok in name_tokens
+                ]
+                query = query.filter(or_(*name_clauses))
+        except Exception:
+            # Never break search on name parsing errors.
+            pass
+
     # Simple ordering: favor recently updated artists with higher ratings.
     query = query.order_by(
         func.coalesce(rating_subq.c.rating, 0.0).desc(),
@@ -401,7 +467,7 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
     base_filters, limit = _coerce_filters_from_payload(payload)
     effective_filters = _ai_derive_filters(query_text, base_filters)
 
-    providers = _search_providers_with_filters(db, effective_filters, limit)
+    providers = _search_providers_with_filters(db, effective_filters, limit, query_text=query_text)
 
     # Serialize filters back to JSON-friendly values for the response.
     filters_out: Dict[str, Any] = {
