@@ -7,6 +7,7 @@ import os
 import time
 from datetime import datetime
 import hashlib
+import json
 
 from .. import models, schemas
 from ..utils import error_response
@@ -34,6 +35,13 @@ def _quote_payload_with_preview(quote: models.QuoteV2) -> dict:
     payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
     payload.update(quote_preview_fields(quote))
     return payload
+
+
+def _quote_etag(quote_id: int, marker: str | None) -> str:
+    """Return a weak ETag for a quote based on an updated_at marker."""
+    marker = marker or "0"
+    digest = hashlib.sha1(marker.encode()).hexdigest()
+    return f'W/"q:{int(quote_id)}:{digest}"'
 
 
 # Lightweight totals preview for client-side “Review” (no quote persisted).
@@ -82,8 +90,40 @@ def preview_totals(payload: TotalsPreviewIn):
 @router.post(
     "/quotes", response_model=schemas.QuoteV2Read, status_code=status.HTTP_201_CREATED
 )
-def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db)):
+def create_quote(
+    quote_in: schemas.QuoteV2Create,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Create a quote for a booking request.
+
+    Authorization: only the booking's artist may create quotes for it.
+    """
     try:
+        # Authorize: ensure the current user is the artist on the booking request
+        booking_request = (
+            db.query(models.BookingRequest)
+            .filter(models.BookingRequest.id == quote_in.booking_request_id)
+            .first()
+        )
+        if not booking_request:
+            raise error_response(
+                "Booking request not found",
+                {"booking_request_id": "not_found"},
+                status.HTTP_404_NOT_FOUND,
+            )
+        if booking_request.artist_id != current_user.id:
+            logger.warning(
+                "Unauthorized quote creation attempt; user_id=%s request_id=%s",
+                current_user.id,
+                quote_in.booking_request_id,
+            )
+            raise error_response(
+                "Not authorized to create a quote for this request",
+                {"booking_request_id": "forbidden"},
+                status.HTTP_403_FORBIDDEN,
+            )
+
         quote = crud_quote_v2.create_quote(db, quote_in)
         logger.info(
             "Created quote %s for booking request %s",
@@ -213,8 +253,13 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
 def read_quote(
     quote_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
     if_none_match: str | None = Header(default=None, convert_underscores=False, alias="If-None-Match"),
 ):
+    """Return a quote plus minimal context for the client/artist participant.
+
+    Authorization: only the booking's client or artist may read the quote.
+    """
     logger.info("Fetching quote %s", quote_id)
     t_start = time.perf_counter()
     # Early ETag pre-check using updated_at marker
@@ -225,7 +270,7 @@ def read_quote(
             .scalar()
         )
         marker = upd.isoformat(timespec="seconds") if isinstance(upd, datetime) else "0"
-        etag_pre = f'W/"q:{int(quote_id)}:{hashlib.sha1(marker.encode()).hexdigest()}"'
+        etag_pre = _quote_etag(quote_id, marker)
         if if_none_match and if_none_match.strip() == etag_pre:
             pre_ms = (time.perf_counter() - t_start) * 1000.0
             return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag_pre, "Server-Timing": f"pre;dur={pre_ms:.1f}"})
@@ -251,6 +296,31 @@ def read_quote(
             {"quote_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    # Authorization: only the booking's client or artist can access the quote
+    try:
+        br = quote.booking_request
+        client_id = quote.client_id or (br.client_id if br else None)
+        artist_id = quote.artist_id or (br.artist_id if br else None)
+        if current_user.id not in {client_id, artist_id}:
+            logger.warning(
+                "Unauthorized quote read attempt; user_id=%s quote_id=%s",
+                current_user.id,
+                quote_id,
+            )
+            raise error_response(
+                "Not authorized to access this quote",
+                {"quote_id": "forbidden"},
+                status.HTTP_403_FORBIDDEN,
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        # Fail closed on auth errors
+        raise error_response(
+            "Not authorized to access this quote",
+            {"quote_id": "forbidden"},
+            status.HTTP_403_FORBIDDEN,
+        )
     # Defensive: coalesce timestamps for legacy rows
     try:
         if not getattr(quote, "created_at", None):
@@ -274,7 +344,6 @@ def read_quote(
     except Exception:
         payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
     # Serialize with orjson and attach timing
-    body = _json_dumps(payload)
     comp_ms = (time.perf_counter() - t_comp_start) * 1000.0
     ser_ms = 0.0
     try:
@@ -282,11 +351,12 @@ def read_quote(
         body = _json_dumps(payload)
         ser_ms = (time.perf_counter() - t_ser) * 1000.0
     except Exception:
-        pass
+        # Fallback: avoid crashing the endpoint on serialization issues
+        body = json.dumps(payload).encode("utf-8")
     # ETag based on updated_at marker
     try:
         marker = quote.updated_at.isoformat(timespec="seconds") if quote.updated_at else "0"
-        etag = f'W/"q:{int(quote.id)}:{hashlib.sha1(marker.encode()).hexdigest()}"'
+        etag = _quote_etag(quote.id, marker)
     except Exception:
         etag = etag_pre
     headers = {"Cache-Control": "no-cache", "Server-Timing": f"compose;dur={comp_ms:.1f}, ser;dur={ser_ms:.1f}"}
@@ -299,9 +369,34 @@ def read_quote(
 def accept_quote(
     quote_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
     service_id: int | None = None,
 ):
+    """Accept a pending quote and create a booking.
+
+    Authorization: only the client on the booking request may accept.
+    """
     try:
+        # Authorization: only the client participant may accept
+        quote = crud_quote_v2.get_quote(db, quote_id)
+        if not quote:
+            raise error_response(
+                "Quote not found",
+                {"quote_id": "not_found"},
+                status.HTTP_404_NOT_FOUND,
+            )
+        if current_user.id != quote.client_id:
+            logger.warning(
+                "Unauthorized quote accept attempt; user_id=%s quote_id=%s",
+                current_user.id,
+                quote_id,
+            )
+            raise error_response(
+                "Only the client can accept this quote",
+                {"quote_id": "forbidden"},
+                status.HTTP_403_FORBIDDEN,
+            )
+
         booking = crud_quote_v2.accept_quote(db, quote_id, service_id=service_id)
         # Defensive: coalesce timestamps for response
         try:
@@ -345,8 +440,36 @@ def accept_quote(
 
 
 @router.post("/quotes/{quote_id}/decline", response_model=schemas.QuoteV2Read)
-def decline_quote(quote_id: int, db: Session = Depends(get_db)):
+def decline_quote(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Decline a pending quote without creating a booking.
+
+    Authorization: only the client on the booking request may decline.
+    """
     try:
+        # Authorization: only the client participant may decline
+        quote = crud_quote_v2.get_quote(db, quote_id)
+        if not quote:
+            raise error_response(
+                "Quote not found",
+                {"quote_id": "not_found"},
+                status.HTTP_404_NOT_FOUND,
+            )
+        if current_user.id != quote.client_id:
+            logger.warning(
+                "Unauthorized quote decline attempt; user_id=%s quote_id=%s",
+                current_user.id,
+                quote_id,
+            )
+            raise error_response(
+                "Only the client can decline this quote",
+                {"quote_id": "forbidden"},
+                status.HTTP_403_FORBIDDEN,
+            )
+
         quote = crud_quote_v2.decline_quote(db, quote_id)
         # Defensive: coalesce timestamps for legacy rows
         try:
