@@ -26,7 +26,7 @@ from app.utils.redis_cache import (
     cache_availability,
 )
 from app.services import calendar_service
-from app.utils.slug import slugify_name, generate_unique_slug
+from app.utils.slug import slugify_name, generate_unique_slug, RESERVED_SLUGS
 
 from app.database import get_db
 from app.models.user import User
@@ -210,17 +210,25 @@ def update_current_artist_profile(
                     status_code=422,
                     detail={"slug": "invalid"},
                 )
-            # Ensure uniqueness: collect existing slugs excluding this artist
-            existing = [
-                s
-                for (s,) in db.query(Artist.slug)
-                .filter(Artist.slug.isnot(None))
+            if normalized in RESERVED_SLUGS:
+                # Reserved for system routes like /dashboard, /auth, etc.
+                raise HTTPException(
+                    status_code=422,
+                    detail={"slug": "reserved"},
+                )
+            # Ensure uniqueness across other providers without auto-suffixing
+            exists = (
+                db.query(Artist.user_id)
+                .filter(Artist.slug == normalized)
                 .filter(Artist.user_id != current_user.id)
-                .all()
-                if s
-            ]
-            unique_slug = generate_unique_slug(normalized, existing)
-            update_data["slug"] = unique_slug
+                .first()
+            )
+            if exists:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"slug": "taken"},
+                )
+            update_data["slug"] = normalized
         else:
             # Allow explicitly clearing the slug
             update_data["slug"] = None

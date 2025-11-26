@@ -1229,7 +1229,21 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                             setSlugInput(canonical);
                           } catch (err) {
                             console.error('Failed to update slug', err);
-                            setSlugError('That URL may already be taken or invalid.');
+                            let message = 'That URL may already be taken or invalid.';
+                            try {
+                              const anyErr = err as any;
+                              const code = anyErr?.response?.data?.detail?.slug;
+                              if (code === 'invalid') {
+                                message = 'Please use only letters, numbers, and dashes.';
+                              } else if (code === 'reserved') {
+                                message = 'That URL is reserved for system pages.';
+                              } else if (code === 'taken') {
+                                message = 'That URL is already in use. Please choose another.';
+                              }
+                            } catch {
+                              // fall back to generic message
+                            }
+                            setSlugError(message);
                           } finally {
                             setSlugSaving(false);
                           }
