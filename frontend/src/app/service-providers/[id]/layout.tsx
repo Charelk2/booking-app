@@ -7,13 +7,10 @@ export const revalidate = 60;
 type Params = { params: { id: string } };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const id = Number(params.id);
-  if (!Number.isFinite(id) || id <= 0) {
-    return { title: 'Service Provider' };
-  }
+  const raw = params.id;
 
   try {
-    const { data: sp } = await getServiceProvider(id);
+    const { data: sp } = await getServiceProvider(/^\d+$/.test(raw) ? Number(raw) : raw);
     const displayName =
       sp.business_name ||
       `${sp.user?.first_name ?? ''} ${sp.user?.last_name ?? ''}`.trim() ||
