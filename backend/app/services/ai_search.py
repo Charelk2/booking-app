@@ -16,6 +16,7 @@ from app.models.review import Review
 from app.models.booking import Booking
 from app.models.profile_view import ArtistProfileView
 from app.models.user import User
+from app.utils.json import dumps_bytes as orjson_dumps
 from app.services.quote_totals import compute_quote_totals_snapshot
 
 logger = logging.getLogger(__name__)
@@ -373,9 +374,11 @@ def _ai_derive_filters(query: str, base: AiSearchFilters) -> AiSearchFilters:
         "Do not include any prose or explanation outside of the JSON."
     )
 
+    base_json = orjson_dumps(base_payload).decode("utf-8")
+
     prompt = (
         f"{system_instructions}\n\n"
-        f"Existing filters (JSON): {json.dumps(base_payload, ensure_ascii=False)}\n"
+        f"Existing filters (JSON): {base_json}\n"
         f"User query: {query.strip()}\n\n"
         "Respond with JSON only, like:\n"
         '{"category": "dj", "location": "Cape Town", "when": "2026-10-14", "min_price": null, "max_price": 8000}\n'
@@ -854,9 +857,11 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
                 "candidates": provider_payload,
             }
 
+            payload_str = orjson_dumps(payload_json).decode("utf-8")
+
             prompt = (
                 f"{system_instructions}\n\n"
-                f"INPUT JSON:\n{json.dumps(payload_json, ensure_ascii=False)}\n\n"
+                f"INPUT JSON:\n{payload_str}\n\n"
                 "Respond with JSON only."
             )
 
