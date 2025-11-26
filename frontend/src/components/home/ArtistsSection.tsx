@@ -180,7 +180,7 @@ export default function ArtistsSection({
               key={i}
               className="
                 flex-shrink-0
-                w-[70vw] xs:w-56 sm:w-56
+                w-[55vw] xs:w-56 sm:w-56
                 snap-center sm:snap-start
               "
             >
@@ -198,7 +198,7 @@ export default function ArtistsSection({
                 key={a.id}
                 className="
                   flex-shrink-0
-                  w-[70vw] xs:w-56 sm:w-56
+                  w-[55vw] xs:w-56 sm:w-56
                   snap-center sm:snap-start
                 "
               >
