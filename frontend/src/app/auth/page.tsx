@@ -286,7 +286,9 @@ export default function AuthPage() {
     } catch {
       // Global-standard (non-enumerating) error
       setError('Invalid email or password.');
-      setErrorSubtext('Please try again or reset your password.');
+      setErrorSubtext(
+        'Double-check your email and password or reset your password. If you signed up with Google, use the Sign in with Google option below.',
+      );
       announce('Sign-in failed.');
     }
   };
