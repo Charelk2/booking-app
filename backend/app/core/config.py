@@ -115,7 +115,8 @@ class Settings(BaseSettings):
     EMAIL_DEV_MODE: bool = True
 
     # Mailjet templates (optional; used when sending richer emails via SMTP headers)
-    MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER: int = 7527166
+    # Updated Nov 2025: new provider-facing "New booking request" template.
+    MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER: int = 7527677
 
     # Observability / logging toggles
     # These are also consumed directly via os.getenv in core/observability.py,

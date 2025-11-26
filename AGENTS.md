@@ -95,7 +95,7 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 * **Email templating (Mailjet):**
   - Outbound emails are delivered via SMTP using `backend/app/utils/email.py` and the `SMTP_*` settings (Mailjet SMTP host, API key/secret, and from address).
   - For richer layouts, the agent can send Mailjet transactional templates via SMTP headers using `send_template_email(recipient, template_id, variables, subject)`.
-  - The “new booking request to provider” flow now uses `MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER` (default: `7527166`) when `notify_user_new_booking_request()` fires, passing variables like `provider_name`, `client_name`, `event_date`, `event_time`, `event_location`, `service_name`, `budget`, `special_requests`, and `booking_url`.
+  - The “new booking request to provider” flow now uses `MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER` (default: `7527677`) when `notify_user_new_booking_request()` fires, passing variables like `provider_name`, `client_name`, `event_date`, `event_time`, `event_location`, `service_name`, `budget`, `special_requests`, and `booking_url`.
   - Future plan: move all system emails (booking confirmed, quote created/accepted, reminders, etc.) onto dedicated Mailjet templates by introducing `MAILJET_TEMPLATE_*` config keys and reusing the same helper.
   - Longer term we’ll route the same notification intents to WhatsApp/SMS by plugging Twilio (or another provider) into the existing Notification agent so each event can fan out to app, email, SMS, and WhatsApp in a template-driven way.
 
