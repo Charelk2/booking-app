@@ -17,16 +17,6 @@ Returns a list of mode-cost pairs:
 
 `booking_quote.calculate_quote_breakdown` selects the cheapest mode for the quote total and exposes all estimates via the `/api/v1/quotes/calculate` endpoint.
 
-When used from `calculate_quote_breakdown` for a specific service:
-
-- The driving estimate is treated as a **round-trip**:  
-  `driving_cost = service.travel_rate * distance_km * 2` when a `travel_rate`
-  is configured on the service, otherwise it falls back to the default
-  estimator rate (`DRIVING_RATE_PER_KM * distance_km * 2`).
-- This matches the Booking Wizard’s client-side travel engine, which applies
-  the per‑km rate to both directions for driving, and similarly uses round‑trip
-  transfers for flights.
-
 When invoked from `calculate_quote_breakdown` for a specific service, the
 driving estimate is adjusted to use that service’s configured `travel_rate`
 (`ZAR/km`) when present; otherwise it falls back to a default of `2.5` ZAR/km
