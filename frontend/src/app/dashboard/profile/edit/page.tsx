@@ -156,6 +156,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
   const [slugInput, setSlugInput] = useState('');
   const [slugSaving, setSlugSaving] = useState(false);
   const [slugError, setSlugError] = useState<string | null>(null);
+  const [slugCopied, setSlugCopied] = useState(false);
   const [customSubtitleInput, setCustomSubtitleInput] = useState('');
   const [descriptionInput, setDescriptionInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
@@ -1183,11 +1184,18 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                         id="publicUrl"
                         value={slugInput}
                         onChange={(e) => {
-                          setSlugInput(e.target.value);
-                          setSlugError(null);
+                          const raw = e.target.value;
+                          // Normalize spaces to dashes for convenience.
+                          const normalized = raw.replace(/\s+/g, '-');
+                          setSlugInput(normalized);
+                          if (normalized && !/^[a-zA-Z0-9-]+$/.test(normalized)) {
+                            setSlugError('Only letters, numbers, and dashes are allowed.');
+                          } else {
+                            setSlugError(null);
+                          }
                         }}
-                        onBlur={async (e) => {
-                          const raw = e.target.value.trim();
+                        onBlur={async () => {
+                          const raw = slugInput.trim();
                           if (!raw) {
                             // Allow clearing slug; backend may regenerate or accept null.
                             setSlugSaving(true);
@@ -1201,6 +1209,10 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                             } finally {
                               setSlugSaving(false);
                             }
+                            return;
+                          }
+                          // Do not attempt save if there are obvious validation errors.
+                          if (slugError) {
                             return;
                           }
                           setSlugSaving(true);
@@ -1218,9 +1230,34 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                         className={inputClasses}
                         placeholder="your-stage-name"
                       />
+                      <button
+                        type="button"
+                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        onClick={async () => {
+                          try {
+                            const base =
+                              typeof window === 'undefined'
+                                ? 'https://booka.co.za'
+                                : window.location.origin.replace(/\/+$/, '');
+                            const slug = slugInput || (profile as any)?.slug || '';
+                            if (!slug) return;
+                            const url = `${base}/service-providers/${slug}`;
+                            if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                              await navigator.clipboard.writeText(url);
+                              setSlugCopied(true);
+                              setTimeout(() => setSlugCopied(false), 1500);
+                            }
+                          } catch {
+                            // Best-effort; ignore copy failures
+                          }
+                        }}
+                        disabled={!slugInput && !profile?.slug}
+                      >
+                        {slugCopied ? 'Copied!' : 'Copy link'}
+                      </button>
                     </div>
                     <p className="text-xs text-gray-500">
-                      This controls your public profile link (letters, numbers, and dashes only). We’ll add a number if someone already uses the same URL.
+                      This controls your public profile link. Use letters, numbers, and dashes only; we’ll add a number if someone already uses the same URL.
                     </p>
                     {slugSaving && (
                       <p className="text-xs text-gray-500 mt-1">Saving URL…</p>
