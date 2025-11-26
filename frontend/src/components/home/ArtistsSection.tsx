@@ -221,7 +221,7 @@ export default function ArtistsSection({
                   ratingCount={a.rating_count ?? undefined}
                   location={a.location}
                   categories={a.service_categories}
-                  href={`/service-providers/${a.slug || a.id}`}
+                  href={`/${a.slug || a.id}`}
                   className="h-full"
                 />
               </div>
