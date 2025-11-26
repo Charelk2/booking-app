@@ -680,6 +680,135 @@ def notify_quote_accepted(
     _send_sms(user.phone_number, message)
 
 
+def notify_client_new_quote_email(
+    db: Session,
+    client: User,
+    artist: User,
+    booking_request: "models.BookingRequest",
+    quote: "models.QuoteV2",
+) -> None:
+    """Best-effort Mailjet email to a client when a new quote is sent.
+
+    Mirrors the structure of ``notify_user_new_booking_request`` so templates
+    stay easy to reason about. Uses ``MAILJET_TEMPLATE_NEW_QUOTE_CLIENT`` and
+    passes a minimal variable set the template can render.
+    """
+    try:
+        template_id = getattr(settings, "MAILJET_TEMPLATE_NEW_QUOTE_CLIENT", 0) or 0
+        if not (template_id and client.email):
+            return
+
+        # Client display name
+        client_name = f"{client.first_name} {client.last_name}".strip() or "Client"
+
+        # Provider display name: prefer business name from profile when present.
+        provider_name: str | None = None
+        try:
+            profile = (
+                db.query(models.ServiceProviderProfile)
+                .filter(models.ServiceProviderProfile.user_id == artist.id)
+                .first()
+            )
+            if profile and profile.business_name:
+                provider_name = profile.business_name
+        except Exception:
+            provider_name = None
+        if not provider_name:
+            provider_name = f"{artist.first_name} {artist.last_name}".strip()
+
+        # Event date/time from booking request
+        event_date: str | None = None
+        event_time: str | None = None
+        try:
+            dt = getattr(booking_request, "proposed_datetime_1", None)
+            if dt is not None:
+                event_date = dt.date().isoformat()
+                event_time = dt.strftime("%H:%M")
+        except Exception:
+            event_date = None
+            event_time = None
+
+        # Service + currency context
+        service_name: str | None = None
+        currency: str | None = None
+        try:
+            svc = getattr(booking_request, "service", None)
+            if svc is not None:
+                title = getattr(svc, "title", None)
+                if title:
+                    service_name = title
+                currency = getattr(svc, "currency", None)
+        except Exception:
+            service_name = service_name or None
+            currency = currency or None
+
+        # Quote total formatted similarly to budget strings
+        quote_total: str | None = None
+        try:
+            total = getattr(quote, "total", None)
+            if total is not None:
+                cur = currency or getattr(settings, "DEFAULT_CURRENCY", "ZAR") or "ZAR"
+                quote_total = f"{cur} {total}"
+        except Exception:
+            quote_total = None
+
+        # Quote expiry (optional)
+        quote_expires_at: str | None = None
+        try:
+            expires = getattr(quote, "expires_at", None)
+            if expires is not None:
+                quote_expires_at = expires.isoformat()
+        except Exception:
+            quote_expires_at = None
+
+        # Event location, if captured on the booking request travel_breakdown
+        event_location: str | None = None
+        try:
+            tb = getattr(booking_request, "travel_breakdown", None) or {}
+            if isinstance(tb, dict):
+                event_location = (
+                    tb.get("event_city")
+                    or tb.get("city")
+                    or tb.get("location")
+                )
+        except Exception:
+            event_location = None
+
+        frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
+        booking_url = (
+            f"{frontend_base}/booking-requests/{booking_request.id}"
+            if frontend_base
+            else f"/booking-requests/{booking_request.id}"
+        )
+
+        variables = {
+            "client_name": client_name,
+            "provider_name": provider_name,
+            "event_date": event_date,
+            "event_time": event_time,
+            "event_location": event_location,
+            "service_name": service_name,
+            "quote_total": quote_total,
+            "quote_expires_at": quote_expires_at,
+            "booking_url": booking_url,
+        }
+        clean_vars = {k: v for k, v in variables.items() if v is not None}
+        email_subject = f"New quote from {provider_name} for your booking"
+        send_template_email(
+            recipient=client.email,
+            template_id=int(template_id),
+            variables=clean_vars,
+            subject=email_subject,
+        )
+    except Exception as exc:  # pragma: no cover - email is best-effort
+        logger.warning(
+            "Failed to send quote email for quote %s to %s: %s",
+            getattr(quote, "id", None),
+            getattr(client, "email", None),
+            exc,
+        )
+
+
 def notify_quote_expiring(
     db: Session,
     user: Optional[User],
@@ -844,6 +973,242 @@ def notify_new_booking(db: Session, user: Optional[User], booking_id: int) -> No
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
+
+
+def notify_booking_confirmed_email_for_provider(
+    db: Session,
+    provider: User,
+    client: User,
+    booking: "models.BookingSimple",
+    booking_request: "models.BookingRequest",
+) -> None:
+    """Best-effort Mailjet email to provider when a booking is confirmed (payment received)."""
+    try:
+        template_id = getattr(settings, "MAILJET_TEMPLATE_BOOKING_CONFIRMED_PROVIDER", 0) or 0
+        if not (template_id and provider.email):
+            return
+
+        # Provider display name: prefer business name when present.
+        provider_name: str | None = None
+        try:
+            profile = (
+                db.query(models.ServiceProviderProfile)
+                .filter(models.ServiceProviderProfile.user_id == provider.id)
+                .first()
+            )
+            if profile and profile.business_name:
+                provider_name = profile.business_name
+        except Exception:
+            provider_name = None
+        if not provider_name:
+            provider_name = f"{provider.first_name} {provider.last_name}".strip()
+
+        client_name = f"{client.first_name} {client.last_name}".strip() or "Client"
+
+        # Event date/time: prefer BookingSimple.date, fall back to BookingRequest.proposed_datetime_1
+        event_date: str | None = None
+        event_time: str | None = None
+        try:
+            dt = getattr(booking, "date", None) or getattr(booking_request, "proposed_datetime_1", None)
+            if dt is not None:
+                event_date = dt.date().isoformat()
+                event_time = dt.strftime("%H:%M")
+        except Exception:
+            event_date = None
+            event_time = None
+
+        # Event location: prefer BookingSimple.location, fall back to travel_breakdown/event_city
+        event_location: str | None = None
+        try:
+            event_location = getattr(booking, "location", None)
+            if not event_location:
+                tb = getattr(booking_request, "travel_breakdown", None) or {}
+                if isinstance(tb, dict):
+                    event_location = (
+                        tb.get("event_city")
+                        or tb.get("city")
+                        or tb.get("location")
+                    )
+        except Exception:
+            event_location = event_location or None
+
+        # Service name + currency
+        service_name: str | None = None
+        currency: str | None = None
+        try:
+            svc = getattr(booking_request, "service", None)
+            if svc is not None:
+                title = getattr(svc, "title", None)
+                if title:
+                    service_name = title
+                currency = getattr(svc, "currency", None)
+        except Exception:
+            service_name = service_name or None
+            currency = currency or None
+
+        # Total paid from BookingSimple.charged_total_amount
+        total_paid: str | None = None
+        try:
+            amt = getattr(booking, "charged_total_amount", None)
+            if amt is not None:
+                cur = currency or getattr(settings, "DEFAULT_CURRENCY", "ZAR") or "ZAR"
+                total_paid = f"{cur} {amt}"
+        except Exception:
+            total_paid = None
+
+        booking_reference = str(getattr(booking, "id", "")) or ""
+
+        frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
+        booking_url = (
+            f"{frontend_base}/dashboard/client/bookings/{booking.id}"
+            if frontend_base
+            else f"/dashboard/client/bookings/{booking.id}"
+        )
+
+        variables = {
+            "provider_name": provider_name,
+            "client_name": client_name,
+            "event_date": event_date,
+            "event_time": event_time,
+            "event_location": event_location,
+            "service_name": service_name,
+            "total_paid": total_paid,
+            "booking_reference": booking_reference,
+            "booking_url": booking_url,
+        }
+        clean_vars = {k: v for k, v in variables.items() if v is not None}
+        email_subject = f"New booking confirmed from {client_name}"
+        send_template_email(
+            recipient=provider.email,
+            template_id=int(template_id),
+            variables=clean_vars,
+            subject=email_subject,
+        )
+    except Exception as exc:  # pragma: no cover - email is best-effort
+        logger.warning(
+            "Failed to send provider booking-confirmed email for booking %s to %s: %s",
+            getattr(booking, "id", None),
+            getattr(provider, "email", None),
+            exc,
+        )
+
+
+def notify_booking_confirmed_email_for_client(
+    db: Session,
+    client: User,
+    provider: User,
+    booking: "models.BookingSimple",
+    booking_request: "models.BookingRequest",
+) -> None:
+    """Best-effort Mailjet email to client when a booking is confirmed (payment received)."""
+    try:
+        template_id = getattr(settings, "MAILJET_TEMPLATE_BOOKING_CONFIRMED_CLIENT", 0) or 0
+        if not (template_id and client.email):
+            return
+
+        client_name = f"{client.first_name} {client.last_name}".strip() or "Client"
+
+        # Provider display name: prefer business name when present.
+        provider_name: str | None = None
+        try:
+            profile = (
+                db.query(models.ServiceProviderProfile)
+                .filter(models.ServiceProviderProfile.user_id == provider.id)
+                .first()
+            )
+            if profile and profile.business_name:
+                provider_name = profile.business_name
+        except Exception:
+            provider_name = None
+        if not provider_name:
+            provider_name = f"{provider.first_name} {provider.last_name}".strip()
+
+        # Event date/time: prefer BookingSimple.date, fall back to BookingRequest.proposed_datetime_1
+        event_date: str | None = None
+        event_time: str | None = None
+        try:
+            dt = getattr(booking, "date", None) or getattr(booking_request, "proposed_datetime_1", None)
+            if dt is not None:
+                event_date = dt.date().isoformat()
+                event_time = dt.strftime("%H:%M")
+        except Exception:
+            event_date = None
+            event_time = None
+
+        # Event location: prefer BookingSimple.location, fall back to travel_breakdown/event_city
+        event_location: str | None = None
+        try:
+            event_location = getattr(booking, "location", None)
+            if not event_location:
+                tb = getattr(booking_request, "travel_breakdown", None) or {}
+                if isinstance(tb, dict):
+                    event_location = (
+                        tb.get("event_city")
+                        or tb.get("city")
+                        or tb.get("location")
+                    )
+        except Exception:
+            event_location = event_location or None
+
+        # Service name + currency
+        service_name: str | None = None
+        currency: str | None = None
+        try:
+            svc = getattr(booking_request, "service", None)
+            if svc is not None:
+                title = getattr(svc, "title", None)
+                if title:
+                    service_name = title
+                currency = getattr(svc, "currency", None)
+        except Exception:
+            service_name = service_name or None
+            currency = currency or None
+
+        # Total paid from BookingSimple.charged_total_amount
+        total_paid: str | None = None
+        try:
+            amt = getattr(booking, "charged_total_amount", None)
+            if amt is not None:
+                cur = currency or getattr(settings, "DEFAULT_CURRENCY", "ZAR") or "ZAR"
+                total_paid = f"{cur} {amt}"
+        except Exception:
+            total_paid = None
+
+        booking_reference = str(getattr(booking, "id", "")) or ""
+
+        frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
+        booking_url = (
+            f"{frontend_base}/dashboard/client/bookings/{booking.id}"
+            if frontend_base
+            else f"/dashboard/client/bookings/{booking.id}"
+        )
+
+        variables = {
+            "client_name": client_name,
+            "provider_name": provider_name,
+            "event_date": event_date,
+            "event_time": event_time,
+            "event_location": event_location,
+            "service_name": service_name,
+            "total_paid": total_paid,
+            "booking_reference": booking_reference,
+            "booking_url": booking_url,
+        }
+        clean_vars = {k: v for k, v in variables.items() if v is not None}
+        email_subject = f"Booking confirmed – {service_name or 'your booking'} on {event_date or ''}"
+        send_template_email(
+            recipient=client.email,
+            template_id=int(template_id),
+            variables=clean_vars,
+            subject=email_subject,
+        )
+    except Exception as exc:  # pragma: no cover - email is best-effort
+        logger.warning(
+            "Failed to send client booking-confirmed email for booking %s to %s: %s",
+            getattr(booking, "id", None),
+            getattr(client, "email", None),
+            exc,
+        )
 
 
 def notify_review_request(db: Session, user: Optional[User], booking_id: int) -> None:

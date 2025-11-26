@@ -1,4 +1,5 @@
 import { render, screen, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import BookingWizard from '../BookingWizard';
 import { BookingProvider, useBooking } from '@/contexts/BookingContext';
@@ -158,5 +159,43 @@ describe('BookingWizard instructions', () => {
 
     expect(api.calculateQuote).toHaveBeenCalledTimes(2);
     expect(travel.calculateTravelMode).toHaveBeenCalledTimes(2);
+  });
+
+  it('hydrates form fields from saved progress when resuming a draft', async () => {
+    const user = userEvent.setup();
+    // Seed a saved draft in localStorage with meaningful progress for the same service.
+    const saved = {
+      step: 0,
+      serviceId: 1,
+      details: {
+        eventType: 'Birthday',
+        eventDescription: 'Saved draft description',
+        date: new Date().toISOString(),
+        time: '18:00',
+        location: 'Cape Town',
+        guests: '50',
+        venueType: 'indoor',
+        sound: 'no',
+        notes: 'Some saved notes',
+        attachment_url: '',
+      },
+    };
+    window.localStorage.setItem('bookingState', JSON.stringify(saved));
+
+    render(<Wrapper />);
+
+    // The wizard should detect the saved draft and show the resume modal.
+    expect(
+      await screen.findByText('Resume previous request?'),
+    ).toBeInTheDocument();
+
+    // Resume should restore both context and the React Hook Form layer.
+    await user.click(screen.getByRole('button', { name: 'Resume' }));
+
+    // After resuming, the first step textarea should reflect the saved description.
+    const desc = await screen.findByLabelText('Describe your event');
+    expect((desc as HTMLTextAreaElement).value).toBe(
+      'Saved draft description',
+    );
   });
 });

@@ -117,6 +117,12 @@ class Settings(BaseSettings):
     # Mailjet templates (optional; used when sending richer emails via SMTP headers)
     # Updated Nov 2025: new provider-facing "New booking request" template.
     MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER: int = 7527677
+    # Client-facing "New quote received" template (sent when an artist sends a quote).
+    MAILJET_TEMPLATE_NEW_QUOTE_CLIENT: int = 7527935
+    # Provider-facing "Booking confirmed / payment received" template.
+    MAILJET_TEMPLATE_BOOKING_CONFIRMED_PROVIDER: int = 7527989
+    # Client-facing "Booking confirmed / payment received" template.
+    MAILJET_TEMPLATE_BOOKING_CONFIRMED_CLIENT: int = 7528057
 
     # Observability / logging toggles
     # These are also consumed directly via os.getenv in core/observability.py,

@@ -10,7 +10,7 @@ import hashlib
 
 from .. import models, schemas
 from ..utils import error_response
-from ..utils.notifications import notify_user_new_message
+from ..utils.notifications import notify_user_new_message, notify_client_new_quote_email
 from ..crud import crud_quote_v2
 from ..utils.outbox import enqueue_outbox
 from .. import crud
@@ -154,26 +154,39 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
             .filter(models.BookingRequest.id == quote.booking_request_id)
             .first()
         )
-        if booking_request:
-            client = (
-                db.query(models.User)
-                .filter(models.User.id == booking_request.client_id)
-                .first()
-            )
-            artist = (
-                db.query(models.User)
-                .filter(models.User.id == booking_request.artist_id)
-                .first()
-            )
-            if client and artist:
-                notify_user_new_message(
-                    db,
-                    client,
-                    artist,
-                    quote.booking_request_id,
-                    "Artist sent a quote",
-                    models.MessageType.QUOTE,
+            if booking_request:
+                client = (
+                    db.query(models.User)
+                    .filter(models.User.id == booking_request.client_id)
+                    .first()
                 )
+                artist = (
+                    db.query(models.User)
+                    .filter(models.User.id == booking_request.artist_id)
+                    .first()
+                )
+                if client and artist:
+                    notify_user_new_message(
+                        db,
+                        client,
+                        artist,
+                        quote.booking_request_id,
+                        "Artist sent a quote",
+                        models.MessageType.QUOTE,
+                    )
+                    # Best-effort: send a richer transactional email to the client
+                    # mirroring the provider "New booking request" template flow.
+                    try:
+                        notify_client_new_quote_email(
+                            db,
+                            client=client,
+                            artist=artist,
+                            booking_request=booking_request,
+                            quote=quote,
+                        )
+                    except Exception:
+                        # Email is best-effort; do not block quote creation on failures.
+                        pass
         try:
             return _quote_payload_with_preview(quote)
         except Exception:

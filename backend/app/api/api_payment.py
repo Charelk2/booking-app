@@ -44,6 +44,10 @@ from ..utils.metrics import incr as metrics_incr, timing_ms as metrics_timing
 from ..utils.server_timing import ServerTimer
 from datetime import datetime as _dt
 from ..services.quote_totals import compute_quote_totals_snapshot
+from ..utils.notifications import (
+    notify_booking_confirmed_email_for_provider,
+    notify_booking_confirmed_email_for_client,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -864,6 +868,43 @@ def paystack_verify(
                 pass
             # No bell notifications on payment events
         except Exception:
+            pass
+
+        # Best-effort: send booking-confirmed emails to both client and provider.
+        try:
+            client = (
+                db.query(models.User)
+                .filter(models.User.id == br.client_id)
+                .first()
+            )
+            artist = (
+                db.query(models.User)
+                .filter(models.User.id == br.artist_id)
+                .first()
+            )
+            if client and artist:
+                try:
+                    notify_booking_confirmed_email_for_provider(
+                        db,
+                        provider=artist,
+                        client=client,
+                        booking=simple,
+                        booking_request=br,
+                    )
+                except Exception:
+                    pass
+                try:
+                    notify_booking_confirmed_email_for_client(
+                        db,
+                        client=client,
+                        provider=artist,
+                        booking=simple,
+                        booking_request=br,
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            # Email is best-effort; never block verify on mail failures.
             pass
 
     # Record ledger capture

@@ -94,6 +94,7 @@ export default function ArtistsSection({
     }
     async function fetchArtists() {
       setLoading(true);
+      let hasAnyResults = false;
       try {
         const params = JSON.parse(serializedQuery) as Record<string, unknown>;
         // Phase 1: minimal fields to hit backend fast path
@@ -104,7 +105,13 @@ export default function ArtistsSection({
             fields: ['id','business_name','profile_picture_url'],
           });
           if (isMounted) {
-            setArtists(fast.data.filter((a) => a.business_name));
+            const next = fast.data.filter((a) => a.business_name);
+            setArtists(next);
+            hasAnyResults = next.length > 0;
+            // As soon as we have minimal data, render cards instead of skeletons.
+            if (next.length > 0) {
+              setLoading(false);
+            }
           }
         } catch {}
 
@@ -129,14 +136,20 @@ export default function ArtistsSection({
             ],
           });
           if (isMounted) {
-            setArtists(full.data.filter((a) => a.business_name || a.user));
+            const next = full.data.filter((a) => a.business_name || a.user);
+            setArtists(next);
+            hasAnyResults = hasAnyResults || next.length > 0;
           }
         } catch {}
       } catch (err) {
         // Swallow noisy network errors to avoid console spam on first load
       } finally {
         if (isMounted) {
-          setLoading(false);
+          // If we never managed to populate any artists (empty or failed),
+          // stop showing skeletons so the "no providers" state can render.
+          if (!hasAnyResults) {
+            setLoading(false);
+          }
         }
       }
     }
