@@ -58,6 +58,8 @@ export default function ArtistsSection({
 
   // Observe visibility to avoid fetching offscreen sections on first load
   useEffect(() => {
+    // If we already have server-provided data, never fetch or observe
+    if ((initialData?.length ?? 0) > 0) return;
     if (!deferUntilVisible) { setShouldFetch(true); return; }
     // If we already decided to fetch (or have data), do nothing
     if (shouldFetch) return;
@@ -79,7 +81,7 @@ export default function ArtistsSection({
       return () => clearTimeout(t);
     }
     return () => observer?.disconnect();
-  }, [deferUntilVisible, shouldFetch]);
+  }, [deferUntilVisible, shouldFetch, initialData?.length]);
 
   useEffect(() => {
     let isMounted = true;
@@ -139,17 +141,18 @@ export default function ArtistsSection({
             const next = full.data.filter((a) => a.business_name || a.user);
             setArtists(next);
             hasAnyResults = hasAnyResults || next.length > 0;
+            if (hasAnyResults) {
+              setLoading(false);
+            }
           }
         } catch {}
       } catch (err) {
         // Swallow noisy network errors to avoid console spam on first load
       } finally {
         if (isMounted) {
-          // If we never managed to populate any artists (empty or failed),
-          // stop showing skeletons so the "no providers" state can render.
-          if (!hasAnyResults) {
-            setLoading(false);
-          }
+          // Whatever happened, stop showing skeletons; the render path will
+          // decide between cards vs "no providers" based on artists.length.
+          setLoading(false);
         }
       }
     }
@@ -175,7 +178,16 @@ export default function ArtistsSection({
     return null;
   }
 
-  const seeAllHref = `/search?${new URLSearchParams(query as Record<string, string>).toString()}`;
+  const searchParams = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value == null) return;
+    if (Array.isArray(value)) {
+      value.forEach((v) => searchParams.append(key, String(v)));
+    } else {
+      searchParams.set(key, String(value));
+    }
+  });
+  const seeAllHref = `/search?${searchParams.toString()}`;
   const showSeeAll = artists.length === limit;
 
   return (
