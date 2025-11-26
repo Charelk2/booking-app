@@ -768,6 +768,51 @@ export const searchProvidersWithAi = async (
   }
 };
 
+export type AiChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export type AiAssistantRequest = {
+  messages: AiChatMessage[];
+  category?: string | null;
+  location?: string | null;
+  when?: string | null;
+  min_price?: number | null;
+  max_price?: number | null;
+  limit?: number;
+};
+
+export type AiAssistantResponse = {
+  messages: AiChatMessage[];
+  providers: AiProvider[];
+  filters: AiProviderFilters;
+  source?: string;
+};
+
+export const sendAiAssistant = async (
+  payload: AiAssistantRequest
+): Promise<AiAssistantResponse> => {
+  try {
+    const res = await api.post<AiAssistantResponse>(`${API_V1}/ai/assistant`, payload);
+    return res.data;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.detail;
+    if (status === 503 && detail === 'ai_search_disabled') {
+      throw Object.assign(new Error('AI search disabled'), {
+        code: 'ai_search_disabled',
+      });
+    }
+    if (detail === 'ai_search_error') {
+      throw Object.assign(new Error('AI search error'), {
+        code: 'ai_search_error',
+      });
+    }
+    throw err;
+  }
+};
+
 export interface SearchHistoryItem {
   category_value?: string | null;
   location?: string | null;

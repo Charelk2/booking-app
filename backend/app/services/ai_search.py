@@ -664,10 +664,10 @@ def _search_providers_with_filters(
 
     if not rows:
         # Fallback: run the base query without name narrowing.
-    fallback_query = base_query.order_by(
-        func.coalesce(rating_subq.c.rating, 0.0).desc(),
-        Artist.updated_at.desc(),
-    )
+        fallback_query = base_query.order_by(
+            func.coalesce(rating_subq.c.rating, 0.0).desc(),
+            Artist.updated_at.desc(),
+        )
         rows = fallback_query.limit(limit).all()
 
     providers: List[Dict[str, Any]] = []
@@ -780,14 +780,17 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
     api_key = (getattr(settings, "GOOGLE_GENAI_API_KEY", "") or "").strip()
     model_name = (getattr(settings, "GOOGLE_GENAI_MODEL", "") or "").strip() or "gemini-2.5-flash"
 
-    if api_key and model_name and providers:
+    # Optional Gemini step: can run even when there are zero providers so it
+    # can generate a helpful “no results” explanation, but reranking only
+    # applies when we have candidates.
+    if api_key and model_name:
         try:
             from google import genai  # type: ignore
 
             # Keep the payload compact to control latency and token usage, but
             # include Booka-centric popularity signals so we can answer things
             # like “most famous on the platform” or “is X popular on Booka”.
-            top_providers = providers[:12]
+            top_providers = providers[:12] if providers else []
             provider_payload: List[Dict[str, Any]] = []
             for idx, p in enumerate(top_providers):
                 provider_payload.append(
@@ -809,8 +812,8 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
                 "You are helping users find the best matching service providers on Booka, a South African booking site. "
                 "You are given the user's query, interpreted filters, and a small list of candidate providers, each with "
                 "Booka-specific popularity metrics (rating, number of reviews, booking_count, profile_view_count). "
-                "Your job is to (1) choose the most relevant providers and (2) explain in one or two short sentences why "
-                "you chose them, strictly in terms of their popularity and fit on Booka.\n\n"
+                "Your job is to (1) choose the most relevant providers (when any candidates exist) and (2) explain in one "
+                "or two short sentences why you chose them, strictly in terms of their popularity and fit on Booka.\n\n"
                 "Important rules:\n"
                 "- Treat higher review_count, booking_count, and rating as signals that an artist is more popular ON BOOKA.\n"
                 "- If the user asks about “famous” or “biggest” or “most popular”, prefer artists with higher popularity signals.\n"
@@ -818,6 +821,11 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
                 "- NEVER claim anything about fame or popularity outside Booka (e.g., “in South Africa” or “worldwide”). "
                 "If the question mentions fame in South Africa, answer in terms of Booka only, e.g. "
                 "“On Booka, X has Y reviews and Z bookings; we can’t speak for all of South Africa.”\n"
+                "- For “are there any … listed?” or similar yes/no questions, your explanation MUST clearly say whether there "
+                "are any matching providers in the candidate list and how many you found, based on the length of the candidates array "
+                "(e.g., “Yes – I found 4 DJs on Booka that match your request; here are a few of the top ones.”).\n"
+                "- If the candidates array is empty, your explanation MUST make it clear that no providers on Booka matched the user's "
+                "request and optionally suggest broadening the filters or trying a simpler query.\n"
                 "- Do not invent providers that are not in the candidate list.\n\n"
                 "You MUST respond with a single JSON object only, no prose outside JSON, with this shape:\n"
                 '{\"ordered_indices\": [0,1,2], \"explanation\": \"...\"}\n'
