@@ -1404,7 +1404,7 @@ def test_client_notification_on_quote_sent():
         client_id=client_user.id,
         services=[ServiceItem(description="Performance", price=Decimal("100"))],
     )
-    api_quote_v2.create_quote(quote_in, db)
+    api_quote_v2.create_quote(quote_in, db, current_user=artist)
 
     notifs = crud_notification.get_notifications_for_user(db, client_user.id)
     assert len(notifs) == 1

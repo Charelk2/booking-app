@@ -52,7 +52,7 @@ def test_create_and_apply_template():
         sound_fee=tmpl.sound_fee,
         travel_fee=tmpl.travel_fee,
     )
-    quote = api_quote_v2.create_quote(quote_in, db)
+    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
     assert quote.subtotal == 10
     assert quote.total == 10
 

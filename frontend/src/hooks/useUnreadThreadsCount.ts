@@ -139,18 +139,11 @@ export default function useUnreadThreadsCount() {
 
   // Realtime aggregate updates from notifications (unread_total over WS).
   useEffect(() => {
-    const handler = (e: Event) => {
-      try {
-        const detail = (e as CustomEvent<{ total?: number }>).detail || {};
-        const raw = detail.total;
-        if (typeof raw !== 'number' || !Number.isFinite(raw)) return;
-        const next = Math.max(0, Number(raw));
-        if (next !== countRef.current) {
-          setCount(next);
-        }
-      } catch {
-        // best-effort only
-      }
+    // Treat unread_total packets as a hint that the inbox state changed.
+    // We still go through syncFromServer so the same cache+HTTP merge logic
+    // is applied instead of blindly trusting a single snapshot.
+    const handler = () => {
+      void syncFromServer({ force: true });
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('inbox:unread_total', handler as EventListener);
@@ -159,7 +152,7 @@ export default function useUnreadThreadsCount() {
       };
     }
     return () => {};
-  }, []);
+  }, [syncFromServer]);
 
   return { count };
 }
