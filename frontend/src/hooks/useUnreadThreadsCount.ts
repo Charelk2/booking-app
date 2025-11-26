@@ -69,6 +69,13 @@ export default function useUnreadThreadsCount() {
   const recomputeFromCache = useCallback(() => {
     const local = sumFromCache();
     const next = Math.max(0, local);
+    // Avoid dropping to 0 purely from a stale cache snapshot when we already
+    // know about unread messages from the server. Server totals remain the
+    // source of truth; cache is allowed to raise the count, but a zero from
+    // cache should not temporarily hide unread messages.
+    if (next === 0 && countRef.current > 0) {
+      return;
+    }
     if (next !== countRef.current) {
       setCount(next);
     }
@@ -80,18 +87,29 @@ export default function useUnreadThreadsCount() {
         if (countRef.current !== 0) setCount(0);
         return;
       }
-      const base = opts?.force ? 0 : countRef.current || 0;
+      // Always treat the last known count as the baseline when talking to the
+      // server so 304/ETag paths can reuse it. `/inbox/unread` is the primary
+      // source of truth; the cache is used to refine it but should never
+      // under-report compared to the server snapshot.
+      const base = countRef.current || 0;
       const serverTotal = await fetchAggregateUnread(base);
       const local = sumFromCache();
-      let next = local;
+      let next = serverTotal;
       try {
         const summaries = cacheGetSummaries();
         const hasLocal = Array.isArray(summaries) && summaries.length > 0;
-        if (!hasLocal) {
-          next = serverTotal;
+        if (hasLocal) {
+          // When we have local thread summaries and a server snapshot, do not
+          // allow the cache to hide unread messages the server still sees.
+          // Use the max so local per-thread increments (e.g., from WS) can lift
+          // the total, but stale caches cannot drag it down.
+          next = Math.max(0, local, serverTotal);
+        } else {
+          next = Math.max(0, serverTotal);
         }
       } catch {
-        if (!next) next = serverTotal;
+        // If cache introspection fails, fall back to the best known total.
+        next = Math.max(0, serverTotal || local || 0);
       }
       if (next !== countRef.current) {
         setCount(next);
@@ -143,7 +161,7 @@ export default function useUnreadThreadsCount() {
     // We still go through syncFromServer so the same cache+HTTP merge logic
     // is applied instead of blindly trusting a single snapshot.
     const handler = () => {
-      void syncFromServer({ force: true });
+      void syncFromServer();
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('inbox:unread_total', handler as EventListener);
