@@ -114,6 +114,9 @@ class Settings(BaseSettings):
     # Email Dev Mode: include reset links in the API response and logs to ease local testing
     EMAIL_DEV_MODE: bool = True
 
+    # Mailjet templates (optional; used when sending richer emails via SMTP headers)
+    MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER: int = 7527166
+
     # Observability / logging toggles
     # These are also consumed directly via os.getenv in core/observability.py,
     # but are declared here so BaseSettings with extra=forbid does not error

@@ -1,9 +1,11 @@
 import asyncio
+import json
 import logging
 from email.message import EmailMessage
 
 try:  # optional for tooling environments
     import aiosmtplib  # type: ignore
+
     _HAS_SMTP = True
 except Exception:  # pragma: no cover - optional
     aiosmtplib = None  # type: ignore
@@ -34,7 +36,7 @@ async def _send_async(msg: EmailMessage) -> None:
 
 
 def send_email(recipient: str, subject: str, body: str) -> None:
-    """Send an email via SMTP and log failures."""
+    """Send a plain-text email via SMTP and log failures."""
     msg = EmailMessage()
     msg["From"] = SMTP_FROM
     msg["To"] = recipient
@@ -45,3 +47,39 @@ def send_email(recipient: str, subject: str, body: str) -> None:
         logger.info("Sent email to %s", recipient)
     except Exception as exc:  # pragma: no cover - network issues
         logger.error("Failed to send email to %s: %s", recipient, exc)
+
+
+def send_template_email(
+    recipient: str,
+    template_id: int,
+    variables: dict[str, object],
+    subject: str | None = None,
+) -> None:
+    """Send an email using a Mailjet template via SMTP headers.
+
+    This relies on Mailjet's SMTP relay being configured via the SMTP_* settings.
+    If SMTP is not available or delivery fails, the error is logged but not raised.
+    """
+    msg = EmailMessage()
+    msg["From"] = SMTP_FROM
+    msg["To"] = recipient
+    if subject:
+        msg["Subject"] = subject
+    msg["X-MJ-TemplateID"] = str(template_id)
+    msg["X-MJ-TemplateLanguage"] = "1"
+    try:
+        msg["X-MJ-Vars"] = json.dumps(variables, ensure_ascii=False)
+    except Exception:
+        msg["X-MJ-Vars"] = "{}"
+    # Provide a minimal fallback body; Mailjet will render the template.
+    msg.set_content(subject or "New booking request")
+    try:
+        asyncio.run(_send_async(msg))
+        logger.info("Sent template email %s to %s", template_id, recipient)
+    except Exception as exc:  # pragma: no cover - network issues
+        logger.error(
+            "Failed to send template email %s to %s: %s",
+            template_id,
+            recipient,
+            exc,
+        )
