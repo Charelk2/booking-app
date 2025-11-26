@@ -748,9 +748,7 @@ export const searchProvidersWithAi = async (
   payload: AiProviderSearchRequest
 ): Promise<AiProviderSearchResponse> => {
   try {
-    const res = await api.post<AiProviderSearchResponse>(`${API_V1}/ai/providers/search`, payload, {
-      timeout: 8000,
-    });
+    const res = await api.post<AiProviderSearchResponse>(`${API_V1}/ai/providers/search`, payload);
     return res.data;
   } catch (err: any) {
     const status = err?.response?.status;
