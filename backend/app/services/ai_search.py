@@ -220,8 +220,14 @@ def _search_providers_with_filters(db: Session, filters: AiSearchFilters, limit:
     )
 
     # Cross-DB category aggregation is overkill here; we only need category
-    # names for display, not histogram data.
-    categories_agg = func.group_concat(ServiceCategory.name, ",")
+    # names for display, not histogram data. Use string_agg on Postgres and
+    # group_concat on SQLite/others.
+    dialect = getattr(db.get_bind(), "dialect", None)
+    dname = getattr(dialect, "name", "sqlite") if dialect else "sqlite"
+    if dname == "postgresql":
+        categories_agg = func.string_agg(ServiceCategory.name, ",")
+    else:
+        categories_agg = func.group_concat(ServiceCategory.name, ",")
 
     category_subq = (
         db.query(
