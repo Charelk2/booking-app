@@ -707,6 +707,7 @@ export const getPopularLocationSuggestions = async (limit = 6): Promise<PopularL
 // ─── AI PROVIDER SEARCH ──────────────────────────────────────────────────────
 
 export type AiProvider = {
+  artist_id: number;
   slug: string;
   name: string;
   location: string;

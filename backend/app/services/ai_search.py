@@ -709,8 +709,11 @@ def _search_providers_with_filters(
             except Exception:
                 avatar_url = None
 
+        artist_id = int(getattr(artist, "user_id", 0) or 0)
+
         providers.append(
             {
+                "artist_id": artist_id,
                 "slug": slug,
                 "name": name,
                 "location": location,

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import ServiceProviderCardCompact from '@/components/service-provider/ServiceProviderCardCompact';
+import Link from 'next/link';
 import {
   sendAiAssistant,
   type AiProvider,
@@ -139,20 +140,27 @@ export default function AiProviderSearchPanel({
       {providers.length > 0 && (
         <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
           {providers.map((p) => (
-            <ServiceProviderCardCompact
-              key={p.slug}
-              serviceProviderId={0}
-              name={p.name}
-              subtitle={undefined}
-              imageUrl={getFullImageUrl(p.avatar_url || null) || undefined}
-              price={p.starting_price != null ? Number(p.starting_price) : undefined}
-              rating={p.rating ?? undefined}
-              ratingCount={p.review_count ?? undefined}
-              location={p.location}
-              categories={p.categories || []}
-              href={p.profile_url || `/${p.slug}`}
-              className="w-40"
-            />
+            <div key={p.slug} className="flex flex-col items-stretch">
+              <ServiceProviderCardCompact
+                serviceProviderId={p.artist_id}
+                name={p.name}
+                subtitle={undefined}
+                imageUrl={getFullImageUrl(p.avatar_url || null) || undefined}
+                price={p.starting_price != null ? Number(p.starting_price) : undefined}
+                rating={p.rating ?? undefined}
+                ratingCount={p.review_count ?? undefined}
+                location={p.location}
+                categories={p.categories || []}
+                href={p.profile_url || `/${p.slug}`}
+                className="w-40"
+              />
+              <Link
+                href={`/booking?artist_id=${encodeURIComponent(String(p.artist_id || ''))}`}
+                className="mt-1 text-[11px] text-center text-brand underline"
+              >
+                Check availability &amp; book
+              </Link>
+            </div>
           ))}
         </div>
       )}

@@ -34,6 +34,7 @@ class AiProviderSearchRequest(BaseModel):
 
 
 class AiProviderOut(BaseModel):
+    artist_id: int
     slug: str
     name: str
     location: str
