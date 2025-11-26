@@ -14,7 +14,7 @@ export default async function Page({ params }: Params) {
 
   // Allow both numeric IDs and slugs in the URL segment.
   const spRes = await getServiceProvider(/^\d+$/.test(raw) ? Number(raw) : raw);
-  const providerId = spRes.data.user_id ?? Number(raw) || 0;
+  const providerId = (spRes.data.user_id ?? (/^\d+$/.test(raw) ? Number(raw) : 0)) || 0;
 
   const [svcsRes, revsRes] = await Promise.all([
     getServiceProviderServices(providerId),
