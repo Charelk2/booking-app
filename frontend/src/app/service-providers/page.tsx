@@ -282,6 +282,7 @@ export default function ServiceProvidersPage() {
         fields: [
           'id',
           'business_name',
+          'slug',
           'custom_subtitle',
           'profile_picture_url',
           'portfolio_urls',
@@ -414,6 +415,7 @@ export default function ServiceProvidersPage() {
         fields: [
           'id',
           'business_name',
+          'slug',
           'profile_picture_url',
           'user.first_name',
           'user.last_name',

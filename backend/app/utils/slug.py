@@ -6,6 +6,24 @@ _NON_SLUG_CHARS = re.compile(r"[^a-z0-9-]+")
 _DASHES = re.compile(r"-{2,}")
 
 
+# Core paths and reserved words that must not be used as provider slugs.
+RESERVED_SLUGS: Set[str] = {
+    "api",
+    "auth",
+    "dashboard",
+    "service-providers",
+    "inbox",
+    "category",
+    "categories",
+    "support",
+    "account",
+    "faq",
+    "receipts",
+    "booking-requests",
+    "bookings",
+}
+
+
 def slugify_name(raw: str) -> str:
     """Convert an arbitrary name to a URL-safe slug.
 
@@ -38,6 +56,8 @@ def generate_unique_slug(base: str, existing: Iterable[str]) -> str:
     if not base_slug:
         base_slug = "artist"
     taken: Set[str] = {s for s in existing if s}
+    # Treat reserved slugs as already taken.
+    taken.update(RESERVED_SLUGS)
     if base_slug not in taken:
         return base_slug
     counter = 2
@@ -46,4 +66,3 @@ def generate_unique_slug(base: str, existing: Iterable[str]) -> str:
         if candidate not in taken:
             return candidate
         counter += 1
-
