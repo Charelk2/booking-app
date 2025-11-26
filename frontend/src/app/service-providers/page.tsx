@@ -25,6 +25,7 @@ import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 import { useDebounce } from '@/hooks/useDebounce';
 import { updateQueryParams } from '@/lib/urlParams';
 import { Spinner } from '@/components/ui';
+import AiProviderSearchPanel from '@/components/search/AiProviderSearchPanel';
 
 function pluralizeLastWord(label: string): string {
   const exceptions: Record<string, string> = {
@@ -488,10 +489,20 @@ export default function ServiceProvidersPage() {
   ) : null;
 
   const qs = searchParams.toString();
+  const aiEnabled = process.env.NEXT_PUBLIC_FEATURE_AI_SEARCH === '1';
 
   return (
     <MainLayout headerFilter={filterControl}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 fade-in">
+        {aiEnabled && (
+          <AiProviderSearchPanel
+            category={category}
+            location={location}
+            when={when}
+            minPrice={minPrice}
+            maxPrice={maxPrice}
+          />
+        )}
         {serviceName && (
           <div className="flex items-center space-x-2 mb-2">
             <svg

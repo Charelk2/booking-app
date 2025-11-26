@@ -704,6 +704,72 @@ export const getPopularLocationSuggestions = async (limit = 6): Promise<PopularL
   }
 };
 
+// ─── AI PROVIDER SEARCH ──────────────────────────────────────────────────────
+
+export type AiProvider = {
+  slug: string;
+  name: string;
+  location: string;
+  categories?: string[];
+  rating?: number;
+  review_count?: number;
+  starting_price?: number;
+  profile_url: string;
+  avatar_url?: string;
+  relevance_score?: number | null;
+};
+
+export type AiProviderFilters = {
+  category?: string | null;
+  location?: string | null;
+  when?: string | null; // 'YYYY-MM-DD'
+  min_price?: number | null;
+  max_price?: number | null;
+};
+
+export type AiProviderSearchResponse = {
+  providers: AiProvider[];
+  filters: AiProviderFilters;
+  explanation: string;
+  source?: string;
+};
+
+export type AiProviderSearchRequest = {
+  query: string;
+  category?: string | null;
+  location?: string | null;
+  when?: string | null;
+  min_price?: number | null;
+  max_price?: number | null;
+  limit?: number;
+};
+
+export const searchProvidersWithAi = async (
+  payload: AiProviderSearchRequest
+): Promise<AiProviderSearchResponse> => {
+  try {
+    const res = await api.post<AiProviderSearchResponse>(`${API_V1}/ai/providers/search`, payload, {
+      timeout: 8000,
+    });
+    return res.data;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.detail;
+    if (status === 503 && detail === 'ai_search_disabled') {
+      // Allow callers to gracefully hide AI UI when disabled.
+      throw Object.assign(new Error('AI search disabled'), {
+        code: 'ai_search_disabled',
+      });
+    }
+    if (detail === 'ai_search_error') {
+      throw Object.assign(new Error('AI search error'), {
+        code: 'ai_search_error',
+      });
+    }
+    throw err;
+  }
+};
+
 export interface SearchHistoryItem {
   category_value?: string | null;
   location?: string | null;

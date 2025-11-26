@@ -164,7 +164,7 @@ from .utils.status_logger import register_status_listeners
 from .api.v1.api_service_provider import read_all_service_provider_profiles
 import httpx
 from .utils.redis_cache import get_cached_artist_list
-from .api import api_search_analytics
+from .api import api_search_analytics, api_ai
 
 # Configure logging before creating any loggers
 setup_logging()
@@ -616,6 +616,13 @@ app.include_router(
     api_search_analytics.router,
     prefix=f"{api_prefix}",
     tags=["search-analytics"],
+)
+
+# ─── AI SEARCH ROUTES (under /api/v1/ai) ────────────────────────────────────────────
+app.include_router(
+    api_ai.router,
+    prefix=f"{api_prefix}",
+    tags=["ai"],
 )
 
 # Lightweight image proxy routes (e.g., avatar thumbs)

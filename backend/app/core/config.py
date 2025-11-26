@@ -222,6 +222,14 @@ class Settings(BaseSettings):
     # Remittance renderer versioning (v1 legacy, v2 supplier-VAT aware). Keep at v2 unless rolling back.
     RENDERER_VERSION: str = "v2"
 
+    # AI / LLM feature flags (backend awareness only)
+    FEATURE_AI_SEARCH: bool = False
+    # Accept frontend AI flag so shared .env does not break backend settings
+    NEXT_PUBLIC_FEATURE_AI_SEARCH: str = ""
+    # Optional OpenAI API key / model for AI search helpers
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o-mini"
+
 model_config = SettingsConfigDict(
     extra="forbid",
     env_file=os.getenv(
