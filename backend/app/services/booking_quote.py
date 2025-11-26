@@ -62,11 +62,36 @@ def calculate_quote_breakdown(
             )
             if artist_loc and artist_loc.location:
                 dm = get_distance_metrics(artist_loc.location, event_city)
+                # distance_km is one‑way artist → event; quotes charge for a
+                # round‑trip, so per‑km rates are applied to both directions.
                 distance_km = float(dm.distance_km)
         except Exception:
             distance_km = distance_km or 0.0
     distance_km = float(distance_km or 0.0)
     estimates = estimate_travel(distance_km)
+
+    # If the artist configured a per‑km travel rate on their service, prefer it
+    # over the estimator's default driving rate so backend totals stay aligned
+    # with the Booking Wizard (which uses `service.travel_rate` on the client).
+    # The rate is charged for a round‑trip (there and back).
+    try:
+        if service is not None:
+            raw_rate = getattr(service, "travel_rate", None)
+            if raw_rate is not None:
+                rate = Decimal(str(raw_rate))
+                if rate > Decimal("0"):
+                    override = (rate * Decimal(str(distance_km)) * Decimal("2")).quantize(
+                        Decimal("0.01")
+                    )
+                    for e in estimates:
+                        mode = str(e.get("mode") or "").lower()
+                        if "driv" in mode:
+                            e["cost"] = override
+    except Exception:
+        # Travel estimation should never fail the quote entirely; fall back
+        # to the base estimator outputs when overrides misbehave.
+        pass
+
     best = min(estimates, key=lambda e: e["cost"]) if estimates else {"mode": "unknown", "cost": Decimal("0")}
     travel_cost = best["cost"]
     travel_mode = best["mode"]

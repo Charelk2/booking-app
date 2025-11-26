@@ -1,4 +1,15 @@
-"""Estimate travel cost using simple regression model."""
+"""Estimate travel cost for driving vs flights.
+
+This module provides a lightweight server-side counterpart to the frontend
+travel engine. It intentionally stays simple and deterministic so it can be
+used inside quote calculations without external API calls.
+
+The goals are:
+* Keep driving estimates in the same ballpark as the Booking Wizard
+  (≈R2.50/km by default).
+* Still expose a notional flight option so downstream logic that branches on
+  ``travel_mode`` (e.g. sound provisioning overrides) continues to work.
+"""
 
 from __future__ import annotations
 
@@ -10,12 +21,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# Default rates chosen to roughly mirror the client-side travel engine:
+# - Driving: ~R2.50 per km (no fixed call-out here; any minimums are handled
+#   at a higher layer like supplier pricebooks).
+# - Flights: a per-km rate that is cheaper than driving for very long trips,
+#   plus a fixed base to keep short hops more expensive than driving.
+DRIVING_RATE_PER_KM = Decimal("2.5")
+FLIGHT_BASE_COST = Decimal("500")
+FLIGHT_RATE_PER_KM = Decimal("1.5")
+
+
 def estimate_travel(distance_km: float) -> List[Dict[str, Decimal]]:
     """Return cost estimates for different travel modes.
 
-    A tiny linear regression approximates the cost for driving and flying. In a
-    real system this could call an external API or a trained model. We return a
-    list of estimates so callers can choose the most suitable mode.
+    Given a one-way trip distance in kilometres, return approximate costs for
+    driving and flying. These estimates are used by
+    :func:`booking_quote.calculate_quote_breakdown` to choose a travel mode
+    and expose both options to the frontend.
 
     Parameters
     ----------
@@ -31,16 +53,28 @@ def estimate_travel(distance_km: float) -> List[Dict[str, Decimal]]:
     if distance_km < 0:
         raise ValueError("distance_km must be non-negative")
 
-    distance = Decimal(str(distance_km))
+    # Normalise to a Decimal; tolerate None/zero-like inputs.
+    try:
+        distance = Decimal(str(distance_km or 0))
+    except Exception:
+        distance = Decimal("0")
 
-    # Simple regressions for demo purposes
-    driving_cost = (Decimal("0.45") * distance) + Decimal("20")
-    flight_cost = (Decimal("0.25") * distance) + Decimal("120")
+    # Driving: simple per-km rate, charged for a round-trip. For example, a
+    # 249km one-way trip at R2.50/km is billed as 249km * 2 * R2.50.
+    driving_cost = DRIVING_RATE_PER_KM * distance * Decimal("2")
+
+    # Flights: a rough affine model that becomes cheaper than driving for
+    # sufficiently long trips (so "flight" remains a viable mode for very
+    # long distances) while staying more expensive on short/medium hops.
+    flight_cost = FLIGHT_BASE_COST + (FLIGHT_RATE_PER_KM * distance)
 
     estimates = [
         {"mode": "driving", "cost": driving_cost},
         {"mode": "flight", "cost": flight_cost},
     ]
 
-    logger.debug("Travel estimates computed", extra={"distance_km": distance_km, "estimates": estimates})
+    logger.debug(
+        "Travel estimates computed",
+        extra={"distance_km": float(distance_km or 0), "estimates": estimates},
+    )
     return estimates
