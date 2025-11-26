@@ -26,6 +26,7 @@ from app.utils.redis_cache import (
     cache_availability,
 )
 from app.services import calendar_service
+from app.utils.slug import slugify_name, generate_unique_slug
 
 from app.database import get_db
 from app.models.user import User
@@ -198,6 +199,31 @@ def update_current_artist_profile(
         )
 
     update_data = profile_in.model_dump(exclude_unset=True)
+
+    # Normalize and validate slug, if provided.
+    if "slug" in update_data:
+        raw_slug = update_data.get("slug")
+        if raw_slug is not None:
+            normalized = slugify_name(str(raw_slug))
+            if not normalized:
+                raise HTTPException(
+                    status_code=422,
+                    detail={"slug": "invalid"},
+                )
+            # Ensure uniqueness: collect existing slugs excluding this artist
+            existing = [
+                s
+                for (s,) in db.query(Artist.slug)
+                .filter(Artist.slug.isnot(None))
+                .filter(Artist.user_id != current_user.id)
+                .all()
+                if s
+            ]
+            unique_slug = generate_unique_slug(normalized, existing)
+            update_data["slug"] = unique_slug
+        else:
+            # Allow explicitly clearing the slug
+            update_data["slug"] = None
 
     # Convert Pydantic HttpUrl objects to plain strings for JSON columns
     if "portfolio_urls" in update_data and update_data["portfolio_urls"] is not None:
@@ -677,6 +703,7 @@ def read_all_service_provider_profiles(
             "id",
             "user_id",
             "business_name",
+            "slug",
             "profile_picture_url",
             "custom_subtitle",
             "hourly_rate",
@@ -758,6 +785,7 @@ def read_all_service_provider_profiles(
         cols = [
             Artist.user_id.label("user_id"),
             Artist.business_name,
+            Artist.slug,
             Artist.profile_picture_url,
             Artist.created_at.label("created_at"),
             Artist.updated_at.label("updated_at"),
@@ -776,6 +804,7 @@ def read_all_service_provider_profiles(
             query = query.group_by(
                 Artist.user_id,
                 Artist.business_name,
+                Artist.slug,
                 Artist.profile_picture_url,
                 Artist.created_at,
                 Artist.updated_at,
@@ -836,7 +865,7 @@ def read_all_service_provider_profiles(
 
         data = []
         from datetime import datetime as _dt
-        for _user_id, name, avatar, created_at, updated_at, _book_count in rows:
+        for _user_id, name, slug, avatar, created_at, updated_at, _book_count in rows:
             # Coalesce legacy null timestamps to satisfy response model
             ca = created_at or updated_at or _dt.utcnow()
             ua = updated_at or created_at or ca
@@ -845,6 +874,8 @@ def read_all_service_provider_profiles(
                 "created_at": ca,
                 "updated_at": ua,
             }
+            if (not requested) or ("slug" in requested):
+                item["slug"] = slug
             # Optional, include if requested or for completeness
             if (not requested) or ("business_name" in requested):
                 item["business_name"] = name
@@ -1409,6 +1440,83 @@ def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
             )
     except Exception:
         # Leave default rating / rating_count on error
+        pass
+
+    return artist
+
+
+@router.get(
+    "/by-slug/{slug}",
+    response_model=ArtistProfileResponse,
+    response_model_exclude_none=True,
+    summary="Get artist profile by slug",
+)
+def read_artist_profile_by_slug(slug: str, db: Session = Depends(get_db)):
+    cleaned = slugify_name(slug)
+    if not cleaned:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
+
+    artist = db.query(Artist).filter(func.lower(Artist.slug) == cleaned).first()
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
+
+    # Defensive timestamp normalization mirroring read_artist_profile_by_id
+    try:
+        from datetime import datetime as _dt
+        if not getattr(artist, "created_at", None):
+            artist.created_at = getattr(artist, "updated_at", None) or _dt.utcnow()
+        if not getattr(artist, "updated_at", None):
+            artist.updated_at = artist.created_at
+        db.add(artist)
+        db.commit()
+        db.refresh(artist)
+    except Exception:
+        pass
+
+    # Completed / cancelled events counts for this provider
+    try:
+        completed_count = (
+            db.query(Booking)
+            .filter(
+                Booking.artist_id == int(artist.user_id),
+                Booking.status == BookingStatus.COMPLETED,
+            )
+            .count()
+        )
+        cancelled_count = (
+            db.query(Booking)
+            .filter(
+                Booking.artist_id == int(artist.user_id),
+                Booking.status == BookingStatus.CANCELLED,
+            )
+            .count()
+        )
+        setattr(artist, "completed_events", int(completed_count))
+        setattr(artist, "cancelled_events", int(cancelled_count))
+    except Exception:
+        setattr(artist, "completed_events", 0)
+        setattr(artist, "cancelled_events", 0)
+
+    # Aggregate rating + review count for this provider
+    try:
+        rating_row = (
+            db.query(func.avg(Review.rating), func.count(Review.id))
+            .filter(Review.artist_id == int(artist.user_id))
+            .first()
+        )
+        if rating_row is not None:
+            avg_rating, rating_count = rating_row
+            setattr(
+                artist,
+                "rating",
+                float(avg_rating) if avg_rating is not None else None,
+            )
+            setattr(
+                artist,
+                "rating_count",
+                int(rating_count or 0),
+            )
+    except Exception:
         pass
 
     return artist

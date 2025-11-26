@@ -659,6 +659,10 @@ export default function BookingDetailsPanel({
       (bookingRequest as any).service?.artist_id ||
       (bookingRequest as any).service?.artist?.user_id ||
       0;
+    const currentArtistSlug =
+      (bookingRequest as any).service_provider_profile?.slug ||
+      (bookingRequest as any).artist_profile?.slug ||
+      null;
 
     return (
       <div className="w-full flex flex-col h-full">
@@ -693,7 +697,7 @@ export default function BookingDetailsPanel({
               <div className="text-sm text-gray-700">Update photos, bio, genres, and pricing</div>
             </a>
             <a
-              href={`/service-providers/${currentArtistId || ''}`}
+              href={`/service-providers/${currentArtistSlug || currentArtistId || ''}`}
               className="block rounded-lg border border-gray-200 p-3 hover:bg-gray-50 no-underline hover:no-underline"
             >
               <div className="font-semibold text-gray-900">View Public Profile</div>
@@ -818,6 +822,10 @@ export default function BookingDetailsPanel({
           (bookingRequest as any).service?.artist_id ||
           (bookingRequest as any).service?.artist?.user_id ||
           0;
+        const currentArtistSlug =
+          (bookingRequest as any).service_provider_profile?.slug ||
+          (bookingRequest as any).artist_profile?.slug ||
+          null;
 
         const resolvedAvatar = providerAvatarUrl ?? derivedProviderAvatar ?? null;
         const resolvedName = providerName ?? derivedProviderName ?? null;

@@ -10,28 +10,20 @@ export const revalidate = 60;
 type Params = { params: { id: string } };
 
 export default async function Page({ params }: Params) {
-  const id = Number(params.id);
+  const raw = params.id;
 
-  if (!Number.isFinite(id) || id <= 0) {
-    return (
-      <ProfileClient
-        serviceProviderId={0}
-        initialServiceProvider={null as any}
-        initialServices={[]}
-        initialReviews={[]}
-      />
-    );
-  }
+  // Allow both numeric IDs and slugs in the URL segment.
+  const spRes = await getServiceProvider(/^\d+$/.test(raw) ? Number(raw) : raw);
+  const providerId = spRes.data.user_id ?? Number(raw) || 0;
 
-  const [spRes, svcsRes, revsRes] = await Promise.all([
-    getServiceProvider(id),
-    getServiceProviderServices(id),
-    getServiceProviderReviews(id),
+  const [svcsRes, revsRes] = await Promise.all([
+    getServiceProviderServices(providerId),
+    getServiceProviderReviews(providerId),
   ]);
 
   return (
     <ProfileClient
-      serviceProviderId={id}
+      serviceProviderId={providerId}
       initialServiceProvider={spRes.data}
       initialServices={svcsRes.data}
       initialReviews={revsRes.data}

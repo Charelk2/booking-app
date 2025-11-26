@@ -124,6 +124,9 @@ from .db_utils import (
     ensure_rider_tables,
     ensure_service_provider_contact_columns,
     ensure_service_provider_onboarding_columns,
+    ensure_service_provider_slug_column,
+    backfill_service_provider_slugs,
+    ensure_service_provider_slug_index,
     ensure_service_provider_vat_columns,
     ensure_invoice_agent_columns,
     ensure_invoice_booking_type_unique_index,
@@ -247,6 +250,9 @@ ensure_service_category_id_column(engine)
 seed_service_categories(engine)
 ensure_service_provider_contact_columns(engine)
 ensure_service_provider_onboarding_columns(engine)
+ensure_service_provider_slug_column(engine)
+backfill_service_provider_slugs(engine)
+ensure_service_provider_slug_index(engine)
 ensure_service_provider_vat_columns(engine)
 ensure_invoice_agent_columns(engine)
 ensure_invoice_sequences_table(engine)

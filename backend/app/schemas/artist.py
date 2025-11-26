@@ -13,6 +13,7 @@ from .user import UserResponse  # <-- make sure this points at your nested User 
 #
 class ArtistProfileBase(BaseModel):
     business_name: Optional[str] = None
+    slug: Optional[str] = None
     custom_subtitle: Optional[str] = None
     description: Optional[str] = None
     location: Optional[str] = None

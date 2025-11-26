@@ -18,6 +18,7 @@ from ..models import (
     BookingRequest,
 )
 from ..models.service_provider_profile import ServiceProviderProfile
+from ..utils.slug import slugify_name, generate_unique_slug
 from ..schemas.user import UserResponse
 from ..schemas.booking import BookingResponse
 from ..schemas.quote_v2 import BookingSimpleRead
@@ -223,10 +224,22 @@ def become_service_provider(
             .first()
         )
         if not prof:
+            # Seed a friendly slug based on the upgraded user's name.
+            base_name = f"{current_user.first_name} {current_user.last_name}".strip() or current_user.email
+            base_slug = slugify_name(base_name) or f"artist-{current_user.id}"
+            existing = [
+                s
+                for (s,) in db.query(ServiceProviderProfile.slug)
+                .filter(ServiceProviderProfile.slug.isnot(None))
+                .all()
+                if s
+            ]
+            unique_slug = generate_unique_slug(base_slug, existing)
             prof = ServiceProviderProfile(
                 user_id=current_user.id,
                 contact_email=current_user.email,
                 contact_phone=current_user.phone_number,
+                slug=unique_slug,
                 onboarding_completed=False,
             )
             db.add(prof)

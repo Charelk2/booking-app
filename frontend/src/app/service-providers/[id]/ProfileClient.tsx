@@ -499,7 +499,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
             if (serviceProvider?.profile_picture_url) return getFullImageUrl(serviceProvider.profile_picture_url);
             return null;
           })();
-          const view = `/service-providers/${serviceProviderId}`;
+          const view = `/service-providers/${serviceProvider?.slug || serviceProviderId}`;
           const card = {
             inquiry_sent_v1: {
               title,

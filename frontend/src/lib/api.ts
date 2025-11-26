@@ -624,8 +624,12 @@ export const prefetchServiceProviders = async (params: Parameters<typeof getServ
   }
 };
 
-export const getServiceProvider = async (userId: number) => {
-  const res = await api.get<ServiceProviderProfile>(withApiOrigin(`${API_V1}/service-provider-profiles/${userId}`));
+export const getServiceProvider = async (slugOrId: number | string) => {
+  const path =
+    typeof slugOrId === 'string' && !/^\d+$/.test(slugOrId)
+      ? `${API_V1}/service-provider-profiles/by-slug/${encodeURIComponent(slugOrId)}`
+      : withApiOrigin(`${API_V1}/service-provider-profiles/${Number(slugOrId)}`);
+  const res = await api.get<ServiceProviderProfile>(path);
   return { ...res, data: normalizeServiceProviderProfile(res.data) };
 };
 

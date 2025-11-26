@@ -570,8 +570,8 @@ export default function ServiceProvidersPage() {
                   categories={a.service_categories}
                   href={
                     qs
-                      ? `/service-providers/${a.id}?${qs}`
-                      : `/service-providers/${a.id}`
+                      ? `/service-providers/${a.slug || a.id}?${qs}`
+                      : `/service-providers/${a.slug || a.id}`
                   }
                   onClick={() => {
                     if (!sid) return;

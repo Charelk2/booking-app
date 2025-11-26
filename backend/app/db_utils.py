@@ -1,7 +1,9 @@
 import os
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, text, select
 from sqlalchemy.engine import Engine
 from sqlalchemy import Table, MetaData, Column, String as SAString, Integer as SAInteger
+
+from app.utils.slug import slugify_name, generate_unique_slug
 
 
 def add_column_if_missing(engine: Engine, table: str, column: str, ddl: str) -> None:
@@ -1533,6 +1535,116 @@ def ensure_service_provider_onboarding_columns(engine: Engine) -> None:
         "cancellation_policy",
         "cancellation_policy TEXT",
     )
+
+
+def ensure_service_provider_slug_column(engine: Engine) -> None:
+    """Ensure a slug column exists on service_provider_profiles.
+
+    The column is a simple VARCHAR; uniqueness is enforced via a separate
+    index helper so existing deployments can add the column first and
+    backfill values before the unique constraint is applied.
+    """
+    add_column_if_missing(
+        engine,
+        "service_provider_profiles",
+        "slug",
+        "slug VARCHAR",
+    )
+
+
+def ensure_service_provider_slug_index(engine: Engine) -> None:
+    """Ensure a unique index exists on service_provider_profiles.slug."""
+    try:
+        inspector = inspect(engine)
+        if "service_provider_profiles" not in inspector.get_table_names():
+            return
+        existing = {idx.get("name") for idx in inspector.get_indexes("service_provider_profiles") if isinstance(idx, dict)}
+        if "idx_spp_slug" in existing:
+            return
+        with engine.connect() as conn:
+            # UNIQUE index so each slug maps to exactly one provider.
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_spp_slug "
+                    "ON service_provider_profiles(slug)"
+                )
+            )
+            conn.commit()
+    except Exception:
+        # Never block startup on index creation; slugs are still validated
+        # in application code.
+        pass
+
+
+def backfill_service_provider_slugs(engine: Engine) -> None:
+    """Populate missing slugs for existing service providers.
+
+    This is safe to run repeatedly; it only fills rows where ``slug`` is NULL
+    or empty and avoids duplicate slugs by appending numeric suffixes.
+    """
+    try:
+        inspector = inspect(engine)
+        if "service_provider_profiles" not in inspector.get_table_names():
+            return
+        metadata = MetaData()
+        spp = Table("service_provider_profiles", metadata, autoload_with=engine)
+        users = None
+        if "users" in inspector.get_table_names():
+            users = Table("users", metadata, autoload_with=engine)
+
+        with engine.begin() as conn:
+            # Collect all existing non-empty slugs to avoid collisions.
+            existing_rows = conn.execute(
+                select(spp.c.slug).where(spp.c.slug.is_not(None))
+            ).fetchall()
+            existing_slugs = {str(row.slug) for row in existing_rows if getattr(row, "slug", None)}
+
+            # Load profiles that are missing a slug.
+            if users is not None:
+                rows = conn.execute(
+                    select(
+                        spp.c.user_id,
+                        spp.c.slug,
+                        spp.c.business_name,
+                        spp.c.trading_name,
+                        users.c.first_name,
+                        users.c.last_name,
+                    )
+                    .select_from(spp.join(users, spp.c.user_id == users.c.id))
+                    .where((spp.c.slug.is_(None)) | (spp.c.slug == ""))
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    select(
+                        spp.c.user_id,
+                        spp.c.slug,
+                        spp.c.business_name,
+                        spp.c.trading_name,
+                    ).where((spp.c.slug.is_(None)) | (spp.c.slug == ""))
+                ).fetchall()
+
+            for row in rows:
+                user_id = int(row.user_id)
+                business_name = getattr(row, "business_name", None) or ""
+                trading_name = getattr(row, "trading_name", None) or ""
+                first_name = getattr(row, "first_name", "") if hasattr(row, "first_name") else ""
+                last_name = getattr(row, "last_name", "") if hasattr(row, "last_name") else ""
+
+                name_candidate = business_name or trading_name or f"{first_name} {last_name}".strip()
+                if not name_candidate:
+                    name_candidate = f"artist-{user_id}"
+                # Normalize and ensure uniqueness against the evolving set.
+                base = slugify_name(name_candidate) or f"artist-{user_id}"
+                slug = generate_unique_slug(base, existing_slugs)
+                existing_slugs.add(slug)
+                conn.execute(
+                    spp.update()
+                    .where(spp.c.user_id == user_id)
+                    .values(slug=slug)
+                )
+    except Exception:
+        # Best-effort: never block startup if backfill fails.
+        pass
 
 def ensure_service_provider_vat_columns(engine: Engine) -> None:
     """Ensure VAT/legal/agent invoicing columns exist on service_provider_profiles.

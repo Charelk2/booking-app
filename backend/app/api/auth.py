@@ -21,6 +21,7 @@ from ..models.user import User, UserType
 from ..models.session import Session as AuthSession
 from ..models.trusted_device import TrustedDevice
 from ..models.service_provider_profile import ServiceProviderProfile
+from ..utils.slug import slugify_name, generate_unique_slug
 from ..models.email_token import EmailToken
 from ..schemas.user import (
     UserCreate,
@@ -352,7 +353,22 @@ def register(
             # Create an empty service provider profile so the artist can
             # decide their categories later. No default services are added,
             # preventing accidental classification (e.g. as a photographer).
-            service_provider_profile = ServiceProviderProfile(user_id=db_user.id)
+            # Generate an initial slug based on the artist's name so that
+            # public profile URLs are friendly from day one.
+            base_name = f"{db_user.first_name} {db_user.last_name}".strip() or db_user.email
+            base_slug = slugify_name(base_name) or f"artist-{db_user.id}"
+            existing = [
+                s
+                for (s,) in db.query(ServiceProviderProfile.slug)
+                .filter(ServiceProviderProfile.slug.isnot(None))
+                .all()
+                if s
+            ]
+            unique_slug = generate_unique_slug(base_slug, existing)
+            service_provider_profile = ServiceProviderProfile(
+                user_id=db_user.id,
+                slug=unique_slug,
+            )
             db.add(service_provider_profile)
             db.commit()
             db.refresh(service_provider_profile)

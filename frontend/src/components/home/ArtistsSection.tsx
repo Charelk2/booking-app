@@ -64,7 +64,7 @@ export default function ArtistsSection({
           const fast = await getServiceProviders({
             ...(params as object),
             limit,
-            fields: ['id', 'business_name', 'profile_picture_url'],
+            fields: ['id', 'business_name', 'slug', 'profile_picture_url'],
           });
 
           if (isMounted) {
@@ -88,6 +88,7 @@ export default function ArtistsSection({
             fields: [
               'id',
               'business_name',
+              'slug',
               'profile_picture_url',
               'custom_subtitle',
               'hourly_rate',
@@ -220,7 +221,7 @@ export default function ArtistsSection({
                   ratingCount={a.rating_count ?? undefined}
                   location={a.location}
                   categories={a.service_categories}
-                  href={`/service-providers/${a.id}`}
+                  href={`/service-providers/${a.slug || a.id}`}
                   className="h-full"
                 />
               </div>

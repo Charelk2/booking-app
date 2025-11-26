@@ -790,6 +790,8 @@ export default function MessageThreadWrapper({
             ) : ((effectiveBookingRequest as any)?.artist_profile?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) ? (
               <Link
                 href={`/service-providers/${
+                  (effectiveBookingRequest as any).service_provider_profile?.slug ||
+                  (effectiveBookingRequest as any).artist_profile?.slug ||
                   (effectiveBookingRequest as any).service_provider_id ||
                   (effectiveBookingRequest as any).artist_id ||
                   (effectiveBookingRequest as any).artist?.id ||
