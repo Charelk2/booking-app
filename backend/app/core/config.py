@@ -226,9 +226,12 @@ class Settings(BaseSettings):
     FEATURE_AI_SEARCH: bool = False
     # Accept frontend AI flag so shared .env does not break backend settings
     NEXT_PUBLIC_FEATURE_AI_SEARCH: str = ""
-    # Optional OpenAI API key / model for AI search helpers
+    # Optional OpenAI API key / model for AI search helpers (legacy; currently unused)
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
+    # Optional Google Generative AI (Gemini/Gemma) configuration for AI search
+    GOOGLE_GENAI_API_KEY: str = ""
+    GOOGLE_GENAI_MODEL: str = "gemini-2.5-flash"
 
 model_config = SettingsConfigDict(
     extra="forbid",

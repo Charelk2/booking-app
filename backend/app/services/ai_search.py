@@ -77,25 +77,129 @@ def _coerce_filters_from_payload(payload: Dict[str, Any]) -> Tuple[AiSearchFilte
 
 
 def _ai_derive_filters(query: str, base: AiSearchFilters) -> AiSearchFilters:
-    """Best-effort filter derivation.
+    """Best-effort filter derivation using Google Generative AI when configured.
 
-    For now this uses a simple heuristic and existing context. When
-    OPENAI_API_KEY is configured, this can be upgraded to call OpenAI with a
-    structured prompt to infer category/location/budget more accurately.
+    This function is intentionally defensive:
+    - If GOOGLE_GENAI_API_KEY is not set, it returns the baseline filters.
+    - If the model call fails or returns unexpected output, it falls back to
+      the baseline filters.
+    - Existing filters from the UI (base) take precedence over AI guesses.
     """
-    # If AI is disabled or no key, return the baseline filters unchanged.
-    api_key = (getattr(settings, "OPENAI_API_KEY", "") or "").strip()
-    if not api_key:
+    api_key = (getattr(settings, "GOOGLE_GENAI_API_KEY", "") or "").strip()
+    model_name = (getattr(settings, "GOOGLE_GENAI_MODEL", "") or "").strip() or "gemini-2.5-flash"
+    if not api_key or not model_name:
         return base
 
-    # TODO: Integrate with OpenAI Chat Completions using OPENAI_MODEL.
-    # For now, keep behavior simple and predictable to avoid surprises in
-    # environments where outbound network may be restricted.
     try:
-        logger.debug("AI search placeholder active; using baseline filters only.")
+        from google import genai  # type: ignore
+    except Exception:
+        # Library not installed or import failed; avoid breaking search.
+        logger.warning("google-genai not available; falling back to baseline filters")
+        return base
+
+    # Prepare a compact JSON snippet of the existing filters to give the model context.
+    base_payload = {
+        "category": base.category,
+        "location": base.location,
+        "when": base.when.isoformat() if base.when else None,
+        "min_price": base.min_price,
+        "max_price": base.max_price,
+    }
+
+    system_instructions = (
+        "You help interpret event search queries for a South African booking site (Booka). "
+        "Given a user query and existing filters, you output ONLY a compact JSON object with "
+        "the fields: category, location, when, min_price, max_price. "
+        "Use null for any field you cannot infer. "
+        "Do not include any prose or explanation outside of the JSON."
+    )
+
+    prompt = (
+        f"{system_instructions}\n\n"
+        f"Existing filters (JSON): {json.dumps(base_payload, ensure_ascii=False)}\n"
+        f"User query: {query.strip()}\n\n"
+        "Respond with JSON only, like:\n"
+        '{"category": "dj", "location": "Cape Town", "when": "2026-10-14", "min_price": null, "max_price": 8000}\n'
+    )
+
+    try:
+        client = genai.Client(api_key=api_key)
+        res = client.models.generate_content(model=model_name, contents=prompt)
+        text = (getattr(res, "text", None) or "").strip()
+        if not text:
+            logger.debug("GenAI returned empty text; falling back to baseline filters")
+            return base
+
+        # Attempt to isolate JSON from any surrounding text or fences.
+        # Prefer the substring between the first '{' and last '}'.
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            json_str = text[start : end + 1]
+        else:
+            json_str = text
+
+        data = json.loads(json_str)
+        if not isinstance(data, dict):
+            logger.debug("GenAI response is not a JSON object; falling back to baseline filters")
+            return base
+    except Exception as exc:
+        logger.warning("GenAI filter derivation failed: %s", exc)
+        return base
+
+    # Merge AI-derived filters with the baseline, giving precedence to baseline
+    # (UI) values when present.
+    category = base.category or (data.get("category") or None)
+    if isinstance(category, str):
+        category = category.strip() or None
+
+    location = base.location or (data.get("location") or None)
+    if isinstance(location, str):
+        location = location.strip() or None
+
+    when_val = base.when
+    if when_val is None:
+        raw_when = data.get("when")
+        if isinstance(raw_when, str):
+            try:
+                when_val = date.fromisoformat(raw_when)
+            except Exception:
+                when_val = None
+
+    def _num(v: Any) -> Optional[float]:
+        try:
+            if v is None:
+                return None
+            return float(v)
+        except Exception:
+            return None
+
+    min_price = base.min_price
+    if min_price is None:
+        min_price = _num(data.get("min_price"))
+
+    max_price = base.max_price
+    if max_price is None:
+        max_price = _num(data.get("max_price"))
+
+    # Clamp price bounds as before.
+    if min_price is not None:
+        min_price = max(0.0, min(min_price, 1_000_000.0))
+    if max_price is not None:
+        max_price = max(0.0, min(max_price, 1_000_000.0))
+
+    merged = AiSearchFilters(
+        category=category,
+        location=location,
+        when=when_val,
+        min_price=min_price,
+        max_price=max_price,
+    )
+    try:
+        logger.debug("AI-derived filters: %s", merged)
     except Exception:
         pass
-    return base
+    return merged
 
 
 def _search_providers_with_filters(db: Session, filters: AiSearchFilters, limit: int) -> List[Dict[str, Any]]:
@@ -274,4 +378,3 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
         "explanation": explanation,
         "source": "ai_v1",
     }
-

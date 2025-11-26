@@ -9,7 +9,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
 import AuthInput from '@/components/auth/AuthInput';
 import { useAuth } from '@/contexts/AuthContext';
-import api, { getApiOrigin, requestMagicLink } from '@/lib/api';
+import api, { getApiOrigin, requestMagicLink, getEmailStatus } from '@/lib/api';
 import { useGoogleOneTap } from '@/hooks/useGoogleOneTap';
 
 import PhoneNumberField from '@/components/auth/PhoneNumberField';
@@ -283,12 +283,65 @@ export default function AuthPage() {
       }
       announce('Signed in successfully.');
       await onAuthSuccess();
-    } catch {
-      // Global-standard (non-enumerating) error
-      setError('Invalid email or password.');
-      setErrorSubtext(
-        'Double-check your email and password or reset your password. If you signed up with Google, use the Sign in with Google option below.',
-      );
+    } catch (err: unknown) {
+      // Default, non-enumerating copy
+      let title = 'Invalid email or password.';
+      let subtext =
+        'Double-check your email and password or reset your password. If you signed up with Google, use the Sign in with Google option below.';
+
+      const status = (err as any)?.response?.status as number | undefined;
+
+      // Explicit lockout handling (rate limiting)
+      if (status === 429) {
+        title = 'Too many sign-in attempts.';
+        subtext =
+          'For your security, sign-in is temporarily locked. Please wait a few minutes before trying again, or use Forgot password to reset your password.';
+      } else {
+        const normalizedEmail = (email || '').trim().toLowerCase();
+        if (normalizedEmail) {
+          try {
+            const res = await getEmailStatus(normalizedEmail);
+            const data = (res.data || {}) as {
+              exists?: boolean;
+              providers?: string[];
+              locked?: boolean;
+            };
+            const exists = !!data.exists;
+            const providers = Array.isArray(data.providers) ? data.providers : [];
+            const socialNames: Record<string, string> = {
+              google: 'Google',
+              apple: 'Apple',
+              facebook: 'Facebook',
+            };
+            const socialProviders = providers.filter((p) => socialNames[p]);
+
+            if (!exists) {
+              title = "We couldn't find an account with that email.";
+              subtext = 'Check for typos or create a new account below.';
+            } else if (socialProviders.length > 0) {
+              const names = socialProviders.map((p) => socialNames[p]);
+              let providerLabel = '';
+              if (names.length === 1) {
+                providerLabel = names[0];
+              } else if (names.length === 2) {
+                providerLabel = `${names[0]} or ${names[1]}`;
+              } else {
+                providerLabel = `${names.slice(0, -1).join(', ')}, or ${names[names.length - 1]}`;
+              }
+              title = 'Check how you usually sign in.';
+              subtext = `This email is already registered. If you created your account with ${providerLabel}, use the ${providerLabel} button below, or reset your password to sign in with email.`;
+            } else if (exists) {
+              title = 'Incorrect email or password.';
+              subtext = 'Double-check your details or reset your password.';
+            }
+          } catch {
+            // If email-status fails, fall back to the default generic copy.
+          }
+        }
+      }
+
+      setError(title);
+      setErrorSubtext(subtext);
       announce('Sign-in failed.');
     }
   };
