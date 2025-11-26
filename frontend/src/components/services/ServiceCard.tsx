@@ -30,7 +30,7 @@ export default function ServiceCard({ service, variant = 'mobile', onClick }: Pr
           <div className="min-w-0 flex-1">
             <div>
               <h3 className="text-xl font-semibold text-gray-900 group-hover:text-gray-700 transition-colors truncate">{d.title}</h3>
-              <p className="text-md text-gray-900">{[d.type, d.durationLabel, d.priceText].filter(Boolean).join(' · ')}</p>
+              <p className="text-sm text-gray-900">{[d.type, d.durationLabel, d.priceText].filter(Boolean).join(' · ')}</p>
               {description && (
                 <p className="mt-6 text-sm text-gray-800 line-clamp-3">{description}</p>
               )}
