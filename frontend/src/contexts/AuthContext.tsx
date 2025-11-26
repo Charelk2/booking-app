@@ -85,6 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (profile.data.profile_picture_url) {
           extras.profile_picture_url = profile.data.profile_picture_url;
         }
+        if ((profile.data as any).slug) {
+          extras.artist_slug = (profile.data as any).slug || null;
+        }
         userData = { ...userData, ...extras };
       } catch (err) {
         // Non-fatal: provider profile fetch can fail transiently; avoid loud errors.

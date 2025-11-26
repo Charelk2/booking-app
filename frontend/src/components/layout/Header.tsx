@@ -140,10 +140,10 @@ function ClientNav({ pathname }: { pathname: string }) {
   );
 }
 
-function ArtistNav({ user, pathname }: { user: { id: number }; pathname: string }) {
+function ArtistNav({ user, pathname }: { user: { id: number; artist_slug?: string | null }; pathname: string }) {
   const items = [
     { name: 'Today', href: '/dashboard/today' },
-    { name: 'View Profile', href: `/service-providers/${user.id}` },
+    { name: 'View Profile', href: `/service-providers/${user.artist_slug || user.id}` },
     { name: 'Services', href: '/dashboard?tab=services' },
   ];
   return (

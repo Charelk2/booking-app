@@ -716,7 +716,7 @@ def read_all_service_provider_profiles(
             "updated_at",
         }
         requested = {f for f in raw_requested if f in allowed_fields}
-    fast_fields = {"id", "business_name", "profile_picture_url"}
+    fast_fields = {"id", "business_name", "slug", "profile_picture_url"}
     fast_sort_ok = sort in (None, "most_booked", "newest")
     fast_filters_ok = (when is None) and (artist is None) and (not include_price_distribution)
     use_fast_path = requested and requested.issubset(fast_fields) and fast_sort_ok and fast_filters_ok

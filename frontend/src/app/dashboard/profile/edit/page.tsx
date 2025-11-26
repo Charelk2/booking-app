@@ -1185,10 +1185,15 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                         value={slugInput}
                         onChange={(e) => {
                           const raw = e.target.value;
-                          // Normalize spaces to dashes for convenience.
-                          const normalized = raw.replace(/\s+/g, '-');
-                          setSlugInput(normalized);
-                          if (normalized && !/^[a-zA-Z0-9-]+$/.test(normalized)) {
+                          // Mirror backend slugify: lowercase, spaces → dashes,
+                          // strip invalid chars, collapse dashes, trim edges.
+                          let s = raw.toLowerCase();
+                          s = s.replace(/\s+/g, '-');
+                          s = s.replace(/[^a-z0-9-]/g, '');
+                          s = s.replace(/-+/g, '-');
+                          s = s.replace(/^-+|-+$/g, '');
+                          setSlugInput(s);
+                          if (raw && /[^a-zA-Z0-9-\s]/.test(raw)) {
                             setSlugError('Only letters, numbers, and dashes are allowed.');
                           } else {
                             setSlugError(null);
@@ -1218,8 +1223,10 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                           setSlugSaving(true);
                           setSlugError(null);
                           try {
-                            await updateMyServiceProviderProfile({ slug: raw } as any);
-                            setProfile((prev) => ({ ...prev, slug: raw }));
+                            const res = await updateMyServiceProviderProfile({ slug: raw } as any);
+                            const canonical = (res?.data as any)?.slug || raw;
+                            setProfile((prev) => ({ ...prev, slug: canonical }));
+                            setSlugInput(canonical);
                           } catch (err) {
                             console.error('Failed to update slug', err);
                             setSlugError('That URL may already be taken or invalid.');

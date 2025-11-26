@@ -11,6 +11,8 @@ export interface User {
   is_verified: boolean;
   mfa_enabled?: boolean;
   profile_picture_url?: string | null;
+  /** Optional slug for the provider profile when user_type === 'service_provider' */
+  artist_slug?: string | null;
 }
 
 export interface ServiceProviderProfile {
