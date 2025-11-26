@@ -4,7 +4,15 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import type * as yup from 'yup';
 import { EventDetails } from '@/contexts/BookingContext';
-import type { Control, FieldErrors, UseFormHandleSubmit, UseFormSetValue, UseFormWatch, UseFormTrigger } from 'react-hook-form';
+import type {
+  Control,
+  FieldErrors,
+  UseFormHandleSubmit,
+  UseFormSetValue,
+  UseFormWatch,
+  UseFormTrigger,
+  UseFormReset,
+} from 'react-hook-form';
 import { useDebounce } from './useDebounce';
 
 
@@ -14,6 +22,7 @@ interface BookingFormHookReturn {
   trigger: UseFormTrigger<EventDetails>;
   setValue: UseFormSetValue<EventDetails>;
   watch: UseFormWatch<EventDetails>;
+  reset: UseFormReset<EventDetails>;
   errors: FieldErrors<EventDetails>;
   isValid: boolean;
 }
@@ -32,6 +41,7 @@ export default function useBookingForm(
     trigger,
     watch,
     setValue,
+    reset,
     formState: { errors, isValid },
   } = useForm<EventDetails>({
     defaultValues,
@@ -57,5 +67,14 @@ export default function useBookingForm(
     return () => sub.unsubscribe();
   }, [watch, setDetails]);
 
-  return { control, handleSubmit, trigger, watch, setValue, errors, isValid };
+  return {
+    control,
+    handleSubmit,
+    trigger,
+    watch,
+    setValue,
+    reset,
+    errors,
+    isValid,
+  };
 }

@@ -63,7 +63,7 @@ const BookingContext = createContext<BookingContextValue | undefined>(undefined)
 
 const STORAGE_KEY = 'bookingState';
 
-const initialDetails: EventDetails = {
+export const initialDetails: EventDetails = {
   eventType: '',
   eventDescription: '',
   date: new Date(),

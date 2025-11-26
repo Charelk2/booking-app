@@ -5,7 +5,7 @@ import { Dialog } from '@headlessui/react';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 
-import { useBooking } from '@/contexts/BookingContext';
+import { useBooking, initialDetails } from '@/contexts/BookingContext';
 import type { EventDetails } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useIsMobile from '@/hooks/useIsMobile';
@@ -312,6 +312,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     setValue,
     watch,
     errors, // Directly destructure errors, assuming useBookingForm returns it at top level
+    reset,
   } = useBookingForm(schema as any, details as any, setDetails as any);
 
   const watchedValues = watch();
@@ -1801,7 +1802,23 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 className="rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-gray-900"
                 onClick={() => {
                   setShowResumeModal(false);
-                  try { applySavedProgress?.(savedRef.current); } catch { loadSavedProgress(); }
+                  try {
+                    const saved = savedRef.current;
+                    if (saved && saved.details) {
+                      applySavedProgress?.(saved);
+                      const parsedDetails: EventDetails = {
+                        ...initialDetails,
+                        ...saved.details,
+                        date: saved.details.date ? new Date(saved.details.date) : new Date(),
+                      };
+                      reset(parsedDetails);
+                    } else {
+                      // Fallback: legacy behavior if savedRef is missing
+                      loadSavedProgress();
+                    }
+                  } catch {
+                    loadSavedProgress();
+                  }
                 }}
               >
                 Resume
