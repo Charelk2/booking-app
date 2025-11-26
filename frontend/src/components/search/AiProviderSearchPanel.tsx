@@ -10,6 +10,7 @@ import {
   type AiChatMessage,
 } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
+import { fetchArtistAvailability } from '@/lib/availability';
 
 type AiProviderSearchPanelProps = {
   category?: string;
@@ -39,6 +40,7 @@ export default function AiProviderSearchPanel({
         "Hi! Tell me about your event (type, city, rough date, budget) and I'll suggest some Booka providers that fit.",
     },
   ]);
+  const [availability, setAvailability] = React.useState<Record<number, 'available' | 'unavailable' | 'unknown'>>({});
 
   const handleSend = async () => {
     const trimmed = input.trim();
@@ -77,6 +79,35 @@ export default function AiProviderSearchPanel({
       setLoading(false);
     }
   };
+
+  // When we have a date filter and providers, fetch basic availability per artist.
+  React.useEffect(() => {
+    const dateStr = filters?.when;
+    if (!dateStr || !providers.length) return;
+    let cancelled = false;
+    (async () => {
+      const entries: [number, 'available' | 'unavailable' | 'unknown'][] = [];
+      for (const p of providers) {
+        const key = p.artist_id;
+        if (!key) continue;
+        const status = await fetchArtistAvailability(key, dateStr);
+        if (cancelled) return;
+        entries.push([key, status]);
+      }
+      if (!cancelled && entries.length) {
+        setAvailability((prev) => {
+          const next = { ...prev };
+          for (const [id, status] of entries) {
+            next[id] = status;
+          }
+          return next;
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [providers, filters?.when]);
 
   if (disabled) return null;
 
@@ -146,7 +177,13 @@ export default function AiProviderSearchPanel({
                 name={p.name}
                 subtitle={undefined}
                 imageUrl={getFullImageUrl(p.avatar_url || null) || undefined}
-                price={p.starting_price != null ? Number(p.starting_price) : undefined}
+                price={
+                  p.client_total_preview != null
+                    ? Number(p.client_total_preview)
+                    : p.starting_price != null
+                    ? Number(p.starting_price)
+                    : undefined
+                }
                 rating={p.rating ?? undefined}
                 ratingCount={p.review_count ?? undefined}
                 location={p.location}
@@ -154,6 +191,20 @@ export default function AiProviderSearchPanel({
                 href={p.profile_url || `/${p.slug}`}
                 className="w-40"
               />
+              {filters?.when && (
+                <div className="mt-1 text-[11px] text-center text-slate-600">
+                  {availability[p.artist_id] === 'available' && (
+                    <span className="text-emerald-600">Available on {filters.when}</span>
+                  )}
+                  {availability[p.artist_id] === 'unavailable' && (
+                    <span className="text-red-600">Already booked on {filters.when}</span>
+                  )}
+                  {availability[p.artist_id] === 'unknown' && (
+                    <span>Checking availability…</span>
+                  )}
+                  {!availability[p.artist_id] && <span>Checking availability…</span>}
+                </div>
+              )}
               <Link
                 href={`/booking?artist_id=${encodeURIComponent(String(p.artist_id || ''))}`}
                 className="mt-1 text-[11px] text-center text-brand underline"

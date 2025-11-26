@@ -715,6 +715,7 @@ export type AiProvider = {
   rating?: number;
   review_count?: number;
   starting_price?: number;
+  client_total_preview?: number | null;
   profile_url: string;
   avatar_url?: string;
   relevance_score?: number | null;

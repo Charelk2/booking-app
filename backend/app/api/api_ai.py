@@ -42,6 +42,7 @@ class AiProviderOut(BaseModel):
     rating: Optional[float] = None
     review_count: Optional[int] = None
     starting_price: Optional[float] = None
+    client_total_preview: Optional[float] = None
     profile_url: str
     avatar_url: Optional[str] = None
     relevance_score: Optional[float] = None

@@ -16,6 +16,7 @@ from app.models.review import Review
 from app.models.booking import Booking
 from app.models.profile_view import ArtistProfileView
 from app.models.user import User
+from app.services.quote_totals import compute_quote_totals_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -711,6 +712,17 @@ def _search_providers_with_filters(
 
         artist_id = int(getattr(artist, "user_id", 0) or 0)
 
+        client_total_preview: Optional[float] = None
+        try:
+            if service_min_price is not None:
+                snap = compute_quote_totals_snapshot(
+                    {"subtotal": service_min_price, "total": service_min_price, "currency": "ZAR"}
+                )
+                if snap is not None and getattr(snap, "client_total_incl_vat", None) is not None:
+                    client_total_preview = float(snap.client_total_incl_vat)
+        except Exception:
+            client_total_preview = None
+
         providers.append(
             {
                 "artist_id": artist_id,
@@ -725,6 +737,7 @@ def _search_providers_with_filters(
                 if profile_view_count is not None
                 else None,
                 "starting_price": float(service_min_price) if service_min_price is not None else None,
+                "client_total_preview": client_total_preview,
                 "profile_url": f"{frontend_base}/{slug}",
                 "avatar_url": avatar_url,
                 "relevance_score": None,
