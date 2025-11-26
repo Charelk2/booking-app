@@ -259,7 +259,7 @@ describe("ClientBookingsPage", () => {
             total_price: 150,
             notes: "",
             payment_status: "paid",
-            service: { title: "Gig", artist: { business_name: "Artist" } },
+            service: { title: "Gig", artist: { business_name: "Artist", slug: "artist-slug" } },
             client: { id: 1 },
             booking_request_id: 12,
           },
@@ -280,7 +280,7 @@ describe("ClientBookingsPage", () => {
     expect(msgLink).not.toBeNull();
     expect(msgLink?.getAttribute("href")).toBe("/booking-requests/12");
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
-    expect(artistLink?.getAttribute("href")).toBe("/service-providers/2");
+    expect(artistLink?.getAttribute("href")).toBe("/artist-slug");
 
     act(() => {
       root.unmount();
