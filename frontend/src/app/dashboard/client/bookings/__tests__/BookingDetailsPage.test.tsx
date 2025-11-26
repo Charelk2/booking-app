@@ -56,7 +56,7 @@ describe("BookingDetailsPage", () => {
         notes: "",
         
         payment_status: "pending",
-        service: { title: "Gig", artist: { business_name: "Artist" } },
+        service: { title: "Gig", artist: { business_name: "Artist", slug: "artist-slug" } },
         client: { id: 3 },
       },
     });
@@ -73,7 +73,7 @@ describe("BookingDetailsPage", () => {
     expect(div.textContent).toContain("Gig - Artist");
     // Deposit banner removed; pending shows generic payment state
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
-    expect(artistLink?.getAttribute("href")).toBe("/service-providers/2");
+    expect(artistLink?.getAttribute("href")).toBe("/service-providers/artist-slug");
     const pay = div.querySelector('[data-testid="pay-now-button"]');
     expect(pay).not.toBeNull();
 
@@ -98,7 +98,7 @@ describe("BookingDetailsPage", () => {
         notes: "",
         payment_status: "paid",
         payment_id: "pay_123",
-        service: { title: "Gig", artist: { business_name: "Artist" } },
+        service: { title: "Gig", artist: { business_name: "Artist", slug: "artist-slug" } },
         client: { id: 3 },
       },
     });
@@ -136,7 +136,7 @@ describe("BookingDetailsPage", () => {
         notes: "",
         
         payment_status: "pending",
-        service: { title: "Gig", artist: { business_name: "Artist" } },
+        service: { title: "Gig", artist: { business_name: "Artist", slug: "artist-slug" } },
         client: { id: 3 },
       },
     });
@@ -188,7 +188,7 @@ describe("BookingDetailsPage", () => {
     expect(msg).not.toBeNull();
     expect(msg?.getAttribute("href")).toBe("/booking-requests/7");
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
-    expect(artistLink?.getAttribute("href")).toBe("/service-providers/2");
+    expect(artistLink?.getAttribute("href")).toBe("/service-providers/artist-slug");
 
     act(() => {
       root.unmount();
