@@ -135,7 +135,7 @@ describe("ClientBookingsPage", () => {
             total_price: 100,
             notes: "",
             payment_status: "paid",
-            service: { title: "Gig", artist: { business_name: "Artist" } },
+            service: { title: "Gig", artist: { business_name: "Artist", slug: "artist-slug" } },
             client: { id: 1 },
           },
         ],

@@ -277,7 +277,7 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
 
   const handleArtistClick = useCallback((p: ServiceProviderProfile) => {
     const slugOrId = p.slug || p.user_id;
-    if (slugOrId) window.location.href = `/service-providers/${slugOrId}`;
+    if (slugOrId) window.location.href = `/${slugOrId}`;
   }, []);
 
   const handlePickDate = useCallback(
