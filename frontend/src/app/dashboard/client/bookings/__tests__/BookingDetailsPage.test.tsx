@@ -73,7 +73,7 @@ describe("BookingDetailsPage", () => {
     expect(div.textContent).toContain("Gig - Artist");
     // Deposit banner removed; pending shows generic payment state
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
-    expect(artistLink?.getAttribute("href")).toBe("/service-providers/artist-slug");
+    expect(artistLink?.getAttribute("href")).toBe("/artist-slug");
     const pay = div.querySelector('[data-testid="pay-now-button"]');
     expect(pay).not.toBeNull();
 
@@ -188,7 +188,7 @@ describe("BookingDetailsPage", () => {
     expect(msg).not.toBeNull();
     expect(msg?.getAttribute("href")).toBe("/booking-requests/7");
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
-    expect(artistLink?.getAttribute("href")).toBe("/service-providers/artist-slug");
+    expect(artistLink?.getAttribute("href")).toBe("/artist-slug");
 
     act(() => {
       root.unmount();

@@ -64,7 +64,7 @@ function BookingList({
         }
         actions.push({
           label: "View Service Provider",
-          href: `/service-providers/${(b.service_provider as any)?.slug || b.service_provider_id}`,
+          href: `/${(b.service_provider as any)?.slug || b.service_provider_id}`,
           ariaLabel: `View ${(b.service.artist ?? b.service.service_provider).business_name} profile`,
           dataTestId: "view-artist-link",
         });

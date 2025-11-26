@@ -99,7 +99,7 @@ describe("ClientBookingsPage", () => {
     const link = div.querySelector('a[data-booking-id="1"]');
     expect(link?.getAttribute("href")).toBe("/dashboard/client/bookings/1");
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
-    expect(artistLink?.getAttribute("href")).toBe("/service-providers/artist-slug");
+    expect(artistLink?.getAttribute("href")).toBe("/artist-slug");
     const receipt = div.querySelector('[data-testid="booking-receipt-link"]');
     expect(receipt?.getAttribute("href")).toBe(
       "/receipts/pay_upcoming",

@@ -697,7 +697,7 @@ export default function BookingDetailsPanel({
               <div className="text-sm text-gray-700">Update photos, bio, genres, and pricing</div>
             </a>
             <a
-              href={`/service-providers/${currentArtistSlug || currentArtistId || ''}`}
+              href={`/${currentArtistSlug || currentArtistId || ''}`}
               className="block rounded-lg border border-gray-200 p-3 hover:bg-gray-50 no-underline hover:no-underline"
             >
               <div className="font-semibold text-gray-900">View Public Profile</div>

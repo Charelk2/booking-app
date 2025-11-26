@@ -1176,8 +1176,8 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-500 select-none">
                         {typeof window === 'undefined'
-                          ? 'booka.co.za/service-providers/'
-                          : `${window.location.origin.replace(/\/+$/, '')}/service-providers/`}
+                          ? 'booka.co.za/'
+                          : `${window.location.origin.replace(/\/+$/, '')}/`}
                       </span>
                       <input
                         type="text"
@@ -1248,7 +1248,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                                 : window.location.origin.replace(/\/+$/, '');
                             const slug = slugInput || (profile as any)?.slug || '';
                             if (!slug) return;
-                            const url = `${base}/service-providers/${slug}`;
+                            const url = `${base}/${slug}`;
                             if (typeof navigator !== 'undefined' && navigator.clipboard) {
                               await navigator.clipboard.writeText(url);
                               setSlugCopied(true);

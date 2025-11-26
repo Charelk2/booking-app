@@ -82,7 +82,7 @@ export default function ServicesPage() {
                     </span>
                   </div>
                   <Link
-                    href={`/service-providers/${service.service_provider?.slug || service.artist_id}`}
+                    href={`/${service.service_provider?.slug || service.artist_id}`}
                     legacyBehavior
                     passHref
                   >
