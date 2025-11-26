@@ -59,7 +59,15 @@ export function useArtistDashboardData(userId?: number) {
       setServices(processedServices);
     } catch (err) {
       console.error("useArtistDashboardData error:", err);
-      setError("Failed to load dashboard data. Please try again.");
+      const anyErr = err as any;
+      const detail = anyErr?.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : anyErr?.message;
+      const normalized = (msg || "").toString().toLowerCase();
+      if (normalized.includes("inactive user")) {
+        setError("Your provider account is deactivated. Please contact support to reactivate it.");
+      } else {
+        setError("Failed to load dashboard data. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
