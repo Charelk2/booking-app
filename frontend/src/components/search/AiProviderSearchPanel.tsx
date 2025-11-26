@@ -2,9 +2,10 @@
 
 import React from 'react';
 import ServiceProviderCardCompact from '@/components/service-provider/ServiceProviderCardCompact';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   sendAiAssistant,
+  createBookingRequest,
   type AiProvider,
   type AiProviderFilters,
   type AiChatMessage,
@@ -41,6 +42,7 @@ export default function AiProviderSearchPanel({
     },
   ]);
   const [availability, setAvailability] = React.useState<Record<number, 'available' | 'unavailable' | 'unknown'>>({});
+  const router = useRouter();
 
   const handleSend = async () => {
     const trimmed = input.trim();
@@ -109,6 +111,42 @@ export default function AiProviderSearchPanel({
     };
   }, [providers, filters?.when]);
 
+  const handleStartBooking = (provider: AiProvider) => {
+    if (!provider.artist_id) return;
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+    const note =
+      lastUser?.content?.trim() ||
+      `Booking request created from AI search for ${provider.name}`;
+    const whenDate = filters?.when;
+    const payload: any = {
+      service_provider_id: provider.artist_id,
+      message: note,
+    };
+    if (whenDate) {
+      // Use midday local time for the proposed datetime; backend stores as ISO.
+      payload.proposed_datetime_1 = `${whenDate}T12:00:00`;
+    }
+    void (async () => {
+      try {
+        const res = await createBookingRequest(payload);
+        const id = res.data?.id;
+        if (id) {
+          router.push(`/booking-requests/${id}`);
+        }
+      } catch (err: any) {
+        // If not authenticated, fall back to login; user can complete booking from the inbox later.
+        const status = err?.response?.status ?? err?.status;
+        if (status === 401) {
+          const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/booking-requests';
+          router.push(`/auth?intent=login&next=${encodeURIComponent(next)}`);
+          return;
+        }
+        // Otherwise, keep the user on the page; errors remain silent for now to avoid noisy UX.
+        // They can still use the normal booking flow from the provider page.
+      }
+    })();
+  };
+
   if (disabled) return null;
 
   return (
@@ -169,6 +207,34 @@ export default function AiProviderSearchPanel({
       </div>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
       {providers.length > 0 && (
+        <p className="mt-2 text-xs text-slate-600">
+          {(() => {
+            const top = providers[0];
+            const date = filters?.when;
+            const avail = date ? availability[top.artist_id] : undefined;
+            const parts: string[] = [];
+            parts.push(`Top match: ${top.name}${top.location ? ` (${top.location})` : ''}.`);
+            if (date && avail === 'available') {
+              parts.push(`They look available on ${date}.`);
+            } else if (date && avail === 'unavailable') {
+              parts.push(`They already have something on ${date}.`);
+            }
+            if (top.client_total_preview != null) {
+              parts.push(
+                `Bookings on Booka for this artist typically start from about R${Math.round(
+                  Number(top.client_total_preview),
+                )}.`,
+              );
+            } else if (top.starting_price != null) {
+              parts.push(
+                `Their base fee currently starts from about R${Math.round(Number(top.starting_price))}.`,
+              );
+            }
+            return parts.join(' ');
+          })()}
+        </p>
+      )}
+      {providers.length > 0 && (
         <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
           {providers.map((p) => (
             <div key={p.slug} className="flex flex-col items-stretch">
@@ -205,12 +271,13 @@ export default function AiProviderSearchPanel({
                   {!availability[p.artist_id] && <span>Checking availability…</span>}
                 </div>
               )}
-              <Link
-                href={`/booking?artist_id=${encodeURIComponent(String(p.artist_id || ''))}`}
+              <button
+                type="button"
+                onClick={() => handleStartBooking(p)}
                 className="mt-1 text-[11px] text-center text-brand underline"
               >
                 Check availability &amp; book
-              </Link>
+              </button>
             </div>
           ))}
         </div>
