@@ -77,33 +77,70 @@ def _coerce_filters_from_payload(payload: Dict[str, Any]) -> Tuple[AiSearchFilte
 
 
 def _ai_derive_filters(query: str, base: AiSearchFilters) -> AiSearchFilters:
-    """Best-effort filter derivation using Google Generative AI when configured.
+    """Best-effort filter derivation using lightweight heuristics and optionally Gemini/Gemma.
 
     This function is intentionally defensive:
-    - If GOOGLE_GENAI_API_KEY is not set, it returns the baseline filters.
+    - Always applies simple local rules first (e.g., map keywords like "dj"
+      or "musician" to known categories).
+    - If GOOGLE_GENAI_API_KEY is not set, it returns the heuristic filters.
     - If the model call fails or returns unexpected output, it falls back to
-      the baseline filters.
+      the heuristic filters.
     - Existing filters from the UI (base) take precedence over AI guesses.
     """
+    # ── 1) Heuristic enrichment from the raw query ───────────────────────────
+    query_lower = (query or "").strip().lower()
+    heuristic = base
+    if query_lower:
+        # Category keyword map (slugs -> indicative keywords)
+        category_keywords = {
+            "dj": ["dj", "deejay"],
+            "musician": ["musician", "musicians", "band", "bands", "guitarist", "singer", "singers", "duo", "trio", "quartet"],
+            "photographer": ["photographer", "photo", "photoshoot", "pictures"],
+            "videographer": ["videographer", "videography", "video filming"],
+            "sound_service": ["sound service", "pa system", "sound system", "audio hire"],
+            "wedding_venue": ["wedding venue", "reception venue", "venue"],
+            "caterer": ["caterer", "catering", "food"],
+            "bartender": ["bartender", "barman", "cocktails", "bar service"],
+            "speaker": ["speaker", "keynote speaker"],
+            "mc_host": ["mc & host", "mc / host", "mc and host", "emcee", "meister of ceremonies"],
+        }
+
+        # Only override category if the UI did not already set one
+        cat = heuristic.category
+        if not cat:
+            for slug, words in category_keywords.items():
+                if any(w in query_lower for w in words):
+                    cat = slug
+                    break
+
+        heuristic = AiSearchFilters(
+            category=cat or base.category,
+            location=base.location,
+            when=base.when,
+            min_price=base.min_price,
+            max_price=base.max_price,
+        )
+
+    # ── 2) Optional Gemini/Gemma refinement ──────────────────────────────────
     api_key = (getattr(settings, "GOOGLE_GENAI_API_KEY", "") or "").strip()
     model_name = (getattr(settings, "GOOGLE_GENAI_MODEL", "") or "").strip() or "gemini-2.5-flash"
     if not api_key or not model_name:
-        return base
+        return heuristic
 
     try:
         from google import genai  # type: ignore
     except Exception:
         # Library not installed or import failed; avoid breaking search.
-        logger.warning("google-genai not available; falling back to baseline filters")
-        return base
+        logger.warning("google-genai not available; falling back to heuristic filters")
+        return heuristic
 
     # Prepare a compact JSON snippet of the existing filters to give the model context.
     base_payload = {
-        "category": base.category,
-        "location": base.location,
-        "when": base.when.isoformat() if base.when else None,
-        "min_price": base.min_price,
-        "max_price": base.max_price,
+        "category": heuristic.category,
+        "location": heuristic.location,
+        "when": heuristic.when.isoformat() if heuristic.when else None,
+        "min_price": heuristic.min_price,
+        "max_price": heuristic.max_price,
     }
 
     system_instructions = (
@@ -127,8 +164,8 @@ def _ai_derive_filters(query: str, base: AiSearchFilters) -> AiSearchFilters:
         res = client.models.generate_content(model=model_name, contents=prompt)
         text = (getattr(res, "text", None) or "").strip()
         if not text:
-            logger.debug("GenAI returned empty text; falling back to baseline filters")
-            return base
+            logger.debug("GenAI returned empty text; falling back to heuristic filters")
+            return heuristic
 
         # Attempt to isolate JSON from any surrounding text or fences.
         # Prefer the substring between the first '{' and last '}'.
@@ -141,23 +178,23 @@ def _ai_derive_filters(query: str, base: AiSearchFilters) -> AiSearchFilters:
 
         data = json.loads(json_str)
         if not isinstance(data, dict):
-            logger.debug("GenAI response is not a JSON object; falling back to baseline filters")
-            return base
+            logger.debug("GenAI response is not a JSON object; falling back to heuristic filters")
+            return heuristic
     except Exception as exc:
         logger.warning("GenAI filter derivation failed: %s", exc)
-        return base
+        return heuristic
 
     # Merge AI-derived filters with the baseline, giving precedence to baseline
-    # (UI) values when present.
-    category = base.category or (data.get("category") or None)
+    # (UI + heuristic) values when present.
+    category = heuristic.category or (data.get("category") or None)
     if isinstance(category, str):
         category = category.strip() or None
 
-    location = base.location or (data.get("location") or None)
+    location = heuristic.location or (data.get("location") or None)
     if isinstance(location, str):
         location = location.strip() or None
 
-    when_val = base.when
+    when_val = heuristic.when
     if when_val is None:
         raw_when = data.get("when")
         if isinstance(raw_when, str):
@@ -174,11 +211,11 @@ def _ai_derive_filters(query: str, base: AiSearchFilters) -> AiSearchFilters:
         except Exception:
             return None
 
-    min_price = base.min_price
+    min_price = heuristic.min_price
     if min_price is None:
         min_price = _num(data.get("min_price"))
 
-    max_price = base.max_price
+    max_price = heuristic.max_price
     if max_price is None:
         max_price = _num(data.get("max_price"))
 

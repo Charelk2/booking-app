@@ -231,7 +231,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     # Optional Google Generative AI (Gemini/Gemma) configuration for AI search
     GOOGLE_GENAI_API_KEY: str = ""
-    GOOGLE_GENAI_MODEL: str = "gemini-2.5-flash"
+    GOOGLE_GENAI_MODEL: str = "gemini-2.5-flash-live"
 
 model_config = SettingsConfigDict(
     extra="forbid",
