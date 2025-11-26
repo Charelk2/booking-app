@@ -154,12 +154,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               await ensureFreshAccess();
               userData = await tryFetchOnce(true /* skip interceptor */);
             } catch (e2) {
-              // One-time refresh failed: expire session cleanly
-              try {
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new Event('app:session-expired'));
-                }
-              } catch {}
+              const statusRefresh = (e2 as any)?.status as number | undefined;
+              const detailRefresh = String((e2 as any)?.detail || '');
+              const hardExpire =
+                typeof statusRefresh === 'number' &&
+                statusRefresh === 401 &&
+                ['session expired', 'missing refresh token', 'invalid or expired token'].some((msg) =>
+                  detailRefresh.toLowerCase().includes(msg),
+                );
+              if (hardExpire) {
+                try {
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new Event('app:session-expired'));
+                  }
+                } catch {}
+              } else {
+                try {
+                  setUser(null);
+                  if (typeof window !== 'undefined') {
+                    localStorage.removeItem('user');
+                    sessionStorage.removeItem('user');
+                  }
+                } catch {}
+              }
               return;
             }
           } else {

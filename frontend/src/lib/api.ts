@@ -335,15 +335,23 @@ api.interceptors.response.use(
               } catch {}
               return Promise.reject(refreshErr);
             }
-            // Online: treat as session expired. Clean up client state and
-            // notify the app so it can redirect to login.
-            try {
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem('user');
-                sessionStorage.removeItem('user');
-                window.dispatchEvent(new Event('app:session-expired'));
-              }
-            } catch {}
+            const statusRefresh = (refreshErr as any)?.status as number | undefined;
+            const detailRefresh = String((refreshErr as any)?.detail || '');
+            const hardExpire =
+              typeof statusRefresh === 'number' &&
+              statusRefresh === 401 &&
+              ['session expired', 'missing refresh token', 'invalid or expired token'].some((msg) =>
+                detailRefresh.toLowerCase().includes(msg),
+              );
+            if (hardExpire) {
+              try {
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('user');
+                  sessionStorage.removeItem('user');
+                  window.dispatchEvent(new Event('app:session-expired'));
+                }
+              } catch {}
+            }
             return Promise.reject(refreshErr);
           })
           .finally(() => {

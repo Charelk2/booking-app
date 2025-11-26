@@ -1,12 +1,28 @@
-// frontend/src/lib/refreshCoordinator.ts
-// Coordinates refresh across the whole app and all tabs. Ensures only one
-// network call to /auth/refresh is made at a time. Others wait for the result.
-
-type RefreshOutcome = 'ok' | 'err';
 import { API_ORIGIN } from '@/lib/api';
 
+export interface RefreshResult {
+  ok: boolean;
+  status?: number;
+  detail?: string;
+  hard?: boolean;
+}
+
+class RefreshError extends Error {
+  status?: number;
+  detail?: string;
+  hard?: boolean;
+
+  constructor(result: RefreshResult) {
+    super('refresh failed');
+    this.name = 'RefreshError';
+    this.status = result.status;
+    this.detail = result.detail;
+    this.hard = result.hard;
+  }
+}
+
 let inflight = false;
-let waiters: Array<(ok: boolean) => void> = [];
+let waiters: Array<(result: RefreshResult) => void> = [];
 let bc: BroadcastChannel | null = null;
 
 try {
@@ -37,11 +53,27 @@ function releaseLock(): void {
   try { localStorage.removeItem(LOCK_KEY); } catch {}
 }
 
-function notifyAll(ok: boolean) {
-  try { bc?.postMessage({ type: 'done', ok }); } catch {}
+function normalizeResult(input: unknown): RefreshResult {
+  if (input && typeof input === 'object' && 'ok' in (input as any)) {
+    const r = input as any;
+    return {
+      ok: Boolean(r.ok),
+      status: typeof r.status === 'number' ? r.status : undefined,
+      detail: typeof r.detail === 'string' ? r.detail : undefined,
+      hard: r.hard === true,
+    };
+  }
+  if (typeof input === 'boolean') {
+    return { ok: input };
+  }
+  return { ok: false };
+}
+
+function notifyAll(result: RefreshResult) {
+  try { bc?.postMessage({ type: 'done', result }); } catch {}
   const cbs = waiters.splice(0, waiters.length);
   cbs.forEach((cb) => {
-    try { cb(ok); } catch {}
+    try { cb(result); } catch {}
   });
 }
 
@@ -50,70 +82,103 @@ function onMessage(ev: MessageEvent) {
     const data = ev.data || {};
     if (!data || typeof data !== 'object') return;
     if (data.type === 'done') {
-      notifyAll(!!data.ok);
+      const payload = 'result' in data ? (data as any).result : (data as any).ok;
+      notifyAll(normalizeResult(payload));
     }
   } catch {}
 }
 
 if (bc) bc.onmessage = onMessage;
 
-async function leaderRefresh(): Promise<boolean> {
-  // Use fetch to avoid axios interceptors recursion.
-  const attempt = async () => {
+function classifyResult(result: RefreshResult): RefreshResult {
+  if (!result.status) return result;
+  if (result.status === 401) {
+    const detail = (result.detail || '').toLowerCase();
+    if (
+      detail.includes('session expired') ||
+      detail.includes('missing refresh token') ||
+      detail.includes('invalid or expired token')
+    ) {
+      return { ...result, hard: true };
+    }
+  }
+  return result;
+}
+
+async function leaderRefresh(): Promise<RefreshResult> {
+  const attempt = async (): Promise<RefreshResult> => {
     try {
       const res = await fetch(`${API_ORIGIN}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       });
-      return res.ok;
+      if (res.ok) {
+        return { ok: true, status: res.status };
+      }
+      const status = res.status;
+      let detail: string | undefined;
+      try {
+        const text = await res.text();
+        if (text) {
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed && typeof parsed === 'object' && 'detail' in parsed) {
+              const d = (parsed as any).detail;
+              detail = typeof d === 'string' ? d : String(d);
+            } else {
+              detail = typeof parsed === 'string' ? parsed : text;
+            }
+          } catch {
+            detail = text;
+          }
+        }
+      } catch {}
+      return classifyResult({ ok: false, status, detail });
     } catch {
-      return false;
+      return { ok: false };
     }
   };
-  // First try
-  let ok = await attempt();
-  if (ok) return true;
-  // Jittered short backoff (100–300ms)
+
+  let result = await attempt();
+  if (result.ok) return result;
   const j1 = 100 + Math.floor(Math.random() * 200);
   await new Promise((r) => setTimeout(r, j1));
-  ok = await attempt();
-  if (ok) return true;
-  // Optional second retry under 1s total
+  result = await attempt();
+  if (result.ok) return result;
   const j2 = 150 + Math.floor(Math.random() * 250);
   await new Promise((r) => setTimeout(r, j2));
-  return attempt();
+  result = await attempt();
+  return result;
 }
 
 export async function ensureFreshAccess(): Promise<void> {
   if (inflight) {
     return new Promise<void>((resolve, reject) => {
-      waiters.push((ok) => (ok ? resolve() : reject(new Error('refresh failed'))));
+      waiters.push((res) => (res.ok ? resolve() : reject(new RefreshError(res))));
     });
   }
   inflight = true;
 
-  let ok = false;
+  let result: RefreshResult = { ok: false };
   const leader = acquireLock();
   if (!leader) {
-    // Follower: wait for leader to finish, with a timeout guard
     try {
-      const outcome = await new Promise<boolean>((resolve) => {
-        const to = setTimeout(() => resolve(false), LOCK_TTL_MS + 1000);
-        waiters.push((resOk) => { clearTimeout(to); resolve(resOk); });
+      const outcome = await new Promise<RefreshResult>((resolve) => {
+        const to = setTimeout(() => resolve({ ok: false }), LOCK_TTL_MS + 1000);
+        waiters.push((res) => { clearTimeout(to); resolve(res); });
       });
-      ok = outcome;
+      result = outcome;
     } catch {
-      ok = false;
+      result = { ok: false };
     }
   } else {
-    // Leader: perform refresh and broadcast outcome
-    ok = await leaderRefresh();
-    try { bc?.postMessage({ type: 'done', ok }); } catch {}
+    result = await leaderRefresh();
+    try { bc?.postMessage({ type: 'done', result }); } catch {}
     releaseLock();
   }
 
-  notifyAll(ok);
+  notifyAll(result);
   inflight = false;
-  if (!ok) throw new Error('refresh failed');
+  if (!result.ok) throw new RefreshError(result);
 }
