@@ -275,6 +275,7 @@ def kickoff_sound_outreach(
                     parent_booking_request_id = int(qv2_parent.booking_request_id)
             except Exception:
                 parent_booking_request_id = None
+        tb: dict = {}
         if parent_booking_request_id:
             parent_br = (
                 db.query(models.BookingRequest)
@@ -282,14 +283,31 @@ def kickoff_sound_outreach(
                 .first()
             )
             try:
-                tb = parent_br.travel_breakdown or {} if parent_br and isinstance(parent_br.travel_breakdown, dict) else {}
-                sound_mode = tb.get("sound_mode")
+                if parent_br and isinstance(parent_br.travel_breakdown, dict):
+                    tb = dict(parent_br.travel_breakdown or {})
+                    sound_mode = tb.get("sound_mode")
             except Exception:
                 sound_mode = None
+        # Determine whether this outreach run represents supplier‑mode sound.
+        supplier_mode = False
+        try:
+            if isinstance(sound_mode, str) and sound_mode.lower() == "supplier":
+                supplier_mode = True
+            else:
+                # Fallback: if a specific supplier was selected in the wizard
+                # (stored in travel_breakdown) or passed explicitly as
+                # selected_service_id, treat this as supplier mode. This keeps
+                # the client-facing sound thread creation resilient even when
+                # sound_mode is missing or legacy.
+                sel_from_tb = tb.get("selected_sound_service_id")
+                if (sel_from_tb and int(sel_from_tb or 0) > 0) or (selected_service_id and selected_service_id > 0):
+                    supplier_mode = True
+        except Exception:
+            supplier_mode = bool(selected_service_id and selected_service_id > 0)
     except Exception:
         parent_br = None
         sound_mode = None
-    supplier_mode = isinstance(sound_mode, str) and sound_mode.lower() == "supplier"
+        supplier_mode = False
 
     # Create rows
     created: List[models.sound_outreach.SoundOutreachRequest] = []  # type: ignore[attr-defined]
