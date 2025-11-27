@@ -122,6 +122,10 @@ def tool_search_providers(
     Returns a tuple of (providers, filters_dict).
     """
     payload = _build_search_payload_from_state(query_text, state, limit=limit)
+    # Skip LLM-derived filters and rerank/explanations when invoked from the
+    # booking agent; the agent already calls Gemini for conversational text,
+    # so we keep search deterministic here to reduce latency.
+    payload["disable_llm"] = True
     try:
         result = ai_provider_search(db, payload)
     except Exception as exc:  # pragma: no cover - defensive
@@ -177,11 +181,53 @@ def tool_create_booking_request(
     try:
         from app.api import api_booking_request  # local import to avoid cycles
         from app.schemas.request_quote import BookingRequestCreate
+        from app.models.request_quote import BookingRequest as BookingRequestModel
+        from app.models.booking_status import BookingStatus
     except Exception as exc:  # pragma: no cover
         logger.error("Agent booking_request imports failed: %s", exc)
         return None
 
     artist_id = int(state.chosen_provider_id)
+
+    # Idempotency: if the client already has a recent, open booking request
+    # with this artist on the same date, reuse it instead of creating a new
+    # one. This avoids duplicates when the user confirms twice or retries.
+    try:
+        if state.date:
+            dt_date = date.fromisoformat(state.date)
+            day_start = datetime.combine(dt_date, dtime.min)
+            day_end = datetime.combine(dt_date, dtime.max)
+            existing = (
+                db.query(BookingRequestModel)
+                .filter(
+                    BookingRequestModel.client_id == int(current_user.id),
+                    BookingRequestModel.artist_id == artist_id,
+                    BookingRequestModel.status.in_(
+                        [
+                            BookingStatus.DRAFT,
+                            BookingStatus.PENDING_QUOTE,
+                        ]
+                    ),
+                    BookingRequestModel.proposed_datetime_1 >= day_start,
+                    BookingRequestModel.proposed_datetime_1 <= day_end,
+                )
+                .order_by(BookingRequestModel.id.desc())
+                .first()
+            )
+            if existing is not None:
+                logger.info(
+                    "Agent idempotent booking hit; reusing booking_request_id=%s for user_id=%s artist_id=%s date=%s",
+                    getattr(existing, "id", None),
+                    getattr(current_user, "id", None),
+                    artist_id,
+                    state.date,
+                )
+                try:
+                    return int(getattr(existing, "id", 0) or 0) or None
+                except Exception:
+                    return None
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Agent idempotency check failed: %s", exc)
 
     # Compose the BookingRequestCreate payload using the shared helper so the
     # agent's mapping from conversational state to booking-request shape
@@ -427,7 +473,13 @@ def _call_gemini_reply(
 
     try:
         client = genai.Client(api_key=api_key)
-        res = client.models.generate_content(model=model_name, contents=prompt)
+        # Guard against very long prompts and slow responses; the booking
+        # agent must remain responsive even when Gemini is slow.
+        res = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config={"timeout": 6.0},
+        )
         text = (getattr(res, "text", None) or "").strip()
         if not text:
             return None
@@ -672,14 +724,18 @@ def run_booking_agent_step(
             ]
 
     # Heuristic "yes, book it" detection: only allow booking creation when the
-    # agent is explicitly awaiting confirmation so casual affirmations do not
-    # create real bookings.
+    # agent is explicitly awaiting confirmation and the provider is not known
+    # to be unavailable on the requested date.
     effective_city = state.city or filters.get("location")
     if (
         state.stage == "awaiting_confirmation"
         and state.chosen_provider_id
         and state.date
         and effective_city
+        and (
+            not state.availability_checked
+            or state.availability_status != "unavailable"
+        )
     ):
         last_user_text = (user_messages[-1]["content"] or "").strip().lower() if user_messages else ""
         if last_user_text:
@@ -727,26 +783,61 @@ def run_booking_agent_step(
                     state.stage = "suggesting_providers"
 
     # If we have enough information and we're not already awaiting confirmation
-    # or finished, append a clear booking-offer line and move to the
-    # awaiting_confirmation stage.
+    # or finished, append a clear booking-offer line when the provider looks
+    # available and move to the awaiting_confirmation stage. If we know the
+    # provider is unavailable, steer the user toward changing the date or
+    # artist instead of offering to book.
     if (
         state.stage in ("collecting_requirements", "suggesting_providers")
         and state.chosen_provider_id
         and state.date
         and effective_city
     ):
-        provider_name = state.chosen_provider_name or "the artist"
-        city = effective_city or ""
-        line = f"If you'd like, I can create a booking request with {provider_name} on {state.date}"
-        if city:
-            line += f" in {city}"
-        line += " using what you've told me so far. Reply “Yes” to confirm or “No” to adjust anything first."
-        messages_out.append(line)
-        state.stage = "awaiting_confirmation"
-    return AgentStepResult(
+        if state.availability_status == "unavailable":
+            provider_name = state.chosen_provider_name or "the artist"
+            city = effective_city or ""
+            line = f"It looks like {provider_name} is already booked on {state.date}"
+            if city:
+                line += f" in {city}"
+            line += ". I can help you try a different date or suggest similar artists if you’d like."
+            messages_out.append(line)
+        else:
+            provider_name = state.chosen_provider_name or "the artist"
+            city = effective_city or ""
+            line = f"If you'd like, I can create a booking request with {provider_name} on {state.date}"
+            if city:
+                line += f" in {city}"
+            line += " using what you've told me so far. Reply “Yes” to confirm or “No” to adjust anything first."
+            messages_out.append(line)
+            state.stage = "awaiting_confirmation"
+    step_result = AgentStepResult(
         messages=messages_out,
         state=state,
         providers=providers,
         tool_calls=tool_calls,
         final_action=final_action,
     )
+
+    # Lightweight structured logging so we can inspect how the agent behaves
+    # in production without dumping full message contents.
+    try:
+        if getattr(settings, "FEATURE_AI_AGENT_LOGGING", False):
+            log_payload = {
+                "user_id": getattr(current_user, "id", None),
+                "stage": state.stage,
+                "chosen_provider_id": state.chosen_provider_id,
+                "date": state.date,
+                "city": state.city,
+                "guests": state.guests,
+                "venue_type": state.venue_type,
+                "sound": state.sound,
+                "availability_status": state.availability_status,
+                "tool_calls": [tc.name for tc in tool_calls],
+                "final_action": (final_action or {}).get("type") if final_action else None,
+            }
+            logger.info("booking_agent_step: %s", log_payload)
+    except Exception:
+        # Logging must never break the request.
+        pass
+
+    return step_result

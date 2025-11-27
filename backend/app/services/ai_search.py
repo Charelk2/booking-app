@@ -768,7 +768,11 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("query_required")
 
     base_filters, limit = _coerce_filters_from_payload(payload)
-    effective_filters = _ai_derive_filters(query_text, base_filters)
+    disable_llm = bool(payload.get("disable_llm"))
+    if disable_llm:
+        effective_filters = base_filters
+    else:
+        effective_filters = _ai_derive_filters(query_text, base_filters)
 
     providers = _search_providers_with_filters(
         db,
@@ -801,8 +805,9 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
 
     # Optional Gemini step: can run even when there are zero providers so it
     # can generate a helpful “no results” explanation, but reranking only
-    # applies when we have candidates.
-    if api_key and model_name:
+    # applies when we have candidates. When disable_llm is true, we keep the
+    # deterministic ordering and generic explanation.
+    if api_key and model_name and not disable_llm:
         try:
             from google import genai  # type: ignore
 
