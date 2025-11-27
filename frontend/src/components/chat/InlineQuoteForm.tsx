@@ -267,19 +267,35 @@ const InlineQuoteForm: React.FC<Props> = ({
         setIsSupplierParent(supplierParent);
         const svcId = Number(br.service_id || 0);
         const svcPrice = Number(br?.service?.price);
+        const svcType = String(br?.service?.service_type || '').toLowerCase();
+        const isSoundSvc = svcType === 'sound service';
 
-        // Detect dedicated Sound Service threads so we can use the
-        // sound-estimate audience packages for a tighter default.
-        try {
-          const svcType = String(br?.service?.service_type || '').toLowerCase();
-          setIsSoundService(svcType === 'sound service');
-        } catch {
-          setIsSoundService(false);
-        }
+        // Detect dedicated Sound Service threads so we can use audience/supplier
+        // context for better defaults.
+        setIsSoundService(isSoundSvc);
+
+        // Best-effort sound estimate from the parent wizard, carried via
+        // travel_breakdown. This reflects the supplier audience tier + basic
+        // add-ons that the client saw during booking.
+        const tbSoundEstimateRaw = (tb as any)?.provided_sound_estimate;
+        const tbSoundEstimate = Number(tbSoundEstimateRaw);
+        const hasTbSoundEstimate = Number.isFinite(tbSoundEstimate) && tbSoundEstimate > 0;
+
+        // Normalized rider/backline snapshot propagated from the musician's
+        // rider when this thread is a child sound booking. These are canonical
+        // unit counts (vocal mics, monitors, DI boxes, IEM packs) and a
+        // backline map keyed by items like "drums_full", "piano_acoustic_grand".
+        const tbRiderUnits = (tb as any)?.rider_units;
+        const tbBacklineRequested = (tb as any)?.backline_requested;
 
         // Base fee from request or service
         if (!dirtyService) {
-          if (Number.isFinite(svcPrice) && svcPrice >= 0) {
+          if (isSoundSvc && (!Number.isFinite(svcPrice) || svcPrice <= 0) && hasTbSoundEstimate) {
+            // For sound-service threads with no explicit service.price,
+            // fall back to the wizard's supplier estimate so the provider
+            // sees a sensible starting amount.
+            setServiceFee(tbSoundEstimate);
+          } else if (Number.isFinite(svcPrice) && svcPrice >= 0) {
             setServiceFee(svcPrice);
           } else if (Number.isFinite(svcId) && svcId > 0) {
             try {
@@ -325,7 +341,10 @@ const InlineQuoteForm: React.FC<Props> = ({
           // Allow backend to resolve distance_km from service.base_location + event_city
           // when we don't have an explicit distance from the client travel engine.
           if (eventCity && Number.isFinite(Number(br.service_id))) {
-            const baseForCalc = Number.isFinite(Number(br?.service?.price)) ? Number(br?.service?.price) : serviceFee;
+            let baseForCalc = Number.isFinite(Number(br?.service?.price)) ? Number(br?.service?.price) : serviceFee;
+            if (isSoundSvc && (!Number.isFinite(baseForCalc) || baseForCalc <= 0) && hasTbSoundEstimate) {
+              baseForCalc = tbSoundEstimate;
+            }
             const params: any = {
               base_fee: Number(baseForCalc || 0),
               service_id: Number(br.service_id),
@@ -340,7 +359,7 @@ const InlineQuoteForm: React.FC<Props> = ({
             // audience‑package context from the parent breakdown, forward it
             // so the backend can align suggested sound totals with the
             // external‑provider estimates used on the main quote.
-            if (isSoundService) {
+            if (isSoundSvc) {
               try {
                 const guests = Number(tb.guests_count);
                 if (Number.isFinite(guests) && guests > 0) params.guest_count = guests;
@@ -350,6 +369,34 @@ const InlineQuoteForm: React.FC<Props> = ({
                 if (tb.stage_required && tb.stage_size) params.stage_size = String(tb.stage_size);
                 params.lighting_evening = Boolean(tb.lighting_evening);
                 params.backline_required = Boolean(tb.backline_required);
+
+                // If we have a rider/backline snapshot from the parent booking
+                // (normalized on the backend), forward it so any server-side
+                // sound calculations can include per-mic and backline extras.
+                if (tbRiderUnits && typeof tbRiderUnits === 'object') {
+                  const ru: any = tbRiderUnits;
+                  const toInt = (v: unknown): number => {
+                    const n = Number(v);
+                    return Number.isFinite(n) && n > 0 ? n : 0;
+                  };
+                  params.rider_units = {
+                    vocal_mics: toInt(ru.vocal_mics ?? ru.vocalMics),
+                    speech_mics: toInt(ru.speech_mics ?? ru.speechMics),
+                    monitor_mixes: toInt(ru.monitor_mixes ?? ru.monitorMixes),
+                    iem_packs: toInt(ru.iem_packs ?? ru.iemPacks),
+                    di_boxes: toInt(ru.di_boxes ?? ru.diBoxes),
+                  };
+                }
+                if (tbBacklineRequested && typeof tbBacklineRequested === 'object') {
+                  const normBack: Record<string, number> = {};
+                  for (const [key, val] of Object.entries(tbBacklineRequested as any)) {
+                    const n = Number(val);
+                    if (Number.isFinite(n) && n > 0) normBack[key] = n;
+                  }
+                  if (Object.keys(normBack).length) {
+                    params.backline_requested = normBack;
+                  }
+                }
               } catch {
                 // best-effort only
               }

@@ -55,9 +55,11 @@ def _maybe_create_linked_sound_booking_request(
     thread. The child request is linked via parent_booking_request_id.
     """
     try:
-        tb = getattr(parent_request, "travel_breakdown", None) or {}
-        if not isinstance(tb, dict):
+        tb_src = getattr(parent_request, "travel_breakdown", None) or {}
+        if not isinstance(tb_src, dict):
             return
+        # Work on a shallow copy so we never mutate the parent's JSON column.
+        tb = dict(tb_src)
 
         sound_required = bool(tb.get("sound_required"))
         sound_mode = str(tb.get("sound_mode") or "").lower()
@@ -94,6 +96,37 @@ def _maybe_create_linked_sound_booking_request(
         except Exception:
             # On lookup failure, fail closed (no child) rather than raising.
             return
+
+        # Attach a normalized rider/backline snapshot so downstream sound flows
+        # (e.g. the sound provider's inline quote) can see per‑mic and
+        # backline counts without re-querying the musician's rider.
+        try:
+            service_id_val = getattr(parent_request, "service_id", None)
+            if service_id_val:
+                try:
+                    r = (
+                        db.query(models.Rider)
+                        .filter(models.Rider.service_id == int(service_id_val))
+                        .first()
+                    )
+                except Exception:
+                    r = None
+                if r and getattr(r, "spec", None):
+                    try:
+                        # Local import to avoid tightening module import graphs.
+                        from ..services.booking_quote import _normalize_rider_for_pricing
+
+                        units_norm, backline_norm = _normalize_rider_for_pricing(r.spec)
+                        if isinstance(units_norm, dict) and units_norm:
+                            tb["rider_units"] = units_norm
+                        if isinstance(backline_norm, dict) and backline_norm:
+                            tb["backline_requested"] = backline_norm
+                    except Exception:
+                        # Rider enrichment is best‑effort only.
+                        pass
+        except Exception:
+            # Do not block child creation on rider lookup issues.
+            pass
 
         # Derive a human‑readable artist label for the message.
         artist_label: str | None = None
