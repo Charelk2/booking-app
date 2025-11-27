@@ -1438,6 +1438,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         // Include a normalized mode for downstream consumers that expect it here
         mode: travelResult?.mode,
         venue_name: vals.locationName,
+        venue_type: (vals as any).venueType || (details as any)?.venueType || undefined,
         event_type: vals.eventType || (details as any)?.eventType || undefined,
         guests_count: (() => {
           const raw = (vals.guests ?? (details as any)?.guests) as string | number | undefined;
@@ -1518,6 +1519,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         // Include a normalized mode for downstream consumers that expect it here
         mode: travelResult.mode,
         venue_name: vals.locationName,
+        venue_type: (vals as any).venueType || (details as any)?.venueType || undefined,
         event_type: vals.eventType || (details as any)?.eventType || undefined,
         guests_count: (() => {
           const raw = (vals.guests ?? (details as any)?.guests) as string | number | undefined;

@@ -284,7 +284,23 @@ def _maybe_create_linked_sound_booking_request(
                     guests_str = str(gc)
             except Exception:
                 pass
-            venue_label = str(tb.get("venue_name") or "N/A")
+            # Venue type (indoor / outdoor / hybrid) is stored under
+            # `venue_type` in the travel_breakdown for new bookings. Fall
+            # back to the human venue name only when the type is missing so
+            # the "Venue" field in the details card stays consistent with
+            # the artist thread (which uses the type).
+            venue_label = "N/A"
+            try:
+                if isinstance(tb, dict):
+                    vt_raw = tb.get("venue_type")
+                    if vt_raw:
+                        venue_label = str(vt_raw)
+                    else:
+                        vname = tb.get("venue_name")
+                        if vname:
+                            venue_label = str(vname)
+            except Exception:
+                venue_label = "N/A"
             sound_flag = "yes"
             notes = (parent_request.message or "").strip() or "N/A"
 
