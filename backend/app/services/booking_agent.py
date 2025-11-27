@@ -563,6 +563,54 @@ def _call_gemini_reply(
             if key not in state.asked_fields:
                 state.asked_fields.append(key)
 
+    # Lightweight budget sanity hint so the assistant can gently flag when a
+    # budget looks very low for the event type without enforcing hard rules.
+    budget_hint: Optional[str] = None
+    try:
+        budget_lo = state.budget_min
+        budget_hi = state.budget_max if state.budget_max is not None else state.budget_min
+        if budget_hi is not None:
+            hi = float(budget_hi)
+            et = (state.event_type or "").lower() if state.event_type else ""
+            if et == "wedding":
+                if hi < 5000:
+                    budget_hint = "very_low_for_wedding"
+                elif hi < 10000:
+                    budget_hint = "low_for_wedding"
+            elif et == "birthday":
+                if hi < 3000:
+                    budget_hint = "very_low_for_birthday"
+                elif hi < 6000:
+                    budget_hint = "low_for_birthday"
+            elif et == "corporate":
+                if hi < 8000:
+                    budget_hint = "very_low_for_corporate"
+                elif hi < 15000:
+                    budget_hint = "low_for_corporate"
+            else:
+                if hi < 3000:
+                    budget_hint = "very_low_generic"
+                elif hi < 6000:
+                    budget_hint = "low_generic"
+    except Exception:
+        budget_hint = None
+
+    # Rough "days to event" and last-minute flag so the assistant can adapt
+    # tone for very near-term events.
+    days_to_event: Optional[int] = None
+    is_last_minute = False
+    try:
+        when_str = state.date or filters.get("when")
+        if when_str:
+            dt = date.fromisoformat(str(when_str))
+            today = date.today()
+            days_to_event = (dt - today).days
+            if 0 <= days_to_event <= 7:
+                is_last_minute = True
+    except Exception:
+        days_to_event = None
+        is_last_minute = False
+
     system_instructions = (
         "You are Booka's booking assistant. Booka is a South African platform where people book artists and other "
         "service providers (bands, DJs, musicians, MCs, photographers, videographers, sound/lighting, venues, etc.) "
@@ -588,7 +636,12 @@ def _call_gemini_reply(
         "claim they are “not on Booka” or “not listed on Booka”, because you do not have global knowledge of the platform.\n"
         "- Artists can travel. If the artist's home city is different from the event city, do NOT imply they cannot be booked. "
         "Explain that travel will be added to the quote and, only if the user explicitly prefers someone closer, mention that you can "
-        "suggest artists based nearer to the event.\n\n"
+        "suggest artists based nearer to the event.\n"
+        "- You may see budget_hint values like “very_low_for_wedding” or “low_generic”. Use these to gently flag when a budget is "
+        "probably on the low side for the requested event, but never refuse to help; instead, explain typical ranges on Booka and ask "
+        "for their true maximum budget.\n"
+        "- You may see a days_to_event value or a last_minute flag. When an event is very soon (last_minute is true or days_to_event <= 7), "
+        "acknowledge that it is short notice and encourage flexibility on exact time or artist without sounding alarmist.\n\n"
         "How to respond:\n"
         "- First, acknowledge and correctly restate what the user has told you so far (event type, city, date, guests, budget, sound/stage needs) "
         "so they can see you remember it.\n"
@@ -614,6 +667,16 @@ def _call_gemini_reply(
         context_lines.append(f"Answered_fields: {state.answered_fields}.")
     if ask_about:
         context_lines.append(f"Ask_about_this_turn: {ask_about}.")
+    if state.availability_status:
+        context_lines.append(
+            f"Availability_status_for_chosen_provider: {state.availability_status!r}."
+        )
+    if days_to_event is not None:
+        context_lines.append(
+            f"Days_to_event: {days_to_event}, last_minute={is_last_minute}."
+        )
+    if budget_hint:
+        context_lines.append(f"Budget_hint: {budget_hint}.")
     if requested_artist_name:
         context_lines.append(
             f"Requested artist: {requested_artist_name!r}, found_in_results={requested_artist_found}."
