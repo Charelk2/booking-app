@@ -108,6 +108,15 @@ class BookingAgentState(BaseModel):
         description="Extra sound/production notes that don't fit into structured fields.",
     )
 
+    quote_signature: Optional[str] = Field(
+        default=None,
+        description="Internal cache key for the last quote preview.",
+    )
+    quote_total_preview: Optional[float] = Field(
+        default=None,
+        description="Cached client_total_incl_vat from the last quote preview.",
+    )
+
     stage: Optional[Literal["collecting_requirements", "suggesting_providers", "awaiting_confirmation", "booking_created"]] = Field(
         default="collecting_requirements",
         description=(

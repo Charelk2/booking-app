@@ -446,6 +446,9 @@ export interface BookingAgentState {
   backline_required?: boolean | null;
   sound_notes?: string | null;
 
+  quote_signature?: string | null;
+  quote_total_preview?: number | null;
+
   stage?:
     | 'collecting_requirements'
     | 'suggesting_providers'

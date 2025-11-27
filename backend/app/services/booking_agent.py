@@ -2,7 +2,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time as dtime
 
 from sqlalchemy.orm import Session
 
@@ -38,6 +38,57 @@ class AgentStepResult:
     providers: List[Dict[str, Any]]
     tool_calls: List[AgentToolCall]
     final_action: Optional[Dict[str, Any]] = None
+
+
+def _build_booking_request_from_state(
+    state: BookingAgentState,
+    message: str,
+    BookingRequestCreateCls: Any,
+) -> Any:
+    """Map BookingAgentState into a BookingRequestCreate-like object.
+
+    This centralises how the agent turns its internal state into the payload
+    used by the normal booking-request creation flow so it stays aligned with
+    the Booking Wizard over time.
+    """
+    if not state.chosen_provider_id:
+        raise ValueError("chosen_provider_id_required")
+
+    payload: Dict[str, Any] = {
+        "artist_id": int(state.chosen_provider_id),
+        "message": message,
+    }
+    if state.service_id:
+        try:
+            payload["service_id"] = int(state.service_id)
+        except Exception:
+            pass
+    # Best-effort proposed datetime using date + optional time-of-day label.
+    if state.date:
+        try:
+            dt_date = date.fromisoformat(state.date)
+            hour = 12
+            minute = 0
+            if state.time:
+                t = state.time.strip().lower()
+                m = re.match(r"^(\d{1,2}):(\d{2})$", t)
+                if m:
+                    h = int(m.group(1))
+                    mi = int(m.group(2))
+                    if 0 <= h < 24 and 0 <= mi < 60:
+                        hour, minute = h, mi
+                elif "evening" in t:
+                    hour, minute = 18, 0
+                elif "afternoon" in t:
+                    hour, minute = 15, 0
+                elif "morning" in t:
+                    hour, minute = 10, 0
+            payload["proposed_datetime_1"] = datetime.combine(dt_date, dtime(hour=hour, minute=minute))
+        except Exception:
+            # Leave proposed_datetime_1 unset if parsing fails; backend can
+            # still infer details from the free-text message.
+            pass
+    return BookingRequestCreateCls(**payload)
 
 
 def _build_search_payload_from_state(
@@ -132,13 +183,18 @@ def tool_create_booking_request(
 
     artist_id = int(state.chosen_provider_id)
 
-    # Compose the BookingRequestCreate payload. The agent currently only sets
-    # artist_id and message; future iterations can thread through a concrete
-    # service_id or structured travel/sound context when those are known.
-    req = BookingRequestCreate(
-        artist_id=artist_id,
-        message=message,
-    )
+    # Compose the BookingRequestCreate payload using the shared helper so the
+    # agent's mapping from conversational state to booking-request shape
+    # stays aligned with the Booking Wizard over time.
+    try:
+        req = _build_booking_request_from_state(
+            state=state,
+            message=message,
+            BookingRequestCreateCls=BookingRequestCreate,
+        )
+    except ValueError as exc:
+        logger.warning("Agent build_booking_request_from_state failed: %s", exc)
+        return None
 
     try:
         new_req = api_booking_request.create_booking_request(  # type: ignore[arg-type]
@@ -519,16 +575,49 @@ def run_booking_agent_step(
                     state.stage = "suggesting_providers"
 
     # When we know which provider we're talking about, try to pick a
-    # representative service and compute a richer quote preview so the UI and
-    # assistant can talk about “from R…” in a way that includes travel/sound.
+    # representative service for quote previews so the UI and assistant can
+    # talk about “from R…” in a way that includes travel/sound.
     if state.chosen_provider_id and not state.service_id:
         sid, sname, _price = tool_pick_primary_service(db, int(state.chosen_provider_id))
         if sid:
             state.service_id = sid
             state.service_name = sname
 
+    # Compute a stable quote signature so we only recompute previews when
+    # relevant inputs change (service, city, guests, venue/sound context).
+    quote_sig: Optional[str] = None
     if state.service_id and state.city:
-        total_preview = tool_quote_preview(db, state)
+        quote_sig = json.dumps(
+            {
+                "service_id": int(state.service_id),
+                "city": state.city,
+                "date": state.date,
+                "guests": state.guests,
+                "venue_type": state.venue_type,
+                "stage_required": state.stage_required,
+                "stage_size": state.stage_size,
+                "lighting_evening": state.lighting_evening,
+                "lighting_upgrade_advanced": state.lighting_upgrade_advanced,
+                "backline_required": state.backline_required,
+                "sound_supplier_service_id": state.sound_supplier_service_id,
+            },
+            sort_keys=True,
+            default=str,
+        )
+
+    if state.service_id and state.city and quote_sig:
+        total_preview: Optional[float] = None
+        if (
+            state.quote_signature
+            and state.quote_signature == quote_sig
+            and state.quote_total_preview is not None
+        ):
+            total_preview = state.quote_total_preview
+        else:
+            total_preview = tool_quote_preview(db, state)
+            state.quote_signature = quote_sig
+            state.quote_total_preview = total_preview
+
         if total_preview is not None and providers:
             try:
                 providers[0]["client_total_preview"] = total_preview
