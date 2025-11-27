@@ -731,6 +731,19 @@ def run_booking_agent_step(
     ]
     query_text = " ".join(recent_texts).strip() if recent_texts else ""
 
+    # Treat the very first user turn with an empty booking state as a special
+    # "fast path" turn so we can respond quickly without waiting on Gemini or
+    # heavy quote/availability calculations.
+    is_first_user_turn = (
+        len(user_messages) == 1
+        and not state.chosen_provider_id
+        and not state.city
+        and not state.date
+        and state.guests is None
+        and state.budget_min is None
+        and state.budget_max is None
+    )
+
     # Classify high-level intent and event_type before running search so we
     # can avoid unnecessary work for general Booka questions.
     intent, event_type = _classify_intent_and_event_type(query_text, state)
@@ -923,8 +936,9 @@ def run_booking_agent_step(
 
     # When we know which provider we're talking about, try to pick a
     # representative service for quote previews so the UI and assistant can
-    # talk about “from R…” in a way that includes travel/sound.
-    if state.chosen_provider_id and not state.service_id:
+    # talk about “from R…” in a way that includes travel/sound. Skip this on
+    # the very first user turn to keep latency low.
+    if not is_first_user_turn and state.chosen_provider_id and not state.service_id:
         sid, sname, _price = tool_pick_primary_service(db, int(state.chosen_provider_id))
         if sid:
             state.service_id = sid
@@ -947,7 +961,8 @@ def run_booking_agent_step(
     # heavy quote calculations too early, only attempt a preview once we know
     # service, city, guest count, venue_type, and whether sound is needed.
     quote_ready = bool(
-        state.service_id
+        not is_first_user_turn
+        and state.service_id
         and state.city
         and state.guests is not None
         and state.venue_type
@@ -1001,6 +1016,7 @@ def run_booking_agent_step(
         state.chosen_provider_id
         and state.date
         and not state.availability_checked
+        and not is_first_user_turn
     ):
         status = tool_check_availability(
             db=db,
@@ -1017,34 +1033,60 @@ def run_booking_agent_step(
         )
 
     # Ask Gemini (if available) to craft a natural reply; otherwise fall back
-    # to a deterministic message so the agent never stays silent.
-    messages_out = _call_gemini_reply(
-        messages,
-        state,
-        providers,
-        filters,
-        requested_artist_name=requested_artist_name,
-        requested_artist_found=bool(requested_artist_id),
-    ) or []
-    if not messages_out:
+    # to a deterministic message so the agent never stays silent. On the very
+    # first user turn we deliberately skip Gemini to keep the interaction
+    # snappy and return a lightweight, deterministic reply.
+    if is_first_user_turn:
         if providers:
-            top = providers[0]
-            name = top.get("name") or "this provider"
-            city = top.get("location") or ""
-            count = len(providers)
-            if count == 1:
-                messages_out = [
-                    f"I found 1 provider on Booka that fits: {name}{f' ({city})' if city else ''}."
-                ]
+            # If the user clearly asked for a specific artist and we see them
+            # in the results, talk about that artist explicitly.
+            if requested_artist_id and requested_artist_name:
+                line = (
+                    f"I can see {requested_artist_name} on Booka for your request, along with a few similar artists. "
+                    "Tell me the event date and roughly how many guests you expect, and I’ll help refine options."
+                )
             else:
-                messages_out = [
-                    f"I found {count} providers on Booka. Top match: {name}{f' ({city})' if city else ''}."
-                ]
+                top = providers[0]
+                name = top.get("name") or "this provider"
+                city = top.get("location") or ""
+                line = (
+                    f"I've found some artists on Booka that could work"
+                    f"{f', including {name} in {city}' if city else f', including {name}'}. "
+                    "Tell me the event date and roughly how many guests you expect so I can narrow things down."
+                )
+            messages_out = [line]
         else:
             messages_out = [
-                "I couldn't find any providers on Booka that match that yet. "
-                "You can tell me more about the event type, city, and date so I can refine the search."
+                "Tell me the event type, city, rough date, guest count, and budget, and I’ll suggest some artists on Booka that could fit."
             ]
+    else:
+        messages_out = _call_gemini_reply(
+            messages,
+            state,
+            providers,
+            filters,
+            requested_artist_name=requested_artist_name,
+            requested_artist_found=bool(requested_artist_id),
+        ) or []
+        if not messages_out:
+            if providers:
+                top = providers[0]
+                name = top.get("name") or "this provider"
+                city = top.get("location") or ""
+                count = len(providers)
+                if count == 1:
+                    messages_out = [
+                        f"I found 1 provider on Booka that fits: {name}{f' ({city})' if city else ''}."
+                    ]
+                else:
+                    messages_out = [
+                        f"I found {count} providers on Booka. Top match: {name}{f' ({city})' if city else ''}."
+                    ]
+            else:
+                messages_out = [
+                    "I couldn't find any providers on Booka that match that yet. "
+                    "You can tell me more about the event type, city, and date so I can refine the search."
+                ]
 
     # Optionally append a concise summary of what the agent has understood so
     # far so the user can confirm the details. Only do this once per
