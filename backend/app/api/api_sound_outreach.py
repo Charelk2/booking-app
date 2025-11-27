@@ -453,6 +453,109 @@ def supplier_respond(
         # Accept and firm up
         winner = crud.crud_sound.sound_orchestrator.accept_winner(db, row, body.price)
 
+        # Create a client-facing sound booking request linked to the original
+        # artist booking so the client has a dedicated thread and quote/payment
+        # flow with the chosen sound supplier.
+        try:
+            parent_booking_request_id = None
+            # Prefer QuoteV2 linkage to resolve the primary client→artist request.
+            try:
+                if booking.quote_id:
+                    qv2_parent = (
+                        db.query(models.QuoteV2)
+                        .filter(models.QuoteV2.id == booking.quote_id)
+                        .first()
+                    )
+                    if qv2_parent:
+                        parent_booking_request_id = int(qv2_parent.booking_request_id)
+            except Exception:
+                parent_booking_request_id = None
+
+            parent_br = (
+                db.query(models.BookingRequest)
+                .filter(models.BookingRequest.id == parent_booking_request_id)
+                .first()
+                if parent_booking_request_id
+                else None
+            )
+            supplier_service = (
+                db.query(models.Service)
+                .filter(models.Service.id == winner.supplier_service_id)
+                .first()
+            )
+            if parent_br and supplier_service:
+                # Use the event start time for the sound booking request so
+                # suppliers see the actual performance date/time.
+                proposed_dt = booking.start_time or parent_br.proposed_datetime_1
+                # Compose a concise intro message for the client-facing thread.
+                try:
+                    artist_profile = (
+                        db.query(models.ServiceProviderProfile)
+                        .filter(models.ServiceProviderProfile.user_id == booking.artist_id)
+                        .first()
+                    )
+                    artist_label = (
+                        artist_profile.business_name
+                        if artist_profile and artist_profile.business_name
+                        else getattr(booking.service, "title", None)
+                        or "your artist"
+                    )
+                except Exception:
+                    artist_label = getattr(booking.service, "title", None) or "your artist"
+                city = booking.event_city or (
+                    (parent_br.travel_breakdown or {}).get("event_city")
+                    if isinstance(parent_br.travel_breakdown, dict)
+                    else None
+                )
+                base_msg = "Sound booking for your event"
+                if artist_label:
+                    base_msg += f" with {artist_label}"
+                if city:
+                    base_msg += f" in {city}"
+                base_msg += "."
+                client_facing_req = schemas.BookingRequestCreate(
+                    artist_id=supplier_service.artist_id,
+                    service_id=supplier_service.id,
+                    message=base_msg + " Please review details and send a quote for sound.",
+                    proposed_datetime_1=proposed_dt,
+                    travel_mode=parent_br.travel_mode,
+                    travel_cost=None,
+                    travel_breakdown=parent_br.travel_breakdown,
+                    status=models.BookingStatus.PENDING_QUOTE,
+                    parent_booking_request_id=parent_br.id,
+                )
+                client_id = int(parent_br.client_id)
+                child_br = crud.crud_booking_request.create_booking_request(
+                    db,
+                    booking_request=client_facing_req,
+                    client_id=client_id,
+                )
+                db.commit()
+                db.refresh(child_br)
+                # Post a system message in the new client-facing thread so the
+                # client immediately sees the link to their main artist booking.
+                try:
+                    link_msg = (
+                        f"We’ve confirmed {winner.supplier_public_name or 'a sound supplier'} "
+                        f"for your booking. They’ll send a sound quote in this thread."
+                    )
+                    crud.crud_message.create_message(
+                        db=db,
+                        booking_request_id=child_br.id,
+                        sender_id=booking.artist_id,
+                        sender_type=models.SenderType.ARTIST,
+                        content=link_msg,
+                        message_type=models.MessageType.SYSTEM,
+                        visible_to=models.VisibleTo.BOTH,
+                    )
+                    db.commit()
+                except Exception:
+                    db.rollback()
+        except Exception:
+            # Best-effort only; failure to create the client-facing sound
+            # booking must not break supplier acceptance.
+            pass
+
         # Flip booking to confirmed and notify client/artist via system lines
         booking.status = models.BookingStatus.CONFIRMED
         db.add(booking)

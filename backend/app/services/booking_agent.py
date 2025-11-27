@@ -454,12 +454,26 @@ def _classify_service_category(
     if not t:
         return category
 
+    # Simple "no music / we already have a band" detector so we don't stay in
+    # a musician lane when the user explicitly excludes it.
+    negative_music = bool(
+        re.search(r"\b(no|not)\s+(a\s+)?(musician|band|dj|deejay)\b", t)
+        or "no live music" in t
+        or "no music" in t
+        or "already have a band" in t
+        or "already have a dj" in t
+        or "already have a musician" in t
+        or "already booked the band" in t
+        or "already booked a band" in t
+    )
+
     # Photographer / photo-oriented.
     if any(k in t for k in ["photographer", "photoshoot", "photo shoot", "pictures", "photos"]):
         return "photographer"
 
-    # Musicians / bands / DJs / singers.
-    if any(
+    # Musicians / bands / DJs / singers. Skip when the user has explicitly
+    # said they do NOT want music or already have it covered.
+    if not negative_music and any(
         k in t
         for k in [
             "musician",
@@ -481,7 +495,9 @@ def _classify_service_category(
     # Sound / PA / audio hire. When we are already in a musician lane or have
     # a chosen provider (e.g. the user said "a musician please" and then "I
     # need sound equipment"), treat sound phrases as production needs for that
-    # artist rather than switching the service category to sound_service.
+    # artist rather than switching the service category to sound_service,
+    # unless the user explicitly said they don't want a musician and only
+    # need sound.
     sound_keywords = [
         "sound system",
         "pa system",
@@ -492,6 +508,18 @@ def _classify_service_category(
         "speaker hire",
     ]
     if any(k in t for k in sound_keywords):
+        sound_only = any(
+            phrase in t
+            for phrase in [
+                "only sound",
+                "just sound",
+                "sound only",
+                "only a sound system",
+                "just a sound system",
+            ]
+        )
+        if sound_only or negative_music:
+            return "sound_service"
         is_musician_lane = (category or "").lower() in ("musician", "dj", "band")
         if is_musician_lane or state.chosen_provider_id:
             return category or "musician"

@@ -231,6 +231,8 @@ export interface BookingRequestCreate {
   travel_breakdown?: Record<string, unknown>;
   /** New structured sound context (optional during transition) */
   sound_context?: SoundContext;
+  /** Optional link to a parent booking request for multi-provider events. */
+  parent_booking_request_id?: number;
 }
 
 export interface ParsedBookingDetails {
@@ -249,6 +251,9 @@ export interface BookingRequest {
   sound_required: undefined;
   id: number;
   client_id: number;
+
+  /** Optional link to a parent booking request so the UI can group related threads. */
+  parent_booking_request_id?: number | null;
 
   /** Canonical */
   service_provider_id: number;

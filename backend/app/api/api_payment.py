@@ -408,7 +408,7 @@ def create_payment(
         .filter(QuoteV2.booking_request_id == payment_in.booking_request_id)
         .first()
     )
-    timer.stop('db', t0_db)
+    timer.stop("db", t0_db)
     if not booking:
         # Accept-and-create on first payment attempt so clients can pay immediately after a quote is sent.
         # Find the most recent quote for this request (prefer PENDING, fallback to ACCEPTED if already accepted elsewhere).
@@ -419,14 +419,16 @@ def create_payment(
             .order_by(QuoteV2.id.desc())
             .first()
         )
-        timer.stop('db', t0_db2)
+        timer.stop("db", t0_db2)
         if candidate is not None:
             status_val = getattr(candidate.status, "value", candidate.status)
             # Block paying expired quotes (and those past expiry unless already accepted)
             try:
                 now = datetime.utcnow()
                 is_expired_state = str(status_val).lower() == "expired"
-                is_time_expired = bool(getattr(candidate, "expires_at", None)) and getattr(candidate, "expires_at") < now
+                is_time_expired = bool(getattr(candidate, "expires_at", None)) and getattr(
+                    candidate, "expires_at"
+                ) < now
                 is_accepted_state = str(status_val).lower() == "accepted"
                 if is_expired_state or (is_time_expired and not is_accepted_state):
                     raise error_response(
@@ -451,7 +453,10 @@ def create_payment(
                     )
                     raise error_response(
                         "Cannot accept quote before payment",
-                        {"quote": "acceptance_failed", "hint": "Ensure event date/time and required details are set"},
+                        {
+                            "quote": "acceptance_failed",
+                            "hint": "Ensure event date/time and required details are set",
+                        },
                         status.HTTP_422_UNPROCESSABLE_ENTITY,
                     )
             # Re-query booking after acceptance or if already accepted
@@ -461,7 +466,7 @@ def create_payment(
                 .filter(BookingSimple.quote_id == candidate.id)
                 .first()
             )
-            timer.stop('db', t0_db3)
+            timer.stop("db", t0_db3)
         if not booking:
             logger.warning(
                 "Booking not found for request %s", payment_in.booking_request_id
@@ -483,6 +488,46 @@ def create_payment(
             {},
             status.HTTP_403_FORBIDDEN,
         )
+
+    # If this booking request is linked to a parent booking request (for example,
+    # a third-party sound supplier booking that belongs to an underlying artist
+    # booking), enforce that the parent booking has been fully paid before
+    # allowing payment on the child.
+    try:
+        br = (
+            db.query(models.BookingRequest)
+            .filter(models.BookingRequest.id == payment_in.booking_request_id)
+            .first()
+        )
+    except Exception:
+        br = None
+    if br is not None:
+        parent_id = getattr(br, "parent_booking_request_id", None)
+        if parent_id:
+            parent_quote = (
+                db.query(QuoteV2)
+                .filter(QuoteV2.booking_request_id == int(parent_id))
+                .order_by(QuoteV2.id.desc())
+                .first()
+            )
+            if parent_quote is None:
+                raise error_response(
+                    "Artist booking not ready for payment",
+                    {"parent_booking_request_id": "not_ready"},
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            parent_simple = (
+                db.query(BookingSimple)
+                .filter(BookingSimple.quote_id == parent_quote.id)
+                .first()
+            )
+            paid = str(getattr(parent_simple, "payment_status", "")).lower() == "paid" if parent_simple else False
+            if not paid:
+                raise error_response(
+                    "Please pay for your main artist booking before paying for linked services.",
+                    {"code": "artist_not_paid"},
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
 
     # Enforce payment = acceptance for the resolved booking's quote.
     try:

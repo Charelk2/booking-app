@@ -1,7 +1,7 @@
 """empty message
 
 Revision ID: 0840a30ade86
-Revises: 7b60ccd424e5
+Revises: 20251001_add_outbox_events_table
 Create Date: 2025-10-22 10:27:06.424915
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '0840a30ade86'
-down_revision: Union[str, None] = '7b60ccd424e5'
+down_revision: Union[str, None] = '20251001_add_outbox_events_table'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
