@@ -12,7 +12,9 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "20251127_add_parent_booking_request_id"
-down_revision: Union[str, None] = "0840a30ade86"
+# Attach this migration to the latest existing head so the graph remains
+# linear in production deployments.
+down_revision: Union[str, None] = "ed57deb9c434"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -49,4 +51,3 @@ def downgrade() -> None:
         table_name="booking_requests",
     )
     op.drop_column("booking_requests", "parent_booking_request_id")
-
