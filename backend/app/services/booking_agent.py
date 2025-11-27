@@ -889,11 +889,13 @@ def _call_gemini_reply(
     # In general_question mode, avoid asking for booking details; focus on
     # answering the product question instead.
     if state.intent != "general_question":
-        # For live performance categories (musician/DJ/band), prioritise core
-        # booking fields needed to move toward a concrete artist/booking
-        # offer. Budget is handled visually via cards in the UI.
+        # For live performance categories (musician/DJ/band), prioritise
+        # clarifying which kind of service the user wants (service_category),
+        # then the core booking fields needed to move toward a concrete
+        # artist/booking offer. Budget is handled visually via cards in the UI.
         if _is_musician_category(state):
             preferred_order = [
+                "service_category",
                 "city",
                 "date",
                 "guests",
@@ -946,7 +948,7 @@ def _call_gemini_reply(
         "- Each artist can have their own cancellation / change policy on their profile; you should not invent specific legal terms.\n\n"
         "Reasoning rules:\n"
         "- You only reason about popularity and bookings ON Booka, never outside of it (no claims about who is famous in all of South Africa).\n"
-        "- You see the user's latest message, the current booking state (event type, city, date, guests, budget, venue and sound needs), "
+        "- You see the user's latest message, the current booking state (event type, city, date, guests, venue and sound needs, service_category), "
         "and a short summary of the top matching provider if any.\n"
         "- The context also includes a list of which fields are still missing, plus which ones you have already asked about. "
         "Do NOT ask for details that already appear in the known state or in asked_fields/answered_fields. "
@@ -959,13 +961,11 @@ def _call_gemini_reply(
         "- Artists can travel. If the artist's home city is different from the event city, do NOT imply they cannot be booked. "
         "Explain that travel will be added to the quote and, only if the user explicitly prefers someone closer, mention that you can "
         "suggest artists based nearer to the event.\n"
-        "- You may see budget_hint values like “very_low_for_wedding” or “low_generic”. Use these to gently flag when a budget is "
-        "probably on the low side for the requested event, but never refuse to help; instead, explain typical ranges on Booka and ask "
-        "for their true maximum budget.\n"
+        "- Budget is handled visually via price cards in the UI; you do not need to interrogate budget in chat.\n"
         "- You may see a days_to_event value or a last_minute flag. When an event is very soon (last_minute is true or days_to_event <= 7), "
         "acknowledge that it is short notice and encourage flexibility on exact time or artist without sounding alarmist.\n\n"
         "How to respond:\n"
-        "- First, acknowledge and correctly restate what the user has told you so far (event type, city, date, guests, budget, sound/stage needs) "
+        "- First, acknowledge and correctly restate what the user has told you so far (event type, city, date, guests, sound/stage needs) "
         "so they can see you remember it.\n"
         "- If a top provider is available, mention them, why they fit, and a rough starting price if provided (e.g. “from about R12 000 on Booka, "
         "before travel and sound”).\n"
