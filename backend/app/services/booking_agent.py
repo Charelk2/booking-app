@@ -506,7 +506,9 @@ def _has_required_booking_fields(state: BookingAgentState) -> bool:
 
     This enforces a minimal parity with the Booking Wizard: before offering a
     booking or actually creating one, we require at least an event_type, city,
-    date, guest count, venue_type, and an explicit sound preference.
+    date, guest count, and an explicit sound preference. Venue type and
+    detailed production fields can still be clarified later in the thread
+    or via the normal booking flow.
     """
     try:
         if not (state.event_type and str(state.event_type).strip()):
@@ -516,8 +518,6 @@ def _has_required_booking_fields(state: BookingAgentState) -> bool:
         if not (state.date and str(state.date).strip()):
             return False
         if state.guests is None or int(state.guests) <= 0:
-            return False
-        if not state.venue_type:
             return False
         if state.sound not in ("yes", "no"):
             return False
@@ -1247,13 +1247,13 @@ def run_booking_agent_step(
     # message so we can progressively fill the state (e.g. sound preference).
     try:
         t = (query_text or "").lower()
-        # Best-effort date extraction from the latest user text. We allow this
-        # to override an existing date when the user is clearly changing the
-        # brief (modify_brief intent), or when no date has been set yet.
+        # Best-effort date extraction from recent user text. When we can
+        # confidently parse a concrete calendar date, let the newest mention
+        # win so users can refine from “somewhere in October 2027” to “30
+        # October” without needing special phrasing.
         extracted_date = _extract_date_from_text_fragment(t)
-        if extracted_date:
-            if state.date is None or state.intent == "modify_brief":
-                state.date = extracted_date
+        if extracted_date and extracted_date != state.date:
+            state.date = extracted_date
         if state.sound is None:
             if re.search(r"\b(no sound|without sound|have our own sound|sound is sorted)\b", t):
                 state.sound = "no"
