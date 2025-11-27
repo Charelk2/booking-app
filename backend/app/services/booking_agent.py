@@ -1995,9 +1995,15 @@ def run_booking_agent_step(
                     city = top.get("location") or ""
                     count = len(providers)
                     if count == 1:
-                        line = f"I found 1 provider on Booka that fits: {name}{f' ({city})' if city else ''}."
+                        line = (
+                            f"I found 1 provider on Booka that fits: {name}{f' ({city})' if city else ''}. "
+                            "You’ll see them below while we finalise the details."
+                        )
                     else:
-                        line = f"I found {count} providers on Booka. Top match: {name}{f' ({city})' if city else ''}."
+                        line = (
+                            f"I found {count} providers on Booka. Top match: {name}{f' ({city})' if city else ''}. "
+                            "You’ll see them below while we finalise the details."
+                        )
                     messages_out.append(line)
                     state.providers_shown = True
             except Exception:
@@ -2026,9 +2032,15 @@ def run_booking_agent_step(
                     city = top.get("location") or ""
                     count = len(providers)
                     if count == 1:
-                        line = f"I found 1 provider on Booka that fits: {name}{f' ({city})' if city else ''}."
+                        line = (
+                            f"I found 1 provider on Booka that fits: {name}{f' ({city})' if city else ''}. "
+                            "I’ve surfaced them below so you can start browsing."
+                        )
                     else:
-                        line = f"I found {count} providers on Booka. Top match: {name}{f' ({city})' if city else ''}."
+                        line = (
+                            f"I found {count} providers on Booka. Top match: {name}{f' ({city})' if city else ''}. "
+                            "I’ve surfaced them below so you can start browsing."
+                        )
                     messages_out.append(line)
                 state.providers_shown = True
             except Exception:
