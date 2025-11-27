@@ -97,7 +97,7 @@ describe('travel.calculateTravelMode', () => {
         artistLocation: 'Nowhere',
         eventLocation: 'Johannesburg, South Africa',
         numTravellers: 1,
-        drivingEstimate: 3000,
+        drivingEstimate: 0,
         travelRate: 2.5,
         travelDate: new Date('2025-01-01'),
       },
@@ -105,9 +105,34 @@ describe('travel.calculateTravelMode', () => {
       airportStub,
     );
     expect(result.mode).toBe('drive');
-    expect(result.totalCost).toBe(3000);
+    // 20 km * 2.5 * 2 (roundtrip)
+    expect(result.totalCost).toBeCloseTo(100);
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+
+  it('derives driving estimate from metrics when no route and drivingEstimate is zero', async () => {
+    const airportStub = jest.fn(async (city: string) => {
+      if (city.startsWith('George')) return 'GRJ';
+      if (city.startsWith('Durban')) return 'DUR';
+      return null;
+    });
+    const metricsStub = jest.fn(async () => ({ distanceKm: 123, durationHrs: 2 }));
+    const result = await travel.calculateTravelMode(
+      {
+        artistLocation: 'George, South Africa',
+        eventLocation: 'Durban, South Africa',
+        numTravellers: 1,
+        drivingEstimate: 0,
+        travelRate: 2.5,
+        travelDate: new Date('2025-01-01'),
+      },
+      metricsStub,
+      airportStub,
+    );
+    expect(result.mode).toBe('drive');
+    // 123 km * 2.5 * 2 (roundtrip)
+    expect(result.totalCost).toBeCloseTo(615);
   });
 
   it('returns drive when transfer time exceeds limit', async () => {

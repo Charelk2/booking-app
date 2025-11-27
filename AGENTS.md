@@ -187,7 +187,18 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 
 ## Last Updated
 
-2025-06-20
+2025-11-27
+
+### Migration Note (Booking Requests parent linkage)
+
+- On the production `appdb` database, the Alembic logical head remains `ed57deb9c434`. To support linked artist/sound booking threads without introducing a new Alembic head, the `booking_requests` table was **manually** amended at this revision:
+  - Column added:
+    - `parent_booking_request_id integer NULL`
+  - Index:
+    - `CREATE INDEX ix_booking_requests_parent_booking_request_id ON booking_requests (parent_booking_request_id);`
+  - Foreign key:
+    - `ALTER TABLE booking_requests ADD CONSTRAINT fk_booking_requests_parent_booking_request_id FOREIGN KEY (parent_booking_request_id) REFERENCES booking_requests(id) ON DELETE SET NULL;`
+- Code that reads/writes `BookingRequest.parent_booking_request_id` (used for linking artist bookings to sound‑supplier bookings) **assumes this column exists even though Alembic’s version marker is still `ed57deb9c434`**. If you restore from a dump or recreate the DB at this revision, remember to re‑apply the same DDL before deploying this branch.
 
 ---
 
@@ -225,6 +236,34 @@ The latest message must always appear instantly at the bottom of the open thread
   - Close the socket inside `onerror` (causes unsubscribe/subscribe loops).
 
 See `docs/CHAT_REALTIME_TAIL_RUNBOOK.md` for full context, rationale, and troubleshooting.
+
+---
+
+## Travel Engine (Sacred Path)
+
+Travel estimates must always be driven by the frontend travel engine using Google Maps + the distance proxy. Do not change these behaviours without updating this doc and `README.md`’s “Driving Distance” / “Travel Mode Decision” sections.
+
+- Files (keep behaviours intact):
+  - `frontend/src/lib/travel.ts`
+    - `getCoordinates()` uses Google Geocoding API with `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`.
+    - `getDrivingMetrics()` / `getDrivingMetricsCached()` talk to `/api/v1/distance?includeDuration=true` (Distance Matrix proxy) and parse both km + duration.
+    - `calculateTravelMode()` owns the **single** decision for drive vs fly, including:
+      - Nearest airport selection via `findNearestAirport()` using readable airport addresses.
+      - Comparison of full flight cost (flights, transfers, car rental) vs driving (round‑trip).
+      - Time‑cost penalty rules: max transfer hours, long‑drive forcing fly, drive comfort buffer, value‑of‑time adjustment.
+      - When airports/routes cannot be resolved or are unsupported, derive driving cost from Distance Matrix (`distanceKm × travelRate × 2`) instead of ever returning 0.
+  - `frontend/src/components/booking/BookingWizard.tsx`
+    - Uses the provider’s base `location` (or service `details.base_location`) as `artistLocation`.
+    - Calls `calculateTravelMode()` for the review step and persists its `mode` + `totalCost` on the booking request as `travel_mode` / `travel_cost` / `travel_breakdown`.
+  - `frontend/src/lib/__tests__/travel.test.ts`
+    - Encodes invariants for `calculateTravelMode()` and Distance Matrix usage so regressions are caught in CI.
+
+- Do not:
+  - Hard‑code travel costs, bypass `calculateTravelMode()`, or move its core logic into the backend.
+  - Remove the Distance Matrix proxy (`/api/v1/distance`) or replace it with great‑circle only distance for booking estimates.
+  - Allow travel cost to silently fall back to `0` when airports or flight routes are missing; always derive a drive estimate from Distance Matrix in those cases.
+
+The booking/quote UX assumes travel is **always** computed via this path so numbers stay consistent between Review, quotes, and payments.
 
 ---
 
