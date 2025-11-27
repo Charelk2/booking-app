@@ -2008,8 +2008,12 @@ def run_booking_agent_step(
         if state.event_type:
             summary_parts.append(state.event_type)
             core_count += 1
-        if state.city:
-            summary_parts.append(f"in {state.city}")
+        # Prefer the city stored in state; if it was only inferred via search
+        # filters on this turn, fall back to that so the summary reflects what
+        # the assistant already said in natural language.
+        effective_city = state.city or filters.get("location")
+        if effective_city:
+            summary_parts.append(f"in {effective_city}")
             core_count += 1
         if state.date:
             summary_parts.append(f"on {state.date}")
