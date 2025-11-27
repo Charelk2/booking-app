@@ -115,6 +115,108 @@ def _build_search_payload_from_state(
     return payload
 
 
+def _classify_intent_and_event_type(
+    query_text: str,
+    state: BookingAgentState,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Heuristic classifier for high-level intent and event_type.
+
+    This is intentionally small and deterministic. It prefers existing state
+    values and only sets intent/event_type when they are unknown.
+    """
+    intent: Optional[str] = state.intent or None
+    event_type: Optional[str] = state.event_type or None
+
+    t = (query_text or "").strip().lower()
+    if not t:
+        return intent, event_type
+
+    # Event type classification: wedding / birthday / corporate / other.
+    if not event_type:
+        if "wedding" in t or "bride" in t or "reception" in t:
+            event_type = "wedding"
+        elif "birthday" in t or "b-day" in t or "bday" in t or "turning" in t:
+            event_type = "birthday"
+        elif (
+            "corporate" in t
+            or "office party" in t
+            or "year-end" in t
+            or "year end" in t
+            or "conference" in t
+        ):
+            event_type = "corporate"
+
+    # Intent classification.
+    general_keywords = [
+        "booka",
+        "how does booka",
+        "how does this work",
+        "how do payments",
+        "payment",
+        "pay ",
+        "paid ",
+        "refund",
+        "refunded",
+        "cancellation",
+        "cancel ",
+        "cancelled",
+        "policy",
+        "deposit",
+        "commission",
+        "fee",
+        "fees",
+        "safe is it safe",
+        "scam",
+        "legit",
+    ]
+    search_keywords = [
+        "looking for",
+        "need a ",
+        "need an ",
+        "find a ",
+        "dj",
+        "band",
+        "musician",
+        "singer",
+        "photographer",
+        "videographer",
+        "sound system",
+        "acoustic duo",
+        "service provider",
+        "artist ",
+    ]
+
+    if any(k in t for k in general_keywords) and not any(k in t for k in search_keywords):
+        intent = "general_question"
+    else:
+        # Try to detect explicit "book this provider" phrasing.
+        if ("book " in t or "let's book" in t or "lets book" in t) and (state.chosen_provider_id or state.chosen_provider_name):
+            intent = "book_named_provider"
+        # When we already have some brief filled in and user talks about
+        # changing details, treat as modify_brief.
+        elif (
+            (state.city or state.date or state.guests or state.budget_min or state.budget_max)
+            and any(
+                k in t
+                for k in (
+                    "actually",
+                    "instead",
+                    "rather",
+                    "change",
+                    "different date",
+                    "move it",
+                    "make it",
+                )
+            )
+        ):
+            intent = "modify_brief"
+        # Default to provider discovery.
+        elif not intent:
+            intent = "find_provider"
+
+    return intent, event_type
+
+
 def tool_search_providers(
     db: Session, query_text: str, state: BookingAgentState, limit: int = 6
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
@@ -447,23 +549,57 @@ def _call_gemini_reply(
     }
     missing = [k for k, v in known_fields.items() if not v]
 
+    # Derive which fields we are willing to ask about on this turn so we can
+    # avoid repeating the same follow-up questions.
+    asked = list(state.asked_fields or [])
+    answered = list(state.answered_fields or [])
+    askable = [k for k in missing if k not in asked and k not in answered]
+    ask_about: List[str] = []
+    # In general_question mode, avoid asking for booking details; focus on
+    # answering the product question instead.
+    if state.intent != "general_question":
+        ask_about = askable[:2]
+        for key in ask_about:
+            if key not in state.asked_fields:
+                state.asked_fields.append(key)
+
     system_instructions = (
-        "You are Booka's booking assistant. You help users in South Africa find artists and create booking "
-        "requests on Booka. You only reason about popularity and bookings ON Booka, never outside of it. "
-        "You see the user's latest message, current booking state (event type, city, date, guests, budget), "
-        "and a short summary of the top matching provider if any.\n\n"
-        "You may also be told about a specific artist the user asked for. The context can include "
-        "requested_artist_name and requested_artist_found:\n"
-        "- If requested_artist_found is true, that means the artist they asked for appears in the current Booka results. "
+        "You are Booka's booking assistant. Booka is a South African platform where people book artists and other "
+        "service providers (bands, DJs, musicians, MCs, photographers, videographers, sound/lighting, venues, etc.) "
+        "for events like weddings, birthdays, and corporate functions.\n\n"
+        "High-level facts about Booka you can rely on:\n"
+        "- Bookings usually start as a booking request to a specific provider; the provider can then send a quote.\n"
+        "- Pricing shown as “from R…” is a starting point and full quotes can include travel, sound, lighting, and Booka fees.\n"
+        "- Artists and suppliers can travel between cities; distance just affects the quote via travel/accommodation costs.\n"
+        "- Clients and providers can chat via an in-app message thread attached to a booking request.\n"
+        "- Payments are handled through Booka's payment flow (for example via Paystack) and bookings are confirmed after payment.\n"
+        "- Each artist can have their own cancellation / change policy on their profile; you should not invent specific legal terms.\n\n"
+        "Reasoning rules:\n"
+        "- You only reason about popularity and bookings ON Booka, never outside of it (no claims about who is famous in all of South Africa).\n"
+        "- You see the user's latest message, the current booking state (event type, city, date, guests, budget, venue and sound needs), "
+        "and a short summary of the top matching provider if any.\n"
+        "- The context also includes a list of which fields are still missing, plus which ones you have already asked about. "
+        "Do NOT ask for details that already appear in the known state or in asked_fields/answered_fields. "
+        "Only ask about fields that are explicitly listed as ask_about (if any), and at most 1–2 follow-up questions at a time.\n"
+        "- You may be told about a specific artist the user asked for via requested_artist_name and requested_artist_found:\n"
+        "  * If requested_artist_found is true, that means the artist they asked for appears in the current Booka results. "
         "Talk about that artist directly and do NOT say they are not listed on Booka.\n"
-        "- If requested_artist_found is false, you may say that you cannot see them in the current matches, but you MUST NOT "
-        "claim they are “not on Booka” or “not listed on Booka”, because you do not have global knowledge of the platform.\n\n"
-        "Your job is to:\n"
-        "- Acknowledge what the user asked in a friendly, concise way.\n"
-        "- If a top provider is available, mention them, why they fit, and a rough starting price if provided (e.g. “from about R12 000 on Booka, before travel and sound”).\n"
-        "- Ask at most 1–2 follow-up questions focusing on missing key details (date, city, budget, event type, guests, venue type, and sound/production needs like sound equipment, stage, and lighting).\n"
-        "- Do NOT talk about tools or internal details; just sound like a human assistant.\n"
-        "- Keep replies to 1–3 short sentences.\n"
+        "  * If requested_artist_found is false, you may say that you cannot see them in the current matches, but you MUST NOT "
+        "claim they are “not on Booka” or “not listed on Booka”, because you do not have global knowledge of the platform.\n"
+        "- Artists can travel. If the artist's home city is different from the event city, do NOT imply they cannot be booked. "
+        "Explain that travel will be added to the quote and, only if the user explicitly prefers someone closer, mention that you can "
+        "suggest artists based nearer to the event.\n\n"
+        "How to respond:\n"
+        "- First, acknowledge and correctly restate what the user has told you so far (event type, city, date, guests, budget, sound/stage needs) "
+        "so they can see you remember it.\n"
+        "- If a top provider is available, mention them, why they fit, and a rough starting price if provided (e.g. “from about R12 000 on Booka, "
+        "before travel and sound”).\n"
+        "- If the user is asking a general question about Booka (how it works, payments, safety, cancellation, availability of certain services), "
+        "answer that clearly using the facts above, then optionally offer to help them start a booking.\n"
+        "- If the user is refining an existing event (changing date, city, guests, budget, or provider), update your wording accordingly and avoid "
+        "re-asking for details you already know.\n"
+        "- Do NOT talk about tools, APIs, or internal implementation details; just sound like a knowledgeable human assistant.\n"
+        "- Keep replies to 1–3 short sentences and avoid repeating the same question in consecutive turns.\n"
     )
 
     context_lines: List[str] = []
@@ -472,6 +608,12 @@ def _call_gemini_reply(
     context_lines.append(f"Known state: {known_fields}.")
     if missing:
         context_lines.append(f"Missing fields: {', '.join(missing)}.")
+    if state.asked_fields:
+        context_lines.append(f"Asked_fields: {state.asked_fields}.")
+    if state.answered_fields:
+        context_lines.append(f"Answered_fields: {state.answered_fields}.")
+    if ask_about:
+        context_lines.append(f"Ask_about_this_turn: {ask_about}.")
     if requested_artist_name:
         context_lines.append(
             f"Requested artist: {requested_artist_name!r}, found_in_results={requested_artist_found}."
@@ -526,7 +668,19 @@ def run_booking_agent_step(
     ]
     query_text = " ".join(recent_texts).strip() if recent_texts else ""
 
-    providers, filters = tool_search_providers(db, query_text, state)
+    # Classify high-level intent and event_type before running search so we
+    # can avoid unnecessary work for general Booka questions.
+    intent, event_type = _classify_intent_and_event_type(query_text, state)
+    if event_type and not state.event_type:
+        state.event_type = event_type
+    if intent:
+        state.intent = intent
+
+    if intent == "general_question":
+        providers: List[Dict[str, Any]] = []
+        filters: Dict[str, Any] = {}
+    else:
+        providers, filters = tool_search_providers(db, query_text, state)
 
     # Detect whether the user is clearly asking for a specific artist by name
     # and whether that artist appears in the current provider list.
@@ -615,6 +769,22 @@ def run_booking_agent_step(
                 state.budget_max = float(filters["max_price"])
         except Exception:
             pass
+
+    # Mark fields that now have values as "answered" so we can avoid asking
+    # about them again in follow-up questions.
+    answered_pairs = [
+        ("event_type", state.event_type),
+        ("city", state.city),
+        ("date", state.date),
+        ("guests", state.guests),
+        ("budget_min", state.budget_min),
+        ("budget_max", state.budget_max),
+        ("venue_type", state.venue_type),
+        ("sound", state.sound),
+    ]
+    for key, value in answered_pairs:
+        if value is not None and key not in state.answered_fields:
+            state.answered_fields.append(key)
 
     # Keep a heuristic chosen provider to mirror current UX, but avoid
     # swapping providers once the user is confirming a booking. When the user

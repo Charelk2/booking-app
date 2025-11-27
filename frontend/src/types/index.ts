@@ -460,6 +460,16 @@ export interface BookingAgentState {
   availability_status?: 'available' | 'unavailable' | 'unknown' | null;
 
   summary_emitted?: boolean;
+
+  intent?:
+    | 'find_provider'
+    | 'book_named_provider'
+    | 'general_question'
+    | 'modify_brief'
+    | null;
+
+  asked_fields?: string[];
+  answered_fields?: string[];
 }
 
 export interface AttachmentMeta {

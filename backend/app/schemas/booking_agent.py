@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 
 from pydantic import BaseModel, Field
 
@@ -139,5 +139,28 @@ class BookingAgentState(BaseModel):
         description=(
             "Whether the agent has already sent a consolidated \"here's what I have so far\" "
             "summary message in this conversation."
+        ),
+    )
+
+    intent: Optional[Literal["find_provider", "book_named_provider", "general_question", "modify_brief"]] = Field(
+        default=None,
+        description=(
+            "High-level intent for the current conversation turn. Used to distinguish between "
+            "provider search, booking a specific artist, general Booka questions, and brief changes."
+        ),
+    )
+
+    asked_fields: List[str] = Field(
+        default_factory=list,
+        description=(
+            "List of booking state fields the agent has already asked follow-up questions about "
+            "(e.g. 'date', 'city', 'budget'). Used to avoid repeating the same questions."
+        ),
+    )
+    answered_fields: List[str] = Field(
+        default_factory=list,
+        description=(
+            "List of booking state fields that have been filled in by the user at least once. "
+            "Helps the agent avoid asking about fields that already have values."
         ),
     )
