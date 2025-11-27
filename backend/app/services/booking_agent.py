@@ -399,6 +399,7 @@ def _classify_intent_and_event_type(
         "dj",
         "band",
         "musician",
+        "muscician",
         "singer",
         "photographer",
         "videographer",
@@ -477,6 +478,7 @@ def _classify_service_category(
         k in t
         for k in [
             "musician",
+            "muscician",
             "musicians",
             "band",
             "bands",
@@ -1178,15 +1180,42 @@ def run_booking_agent_step(
     else:
         # Only hit search once we have a clear service intent (category) or the
         # latest user message is explicitly asking to look/book for something.
-        # This avoids suggesting arbitrary providers when the user only gave
-        # generic event details like "birthday in Pretoria".
+        # Additionally, when the latest message looks like a provider name
+        # (e.g. "Charel Kleinhans") without event keywords, treat it as a
+        # direct artist lookup and run search so we can resolve the name.
         last_user_text = (user_messages[-1].get("content") or "").strip().lower() if user_messages else ""
+        name_like = False
+        if last_user_text:
+            try:
+                tokens = re.findall(r"[a-z0-9]+", last_user_text)
+                # Consider short texts without obvious event keywords as
+                # potential names (e.g. "charel kleinhans").
+                if 1 <= len(tokens) <= 5:
+                    event_words = {
+                        "wedding",
+                        "birthday",
+                        "party",
+                        "corporate",
+                        "conference",
+                        "event",
+                        "guests",
+                        "people",
+                        "year",
+                        "years",
+                    }
+                    if not any(w in last_user_text for w in event_words):
+                        name_tokens = [t for t in tokens if len(t) >= 3]
+                        if name_tokens:
+                            name_like = True
+            except Exception:
+                name_like = False
         should_search = bool(
             state.service_category
             or "looking for" in last_user_text
             or "need a " in last_user_text
             or "need an " in last_user_text
             or "book " in last_user_text
+            or name_like
         )
         if should_search:
             t_search_start = time.monotonic()
@@ -1199,6 +1228,33 @@ def run_booking_agent_step(
         else:
             providers = []
             filters = {}
+
+    # After search, prefer providers that match the current lane. For musician
+    # lanes, de-emphasise pure sound-service providers so the agent doesn't
+    # suggest booking a sound-only supplier when the user asked for live
+    # performance.
+    if providers and _is_musician_category(state):
+        try:
+            filtered_providers: List[Dict[str, Any]] = []
+            for p in providers:
+                cats = p.get("categories") or []
+                cats_l = [str(c).lower() for c in cats]
+                has_musician_category = any(
+                    any(keyword in cat for keyword in ("musician", "band", "dj", "mc", "host"))
+                    for cat in cats_l
+                )
+                has_only_sound_categories = bool(cats_l) and all("sound" in cat for cat in cats_l)
+                # Keep providers that clearly have musician-like categories,
+                # and also those with unknown/mixed categories, but drop
+                # providers that are pure sound-service when we are in a
+                # musician lane.
+                if has_musician_category or not has_only_sound_categories:
+                    filtered_providers.append(p)
+            if filtered_providers:
+                providers = filtered_providers
+        except Exception:
+            # Provider filtering must never break the agent.
+            pass
 
     # Detect whether the user is clearly asking for a specific artist by name
     # and whether that artist appears in the current provider list.
