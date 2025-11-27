@@ -257,7 +257,12 @@ def _extract_location_from_query(query_lower: str) -> Optional[str]:
     return None
 
 
-def _ai_derive_filters(query: str, base: AiSearchFilters) -> AiSearchFilters:
+def _ai_derive_filters(
+    query: str,
+    base: AiSearchFilters,
+    *,
+    skip_llm: bool = False,
+) -> AiSearchFilters:
     """Best-effort filter derivation using lightweight heuristics and optionally Gemini/Gemma.
 
     This function is intentionally defensive:
@@ -343,6 +348,14 @@ def _ai_derive_filters(query: str, base: AiSearchFilters) -> AiSearchFilters:
         min_price=min_price,
         max_price=max_price,
     )
+
+    # When skip_llm is True, return the heuristic filters immediately without
+    # attempting any Gemini/Gemma refinement. This is used by the booking
+    # agent so it can benefit from lightweight local parsing (date/location/
+    # budget) while keeping search deterministic and avoiding extra model
+    # calls.
+    if skip_llm:
+        return heuristic
 
     # ── 2) Optional Gemini/Gemma refinement ──────────────────────────────────
     api_key = (getattr(settings, "GOOGLE_GENAI_API_KEY", "") or "").strip()
@@ -769,10 +782,14 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
 
     base_filters, limit = _coerce_filters_from_payload(payload)
     disable_llm = bool(payload.get("disable_llm"))
-    if disable_llm:
-        effective_filters = base_filters
-    else:
-        effective_filters = _ai_derive_filters(query_text, base_filters)
+    # Always apply lightweight heuristic parsing (date/location/budget), but
+    # optionally skip the Gemini/Gemma refinement step when disable_llm is
+    # true so callers like the booking agent can keep search deterministic.
+    effective_filters = _ai_derive_filters(
+        query_text,
+        base_filters,
+        skip_llm=disable_llm,
+    )
 
     providers = _search_providers_with_filters(
         db,
