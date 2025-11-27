@@ -353,6 +353,213 @@ def _classify_intent_and_event_type(
     if not t:
         return intent, event_type
 
+    # Broad domain keywords that indicate the user is talking about an event
+    # or a concrete service need. When none of these appear and the text does
+    # not look like a provider name, we treat the message as "neutral" and
+    # default to a general question so the agent can ask about the event
+    # instead of guessing a service provider too early.
+    domain_keywords = [
+        # Event types / contexts
+        "wedding",
+        "bride",
+        "groom",
+        "reception",
+        "ceremony",
+        "birthday",
+        "b-day",
+        "bday",
+        "turning",
+        "party",
+        "function",
+        "event",
+        "corporate",
+        "office party",
+        "conference",
+        "gala",
+        "launch",
+        "year-end",
+        "year end",
+        "christmas party",
+        "xmas party",
+        "matric dance",
+        "school dance",
+        "farewell",
+        "festival",
+        "show",
+        "concert",
+        "engagement",
+        "anniversary",
+        "baby shower",
+        "bridal shower",
+        "hens party",
+        "bachelor",
+        "bachelorette",
+        # Attendance / scale
+        "guests",
+        "people",
+        "pax",
+        "crowd",
+        "audience",
+        # Music / performance lanes
+        "dj",
+        "deejay",
+        "band",
+        "bands",
+        "musician",
+        "muscician",
+        "musicians",
+        "artist ",
+        "artists",
+        "singer",
+        "singers",
+        "guitarist",
+        "pianist",
+        "keyboardist",
+        "drummer",
+        "violinist",
+        "saxophonist",
+        "trio",
+        "duo",
+        "quartet",
+        "live music",
+        "live band",
+        "acoustic",
+        "cover band",
+        "party band",
+        # Photo / video
+        "photographer",
+        "photographers",
+        "photo",
+        "photos",
+        "photoshoot",
+        "photo shoot",
+        "videographer",
+        "videographers",
+        "video",
+        "videos",
+        "videography",
+        "film",
+        "filming",
+        "camera",
+        # Kids / family
+        "kids",
+        "children",
+        "childrens",
+        "childrens entertainment",
+        "face paint",
+        "face painting",
+        "balloon artist",
+        "clown",
+        "magician",
+        "magic show",
+        "jumping castle",
+        # Sound / production
+        "sound",
+        "sound system",
+        "sound equipment",
+        "sound hire",
+        "sound service",
+        "pa system",
+        "pa hire",
+        "audio",
+        "audio hire",
+        "speakers",
+        "speaker hire",
+        "microphone",
+        "microphones",
+        "lighting",
+        "lights",
+        "stage",
+        "backline",
+        "production",
+        "av",
+        "audiovisual",
+        # Other provider lanes
+        "service",
+        "services",
+        "service provider",
+        "service providers",
+        "provider",
+        "providers",
+        "venue",
+        "venues",
+        "caterer",
+        "catering",
+        "food",
+        "bartender",
+        "barman",
+        "bar service",
+        "cocktails",
+        "speaker",
+        "keynote speaker",
+        "mc",
+        "mc & host",
+        "mc / host",
+        "mc and host",
+        "emcee",
+        "host",
+        "hostess",
+        # Booking / pricing language
+        "quote",
+        "quotes",
+        "pricing",
+        "price",
+        "prices",
+        "budget",
+        "cheap",
+        "afford",
+        "booking",
+        "book ",
+        "booked ",
+        "hire",
+        "hire ",
+        "rent",
+        "rental",
+        # Platform / product hints
+        "booka",
+        "inbox",
+        "request",
+        "booking request",
+        "payment",
+        "paystack",
+        "deposit",
+        "refund",
+        "cancellation",
+    ]
+    has_domain_keyword = any(kw in t for kw in domain_keywords)
+
+    # Lightweight name-like detection so messages that look like a provider
+    # name (e.g. "Charel Kleinhans") can still trigger an artist lookup even
+    # when they don't contain explicit domain words.
+    name_like = False
+    try:
+        tokens = re.findall(r"[a-z0-9]+", t)
+        if 1 <= len(tokens) <= 5:
+            # Filter out very short tokens and common non-name stopwords.
+            stopwords = {
+                "i",
+                "im",
+                "i'm",
+                "me",
+                "you",
+                "hi",
+                "hello",
+                "hey",
+                "please",
+                "thanks",
+                "thank",
+                "ok",
+                "okay",
+                "good",
+                "morning",
+                "evening",
+            }
+            raw_tokens = [tok for tok in tokens if tok not in stopwords and len(tok) >= 3]
+            if raw_tokens and not has_domain_keyword:
+                name_like = True
+    except Exception:
+        name_like = False
+
     # Event type classification: wedding / birthday / corporate / other.
     if not event_type:
         if "wedding" in t or "bride" in t or "reception" in t:
@@ -368,48 +575,11 @@ def _classify_intent_and_event_type(
         ):
             event_type = "corporate"
 
-    # Greeting-only messages: treat as general questions so we start by
-    # asking about the event instead of guessing providers from "hello".
-    greeting_phrases = [
-        "hi",
-        "hi there",
-        "hello",
-        "hey",
-        "hey there",
-        "howzit",
-        "good morning",
-        "good afternoon",
-        "good evening",
-        "greetings",
-    ]
-    stripped = t.strip()
-    if (
-        any(stripped == g for g in greeting_phrases)
-        or (
-            any(stripped.startswith(g) for g in greeting_phrases)
-            and not any(
-                kw in t
-                for kw in [
-                    "wedding",
-                    "birthday",
-                    "party",
-                    "event",
-                    "corporate",
-                    "dj",
-                    "band",
-                    "musician",
-                    "muscician",
-                    "singer",
-                    "photographer",
-                    "videographer",
-                    "sound system",
-                    "sound equipment",
-                    "service provider",
-                    "provider",
-                ]
-            )
-        )
-    ):
+    # When the message has no obvious event/service keywords and does not look
+    # like a provider name, treat it as a neutral/general question so the
+    # agent can ask about the event first instead of guessing providers from
+    # e.g. "hello" or "hey, how are you".
+    if not has_domain_keyword and not name_like:
         intent = "general_question"
         return intent, event_type
 
@@ -1254,6 +1424,54 @@ def run_booking_agent_step(
                             name_like = True
             except Exception:
                 name_like = False
+
+        # Treat pure greetings as neutral first turns: don't hit search yet,
+        # just ask about the event so we don't jump into suggesting providers
+        # based on "hello" or "hi".
+        greeting_phrases = [
+            "hi",
+            "hi there",
+            "hello",
+            "hey",
+            "hey there",
+            "howzit",
+            "good morning",
+            "good afternoon",
+            "good evening",
+            "greetings",
+        ]
+        stripped_greet = last_user_text.strip()
+        is_greeting_only = bool(
+            stripped_greet
+            and (
+                stripped_greet in greeting_phrases
+                or (
+                    any(stripped_greet.startswith(g) for g in greeting_phrases)
+                    and not any(
+                        kw in last_user_text
+                        for kw in [
+                            "wedding",
+                            "birthday",
+                            "party",
+                            "event",
+                            "corporate",
+                            "dj",
+                            "band",
+                            "musician",
+                            "muscician",
+                            "singer",
+                            "photographer",
+                            "videographer",
+                            "sound system",
+                            "sound equipment",
+                            "service provider",
+                            "provider",
+                        ]
+                    )
+                )
+            )
+        )
+
         should_search = bool(
             state.service_category
             or "looking for" in last_user_text
@@ -1262,6 +1480,8 @@ def run_booking_agent_step(
             or "book " in last_user_text
             or name_like
         )
+        if is_greeting_only:
+            should_search = False
         if should_search:
             t_search_start = time.monotonic()
             providers, filters = tool_search_providers(db, query_text, state)
