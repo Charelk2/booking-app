@@ -102,15 +102,30 @@ def _extract_date_from_text_fragment(text: str) -> Optional[str]:
         if year_str:
             year = int(year_str)
         else:
-            today = date.today()
-            year = today.year
-            try:
-                candidate = date(year, month, day)
-                if candidate < today:
-                    year += 1
-            except Exception:
-                # Fallback: keep current year when candidate construction fails.
-                pass
+            # If there is an explicit four-digit year anywhere in the text
+            # (e.g. “somewhere in October 2027 ... its 30 October ...”),
+            # prefer that as the target year so we don’t silently jump back
+            # to the current year.
+            year_hint = None
+            m_year = re.search(r"\b(20\d{2})\b", t)
+            if m_year:
+                try:
+                    year_hint = int(m_year.group(1))
+                except Exception:
+                    year_hint = None
+
+            if year_hint is not None:
+                year = year_hint
+            else:
+                today = date.today()
+                year = today.year
+                try:
+                    candidate = date(year, month, day)
+                    if candidate < today:
+                        year += 1
+                except Exception:
+                    # Fallback: keep current year when candidate construction fails.
+                    pass
 
         return f"{year:04d}-{month:02d}-{day:02d}"
     except Exception:
@@ -859,10 +874,10 @@ def _call_gemini_reply(
         "venue_type": state.venue_type,
         "sound_needed": state.sound,
         "sound_mode": state.sound_mode,
-        "stage_required": state.stage_required,
-        "stage_size": state.stage_size,
-        "lighting_evening": state.lighting_evening,
-        "backline_required": state.backline_required,
+        # Keep core booking fields and sound context; avoid over-emphasising
+        # deeper production details (stage, lighting, backline) so the agent
+        # can reach a clear booking/artist suggestion point faster.
+        # Those can still be mentioned by the user and parsed via heuristics.
     }
     missing = [k for k, v in known_fields.items() if not v]
 
@@ -870,7 +885,8 @@ def _call_gemini_reply(
     # avoid repeating the same follow-up questions. Budget should not dominate
     # the conversation: only include budget_min/budget_max in follow-ups when
     # the user has clearly brought up money/price, or when they have already
-    # given a budget and we are clarifying it.
+    # given a budget and we are clarifying it. Stage/lighting/backline are
+    # deliberately excluded here to keep the conversation snappy.
     asked = list(state.asked_fields or [])
     answered = list(state.answered_fields or [])
     askable = [k for k in missing if k not in asked and k not in answered]
