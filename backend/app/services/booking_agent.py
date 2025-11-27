@@ -1099,17 +1099,17 @@ def run_booking_agent_step(
         providers = []
         filters = {}
     else:
-        q_lower = query_text.lower()
         # Only hit search once we have a clear service intent (category) or the
-        # user is explicitly asking to look/book for something. This avoids
-        # suggesting arbitrary providers when the user only gave generic event
-        # details like "birthday in Pretoria".
+        # latest user message is explicitly asking to look/book for something.
+        # This avoids suggesting arbitrary providers when the user only gave
+        # generic event details like "birthday in Pretoria".
+        last_user_text = (user_messages[-1].get("content") or "").strip().lower() if user_messages else ""
         should_search = bool(
             state.service_category
-            or "looking for" in q_lower
-            or "need a " in q_lower
-            or "need an " in q_lower
-            or "book " in q_lower
+            or "looking for" in last_user_text
+            or "need a " in last_user_text
+            or "need an " in last_user_text
+            or "book " in last_user_text
         )
         if should_search:
             t_search_start = time.monotonic()
