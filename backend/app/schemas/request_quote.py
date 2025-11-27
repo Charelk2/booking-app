@@ -21,6 +21,9 @@ class BookingRequestBase(BaseModel):
     travel_mode: Optional[str] = None
     travel_cost: Optional[Decimal] = None
     travel_breakdown: Optional[dict] = None
+    # Optional link to a parent booking request so artist + supplier threads
+    # can be grouped for the same underlying event.
+    parent_booking_request_id: Optional[int] = None
 
 class BookingRequestCreate(BookingRequestBase):
     artist_id: int # Client must specify the artist they are requesting
@@ -44,6 +47,7 @@ class BookingRequestResponse(BookingRequestBase):
     id: int
     client_id: int
     artist_id: int
+    parent_booking_request_id: Optional[int] = None
     status: BookingStatus
     created_at: datetime
     updated_at: Optional[datetime] = None

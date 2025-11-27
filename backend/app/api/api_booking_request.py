@@ -135,6 +135,7 @@ def _to_lite_booking_request_response(
         id=int(br.id),
         client_id=int(br.client_id),
         artist_id=int(br.artist_id),
+         parent_booking_request_id=getattr(br, "parent_booking_request_id", None),
         status=br.status,
         created_at=created_at,
         updated_at=updated_at,

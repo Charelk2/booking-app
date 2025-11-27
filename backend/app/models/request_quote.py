@@ -1,4 +1,14 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SQLAlchemyEnum, Numeric, JSON
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    Enum as SQLAlchemyEnum,
+    Numeric,
+    JSON,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -20,8 +30,25 @@ class BookingRequest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     client_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    artist_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True) # The artist's user_id
-    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"), nullable=True) # Optional
+    artist_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )  # The artist's user_id
+    service_id = Column(
+        Integer,
+        ForeignKey("services.id", ondelete="CASCADE"),
+        nullable=True,
+    )  # Optional
+    # Optional link back to a “parent” booking request so multi-provider
+    # events (artist + third-party sound) can be grouped at the data layer.
+    parent_booking_request_id = Column(
+        Integer,
+        ForeignKey("booking_requests.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     message = Column(Text, nullable=True)
     attachment_url = Column(String, nullable=True)

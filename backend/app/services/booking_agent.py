@@ -458,21 +458,6 @@ def _classify_service_category(
     if any(k in t for k in ["photographer", "photoshoot", "photo shoot", "pictures", "photos"]):
         return "photographer"
 
-    # Sound / PA / audio hire.
-    if any(
-        k in t
-        for k in [
-            "sound system",
-            "pa system",
-            "pa hire",
-            "audio hire",
-            "sound hire",
-            "sound equipment",
-            "speaker hire",
-        ]
-    ):
-        return "sound_service"
-
     # Musicians / bands / DJs / singers.
     if any(
         k in t
@@ -492,6 +477,25 @@ def _classify_service_category(
         ]
     ):
         return "musician"
+
+    # Sound / PA / audio hire. When we are already in a musician lane or have
+    # a chosen provider (e.g. the user said "a musician please" and then "I
+    # need sound equipment"), treat sound phrases as production needs for that
+    # artist rather than switching the service category to sound_service.
+    sound_keywords = [
+        "sound system",
+        "pa system",
+        "pa hire",
+        "audio hire",
+        "sound hire",
+        "sound equipment",
+        "speaker hire",
+    ]
+    if any(k in t for k in sound_keywords):
+        is_musician_lane = (category or "").lower() in ("musician", "dj", "band")
+        if is_musician_lane or state.chosen_provider_id:
+            return category or "musician"
+        return "sound_service"
 
     return category
 
