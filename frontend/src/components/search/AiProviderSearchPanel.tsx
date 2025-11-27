@@ -45,6 +45,7 @@ export default function AiProviderSearchPanel({
   const router = useRouter();
 
   const handleSend = async () => {
+    if (loading) return;
     const trimmed = input.trim();
     if (!trimmed) {
       setError('Describe what you are looking for (e.g. “Acoustic duo in Cape Town under R8000”).');
@@ -160,7 +161,7 @@ export default function AiProviderSearchPanel({
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="inline-block rounded-lg bg-slate-100 px-3 py-2 text-slate-500">
+              <div className="inline-block rounded-lg bg-slate-100 px-3 py-2 text-slate-500 animate-pulse">
                 Thinking…
               </div>
             </div>
@@ -171,6 +172,12 @@ export default function AiProviderSearchPanel({
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
             rows={2}
             className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand/60 focus:border-brand"
             placeholder="e.g. Acoustic duo for a wedding in Cape Town, budget R5–8k, 80 guests..."
@@ -181,7 +188,7 @@ export default function AiProviderSearchPanel({
             disabled={loading}
             className="inline-flex items-center justify-center rounded-lg bg-brand text-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-brand-dark disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? 'Sending…' : 'Send'}
+            Send
           </button>
         </div>
       </div>

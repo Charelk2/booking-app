@@ -368,6 +368,51 @@ def _classify_intent_and_event_type(
         ):
             event_type = "corporate"
 
+    # Greeting-only messages: treat as general questions so we start by
+    # asking about the event instead of guessing providers from "hello".
+    greeting_phrases = [
+        "hi",
+        "hi there",
+        "hello",
+        "hey",
+        "hey there",
+        "howzit",
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "greetings",
+    ]
+    stripped = t.strip()
+    if (
+        any(stripped == g for g in greeting_phrases)
+        or (
+            any(stripped.startswith(g) for g in greeting_phrases)
+            and not any(
+                kw in t
+                for kw in [
+                    "wedding",
+                    "birthday",
+                    "party",
+                    "event",
+                    "corporate",
+                    "dj",
+                    "band",
+                    "musician",
+                    "muscician",
+                    "singer",
+                    "photographer",
+                    "videographer",
+                    "sound system",
+                    "sound equipment",
+                    "service provider",
+                    "provider",
+                ]
+            )
+        )
+    ):
+        intent = "general_question"
+        return intent, event_type
+
     # Intent classification.
     general_keywords = [
         "booka",
