@@ -912,11 +912,19 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
             followups.append("Which town or city is your event in?")
         if effective_filters.min_price is None and effective_filters.max_price is None:
             followups.append("Roughly what budget range are you thinking of?")
+        # Ask for a few extra details that help make the brief bookable without
+        # forcing the user through the full wizard UI.
+        q_lower = query_text.lower()
+        if "wedding" not in q_lower and "birthday" not in q_lower and "corporate" not in q_lower:
+            followups.append("What type of event is it (e.g. wedding, birthday, corporate)?")
+        if "guest" not in q_lower and "people" not in q_lower:
+            followups.append("About how many guests are you expecting?")
         if followups:
             explanation = explanation.rstrip()
             if explanation and explanation[-1] not in ".!?":
                 explanation += "."
-            explanation = explanation + " " + " ".join(followups[:2])
+            # Keep it concise: at most three follow-up questions.
+            explanation = explanation + " " + " ".join(followups[:3])
     except Exception:
         # Never break the endpoint on follow-up formatting issues.
         pass

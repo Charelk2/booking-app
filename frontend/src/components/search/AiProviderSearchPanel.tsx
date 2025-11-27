@@ -113,9 +113,12 @@ export default function AiProviderSearchPanel({
 
   const handleStartBooking = (provider: AiProvider) => {
     if (!provider.artist_id) return;
-    const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+    const userTexts = messages
+      .filter((m) => m.role === 'user')
+      .map((m) => m.content?.trim())
+      .filter((t): t is string => Boolean(t));
     const note =
-      lastUser?.content?.trim() ||
+      (userTexts.length ? userTexts.join('\n') : undefined) ||
       `Booking request created from AI search for ${provider.name}`;
     const whenDate = filters?.when;
     const payload: any = {
