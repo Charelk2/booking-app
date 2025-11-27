@@ -42,6 +42,8 @@ export default function AiProviderSearchPanel({
     },
   ]);
   const [availability, setAvailability] = React.useState<Record<number, 'available' | 'unavailable' | 'unknown'>>({});
+  const [selectedProvider, setSelectedProvider] = React.useState<AiProvider | null>(null);
+  const [awaitingConfirm, setAwaitingConfirm] = React.useState(false);
   const router = useRouter();
 
   const handleSend = async () => {
@@ -53,8 +55,64 @@ export default function AiProviderSearchPanel({
     const nextMessages: AiChatMessage[] = [...messages, { role: 'user', content: trimmed }];
     setMessages(nextMessages);
     setInput('');
-    setLoading(true);
     setError(null);
+
+    // If we're waiting for booking confirmation and the user replied, handle that first.
+    const lower = trimmed.toLowerCase();
+    if (awaitingConfirm && selectedProvider && (filters?.when || when) && (filters?.location || location)) {
+      const negative = /\b(no|not|don't|do not|cancel|change)\b/.test(lower);
+      const positive = /\b(yes|yep|yeah|book|confirm|go ahead)\b/.test(lower);
+      if (positive && !negative) {
+        // Create a booking request directly from the collected conversation.
+        const userTexts = nextMessages
+          .filter((m) => m.role === 'user')
+          .map((m) => m.content?.trim())
+          .filter((t): t is string => Boolean(t));
+        const note =
+          (userTexts.length ? userTexts.join('\n') : undefined) ||
+          `Booking request created from AI search for ${selectedProvider.name}`;
+        const whenDate = filters?.when || (when ? when.toISOString().slice(0, 10) : null);
+        const payload: any = {
+          service_provider_id: selectedProvider.artist_id,
+          message: note,
+        };
+        if (whenDate) {
+          payload.proposed_datetime_1 = `${whenDate}T12:00:00`;
+        }
+        setLoading(true);
+        void (async () => {
+          try {
+            const res = await createBookingRequest(payload);
+            const id = res.data?.id;
+            if (id) {
+              setAwaitingConfirm(false);
+              setSelectedProvider(null);
+              router.push(`/booking-requests/${id}`);
+              return;
+            }
+          } catch (err: any) {
+            const status = err?.response?.status ?? err?.status;
+            if (status === 401) {
+              const nextUrl =
+                typeof window !== 'undefined'
+                  ? window.location.pathname + window.location.search
+                  : '/booking-requests';
+              router.push(`/auth?intent=login&next=${encodeURIComponent(nextUrl)}`);
+              return;
+            }
+          } finally {
+            setLoading(false);
+          }
+        })();
+        return;
+      }
+      if (negative) {
+        setAwaitingConfirm(false);
+        setSelectedProvider(null);
+      }
+    }
+
+    setLoading(true);
     try {
       const userMessages = [...nextMessages].filter((m) => m.role === 'user');
       const recentTexts = userMessages
@@ -137,6 +195,21 @@ export default function AiProviderSearchPanel({
       if (questions.length) {
         lines.push(questions.slice(0, 3).join(' '));
       }
+      // If we have a top provider and at least a date and location, propose a booking.
+      if (top && (f.when || when) && (f.location || location)) {
+        const date = f.when || (when ? when.toISOString().slice(0, 10) : '');
+        const city = f.location || location || '';
+        lines.push(
+          `If you'd like, I can create a booking request with ${top.name} on ${date}${
+            city ? ` in ${city}` : ''
+          } using what you've told me so far. Reply “Yes” to confirm or “No” to adjust.`,
+        );
+        setSelectedProvider(top);
+        setAwaitingConfirm(true);
+      } else {
+        setAwaitingConfirm(false);
+        setSelectedProvider(null);
+      }
       setMessages([...nextMessages, { role: 'assistant', content: lines.join(' ') }]);
     } catch (err: any) {
       if (err?.code === 'ai_search_disabled') {
@@ -179,45 +252,6 @@ export default function AiProviderSearchPanel({
       cancelled = true;
     };
   }, [providers, filters?.when]);
-
-  const handleStartBooking = (provider: AiProvider) => {
-    if (!provider.artist_id) return;
-    const userTexts = messages
-      .filter((m) => m.role === 'user')
-      .map((m) => m.content?.trim())
-      .filter((t): t is string => Boolean(t));
-    const note =
-      (userTexts.length ? userTexts.join('\n') : undefined) ||
-      `Booking request created from AI search for ${provider.name}`;
-    const whenDate = filters?.when;
-    const payload: any = {
-      service_provider_id: provider.artist_id,
-      message: note,
-    };
-    if (whenDate) {
-      // Use midday local time for the proposed datetime; backend stores as ISO.
-      payload.proposed_datetime_1 = `${whenDate}T12:00:00`;
-    }
-    void (async () => {
-      try {
-        const res = await createBookingRequest(payload);
-        const id = res.data?.id;
-        if (id) {
-          router.push(`/booking-requests/${id}`);
-        }
-      } catch (err: any) {
-        // If not authenticated, fall back to login; user can complete booking from the inbox later.
-        const status = err?.response?.status ?? err?.status;
-        if (status === 401) {
-          const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/booking-requests';
-          router.push(`/auth?intent=login&next=${encodeURIComponent(next)}`);
-          return;
-        }
-        // Otherwise, keep the user on the page; errors remain silent for now to avoid noisy UX.
-        // They can still use the normal booking flow from the provider page.
-      }
-    })();
-  };
 
   if (disabled) return null;
 
@@ -315,13 +349,6 @@ export default function AiProviderSearchPanel({
                   {!availability[p.artist_id] && <span>Checking availability…</span>}
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => handleStartBooking(p)}
-                className="mt-1 text-[11px] text-center text-brand underline"
-              >
-                Check availability &amp; book
-              </button>
             </div>
           ))}
         </div>
