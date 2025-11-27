@@ -9,6 +9,7 @@ from sqlalchemy import func, or_
 import re
 
 from app.core.config import settings, FRONTEND_PRIMARY
+from app.services.genai_client import get_genai_client
 from app.models.service_provider_profile import ServiceProviderProfile as Artist
 from app.models.service import Service
 from app.models.service_category import ServiceCategory
@@ -363,11 +364,9 @@ def _ai_derive_filters(
     if not api_key or not model_name:
         return heuristic
 
-    try:
-        from google import genai  # type: ignore
-    except Exception:
-        # Library not installed or import failed; avoid breaking search.
-        logger.warning("google-genai not available; falling back to heuristic filters")
+    client = get_genai_client()
+    if not client:
+        logger.warning("Gemini client not available; falling back to heuristic filters")
         return heuristic
 
     # Prepare a compact JSON snippet of the existing filters to give the model context.
@@ -398,7 +397,6 @@ def _ai_derive_filters(
     )
 
     try:
-        client = genai.Client(api_key=api_key)
         res = client.models.generate_content(model=model_name, contents=prompt)
         text = (getattr(res, "text", None) or "").strip()
         if not text:
@@ -825,31 +823,31 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
     # applies when we have candidates. When disable_llm is true, we keep the
     # deterministic ordering and generic explanation.
     if api_key and model_name and not disable_llm:
-        try:
-            from google import genai  # type: ignore
+        client = get_genai_client()
+        if client:
+            try:
+                # Keep the payload compact to control latency and token usage, but
+                # include Booka-centric popularity signals so we can answer things
+                # like “most famous on the platform” or “is X popular on Booka”.
+                top_providers = providers[:12] if providers else []
+                provider_payload: List[Dict[str, Any]] = []
+                for idx, p in enumerate(top_providers):
+                    provider_payload.append(
+                        {
+                            "index": idx,
+                            "slug": p.get("slug"),
+                            "name": p.get("name"),
+                            "location": p.get("location"),
+                            "categories": p.get("categories"),
+                            "rating": p.get("rating"),
+                            "review_count": p.get("review_count"),
+                            "booking_count": p.get("booking_count"),
+                            "profile_view_count": p.get("profile_view_count"),
+                            "starting_price": p.get("starting_price"),
+                        }
+                    )
 
-            # Keep the payload compact to control latency and token usage, but
-            # include Booka-centric popularity signals so we can answer things
-            # like “most famous on the platform” or “is X popular on Booka”.
-            top_providers = providers[:12] if providers else []
-            provider_payload: List[Dict[str, Any]] = []
-            for idx, p in enumerate(top_providers):
-                provider_payload.append(
-                    {
-                        "index": idx,
-                        "slug": p.get("slug"),
-                        "name": p.get("name"),
-                        "location": p.get("location"),
-                        "categories": p.get("categories"),
-                        "rating": p.get("rating"),
-                        "review_count": p.get("review_count"),
-                        "booking_count": p.get("booking_count"),
-                        "profile_view_count": p.get("profile_view_count"),
-                        "starting_price": p.get("starting_price"),
-                    }
-                )
-
-            system_instructions = (
+                system_instructions = (
                 "You are helping users find the best matching service providers on Booka, a South African booking site. "
                 "You are given the user's query, interpreted filters, and a small list of candidate providers, each with "
                 "Booka-specific popularity metrics (rating, number of reviews, booking_count, profile_view_count). "
@@ -871,57 +869,56 @@ def ai_provider_search(db: Session, payload: Dict[str, Any]) -> Dict[str, Any]:
                 "You MUST respond with a single JSON object only, no prose outside JSON, with this shape:\n"
                 '{\"ordered_indices\": [0,1,2], \"explanation\": \"...\"}\n'
                 "The ordered_indices array must reference the 'index' field of the candidate providers."
-            )
+                )
 
-            payload_json = {
-                "query": query_text,
-                "filters": filters_out,
-                "candidates": provider_payload,
-            }
+                payload_json = {
+                    "query": query_text,
+                    "filters": filters_out,
+                    "candidates": provider_payload,
+                }
 
-            payload_str = orjson_dumps(payload_json).decode("utf-8")
+                payload_str = orjson_dumps(payload_json).decode("utf-8")
 
-            prompt = (
-                f"{system_instructions}\n\n"
-                f"INPUT JSON:\n{payload_str}\n\n"
-                "Respond with JSON only."
-            )
+                prompt = (
+                    f"{system_instructions}\n\n"
+                    f"INPUT JSON:\n{payload_str}\n\n"
+                    "Respond with JSON only."
+                )
 
-            client = genai.Client(api_key=api_key)
-            res = client.models.generate_content(model=model_name, contents=prompt)
-            text = (getattr(res, "text", None) or "").strip()
-            if text:
-                start = text.find("{")
-                end = text.rfind("}")
-                if start != -1 and end != -1 and end > start:
-                    json_str = text[start : end + 1]
-                else:
-                    json_str = text
+                res = client.models.generate_content(model=model_name, contents=prompt)
+                text = (getattr(res, "text", None) or "").strip()
+                if text:
+                    start = text.find("{")
+                    end = text.rfind("}")
+                    if start != -1 and end != -1 and end > start:
+                        json_str = text[start : end + 1]
+                    else:
+                        json_str = text
 
-                data = json.loads(json_str)
-                if isinstance(data, dict):
-                    ordered_indices = data.get("ordered_indices")
-                    ai_expl = data.get("explanation")
-                    if isinstance(ordered_indices, list) and ordered_indices:
-                        # Sanitize indices and map back into our providers list.
-                        new_list: List[Dict[str, Any]] = []
-                        seen = set()
-                        for idx in ordered_indices:
-                            try:
-                                i = int(idx)
-                            except Exception:
-                                continue
-                            if 0 <= i < len(top_providers) and i not in seen:
-                                new_list.append(top_providers[i])
-                                seen.add(i)
-                        # If AI gave at least one valid index, adopt this ordering
-                        if new_list:
-                            providers = new_list
-                    if isinstance(ai_expl, str) and ai_expl.strip():
-                        explanation = ai_expl.strip()
-        except Exception as exc:
-            # Never let AI rerank/explanation failures break the endpoint.
-            logger.warning("GenAI rerank/explanation failed: %s", exc)
+                    data = json.loads(json_str)
+                    if isinstance(data, dict):
+                        ordered_indices = data.get("ordered_indices")
+                        ai_expl = data.get("explanation")
+                        if isinstance(ordered_indices, list) and ordered_indices:
+                            # Sanitize indices and map back into our providers list.
+                            new_list: List[Dict[str, Any]] = []
+                            seen = set()
+                            for idx in ordered_indices:
+                                try:
+                                    i = int(idx)
+                                except Exception:
+                                    continue
+                                if 0 <= i < len(top_providers) and i not in seen:
+                                    new_list.append(top_providers[i])
+                                    seen.add(i)
+                            # If AI gave at least one valid index, adopt this ordering
+                            if new_list:
+                                providers = new_list
+                        if isinstance(ai_expl, str) and ai_expl.strip():
+                            explanation = ai_expl.strip()
+            except Exception as exc:
+                # Never let AI rerank/explanation failures break the endpoint.
+                logger.warning("GenAI rerank/explanation failed: %s", exc)
 
     # Append lightweight, deterministic follow-up questions when key details
     # are missing so the assistant feels more conversational and can guide

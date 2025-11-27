@@ -1,6 +1,7 @@
 import logging
 import re
 import json
+import time
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import date, datetime, time as dtime
@@ -14,6 +15,7 @@ from app.crud.crud_service import service as crud_service
 from app.services.booking_quote import calculate_quote_breakdown
 from app.services.quote_totals import compute_quote_totals_snapshot
 from app.core.config import settings
+from app.services.genai_client import get_genai_client
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +115,133 @@ def _build_search_payload_from_state(
         "limit": limit,
     }
     return payload
+
+
+def _call_gemini_parse_state(
+    messages: List[Dict[str, str]],
+    state: BookingAgentState,
+) -> Dict[str, Any]:
+    """Ask Gemini to parse the latest user message into structured state fields.
+
+    This helper is deliberately narrow and best-effort: it only attempts to
+    interpret event_type, city, date, guests, budget_min, budget_max, venue_type,
+    sound, and time from the user's text. On any error or timeout it returns an
+    empty dict so the main agent logic can fall back to local heuristics.
+    """
+    api_key = (getattr(settings, "GOOGLE_GENAI_API_KEY", "") or "").strip()
+    model_name = (getattr(settings, "GOOGLE_GENAI_MODEL", "") or "").strip() or "gemini-2.5-flash"
+    if not api_key or not model_name:
+        return {}
+
+    # Use the latest user message as the primary signal.
+    user_messages = [m for m in messages if m.get("role") == "user"]
+    last_user = (user_messages[-1].get("content") or "").strip() if user_messages else ""
+    if not last_user:
+        return {}
+
+    client = get_genai_client()
+    if not client:
+        logger.warning("Gemini client not available for state parsing; skipping")
+        return {}
+
+    # Compact snapshot of the current known state so Gemini can avoid
+    # overwriting fields that are already confidently set.
+    base_state = {
+        "event_type": state.event_type,
+        "city": state.city,
+        "date": state.date,
+        "time": state.time,
+        "guests": state.guests,
+        "budget_min": state.budget_min,
+        "budget_max": state.budget_max,
+        "venue_type": state.venue_type,
+        "sound": state.sound,
+        "sound_mode": state.sound_mode,
+    }
+
+    system_instructions = (
+        "You help a booking assistant for a South African event platform (Booka) interpret user messages into "
+        "structured event fields. Given the latest user message and the current state, output ONLY a compact JSON "
+        "object with any updated fields for: event_type, city, date, time, guests, budget_min, budget_max, "
+        "venue_type, sound, sound_mode.\n\n"
+        "Rules:\n"
+        "- Use ISO 8601 format (YYYY-MM-DD) for date when possible.\n"
+        "- Use 24h 'HH:MM' format for time when possible (e.g. '18:00' for 6pm).\n"
+        "- guests should be an integer.\n"
+        "- budget_min and budget_max should be numbers in South African Rand (R). Interpret ranges like '5k to 8k' "
+        "as 5000 and 8000.\n"
+        "- sound should be 'yes' if the user needs sound equipment from the provider, 'no' if sound is already sorted, "
+        "or null if unclear.\n"
+        "- venue_type can be values like 'indoor', 'outdoor', 'hall', 'restaurant', 'home', 'garden' when hinted.\n"
+        "- Only include fields you want to change in the JSON output; omit fields that should stay as they are.\n"
+        "- If you are not sure about a field, either omit it or set it to null.\n"
+        "- Do not include any explanation or prose outside the JSON.\n"
+    )
+
+    base_json = json.dumps(base_state, default=str)
+    prompt = (
+        f"{system_instructions}\n\n"
+        f"Current state (JSON): {base_json}\n"
+        f"Latest user message: {last_user}\n\n"
+        "Respond with JSON only, for example:\n"
+        '{"event_type": "birthday", "city": "Pretoria", "date": "2026-10-29", "guests": 80, "budget_min": 5000, "budget_max": 8000}\n'
+    )
+
+    try:
+        t0 = time.monotonic()
+        res = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+        )
+        dt_ms = int((time.monotonic() - t0) * 1000)
+        logger.info("booking_agent: gemini_parse_ms=%s", dt_ms)
+        text = (getattr(res, "text", None) or "").strip()
+        if not text:
+            return {}
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            json_str = text[start : end + 1]
+        else:
+            json_str = text
+        data = json.loads(json_str)
+        if not isinstance(data, dict):
+            return {}
+    except Exception as exc:
+        logger.warning("Gemini state parsing failed: %s", exc)
+        return {}
+
+    # Normalise and whitelist only supported fields before returning.
+    allowed_keys = {
+        "event_type",
+        "city",
+        "date",
+        "time",
+        "guests",
+        "budget_min",
+        "budget_max",
+        "venue_type",
+        "sound",
+        "sound_mode",
+    }
+    update: Dict[str, Any] = {}
+    for key, value in data.items():
+        if key not in allowed_keys:
+            continue
+        # Let the main agent decide how to validate/merge; keep conversion light.
+        if key in ("guests",):
+            try:
+                update[key] = int(value) if value is not None else None
+            except Exception:
+                continue
+        elif key in ("budget_min", "budget_max"):
+            try:
+                update[key] = float(value) if value is not None else None
+            except Exception:
+                continue
+        else:
+            update[key] = value
+    return update
 
 
 def _classify_intent_and_event_type(
@@ -485,10 +614,9 @@ def _call_gemini_reply(
     if not api_key or not model_name:
         return None
 
-    try:
-        from google import genai  # type: ignore
-    except Exception:
-        logger.warning("google-genai not available; booking agent falling back to heuristics")
+    client = get_genai_client()
+    if not client:
+        logger.warning("Gemini client not available; booking agent falling back to heuristics")
         return None
 
     # Latest user message for immediate context.
@@ -690,15 +818,14 @@ def _call_gemini_reply(
     )
 
     try:
-        client = genai.Client(api_key=api_key)
-        # Apply a conservative per-call timeout so the booking agent does not
-        # block an entire HTTP request on a slow LLM response. On timeout or
-        # any error we fall back to deterministic copy instead.
+        t0 = time.monotonic()
+        # HTTP timeout is enforced via the shared client configuration.
         res = client.models.generate_content(
             model=model_name,
             contents=prompt,
-            config={"timeout": 5},
         )
+        dt_ms = int((time.monotonic() - t0) * 1000)
+        logger.info("booking_agent: gemini_reply_ms=%s", dt_ms)
         text = (getattr(res, "text", None) or "").strip()
         if not text:
             return None
@@ -773,11 +900,38 @@ def run_booking_agent_step(
     if intent:
         state.intent = intent
 
-    if intent == "general_question":
+    # Best-effort Gemini parser: let the model propose structured updates to
+    # the booking state based on the latest user message (date, city, guests,
+    # budget, sound, etc.). This runs only when we have missing fields, we are
+    # not in general-question mode, and we are past the first user turn, and
+    # it is strictly best-effort with a short timeout.
+    if (
+        not is_first_user_turn
+        and state.intent != "general_question"
+        and (state.city is None or state.date is None or state.guests is None or (state.budget_min is None and state.budget_max is None))
+    ):
+        try:
+            parsed = _call_gemini_parse_state(messages, state)
+            for key, value in parsed.items():
+                # Only fill fields that are currently unset so backend
+                # heuristics and user overrides remain authoritative.
+                if getattr(state, key, None) is None:
+                    setattr(state, key, value)
+        except Exception:
+            # Parsing must never break the agent step.
+            pass
+
+    if state.intent == "general_question":
         providers: List[Dict[str, Any]] = []
         filters: Dict[str, Any] = {}
     else:
+        t_search_start = time.monotonic()
         providers, filters = tool_search_providers(db, query_text, state)
+        search_ms = int((time.monotonic() - t_search_start) * 1000)
+        try:
+            logger.info("booking_agent: search_ms=%s", search_ms)
+        except Exception:
+            pass
 
     # Detect whether the user is clearly asking for a specific artist by name
     # and whether that artist appears in the current provider list.
