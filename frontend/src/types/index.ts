@@ -429,6 +429,19 @@ export interface BookingAgentState {
 
   notes?: string | null;
 
+  venue_type?: string | null; // 'indoor' | 'outdoor' | 'hybrid'
+
+  // Sound / production context (mirrors key fields from the Booking Wizard)
+  sound?: string | null; // 'yes' | 'no'
+  sound_mode?: string | null; // 'supplier' | 'provided_by_artist' | 'managed_by_artist' | 'client_provided' | 'none'
+  sound_supplier_service_id?: number | null;
+  stage_required?: boolean | null;
+  stage_size?: string | null; // 'S' | 'M' | 'L'
+  lighting_evening?: boolean | null;
+  lighting_upgrade_advanced?: boolean | null;
+  backline_required?: boolean | null;
+  sound_notes?: string | null;
+
   availability_checked?: boolean;
   availability_status?: 'available' | 'unavailable' | 'unknown' | null;
 }

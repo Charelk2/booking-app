@@ -41,6 +41,10 @@ class BookingAgentState(BaseModel):
         default=None,
         description="Approximate number of guests attending the event.",
     )
+    venue_type: Optional[str] = Field(
+        default=None,
+        description="Venue type such as 'indoor', 'outdoor', or 'hybrid'.",
+    )
     budget_min: Optional[float] = Field(
         default=None,
         description="Lower bound of the client's budget in ZAR, if provided.",
@@ -55,6 +59,47 @@ class BookingAgentState(BaseModel):
         description="Free-form summary of the client's requirements accumulated from the chat.",
     )
 
+    # Sound / production context (mirrors key fields from the Booking Wizard)
+    sound: Optional[str] = Field(
+        default=None,
+        description="Whether the client needs sound equipment: 'yes' or 'no'.",
+    )
+    sound_mode: Optional[str] = Field(
+        default=None,
+        description=(
+            "How sound will be handled when sound is needed, e.g. "
+            "'supplier', 'provided_by_artist', 'managed_by_artist', 'client_provided', or 'none'."
+        ),
+    )
+    sound_supplier_service_id: Optional[int] = Field(
+        default=None,
+        description="Optional service ID of a preferred sound supplier on Booka.",
+    )
+    stage_required: Optional[bool] = Field(
+        default=None,
+        description="Whether a stage is required at the venue.",
+    )
+    stage_size: Optional[str] = Field(
+        default=None,
+        description="Preferred stage size when required, e.g. 'S', 'M', or 'L'.",
+    )
+    lighting_evening: Optional[bool] = Field(
+        default=None,
+        description="Whether evening lighting is needed for the event.",
+    )
+    lighting_upgrade_advanced: Optional[bool] = Field(
+        default=None,
+        description="Whether to upgrade to advanced lighting when available.",
+    )
+    backline_required: Optional[bool] = Field(
+        default=None,
+        description="Whether musical backline (drums, amps, etc.) is required.",
+    )
+    sound_notes: Optional[str] = Field(
+        default=None,
+        description="Extra sound/production notes that don't fit into structured fields.",
+    )
+
     availability_checked: bool = Field(
         default=False,
         description="Whether availability has been checked for chosen_provider_id on the selected date.",
@@ -63,4 +108,3 @@ class BookingAgentState(BaseModel):
         default=None,
         description="Result of the last availability check for the chosen provider/date.",
     )
-
