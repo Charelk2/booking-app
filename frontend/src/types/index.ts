@@ -475,6 +475,8 @@ export interface BookingAgentState {
   answered_fields?: string[];
 
   travel_tradeoff_explained?: boolean;
+
+  availability_message_emitted?: boolean;
 }
 
 export interface AttachmentMeta {

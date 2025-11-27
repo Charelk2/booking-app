@@ -43,6 +43,80 @@ class AgentStepResult:
     final_action: Optional[Dict[str, Any]] = None
 
 
+def _extract_date_from_text_fragment(text: str) -> Optional[str]:
+    """Best-effort extraction of a calendar date from a short text fragment.
+
+    Handles patterns like "29 October" and "29 October 2027". Returns an
+    ISO 8601 date string (YYYY-MM-DD) or None on failure.
+    """
+    t = (text or "").strip().lower()
+    if not t:
+        return None
+
+    month_map = {
+        "january": 1,
+        "february": 2,
+        "march": 3,
+        "april": 4,
+        "may": 5,
+        "june": 6,
+        "july": 7,
+        "august": 8,
+        "september": 9,
+        "october": 10,
+        "november": 11,
+        "december": 12,
+        "jan": 1,
+        "feb": 2,
+        "mar": 3,
+        "apr": 4,
+        "jun": 6,
+        "jul": 7,
+        "aug": 8,
+        "sep": 9,
+        "sept": 9,
+        "oct": 10,
+        "nov": 11,
+        "dec": 12,
+    }
+
+    # Support "29 October" and "29 October 2027" style patterns.
+    m = re.search(
+        r"\b(\d{1,2})\s+("
+        r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|"
+        r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
+        r")(?:\s+(\d{4}))?\b",
+        t,
+    )
+    if not m:
+        return None
+
+    try:
+        day = int(m.group(1))
+        month_name = m.group(2)
+        year_str = m.group(3)
+        month = month_map.get(month_name, None)
+        if not month:
+            return None
+
+        if year_str:
+            year = int(year_str)
+        else:
+            today = date.today()
+            year = today.year
+            try:
+                candidate = date(year, month, day)
+                if candidate < today:
+                    year += 1
+            except Exception:
+                # Fallback: keep current year when candidate construction fails.
+                pass
+
+        return f"{year:04d}-{month:02d}-{day:02d}"
+    except Exception:
+        return None
+
+
 def _build_booking_request_from_state(
     state: BookingAgentState,
     message: str,
@@ -1019,7 +1093,6 @@ def run_booking_agent_step(
     state = state or BookingAgentState()
     if state.stage is None:
         state.stage = "collecting_requirements"
-    prev_availability_status = state.availability_status
 
     # Extract recent user messages as the primary query signal so earlier
     # provider mentions (e.g. names) stay in context across follow-ups.
@@ -1067,6 +1140,7 @@ def run_booking_agent_step(
         state.service_name = None
         state.availability_checked = False
         state.availability_status = None
+        state.availability_message_emitted = False
         state.stage = "collecting_requirements"
         state.summary_emitted = False
 
@@ -1157,64 +1231,13 @@ def run_booking_agent_step(
     # message so we can progressively fill the state (e.g. sound preference).
     try:
         t = (query_text or "").lower()
-        # Best-effort partial date extraction (e.g. "29 October") even when a
-        # date is already set. When the user is clearly changing details
-        # (modify_brief intent), we allow the new date to override the old
-        # one. This reduces repeated generic "what date?" questions and lets
-        # the assistant refine instead.
-        if not state.date or state.intent == "modify_brief":
-            month_map = {
-                "january": 1,
-                "february": 2,
-                "march": 3,
-                "april": 4,
-                "may": 5,
-                "june": 6,
-                "july": 7,
-                "august": 8,
-                "september": 9,
-                "october": 10,
-                "november": 11,
-                "december": 12,
-                "jan": 1,
-                "feb": 2,
-                "mar": 3,
-                "apr": 4,
-                "jun": 6,
-                "jul": 7,
-                "aug": 8,
-                "sep": 9,
-                "sept": 9,
-                "oct": 10,
-                "nov": 11,
-                "dec": 12,
-            }
-            m_date = re.search(
-                r"\b(\d{1,2})\s+("
-                r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|"
-                r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
-                r")\b",
-                t,
-            )
-            if m_date:
-                try:
-                    day = int(m_date.group(1))
-                    month_name = m_date.group(2)
-                    month = month_map.get(month_name, None)
-                    if month:
-                        today = date.today()
-                        year = today.year
-                        # If this day/month already passed this year, assume next year.
-                        try:
-                            candidate = date(year, month, day)
-                            if candidate < today:
-                                year += 1
-                        except Exception:
-                            # Fallback: keep current year.
-                            pass
-                        state.date = f"{year:04d}-{month:02d}-{day:02d}"
-                except Exception:
-                    pass
+        # Best-effort date extraction from the latest user text. We allow this
+        # to override an existing date when the user is clearly changing the
+        # brief (modify_brief intent), or when no date has been set yet.
+        extracted_date = _extract_date_from_text_fragment(t)
+        if extracted_date:
+            if state.date is None or state.intent == "modify_brief":
+                state.date = extracted_date
         if state.sound is None:
             if re.search(r"\b(no sound|without sound|have our own sound|sound is sorted)\b", t):
                 state.sound = "no"
@@ -1263,8 +1286,15 @@ def run_booking_agent_step(
             if loc:
                 state.city = loc
         if state.date is None or state.intent == "modify_brief":
-            if when and isinstance(when, date):
-                state.date = when.isoformat()
+            if when:
+                if isinstance(when, date):
+                    state.date = when.isoformat()
+                elif isinstance(when, str):
+                    try:
+                        parsed_when = date.fromisoformat(when)
+                        state.date = parsed_when.isoformat()
+                    except Exception:
+                        pass
         try:
             if state.budget_min is None and filters.get("min_price") is not None:
                 state.budget_min = float(filters["min_price"])
@@ -1293,11 +1323,13 @@ def run_booking_agent_step(
             state.answered_fields.append(key)
 
     # If the event date changed during this turn, invalidate any previous
-    # availability check so we can re-check for the new date.
+    # availability check so we can re-check for the new date and emit a fresh
+    # availability message at most once for the new date.
     try:
-        if prev_date and state.date and prev_date != state.date:
+        if prev_date != state.date:
             state.availability_checked = False
             state.availability_status = None
+            state.availability_message_emitted = False
     except Exception:
         pass
 
@@ -1362,11 +1394,15 @@ def run_booking_agent_step(
             except Exception:
                 new_id = None
 
-            # If we switch providers, reset service selection so quote
-            # previews are recomputed for the new artist.
+            # If we switch providers, reset service selection and any
+            # previous availability result so checks and messages are
+            # recomputed for the new artist.
             if new_id != prev_provider_id:
                 state.service_id = None
                 state.service_name = None
+                state.availability_checked = False
+                state.availability_status = None
+                state.availability_message_emitted = False
 
             state.chosen_provider_id = new_id
             state.chosen_provider_name = name
@@ -1743,21 +1779,24 @@ def run_booking_agent_step(
     # or finished, append a clear booking-offer line when the provider looks
     # available and move to the awaiting_confirmation stage. If we know the
     # provider is unavailable, steer the user toward changing the date or
-    # artist instead of offering to book.
+    # artist instead of offering to book, and only emit the explicit
+    # unavailability line once per provider/date combination.
     if (
         state.stage in ("collecting_requirements", "suggesting_providers")
         and state.chosen_provider_id
         and state.date
         and effective_city
     ):
-        if state.availability_status == "unavailable" and prev_availability_status != "unavailable":
-            provider_name = state.chosen_provider_name or "the artist"
-            city = effective_city or ""
-            line = f"It looks like {provider_name} is already booked on {state.date}"
-            if city:
-                line += f" in {city}"
-            line += ". I can help you try a different date or suggest similar artists if you’d like."
-            messages_out.append(line)
+        if state.availability_status == "unavailable":
+            if not state.availability_message_emitted:
+                provider_name = state.chosen_provider_name or "the artist"
+                city = effective_city or ""
+                line = f"It looks like {provider_name} is already booked on {state.date}"
+                if city:
+                    line += f" in {city}"
+                line += ". I can help you try a different date or suggest similar artists if you’d like."
+                messages_out.append(line)
+                state.availability_message_emitted = True
         else:
             provider_name = state.chosen_provider_name or "the artist"
             city = effective_city or ""
