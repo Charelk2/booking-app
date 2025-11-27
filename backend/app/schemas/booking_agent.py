@@ -164,3 +164,12 @@ class BookingAgentState(BaseModel):
             "Helps the agent avoid asking about fields that already have values."
         ),
     )
+
+    travel_tradeoff_explained: bool = Field(
+        default=False,
+        description=(
+            "Whether the agent has already explained that the chosen artist is based in a "
+            "different city to the event and offered the option of sticking with them (with travel) "
+            "versus switching to someone closer."
+        ),
+    )

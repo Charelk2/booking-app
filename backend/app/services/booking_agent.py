@@ -867,6 +867,17 @@ def run_booking_agent_step(
             state.service_id = sid
             state.service_name = sname
 
+    # Explain travel vs local trade-off once, when the artist's home city
+    # differs from the event city. This helps users understand that artists
+    # can travel and that travel costs will simply be included in the quote.
+    event_city: Optional[str] = state.city or filters.get("location")
+    provider_city: Optional[str] = None
+    if providers:
+        top = providers[0]
+        provider_city_raw = top.get("location")
+        if isinstance(provider_city_raw, str):
+            provider_city = provider_city_raw.strip() or None
+
     # Compute a quote preview when we have enough structured information and
     # cache it inside the state so we only recompute previews when relevant
     # inputs change (service, city, guests, venue/sound context). To avoid
@@ -1002,6 +1013,31 @@ def run_booking_agent_step(
             summary = "So far I have: " + ", ".join(summary_parts) + "."
             messages_out.append(summary)
             state.summary_emitted = True
+
+    # Explain the travel vs local trade-off once, after the main assistant
+    # reply and summary, when the artist's home city differs from the event
+    # city. This keeps the behaviour explicit and consistent for users.
+    if (
+        not state.travel_tradeoff_explained
+        and state.chosen_provider_id
+        and event_city
+        and provider_city
+    ):
+        ev = event_city.strip()
+        home = provider_city.strip()
+        ev_l = ev.lower()
+        home_l = home.lower()
+        # Treat simple substring matches as "same-ish" city, e.g.
+        # "Pretoria" vs "Pretoria, South Africa".
+        different_city = ev_l not in home_l and home_l not in ev_l
+        if different_city:
+            provider_name = state.chosen_provider_name or (providers[0].get("name") if providers else "the artist")
+            line = (
+                f"{provider_name} is based in {home}, and your event is in {ev}. "
+                "We can go ahead with them and include travel in the quote, or look at artists closer to your event if you prefer."
+            )
+            messages_out.append(line)
+            state.travel_tradeoff_explained = True
 
     # Heuristic "yes, book it" detection: only allow booking creation when the
     # agent is explicitly awaiting confirmation and the provider is not known
