@@ -22,6 +22,23 @@ import { useRouter } from 'next/navigation';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
 import EventPrepCard from '@/components/booking/EventPrepCard';
 
+const BACKLINE_LABELS: Record<string, string> = {
+  drums_full: 'Drum kit (full)',
+  drum_shells: 'Drum shells',
+  guitar_amp: 'Guitar amp',
+  bass_amp: 'Bass amp',
+  keyboard_amp: 'Keyboard amp',
+  keyboard_stand: 'Keyboard stand',
+  piano_digital_88: 'Digital piano (88‑key)',
+  piano_acoustic_upright: 'Upright piano',
+  piano_acoustic_grand: 'Grand piano',
+  dj_booth: 'DJ booth / table',
+};
+
+const formatBacklineLabel = (key: string): string => {
+  return BACKLINE_LABELS[key] || key.replace(/_/g, ' ');
+};
+
 const providerIdentityCache = new Map<number, { name: string | null; avatar: string | null }>();
 
 const normalizeIdentityString = (value: unknown): string | null => {
@@ -580,8 +597,8 @@ export default function BookingDetailsPanel({
   // Determine service type once for conditional UI
   const serviceTypeText = String(
     bookingRequest.service?.service_type ||
-    bookingRequest.service?.service_category?.name ||
-    ''
+      bookingRequest.service?.service_category?.name ||
+      ''
   ).toLowerCase();
   const isPersonalized = serviceTypeText.includes('personalized video');
   const effectiveBooking = (confirmedBookingDetails || hydratedBooking) as (Booking & { review?: Review }) | null;
@@ -647,6 +664,104 @@ export default function BookingDetailsPanel({
       Leave review
     </button>
   ) : null;
+
+  // Detect sound‑booking threads so we can surface a concise Tech & Backline
+  // summary for the sound provider (and client) using the normalized rider
+  // snapshot propagated from the main artist booking.
+  const soundParentId = (() => {
+    try {
+      return Number((bookingRequest as any).parent_booking_request_id || 0);
+    } catch {
+      return 0;
+    }
+  })();
+  const isSoundThread = soundParentId > 0 || serviceTypeText.includes('sound service');
+
+  const techBacklineCard = (() => {
+    if (!isSoundThread) return null;
+    let tb: any = {};
+    try {
+      tb = ((bookingRequest as any).travel_breakdown || {}) as any;
+    } catch {
+      tb = {};
+    }
+    const ruRaw: any = tb?.rider_units || {};
+    const backRaw: any = tb?.backline_requested || {};
+    const toInt = (v: unknown): number => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    };
+    const units = {
+      vocal_mics: toInt((ruRaw as any).vocal_mics ?? (ruRaw as any).vocalMics),
+      speech_mics: toInt((ruRaw as any).speech_mics ?? (ruRaw as any).speechMics),
+      monitor_mixes: toInt((ruRaw as any).monitor_mixes ?? (ruRaw as any).monitorMixes),
+      iem_packs: toInt((ruRaw as any).iem_packs ?? (ruRaw as any).iemPacks),
+      di_boxes: toInt((ruRaw as any).di_boxes ?? (ruRaw as any).diBoxes),
+    };
+    const hasUnits = Object.values(units).some((n) => n > 0);
+    const backEntries = Object.entries(backRaw || {}).filter(([_, val]) => {
+      const n = Number(val);
+      return Number.isFinite(n) && n > 0;
+    });
+    if (!hasUnits && backEntries.length === 0) return null;
+
+    return (
+      <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3">
+        <div className="text-xs font-semibold text-gray-900 mb-1.5">Tech &amp; backline (for sound)</div>
+        <div className="grid grid-cols-1 gap-2 text-xs text-gray-800">
+          {hasUnits ? (
+            <div>
+              <div className="font-medium text-gray-700 mb-0.5">Inputs &amp; monitoring</div>
+              <ul className="list-disc list-inside space-y-0.5">
+                {units.vocal_mics > 0 && (
+                  <li>
+                    {units.vocal_mics} vocal mic{units.vocal_mics > 1 ? 's' : ''}
+                  </li>
+                )}
+                {units.speech_mics > 0 && (
+                  <li>
+                    {units.speech_mics} wireless / speech mic{units.speech_mics > 1 ? 's' : ''}
+                  </li>
+                )}
+                {units.monitor_mixes > 0 && (
+                  <li>
+                    {units.monitor_mixes} monitor mix{units.monitor_mixes > 1 ? 'es' : ''}
+                  </li>
+                )}
+                {units.iem_packs > 0 && (
+                  <li>
+                    {units.iem_packs} IEM pack{units.iem_packs > 1 ? 's' : ''}
+                  </li>
+                )}
+                {units.di_boxes > 0 && (
+                  <li>
+                    {units.di_boxes} DI box{units.di_boxes > 1 ? 'es' : ''}
+                  </li>
+                )}
+              </ul>
+            </div>
+          ) : null}
+          {backEntries.length ? (
+            <div>
+              <div className="font-medium text-gray-700 mb-0.5">Requested backline</div>
+              <ul className="list-disc list-inside space-y-0.5">
+                {backEntries.map(([key, val]) => {
+                  const count = Number(val);
+                  if (!Number.isFinite(count) || count <= 0) return null;
+                  const label = formatBacklineLabel(key);
+                  return (
+                    <li key={key}>
+                      {count}× {label}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  })();
 
   // Render a rich, action‑oriented panel for Booka updates
   if (isBookaThread) {
@@ -850,46 +965,47 @@ export default function BookingDetailsPanel({
         const showPrep = isPaid || accepted;
 
         return (
-          <BookingSummaryCard
-            parsedBookingDetails={parsedBookingDetails ?? undefined}
-            imageUrl={imageUrl}
-            serviceName={bookingRequest.service?.title}
-            artistName={artistName}
-            bookingConfirmed={bookingConfirmed}
-            quotesLoading={quotesLoading}
-            paymentInfo={{
-              status: paymentStatus,
-              amount: paymentAmount,
-              receiptUrl,
-              reference:
-                paymentReference ??
-                (confirmedBookingDetails?.payment_id
-                  ? String(confirmedBookingDetails.payment_id)
-                  : null),
-            }}
-            bookingDetails={confirmedBookingDetails || hydratedBooking}
-            quotes={quotes}
-            allowInstantBooking={false}
-            openPaymentModal={openPaymentModal}
-            bookingRequestId={bookingRequest.id}
-            baseFee={Number(bookingRequest.service?.price || 0)}
-            travelFee={Number(bookingRequest.travel_cost || 0)}
-            initialSound={
-              String(parsedBookingDetails?.soundNeeded || '')
-                .trim()
-                .toLowerCase() === 'yes'
-            }
-            artistCancellationPolicy={cancellationPolicy}
-            currentArtistId={Number(currentArtistId) || 0}
-            // Always render all sections for clarity
-            showTravel={true}
-            showSound={true}
-            showPolicy={true}
-            showEventDetails={true}
-            showReceiptBelowTotal={isPersonalized}
-            clientReviewCta={clientReviewCta}
-            belowHeader={
-              showPrep ? (
+          <>
+            <BookingSummaryCard
+              parsedBookingDetails={parsedBookingDetails ?? undefined}
+              imageUrl={imageUrl}
+              serviceName={bookingRequest.service?.title}
+              artistName={artistName}
+              bookingConfirmed={bookingConfirmed}
+              quotesLoading={quotesLoading}
+              paymentInfo={{
+                status: paymentStatus,
+                amount: paymentAmount,
+                receiptUrl,
+                reference:
+                  paymentReference ??
+                  (confirmedBookingDetails?.payment_id
+                    ? String(confirmedBookingDetails.payment_id)
+                    : null),
+              }}
+              bookingDetails={confirmedBookingDetails || hydratedBooking}
+              quotes={quotes}
+              allowInstantBooking={false}
+              openPaymentModal={openPaymentModal}
+              bookingRequestId={bookingRequest.id}
+              baseFee={Number(bookingRequest.service?.price || 0)}
+              travelFee={Number(bookingRequest.travel_cost || 0)}
+              initialSound={
+                String(parsedBookingDetails?.soundNeeded || '')
+                  .trim()
+                  .toLowerCase() === 'yes'
+              }
+              artistCancellationPolicy={cancellationPolicy}
+              currentArtistId={Number(currentArtistId) || 0}
+              // Always render all sections for clarity
+              showTravel={true}
+              showSound={true}
+              showPolicy={true}
+              showEventDetails={true}
+              showReceiptBelowTotal={isPersonalized}
+              clientReviewCta={clientReviewCta}
+              belowHeader={
+                showPrep ? (
                   <EventPrepCard
                     bookingId={Number(confirmedBookingDetails?.id || 0) || 0}
                     bookingRequestId={Number(bookingRequest.id)}
@@ -955,8 +1071,10 @@ export default function BookingDetailsPanel({
                 }}
                   />
                 ) : null
-            }
-          />
+              }
+            />
+            {techBacklineCard}
+          </>
         );
       })()}
       {paymentModal}
