@@ -397,18 +397,6 @@ export async function calculateTravelMode(
     };
   }
 
-  if (!FLIGHT_ROUTES[depCode]?.includes(arrCode)) {
-    const price = input.flightPricePerPerson ?? DEFAULT_FLIGHT_COST_PER_PERSON;
-    return {
-      mode: 'drive',
-      totalCost: input.drivingEstimate,
-      breakdown: {
-        drive: { estimate: input.drivingEstimate },
-        fly: makeEmptyFlyBreakdown(input, price),
-      },
-    };
-  }
-
   const hasCustomFlightPrice = input.flightPricePerPerson != null;
 
   const [direct, depXfer, arrXfer, flightPrice] = await Promise.all([
@@ -420,6 +408,25 @@ export async function calculateTravelMode(
       return fetchFlightCost(depCode, arrCode, input.travelDate);
     })(),
   ]);
+
+  // If there is no supported flight route between the inferred airports,
+  // fall back to a pure driving estimate using Distance Matrix so travel
+  // never silently becomes zero.
+  if (!FLIGHT_ROUTES[depCode]?.includes(arrCode)) {
+    const drivingEstimate =
+      input.drivingEstimate && input.drivingEstimate > 0
+        ? input.drivingEstimate
+        : direct.distanceKm * rate * 2;
+    const price = input.flightPricePerPerson ?? DEFAULT_FLIGHT_COST_PER_PERSON;
+    return {
+      mode: 'drive',
+      totalCost: drivingEstimate,
+      breakdown: {
+        drive: { estimate: drivingEstimate },
+        fly: makeEmptyFlyBreakdown(input, price),
+      },
+    };
+  }
 
   const flightsReachable =
     depXfer.durationHrs <= MAX_TRANSFER_HOURS &&
@@ -550,11 +557,18 @@ function computeFlyResult(
     arrXfer,
     pricePerPerson,
   );
+  const rate = input.travelRate ?? RATE_PER_KM;
+  const drivingEstimate =
+    input.drivingEstimate && input.drivingEstimate > 0
+      ? input.drivingEstimate
+      : depXfer.distanceKm && arrXfer.distanceKm
+        ? (depXfer.distanceKm + arrXfer.distanceKm) * rate * 2
+        : 0;
   return {
     mode: 'fly',
     totalCost: flyBreakdown.total,
     breakdown: {
-      drive: { estimate: input.drivingEstimate },
+      drive: { estimate: drivingEstimate },
       fly: flyBreakdown,
     },
   };
