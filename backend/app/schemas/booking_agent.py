@@ -19,6 +19,14 @@ class BookingAgentState(BaseModel):
     chosen_provider_name: Optional[str] = Field(
         default=None, description="Display name of the selected provider."
     )
+    service_id: Optional[int] = Field(
+        default=None,
+        description="Selected service ID for quoting/pricing when known.",
+    )
+    service_name: Optional[str] = Field(
+        default=None,
+        description="Human-friendly name of the selected service (e.g. 'Acoustic Duo Package').",
+    )
 
     event_type: Optional[str] = Field(
         default=None,
@@ -98,6 +106,14 @@ class BookingAgentState(BaseModel):
     sound_notes: Optional[str] = Field(
         default=None,
         description="Extra sound/production notes that don't fit into structured fields.",
+    )
+
+    stage: Optional[Literal["collecting_requirements", "suggesting_providers", "awaiting_confirmation", "booking_created"]] = Field(
+        default="collecting_requirements",
+        description=(
+            "High-level conversation stage for the agent; used to gate actions "
+            "like booking creation so they only occur after explicit confirmation."
+        ),
     )
 
     availability_checked: bool = Field(

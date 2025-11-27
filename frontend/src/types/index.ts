@@ -417,6 +417,10 @@ export interface BookingSimple {
 export interface BookingAgentState {
   chosen_provider_id?: number | null;
   chosen_provider_name?: string | null;
+  service_id?: number | null;
+  service_name?: string | null;
+  service_id?: number | null;
+  service_name?: string | null;
 
   event_type?: string | null;
   city?: string | null;
@@ -441,6 +445,13 @@ export interface BookingAgentState {
   lighting_upgrade_advanced?: boolean | null;
   backline_required?: boolean | null;
   sound_notes?: string | null;
+
+  stage?:
+    | 'collecting_requirements'
+    | 'suggesting_providers'
+    | 'awaiting_confirmation'
+    | 'booking_created'
+    | null;
 
   availability_checked?: boolean;
   availability_status?: 'available' | 'unavailable' | 'unknown' | null;

@@ -72,10 +72,18 @@ export default function AiProviderSearchPanel({
         return;
       }
     } catch (err: any) {
-      if (err?.code === 'ai_search_disabled') {
+      if (err?.code === 'ai_agent_disabled') {
         setDisabled(true);
         setProviders([]);
         setError(null);
+        return;
+      }
+      if (err?.code === 'ai_agent_unauthenticated') {
+        const nextUrl =
+          typeof window !== 'undefined'
+            ? window.location.pathname + window.location.search
+            : '/service-providers';
+        router.push(`/auth?intent=login&next=${encodeURIComponent(nextUrl)}`);
         return;
       }
       setError('AI suggestions are temporarily unavailable. Please try again or use the filters above.');

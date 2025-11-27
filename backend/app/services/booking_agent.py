@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session
 from app.models import User as DbUser
 from app.schemas.booking_agent import BookingAgentState
 from app.services.ai_search import ai_provider_search
+from app.crud.crud_service import service as crud_service
+from app.services.booking_quote import calculate_quote_breakdown
+from app.services.quote_totals import compute_quote_totals_snapshot
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -153,6 +156,111 @@ def tool_create_booking_request(
         return None
 
 
+def tool_pick_primary_service(
+    db: Session,
+    artist_id: int,
+) -> Tuple[Optional[int], Optional[str], Optional[float]]:
+    """Pick a representative service for an artist for quote previews.
+
+    Heuristic: choose the approved service with the lowest non-zero price.
+    Returns (service_id, service_name, price) or (None, None, None) on failure.
+    """
+    if not artist_id:
+        return None, None, None
+    try:
+        services = crud_service.get_services_by_artist(db, artist_id=artist_id, skip=0, limit=50)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Agent get_services_by_artist failed: %s", exc)
+        return None, None, None
+    best_id: Optional[int] = None
+    best_name: Optional[str] = None
+    best_price: Optional[float] = None
+    for svc in services or []:
+        # Skip non-approved services if status is present
+        status = getattr(svc, "status", "approved")
+        if status != "approved":
+            continue
+        raw_price = getattr(svc, "price", None)
+        try:
+            price = float(raw_price) if raw_price is not None else None
+        except Exception:
+            price = None
+        if price is None or price <= 0:
+            continue
+        if best_price is None or price < best_price:
+            best_price = price
+            try:
+                best_id = int(getattr(svc, "id", 0) or 0)
+            except Exception:
+                best_id = None
+            name = getattr(svc, "title", None) or getattr(svc, "name", None) or None
+            best_name = str(name) if name else None
+    if not best_id:
+        return None, None, None
+    return best_id, best_name, best_price
+
+
+def tool_quote_preview(
+    db: Session,
+    state: BookingAgentState,
+) -> Optional[float]:
+    """Compute a travel- and sound-aware quote preview including Booka fees and VAT.
+
+    Returns the estimated client_total_incl_vat as a float, or None if a
+    preview cannot be computed safely.
+    """
+    if not state.service_id or not state.city:
+        return None
+    try:
+        svc = crud_service.get_service(db, service_id=int(state.service_id))
+    except Exception as exc:  # pragma: no cover
+        logger.warning("Agent quote_preview get_service failed: %s", exc)
+        return None
+    if not svc:
+        return None
+    try:
+        raw_fee = getattr(svc, "price", None)
+        base_fee = float(raw_fee) if raw_fee is not None else None
+    except Exception:
+        base_fee = None
+    if base_fee is None or base_fee <= 0:
+        return None
+    try:
+        from decimal import Decimal
+
+        breakdown = calculate_quote_breakdown(
+            base_fee=Decimal(str(base_fee)),
+            distance_km=None,
+            accommodation_cost=None,
+            service=svc,
+            event_city=state.city,
+            db=db,
+            guest_count=state.guests,
+            venue_type=state.venue_type,
+            stage_required=state.stage_required,
+            stage_size=state.stage_size,
+            lighting_evening=state.lighting_evening,
+            upgrade_lighting_advanced=state.lighting_upgrade_advanced,
+            backline_required=state.backline_required,
+            selected_sound_service_id=state.sound_supplier_service_id,
+            supplier_distance_km=None,
+            rider_units=None,
+            backline_requested=None,
+        )
+        total = breakdown.get("total")
+        if total is None:
+            return None
+        snapshot = compute_quote_totals_snapshot(
+            {"total": total, "subtotal": total, "currency": getattr(svc, "currency", "ZAR")}
+        )
+        if not snapshot or snapshot.client_total_incl_vat is None:
+            return None
+        return float(snapshot.client_total_incl_vat)
+    except Exception as exc:  # pragma: no cover
+        logger.warning("Agent quote_preview failed: %s", exc, exc_info=True)
+        return None
+
+
 def _call_gemini_reply(
     messages: List[Dict[str, str]],
     state: BookingAgentState,
@@ -286,9 +394,17 @@ def run_booking_agent_step(
     fails, the agent falls back to a simple heuristic response.
     """
     state = state or BookingAgentState()
-    # Extract the latest user message as the primary query signal.
+    if state.stage is None:
+        state.stage = "collecting_requirements"
+    # Extract recent user messages as the primary query signal so earlier
+    # provider mentions (e.g. names) stay in context across follow-ups.
     user_messages = [m for m in messages if m.get("role") == "user"]
-    query_text = (user_messages[-1]["content"] or "").strip() if user_messages else ""
+    recent_texts = [
+        (m.get("content") or "").strip()
+        for m in user_messages[-3:]
+        if (m.get("content") or "").strip()
+    ]
+    query_text = " ".join(recent_texts).strip() if recent_texts else ""
 
     providers, filters = tool_search_providers(db, query_text, state)
 
@@ -351,15 +467,73 @@ def run_booking_agent_step(
         except Exception:
             pass
 
-    # Keep a heuristic chosen provider to mirror current UX.
+    # Keep a heuristic chosen provider to mirror current UX, but avoid
+    # swapping providers once the user is confirming a booking.
     if providers:
-        top = providers[0]
-        name = top.get("name") or "this provider"
-        try:
-            state.chosen_provider_id = int(top.get("artist_id") or 0) or None
-        except Exception:
-            state.chosen_provider_id = None
-        state.chosen_provider_name = name
+        prev_provider_id = state.chosen_provider_id
+        # If we already have a chosen provider, prefer to keep it when it
+        # still appears in the current provider list.
+        chosen_idx = -1
+        if prev_provider_id:
+            for idx, p in enumerate(providers):
+                try:
+                    pid = int(p.get("artist_id") or 0)
+                except Exception:
+                    pid = 0
+                if pid and pid == prev_provider_id:
+                    chosen_idx = idx
+                    break
+
+        # When we are already awaiting confirmation or have created a booking,
+        # we never change the chosen provider; we may still re-order the list
+        # to show the chosen one first.
+        if state.stage in ("awaiting_confirmation", "booking_created") and prev_provider_id:
+            if chosen_idx > 0:
+                providers[0], providers[chosen_idx] = providers[chosen_idx], providers[0]
+        else:
+            if chosen_idx >= 0:
+                # Keep the existing chosen provider but move it to the front
+                # so the UI and wording stay aligned.
+                if chosen_idx > 0:
+                    providers[0], providers[chosen_idx] = providers[chosen_idx], providers[0]
+                top = providers[0]
+                name = top.get("name") or "this provider"
+                state.chosen_provider_name = name
+            else:
+                # No chosen provider yet (or it fell out of the list): adopt
+                # the current top provider as the new choice.
+                top = providers[0]
+                name = top.get("name") or "this provider"
+                try:
+                    new_id = int(top.get("artist_id") or 0) or None
+                except Exception:
+                    new_id = None
+                # If we switch providers, reset service selection so quote
+                # previews are recomputed for the new artist.
+                if new_id != prev_provider_id:
+                    state.service_id = None
+                    state.service_name = None
+                state.chosen_provider_id = new_id
+                state.chosen_provider_name = name
+                if state.stage == "collecting_requirements":
+                    state.stage = "suggesting_providers"
+
+    # When we know which provider we're talking about, try to pick a
+    # representative service and compute a richer quote preview so the UI and
+    # assistant can talk about “from R…” in a way that includes travel/sound.
+    if state.chosen_provider_id and not state.service_id:
+        sid, sname, _price = tool_pick_primary_service(db, int(state.chosen_provider_id))
+        if sid:
+            state.service_id = sid
+            state.service_name = sname
+
+    if state.service_id and state.city:
+        total_preview = tool_quote_preview(db, state)
+        if total_preview is not None and providers:
+            try:
+                providers[0]["client_total_preview"] = total_preview
+            except Exception:
+                pass
 
     tool_calls: List[AgentToolCall] = []
     final_action: Optional[Dict[str, Any]] = None
@@ -408,10 +582,16 @@ def run_booking_agent_step(
                 "You can tell me more about the event type, city, and date so I can refine the search."
             ]
 
-    # Heuristic "yes, book it" detection: if the latest user message clearly
-    # affirms booking and we have the minimum required fields, create a booking
-    # request on their behalf.
-    if state.chosen_provider_id and state.date and (state.city or filters.get("location")):
+    # Heuristic "yes, book it" detection: only allow booking creation when the
+    # agent is explicitly awaiting confirmation so casual affirmations do not
+    # create real bookings.
+    effective_city = state.city or filters.get("location")
+    if (
+        state.stage == "awaiting_confirmation"
+        and state.chosen_provider_id
+        and state.date
+        and effective_city
+    ):
         last_user_text = (user_messages[-1]["content"] or "").strip().lower() if user_messages else ""
         if last_user_text:
             positive = re.search(r"\b(yes|yep|yeah|book|confirm|go ahead|sounds good)\b", last_user_text)
@@ -445,12 +625,35 @@ def run_booking_agent_step(
                     )
                     # Append a clear confirmation line for the user.
                     provider_name = state.chosen_provider_name or "the artist"
-                    city = state.city or filters.get("location") or ""
+                    city = effective_city or ""
                     line = f"I've created a booking request with {provider_name} on {state.date}"
                     if city:
                         line += f" in {city}"
                     line += f". You can review it in your bookings inbox (reference #{booking_id})."
                     messages_out.append(line)
+                    state.stage = "booking_created"
+            elif negative:
+                # User declined; drop back to suggesting/providers stage.
+                if state.stage != "booking_created":
+                    state.stage = "suggesting_providers"
+
+    # If we have enough information and we're not already awaiting confirmation
+    # or finished, append a clear booking-offer line and move to the
+    # awaiting_confirmation stage.
+    if (
+        state.stage in ("collecting_requirements", "suggesting_providers")
+        and state.chosen_provider_id
+        and state.date
+        and effective_city
+    ):
+        provider_name = state.chosen_provider_name or "the artist"
+        city = effective_city or ""
+        line = f"If you'd like, I can create a booking request with {provider_name} on {state.date}"
+        if city:
+            line += f" in {city}"
+        line += " using what you've told me so far. Reply “Yes” to confirm or “No” to adjust anything first."
+        messages_out.append(line)
+        state.stage = "awaiting_confirmation"
     return AgentStepResult(
         messages=messages_out,
         state=state,

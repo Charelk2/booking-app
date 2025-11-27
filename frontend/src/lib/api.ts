@@ -852,6 +852,11 @@ export const callBookingAgent = async (
   } catch (err: any) {
     const status = err?.response?.status;
     const detail = err?.response?.data?.detail;
+    if (status === 401) {
+      throw Object.assign(new Error('AI agent requires login'), {
+        code: 'ai_agent_unauthenticated',
+      });
+    }
     if (status === 503 && detail === 'ai_search_disabled') {
       throw Object.assign(new Error('AI agent disabled'), {
         code: 'ai_agent_disabled',
