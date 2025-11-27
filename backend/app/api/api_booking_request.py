@@ -43,6 +43,264 @@ ATTACHMENTS_DIR = os.getenv("ATTACHMENTS_DIR", DEFAULT_ATTACHMENTS_DIR)
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 
 
+def _maybe_create_linked_sound_booking_request(
+    db: Session,
+    parent_request: models.BookingRequest,
+) -> None:
+    """
+    For supplier‑mode sound, create a linked client↔sound‑provider booking request.
+
+    This runs right after the main artist booking request is created so the
+    client immediately sees both an “Artist booking” and a “Sound booking”
+    thread. The child request is linked via parent_booking_request_id.
+    """
+    try:
+        tb = getattr(parent_request, "travel_breakdown", None) or {}
+        if not isinstance(tb, dict):
+            return
+
+        sound_required = bool(tb.get("sound_required"))
+        sound_mode = str(tb.get("sound_mode") or "").lower()
+        selected_sid = tb.get("selected_sound_service_id")
+        try:
+            selected_service_id = int(selected_sid or 0)
+        except Exception:
+            selected_service_id = 0
+
+        if not (sound_required and sound_mode == "supplier" and selected_service_id > 0):
+            return
+
+        # Load the supplier service; bail if missing.
+        supplier_service = (
+            db.query(models.Service)
+            .filter(models.Service.id == selected_service_id)
+            .first()
+        )
+        if not supplier_service:
+            return
+
+        # Avoid duplicates for the same parent + supplier artist.
+        try:
+            existing = (
+                db.query(models.BookingRequest)
+                .filter(
+                    models.BookingRequest.parent_booking_request_id == parent_request.id,
+                    models.BookingRequest.artist_id == supplier_service.artist_id,
+                )
+                .first()
+            )
+            if existing:
+                return
+        except Exception:
+            # On lookup failure, fail closed (no child) rather than raising.
+            return
+
+        # Derive a human‑readable artist label for the message.
+        artist_label: str | None = None
+        try:
+            prof = (
+                db.query(models.ServiceProviderProfile)
+                .filter(models.ServiceProviderProfile.user_id == parent_request.artist_id)
+                .first()
+            )
+            if prof and getattr(prof, "business_name", None):
+                artist_label = str(prof.business_name)
+            else:
+                svc = getattr(parent_request, "service", None)
+                title = getattr(svc, "title", None) if svc is not None else None
+                if title:
+                    artist_label = str(title)
+        except Exception:
+            artist_label = None
+        if not artist_label:
+            artist_label = "your artist"
+
+        # Resolve a city/venue hint for the intro line.
+        city = None
+        try:
+            if isinstance(tb, dict):
+                city = (
+                    tb.get("event_city")
+                    or tb.get("city")
+                    or tb.get("town")
+                    or tb.get("venue_name")
+                )
+        except Exception:
+            city = None
+        if not city:
+            try:
+                city = getattr(parent_request, "event_city", None)
+            except Exception:
+                city = None
+
+        base_msg = "Sound booking for your event"
+        if artist_label:
+            base_msg += f" with {artist_label}"
+        if city:
+            base_msg += f" in {city}"
+        base_msg += "."
+
+        child_payload = schemas.BookingRequestCreate(
+            artist_id=int(supplier_service.artist_id),
+            service_id=int(supplier_service.id),
+            message=base_msg + " Please review details and send a quote for sound.",
+            proposed_datetime_1=getattr(parent_request, "proposed_datetime_1", None),
+            travel_mode=None,
+            travel_cost=None,
+            travel_breakdown=tb,
+            status=models.BookingStatus.PENDING_QUOTE,
+            parent_booking_request_id=int(parent_request.id),
+        )
+
+        # The linked sound thread is between the original client and the sound supplier.
+        client_id = int(parent_request.client_id)
+        child = crud.crud_booking_request.create_booking_request(
+            db=db,
+            booking_request=child_payload,
+            client_id=client_id,
+        )
+        db.commit()
+        db.refresh(child)
+
+        # Seed a concise system line so the client and supplier understand the context,
+        # including a minimal event setup summary derived from the parent breakdown.
+        try:
+            link_msg_parts = [
+                f"This chat is for sound for your booking with {artist_label}.",
+            ]
+            if city:
+                link_msg_parts.append(f"Event city: {city}.")
+            try:
+                stage_required = bool(tb.get("stage_required"))
+                stage_size = tb.get("stage_size") or None
+                lighting_evening = bool(tb.get("lighting_evening"))
+                backline_required = bool(tb.get("backline_required"))
+                setup_bits: list[str] = []
+                venue_name = tb.get("venue_name") or None
+                if venue_name:
+                    setup_bits.append(f"Venue: {venue_name}")
+                if stage_required:
+                    setup_bits.append(f"Stage: {str(stage_size or 'S')}")
+                else:
+                    setup_bits.append("Stage: none")
+                if lighting_evening:
+                    setup_bits.append("Lighting: evening")
+                else:
+                    setup_bits.append("Lighting: basic/none")
+                setup_bits.append(f"Backline: {'yes' if backline_required else 'no'}")
+                if setup_bits:
+                    link_msg_parts.append("Event setup → " + "; ".join(setup_bits))
+            except Exception:
+                # Best-effort only; skip setup summary on failure.
+                pass
+            link_msg_parts.append("You’ll pay for sound separately once your main artist booking is paid.")
+            link_msg = " ".join(link_msg_parts)
+            crud.crud_message.create_message(
+                db=db,
+                booking_request_id=child.id,
+                sender_id=int(supplier_service.artist_id),
+                sender_type=models.SenderType.ARTIST,
+                content=link_msg,
+                message_type=models.MessageType.SYSTEM,
+                visible_to=models.VisibleTo.BOTH,
+            )
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
+        # Add a dedicated booking-details summary line so the sound thread
+        # renders an identical details card to the main artist thread.
+        try:
+            from ..utils.messages import BOOKING_DETAILS_PREFIX
+
+            # Compose a best-effort summary; many fields may be "N/A" but the
+            # structure matches the BookingWizard format so parsers work.
+            import datetime as _dt
+
+            def _fmt_date(dt: object) -> str:
+                try:
+                    if isinstance(dt, _dt.datetime):
+                        return dt.strftime("%d/%m/%Y")
+                    if isinstance(dt, str) and dt:
+                        # Trust the client-formatted date if present.
+                        return dt
+                except Exception:
+                    pass
+                return "N/A"
+
+            evt_type = "N/A"
+            desc = "Sound for your booking"
+            date_str = _fmt_date(getattr(parent_request, "proposed_datetime_1", None))
+            loc_str = city or "N/A"
+            guests_str = "N/A"
+            venue_label = str(tb.get("venue_name") or "N/A")
+            sound_flag = "yes"
+            notes = (parent_request.message or "").strip() or "N/A"
+
+            details_content = (
+                f"{BOOKING_DETAILS_PREFIX}\n"
+                f"Event Type: {evt_type}\n"
+                f"Description: {desc}\n"
+                f"Date: {date_str}\n"
+                f"Location: {loc_str}\n"
+                f"Guests: {guests_str}\n"
+                f"Venue: {venue_label}\n"
+                f"Sound: {sound_flag}\n"
+                f"Notes: {notes}"
+            )
+
+            crud.crud_message.create_message(
+                db=db,
+                booking_request_id=child.id,
+                sender_id=int(supplier_service.artist_id),
+                sender_type=models.SenderType.ARTIST,
+                content=details_content,
+                message_type=models.MessageType.SYSTEM,
+                visible_to=models.VisibleTo.BOTH,
+                system_key="booking_details_v1",
+            )
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
+        # Notify the sound supplier about the new booking request (separate from the main artist).
+        try:
+            supplier_user = (
+                db.query(models.User)
+                .filter(models.User.id == supplier_service.artist_id)
+                .first()
+            )
+            client_user = (
+                db.query(models.User)
+                .filter(models.User.id == parent_request.client_id)
+                .first()
+            )
+            if supplier_user and client_user:
+                sender_name = f"{client_user.first_name} {client_user.last_name}".strip()
+                booking_type = getattr(supplier_service, "service_type", None) or "Sound Service"
+                notify_user_new_booking_request(
+                    db, supplier_user, child.id, sender_name, booking_type
+                )
+        except Exception:
+            # Notification failures are non‑fatal.
+            pass
+
+        try:
+            invalidate_availability_cache(int(supplier_service.artist_id))
+        except Exception:
+            pass
+    except Exception:
+        # Fail closed: the main artist booking request should not be blocked
+        # by any sound‑booking helper issues.
+        return
+
+
 def _prepare_quotes_for_response(quotes: list[Any] | None) -> None:
     if not quotes:
         return
@@ -481,6 +739,15 @@ def create_booking_request(
         db.refresh(new_request)
     except Exception:
         db.rollback()
+
+    # For third‑party supplier sound, create a linked client↔sound booking
+    # request so the Inbox shows both the artist and sound threads immediately.
+    try:
+        _maybe_create_linked_sound_booking_request(db, new_request)
+    except Exception:
+        # Helper is best‑effort; never block the main request.
+        pass
+
     # Store the initial notes on the booking request but avoid posting them as
     # a separate chat message. The details system message posted later contains
     # these notes, so creating a text message here would duplicate the content.
