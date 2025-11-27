@@ -776,6 +776,7 @@ def _call_gemini_reply(
     # High-level known / unknown fields to help Gemini ask useful follow-ups.
     known_fields = {
         "event_type": state.event_type,
+        "service_category": state.service_category,
         "city": state.city or filters.get("location"),
         "date": state.date or filters.get("when"),
         "guests": state.guests,
