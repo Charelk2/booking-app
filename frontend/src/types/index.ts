@@ -482,6 +482,8 @@ export interface BookingAgentState {
   travel_tradeoff_explained?: boolean;
 
   availability_message_emitted?: boolean;
+
+  providers_shown?: boolean;
 }
 
 export interface AttachmentMeta {

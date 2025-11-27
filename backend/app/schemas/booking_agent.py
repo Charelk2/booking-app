@@ -188,3 +188,11 @@ class BookingAgentState(BaseModel):
             "versus switching to someone closer."
         ),
     )
+
+    providers_shown: bool = Field(
+        default=False,
+        description=(
+            "Whether the agent has already presented a concrete list/summary of provider suggestions "
+            "for the current lane so it does not keep repeating the same 'I found X providers' line."
+        ),
+    )

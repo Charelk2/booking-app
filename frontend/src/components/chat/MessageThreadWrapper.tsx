@@ -759,6 +759,13 @@ export default function MessageThreadWrapper({
     return null;
   }, [effectiveBookingRequest]);
 
+  const isChildThread = useMemo(() => {
+    const raw: any = effectiveBookingRequest;
+    if (!raw) return false;
+    const parentId = Number(raw.parent_booking_request_id || 0);
+    return Number.isFinite(parentId) && parentId > 0;
+  }, [effectiveBookingRequest]);
+
   return (
     <div className="flex flex-col h-full w-full relative">
       {/* Unified header */}
@@ -826,13 +833,24 @@ export default function MessageThreadWrapper({
 
           {/* Name + presence */}
           <div className="flex flex-col">
-            <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
-              {effectiveBookingRequest
-                ? (isBookaModeration
-                    ? 'Booka'
-                    : counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'User') || 'User')
-                : 'Messages'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
+                {effectiveBookingRequest
+                  ? (isBookaModeration
+                      ? 'Booka'
+                      : counterpartyLabel(
+                          effectiveBookingRequest as any,
+                          user ?? undefined,
+                          (effectiveBookingRequest as any)?.counterparty_label || 'User',
+                        ) || 'User')
+                  : 'Messages'}
+              </span>
+              {effectiveBookingRequest && !isBookaModeration && (
+                <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 text-[11px] px-2 py-0.5 whitespace-nowrap">
+                  {isChildThread ? 'Sound booking' : 'Artist booking'}
+                </span>
+              )}
+            </div>
             {presenceHeader && !isBookaModeration ? (
               <span className="text-[11px] text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis -mt-0.5">
                 {presenceHeader}

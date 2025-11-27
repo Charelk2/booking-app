@@ -1575,7 +1575,7 @@ def run_booking_agent_step(
             # in the results, talk about that artist explicitly.
             if requested_artist_id and requested_artist_name:
                 line = (
-                    f"I can see {requested_artist_name} on Booka for your request, along with a few similar artists. "
+                    f"I can see {requested_artist_name} on Booka for your request, along with a few similar service providers. "
                     "Tell me the event date and roughly how many guests you expect, and I’ll help refine options."
                 )
             else:
@@ -1583,7 +1583,7 @@ def run_booking_agent_step(
                 name = top.get("name") or "this provider"
                 city = top.get("location") or ""
                 line = (
-                    f"I've found some artists on Booka that could work"
+                    f"I've found some service providers on Booka that could work"
                     f"{f', including {name} in {city}' if city else f', including {name}'}. "
                     "Tell me the event date and roughly how many guests you expect so I can narrow things down."
                 )
@@ -1614,15 +1614,15 @@ def run_booking_agent_step(
                 if missing_bits:
                     ask = ", ".join(missing_bits[:-1]) + (" and " + missing_bits[-1] if len(missing_bits) > 1 else missing_bits[0])
                     line = (
-                        f"{prefix} {summary}. Tell me {ask}, and I’ll suggest some artists on Booka that could fit."
+                        f"{prefix} {summary}. Tell me {ask}, and I’ll suggest some service providers on Booka that could fit."
                     )
                 else:
                     line = (
-                        f"{prefix} {summary}. I can now suggest some artists on Booka that could fit."
+                        f"{prefix} {summary}. I can now suggest some service providers on Booka that could fit."
                     )
             else:
                 line = (
-                    "Tell me the event type, city, rough date, and guest count, and I’ll suggest some artists on Booka that could fit."
+                    "Tell me the event type, city, rough date, and guest count, and I’ll suggest some service providers on Booka that could fit."
                 )
             messages_out = [line]
     else:
@@ -1698,8 +1698,39 @@ def run_booking_agent_step(
                     else:
                         line = f"I found {count} providers on Booka. Top match: {name}{f' ({city})' if city else ''}."
                     messages_out.append(line)
+                    state.providers_shown = True
             except Exception:
                 # Provider presentation must never break the agent.
+                pass
+
+        # As a generic safety net, when we have providers but the assistant
+        # reply has not mentioned any of their names yet, append a concise
+        # top-match summary once so users always see concrete options without
+        # needing a perfect prompt.
+        if providers and not getattr(state, "providers_shown", False):
+            try:
+                last_reply = (messages_out[-1] or "").lower() if messages_out else ""
+                any_name_in_reply = False
+                for p in providers:
+                    raw_name = p.get("name")
+                    if not raw_name:
+                        continue
+                    nm = str(raw_name).strip().lower()
+                    if nm and nm in last_reply:
+                        any_name_in_reply = True
+                        break
+                if not any_name_in_reply:
+                    top = providers[0]
+                    name = top.get("name") or "this provider"
+                    city = top.get("location") or ""
+                    count = len(providers)
+                    if count == 1:
+                        line = f"I found 1 provider on Booka that fits: {name}{f' ({city})' if city else ''}."
+                    else:
+                        line = f"I found {count} providers on Booka. Top match: {name}{f' ({city})' if city else ''}."
+                    messages_out.append(line)
+                state.providers_shown = True
+            except Exception:
                 pass
 
     # Optionally append a concise summary line, but keep the user-facing chat

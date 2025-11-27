@@ -488,6 +488,7 @@ def supplier_respond(
                 # suppliers see the actual performance date/time.
                 proposed_dt = booking.start_time or parent_br.proposed_datetime_1
                 # Compose a concise intro message for the client-facing thread.
+                artist_label = None
                 try:
                     artist_profile = (
                         db.query(models.ServiceProviderProfile)
@@ -535,10 +536,13 @@ def supplier_respond(
                 # Post a system message in the new client-facing thread so the
                 # client immediately sees the link to their main artist booking.
                 try:
-                    link_msg = (
-                        f"We’ve confirmed {winner.supplier_public_name or 'a sound supplier'} "
-                        f"for your booking. They’ll send a sound quote in this thread."
-                    )
+                    supplier_name = winner.supplier_public_name or "a sound supplier"
+                    link_msg_parts = [
+                        f"This chat is for sound for your booking with {artist_label or 'your artist'}.",
+                        f"We’ve opened it with {supplier_name} so they can send a sound quote here.",
+                        "You’ll pay them separately after your main artist booking is paid.",
+                    ]
+                    link_msg = " ".join(link_msg_parts)
                     crud.crud_message.create_message(
                         db=db,
                         booking_request_id=child_br.id,
