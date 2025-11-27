@@ -288,12 +288,12 @@ const InlineQuoteForm: React.FC<Props> = ({
         const tbRiderUnits = (tb as any)?.rider_units;
         const tbBacklineRequested = (tb as any)?.backline_requested;
 
-        // Base fee from request or service
+        // Base fee from request or service. For dedicated Sound Service threads,
+        // prefer the wizard's supplier estimate (which already includes
+        // audience tier, stage, lighting, backline, and supplier travel) so
+        // providers see a realistic starting point instead of a stub price.
         if (!dirtyService) {
-          if (isSoundSvc && (!Number.isFinite(svcPrice) || svcPrice <= 0) && hasTbSoundEstimate) {
-            // For sound-service threads with no explicit service.price,
-            // fall back to the wizard's supplier estimate so the provider
-            // sees a sensible starting amount.
+          if (isSoundSvc && hasTbSoundEstimate) {
             setServiceFee(tbSoundEstimate);
           } else if (Number.isFinite(svcPrice) && svcPrice >= 0) {
             setServiceFee(svcPrice);
@@ -334,83 +334,38 @@ const InlineQuoteForm: React.FC<Props> = ({
           } catch {}
         }
 
-        // Calculator for refined costs (best-effort)
+        // Calculator for refined costs (best-effort). For dedicated Sound
+        // Service threads, we trust the wizard's supplier estimate and skip
+        // the generic quote calculator here so we don't overwrite the sound
+        // provider's base fee with a placeholder.
         try {
-          const distance = Number(tb.distance_km ?? tb.distanceKm);
-          const eventCity = tb.event_city || br.event_city || '';
-          // Allow backend to resolve distance_km from service.base_location + event_city
-          // when we don't have an explicit distance from the client travel engine.
-          if (eventCity && Number.isFinite(Number(br.service_id))) {
-            let baseForCalc = Number.isFinite(Number(br?.service?.price)) ? Number(br?.service?.price) : serviceFee;
-            if (isSoundSvc && (!Number.isFinite(baseForCalc) || baseForCalc <= 0) && hasTbSoundEstimate) {
-              baseForCalc = tbSoundEstimate;
-            }
-            const params: any = {
-              base_fee: Number(baseForCalc || 0),
-              service_id: Number(br.service_id),
-              event_city: String(eventCity),
-              ...(tb.accommodation_cost ? { accommodation_cost: Number(tb.accommodation_cost) } : {}),
-            };
-            if (Number.isFinite(distance) && distance > 0) {
-              params.distance_km = Number(distance);
-            }
+          if (!isSoundSvc) {
+            const distance = Number(tb.distance_km ?? tb.distanceKm);
+            const eventCity = tb.event_city || br.event_city || '';
+            // Allow backend to resolve distance_km from service.base_location + event_city
+            // when we don't have an explicit distance from the client travel engine.
+            if (eventCity && Number.isFinite(Number(br.service_id))) {
+              let baseForCalc = Number.isFinite(Number(br?.service?.price)) ? Number(br?.service?.price) : serviceFee;
+              const params: any = {
+                base_fee: Number(baseForCalc || 0),
+                service_id: Number(br.service_id),
+                event_city: String(eventCity),
+                ...(tb.accommodation_cost ? { accommodation_cost: Number(tb.accommodation_cost) } : {}),
+              };
+              if (Number.isFinite(distance) && distance > 0) {
+                params.distance_km = Number(distance);
+              }
 
-            // When this is a dedicated Sound Service thread and we have
-            // audience‑package context from the parent breakdown, forward it
-            // so the backend can align suggested sound totals with the
-            // external‑provider estimates used on the main quote.
-            if (isSoundSvc) {
               try {
-                const guests = Number(tb.guests_count);
-                if (Number.isFinite(guests) && guests > 0) params.guest_count = guests;
-                const venueType = String(tb.venue_type || '').toLowerCase();
-                if (venueType) params.venue_type = venueType;
-                params.stage_required = Boolean(tb.stage_required);
-                if (tb.stage_required && tb.stage_size) params.stage_size = String(tb.stage_size);
-                params.lighting_evening = Boolean(tb.lighting_evening);
-                params.backline_required = Boolean(tb.backline_required);
-
-                // If we have a rider/backline snapshot from the parent booking
-                // (normalized on the backend), forward it so any server-side
-                // sound calculations can include per-mic and backline extras.
-                if (tbRiderUnits && typeof tbRiderUnits === 'object') {
-                  const ru: any = tbRiderUnits;
-                  const toInt = (v: unknown): number => {
-                    const n = Number(v);
-                    return Number.isFinite(n) && n > 0 ? n : 0;
-                  };
-                  params.rider_units = {
-                    vocal_mics: toInt(ru.vocal_mics ?? ru.vocalMics),
-                    speech_mics: toInt(ru.speech_mics ?? ru.speechMics),
-                    monitor_mixes: toInt(ru.monitor_mixes ?? ru.monitorMixes),
-                    iem_packs: toInt(ru.iem_packs ?? ru.iemPacks),
-                    di_boxes: toInt(ru.di_boxes ?? ru.diBoxes),
-                  };
+                const { data } = await calculateQuoteBreakdown(params);
+                if (!active) return;
+                if (!dirtyService && typeof initialBaseFee !== 'number') setServiceFee(Number(data?.base_fee || baseForCalc || 0));
+                if (!dirtyTravel && typeof initialTravelCost !== 'number') setTravelFee(Number(data?.travel_cost || 0));
+                if (!dirtySound && initialSoundCost == null && initialSoundNeeded == null && !supplierParent) {
+                  setSoundFee(Number(data?.sound_cost || 0));
                 }
-                if (tbBacklineRequested && typeof tbBacklineRequested === 'object') {
-                  const normBack: Record<string, number> = {};
-                  for (const [key, val] of Object.entries(tbBacklineRequested as any)) {
-                    const n = Number(val);
-                    if (Number.isFinite(n) && n > 0) normBack[key] = n;
-                  }
-                  if (Object.keys(normBack).length) {
-                    params.backline_requested = normBack;
-                  }
-                }
-              } catch {
-                // best-effort only
-              }
+              } catch {}
             }
-
-            try {
-              const { data } = await calculateQuoteBreakdown(params);
-              if (!active) return;
-              if (!dirtyService && typeof initialBaseFee !== 'number') setServiceFee(Number(data?.base_fee || baseForCalc || 0));
-              if (!dirtyTravel && typeof initialTravelCost !== 'number') setTravelFee(Number(data?.travel_cost || 0));
-              if (!dirtySound && initialSoundCost == null && initialSoundNeeded == null && !supplierParent) {
-                setSoundFee(Number(data?.sound_cost || 0));
-              }
-            } catch {}
           }
         } catch {}
       } catch {
