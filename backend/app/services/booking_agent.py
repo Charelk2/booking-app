@@ -1887,7 +1887,7 @@ def run_booking_agent_step(
                     )
             else:
                 line = (
-                    "Tell me the event type, city, rough date, and guest count, and I’ll suggest some service providers on Booka that could fit."
+                    "Tell me what you're planning — event type, city, rough date and guest count — and I’ll suggest some great service providers on Booka that could fit (musicians, DJs, photographers, video, kids’ entertainment, sound, and more)."
                 )
             messages_out = [line]
     else:

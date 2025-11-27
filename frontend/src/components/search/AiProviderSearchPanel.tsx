@@ -38,7 +38,7 @@ export default function AiProviderSearchPanel({
     {
       role: 'assistant',
       content:
-        "Hi! Tell me about your event (type, city, rough date, budget) and I'll suggest some Booka providers that fit.",
+        "Hi! Tell me what you're planning — event type, city, rough date and guest count — and I’ll suggest some great service providers on Booka (musicians, DJs, photographers, video, kids’ entertainment, sound, and more).",
     },
   ]);
   const [availability, setAvailability] = React.useState<Record<number, 'available' | 'unavailable' | 'unknown'>>({});
