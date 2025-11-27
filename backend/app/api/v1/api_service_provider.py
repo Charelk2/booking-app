@@ -1540,7 +1540,14 @@ def read_artist_availability(
     when: Optional[date] = Query(None),
     db: Session = Depends(get_db),
 ):
-    """Return dates the artist is unavailable."""
+    """Return dates the artist is unavailable.
+
+    This endpoint is on the hot path for booking and quote flows, so it must
+    be resilient. Any upstream failures (DB, calendar sync, Redis) are treated
+    as "no additional unavailable dates" rather than surfacing a 500 to
+    clients. That keeps the UI responsive while still using cached data when
+    available.
+    """
     if isinstance(when, QueryParam):
         when = when.default
 
@@ -1548,34 +1555,48 @@ def read_artist_availability(
     if cached:
         return cached
 
-    bookings_query = db.query(Booking).filter(
-        Booking.artist_id == artist_id,
-        Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
-    )
+    # Best-effort DB lookups; fall back to empty lists on error so the
+    # endpoint never fails hard during booking flows.
+    bookings = []
+    requests = []
+    day_start = None
+    day_end = None
     if when:
         day_start = datetime.combine(when, datetime.min.time())
         day_end = day_start + timedelta(days=1)
-        bookings_query = bookings_query.filter(
-            Booking.start_time >= day_start, Booking.start_time < day_end
-        )
-    bookings = bookings_query.all()
 
-    requests_query = db.query(BookingRequest).filter(
-        BookingRequest.artist_id == artist_id,
-        BookingRequest.status != BookingStatus.REQUEST_DECLINED,
-    )
-    if when:
-        requests_query = requests_query.filter(
-            (
-                (BookingRequest.proposed_datetime_1 >= day_start)
-                & (BookingRequest.proposed_datetime_1 < day_end)
-            )
-            | (
-                (BookingRequest.proposed_datetime_2 >= day_start)
-                & (BookingRequest.proposed_datetime_2 < day_end)
-            )
+    try:
+        bookings_query = db.query(Booking).filter(
+            Booking.artist_id == artist_id,
+            Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
         )
-    requests = requests_query.all()
+        if day_start and day_end:
+            bookings_query = bookings_query.filter(
+                Booking.start_time >= day_start, Booking.start_time < day_end
+            )
+        bookings = bookings_query.all()
+    except Exception:
+        logger.exception("Failed to load bookings for availability (artist_id=%s)", artist_id)
+
+    try:
+        requests_query = db.query(BookingRequest).filter(
+            BookingRequest.artist_id == artist_id,
+            BookingRequest.status != BookingStatus.REQUEST_DECLINED,
+        )
+        if day_start and day_end:
+            requests_query = requests_query.filter(
+                (
+                    (BookingRequest.proposed_datetime_1 >= day_start)
+                    & (BookingRequest.proposed_datetime_1 < day_end)
+                )
+                | (
+                    (BookingRequest.proposed_datetime_2 >= day_start)
+                    & (BookingRequest.proposed_datetime_2 < day_end)
+                )
+            )
+        requests = requests_query.all()
+    except Exception:
+        logger.exception("Failed to load booking requests for availability (artist_id=%s)", artist_id)
 
     dates = set()
     for b in bookings:
@@ -1596,9 +1617,13 @@ def read_artist_availability(
         end = start + timedelta(days=365)
     try:
         for ev in calendar_service.fetch_events(artist_id, start, end, db):
-            dates.add(ev.date().isoformat())
-    except HTTPException:
-        pass
+            try:
+                dates.add(ev.date().isoformat())
+            except Exception:
+                continue
+    except Exception:
+        # Calendar sync issues should not break booking flows.
+        logger.exception("Failed to fetch calendar events for availability (artist_id=%s)", artist_id)
     result = {"unavailable_dates": sorted(dates)}
     cache_availability(result, artist_id, when)
     return result
