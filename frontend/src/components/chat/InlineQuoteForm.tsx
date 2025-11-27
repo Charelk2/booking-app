@@ -4,7 +4,7 @@ import { ServiceItem, QuoteV2Create, QuoteCalculationResponse } from '@/types';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from './QuoteBubble';
-import { calculateQuoteBreakdown, getBookingRequestById, getService, getBookingRequestCached } from '@/lib/api';
+import { calculateQuoteBreakdown, calculateSoundServiceEstimate, getBookingRequestById, getService, getBookingRequestCached } from '@/lib/api';
 
 /**
  * InlineQuoteForm (v3.1 - optimized UX + perf)
@@ -289,9 +289,8 @@ const InlineQuoteForm: React.FC<Props> = ({
         const tbBacklineRequested = (tb as any)?.backline_requested;
 
         // Base fee from request or service. For dedicated Sound Service threads,
-        // prefer the wizard's supplier estimate (which already includes
-        // audience tier, stage, lighting, backline, and supplier travel) so
-        // providers see a realistic starting point instead of a stub price.
+        // prefer the wizard's supplier estimate so providers see a realistic
+        // starting point instead of a stub price on the Service.
         if (!dirtyService) {
           if (isSoundSvc && hasTbSoundEstimate) {
             setServiceFee(tbSoundEstimate);
@@ -307,14 +306,25 @@ const InlineQuoteForm: React.FC<Props> = ({
           }
         }
 
-        // Travel fee from breakdown or fallback field
+        // Travel fee from breakdown or fallback field (artists). For dedicated
+        // Sound Service threads we derive travel as the remainder between the
+        // full supplier estimate and the package subtotal (audience + addons)
+        // so that extras can be itemised without double-counting.
         if (!dirtyTravel) {
-          const travelRaw = Number(tb.travel_cost ?? tb.travel_fee ?? br.travel_cost);
-          if (Number.isFinite(travelRaw)) setTravelFee(travelRaw);
+          if (!isSoundSvc) {
+            const travelRaw = Number(tb.travel_cost ?? tb.travel_fee ?? br.travel_cost);
+            if (Number.isFinite(travelRaw)) setTravelFee(travelRaw);
+          } else {
+            // For sound providers, travel is computed below after we fetch a
+            // contextual sound estimate with itemised audience/backline lines.
+            setTravelFee((prev) => prev); // no-op placeholder
+          }
         }
 
-        // Sound fee best-effort
-        if (!dirtySound && !supplierParent) {
+        // Sound fee best-effort (non-sound-service only). For dedicated sound
+        // providers, the sound package is represented in the base fee +
+        // extras, so we keep soundFee at 0 to avoid double-counting.
+        if (!dirtySound && !supplierParent && !isSoundSvc) {
           try {
             const soundRequired = Boolean(tb.sound_required);
             const provisioning = (br?.service as any)?.details?.sound_provisioning;
@@ -334,10 +344,101 @@ const InlineQuoteForm: React.FC<Props> = ({
           } catch {}
         }
 
+        // Sound Service specific prefill: derive itemised extras (stage,
+        // lighting, unit add-ons, backline) from the sound-estimate endpoint
+        // and align Base + Extras + Travel with the wizard's supplier
+        // estimate. This runs once per mount for sound threads.
+        if (isSoundSvc && hasTbSoundEstimate) {
+          try {
+            const guests = Number(tb.guests_count);
+            const venueType = String(tb.venue_type || '').toLowerCase() || 'indoor';
+            const stageRequired = Boolean(tb.stage_required);
+            const stageSize = stageRequired && tb.stage_size ? String(tb.stage_size) : null;
+            const lightingEvening = Boolean(tb.lighting_evening);
+            const upgradeAdv = Boolean(tb.upgrade_lighting_advanced);
+
+            // Normalised rider/backline snapshot from the parent booking
+            const ru: any = tbRiderUnits || {};
+            const toInt = (v: unknown): number => {
+              const n = Number(v);
+              return Number.isFinite(n) && n > 0 ? n : 0;
+            };
+            const riderUnits = {
+              vocal_mics: toInt(ru.vocal_mics ?? ru.vocalMics),
+              speech_mics: toInt(ru.speech_mics ?? ru.speechMics),
+              monitor_mixes: toInt(ru.monitor_mixes ?? ru.monitorMixes),
+              iem_packs: toInt(ru.iem_packs ?? ru.iemPacks),
+              di_boxes: toInt(ru.di_boxes ?? ru.diBoxes),
+            };
+            const backlineRaw: any = tbBacklineRequested || {};
+            const backlineRequested: Record<string, number> = {};
+            Object.entries(backlineRaw).forEach(([key, val]) => {
+              const n = Number(val);
+              if (Number.isFinite(n) && n > 0) backlineRequested[key] = n;
+            });
+
+            if (Number.isFinite(svcId) && svcId > 0) {
+              const est = await calculateSoundServiceEstimate(Number(svcId), {
+                guest_count: Number.isFinite(guests) && guests > 0 ? guests : 0,
+                venue_type: (venueType === 'outdoor' || venueType === 'hybrid' ? 'outdoor' : 'indoor') as any,
+                stage_required: stageRequired,
+                stage_size: (stageSize as any) ?? null,
+                lighting_evening: lightingEvening,
+                upgrade_lighting_advanced: upgradeAdv,
+                rider_units: riderUnits,
+                backline_requested: backlineRequested,
+              });
+              const data: any = est?.data || {};
+              const baseAmt = Number(data.base || 0);
+              const totalPackage = Number(data.total || 0);
+              const itemsList: any[] = Array.isArray(data.items) ? data.items : [];
+
+              // Seed extras from sound-estimate items (excluding the audience
+              // base component). This runs only if the user hasn't started
+              // editing extras yet (items list is empty).
+              if (items.length === 0 && itemsList.length > 0) {
+                const nextExtras: (ServiceItem & { key: string })[] = [];
+                for (const it of itemsList) {
+                  if (!it || typeof it !== 'object') continue;
+                  if (String(it.key || '') === 'audience_base') continue;
+                  const label = String(it.label || '').trim() || 'Extra';
+                  const amt = Number(it.amount ?? it.total ?? 0);
+                  if (!Number.isFinite(amt) || amt <= 0) continue;
+                  nextExtras.push({
+                    key: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                    description: label,
+                    price: amt,
+                  });
+                }
+                if (nextExtras.length) {
+                  setItems(nextExtras);
+                }
+              }
+
+              // Derive travel as the remainder between the wizard's supplier
+              // estimate and the package subtotal (audience + addons). Clamp
+              // at zero to avoid negative values when inputs drift.
+              if (!dirtyTravel && hasTbSoundEstimate) {
+                const pkgTotal = Number.isFinite(totalPackage) && totalPackage > 0 ? totalPackage : 0;
+                const remainder = tbSoundEstimate - pkgTotal;
+                const travelPortion = remainder > 0 ? remainder : 0;
+                setTravelFee(travelPortion);
+              }
+
+              // For sound providers, treat the base fee as the audience/base
+              // component so the extras rows reflect stage/backline separately.
+              if (!dirtyService && baseAmt > 0) {
+                setServiceFee(baseAmt);
+              }
+            }
+          } catch {
+            // best-effort only; fall back to the coarse base fee
+          }
+        }
+
         // Calculator for refined costs (best-effort). For dedicated Sound
-        // Service threads, we trust the wizard's supplier estimate and skip
-        // the generic quote calculator here so we don't overwrite the sound
-        // provider's base fee with a placeholder.
+        // Service threads, we skip the generic quote calculator entirely so
+        // we don't overwrite the sound provider's context-aware package.
         try {
           if (!isSoundSvc) {
             const distance = Number(tb.distance_km ?? tb.distanceKm);
@@ -441,7 +542,7 @@ const InlineQuoteForm: React.FC<Props> = ({
       trackEvent?.('cta_send_quote', { bookingRequestId, artistId, clientId });
 
       const services: ServiceItem[] = [
-        { description: serviceName ?? 'Service fee', price: serviceFee },
+        { description: serviceName ?? (isSoundService ? 'Sound package' : 'Service fee'), price: serviceFee },
         ...items.map(({ key, ...rest }) => rest),
       ];
 
@@ -453,7 +554,7 @@ const InlineQuoteForm: React.FC<Props> = ({
         artist_id: artistId,
         client_id: clientId,
         services,
-        sound_fee: isSupplierParent ? 0 : soundFee,
+        sound_fee: (isSupplierParent || isSoundService) ? 0 : soundFee,
         travel_fee: travelFee,
         accommodation: accommodation || null,
         discount: discount || null,
