@@ -1,16 +1,24 @@
 from __future__ import annotations
 
 from typing import Optional
-
-from google import genai  # type: ignore
-from google.genai import types  # type: ignore
+import logging
 
 from app.core.config import settings
 
-_GENAI_CLIENT: Optional[genai.Client] = None
+logger = logging.getLogger(__name__)
+
+try:
+    from google import genai  # type: ignore
+    from google.genai import types  # type: ignore
+except Exception:
+    genai = None  # type: ignore
+    types = None  # type: ignore
 
 
-def get_genai_client() -> Optional[genai.Client]:
+_GENAI_CLIENT: Optional["genai.Client"] = None
+
+
+def get_genai_client() -> Optional["genai.Client"]:
     """Return a process-wide Gemini client with a sensible HTTP timeout.
 
     This avoids recreating clients (and HTTP pools) on every request and gives
@@ -19,6 +27,9 @@ def get_genai_client() -> Optional[genai.Client]:
     global _GENAI_CLIENT
     api_key = (getattr(settings, "GOOGLE_GENAI_API_KEY", "") or "").strip()
     if not api_key:
+        return None
+    if genai is None or types is None:
+        logger.warning("google-genai not installed; Gemini client unavailable")
         return None
     if _GENAI_CLIENT is None:
         _GENAI_CLIENT = genai.Client(
@@ -33,4 +44,3 @@ def get_genai_client() -> Optional[genai.Client]:
             ),
         )
     return _GENAI_CLIENT
-

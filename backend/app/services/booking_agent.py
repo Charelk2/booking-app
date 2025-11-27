@@ -869,6 +869,8 @@ def run_booking_agent_step(
     state = state or BookingAgentState()
     if state.stage is None:
         state.stage = "collecting_requirements"
+    prev_availability_status = state.availability_status
+
     # Extract recent user messages as the primary query signal so earlier
     # provider mentions (e.g. names) stay in context across follow-ups.
     user_messages = [m for m in messages if m.get("role") == "user"]
@@ -892,6 +894,8 @@ def run_booking_agent_step(
         and state.budget_max is None
     )
 
+    prev_date = state.date
+
     # Classify high-level intent and event_type before running search so we
     # can avoid unnecessary work for general Booka questions.
     intent, event_type = _classify_intent_and_event_type(query_text, state)
@@ -913,10 +917,15 @@ def run_booking_agent_step(
         try:
             parsed = _call_gemini_parse_state(messages, state)
             for key, value in parsed.items():
-                # Only fill fields that are currently unset so backend
-                # heuristics and user overrides remain authoritative.
-                if getattr(state, key, None) is None:
+                # When the user is changing details (modify_brief intent),
+                # we allow Gemini to overwrite previous values. Otherwise we
+                # only fill fields that are currently unset so user overrides
+                # and backend heuristics remain authoritative.
+                if state.intent == "modify_brief":
                     setattr(state, key, value)
+                else:
+                    if getattr(state, key, None) is None:
+                        setattr(state, key, value)
         except Exception:
             # Parsing must never break the agent step.
             pass
@@ -966,10 +975,12 @@ def run_booking_agent_step(
     # message so we can progressively fill the state (e.g. sound preference).
     try:
         t = (query_text or "").lower()
-        # Best-effort partial date extraction (e.g. "29 October") when a full
-        # ISO date is not yet available. This reduces repeated generic "what
-        # date?" questions and lets the assistant refine instead.
-        if not state.date:
+        # Best-effort partial date extraction (e.g. "29 October") even when a
+        # date is already set. When the user is clearly changing details
+        # (modify_brief intent), we allow the new date to override the old
+        # one. This reduces repeated generic "what date?" questions and lets
+        # the assistant refine instead.
+        if not state.date or state.intent == "modify_brief":
             month_map = {
                 "january": 1,
                 "february": 2,
@@ -1064,8 +1075,14 @@ def run_booking_agent_step(
 
     # Update coarse filters into state so follow-up turns can refine them.
     if filters:
-        state.city = state.city or filters.get("location") or None
-        state.date = state.date or filters.get("when") or None
+        loc = filters.get("location") or None
+        when = filters.get("when") or None
+        if state.city is None or state.intent == "modify_brief":
+            if loc:
+                state.city = loc
+        if state.date is None or state.intent == "modify_brief":
+            if when and isinstance(when, date):
+                state.date = when.isoformat()
         try:
             if state.budget_min is None and filters.get("min_price") is not None:
                 state.budget_min = float(filters["min_price"])
@@ -1092,6 +1109,15 @@ def run_booking_agent_step(
     for key, value in answered_pairs:
         if value is not None and key not in state.answered_fields:
             state.answered_fields.append(key)
+
+    # If the event date changed during this turn, invalidate any previous
+    # availability check so we can re-check for the new date.
+    try:
+        if prev_date and state.date and prev_date != state.date:
+            state.availability_checked = False
+            state.availability_status = None
+    except Exception:
+        pass
 
     # Keep a heuristic chosen provider to mirror current UX, but avoid
     # swapping providers once the user is confirming a booking. When the user
@@ -1319,19 +1345,25 @@ def run_booking_agent_step(
                     "You can tell me more about the event type, city, and date so I can refine the search."
                 ]
 
-    # Optionally append a concise summary of what the agent has understood so
-    # far so the user can confirm the details. Only do this once per
-    # conversation to avoid repetition.
-    if not state.summary_emitted:
+    # Optionally append a concise summary line, but keep the user-facing chat
+    # to a single assistant message per turn. When we have enough core fields,
+    # we fold the summary into the end of the main message instead of sending
+    # a separate bubble.
+    if not state.summary_emitted and messages_out:
         summary_parts: List[str] = []
+        core_count = 0
         if state.event_type:
             summary_parts.append(state.event_type)
+            core_count += 1
         if state.city:
             summary_parts.append(f"in {state.city}")
+            core_count += 1
         if state.date:
             summary_parts.append(f"on {state.date}")
+            core_count += 1
         if state.guests is not None:
             summary_parts.append(f"for about {state.guests} guests")
+            core_count += 1
         if state.venue_type:
             summary_parts.append(f"({state.venue_type} venue)")
         # Sound / production summary
@@ -1345,9 +1377,12 @@ def run_booking_agent_step(
                 sound_bits.append("backline")
             summary_parts.append("with " + ", ".join(sound_bits))
 
-        if summary_parts:
+        if core_count >= 2 and summary_parts:
             summary = "So far I have: " + ", ".join(summary_parts) + "."
-            messages_out.append(summary)
+            # Append the summary to the last assistant message so the UI only
+            # renders a single bubble per turn.
+            last = messages_out[-1].rstrip()
+            messages_out[-1] = f"{last} {summary}" if last else summary
             state.summary_emitted = True
 
     # Explain the travel vs local trade-off once, after the main assistant
@@ -1445,7 +1480,7 @@ def run_booking_agent_step(
         and state.date
         and effective_city
     ):
-        if state.availability_status == "unavailable":
+        if state.availability_status == "unavailable" and prev_availability_status != "unavailable":
             provider_name = state.chosen_provider_name or "the artist"
             city = effective_city or ""
             line = f"It looks like {provider_name} is already booked on {state.date}"
@@ -1456,12 +1491,15 @@ def run_booking_agent_step(
         else:
             provider_name = state.chosen_provider_name or "the artist"
             city = effective_city or ""
-            line = f"If you'd like, I can create a booking request with {provider_name} on {state.date}"
-            if city:
-                line += f" in {city}"
-            line += " using what you've told me so far. Reply “Yes” to confirm or “No” to adjust anything first."
-            messages_out.append(line)
-            state.stage = "awaiting_confirmation"
+            # Only append a booking-offer line when we haven't already moved
+            # into the awaiting_confirmation stage in a previous turn.
+            if state.stage != "awaiting_confirmation":
+                line = f"If you'd like, I can create a booking request with {provider_name} on {state.date}"
+                if city:
+                    line += f" in {city}"
+                line += " using what you've told me so far. Reply “Yes” to confirm or “No” to adjust anything first."
+                messages_out.append(line)
+                state.stage = "awaiting_confirmation"
     step_result = AgentStepResult(
         messages=messages_out,
         state=state,
