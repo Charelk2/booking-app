@@ -267,11 +267,20 @@ const InlineQuoteForm: React.FC<Props> = ({
         setIsSupplierParent(supplierParent);
         const svcId = Number(br.service_id || 0);
         const svcPrice = Number(br?.service?.price);
-        const svcType = String(br?.service?.service_type || '').toLowerCase();
-        const isSoundSvc = svcType === 'sound service';
+        const svcTypeRaw = String(br?.service?.service_type || '').toLowerCase();
+        const svcCatSlug = String((br?.service as any)?.service_category_slug || '').toLowerCase();
+        const svcCatName = String((br?.service as any)?.service_category?.name || '').toLowerCase();
+        // Sound services are represented as a separate service category
+        // ("Sound Service"), while service_type often stays as "Live Performance".
+        // Treat anything whose category slug/name contains "sound" as a
+        // dedicated Sound Service.
+        const isSoundSvc =
+          svcTypeRaw.includes('sound service') ||
+          svcCatSlug.includes('sound') ||
+          svcCatName.includes('sound');
 
         // Detect dedicated Sound Service threads so we can use audience/supplier
-        // context for better defaults.
+        // context for better defaults and a sound-specific inline quote UX.
         setIsSoundService(isSoundSvc);
 
         // Best-effort sound estimate from the parent wizard, carried via
