@@ -367,16 +367,31 @@ export async function calculateTravelMode(
     airportFn(input.artistLocation),
     airportFn(input.eventLocation),
   ]);
+  const rate = input.travelRate ?? RATE_PER_KM;
+
   if (!depCode || !arrCode) {
-    console.warn('Unable to resolve nearest airports', {
-      artistLocation: input.artistLocation,
-      eventLocation: input.eventLocation,
-    });
+    // When we cannot resolve airports for either side, fall back to a
+    // direct driving estimate using Distance Matrix so travel never
+    // silently collapses to zero.
+    let drivingEstimate = input.drivingEstimate;
+    if (!drivingEstimate || drivingEstimate <= 0) {
+      try {
+        const direct = await metricsFn(input.artistLocation, input.eventLocation);
+        if (direct && Number.isFinite(direct.distanceKm) && direct.distanceKm > 0) {
+          drivingEstimate = direct.distanceKm * rate * 2;
+        } else {
+          drivingEstimate = 0;
+        }
+      } catch {
+        drivingEstimate = 0;
+      }
+    }
+
     return {
       mode: 'drive',
-      totalCost: input.drivingEstimate,
+      totalCost: drivingEstimate,
       breakdown: {
-        drive: { estimate: input.drivingEstimate },
+        drive: { estimate: drivingEstimate },
         fly: makeEmptyFlyBreakdown(input, input.flightPricePerPerson ?? DEFAULT_FLIGHT_COST_PER_PERSON),
       },
     };
@@ -394,7 +409,6 @@ export async function calculateTravelMode(
     };
   }
 
-  const rate = input.travelRate ?? RATE_PER_KM;
   const hasCustomFlightPrice = input.flightPricePerPerson != null;
 
   const [direct, depXfer, arrXfer, flightPrice] = await Promise.all([
