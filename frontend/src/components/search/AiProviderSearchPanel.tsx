@@ -4,7 +4,7 @@ import React from 'react';
 import ServiceProviderCardCompact from '@/components/service-provider/ServiceProviderCardCompact';
 import { useRouter } from 'next/navigation';
 import {
-  sendAiAssistant,
+  searchProvidersWithAi,
   createBookingRequest,
   type AiProvider,
   type AiProviderFilters,
@@ -56,19 +56,88 @@ export default function AiProviderSearchPanel({
     setLoading(true);
     setError(null);
     try {
+      const userMessages = [...nextMessages].filter((m) => m.role === 'user');
+      const recentTexts = userMessages
+        .slice(-3)
+        .map((m) => m.content?.trim())
+        .filter((t): t is string => Boolean(t));
+      const combinedQuery = recentTexts.join(' ');
+      if (!combinedQuery) {
+        setError('Describe what you are looking for (e.g. “Acoustic duo in Cape Town under R8000”).');
+        return;
+      }
       const payload = {
-        messages: nextMessages,
-        category: category || null,
-        location: location || null,
-        when: when ? when.toISOString().slice(0, 10) : null,
-        min_price: typeof minPrice === 'number' ? minPrice : null,
-        max_price: typeof maxPrice === 'number' ? maxPrice : null,
+        query: combinedQuery,
+        category: category || filters?.category || null,
+        location: location || filters?.location || null,
+        when: when ? when.toISOString().slice(0, 10) : filters?.when || null,
+        min_price:
+          typeof minPrice === 'number'
+            ? minPrice
+            : typeof filters?.min_price === 'number'
+            ? filters.min_price
+            : null,
+        max_price:
+          typeof maxPrice === 'number'
+            ? maxPrice
+            : typeof filters?.max_price === 'number'
+            ? filters.max_price
+            : null,
         limit: 6,
       };
-      const res = await sendAiAssistant(payload);
-      setMessages(res.messages || nextMessages);
+      const res = await searchProvidersWithAi(payload);
       setProviders(res.providers || []);
       setFilters(res.filters || null);
+      const top = (res.providers || [])[0];
+      const f = res.filters || {};
+      const lines: string[] = [];
+      if (top) {
+        const locText = top.location ? ` (${top.location})` : '';
+        const count = (res.providers || []).length;
+        if (count === 1) {
+          lines.push(`I found 1 provider on Booka that fits: ${top.name}${locText}.`);
+        } else {
+          lines.push(`I found ${count} providers on Booka. Top match: ${top.name}${locText}.`);
+        }
+        if (top.client_total_preview != null) {
+          lines.push(
+            `Bookings on Booka for this artist typically start from about R${Math.round(
+              Number(top.client_total_preview),
+            )}.`,
+          );
+        } else if (top.starting_price != null) {
+          lines.push(
+            `Their base fee currently starts from about R${Math.round(Number(top.starting_price))}.`,
+          );
+        }
+      } else {
+        lines.push("I couldn't find any providers on Booka that match that yet.");
+      }
+      const missing: string[] = [];
+      if (!f.when) missing.push('date');
+      if (!f.location) missing.push('location');
+      if (f.min_price == null && f.max_price == null) missing.push('budget');
+      const queryLower = combinedQuery.toLowerCase();
+      if (!queryLower.includes('wedding') && !queryLower.includes('birthday') && !queryLower.includes('corporate')) {
+        missing.push('event_type');
+      }
+      if (!queryLower.includes('guest') && !queryLower.includes('people')) {
+        missing.push('guests');
+      }
+      const questions: string[] = [];
+      if (missing.includes('date')) questions.push('Do you have a specific date in mind?');
+      if (missing.includes('location')) questions.push('Which town or city is your event in?');
+      if (missing.includes('budget')) questions.push('Roughly what budget range are you thinking of?');
+      if (missing.includes('event_type')) {
+        questions.push('What type of event is it (e.g. wedding, birthday, corporate)?');
+      }
+      if (missing.includes('guests')) {
+        questions.push('About how many guests are you expecting?');
+      }
+      if (questions.length) {
+        lines.push(questions.slice(0, 3).join(' '));
+      }
+      setMessages([...nextMessages, { role: 'assistant', content: lines.join(' ') }]);
     } catch (err: any) {
       if (err?.code === 'ai_search_disabled') {
         setDisabled(true);
@@ -209,34 +278,6 @@ export default function AiProviderSearchPanel({
         </div>
       </div>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-      {providers.length > 0 && (
-        <p className="mt-2 text-xs text-slate-600">
-          {(() => {
-            const top = providers[0];
-            const date = filters?.when;
-            const avail = date ? availability[top.artist_id] : undefined;
-            const parts: string[] = [];
-            parts.push(`Top match: ${top.name}${top.location ? ` (${top.location})` : ''}.`);
-            if (date && avail === 'available') {
-              parts.push(`They look available on ${date}.`);
-            } else if (date && avail === 'unavailable') {
-              parts.push(`They already have something on ${date}.`);
-            }
-            if (top.client_total_preview != null) {
-              parts.push(
-                `Bookings on Booka for this artist typically start from about R${Math.round(
-                  Number(top.client_total_preview),
-                )}.`,
-              );
-            } else if (top.starting_price != null) {
-              parts.push(
-                `Their base fee currently starts from about R${Math.round(Number(top.starting_price))}.`,
-              );
-            }
-            return parts.join(' ');
-          })()}
-        </p>
-      )}
       {providers.length > 0 && (
         <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
           {providers.map((p) => (
