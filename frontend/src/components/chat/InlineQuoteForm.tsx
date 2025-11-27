@@ -491,12 +491,14 @@ const InlineQuoteForm: React.FC<Props> = ({
         {/* Composer */}
         <div className="rounded-lg border border-gray-100 bg-white p-3 sm:p-4">
           <div className="space-y-3">
-            {/* Base Fee */}
+            {/* Base Fee / Sound package */}
             <div className="flex items-center justify-between gap-3">
-              <label htmlFor={baseId} className="text-sm font-medium text-gray-800 flex-1 min-w-0">Base Fee</label>
+              <label htmlFor={baseId} className="text-sm font-medium text-gray-800 flex-1 min-w-0">
+                {isSoundService ? 'Sound package (full estimate)' : 'Base Fee'}
+              </label>
               <MoneyInput
                 id={baseId}
-                aria-label="Base fee"
+                aria-label={isSoundService ? 'Sound package fee' : 'Base fee'}
                 value={serviceFee}
                 onChange={(n) => { setDirtyService(true); setServiceFee(Math.max(0, n)); }}
                 className="flex-none"
@@ -520,27 +522,31 @@ const InlineQuoteForm: React.FC<Props> = ({
               />
             </div>
 
-            {/* Sound */}
-            {isSupplierParent ? (
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-medium text-gray-800 flex-1 min-w-0">
-                  <div>Sound Equipment</div>
-                  <div className="text-xs text-gray-500 font-normal">
-                    Sound for this event will be quoted and paid separately via a linked sound booking.
+            {/* Sound (artist-provided sound only). For dedicated Sound Service
+                threads, the full sound package is represented in the base fee,
+                so we hide this row entirely. */}
+            {!isSoundService && (
+              isSupplierParent ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-gray-800 flex-1 min-w-0">
+                    <div>Sound Equipment</div>
+                    <div className="text-xs text-gray-500 font-normal">
+                      Sound for this event will be quoted and paid separately via a linked sound booking.
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-3">
-                <label htmlFor={soundId} className="text-sm font-medium text-gray-800 flex-1 min-w-0">Sound Equipment</label>
-                <MoneyInput
-                  id={soundId}
-                  aria-label="Sound fee"
-                  value={soundFee}
-                  onChange={(n) => { setDirtySound(true); setSoundFee(Math.max(0, n)); }}
-                  className="flex-none"
-                />
-              </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <label htmlFor={soundId} className="text-sm font-medium text-gray-800 flex-1 min-w-0">Sound Equipment</label>
+                  <MoneyInput
+                    id={soundId}
+                    aria-label="Sound fee"
+                    value={soundFee}
+                    onChange={(n) => { setDirtySound(true); setSoundFee(Math.max(0, n)); }}
+                    className="flex-none"
+                  />
+                </div>
+              )
             )}
 
             {/* Extras */}
