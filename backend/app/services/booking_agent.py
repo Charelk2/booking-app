@@ -1654,6 +1654,54 @@ def run_booking_agent_step(
                     "You can tell me more about the event type, city, and date so I can refine the search."
                 ]
 
+        # If the user is explicitly asking to see musicians/providers and
+        # Gemini replied without mentioning any concrete suggestions, append a
+        # deterministic summary so the chat always feels responsive.
+        if messages_out and providers:
+            try:
+                last_reply = (messages_out[-1] or "").lower()
+                ask_for_providers = False
+                if last_user_text:
+                    ask_for_providers = any(
+                        phrase in last_user_text
+                        for phrase in [
+                            "where are the musicians",
+                            "where are the artists",
+                            "where are the djs",
+                            "where are the bands",
+                            "where are the providers",
+                            "show me musicians",
+                            "show me artists",
+                            "show me options",
+                            "show me providers",
+                            "now let's look",
+                            "now lets look",
+                            "can i see the musicians",
+                            "can i see the artists",
+                            "show the musicians",
+                            "show the artists",
+                        ]
+                    )
+                mentions_provider_name = False
+                top = providers[0]
+                top_name_raw = top.get("name") or ""
+                if top_name_raw:
+                    top_name = str(top_name_raw).strip().lower()
+                    if top_name and top_name in last_reply:
+                        mentions_provider_name = True
+                if ask_for_providers and not mentions_provider_name:
+                    name = top.get("name") or "this provider"
+                    city = top.get("location") or ""
+                    count = len(providers)
+                    if count == 1:
+                        line = f"I found 1 provider on Booka that fits: {name}{f' ({city})' if city else ''}."
+                    else:
+                        line = f"I found {count} providers on Booka. Top match: {name}{f' ({city})' if city else ''}."
+                    messages_out.append(line)
+            except Exception:
+                # Provider presentation must never break the agent.
+                pass
+
     # Optionally append a concise summary line, but keep the user-facing chat
     # to a single assistant message per turn. When we have enough core fields,
     # we fold the summary into the end of the main message instead of sending
