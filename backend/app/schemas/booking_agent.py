@@ -67,6 +67,14 @@ class BookingAgentState(BaseModel):
         description="Free-form summary of the client's requirements accumulated from the chat.",
     )
 
+    service_category: Optional[str] = Field(
+        default=None,
+        description=(
+            "High-level service category the user is currently interested in, "
+            "such as 'musician', 'photographer', or 'sound_service'."
+        ),
+    )
+
     # Sound / production context (mirrors key fields from the Booking Wizard)
     sound: Optional[str] = Field(
         default=None,
@@ -117,7 +125,7 @@ class BookingAgentState(BaseModel):
         description="Cached client_total_incl_vat from the last quote preview.",
     )
 
-    stage: Optional[Literal["collecting_requirements", "suggesting_providers", "awaiting_confirmation", "booking_created"]] = Field(
+    stage: Optional[Literal["collecting_requirements", "suggesting_providers", "awaiting_confirmation", "awaiting_final_confirmation", "booking_created"]] = Field(
         default="collecting_requirements",
         description=(
             "High-level conversation stage for the agent; used to gate actions "

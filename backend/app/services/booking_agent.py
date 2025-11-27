@@ -99,7 +99,9 @@ def _build_search_payload_from_state(
 ) -> Dict[str, Any]:
     """Coerce conversation state into a payload for `ai_provider_search`."""
     # Use existing state as soft filters; the model can still override if needed.
-    category = None  # we can map event_type->category later if useful
+    category = None
+    if state.service_category in ("musician", "photographer", "sound_service"):
+        category = state.service_category
     location = state.city or None
     when = state.date or None
     min_price = state.budget_min
@@ -157,13 +159,14 @@ def _call_gemini_parse_state(
         "venue_type": state.venue_type,
         "sound": state.sound,
         "sound_mode": state.sound_mode,
+        "service_category": state.service_category,
     }
 
     system_instructions = (
         "You help a booking assistant for a South African event platform (Booka) interpret user messages into "
         "structured event fields. Given the latest user message and the current state, output ONLY a compact JSON "
         "object with any updated fields for: event_type, city, date, time, guests, budget_min, budget_max, "
-        "venue_type, sound, sound_mode.\n\n"
+        "venue_type, sound, sound_mode, service_category.\n\n"
         "Rules:\n"
         "- Use ISO 8601 format (YYYY-MM-DD) for date when possible.\n"
         "- Use 24h 'HH:MM' format for time when possible (e.g. '18:00' for 6pm).\n"
@@ -223,6 +226,7 @@ def _call_gemini_parse_state(
         "venue_type",
         "sound",
         "sound_mode",
+        "service_category",
     }
     update: Dict[str, Any] = {}
     for key, value in data.items():
@@ -344,6 +348,88 @@ def _classify_intent_and_event_type(
             intent = "find_provider"
 
     return intent, event_type
+
+
+def _classify_service_category(
+    query_text: str,
+    state: BookingAgentState,
+) -> Optional[str]:
+    """Heuristic classifier for high-level service category.
+
+    Maps free-form text into coarse categories like 'musician', 'photographer',
+    or 'sound_service'. Existing state.service_category takes precedence when
+    the text is ambiguous.
+    """
+    category: Optional[str] = state.service_category or None
+    t = (query_text or "").strip().lower()
+    if not t:
+        return category
+
+    # Photographer / photo-oriented.
+    if any(k in t for k in ["photographer", "photoshoot", "photo shoot", "pictures", "photos"]):
+        return "photographer"
+
+    # Sound / PA / audio hire.
+    if any(
+        k in t
+        for k in [
+            "sound system",
+            "pa system",
+            "pa hire",
+            "audio hire",
+            "sound hire",
+            "sound equipment",
+            "speaker hire",
+        ]
+    ):
+        return "sound_service"
+
+    # Musicians / bands / DJs / singers.
+    if any(
+        k in t
+        for k in [
+            "musician",
+            "musicians",
+            "band",
+            "bands",
+            "dj",
+            "deejay",
+            "singer",
+            "singers",
+            "trio",
+            "duo",
+            "quartet",
+            "live music",
+        ]
+    ):
+        return "musician"
+
+    return category
+
+
+def _has_required_booking_fields(state: BookingAgentState) -> bool:
+    """Return True when we have enough structured info to safely book.
+
+    This enforces a minimal parity with the Booking Wizard: before offering a
+    booking or actually creating one, we require at least an event_type, city,
+    date, guest count, venue_type, and an explicit sound preference.
+    """
+    try:
+        if not (state.event_type and str(state.event_type).strip()):
+            return False
+        if not (state.city and str(state.city).strip()):
+            return False
+        if not (state.date and str(state.date).strip()):
+            return False
+        if state.guests is None or int(state.guests) <= 0:
+            return False
+        if not state.venue_type:
+            return False
+        if state.sound not in ("yes", "no"):
+            return False
+        return True
+    except Exception:
+        return False
 
 
 def tool_search_providers(
@@ -678,7 +764,10 @@ def _call_gemini_reply(
     missing = [k for k, v in known_fields.items() if not v]
 
     # Derive which fields we are willing to ask about on this turn so we can
-    # avoid repeating the same follow-up questions.
+    # avoid repeating the same follow-up questions. Budget should not dominate
+    # the conversation: only include budget_min/budget_max in follow-ups when
+    # the user has clearly brought up money/price, or when they have already
+    # given a budget and we are clarifying it.
     asked = list(state.asked_fields or [])
     answered = list(state.answered_fields or [])
     askable = [k for k in missing if k not in asked and k not in answered]
@@ -686,6 +775,21 @@ def _call_gemini_reply(
     # In general_question mode, avoid asking for booking details; focus on
     # answering the product question instead.
     if state.intent != "general_question":
+        # Only consider budget fields for follow-up when the user mentions
+        # price/budget explicitly or has already provided a budget.
+        mention_budget = False
+        t = (last_user or "").lower()
+        if any(k in t for k in ["budget", "cheap", "expensive", "too much", "afford", "price", "cost", "r "]):
+            mention_budget = True
+        has_budget = state.budget_min is not None or state.budget_max is not None
+
+        filtered: List[str] = []
+        for key in askable:
+            if key in ("budget_min", "budget_max") and not (mention_budget or has_budget):
+                continue
+            filtered.append(key)
+
+        askable = filtered
         ask_about = askable[:2]
         for key in ask_about:
             if key not in state.asked_fields:
@@ -903,6 +1007,22 @@ def run_booking_agent_step(
         state.event_type = event_type
     if intent:
         state.intent = intent
+
+    # Classify coarse service category (musician / photographer / sound_service)
+    # and, when it changes, reset provider-specific state so the agent can
+    # switch tracks without clinging to the previous artist.
+    prev_category = state.service_category
+    new_category = _classify_service_category(query_text, state)
+    if new_category and new_category != prev_category:
+        state.service_category = new_category
+        state.chosen_provider_id = None
+        state.chosen_provider_name = None
+        state.service_id = None
+        state.service_name = None
+        state.availability_checked = False
+        state.availability_status = None
+        state.stage = "collecting_requirements"
+        state.summary_emitted = False
 
     # Best-effort Gemini parser: let the model propose structured updates to
     # the booking state based on the latest user message (date, city, guests,
@@ -1410,64 +1530,103 @@ def run_booking_agent_step(
             messages_out.append(line)
             state.travel_tradeoff_explained = True
 
-    # Heuristic "yes, book it" detection: only allow booking creation when the
-    # agent is explicitly awaiting confirmation and the provider is not known
-    # to be unavailable on the requested date.
+    # Heuristic booking confirmation flow: require two explicit confirmations
+    # before creating a booking:
+    # 1) User accepts the summary/offer -> move to awaiting_final_confirmation.
+    # 2) User confirms again after seeing the cost summary -> create booking.
     effective_city = state.city or filters.get("location")
-    if (
-        state.stage == "awaiting_confirmation"
-        and state.chosen_provider_id
-        and state.date
-        and effective_city
-        and (
+    last_user_text = (user_messages[-1]["content"] or "").strip().lower() if user_messages else ""
+    if last_user_text:
+        positive = re.search(r"\b(yes|yep|yeah|book|confirm|go ahead|sounds good)\b", last_user_text)
+        negative = re.search(r"\b(no|not|don't|do not|cancel|change)\b", last_user_text)
+    else:
+        positive = negative = None
+
+    if negative:
+        # User declined; drop back to suggesting/providers stage unless a
+        # booking was already created.
+        if state.stage != "booking_created":
+            state.stage = "suggesting_providers"
+    elif positive and _has_required_booking_fields(state) and state.chosen_provider_id and state.date and effective_city:
+        if state.stage == "awaiting_confirmation" and (
             not state.availability_checked
             or state.availability_status != "unavailable"
-        )
-    ):
-        last_user_text = (user_messages[-1]["content"] or "").strip().lower() if user_messages else ""
-        if last_user_text:
-            positive = re.search(r"\b(yes|yep|yeah|book|confirm|go ahead|sounds good)\b", last_user_text)
-            negative = re.search(r"\b(no|not|don't|do not|cancel|change)\b", last_user_text)
-            if positive and not negative:
-                # Build a concise summary message for the booking request from
-                # all user messages in the thread.
-                user_texts = [
-                    (m.get("content") or "").strip()
-                    for m in messages
-                    if m.get("role") == "user" and (m.get("content") or "").strip()
-                ]
-                combined_message = "\n".join(user_texts) or "Booking request created via the Booka AI assistant."
-                booking_id = tool_create_booking_request(
-                    db=db,
-                    current_user=current_user,
-                    state=state,
-                    message=combined_message,
-                )
-                if booking_id:
-                    final_action = {
-                        "type": "booking_created",
-                        "booking_request_id": booking_id,
-                        "url": f"/booking-requests/{booking_id}",
-                    }
-                    tool_calls.append(
-                        AgentToolCall(
-                            name="create_booking_request",
-                            args={"booking_request_id": booking_id},
-                        )
+        ):
+            # First confirmation: summarise the event and rough cost before
+            # actually creating a booking.
+            provider_name = state.chosen_provider_name or "the artist"
+            city = state.city or effective_city or ""
+            etype = state.event_type or "event"
+            guests = state.guests
+            total_preview = state.quote_total_preview
+            summary_parts = [
+                f"your {etype}",
+                f"in {city}" if city else "",
+                f"on {state.date}",
+                f"for about {guests} guests" if guests is not None else "",
+            ]
+            summary_parts = [p for p in summary_parts if p]
+            summary = " ".join(summary_parts) if summary_parts else f"your event on {state.date}"
+
+            if total_preview is not None:
+                try:
+                    approx = int(round(float(total_preview)))
+                    line = (
+                        f"Based on {summary}, bookings with {provider_name} usually come to around R{approx} "
+                        "including Booka fees and VAT; the final quote can still change slightly with travel and sound. "
+                        "If you're happy with that, should I go ahead and send the booking request on Booka now?"
                     )
-                    # Append a clear confirmation line for the user.
-                    provider_name = state.chosen_provider_name or "the artist"
-                    city = effective_city or ""
-                    line = f"I've created a booking request with {provider_name} on {state.date}"
-                    if city:
-                        line += f" in {city}"
-                    line += f". You can review it in your bookings inbox (reference #{booking_id})."
-                    messages_out.append(line)
-                    state.stage = "booking_created"
-            elif negative:
-                # User declined; drop back to suggesting/providers stage.
-                if state.stage != "booking_created":
-                    state.stage = "suggesting_providers"
+                except Exception:
+                    line = (
+                        f"Based on {summary}, I can approximate the total cost for {provider_name}, "
+                        "but the final quote will still depend on travel and sound. "
+                        "If you're happy with this plan, should I go ahead and send the booking request on Booka now?"
+                    )
+            else:
+                line = (
+                    f"Based on {summary}, I don't have a full total yet for {provider_name}, "
+                    "but their performance fee on Booka will be combined with travel and sound in the quote. "
+                    "If you're happy with this plan, should I go ahead and send the booking request on Booka now?"
+                )
+            messages_out.append(line)
+            state.stage = "awaiting_final_confirmation"
+        elif state.stage == "awaiting_final_confirmation" and (
+            not state.availability_checked
+            or state.availability_status != "unavailable"
+        ):
+            # Second confirmation: actually create the booking request.
+            user_texts = [
+                (m.get("content") or "").strip()
+                for m in messages
+                if m.get("role") == "user" and (m.get("content") or "").strip()
+            ]
+            combined_message = "\n".join(user_texts) or "Booking request created via the Booka AI assistant."
+            booking_id = tool_create_booking_request(
+                db=db,
+                current_user=current_user,
+                state=state,
+                message=combined_message,
+            )
+            if booking_id:
+                final_action = {
+                    "type": "booking_created",
+                    "booking_request_id": booking_id,
+                    "url": f"/booking-requests/{booking_id}",
+                }
+                tool_calls.append(
+                    AgentToolCall(
+                        name="create_booking_request",
+                        args={"booking_request_id": booking_id},
+                    )
+                )
+                provider_name = state.chosen_provider_name or "the artist"
+                city = effective_city or ""
+                line = f"I've created a booking request with {provider_name} on {state.date}"
+                if city:
+                    line += f" in {city}"
+                line += f". You can review it in your bookings inbox (reference #{booking_id})."
+                messages_out.append(line)
+                state.stage = "booking_created"
 
     # If we have enough information and we're not already awaiting confirmation
     # or finished, append a clear booking-offer line when the provider looks
@@ -1493,7 +1652,7 @@ def run_booking_agent_step(
             city = effective_city or ""
             # Only append a booking-offer line when we haven't already moved
             # into the awaiting_confirmation stage in a previous turn.
-            if state.stage != "awaiting_confirmation":
+            if state.stage != "awaiting_confirmation" and _has_required_booking_fields(state):
                 line = f"If you'd like, I can create a booking request with {provider_name} on {state.date}"
                 if city:
                     line += f" in {city}"

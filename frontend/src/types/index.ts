@@ -433,6 +433,8 @@ export interface BookingAgentState {
 
   notes?: string | null;
 
+  service_category?: string | null;
+
   venue_type?: string | null; // 'indoor' | 'outdoor' | 'hybrid'
 
   // Sound / production context (mirrors key fields from the Booking Wizard)
@@ -453,6 +455,7 @@ export interface BookingAgentState {
     | 'collecting_requirements'
     | 'suggesting_providers'
     | 'awaiting_confirmation'
+    | 'awaiting_final_confirmation'
     | 'booking_created'
     | null;
 
