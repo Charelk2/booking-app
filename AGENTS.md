@@ -191,14 +191,23 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 
 ### Migration Note (Booking Requests parent linkage)
 
-- On the production `appdb` database, the Alembic logical head remains `ed57deb9c434`. To support linked artist/sound booking threads without introducing a new Alembic head, the `booking_requests` table was **manually** amended at this revision:
+- On the production `appdb` database, the Alembic logical head remains `ed57deb9c434` (file: `backend/alembic/versions/NEW_REV_add_sessions_table.py`). This revision is our **canonical baseline** for the current system; treat it as the main version going forward.
+- To support linked artist/sound booking threads without introducing a new Alembic head, the `booking_requests` table was **manually** amended at this revision:
   - Column added:
     - `parent_booking_request_id integer NULL`
   - Index:
     - `CREATE INDEX ix_booking_requests_parent_booking_request_id ON booking_requests (parent_booking_request_id);`
   - Foreign key:
     - `ALTER TABLE booking_requests ADD CONSTRAINT fk_booking_requests_parent_booking_request_id FOREIGN KEY (parent_booking_request_id) REFERENCES booking_requests(id) ON DELETE SET NULL;`
-- Code that reads/writes `BookingRequest.parent_booking_request_id` (used for linking artist bookings to sound‑supplier bookings) **assumes this column exists even though Alembic’s version marker is still `ed57deb9c434`**. If you restore from a dump or recreate the DB at this revision, remember to re‑apply the same DDL before deploying this branch.
+- Code that reads/writes `BookingRequest.parent_booking_request_id` (used for linking artist bookings to sound‑supplier bookings) **assumes this column exists even though Alembic’s version marker is still `ed57deb9c434`**.
+- When adding similar small, additive columns/tweaks in future, prefer this pattern:
+  - Apply the DDL manually on `appdb` at revision `ed57deb9c434` (the `NEW_REV_add_sessions_table.py` baseline).
+  - Append a dated comment to `backend/alembic/versions/NEW_REV_add_sessions_table.py` under the “Manual schema notes” section describing:
+    - The table/column/index/constraint added, and
+    - The date and reason.
+  - Record the same SQL and rationale here in AGENTS.md.
+  - Keep Alembic’s head pinned to `ed57deb9c434` unless there is a strong reason to introduce a new migration chain.
+- If you restore from a dump or recreate the DB at this revision, remember to re‑apply the same DDL before deploying this branch.
 
 ---
 

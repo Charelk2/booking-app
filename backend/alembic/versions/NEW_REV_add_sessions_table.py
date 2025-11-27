@@ -54,3 +54,23 @@ def downgrade() -> None:
     op.drop_index("ix_sessions_refresh_jti", table_name="sessions")
     op.drop_index("ix_sessions_user_id", table_name="sessions")
     op.drop_table("sessions")
+
+
+# ---------------------------------------------------------------------------
+# Manual schema notes (ed57deb9c434 baseline)
+#
+# 2025-11-27:
+#   On production appdb at revision ed57deb9c434 (this file), we manually added
+#   booking_requests.parent_booking_request_id with:
+#     ALTER TABLE booking_requests
+#       ADD COLUMN parent_booking_request_id integer;
+#     CREATE INDEX ix_booking_requests_parent_booking_request_id
+#       ON booking_requests (parent_booking_request_id);
+#     ALTER TABLE booking_requests
+#       ADD CONSTRAINT fk_booking_requests_parent_booking_request_id
+#       FOREIGN KEY (parent_booking_request_id)
+#       REFERENCES booking_requests(id)
+#       ON DELETE SET NULL;
+#   This change is not represented as an Alembic upgrade step; it is tracked
+#   here and in AGENTS.md so future manual DB changes at this baseline can
+#   follow the same pattern.
