@@ -1495,9 +1495,58 @@ def run_booking_agent_step(
                 )
             messages_out = [line]
         else:
-            messages_out = [
-                "Tell me the event type, city, rough date, guest count, and budget, and I’ll suggest some artists on Booka that could fit."
-            ]
+            # Tailor the first-turn prompt based on what we already know so we
+            # don't ask for fields the user has clearly provided (e.g. event_type).
+            known_bits: List[str] = []
+            if state.event_type:
+                known_bits.append(str(state.event_type))
+            if state.city:
+                known_bits.append(f"in {state.city}")
+            if state.date:
+                known_bits.append(f"on {state.date}")
+            if state.guests is not None:
+                known_bits.append(f"for about {state.guests} guests")
+            # Acknowledge budget when the user has already given it.
+            if state.budget_min is not None or state.budget_max is not None:
+                try:
+                    lo = state.budget_min
+                    hi = state.budget_max
+                    if lo is not None and hi is not None and lo != hi:
+                        known_bits.append(f"with a budget around R{int(lo)}–R{int(hi)}")
+                    elif hi is not None:
+                        known_bits.append(f"with a budget up to R{int(hi)}")
+                    elif lo is not None:
+                        known_bits.append(f"with a budget from about R{int(lo)}")
+                except Exception:
+                    pass
+
+            missing_bits: List[str] = []
+            if not state.city:
+                missing_bits.append("the city")
+            if not state.date:
+                missing_bits.append("a rough date")
+            if state.guests is None:
+                missing_bits.append("guest count")
+            if state.budget_min is None and state.budget_max is None:
+                missing_bits.append("your rough budget")
+
+            if known_bits:
+                prefix = "Got it"
+                summary = ", ".join(known_bits)
+                if missing_bits:
+                    ask = ", ".join(missing_bits[:-1]) + (" and " + missing_bits[-1] if len(missing_bits) > 1 else missing_bits[0])
+                    line = (
+                        f"{prefix} {summary}. Tell me {ask}, and I’ll suggest some artists on Booka that could fit."
+                    )
+                else:
+                    line = (
+                        f"{prefix} {summary}. I can now suggest some artists on Booka that could fit."
+                    )
+            else:
+                line = (
+                    "Tell me the event type, city, rough date, guest count, and budget, and I’ll suggest some artists on Booka that could fit."
+                )
+            messages_out = [line]
     else:
         messages_out = _call_gemini_reply(
             messages,
