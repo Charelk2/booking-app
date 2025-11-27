@@ -473,12 +473,11 @@ def _call_gemini_reply(
 
     try:
         client = genai.Client(api_key=api_key)
-        # Guard against very long prompts and slow responses; the booking
-        # agent must remain responsive even when Gemini is slow.
+        # We rely on the SDK's own timeout / retry behaviour here; any slow
+        # responses fall back to deterministic copy via the exception handler.
         res = client.models.generate_content(
             model=model_name,
             contents=prompt,
-            config={"timeout": 6.0},
         )
         text = (getattr(res, "text", None) or "").strip()
         if not text:

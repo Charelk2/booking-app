@@ -366,7 +366,9 @@ def booking_agent(
     ]
     messages_out = payload.messages + assistant_messages
 
-    state_out = BookingAgentStateIn.model_validate(step.state)
+    # step.state is a BookingAgentState instance; normalise via model_dump so
+    # Pydantic v2 gets a plain dict for validation.
+    state_out = BookingAgentStateIn.model_validate(step.state.model_dump())
     providers = [AiProviderOut(**p) for p in step.providers or []]
 
     actions: List[BookingAgentAction] = []
