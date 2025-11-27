@@ -104,10 +104,28 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
         vat_registered = None
         vat_rate = None
 
-    subtotal, total = calculate_totals(quote_in, vat_registered=vat_registered, vat_rate=vat_rate)
+    # For main artist bookings where sound will be handled by a separate
+    # supplier booking (sound_mode == 'supplier'), strip the sound component
+    # from this quote so the client does not pay for sound twice. The linked
+    # child sound booking will carry its own quote and payment.
+    quote_for_calc = quote_in
+    try:
+        tb = booking_request.travel_breakdown or {}
+        sound_mode = (tb.get("sound_mode") if isinstance(tb, dict) else None) or None
+        parent_id = getattr(booking_request, "parent_booking_request_id", None)
+        is_main_artist_booking = not bool(parent_id)
+        if is_main_artist_booking and isinstance(sound_mode, str) and sound_mode.lower() == "supplier":
+            try:
+                quote_for_calc = quote_in.copy(update={"sound_fee": Decimal("0")})
+            except Exception:
+                quote_for_calc = quote_in
+    except Exception:
+        quote_for_calc = quote_in
+
+    subtotal, total = calculate_totals(quote_for_calc, vat_registered=vat_registered, vat_rate=vat_rate)
     services = [
         {"description": s.description, "price": float(s.price)}
-        for s in quote_in.services
+        for s in quote_for_calc.services
     ]
     # Always rely on the booking request for the artist and client IDs. This
     # avoids situations where the payload omits or mislabels these values,
@@ -117,9 +135,9 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
         artist_id=booking_request.artist_id,
         client_id=booking_request.client_id,
         services=services,
-        sound_fee=quote_in.sound_fee,
-        travel_fee=quote_in.travel_fee,
-        accommodation=quote_in.accommodation,
+        sound_fee=quote_for_calc.sound_fee,
+        travel_fee=quote_for_calc.travel_fee,
+        accommodation=quote_for_calc.accommodation,
         subtotal=subtotal,
         discount=quote_in.discount,
         total=total,

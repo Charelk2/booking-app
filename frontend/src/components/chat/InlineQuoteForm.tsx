@@ -194,6 +194,7 @@ const InlineQuoteForm: React.FC<Props> = ({
   const [sending, setSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [agree, setAgree] = useState<boolean>(true);
+  const [isSupplierParent, setIsSupplierParent] = useState<boolean>(false);
 
   const [quoteNumber] = useState<string>(generateQuoteNumber());
   const todayLabel = format(new Date(), 'PPP');
@@ -255,6 +256,14 @@ const InlineQuoteForm: React.FC<Props> = ({
         const br: any = await getBookingRequestCached(bookingRequestId);
         if (!active) return;
         const tb: any = br.travel_breakdown || {};
+        const soundModeRaw = tb.sound_mode || (br as any)?.sound_mode;
+        const parentId = Number(br.parent_booking_request_id || 0);
+        const supplierParent =
+          !Number.isNaN(parentId) &&
+          parentId <= 0 &&
+          typeof soundModeRaw === 'string' &&
+          String(soundModeRaw).toLowerCase() === 'supplier';
+        setIsSupplierParent(supplierParent);
         const svcId = Number(br.service_id || 0);
         const svcPrice = Number(br?.service?.price);
 
@@ -279,7 +288,7 @@ const InlineQuoteForm: React.FC<Props> = ({
         }
 
         // Sound fee best-effort
-        if (!dirtySound) {
+        if (!dirtySound && !supplierParent) {
           try {
             const soundRequired = Boolean(tb.sound_required);
             const provisioning = (br?.service as any)?.details?.sound_provisioning;
@@ -317,7 +326,9 @@ const InlineQuoteForm: React.FC<Props> = ({
               if (!active) return;
               if (!dirtyService && typeof initialBaseFee !== 'number') setServiceFee(Number(data?.base_fee || baseForCalc || 0));
               if (!dirtyTravel && typeof initialTravelCost !== 'number') setTravelFee(Number(data?.travel_cost || 0));
-              if (!dirtySound && initialSoundCost == null && initialSoundNeeded == null) setSoundFee(Number(data?.sound_cost || 0));
+              if (!dirtySound && initialSoundCost == null && initialSoundNeeded == null && !supplierParent) {
+                setSoundFee(Number(data?.sound_cost || 0));
+              }
             } catch {}
           }
         } catch {}
@@ -338,7 +349,10 @@ const InlineQuoteForm: React.FC<Props> = ({
   );
 
   const extrasTotal = useMemo(() => items.reduce((sum, it) => sum + Number(it.price || 0), 0), [items]);
-  const subtotal = useMemo(() => serviceFee + soundFee + travelFee + extrasTotal, [serviceFee, soundFee, travelFee, extrasTotal]);
+  const subtotal = useMemo(
+    () => serviceFee + (isSupplierParent ? 0 : soundFee) + travelFee + extrasTotal,
+    [serviceFee, soundFee, travelFee, extrasTotal, isSupplierParent],
+  );
   const discounted = Math.max(0, subtotal - (discount || 0));
 
   const normalizedVatRate = useMemo(() => {
@@ -403,7 +417,7 @@ const InlineQuoteForm: React.FC<Props> = ({
         artist_id: artistId,
         client_id: clientId,
         services,
-        sound_fee: soundFee,
+        sound_fee: isSupplierParent ? 0 : soundFee,
         travel_fee: travelFee,
         accommodation: accommodation || null,
         discount: discount || null,
@@ -414,7 +428,7 @@ const InlineQuoteForm: React.FC<Props> = ({
     } finally {
       setSending(false);
     }
-  }, [artistId, clientId, bookingRequestId, discount, expiresHours, items, onSubmit, serviceFee, soundFee, travelFee, accommodation, serviceName]);
+  }, [artistId, clientId, bookingRequestId, discount, expiresHours, items, onSubmit, serviceFee, soundFee, travelFee, accommodation, serviceName, isSupplierParent]);
 
   return (
     <section className="w-full rounded-xl bg-white/95 backdrop-blur p-3 sm:p-4 shadow-sm border border-gray-100">
@@ -471,16 +485,27 @@ const InlineQuoteForm: React.FC<Props> = ({
             </div>
 
             {/* Sound */}
-            <div className="flex items-center justify-between gap-3">
-              <label htmlFor={soundId} className="text-sm font-medium text-gray-800 flex-1 min-w-0">Sound Equipment</label>
-              <MoneyInput
-                id={soundId}
-                aria-label="Sound fee"
-                value={soundFee}
-                onChange={(n) => { setDirtySound(true); setSoundFee(Math.max(0, n)); }}
-                className="flex-none"
-              />
-            </div>
+            {isSupplierParent ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-medium text-gray-800 flex-1 min-w-0">
+                  <div>Sound Equipment</div>
+                  <div className="text-xs text-gray-500 font-normal">
+                    Sound for this event will be quoted and paid separately via a linked sound booking.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor={soundId} className="text-sm font-medium text-gray-800 flex-1 min-w-0">Sound Equipment</label>
+                <MoneyInput
+                  id={soundId}
+                  aria-label="Sound fee"
+                  value={soundFee}
+                  onChange={(n) => { setDirtySound(true); setSoundFee(Math.max(0, n)); }}
+                  className="flex-none"
+                />
+              </div>
+            )}
 
             {/* Extras */}
             <div>

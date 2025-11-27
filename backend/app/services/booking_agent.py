@@ -80,18 +80,22 @@ def _extract_date_from_text_fragment(text: str) -> Optional[str]:
         "dec": 12,
     }
 
-    # Support "29 October" and "29 October 2027" style patterns.
-    m = re.search(
+    # Support "29 October" and "29 October 2027" style patterns. When multiple
+    # dates appear in the same fragment (e.g. "27 October 2027 ... 29 October"),
+    # prefer the *last* explicit date so that follow-up turns like "actually
+    # make it 29 October" correctly override earlier mentions.
+    pattern = (
         r"\b(\d{1,2})\s+("
         r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|"
         r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
-        r")(?:\s+(\d{4}))?\b",
-        t,
+        r")(?:\s+(\d{4}))?\b"
     )
-    if not m:
+    matches = list(re.finditer(pattern, t))
+    if not matches:
         return None
 
     try:
+        m = matches[-1]
         day = int(m.group(1))
         month_name = m.group(2)
         year_str = m.group(3)
@@ -1211,6 +1215,7 @@ def _call_gemini_reply(
         "Explain that travel will be added to the quote and, only if the user explicitly prefers someone closer, mention that you can "
         "suggest artists based nearer to the event.\n"
         "- Budget is handled visually via price cards in the UI; you do not need to interrogate budget in chat.\n"
+        "- When you ask about sound/production, bundle it: in one short follow-up, ask whether sound is needed and, if so, whether they also need a stage and evening lighting and roughly what stage size (small/medium/large) or lighting level (basic vs more advanced) they have in mind, instead of spreading these into separate turns.\n"
         "- You may see a days_to_event value or a last_minute flag. When an event is very soon (last_minute is true or days_to_event <= 7), "
         "acknowledge that it is short notice and encourage flexibility on exact time or artist without sounding alarmist.\n\n"
         "How to respond:\n"
@@ -1891,14 +1896,44 @@ def run_booking_agent_step(
                 )
             messages_out = [line]
     else:
-        messages_out = _call_gemini_reply(
-            messages,
-            state,
-            providers,
-            filters,
-            requested_artist_name=requested_artist_name,
-            requested_artist_found=bool(requested_artist_id),
-        ) or []
+        # Early deterministic path for a very common flow: the user has told
+        # us the event type, date, city, and that they want a musician, but we
+        # still need guest count (and optionally sound). In this case we avoid
+        # sending the turn to Gemini so we don't risk re-asking for the date.
+        effective_city = state.city or filters.get("location")
+        if (
+            state.intent != "general_question"
+            and _is_musician_category(state)
+            and state.event_type
+            and effective_city
+            and state.date
+            and state.guests is None
+        ):
+            etype = state.event_type or "event"
+            service_label = state.service_category or "musician"
+            line = (
+                f"Got it, you're looking for a {service_label} for your {etype} "
+                f"in {effective_city} on {state.date}."
+            )
+            line2 = (
+                "Roughly how many guests are you expecting, and if the musician should provide sound, "
+                "please also tell me whether you need a stage and evening lighting and roughly what stage size "
+                "(small/medium/large) and lighting level (basic or more advanced) you're after."
+            )
+            messages_out = [f"{line} {line2}"]
+            if "guests" not in state.asked_fields:
+                state.asked_fields.append("guests")
+            if "sound" not in state.asked_fields:
+                state.asked_fields.append("sound")
+        else:
+            messages_out = _call_gemini_reply(
+                messages,
+                state,
+                providers,
+                filters,
+                requested_artist_name=requested_artist_name,
+                requested_artist_found=bool(requested_artist_id),
+            ) or []
         if not messages_out:
             if providers:
                 top = providers[0]

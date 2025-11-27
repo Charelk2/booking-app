@@ -455,7 +455,7 @@ def supplier_respond(
 
         # Create a client-facing sound booking request linked to the original
         # artist booking so the client has a dedicated thread and quote/payment
-        # flow with the chosen sound supplier.
+        # flow with the chosen sound supplier (supplier mode only).
         try:
             parent_booking_request_id = None
             # Prefer QuoteV2 linkage to resolve the primary client→artist request.
@@ -478,12 +478,20 @@ def supplier_respond(
                 if parent_booking_request_id
                 else None
             )
+            sound_mode = None
+            try:
+                tb = parent_br.travel_breakdown or {} if parent_br and isinstance(parent_br.travel_breakdown, dict) else {}
+                sound_mode = tb.get("sound_mode")
+            except Exception:
+                sound_mode = None
+            supplier_mode = isinstance(sound_mode, str) and sound_mode.lower() == "supplier"
+
             supplier_service = (
                 db.query(models.Service)
                 .filter(models.Service.id == winner.supplier_service_id)
                 .first()
             )
-            if parent_br and supplier_service:
+            if parent_br and supplier_service and supplier_mode:
                 # Use the event start time for the sound booking request so
                 # suppliers see the actual performance date/time.
                 proposed_dt = booking.start_time or parent_br.proposed_datetime_1
@@ -565,139 +573,138 @@ def supplier_respond(
         db.add(booking)
         db.commit()
 
-        # Update the original QuoteV2 sound fee to firm using the accepted amount
+        # Update the original QuoteV2 and sound holds only for non-supplier
+        # flows (e.g., managed-by-artist). For supplier mode the sound portion
+        # is billed entirely via the separate child booking.
         try:
-            # Resolve the booking_request_id via legacy quote link or supplier thread
-            br_id = None
-            if booking.quote_id:
-                legacy_q = db.query(models.Quote).filter(models.Quote.id == booking.quote_id).first()
-                if legacy_q:
-                    br_id = legacy_q.booking_request_id
-            if br_id is None and row.supplier_booking_request_id:
-                br_id = row.supplier_booking_request_id
+            if not supplier_mode:
+                # Resolve the booking_request_id via legacy quote link or supplier thread
+                br_id = None
+                if booking.quote_id:
+                    legacy_q = db.query(models.Quote).filter(models.Quote.id == booking.quote_id).first()
+                    if legacy_q:
+                        br_id = legacy_q.booking_request_id
+                if br_id is None and row.supplier_booking_request_id:
+                    br_id = row.supplier_booking_request_id
 
-            if br_id is not None:
-                # Find the most recent QuoteV2 for this request
-                qv2 = (
-                    db.query(models.QuoteV2)
-                    .filter(models.QuoteV2.booking_request_id == br_id)
-                    .order_by(models.QuoteV2.id.desc())
+                if br_id is not None:
+                    # Find the most recent QuoteV2 for this request
+                    qv2 = (
+                        db.query(models.QuoteV2)
+                        .filter(models.QuoteV2.booking_request_id == br_id)
+                        .order_by(models.QuoteV2.id.desc())
+                        .first()
+                    )
+                    if qv2 is not None:
+                        # Recalculate totals with firm sound
+                        sound_amount = float(winner.accepted_amount or 0)
+                        # Apply managed-by-artist markup if configured
+                        try:
+                            br = db.query(models.BookingRequest).filter(models.BookingRequest.id == br_id).first()
+                            sound_mode2 = None
+                            if br and isinstance(br.travel_breakdown, dict):
+                                sound_mode2 = br.travel_breakdown.get("sound_mode")
+                            if sound_mode2 == "managed_by_artist":
+                                svc = db.query(models.Service).filter(models.Service.id == booking.service_id).first()
+                                if svc and getattr(svc, "sound_managed_markup_percent", None):
+                                    pct = float(svc.sound_managed_markup_percent or 0)
+                                    sound_amount = sound_amount * (1 + pct / 100.0)
+                        except Exception:
+                            pass
+                        qv2.sound_fee = sound_amount
+                        qv2.sound_firm = "true"
+                        # recompute subtotal/total
+                        service_sum = sum((item.get("price", 0) or 0) for item in (qv2.services or []))
+                        qv2.subtotal = service_sum + qv2.sound_fee + qv2.travel_fee
+                        if qv2.discount:
+                            qv2.total = qv2.subtotal - qv2.discount
+                        else:
+                            qv2.total = qv2.subtotal
+                        db.add(qv2)
+                        db.commit()
+
+                        # Post timeline updates to the original thread (client-visible)
+                        content = (
+                            f"Sound confirmed: {winner.supplier_public_name} at price R{sound_amount:.2f}."
+                        )
+                        msg = models.Message(
+                            booking_request_id=br_id,
+                            sender_id=booking.artist_id,
+                            sender_type=models.SenderType.ARTIST,
+                            content=content,
+                            message_type=models.MessageType.SYSTEM,
+                        )
+                        db.add(msg)
+                        db.commit()
+                # Capture sound hold if authorized; reconcile full-charge totals (refund/top-up)
+                bs = (
+                    db.query(models.BookingSimple)
+                    .filter(models.BookingSimple.quote_id == booking.quote_id)
                     .first()
                 )
-                if qv2 is not None:
-                    # Recalculate totals with firm sound
-                    sound_amount = float(winner.accepted_amount or 0)
-                    # Apply managed-by-artist markup if configured
-                    try:
-                        br = db.query(models.BookingRequest).filter(models.BookingRequest.id == br_id).first()
-                        sound_mode = None
-                        if br and isinstance(br.travel_breakdown, dict):
-                            sound_mode = br.travel_breakdown.get("sound_mode")
-                        if sound_mode == "managed_by_artist":
-                            svc = db.query(models.Service).filter(models.Service.id == booking.service_id).first()
-                            if svc and getattr(svc, "sound_managed_markup_percent", None):
-                                pct = float(svc.sound_managed_markup_percent or 0)
-                                sound_amount = sound_amount * (1 + pct / 100.0)
-                    except Exception:
-                        pass
-                    qv2.sound_fee = sound_amount
-                    qv2.sound_firm = "true"
-                    # recompute subtotal/total
-                    service_sum = sum((item.get("price", 0) or 0) for item in (qv2.services or []))
-                    qv2.subtotal = service_sum + qv2.sound_fee + qv2.travel_fee
-                    if qv2.discount:
-                        qv2.total = qv2.subtotal - qv2.discount
-                    else:
-                        qv2.total = qv2.subtotal
-                    db.add(qv2)
+                if bs and bs.sound_hold_status == "authorized":
+                    bs.sound_hold_status = "captured"
+                    db.add(bs)
                     db.commit()
-
-                    # Post timeline updates to the original thread (client-visible)
-                    content = (
-                        f"Sound confirmed: {winner.supplier_public_name} at price R{sound_amount:.2f}."
-                    )
-                    msg = models.Message(
-                        booking_request_id=br_id,
-                        sender_id=booking.artist_id,
-                        sender_type=models.SenderType.ARTIST,
-                        content=content,
-                        message_type=models.MessageType.SYSTEM,
-                    )
-                    db.add(msg)
-                    db.commit()
-        except Exception:
-            pass
-
-        # Capture sound hold if authorized; reconcile full-charge totals (refund/top-up)
-        try:
-            bs = (
-                db.query(models.BookingSimple)
-                .filter(models.BookingSimple.quote_id == booking.quote_id)
-                .first()
-            )
-            if bs and bs.sound_hold_status == "authorized":
-                bs.sound_hold_status = "captured"
-                db.add(bs)
-                db.commit()
-            if bs and bs.payment_status == "paid" and bs.charged_total_amount is not None:
-                qv2_new = db.query(models.QuoteV2).filter(models.QuoteV2.id == bs.quote_id).first()
-                if qv2_new:
-                    new_total = float(qv2_new.total or 0)
-                    charged = float(bs.charged_total_amount or 0)
-                    delta = round(new_total - charged, 2)
-                    if abs(delta) >= 0.01:
-                        if delta < 0:
-                            refund_id = f"refund_{uuid.uuid4().hex}"
-                            try:
-                                path = os.path.join(os.path.dirname(__file__), "..", "static", "receipts", f"{refund_id}.pdf")
-                                path = os.path.abspath(path)
-                                os.makedirs(os.path.dirname(path), exist_ok=True)
-                                with open(path, "wb") as f:
-                                    f.write(b"%PDF-1.4 refund\n%%EOF")
-                            except Exception:
-                                pass
-                            bs.charged_total_amount = qv2_new.total
-                            db.add(bs)
-                            db.commit()
-                            try:
-                                br_id2 = qv2_new.booking_request_id
-                                msg2 = models.Message(
-                                    booking_request_id=br_id2,
-                                    sender_id=booking.artist_id,
-                                    sender_type=models.SenderType.ARTIST,
-                                    content=f"Sound finalized below estimate. Refund issued: R{abs(delta):.2f}.",
-                                    message_type=models.MessageType.SYSTEM,
-                                )
-                                db.add(msg2)
+                if bs and bs.payment_status == "paid" and bs.charged_total_amount is not None:
+                    qv2_new = db.query(models.QuoteV2).filter(models.QuoteV2.id == bs.quote_id).first()
+                    if qv2_new:
+                        new_total = float(qv2_new.total or 0)
+                        charged = float(bs.charged_total_amount or 0)
+                        delta = round(new_total - charged, 2)
+                        if abs(delta) >= 0.01:
+                            if delta < 0:
+                                refund_id = f"refund_{uuid.uuid4().hex}"
+                                try:
+                                    path = os.path.join(os.path.dirname(__file__), "..", "static", "receipts", f"{refund_id}.pdf")
+                                    path = os.path.abspath(path)
+                                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                                    with open(path, "wb") as f:
+                                        f.write(b"%PDF-1.4 refund\n%%EOF")
+                                except Exception:
+                                    pass
+                                bs.charged_total_amount = qv2_new.total
+                                db.add(bs)
                                 db.commit()
-                            except Exception:
-                                pass
-                        else:
-                            topup_id = f"topup_{uuid.uuid4().hex}"
-                            try:
-                                path = os.path.join(os.path.dirname(__file__), "..", "static", "receipts", f"{topup_id}.pdf")
-                                path = os.path.abspath(path)
-                                os.makedirs(os.path.dirname(path), exist_ok=True)
-                                with open(path, "wb") as f:
-                                    f.write(b"%PDF-1.4 topup\n%%EOF")
-                            except Exception:
-                                pass
-                            bs.charged_total_amount = qv2_new.total
-                            db.add(bs)
-                            db.commit()
-                            try:
-                                br_id2 = qv2_new.booking_request_id
-                                msg2 = models.Message(
-                                    booking_request_id=br_id2,
-                                    sender_id=booking.artist_id,
-                                    sender_type=models.SenderType.ARTIST,
-                                    content=f"Sound finalized above estimate. Additional charge R{delta:.2f} captured.",
-                                    message_type=models.MessageType.SYSTEM,
-                                )
-                                db.add(msg2)
+                                try:
+                                    br_id2 = qv2_new.booking_request_id
+                                    msg2 = models.Message(
+                                        booking_request_id=br_id2,
+                                        sender_id=booking.artist_id,
+                                        sender_type=models.SenderType.ARTIST,
+                                        content=f"Sound finalized below estimate. Refund issued: R{abs(delta):.2f}.",
+                                        message_type=models.MessageType.SYSTEM,
+                                    )
+                                    db.add(msg2)
+                                    db.commit()
+                                except Exception:
+                                    pass
+                            else:
+                                topup_id = f"topup_{uuid.uuid4().hex}"
+                                try:
+                                    path = os.path.join(os.path.dirname(__file__), "..", "static", "receipts", f"{topup_id}.pdf")
+                                    path = os.path.abspath(path)
+                                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                                    with open(path, "wb") as f:
+                                        f.write(b"%PDF-1.4 topup\n%%EOF")
+                                except Exception:
+                                    pass
+                                bs.charged_total_amount = qv2_new.total
+                                db.add(bs)
                                 db.commit()
-                            except Exception:
-                                pass
+                                try:
+                                    br_id2 = qv2_new.booking_request_id
+                                    msg2 = models.Message(
+                                        booking_request_id=br_id2,
+                                        sender_id=booking.artist_id,
+                                        sender_type=models.SenderType.ARTIST,
+                                        content=f"Sound finalized above estimate. Additional charge R{delta:.2f} captured.",
+                                        message_type=models.MessageType.SYSTEM,
+                                    )
+                                    db.add(msg2)
+                                    db.commit()
+                                except Exception:
+                                    pass
         except Exception:
             pass
 
