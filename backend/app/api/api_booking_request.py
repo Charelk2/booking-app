@@ -195,8 +195,10 @@ def _maybe_create_linked_sound_booking_request(
         db.commit()
         db.refresh(child)
 
-        # Seed a concise system line so the client and supplier understand the context,
-        # including a minimal event setup summary derived from the parent breakdown.
+        # Seed concise system lines so the client and supplier understand the
+        # context, including a minimal event setup summary derived from the
+        # parent breakdown. The first line mirrors the main booking flow so the
+        # provider sees a "New booking request" card with a Create quote CTA.
         try:
             link_msg_parts = [
                 f"This chat is for sound for your booking with {artist_label}.",
@@ -228,6 +230,21 @@ def _maybe_create_linked_sound_booking_request(
                 pass
             link_msg_parts.append("You’ll pay for sound separately once your main artist booking is paid.")
             link_msg = " ".join(link_msg_parts)
+            # Provider-facing "new booking request" line so the UI surfaces
+            # the same Create quote card as the main artist thread.
+            try:
+                crud.crud_message.create_message(
+                    db=db,
+                    booking_request_id=child.id,
+                    sender_id=int(parent_request.client_id),
+                    sender_type=models.SenderType.CLIENT,
+                    content="You have a new booking request for sound.",
+                    message_type=models.MessageType.SYSTEM,
+                    visible_to=models.VisibleTo.ARTIST,
+                )
+            except Exception:
+                # Non‑fatal; the intro line will still provide context.
+                pass
             crud.crud_message.create_message(
                 db=db,
                 booking_request_id=child.id,
