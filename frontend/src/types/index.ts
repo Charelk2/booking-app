@@ -412,6 +412,27 @@ export interface BookingSimple {
   updated_at: string;
 }
 
+// ─── AI BOOKING AGENT STATE ──────────────────────────────────────────────────
+
+export interface BookingAgentState {
+  chosen_provider_id?: number | null;
+  chosen_provider_name?: string | null;
+
+  event_type?: string | null;
+  city?: string | null;
+  date?: string | null; // YYYY-MM-DD
+  time?: string | null; // '18:00' or labels like 'evening'
+
+  guests?: number | null;
+  budget_min?: number | null;
+  budget_max?: number | null;
+
+  notes?: string | null;
+
+  availability_checked?: boolean;
+  availability_status?: 'available' | 'unavailable' | 'unknown' | null;
+}
+
 export interface AttachmentMeta {
   original_filename: string | null;
   content_type: string | null;

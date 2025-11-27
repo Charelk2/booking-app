@@ -32,6 +32,7 @@ import {
   ThreadPreview,
   ParsedBookingDetails,
   ServiceCategory,
+  BookingAgentState,
 } from '@/types';
 
 export const getApiOrigin = () =>
@@ -809,6 +810,56 @@ export const sendAiAssistant = async (
     if (detail === 'ai_search_error') {
       throw Object.assign(new Error('AI search error'), {
         code: 'ai_search_error',
+      });
+    }
+    throw err;
+  }
+};
+
+// ─── AI BOOKING AGENT ────────────────────────────────────────────────────────
+
+export type BookingAgentMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export type BookingAgentStateApi = BookingAgentState;
+
+export type BookingAgentAction = {
+  type: 'booking_created';
+  booking_request_id: number;
+  url: string;
+};
+
+export type BookingAgentRequest = {
+  messages: BookingAgentMessage[];
+  state?: BookingAgentStateApi | null;
+};
+
+export type BookingAgentResponse = {
+  messages: BookingAgentMessage[];
+  state: BookingAgentStateApi;
+  providers: AiProvider[];
+  actions: BookingAgentAction[];
+};
+
+export const callBookingAgent = async (
+  payload: BookingAgentRequest
+): Promise<BookingAgentResponse> => {
+  try {
+    const res = await api.post<BookingAgentResponse>(`${API_V1}/ai/booking-agent`, payload);
+    return res.data;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.detail;
+    if (status === 503 && detail === 'ai_search_disabled') {
+      throw Object.assign(new Error('AI agent disabled'), {
+        code: 'ai_agent_disabled',
+      });
+    }
+    if (detail === 'ai_agent_error') {
+      throw Object.assign(new Error('AI agent error'), {
+        code: 'ai_agent_error',
       });
     }
     throw err;

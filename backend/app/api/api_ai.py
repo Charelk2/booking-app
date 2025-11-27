@@ -6,6 +6,9 @@ from app.core.config import settings
 from app.database import get_db
 from sqlalchemy.orm import Session
 from app.services.ai_search import ai_provider_search
+from app.services.booking_agent import run_booking_agent_step
+from app.schemas.booking_agent import BookingAgentState
+from .dependencies import get_current_active_client
 
 
 router = APIRouter()
@@ -97,6 +100,40 @@ class AiAssistantResponse(BaseModel):
     providers: List[AiProviderOut]
     filters: AiProviderFilters
     source: Optional[str] = None
+
+
+class BookingAgentMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class BookingAgentStateIn(BookingAgentState):
+    """Alias for client-facing booking agent state."""
+
+    pass
+
+
+class BookingAgentRequest(BaseModel):
+    messages: List[BookingAgentMessage] = Field(
+        ..., description="Conversation so far (user and assistant messages)."
+    )
+    state: Optional[BookingAgentStateIn] = Field(
+        default=None,
+        description="Current booking wizard-like state for the agent; omitted on first turn.",
+    )
+
+
+class BookingAgentAction(BaseModel):
+    type: Literal["booking_created"]
+    booking_request_id: int
+    url: str
+
+
+class BookingAgentResponse(BaseModel):
+    messages: List[BookingAgentMessage]
+    state: BookingAgentStateIn
+    providers: List[AiProviderOut] = []
+    actions: List[BookingAgentAction] = []
 
 
 @router.post(
@@ -266,4 +303,92 @@ def ai_assistant(
         providers=providers,
         filters=filters,
         source=result.get("source"),
+    )
+
+
+@router.post(
+    "/ai/booking-agent",
+    response_model=BookingAgentResponse,
+    response_model_exclude_none=True,
+    summary="AI booking agent for conversational booking requests",
+)
+def booking_agent(
+    payload: BookingAgentRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_client),
+):
+    """Stateful booking agent endpoint.
+
+    This endpoint is designed for an inline chat UI that wants to behave like a
+    conversational Booking Wizard. The frontend passes the full conversation
+    and the current BookingAgentState; the agent responds with new assistant
+    messages, an updated state, and optional side-effect actions such as
+    'booking_created'.
+
+    For now this uses a heuristic-only implementation in
+    `run_booking_agent_step`; a future iteration can swap in a Gemini-powered
+    tool-using agent without changing this contract.
+    """
+    if not getattr(settings, "FEATURE_AI_SEARCH", False):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ai_search_disabled",
+        )
+
+    if not payload.messages:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"messages": "at least one message is required"},
+        )
+
+    # Coerce messages into the simple dict form expected by the agent service.
+    msg_dicts: List[Dict[str, str]] = [
+        {"role": m.role, "content": m.content} for m in payload.messages
+    ]
+    state_in = payload.state or BookingAgentState()
+
+    try:
+        step = run_booking_agent_step(
+            db=db,
+            current_user=current_user,
+            messages=msg_dicts,
+            state=state_in,
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="ai_agent_error",
+        )
+
+    # Map agent result back to API models.
+    assistant_messages = [
+        BookingAgentMessage(role="assistant", content=m) for m in step.messages
+    ]
+    messages_out = payload.messages + assistant_messages
+
+    state_out = BookingAgentStateIn.model_validate(step.state)
+    providers = [AiProviderOut(**p) for p in step.providers or []]
+
+    actions: List[BookingAgentAction] = []
+    if step.final_action and step.final_action.get("type") == "booking_created":
+        try:
+            br_id = int(step.final_action.get("booking_request_id") or 0)
+            url = step.final_action.get("url") or f"/booking-requests/{br_id}"
+            if br_id > 0:
+                actions.append(
+                    BookingAgentAction(
+                        type="booking_created",
+                        booking_request_id=br_id,
+                        url=url,
+                    )
+                )
+        except Exception:
+            # Ignore malformed final_action; agent remains best-effort.
+            pass
+
+    return BookingAgentResponse(
+        messages=messages_out,
+        state=state_out,
+        providers=providers,
+        actions=actions,
     )

@@ -4,11 +4,11 @@ import React from 'react';
 import ServiceProviderCardCompact from '@/components/service-provider/ServiceProviderCardCompact';
 import { useRouter } from 'next/navigation';
 import {
-  searchProvidersWithAi,
-  createBookingRequest,
+  callBookingAgent,
   type AiProvider,
-  type AiProviderFilters,
-  type AiChatMessage,
+  type BookingAgentMessage,
+  type BookingAgentStateApi,
+  type BookingAgentResponse,
 } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import { fetchArtistAvailability } from '@/lib/availability';
@@ -32,9 +32,9 @@ export default function AiProviderSearchPanel({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [providers, setProviders] = React.useState<AiProvider[]>([]);
-  const [filters, setFilters] = React.useState<AiProviderFilters | null>(null);
+  const [agentState, setAgentState] = React.useState<BookingAgentStateApi | null>(null);
   const [disabled, setDisabled] = React.useState(false);
-  const [messages, setMessages] = React.useState<AiChatMessage[]>([
+  const [messages, setMessages] = React.useState<BookingAgentMessage[]>([
     {
       role: 'assistant',
       content:
@@ -42,8 +42,6 @@ export default function AiProviderSearchPanel({
     },
   ]);
   const [availability, setAvailability] = React.useState<Record<number, 'available' | 'unavailable' | 'unknown'>>({});
-  const [selectedProvider, setSelectedProvider] = React.useState<AiProvider | null>(null);
-  const [awaitingConfirm, setAwaitingConfirm] = React.useState(false);
   const router = useRouter();
 
   const handleSend = async () => {
@@ -52,165 +50,27 @@ export default function AiProviderSearchPanel({
       setError('Describe what you are looking for (e.g. “Acoustic duo in Cape Town under R8000”).');
       return;
     }
-    const nextMessages: AiChatMessage[] = [...messages, { role: 'user', content: trimmed }];
+    const nextMessages: BookingAgentMessage[] = [...messages, { role: 'user', content: trimmed }];
     setMessages(nextMessages);
     setInput('');
     setError(null);
 
-    // If we're waiting for booking confirmation and the user replied, handle that first.
-    const lower = trimmed.toLowerCase();
-    if (awaitingConfirm && selectedProvider && (filters?.when || when) && (filters?.location || location)) {
-      const negative = /\b(no|not|don't|do not|cancel|change)\b/.test(lower);
-      const positive = /\b(yes|yep|yeah|book|confirm|go ahead)\b/.test(lower);
-      if (positive && !negative) {
-        // Create a booking request directly from the collected conversation.
-        const userTexts = nextMessages
-          .filter((m) => m.role === 'user')
-          .map((m) => m.content?.trim())
-          .filter((t): t is string => Boolean(t));
-        const note =
-          (userTexts.length ? userTexts.join('\n') : undefined) ||
-          `Booking request created from AI search for ${selectedProvider.name}`;
-        const whenDate = filters?.when || (when ? when.toISOString().slice(0, 10) : null);
-        const payload: any = {
-          service_provider_id: selectedProvider.artist_id,
-          message: note,
-        };
-        if (whenDate) {
-          payload.proposed_datetime_1 = `${whenDate}T12:00:00`;
-        }
-        setLoading(true);
-        void (async () => {
-          try {
-            const res = await createBookingRequest(payload);
-            const id = res.data?.id;
-            if (id) {
-              setAwaitingConfirm(false);
-              setSelectedProvider(null);
-              router.push(`/booking-requests/${id}`);
-              return;
-            }
-          } catch (err: any) {
-            const status = err?.response?.status ?? err?.status;
-            if (status === 401) {
-              const nextUrl =
-                typeof window !== 'undefined'
-                  ? window.location.pathname + window.location.search
-                  : '/booking-requests';
-              router.push(`/auth?intent=login&next=${encodeURIComponent(nextUrl)}`);
-              return;
-            }
-          } finally {
-            setLoading(false);
-          }
-        })();
-        return;
-      }
-      if (negative) {
-        setAwaitingConfirm(false);
-        setSelectedProvider(null);
-      }
-    }
-
     setLoading(true);
     try {
-      const userMessages = [...nextMessages].filter((m) => m.role === 'user');
-      const recentTexts = userMessages
-        .slice(-3)
-        .map((m) => m.content?.trim())
-        .filter((t): t is string => Boolean(t));
-      const combinedQuery = recentTexts.join(' ');
-      if (!combinedQuery) {
-        setError('Describe what you are looking for (e.g. “Acoustic duo in Cape Town under R8000”).');
+      const payload = {
+        messages: nextMessages,
+        state: agentState,
+      };
+      const res: BookingAgentResponse = await callBookingAgent(payload);
+      setMessages(res.messages || nextMessages);
+      setAgentState(res.state || null);
+      setProviders(res.providers || []);
+      // If the agent created a booking, navigate to the thread.
+      const action = (res.actions || []).find((a) => a.type === 'booking_created');
+      if (action) {
+        router.push(action.url || `/booking-requests/${action.booking_request_id}`);
         return;
       }
-      const payload = {
-        query: combinedQuery,
-        category: category || filters?.category || null,
-        location: location || filters?.location || null,
-        when: when ? when.toISOString().slice(0, 10) : filters?.when || null,
-        min_price:
-          typeof minPrice === 'number'
-            ? minPrice
-            : typeof filters?.min_price === 'number'
-            ? filters.min_price
-            : null,
-        max_price:
-          typeof maxPrice === 'number'
-            ? maxPrice
-            : typeof filters?.max_price === 'number'
-            ? filters.max_price
-            : null,
-        limit: 6,
-      };
-      const res = await searchProvidersWithAi(payload);
-      setProviders(res.providers || []);
-      setFilters(res.filters || null);
-      const top = (res.providers || [])[0];
-      const f = res.filters || {};
-      const lines: string[] = [];
-      if (top) {
-        const locText = top.location ? ` (${top.location})` : '';
-        const count = (res.providers || []).length;
-        if (count === 1) {
-          lines.push(`I found 1 provider on Booka that fits: ${top.name}${locText}.`);
-        } else {
-          lines.push(`I found ${count} providers on Booka. Top match: ${top.name}${locText}.`);
-        }
-        if (top.client_total_preview != null) {
-          lines.push(
-            `Bookings on Booka for this artist typically start from about R${Math.round(
-              Number(top.client_total_preview),
-            )}.`,
-          );
-        } else if (top.starting_price != null) {
-          lines.push(
-            `Their base fee currently starts from about R${Math.round(Number(top.starting_price))}.`,
-          );
-        }
-      } else {
-        lines.push("I couldn't find any providers on Booka that match that yet.");
-      }
-      const missing: string[] = [];
-      if (!f.when) missing.push('date');
-      if (!f.location) missing.push('location');
-      if (f.min_price == null && f.max_price == null) missing.push('budget');
-      const queryLower = combinedQuery.toLowerCase();
-      if (!queryLower.includes('wedding') && !queryLower.includes('birthday') && !queryLower.includes('corporate')) {
-        missing.push('event_type');
-      }
-      if (!queryLower.includes('guest') && !queryLower.includes('people')) {
-        missing.push('guests');
-      }
-      const questions: string[] = [];
-      if (missing.includes('date')) questions.push('Do you have a specific date in mind?');
-      if (missing.includes('location')) questions.push('Which town or city is your event in?');
-      if (missing.includes('budget')) questions.push('Roughly what budget range are you thinking of?');
-      if (missing.includes('event_type')) {
-        questions.push('What type of event is it (e.g. wedding, birthday, corporate)?');
-      }
-      if (missing.includes('guests')) {
-        questions.push('About how many guests are you expecting?');
-      }
-      if (questions.length) {
-        lines.push(questions.slice(0, 3).join(' '));
-      }
-      // If we have a top provider and at least a date and location, propose a booking.
-      if (top && (f.when || when) && (f.location || location)) {
-        const date = f.when || (when ? when.toISOString().slice(0, 10) : '');
-        const city = f.location || location || '';
-        lines.push(
-          `If you'd like, I can create a booking request with ${top.name} on ${date}${
-            city ? ` in ${city}` : ''
-          } using what you've told me so far. Reply “Yes” to confirm or “No” to adjust.`,
-        );
-        setSelectedProvider(top);
-        setAwaitingConfirm(true);
-      } else {
-        setAwaitingConfirm(false);
-        setSelectedProvider(null);
-      }
-      setMessages([...nextMessages, { role: 'assistant', content: lines.join(' ') }]);
     } catch (err: any) {
       if (err?.code === 'ai_search_disabled') {
         setDisabled(true);
@@ -226,7 +86,7 @@ export default function AiProviderSearchPanel({
 
   // When we have a date filter and providers, fetch basic availability per artist.
   React.useEffect(() => {
-    const dateStr = filters?.when;
+    const dateStr = agentState?.date || (when ? when.toISOString().slice(0, 10) : null);
     if (!dateStr || !providers.length) return;
     let cancelled = false;
     (async () => {
@@ -251,7 +111,7 @@ export default function AiProviderSearchPanel({
     return () => {
       cancelled = true;
     };
-  }, [providers, filters?.when]);
+  }, [providers, agentState?.date, when]);
 
   if (disabled) return null;
 
@@ -335,13 +195,13 @@ export default function AiProviderSearchPanel({
                 href={p.profile_url || `/${p.slug}`}
                 className="w-40"
               />
-              {filters?.when && (
+              {agentState?.date && (
                 <div className="mt-1 text-[11px] text-center text-slate-600">
                   {availability[p.artist_id] === 'available' && (
-                    <span className="text-emerald-600">Available on {filters.when}</span>
+                    <span className="text-emerald-600">Available on {agentState.date}</span>
                   )}
                   {availability[p.artist_id] === 'unavailable' && (
-                    <span className="text-red-600">Already booked on {filters.when}</span>
+                    <span className="text-red-600">Already booked on {agentState.date}</span>
                   )}
                   {availability[p.artist_id] === 'unknown' && (
                     <span>Checking availability…</span>
