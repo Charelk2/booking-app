@@ -180,7 +180,8 @@ def _call_gemini_reply(
     user_messages = [m for m in messages if m.get("role") == "user"]
     last_user = (user_messages[-1]["content"] or "").strip() if user_messages else ""
 
-    # Summarize top provider for context.
+    # Summarize top provider for context, including a rough starting price
+    # when available so Gemini can speak about “from R…” in a grounded way.
     top = providers[0] if providers else None
     top_summary = None
     if top:
@@ -189,6 +190,8 @@ def _call_gemini_reply(
         rating = top.get("rating")
         reviews = top.get("review_count")
         bookings = top.get("booking_count")
+        client_total_preview = top.get("client_total_preview")
+        starting_price = top.get("starting_price")
         parts = [name]
         if city:
             parts.append(f"in {city}")
@@ -201,6 +204,16 @@ def _call_gemini_reply(
             metrics.append(f"{int(bookings)} bookings")
         if metrics:
             parts.append("with " + ", ".join(metrics))
+        if client_total_preview is not None:
+            try:
+                parts.append(f"typical Booka bookings starting from about R{round(float(client_total_preview))} before travel and sound.")
+            except Exception:
+                pass
+        elif starting_price is not None:
+            try:
+                parts.append(f"base performance fee from about R{round(float(starting_price))} (travel and sound extra).")
+            except Exception:
+                pass
         top_summary = " ".join(parts)
 
     # High-level known / unknown fields to help Gemini ask useful follow-ups.
@@ -228,7 +241,7 @@ def _call_gemini_reply(
         "and a short summary of the top matching provider if any.\n\n"
         "Your job is to:\n"
         "- Acknowledge what the user asked in a friendly, concise way.\n"
-        "- If a top provider is available, mention them and why they fit.\n"
+        "- If a top provider is available, mention them, why they fit, and a rough starting price if provided (e.g. “from about R12 000 on Booka, before travel and sound”).\n"
         "- Ask at most 1–2 follow-up questions focusing on missing key details (date, city, budget, event type, guests, venue type, and sound/production needs like sound equipment, stage, and lighting).\n"
         "- Do NOT talk about tools or internal details; just sound like a human assistant.\n"
         "- Keep replies to 1–3 short sentences.\n"
