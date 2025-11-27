@@ -384,77 +384,93 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   useEffect(() => {
     if (!artistId) return;
     const fetchArtistData = async () => {
+      let availabilityRes: any = null;
+      let svcRes: any = null;
+
+      // Availability should never block provider/service lookups or travel.
       try {
-        const [availabilityRes, svcRes] = await Promise.all([
-          getServiceProviderAvailability(artistId),
-          serviceId ? fetch(apiUrl(`/api/v1/services/${serviceId}`), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null),
-        ]);
-        setUnavailable(availabilityRes.data.unavailable_dates);
-        // Derive location, VAT, and provider name from the service's nested provider profile.
-        // Prefer canonical service_provider fields but keep artist/legacy aliases for backward compatibility.
-        try {
-          const artistProf: any =
-            (svcRes as any)?.artist ||
-            (svcRes as any)?.service_provider ||
-            (svcRes as any)?.artist_profile ||
-            (svcRes as any)?.service_provider_profile ||
-            null;
-          const loc = (
-            artistProf?.location ||
-            (svcRes as any)?.details?.base_location ||
-            ''
-          )
-            .toString()
-            .trim();
-          setArtistLocation(loc || null);
-
-          const vatVal =
-            typeof artistProf?.vat_registered === 'boolean'
-              ? artistProf.vat_registered
-              : null;
-          setArtistVatRegistered(vatVal);
-
-          try {
-            const rawRate = artistProf?.vat_rate;
-            let rateNum: number | null = null;
-            if (typeof rawRate === 'number') rateNum = rawRate;
-            else if (typeof rawRate === 'string' && rawRate.trim()) {
-              const parsed = parseFloat(rawRate);
-              rateNum = Number.isFinite(parsed) ? parsed : null;
-            }
-            setArtistVatRate(rateNum);
-          } catch {
-            setArtistVatRate(null);
-          }
-
-          try {
-            const avatar = (
-              artistProf?.profile_picture_url ||
-              (svcRes as any)?.artist_profile?.profile_picture_url ||
-              (svcRes as any)?.service_provider_profile?.profile_picture_url ||
-              ''
-            )
-              .toString()
-              .trim();
-            setProviderAvatarUrl(avatar || null);
-          } catch {
-            setProviderAvatarUrl(null);
-          }
-
-          const name = (
-            artistProf?.legal_name ||
-            artistProf?.business_name ||
-            (svcRes as any)?.title ||
-            ''
-          )
-            .toString()
-            .trim();
-          setProviderName(name || null);
-        } catch {
-          // Leave prior values; do not force false on unknown
-        }
+        availabilityRes = await getServiceProviderAvailability(artistId);
       } catch (err) {
-        console.error('Failed to fetch artist data:', err);
+        console.error('Failed to fetch artist availability:', err);
+      }
+
+      try {
+        svcRes = serviceId
+          ? await fetch(apiUrl(`/api/v1/services/${serviceId}`), { cache: 'no-store' }).then((r) =>
+            r.ok ? r.json() : null,
+          )
+          : null;
+      } catch (err) {
+        console.error('Failed to fetch service data for booking wizard:', err);
+      }
+
+      if (availabilityRes && availabilityRes.data && Array.isArray(availabilityRes.data.unavailable_dates)) {
+        setUnavailable(availabilityRes.data.unavailable_dates);
+      }
+
+      // Derive location, VAT, and provider name from the service's nested provider profile.
+      // Prefer canonical service_provider fields but keep artist/legacy aliases for backward compatibility.
+      try {
+        if (!svcRes) return;
+        const artistProf: any =
+          (svcRes as any)?.artist ||
+          (svcRes as any)?.service_provider ||
+          (svcRes as any)?.artist_profile ||
+          (svcRes as any)?.service_provider_profile ||
+          null;
+        const loc = (
+          artistProf?.location ||
+          (svcRes as any)?.details?.base_location ||
+          ''
+        )
+          .toString()
+          .trim();
+        setArtistLocation(loc || null);
+
+        const vatVal =
+          typeof artistProf?.vat_registered === 'boolean'
+            ? artistProf.vat_registered
+            : null;
+        setArtistVatRegistered(vatVal);
+
+        try {
+          const rawRate = artistProf?.vat_rate;
+          let rateNum: number | null = null;
+          if (typeof rawRate === 'number') rateNum = rawRate;
+          else if (typeof rawRate === 'string' && rawRate.trim()) {
+            const parsed = parseFloat(rawRate);
+            rateNum = Number.isFinite(parsed) ? parsed : null;
+          }
+          setArtistVatRate(rateNum);
+        } catch {
+          setArtistVatRate(null);
+        }
+
+        try {
+          const avatar = (
+            artistProf?.profile_picture_url ||
+            (svcRes as any)?.artist_profile?.profile_picture_url ||
+            (svcRes as any)?.service_provider_profile?.profile_picture_url ||
+            ''
+          )
+            .toString()
+            .trim();
+          setProviderAvatarUrl(avatar || null);
+        } catch {
+          setProviderAvatarUrl(null);
+        }
+
+        const name = (
+          artistProf?.legal_name ||
+          artistProf?.business_name ||
+          (svcRes as any)?.title ||
+          ''
+        )
+          .toString()
+          .trim();
+        setProviderName(name || null);
+      } catch {
+        // Leave prior values; do not force false on unknown
       }
     };
     void fetchArtistData();
