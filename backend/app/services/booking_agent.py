@@ -869,15 +869,10 @@ def _call_gemini_reply(
         "city": state.city or filters.get("location"),
         "date": state.date or filters.get("when"),
         "guests": state.guests,
-        "budget_min": state.budget_min,
-        "budget_max": state.budget_max,
-        "venue_type": state.venue_type,
         "sound_needed": state.sound,
-        "sound_mode": state.sound_mode,
-        # Keep core booking fields and sound context; avoid over-emphasising
-        # deeper production details (stage, lighting, backline) so the agent
-        # can reach a clear booking/artist suggestion point faster.
-        # Those can still be mentioned by the user and parsed via heuristics.
+        # Budget is intentionally not part of the ask/follow-up flow; the UI
+        # shows price options via cards, so the assistant does not need to
+        # interrogate budget in chat.
     }
     missing = [k for k, v in known_fields.items() if not v]
 
@@ -894,35 +889,22 @@ def _call_gemini_reply(
     # In general_question mode, avoid asking for booking details; focus on
     # answering the product question instead.
     if state.intent != "general_question":
-        # For live performance categories (musician/DJ/band), prioritise
-        # production details (sound, guests, venue_type) before secondary
-        # refinements like budget.
+        # For live performance categories (musician/DJ/band), prioritise core
+        # booking fields needed to move toward a concrete artist/booking
+        # offer. Budget is handled visually via cards in the UI.
         if _is_musician_category(state):
             preferred_order = [
-                "sound_needed",
-                "guests",
-                "venue_type",
-                "date",
                 "city",
+                "date",
+                "guests",
+                "sound_needed",
                 "event_type",
-                "budget_min",
-                "budget_max",
             ]
             order_index = {key: idx for idx, key in enumerate(preferred_order)}
             askable.sort(key=lambda key: order_index.get(key, len(preferred_order)))
 
-        # Only consider budget fields for follow-up when the user mentions
-        # price/budget explicitly or has already provided a budget.
-        mention_budget = False
-        t = (last_user or "").lower()
-        if any(k in t for k in ["budget", "cheap", "expensive", "too much", "afford", "price", "cost", "r "]):
-            mention_budget = True
-        has_budget = state.budget_min is not None or state.budget_max is not None
-
         filtered: List[str] = []
         for key in askable:
-            if key in ("budget_min", "budget_max") and not (mention_budget or has_budget):
-                continue
             filtered.append(key)
 
         askable = filtered
@@ -931,37 +913,9 @@ def _call_gemini_reply(
             if key not in state.asked_fields:
                 state.asked_fields.append(key)
 
-    # Lightweight budget sanity hint so the assistant can gently flag when a
-    # budget looks very low for the event type without enforcing hard rules.
+    # Budget sensitivity is handled visually via UI cards that show prices.
+    # The conversational agent does not enforce or probe budget thresholds.
     budget_hint: Optional[str] = None
-    try:
-        budget_lo = state.budget_min
-        budget_hi = state.budget_max if state.budget_max is not None else state.budget_min
-        if budget_hi is not None:
-            hi = float(budget_hi)
-            et = (state.event_type or "").lower() if state.event_type else ""
-            if et == "wedding":
-                if hi < 5000:
-                    budget_hint = "very_low_for_wedding"
-                elif hi < 10000:
-                    budget_hint = "low_for_wedding"
-            elif et == "birthday":
-                if hi < 3000:
-                    budget_hint = "very_low_for_birthday"
-                elif hi < 6000:
-                    budget_hint = "low_for_birthday"
-            elif et == "corporate":
-                if hi < 8000:
-                    budget_hint = "very_low_for_corporate"
-                elif hi < 15000:
-                    budget_hint = "low_for_corporate"
-            else:
-                if hi < 3000:
-                    budget_hint = "very_low_generic"
-                elif hi < 6000:
-                    budget_hint = "low_generic"
-    except Exception:
-        budget_hint = None
 
     # Rough "days to event" and last-minute flag so the assistant can adapt
     # tone for very near-term events.
@@ -1558,20 +1512,6 @@ def run_booking_agent_step(
                 known_bits.append(f"on {state.date}")
             if state.guests is not None:
                 known_bits.append(f"for about {state.guests} guests")
-            # Acknowledge budget when the user has already given it.
-            if state.budget_min is not None or state.budget_max is not None:
-                try:
-                    lo = state.budget_min
-                    hi = state.budget_max
-                    if lo is not None and hi is not None and lo != hi:
-                        known_bits.append(f"with a budget around R{int(lo)}–R{int(hi)}")
-                    elif hi is not None:
-                        known_bits.append(f"with a budget up to R{int(hi)}")
-                    elif lo is not None:
-                        known_bits.append(f"with a budget from about R{int(lo)}")
-                except Exception:
-                    pass
-
             missing_bits: List[str] = []
             if not state.city:
                 missing_bits.append("the city")
@@ -1579,8 +1519,6 @@ def run_booking_agent_step(
                 missing_bits.append("a rough date")
             if state.guests is None:
                 missing_bits.append("guest count")
-            if state.budget_min is None and state.budget_max is None:
-                missing_bits.append("your rough budget")
 
             if known_bits:
                 prefix = "Got it"
@@ -1596,7 +1534,7 @@ def run_booking_agent_step(
                     )
             else:
                 line = (
-                    "Tell me the event type, city, rough date, guest count, and budget, and I’ll suggest some artists on Booka that could fit."
+                    "Tell me the event type, city, rough date, and guest count, and I’ll suggest some artists on Booka that could fit."
                 )
             messages_out = [line]
     else:
