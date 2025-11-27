@@ -195,6 +195,7 @@ const InlineQuoteForm: React.FC<Props> = ({
   const [error, setError] = useState<string | null>(null);
   const [agree, setAgree] = useState<boolean>(true);
   const [isSupplierParent, setIsSupplierParent] = useState<boolean>(false);
+  const [isSoundService, setIsSoundService] = useState<boolean>(false);
 
   const [quoteNumber] = useState<string>(generateQuoteNumber());
   const todayLabel = format(new Date(), 'PPP');
@@ -267,6 +268,15 @@ const InlineQuoteForm: React.FC<Props> = ({
         const svcId = Number(br.service_id || 0);
         const svcPrice = Number(br?.service?.price);
 
+        // Detect dedicated Sound Service threads so we can use the
+        // sound-estimate audience packages for a tighter default.
+        try {
+          const svcType = String(br?.service?.service_type || '').toLowerCase();
+          setIsSoundService(svcType === 'sound service');
+        } catch {
+          setIsSoundService(false);
+        }
+
         // Base fee from request or service
         if (!dirtyService) {
           if (Number.isFinite(svcPrice) && svcPrice >= 0) {
@@ -312,15 +322,39 @@ const InlineQuoteForm: React.FC<Props> = ({
         try {
           const distance = Number(tb.distance_km ?? tb.distanceKm);
           const eventCity = tb.event_city || br.event_city || '';
-          if (Number.isFinite(distance) && distance > 0 && eventCity && Number.isFinite(Number(br.service_id))) {
+          // Allow backend to resolve distance_km from service.base_location + event_city
+          // when we don't have an explicit distance from the client travel engine.
+          if (eventCity && Number.isFinite(Number(br.service_id))) {
             const baseForCalc = Number.isFinite(Number(br?.service?.price)) ? Number(br?.service?.price) : serviceFee;
-            const params = {
+            const params: any = {
               base_fee: Number(baseForCalc || 0),
-              distance_km: Number(distance),
               service_id: Number(br.service_id),
               event_city: String(eventCity),
               ...(tb.accommodation_cost ? { accommodation_cost: Number(tb.accommodation_cost) } : {}),
             };
+            if (Number.isFinite(distance) && distance > 0) {
+              params.distance_km = Number(distance);
+            }
+
+            // When this is a dedicated Sound Service thread and we have
+            // audience‑package context from the parent breakdown, forward it
+            // so the backend can align suggested sound totals with the
+            // external‑provider estimates used on the main quote.
+            if (isSoundService) {
+              try {
+                const guests = Number(tb.guests_count);
+                if (Number.isFinite(guests) && guests > 0) params.guest_count = guests;
+                const venueType = String(tb.venue_type || '').toLowerCase();
+                if (venueType) params.venue_type = venueType;
+                params.stage_required = Boolean(tb.stage_required);
+                if (tb.stage_required && tb.stage_size) params.stage_size = String(tb.stage_size);
+                params.lighting_evening = Boolean(tb.lighting_evening);
+                params.backline_required = Boolean(tb.backline_required);
+              } catch {
+                // best-effort only
+              }
+            }
+
             try {
               const { data } = await calculateQuoteBreakdown(params);
               if (!active) return;

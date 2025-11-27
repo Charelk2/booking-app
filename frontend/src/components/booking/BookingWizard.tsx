@@ -1438,6 +1438,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         // Include a normalized mode for downstream consumers that expect it here
         mode: travelResult?.mode,
         venue_name: vals.locationName,
+        event_type: vals.eventType || (details as any)?.eventType || undefined,
+        guests_count: (() => {
+          const raw = (vals.guests ?? (details as any)?.guests) as string | number | undefined;
+          const n = typeof raw === 'number' ? raw : parseInt(String(raw || '').trim() || '0', 10);
+          return Number.isFinite(n) && n > 0 ? n : undefined;
+        })(),
         sound_required: vals.sound === 'yes',
         sound_mode: (details as any).soundMode,
         selected_sound_service_id: (details as any).soundSupplierServiceId,
@@ -1512,6 +1518,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         // Include a normalized mode for downstream consumers that expect it here
         mode: travelResult.mode,
         venue_name: vals.locationName,
+        event_type: vals.eventType || (details as any)?.eventType || undefined,
+        guests_count: (() => {
+          const raw = (vals.guests ?? (details as any)?.guests) as string | number | undefined;
+          const n = typeof raw === 'number' ? raw : parseInt(String(raw || '').trim() || '0', 10);
+          return Number.isFinite(n) && n > 0 ? n : undefined;
+        })(),
         sound_required: vals.sound === 'yes',
         sound_mode: (details as any).soundMode,
         selected_sound_service_id: (details as any).soundSupplierServiceId,

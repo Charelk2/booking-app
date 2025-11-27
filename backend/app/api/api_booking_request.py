@@ -231,11 +231,26 @@ def _maybe_create_linked_sound_booking_request(
                     pass
                 return "N/A"
 
-            evt_type = "N/A"
+            # Event type and guests pulled from parent travel_breakdown when available
+            evt_type = None
+            try:
+              raw_evt = tb.get("event_type")
+              if raw_evt:
+                  evt_type = str(raw_evt)
+            except Exception:
+              evt_type = None
+            if not evt_type:
+                evt_type = "N/A"
             desc = "Sound for your booking"
             date_str = _fmt_date(getattr(parent_request, "proposed_datetime_1", None))
             loc_str = city or "N/A"
             guests_str = "N/A"
+            try:
+                gc = tb.get("guests_count")
+                if gc is not None:
+                    guests_str = str(gc)
+            except Exception:
+                pass
             venue_label = str(tb.get("venue_name") or "N/A")
             sound_flag = "yes"
             notes = (parent_request.message or "").strip() or "N/A"
