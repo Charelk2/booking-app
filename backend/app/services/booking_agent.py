@@ -1096,16 +1096,32 @@ def run_booking_agent_step(
             pass
 
     if state.intent == "general_question":
-        providers: List[Dict[str, Any]] = []
-        filters: Dict[str, Any] = {}
+        providers = []
+        filters = {}
     else:
-        t_search_start = time.monotonic()
-        providers, filters = tool_search_providers(db, query_text, state)
-        search_ms = int((time.monotonic() - t_search_start) * 1000)
-        try:
-            logger.info("booking_agent: search_ms=%s", search_ms)
-        except Exception:
-            pass
+        q_lower = query_text.lower()
+        # Only hit search once we have a clear service intent (category) or the
+        # user is explicitly asking to look/book for something. This avoids
+        # suggesting arbitrary providers when the user only gave generic event
+        # details like "birthday in Pretoria".
+        should_search = bool(
+            state.service_category
+            or "looking for" in q_lower
+            or "need a " in q_lower
+            or "need an " in q_lower
+            or "book " in q_lower
+        )
+        if should_search:
+            t_search_start = time.monotonic()
+            providers, filters = tool_search_providers(db, query_text, state)
+            search_ms = int((time.monotonic() - t_search_start) * 1000)
+            try:
+                logger.info("booking_agent: search_ms=%s", search_ms)
+            except Exception:
+                pass
+        else:
+            providers = []
+            filters = {}
 
     # Detect whether the user is clearly asking for a specific artist by name
     # and whether that artist appears in the current provider list.
