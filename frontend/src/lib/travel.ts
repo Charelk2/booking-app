@@ -277,13 +277,53 @@ function remember<K, V>(map: Map<K, { at: number; v: V }>, key: K, val: V, ttlMs
 }
 
 export async function geocodeCached(address: string): Promise<{ lat: number; lng: number } | null> {
-  const k = (address || '').trim().toLowerCase();
-  if (!k) return null;
-  const e = geoCache.get(k);
-  if (e && Date.now() - e.at < 60 * MINUTE) return e.v;
+  const raw = (address || '').trim();
+  if (!raw) return null;
+  const k = raw.toLowerCase();
+  const cached = geoCache.get(k);
+  if (cached && Date.now() - cached.at < 60 * MINUTE) return cached.v;
+
+  // Lightweight, South Africa–aware fallback for common towns, so that
+  // inputs like "Pretoria South Africa" or "Mossel Bay, Mossel Bay, South Africa"
+  // still resolve even if the external geocoder is flaky.
+  const tryMock = (): { lat: number; lng: number } | null => {
+    // 1) Direct match
+    let mock = getMockCoordinates(raw);
+    if (mock) return mock;
+
+    const lower = raw.toLowerCase();
+    const saIdx = lower.indexOf('south africa');
+    if (saIdx !== -1) {
+      // Strip the trailing country segment and any trailing comma/space
+      let before = raw.slice(0, saIdx).replace(/[, ]+$/g, '').trim();
+      if (before) {
+        // a) Full "city, South Africa"
+        const candidate1 = `${before}, South Africa`;
+        mock = getMockCoordinates(candidate1);
+        if (mock) return mock;
+
+        // b) First segment before any comma (e.g. "Mossel Bay" from "Mossel Bay, Mossel Bay")
+        const firstCity = before.split(',')[0]?.trim();
+        if (firstCity) {
+          const candidate2 = `${firstCity}, South Africa`;
+          mock = getMockCoordinates(candidate2) || getMockCoordinates(firstCity);
+          if (mock) return mock;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const local = tryMock();
+  if (local) {
+    remember(geoCache, k, local, 60 * MINUTE);
+    return local;
+  }
+
   try {
     // Reuse existing getCoordinates which already wraps Google Geocoding
-    const res = await getCoordinates(address);
+    const res = await getCoordinates(raw);
     if (res) remember(geoCache, k, res, 60 * MINUTE);
     return res;
   } catch {

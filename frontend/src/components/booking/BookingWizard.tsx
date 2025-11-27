@@ -561,11 +561,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     setReviewDataError(null);
 
     try {
-      const [svcRes, artistPos, eventPos] = await Promise.all([
-        serviceId ? fetchServiceCached(serviceId) : Promise.resolve(null),
-        geocodeCached(artistLocation),
-        geocodeCached(details.location),
-      ]);
+      const svcRes = serviceId ? await fetchServiceCached(serviceId) : null;
 
       if (!svcRes) {
         // Tombstone: remember and bail quietly without spamming the console
@@ -573,14 +569,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         setReviewDataError('Selected service is unavailable.');
         setCalculatedPrice(null);
         setServicePriceItems(null);
-        setTravelResult(null);
-        return;
-      }
-
-      if (!artistPos || !eventPos) {
-        if (activeCalcRef.current === calcId) setIsLoadingReviewData(false);
-        setReviewDataError('Could not resolve locations. Please pick a full city name.');
-        setCalculatedPrice(null);
         setTravelResult(null);
         return;
       }
