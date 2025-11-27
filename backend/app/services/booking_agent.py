@@ -1221,6 +1221,7 @@ def _call_gemini_reply(
         "How to respond:\n"
         "- First, acknowledge and correctly restate what the user has told you so far (event type, city, date, guests, sound/stage needs) "
         "so they can see you remember it.\n"
+        "- Keep the tone warm and genuinely excited about their event (e.g. a short, natural reaction like “That sounds amazing for your wedding in Stellenbosch!”), but do not add long fluffy intros.\n"
         "- If a top provider is available, mention them, why they fit, and a rough starting price if provided (e.g. “from about R12 000 on Booka, "
         "before travel and sound”).\n"
         "- If the user is asking a general question about Booka (how it works, payments, safety, cancellation, availability of certain services), "

@@ -390,13 +390,30 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           serviceId ? fetch(apiUrl(`/api/v1/services/${serviceId}`), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null),
         ]);
         setUnavailable(availabilityRes.data.unavailable_dates);
-        // Derive location, VAT, and provider name from the service's nested artist profile
+        // Derive location, VAT, and provider name from the service's nested provider profile.
+        // Prefer canonical service_provider fields but keep artist/legacy aliases for backward compatibility.
         try {
-          const artistProf: any = svcRes?.artist || null;
-          const loc = (artistProf?.location || svcRes?.details?.base_location || '').toString().trim();
+          const artistProf: any =
+            (svcRes as any)?.artist ||
+            (svcRes as any)?.service_provider ||
+            (svcRes as any)?.artist_profile ||
+            (svcRes as any)?.service_provider_profile ||
+            null;
+          const loc = (
+            artistProf?.location ||
+            (svcRes as any)?.details?.base_location ||
+            ''
+          )
+            .toString()
+            .trim();
           setArtistLocation(loc || null);
-          const vatVal = typeof artistProf?.vat_registered === 'boolean' ? artistProf.vat_registered : null;
+
+          const vatVal =
+            typeof artistProf?.vat_registered === 'boolean'
+              ? artistProf.vat_registered
+              : null;
           setArtistVatRegistered(vatVal);
+
           try {
             const rawRate = artistProf?.vat_rate;
             let rateNum: number | null = null;
@@ -406,14 +423,32 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               rateNum = Number.isFinite(parsed) ? parsed : null;
             }
             setArtistVatRate(rateNum);
-          } catch { setArtistVatRate(null); }
+          } catch {
+            setArtistVatRate(null);
+          }
+
           try {
-            const avatar = (artistProf?.profile_picture_url || svcRes?.artist_profile?.profile_picture_url || svcRes?.service_provider_profile?.profile_picture_url || '').toString().trim();
+            const avatar = (
+              artistProf?.profile_picture_url ||
+              (svcRes as any)?.artist_profile?.profile_picture_url ||
+              (svcRes as any)?.service_provider_profile?.profile_picture_url ||
+              ''
+            )
+              .toString()
+              .trim();
             setProviderAvatarUrl(avatar || null);
           } catch {
             setProviderAvatarUrl(null);
           }
-          const name = (artistProf?.legal_name || artistProf?.business_name || svcRes?.title || '').toString().trim();
+
+          const name = (
+            artistProf?.legal_name ||
+            artistProf?.business_name ||
+            (svcRes as any)?.title ||
+            ''
+          )
+            .toString()
+            .trim();
           setProviderName(name || null);
         } catch {
           // Leave prior values; do not force false on unknown
@@ -507,9 +542,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     const calcId = ++calcSeqRef.current;
     activeCalcRef.current = calcId;
 
-    if (!serviceId || !artistLocation || !details.location) {
+    // Require a service and event city; provider base location is optional
+    // because the backend can still compute a quote without it.
+    if (!serviceId || !details.location) {
       if (activeCalcRef.current === calcId) setIsLoadingReviewData(false);
-      setReviewDataError("Missing booking details (Service ID, Service Provider Location, or Event Location) to calculate estimates.");
+      setReviewDataError('Missing booking details (Service ID or Event Location) to calculate estimates.');
       if (activeCalcRef.current === calcId) {
         setCalculatedPrice(null);
         setTravelResult(null);
