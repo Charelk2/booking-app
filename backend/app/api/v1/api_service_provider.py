@@ -1579,7 +1579,9 @@ def read_artist_availability(
 
     dates = set()
     for b in bookings:
-        dates.add(b.start_time.date().isoformat())
+        # Defensive: some legacy/partial rows may lack start_time; skip them.
+        if getattr(b, "start_time", None):
+            dates.add(b.start_time.date().isoformat())
     for r in requests:
         if r.proposed_datetime_1:
             dates.add(r.proposed_datetime_1.date().isoformat())
