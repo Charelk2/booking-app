@@ -407,6 +407,11 @@ def _classify_service_category(
     return category
 
 
+def _is_musician_category(state: BookingAgentState) -> bool:
+    """Return True when the current service category is a live performance."""
+    return (state.service_category or "").lower() in ("musician", "dj", "band")
+
+
 def _has_required_booking_fields(state: BookingAgentState) -> bool:
     """Return True when we have enough structured info to safely book.
 
@@ -733,16 +738,39 @@ def _call_gemini_reply(
             metrics.append(f"{int(bookings)} bookings")
         if metrics:
             parts.append("with " + ", ".join(metrics))
-        if client_total_preview is not None:
-            try:
-                parts.append(f"typical Booka bookings starting from about R{round(float(client_total_preview))} before travel and sound.")
-            except Exception:
-                pass
-        elif starting_price is not None:
-            try:
-                parts.append(f"base performance fee from about R{round(float(starting_price))} (travel and sound extra).")
-            except Exception:
-                pass
+        is_musician = _is_musician_category(state)
+        if is_musician:
+            if state.quote_total_preview is not None:
+                try:
+                    approx = int(round(float(state.quote_total_preview)))
+                    parts.append(
+                        f"typical bookings like this on Booka are around R{approx} including Booka fees and VAT "
+                        "with travel and sound factored into the quote."
+                    )
+                except Exception:
+                    pass
+            elif starting_price is not None:
+                try:
+                    parts.append(
+                        f"performance fee typically starts from about R{round(float(starting_price))} "
+                        "(travel and sound extra)."
+                    )
+                except Exception:
+                    pass
+        else:
+            if client_total_preview is not None:
+                try:
+                    parts.append(
+                        f"typical Booka bookings starting from about R{round(float(client_total_preview))} "
+                        "including Booka fees and VAT."
+                    )
+                except Exception:
+                    pass
+            elif starting_price is not None:
+                try:
+                    parts.append(f"base performance fee from about R{round(float(starting_price))} (travel and sound extra).")
+                except Exception:
+                    pass
         top_summary = " ".join(parts)
 
     # High-level known / unknown fields to help Gemini ask useful follow-ups.
@@ -775,6 +803,23 @@ def _call_gemini_reply(
     # In general_question mode, avoid asking for booking details; focus on
     # answering the product question instead.
     if state.intent != "general_question":
+        # For live performance categories (musician/DJ/band), prioritise
+        # production details (sound, guests, venue_type) before secondary
+        # refinements like budget.
+        if _is_musician_category(state):
+            preferred_order = [
+                "sound_needed",
+                "guests",
+                "venue_type",
+                "date",
+                "city",
+                "event_type",
+                "budget_min",
+                "budget_max",
+            ]
+            order_index = {key: idx for idx, key in enumerate(preferred_order)}
+            askable.sort(key=lambda key: order_index.get(key, len(preferred_order)))
+
         # Only consider budget fields for follow-up when the user mentions
         # price/budget explicitly or has already provided a budget.
         mention_budget = False
