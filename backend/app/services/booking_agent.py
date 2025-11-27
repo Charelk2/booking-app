@@ -691,15 +691,36 @@ def _call_gemini_reply(
 
     try:
         client = genai.Client(api_key=api_key)
-        # We rely on the SDK's own timeout / retry behaviour here; any slow
-        # responses fall back to deterministic copy via the exception handler.
+        # Apply a conservative per-call timeout so the booking agent does not
+        # block an entire HTTP request on a slow LLM response. On timeout or
+        # any error we fall back to deterministic copy instead.
         res = client.models.generate_content(
             model=model_name,
             contents=prompt,
+            config={"timeout": 5},
         )
         text = (getattr(res, "text", None) or "").strip()
         if not text:
             return None
+        # Guardrail: if we know the requested artist is present in the current
+        # results, never allow wording that claims we "don't see" them or that
+        # they are not listed on Booka. Replace such replies with a safe,
+        # deterministic variant that acknowledges the artist correctly.
+        if requested_artist_found and requested_artist_name:
+            lower = text.lower()
+            artist_l = requested_artist_name.lower()
+            if artist_l in lower and (
+                "don't see" in lower
+                or "do not see" in lower
+                or "not listed" in lower
+                or "isn't currently listed" in lower
+                or "isnt currently listed" in lower
+            ):
+                text = (
+                    f"You're looking for {requested_artist_name}. I can see them in your Booka results for this search, "
+                    "and can also suggest similar artists if needed. Tell me the event date and roughly how many guests "
+                    "you expect so I can refine options."
+                )
         return [text]
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("Gemini booking agent reply failed: %s", exc)
@@ -791,6 +812,62 @@ def run_booking_agent_step(
     # message so we can progressively fill the state (e.g. sound preference).
     try:
         t = (query_text or "").lower()
+        # Best-effort partial date extraction (e.g. "29 October") when a full
+        # ISO date is not yet available. This reduces repeated generic "what
+        # date?" questions and lets the assistant refine instead.
+        if not state.date:
+            month_map = {
+                "january": 1,
+                "february": 2,
+                "march": 3,
+                "april": 4,
+                "may": 5,
+                "june": 6,
+                "july": 7,
+                "august": 8,
+                "september": 9,
+                "october": 10,
+                "november": 11,
+                "december": 12,
+                "jan": 1,
+                "feb": 2,
+                "mar": 3,
+                "apr": 4,
+                "jun": 6,
+                "jul": 7,
+                "aug": 8,
+                "sep": 9,
+                "sept": 9,
+                "oct": 10,
+                "nov": 11,
+                "dec": 12,
+            }
+            m_date = re.search(
+                r"\b(\d{1,2})\s+("
+                r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|"
+                r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
+                r")\b",
+                t,
+            )
+            if m_date:
+                try:
+                    day = int(m_date.group(1))
+                    month_name = m_date.group(2)
+                    month = month_map.get(month_name, None)
+                    if month:
+                        today = date.today()
+                        year = today.year
+                        # If this day/month already passed this year, assume next year.
+                        try:
+                            candidate = date(year, month, day)
+                            if candidate < today:
+                                year += 1
+                        except Exception:
+                            # Fallback: keep current year.
+                            pass
+                        state.date = f"{year:04d}-{month:02d}-{day:02d}"
+                except Exception:
+                    pass
         if state.sound is None:
             if re.search(r"\b(no sound|without sound|have our own sound|sound is sorted)\b", t):
                 state.sound = "no"
