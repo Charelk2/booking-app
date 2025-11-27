@@ -458,6 +458,8 @@ export interface BookingAgentState {
 
   availability_checked?: boolean;
   availability_status?: 'available' | 'unavailable' | 'unknown' | null;
+
+  summary_emitted?: boolean;
 }
 
 export interface AttachmentMeta {

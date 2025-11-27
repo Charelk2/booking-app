@@ -133,3 +133,11 @@ class BookingAgentState(BaseModel):
         default=None,
         description="Result of the last availability check for the chosen provider/date.",
     )
+
+    summary_emitted: bool = Field(
+        default=False,
+        description=(
+            "Whether the agent has already sent a consolidated \"here's what I have so far\" "
+            "summary message in this conversation."
+        ),
+    )

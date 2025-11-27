@@ -99,13 +99,19 @@ export default function AiProviderSearchPanel({
     let cancelled = false;
     (async () => {
       const entries: [number, 'available' | 'unavailable' | 'unknown'][] = [];
-      for (const p of providers) {
-        const key = p.artist_id;
-        if (!key) continue;
-        const status = await fetchArtistAvailability(key, dateStr);
-        if (cancelled) return;
-        entries.push([key, status]);
-      }
+      // Cap availability lookups to a small number of providers per turn
+      // and run them in parallel so we don't block on a long waterfall of
+      // sequential fetches.
+      const slice = providers.slice(0, 4);
+      await Promise.all(
+        slice.map(async (p) => {
+          const key = p.artist_id;
+          if (!key) return;
+          const status = await fetchArtistAvailability(key, dateStr);
+          if (cancelled) return;
+          entries.push([key, status]);
+        })
+      );
       if (!cancelled && entries.length) {
         setAvailability((prev) => {
           const next = { ...prev };

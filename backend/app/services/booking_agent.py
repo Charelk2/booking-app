@@ -1,5 +1,6 @@
 import logging
 import re
+import json
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import date, datetime, time as dtime
@@ -368,6 +369,8 @@ def _call_gemini_reply(
     state: BookingAgentState,
     providers: List[Dict[str, Any]],
     filters: Dict[str, Any],
+    requested_artist_name: Optional[str] = None,
+    requested_artist_found: bool = False,
 ) -> Optional[List[str]]:
     """Ask Gemini to craft a natural assistant reply for the current turn.
 
@@ -449,6 +452,12 @@ def _call_gemini_reply(
         "requests on Booka. You only reason about popularity and bookings ON Booka, never outside of it. "
         "You see the user's latest message, current booking state (event type, city, date, guests, budget), "
         "and a short summary of the top matching provider if any.\n\n"
+        "You may also be told about a specific artist the user asked for. The context can include "
+        "requested_artist_name and requested_artist_found:\n"
+        "- If requested_artist_found is true, that means the artist they asked for appears in the current Booka results. "
+        "Talk about that artist directly and do NOT say they are not listed on Booka.\n"
+        "- If requested_artist_found is false, you may say that you cannot see them in the current matches, but you MUST NOT "
+        "claim they are “not on Booka” or “not listed on Booka”, because you do not have global knowledge of the platform.\n\n"
         "Your job is to:\n"
         "- Acknowledge what the user asked in a friendly, concise way.\n"
         "- If a top provider is available, mention them, why they fit, and a rough starting price if provided (e.g. “from about R12 000 on Booka, before travel and sound”).\n"
@@ -463,6 +472,10 @@ def _call_gemini_reply(
     context_lines.append(f"Known state: {known_fields}.")
     if missing:
         context_lines.append(f"Missing fields: {', '.join(missing)}.")
+    if requested_artist_name:
+        context_lines.append(
+            f"Requested artist: {requested_artist_name!r}, found_in_results={requested_artist_found}."
+        )
 
     prompt = (
         f"{system_instructions}\n"
@@ -514,6 +527,35 @@ def run_booking_agent_step(
     query_text = " ".join(recent_texts).strip() if recent_texts else ""
 
     providers, filters = tool_search_providers(db, query_text, state)
+
+    # Detect whether the user is clearly asking for a specific artist by name
+    # and whether that artist appears in the current provider list.
+    requested_artist_name: Optional[str] = None
+    requested_artist_id: Optional[int] = None
+    if providers and user_messages:
+        try:
+            last_user = (user_messages[-1].get("content") or "").strip().lower()
+            if last_user:
+                for p in providers:
+                    raw_name = p.get("name")
+                    if not raw_name:
+                        continue
+                    name = str(raw_name).strip()
+                    name_l = name.lower()
+                    # Simple containment check: if the full artist name appears
+                    # in the latest user message, treat it as an explicit
+                    # request for that artist.
+                    if name_l and name_l in last_user:
+                        requested_artist_name = name
+                        try:
+                            requested_artist_id = int(p.get("artist_id") or 0) or None
+                        except Exception:
+                            requested_artist_id = None
+                        break
+        except Exception:
+            # Name detection is best-effort only; never break the agent.
+            requested_artist_name = None
+            requested_artist_id = None
 
     # Lightweight extraction of a few structured fields from the latest user
     # message so we can progressively fill the state (e.g. sound preference).
@@ -575,7 +617,9 @@ def run_booking_agent_step(
             pass
 
     # Keep a heuristic chosen provider to mirror current UX, but avoid
-    # swapping providers once the user is confirming a booking.
+    # swapping providers once the user is confirming a booking. When the user
+    # clearly asks for a specific artist by name and that artist appears in
+    # the results, prefer that artist as the top/selected provider.
     if providers:
         prev_provider_id = state.chosen_provider_id
         # If we already have a chosen provider, prefer to keep it when it
@@ -598,32 +642,51 @@ def run_booking_agent_step(
             if chosen_idx > 0:
                 providers[0], providers[chosen_idx] = providers[chosen_idx], providers[0]
         else:
-            if chosen_idx >= 0:
-                # Keep the existing chosen provider but move it to the front
-                # so the UI and wording stay aligned.
-                if chosen_idx > 0:
-                    providers[0], providers[chosen_idx] = providers[chosen_idx], providers[0]
-                top = providers[0]
-                name = top.get("name") or "this provider"
-                state.chosen_provider_name = name
+            # Outside of the confirmation/created stages, prefer (in order):
+            # 1) The artist the user explicitly asked for by name (if present),
+            # 2) The previously chosen provider (if still present),
+            # 3) The current top provider from the search results.
+            requested_idx = -1
+            if requested_artist_id:
+                for idx, p in enumerate(providers):
+                    try:
+                        pid = int(p.get("artist_id") or 0)
+                    except Exception:
+                        pid = 0
+                    if pid and pid == requested_artist_id:
+                        requested_idx = idx
+                        break
+
+            if requested_idx >= 0:
+                effective_idx = requested_idx
+            elif chosen_idx >= 0:
+                effective_idx = chosen_idx
             else:
-                # No chosen provider yet (or it fell out of the list): adopt
-                # the current top provider as the new choice.
-                top = providers[0]
-                name = top.get("name") or "this provider"
-                try:
-                    new_id = int(top.get("artist_id") or 0) or None
-                except Exception:
-                    new_id = None
-                # If we switch providers, reset service selection so quote
-                # previews are recomputed for the new artist.
-                if new_id != prev_provider_id:
-                    state.service_id = None
-                    state.service_name = None
-                state.chosen_provider_id = new_id
-                state.chosen_provider_name = name
-                if state.stage == "collecting_requirements":
-                    state.stage = "suggesting_providers"
+                effective_idx = 0
+
+            if effective_idx < 0 or effective_idx >= len(providers):
+                effective_idx = 0
+
+            if effective_idx > 0:
+                providers[0], providers[effective_idx] = providers[effective_idx], providers[0]
+
+            top = providers[0]
+            name = top.get("name") or "this provider"
+            try:
+                new_id = int(top.get("artist_id") or 0) or None
+            except Exception:
+                new_id = None
+
+            # If we switch providers, reset service selection so quote
+            # previews are recomputed for the new artist.
+            if new_id != prev_provider_id:
+                state.service_id = None
+                state.service_name = None
+
+            state.chosen_provider_id = new_id
+            state.chosen_provider_name = name
+            if state.stage == "collecting_requirements":
+                state.stage = "suggesting_providers"
 
     # When we know which provider we're talking about, try to pick a
     # representative service for quote previews so the UI and assistant can
@@ -634,10 +697,20 @@ def run_booking_agent_step(
             state.service_id = sid
             state.service_name = sname
 
-    # Compute a stable quote signature so we only recompute previews when
-    # relevant inputs change (service, city, guests, venue/sound context).
+    # Compute a quote preview when we have enough structured information and
+    # cache it inside the state so we only recompute previews when relevant
+    # inputs change (service, city, guests, venue/sound context). To avoid
+    # heavy quote calculations too early, only attempt a preview once we know
+    # service, city, guest count, venue_type, and whether sound is needed.
+    quote_ready = bool(
+        state.service_id
+        and state.city
+        and state.guests is not None
+        and state.venue_type
+        and state.sound is not None
+    )
     quote_sig: Optional[str] = None
-    if state.service_id and state.city:
+    if quote_ready:
         quote_sig = json.dumps(
             {
                 "service_id": int(state.service_id),
@@ -656,7 +729,7 @@ def run_booking_agent_step(
             default=str,
         )
 
-    if state.service_id and state.city and quote_sig:
+    if quote_ready and quote_sig:
         total_preview: Optional[float] = None
         if (
             state.quote_signature
@@ -701,7 +774,14 @@ def run_booking_agent_step(
 
     # Ask Gemini (if available) to craft a natural reply; otherwise fall back
     # to a deterministic message so the agent never stays silent.
-    messages_out = _call_gemini_reply(messages, state, providers, filters) or []
+    messages_out = _call_gemini_reply(
+        messages,
+        state,
+        providers,
+        filters,
+        requested_artist_name=requested_artist_name,
+        requested_artist_found=bool(requested_artist_id),
+    ) or []
     if not messages_out:
         if providers:
             top = providers[0]
@@ -721,6 +801,37 @@ def run_booking_agent_step(
                 "I couldn't find any providers on Booka that match that yet. "
                 "You can tell me more about the event type, city, and date so I can refine the search."
             ]
+
+    # Optionally append a concise summary of what the agent has understood so
+    # far so the user can confirm the details. Only do this once per
+    # conversation to avoid repetition.
+    if not state.summary_emitted:
+        summary_parts: List[str] = []
+        if state.event_type:
+            summary_parts.append(state.event_type)
+        if state.city:
+            summary_parts.append(f"in {state.city}")
+        if state.date:
+            summary_parts.append(f"on {state.date}")
+        if state.guests is not None:
+            summary_parts.append(f"for about {state.guests} guests")
+        if state.venue_type:
+            summary_parts.append(f"({state.venue_type} venue)")
+        # Sound / production summary
+        if state.sound == "yes":
+            sound_bits: List[str] = ["needs sound"]
+            if state.stage_required:
+                sound_bits.append("stage")
+            if state.lighting_evening:
+                sound_bits.append("basic lighting")
+            if state.backline_required:
+                sound_bits.append("backline")
+            summary_parts.append("with " + ", ".join(sound_bits))
+
+        if summary_parts:
+            summary = "So far I have: " + ", ".join(summary_parts) + "."
+            messages_out.append(summary)
+            state.summary_emitted = True
 
     # Heuristic "yes, book it" detection: only allow booking creation when the
     # agent is explicitly awaiting confirmation and the provider is not known
