@@ -319,6 +319,8 @@ export default function ServiceProvidersPage() {
             setArtists(filteredCached as any);
             setHasMore(filteredCached.length === LIMIT);
             setPriceDistribution(cached.price_distribution || []);
+            // Best-effort background refresh to keep cache warm
+            void prefetchServiceProviders(params);
           }
         }
       }

@@ -581,7 +581,7 @@ async def upload_artist_portfolio_images_me(
 
             new_urls.append(stored_url)
 
-        artist_profile.portfolio_image_urls = new_urls
+        artist_profile.portfolio_image_urls = _validate_portfolio_urls(new_urls)
         db.add(artist_profile)
         db.commit()
         db.refresh(artist_profile)
@@ -618,7 +618,7 @@ def update_portfolio_images_order_me(
     if not artist_profile:
         raise HTTPException(status_code=404, detail="Artist profile not found.")
 
-    artist_profile.portfolio_image_urls = update.portfolio_image_urls
+    artist_profile.portfolio_image_urls = _validate_portfolio_urls(update.portfolio_image_urls)
     db.add(artist_profile)
     db.commit()
     db.refresh(artist_profile)
@@ -1446,6 +1446,16 @@ def _hydrate_artist_profile(artist: Artist, db: Session) -> Artist:
         # Leave default rating / rating_count on error
         pass
 
+    # Strip any inline/base64 portfolio blobs to avoid massive payloads
+    try:
+        imgs = getattr(artist, "portfolio_image_urls", None)
+        if isinstance(imgs, list):
+            cleaned = [u for u in imgs if isinstance(u, str) and not u.strip().lower().startswith("data:")]
+            if len(cleaned) != len(imgs):
+                artist.portfolio_image_urls = cleaned
+    except Exception:
+        pass
+
     return artist
 
 
@@ -1520,6 +1530,33 @@ def _build_full_profile_payload(artist: Artist, db: Session) -> dict[str, Any]:
         "services": services,
         "reviews": reviews,
     }
+
+
+def _validate_portfolio_urls(urls: List[str]) -> List[str]:
+    """Ensure portfolio_image_urls only contain stored keys/allowed URLs."""
+    cleaned: List[str] = []
+    allowed_prefixes = (
+        "/static/portfolio_images/",
+        "static/portfolio_images/",
+        "portfolio_images/",
+    )
+    for raw in urls:
+        if not isinstance(raw, str):
+            raise HTTPException(status_code=400, detail="Invalid portfolio image URL.")
+        url = raw.strip()
+        if not url:
+            continue
+        low = url.lower()
+        if low.startswith("data:"):
+            raise HTTPException(status_code=400, detail="Inline/base64 portfolio images are not allowed. Please upload via the portfolio uploader.")
+        if low.startswith("http://") or low.startswith("https://"):
+            cleaned.append(url)
+            continue
+        if url.startswith(allowed_prefixes):
+            cleaned.append(url)
+            continue
+        raise HTTPException(status_code=400, detail="Invalid portfolio image URL. Use the portfolio uploader or stored paths only.")
+    return cleaned
 
 
 @router.get(

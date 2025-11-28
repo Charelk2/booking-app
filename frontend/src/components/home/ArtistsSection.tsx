@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import ServiceProviderCardCompact from '@/components/service-provider/ServiceProviderCardCompact';
-import { getServiceProviders } from '@/lib/api';
+import { getServiceProviders, getCachedServiceProviders, prefetchServiceProviders } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ServiceProviderProfile, SearchParams } from '@/types';
 
@@ -58,6 +58,16 @@ export default function ArtistsSection({
 
       try {
         const params = JSON.parse(serializedQuery) as Record<string, unknown>;
+
+        // Try cached payload first
+        const cached = getCachedServiceProviders({ ...(params as object), limit });
+        if (cached && cached.data?.length) {
+          setArtists(cached.data.filter((a) => a.business_name));
+          setLoading(false);
+          // Best-effort background refresh to keep cache warm
+          void prefetchServiceProviders({ ...(params as object), limit });
+          return;
+        }
 
         // Phase 1: fast-path (minimal fields for quick render)
         try {
