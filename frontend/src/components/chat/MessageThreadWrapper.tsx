@@ -751,6 +751,20 @@ export default function MessageThreadWrapper({
     return Number.isFinite(parentId) && parentId > 0;
   }, [effectiveBookingRequest]);
 
+  const isSoundThread = useMemo(() => {
+    const raw: any = effectiveBookingRequest;
+    if (!raw) return false;
+    const svc = raw.service || {};
+    const slug = String(svc.service_category_slug || '').toLowerCase();
+    const catName = String(svc.service_category?.name || '').toLowerCase();
+    const ctx = (raw.travel_breakdown || raw.sound_context || {}) as any;
+    const soundMode = String(ctx?.sound_mode || '').toLowerCase();
+    if (slug.includes('sound')) return true;
+    if (catName.includes('sound')) return true;
+    if (soundMode === 'supplier') return true;
+    return false;
+  }, [effectiveBookingRequest]);
+
   return (
     <div className="flex flex-col h-full w-full relative">
       {/* Unified header */}
@@ -895,6 +909,7 @@ export default function MessageThreadWrapper({
             bookingRequestId={bookingRequestId}
             initialBookingRequest={effectiveBookingRequest}
             isActive={isActive}
+            isSoundThread={isSoundThread}
             serviceId={effectiveBookingRequest?.service_id ?? undefined}
             clientName={isUserArtist
               ? (counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'Client') || 'Client')
@@ -1206,10 +1221,7 @@ export default function MessageThreadWrapper({
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
-                {(String((effectiveBookingRequest as any)?.service?.service_category_slug || '').toLowerCase().includes('sound') ||
-                  String((effectiveBookingRequest as any)?.service?.service_category?.name || '').toLowerCase().includes('sound') ||
-                  String(((effectiveBookingRequest as any)?.travel_breakdown || (effectiveBookingRequest as any)?.sound_context || {})?.sound_mode || '')
-                    .toLowerCase() === 'supplier') ? (
+                {isSoundThread ? (
                   <SoundInlineQuote
                     onSubmit={async (payload) => {
                       try {

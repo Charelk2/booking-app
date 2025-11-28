@@ -115,6 +115,8 @@ export type MessageThreadWebProps = {
     reference?: string | null,
   ) => void;
   onOpenProviderReviewFromSystem?: () => void;
+  /** True when this thread represents a dedicated sound provider booking. */
+  isSoundThread?: boolean;
   // allow passthrough
   [k: string]: any;
 };
@@ -139,6 +141,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     onContinueEventPrep,
     onPaymentStatusChange,
     onOpenProviderReviewFromSystem,
+    isSoundThread: isSoundThreadProp,
   } = props;
 
   // --- Auth / identity
@@ -722,6 +725,23 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   ]);
 
   const isPaid = String(resolvedPaymentStatus || '').toLowerCase() === 'paid';
+  const isSoundThread = React.useMemo(() => {
+    if (typeof isSoundThreadProp === 'boolean') return Boolean(isSoundThreadProp);
+    try {
+      const raw = (initialBookingRequest as any) || {};
+      const svc = raw.service || {};
+      const slug = String(svc.service_category_slug || '').toLowerCase();
+      const catName = String(svc.service_category?.name || '').toLowerCase();
+      const ctx = (raw.travel_breakdown || raw.sound_context || {}) as any;
+      const soundMode = String(ctx?.sound_mode || '').toLowerCase();
+      if (slug.includes('sound')) return true;
+      if (catName.includes('sound')) return true;
+      if (soundMode === 'supplier') return true;
+      return false;
+    } catch {
+      return false;
+    }
+  }, [isSoundThreadProp, initialBookingRequest]);
 
   // --- Request new quote (client CTA when a quote is expired)
   const requestNewQuote = useStableCallback(() => {
@@ -1279,6 +1299,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         group={group as any}
         myUserId={myUserId}
         bookingRequestId={bookingRequestId}
+        isSoundThread={isSoundThread}
         userType={userType}
         clientName={clientName}
         clientAvatarUrl={clientAvatarUrl}

@@ -21,7 +21,7 @@ from ..utils.notifications import (
     notify_user_new_message,
 )
 from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
-from ..utils import error_response, background_worker
+from ..utils import error_response
 from ..utils.redis_cache import invalidate_availability_cache
 from ..services.quote_totals import quote_preview_fields
 import os
@@ -514,30 +514,16 @@ async def upload_booking_attachment(file: UploadFile = File(...)):
     return {"url": url}
 
 
-@router.post("/parse", status_code=status.HTTP_202_ACCEPTED)
-def parse_booking_text(payload: schemas.BookingParseRequest):
-    """Queue NLP parsing and return a task identifier."""
-
-    task_id = background_worker.enqueue(nlp_booking.extract_booking_details, payload.text)
-    return {"task_id": task_id}
-
-
-@router.get(
-    "/parse/{task_id}",
+@router.post(
+    "/parse",
+    status_code=status.HTTP_200_OK,
     response_model=schemas.ParsedBookingDetails,
     response_model_exclude_none=True,
 )
-async def get_parsed_booking(task_id: str):
-    """Retrieve the NLP parsing result for a previously queued task."""
-
+def parse_booking_text(payload: schemas.BookingParseRequest):
+    """Parse free-form booking text synchronously and return structured details."""
     try:
-        return await background_worker.result(task_id)
-    except KeyError:
-        raise error_response(
-            "Task not found",
-            {"task_id": "not_found"},
-            status.HTTP_404_NOT_FOUND,
-        )
+        return nlp_booking.extract_booking_details(payload.text)
     except nlp_booking.NLPModelError as exc:  # pragma: no cover - environment specific
         logger.error("NLP model error: %s", exc)
         raise error_response(
@@ -552,6 +538,20 @@ async def get_parsed_booking(task_id: str):
             {"text": "Parsing failed"},
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
+
+
+@router.get(
+    "/parse/{task_id}",
+    response_model=schemas.ParsedBookingDetails,
+    response_model_exclude_none=True,
+)
+async def get_parsed_booking(task_id: str):
+    """Deprecated: kept for compatibility; parse is now synchronous."""
+    raise error_response(
+        "Task not found",
+        {"task_id": "not_found"},
+        status.HTTP_404_NOT_FOUND,
+    )
 
 
 @router.get("/{request_id}/booking-id", summary="Resolve booking id for a booking request")

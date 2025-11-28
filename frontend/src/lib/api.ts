@@ -1695,11 +1695,21 @@ export const getParsedBooking = (taskId: string) =>
  * simply await a single promise for the structured data.
  */
 export const parseBookingText = async (text: string) => {
-  const { data } = await api.post<{ task_id: string }>(
+  const res = await api.post<ParsedBookingDetails | { task_id: string }>(
     `${API_V1}/booking-requests/parse`,
     { text },
   );
-  return getParsedBooking(data.task_id);
+  const payload: any = res.data;
+  // If the backend returned parsed details directly, use them.
+  if (payload && (payload.event_type || payload.date || payload.location || payload.guests !== undefined)) {
+    return { data: payload as ParsedBookingDetails };
+  }
+  // Fallback to legacy task polling if present (should not normally happen now).
+  if (payload && (payload as any).task_id) {
+    return getParsedBooking((payload as any).task_id);
+  }
+  // No usable data
+  return { data: {} as ParsedBookingDetails };
 };
 
 // ─── QUOTE TEMPLATES ─────────────────────────────────────────────────────────
