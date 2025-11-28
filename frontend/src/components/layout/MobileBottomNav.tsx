@@ -94,6 +94,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             <li key={item.name} className="min-w-0">
               <Link
                 href={item.href}
+                prefetch={false}
                 aria-current={active ? 'page' : undefined}
                 aria-label={item.name}
                 className={clsx(

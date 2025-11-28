@@ -125,6 +125,7 @@ function ClientNav({ pathname }: { pathname: string }) {
           <Link
             key={item.name}
             href={item.href}
+            prefetch={false}
             className={clsx(
               'px-2 py-1 text-sm transition',
               'text-white/90 hover:text-white',
@@ -154,6 +155,7 @@ function ArtistNav({ user, pathname }: { user: { id: number; artist_slug?: strin
           <Link
             key={item.name}
             href={item.href}
+            prefetch={false}
             className={clsx(
               'px-2 py-1 text-sm transition',
               'text-white/90 hover:text-white',
@@ -175,6 +177,7 @@ function HeaderMessagesLink({ unread }: { unread: number }) {
   return (
     <Link
       href="/inbox"
+      prefetch={false}
       className="relative inline-flex items-center justify-center px-3 py-2 rounded-lg text-white hover:bg-gray-900 hover:text-white hover:no-underline"
       aria-label={unread > 0 ? `Messages (${unread} unread)` : 'Messages'}
       onMouseEnter={() => router.prefetch?.('/inbox')}
@@ -527,9 +530,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
             <Link
               href="/"
+              prefetch={false}
               className={clsx(brandLinkClasses, 'flex items-center gap-3')}
               aria-label="Booka home"
-              prefetch
               onMouseEnter={() => router.prefetch?.('/')}
               onFocus={() => router.prefetch?.('/')}
             >

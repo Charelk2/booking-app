@@ -182,6 +182,12 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
   directory, runs `./scripts/test-all.sh`, and verifies that both
   backend and frontend test suites execute. Use this helper to confirm the test
   runner works on a clean checkout.
+* SSR/frontend API origin: when the frontend and backend are on different hosts
+  (e.g., Vercel frontend at `booka.co.za` and Fly backend at `api.booka.co.za`),
+  set `SERVER_API_ORIGIN` (frontend env) to the backend origin (e.g.,
+  `https://api.booka.co.za`) so server-side fetches hit the real API instead of
+  the frontend host. Without this, SSR calls to `/api/v1/...` can 404 and
+  trigger `notFound()`.
 
 ---
 
