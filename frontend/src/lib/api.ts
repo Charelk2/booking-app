@@ -115,10 +115,10 @@ function getDeviceId(): string | null {
 try { if (typeof window !== 'undefined') ensureDeviceCookie(); } catch {}
 
 // Create a single axios instance for all requests.
-// Use an absolute origin so the browser talks directly to the API host
-// (avoids an extra proxy hop through the Next.js app/CDN on production).
+// On the server, prefer the internal origin (empty baseURL) to avoid extra network/TLS hops.
+// On the client, use the public API origin.
 const api = axios.create({
-  baseURL: (typeof window === 'undefined' ? '' : API_ORIGIN) || API_ORIGIN,
+  baseURL: typeof window === 'undefined' ? '' : API_ORIGIN,
   withCredentials: true,
   headers: {
     // Do not force a global Content-Type. Let axios infer JSON for plain objects
