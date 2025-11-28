@@ -425,40 +425,31 @@ const InlineQuoteForm: React.FC<Props> = ({
                 }
               }
 
-              // Derive travel as the remainder between the wizard's supplier
-              // estimate and the package subtotal (audience + addons) when
-              // that estimate is present. When it is not present on this
-              // booking (e.g. legacy flows), approximate supplier travel
-              // using the same Distance Matrix proxy used by the live
-              // performance travel engine, combined with the provider's
-              // per‑km rate.
+              // Derive supplier travel from the sound service's own travel
+              // config so the sound provider sees a realistic travel prefill.
+              // We intentionally do not try to infer travel from
+              // provided_sound_estimate here because that value currently
+              // reflects the package total (gear + stage + lighting) only.
               if (!dirtyTravel) {
-                if (hasTbSoundEstimate) {
-                  const pkgTotal = Number.isFinite(totalPackage) && totalPackage > 0 ? totalPackage : 0;
-                  const remainder = tbSoundEstimate - pkgTotal;
-                  const travelPortion = remainder > 0 ? remainder : 0;
-                  setTravelFee(travelPortion);
-                } else {
-                  try {
-                    const svcDetails: any = br.service?.details || {};
-                    const travelConf: any = svcDetails.travel || {};
-                    const perKmRaw = travelConf.per_km_rate ?? travelConf.perKmRate ?? 0;
-                    const perKm = Number(perKmRaw);
-                    const baseLoc = String(svcDetails.base_location || '').trim();
-                    const eventCity = String(tb.event_city || br.event_city || tb.venue_name || '').trim();
-                    if (perKm > 0 && baseLoc && eventCity) {
-                      const metrics = await getDrivingMetricsCached(baseLoc, eventCity);
-                      const distKm = Number(metrics?.distanceKm || 0);
-                      if (Number.isFinite(distKm) && distKm > 0) {
-                        const travelPortion = perKm * distKm * 2; // round-trip
-                        if (Number.isFinite(travelPortion) && travelPortion > 0) {
-                          setTravelFee(travelPortion);
-                        }
+                try {
+                  const svcDetails: any = br.service?.details || {};
+                  const travelConf: any = svcDetails.travel || {};
+                  const perKmRaw = travelConf.per_km_rate ?? travelConf.perKmRate ?? 0;
+                  const perKm = Number(perKmRaw);
+                  const baseLoc = String(svcDetails.base_location || '').trim();
+                  const eventCity = String(tb.event_city || br.event_city || tb.venue_name || '').trim();
+                  if (perKm > 0 && baseLoc && eventCity) {
+                    const metrics = await getDrivingMetricsCached(baseLoc, eventCity);
+                    const distKm = Number(metrics?.distanceKm || 0);
+                    if (Number.isFinite(distKm) && distKm > 0) {
+                      const travelPortion = perKm * distKm * 2; // round-trip
+                      if (Number.isFinite(travelPortion) && travelPortion > 0) {
+                        setTravelFee(travelPortion);
                       }
                     }
-                  } catch {
-                    // best-effort only; leave travelFee as-is on failure
                   }
+                } catch {
+                  // best-effort only; leave travelFee as-is on failure
                 }
               }
 
