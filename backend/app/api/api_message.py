@@ -778,48 +778,6 @@ async def read_messages_async(
                         continue
             except Exception:
                 pass
-            # Fill any gaps from legacy quotes table best-effort
-            try:
-                missing = [qid for qid in missing_ids if qid not in summaries]
-                if missing:
-                    legacy_rows = (
-                        db.query(models.Quote)
-                        .filter(models.Quote.id.in_(missing))
-                        .all()
-                    )
-                    for lq in legacy_rows:
-                        try:
-                            total = float(lq.price or 0)
-                            services = [{"description": (lq.quote_details or "Performance"), "price": total}]
-                            # Map legacy statuses to v2-ish statuses
-                            raw = str(lq.status.value if hasattr(lq.status, "value") else lq.status).lower()
-                            if "accept" in raw:
-                                status_label = "accepted"
-                            elif "reject" in raw or "declin" in raw:
-                                status_label = "rejected"
-                            elif "expire" in raw:
-                                status_label = "expired"
-                            else:
-                                status_label = "pending"
-                            payload = {
-                                "id": int(lq.id),
-                                "booking_request_id": int(lq.booking_request_id),
-                                "status": status_label,
-                                "total": total,
-                                "subtotal": total,
-                                "sound_fee": 0.0,
-                                "travel_fee": 0.0,
-                                "discount": 0.0,
-                                "expires_at": lq.valid_until.isoformat() if getattr(lq, "valid_until", None) else None,
-                                "services": services,
-                                "updated_at": lq.updated_at.isoformat() if getattr(lq, "updated_at", None) else None,
-                            }
-                            payload.update(quote_preview_fields(lq))
-                            summaries[int(lq.id)] = payload
-                        except Exception:
-                            continue
-            except Exception:
-                pass
         # Always include a quotes object when requested; ensure string keys for JSON safety
         if summaries:
             try:
@@ -1155,47 +1113,6 @@ def read_messages_batch(
                     quotes_map[int(q.id)] = payload
                 except Exception:
                     continue
-        except Exception:
-            pass
-        # Fill gaps from legacy quotes, best-effort
-        try:
-            missing = [qid for qid in list(quote_ids) if qid not in quotes_map]
-            if missing:
-                legacy_rows = (
-                    db.query(models.Quote)
-                    .filter(models.Quote.id.in_(missing))
-                    .all()
-                )
-                for lq in legacy_rows:
-                    try:
-                        total = float(lq.price or 0)
-                        services = [{"description": (lq.quote_details or "Performance"), "price": total}]
-                        raw = str(lq.status.value if hasattr(lq.status, "value") else lq.status).lower()
-                        if "accept" in raw:
-                            status_label = "accepted"
-                        elif "reject" in raw or "declin" in raw:
-                            status_label = "rejected"
-                        elif "expire" in raw:
-                            status_label = "expired"
-                        else:
-                            status_label = "pending"
-                        payload = {
-                            "id": int(lq.id),
-                            "booking_request_id": int(lq.booking_request_id),
-                            "status": status_label,
-                            "total": total,
-                            "subtotal": total,
-                            "sound_fee": 0.0,
-                            "travel_fee": 0.0,
-                            "discount": 0.0,
-                            "expires_at": lq.valid_until.isoformat() if getattr(lq, "valid_until", None) else None,
-                            "services": services,
-                            "updated_at": lq.updated_at.isoformat() if getattr(lq, "updated_at", None) else None,
-                        }
-                        payload.update(quote_preview_fields(lq))
-                        quotes_map[int(lq.id)] = payload
-                    except Exception:
-                        continue
         except Exception:
             pass
 

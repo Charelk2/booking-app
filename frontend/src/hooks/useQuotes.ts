@@ -2,63 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getQuoteV2, getQuotesBatch } from '@/lib/api';
-import type { Quote, QuoteV2, ServiceItem } from '@/types';
-
-function mapLegacyStatusToV2(status: string | null | undefined): QuoteV2['status'] {
-  const s = String(status || '').toLowerCase();
-  if (s.includes('accept')) return 'accepted';
-  if (s.includes('reject') || s.includes('declin')) return 'rejected';
-  if (s.includes('expire')) return 'expired';
-  return 'pending';
-}
-
-/**
- * Convert a legacy Quote to a minimal QuoteV2 shape so UI can render consistently.
- * Uses best-effort defaults for fields that don't exist on legacy rows.
- */
-export function toQuoteV2FromLegacy(legacy: Quote, opts: { clientId?: number } = {}): QuoteV2 {
-  const services: ServiceItem[] = [
-    {
-      description: (legacy.quote_details || 'Performance'),
-      price: Number(legacy.price || 0),
-    },
-  ];
-  const sound_fee = 0;
-  const travel_fee = 0;
-  const discount = undefined as unknown as number | undefined; // optional downstream
-  const subtotal = services.reduce((sum, s) => sum + Number(s.price || 0), 0);
-  const legacyTotal = Number(legacy.price || subtotal);
-  const total = Number.isFinite(legacyTotal) && legacyTotal > 0 ? legacyTotal : subtotal;
-  const legacyPreview = (legacy as any)?.totals_preview;
-  const providerSubtotalPreview = (legacy as any)?.provider_subtotal_preview;
-  const bookaFeePreview = (legacy as any)?.booka_fee_preview;
-  const bookaFeeVatPreview = (legacy as any)?.booka_fee_vat_preview;
-  const clientTotalPreview = (legacy as any)?.client_total_preview;
-  return {
-    id: legacy.id,
-    booking_request_id: legacy.booking_request_id,
-    service_provider_id: legacy.service_provider_id,
-    // Keep deprecated field for completeness if anything depends on it
-    artist_id: legacy.artist_id,
-    client_id: Number(opts.clientId || 0),
-    services,
-    sound_fee,
-    travel_fee,
-    accommodation: null,
-    discount: (discount as any) ?? null,
-    expires_at: legacy.valid_until ?? null,
-    subtotal,
-    total,
-    totals_preview: legacyPreview ?? undefined,
-    provider_subtotal_preview: providerSubtotalPreview ?? undefined,
-    booka_fee_preview: bookaFeePreview ?? undefined,
-    booka_fee_vat_preview: bookaFeeVatPreview ?? undefined,
-    client_total_preview: clientTotalPreview ?? undefined,
-    status: mapLegacyStatusToV2(legacy.status),
-    created_at: legacy.created_at,
-    updated_at: legacy.updated_at,
-  } as QuoteV2;
-}
+import type { QuoteV2 } from '@/types';
 
 function getGlobalQuotesMap(): Map<number, QuoteV2> {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -122,7 +66,7 @@ export function seedGlobalQuotes(quotes: QuoteV2[]) {
   } catch {}
 }
 
-/** Prefetch quotes by ids, normalizing legacy shapes to QuoteV2, and seed global cache. */
+/** Prefetch quotes by ids (QuoteV2 only) and seed the global cache. */
 export async function prefetchQuotesByIds(ids: number[]) {
   const want = Array.from(new Set(ids.filter((n) => Number.isFinite(n) && n > 0))) as number[];
   if (!want.length) return;
@@ -132,21 +76,15 @@ export async function prefetchQuotesByIds(ids: number[]) {
     if (!missing.length) return;
     const batch = await getQuotesBatch(missing);
     const got = Array.isArray(batch.data) ? (batch.data as any[]) : [];
-    const normalized: QuoteV2[] = got.map((q: any) => {
-      let next: QuoteV2;
-      if (q && Array.isArray(q.services)) next = q as QuoteV2;
-      else {
-        try { next = toQuoteV2FromLegacy(q as Quote); }
-        catch { next = q as QuoteV2; }
-      }
-      return {
-        ...next,
+    const normalized: QuoteV2[] = got
+      .filter((q: any) => q && Array.isArray((q as any).services))
+      .map((q: any) => ({
+        ...(q as QuoteV2),
         booking_request_id:
-          next.booking_request_id != null
-            ? Number(next.booking_request_id)
-            : Number((q as any)?.booking_request_id ?? 0),
-      } as QuoteV2;
-    });
+          (q as any)?.booking_request_id != null
+            ? Number((q as any).booking_request_id)
+            : 0,
+      }));
     seedGlobalQuotes(normalized);
   } catch {
     // ignore — prefetch is best-effort
@@ -274,23 +212,15 @@ export function useQuotes(bookingRequestId: number, initialQuotes?: QuoteV2[] | 
     try {
       const batch = await getQuotesBatch(missing);
       const got = Array.isArray(batch.data) ? (batch.data as any[]) : [];
-      // Normalize: backend /quotes batch may return legacy Quote rows. Convert
-      // any non-V2 shapes to QuoteV2 so the UI renders immediately.
-      const normalized: QuoteV2[] = got.map((q: any) => {
-        let next: QuoteV2;
-        if (q && Array.isArray(q.services)) next = q as QuoteV2;
-        else {
-          try { next = toQuoteV2FromLegacy(q as Quote); }
-          catch { next = q as QuoteV2; }
-        }
-        return {
-          ...next,
+      const normalized: QuoteV2[] = got
+        .filter((q: any) => q && Array.isArray((q as any).services))
+        .map((q: any) => ({
+          ...(q as QuoteV2),
           booking_request_id:
-            next.booking_request_id != null
-              ? Number(next.booking_request_id)
-              : Number((q as any)?.booking_request_id ?? bookingRequestId ?? 0),
-        } as QuoteV2;
-      });
+            (q as any)?.booking_request_id != null
+              ? Number((q as any).booking_request_id)
+              : Number(bookingRequestId ?? 0),
+        }));
       if (normalized.length) {
         try { normalized.forEach((q: QuoteV2) => GLOBAL_QUOTES.set(q.id, q)); } catch {}
         setQuotesById((prev) => ({ ...prev, ...Object.fromEntries(normalized.map((q: QuoteV2) => [q.id, q])) }));

@@ -31,7 +31,6 @@ def register_status_listeners() -> None:
     for model in (
         models.Booking,
         models.BookingRequest,
-        models.Quote,
         models.QuoteV2,
     ):
         event.listen(

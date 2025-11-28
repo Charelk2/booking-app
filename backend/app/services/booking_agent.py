@@ -846,7 +846,7 @@ def tool_create_booking_request(
     try:
         from app.api import api_booking_request  # local import to avoid cycles
         from app.schemas.request_quote import BookingRequestCreate
-        from app.models.request_quote import BookingRequest as BookingRequestModel
+        from app.models.booking_request import BookingRequest as BookingRequestModel
         from app.models.booking_status import BookingStatus
     except Exception as exc:  # pragma: no cover
         logger.error("Agent booking_request imports failed: %s", exc)

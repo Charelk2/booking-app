@@ -111,48 +111,6 @@ class CRUDBooking:
 
 booking = CRUDBooking()
 
-# Function to create a booking from an accepted and confirmed quote
-def create_booking_from_quote(
-    db: Session, 
-    booking_create: schemas.BookingCreate, # Contains artist_id, service_id, start_time, end_time, notes
-    quote: models.Quote, 
-    client_id: int
-) -> models.Booking:
-    """
-    Creates a new Booking record from a confirmed quote.
-    The total_price is taken from the quote.
-    The booking status is set to CONFIRMED.
-    """
-    # Ensure the service exists and belongs to the specified artist
-    db_service = db.query(models.Service).filter(
-        models.Service.id == booking_create.service_id,
-        models.Service.artist_id == booking_create.artist_id 
-    ).first()
-    if not db_service:
-        raise ValueError(f"Service id {booking_create.service_id} not found for artist id {booking_create.artist_id}")
-
-    db_booking = models.Booking(
-        artist_id=booking_create.artist_id,
-        client_id=client_id,
-        service_id=booking_create.service_id,
-        start_time=booking_create.start_time,
-        end_time=booking_create.end_time,
-        status=models.BookingStatus.CONFIRMED, # Quote confirmed, so booking is confirmed
-        total_price=quote.price, # Price from the confirmed quote
-        notes=booking_create.notes,
-        quote_id=quote.id # Link to the source quote
-    )
-    db.add(db_booking)
-    db.commit()
-    db.refresh(db_booking)
-    # Bootstrap event prep row for this booking (idempotent)
-    try:
-        crud_event_prep.seed_for_booking(db, db_booking)
-    except Exception:
-        pass
-    return db_booking
-
-
 # Function to create a booking from a QuoteV2 after it is accepted
 def create_booking_from_quote_v2(db: Session, quote: models.QuoteV2) -> models.Booking:
     """Create a ``Booking`` record from an accepted ``QuoteV2``."""

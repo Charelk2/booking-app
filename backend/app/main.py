@@ -145,7 +145,7 @@ from .db_utils import (
 from .middleware.security_headers import SecurityHeadersMiddleware
 from .models.booking import Booking
 from .models.notification import Notification
-from .models.request_quote import BookingRequest, Quote
+from .models.booking_request import BookingRequest
 from .models.review import Review
 from .models.service import Service
 from .models.service_category import ServiceCategory
@@ -270,13 +270,11 @@ try:
     from .models.notification import NotificationType
     from .models.calendar_account import CalendarProvider
     from .models.quote_v2 import QuoteStatusV2
-    from .models.request_quote import QuoteStatus as QuoteStatusLegacy
     from .models.invoice import InvoiceStatus
     ensure_enum_values(engine, "bookingstatus", [s.value for s in BookingStatus])
     ensure_enum_values(engine, "notificationtype", [s.value for s in NotificationType])
     ensure_enum_values(engine, "calendarprovider", [s.value for s in CalendarProvider])
     ensure_enum_values(engine, "quotestatusv2", [s.value for s in QuoteStatusV2])
-    ensure_enum_values(engine, "quotestatus", [s.value for s in QuoteStatusLegacy])
     ensure_enum_values(engine, "invoicestatus", [s.value for s in InvoiceStatus])
 except Exception as _exc:
     logger.warning("Enum ensure skipped: %s", _exc)

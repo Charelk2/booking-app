@@ -290,12 +290,6 @@ def _build_response(db: Session, n: models.Notification) -> NotificationResponse
                     .filter(models.QuoteV2.id == quote_id)
                     .first()
                 )
-                if not quote:
-                    quote = (
-                        db.query(models.Quote)
-                        .filter(models.Quote.id == quote_id)
-                        .first()
-                    )
                 if quote:
                     tmp_sender, tmp_avatar = _resolve_sender_avatar(
                         db, n.user_id, quote.client_id, quote.artist_id

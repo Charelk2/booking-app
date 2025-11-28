@@ -1,28 +1,36 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Button from '../ui/Button';
 import { BottomSheet } from '../ui';
-import type { Quote } from '@/types';
+import type { QuoteV2 } from '@/types';
 
 interface EditQuoteModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: { quote_details: string; price: number }) => Promise<void> | void;
-  quote: Quote;
+  quote: Pick<QuoteV2, 'quote_details' | 'services' | 'total' | 'id' | 'booking_request_id'> & {
+    price?: number;
+  };
 }
 
 const EditQuoteModal: React.FC<EditQuoteModalProps> = ({ open, onClose, onSubmit, quote }) => {
   const [details, setDetails] = useState(quote.quote_details ?? '');
-  const [price, setPrice] = useState<string>(
-    quote.price !== undefined ? quote.price.toString() : '',
-  );
+  // Prefer explicit price override; otherwise derive from first service or total.
+  const derivePrice = () => {
+    if (quote.price != null) return Number(quote.price);
+    const first = Array.isArray((quote as any)?.services) ? (quote as any).services[0] : null;
+    const svcPrice = first && typeof first.price === 'number' ? first.price : undefined;
+    if (svcPrice != null) return svcPrice;
+    return typeof (quote as any)?.total === 'number' ? Number((quote as any).total) : 0;
+  };
+  const [price, setPrice] = useState<string>(derivePrice().toString());
   const firstFieldRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (open) {
       setDetails(quote.quote_details ?? '');
-      setPrice(quote.price !== undefined ? quote.price.toString() : '');
+      setPrice(derivePrice().toString());
     }
-  }, [open, quote]);
+  }, [open, quote]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <BottomSheet

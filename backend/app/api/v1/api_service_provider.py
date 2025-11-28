@@ -33,7 +33,7 @@ from app.models.user import User
 from app.models.service_provider_profile import ServiceProviderProfile as Artist
 from app.models.booking import Booking
 from app.models.booking_status import BookingStatus
-from app.models.request_quote import BookingRequest
+from app.models.booking_request import BookingRequest
 from app.models.service import Service
 from app.models.service_category import ServiceCategory
 from app.models.review import Review

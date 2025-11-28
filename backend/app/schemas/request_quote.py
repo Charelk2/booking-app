@@ -4,11 +4,9 @@ from datetime import datetime
 from decimal import Decimal
 
 from ..models.booking_status import BookingStatus
-from ..models.request_quote import QuoteStatus # Enums from models
 from .user import UserResponse  # For nesting user details
 from .artist import ArtistProfileResponse  # Include artist business name
 from .service import ServiceResponse  # For nesting service details
-# from .booking import BookingResponse # For nesting booking if created from quote
 
 # --- BookingRequest Schemas ---
 
@@ -63,7 +61,6 @@ class BookingRequestResponse(BookingRequestBase):
     # `service_provider_profile` on booking requests.
     service_provider_profile: Optional[ArtistProfileResponse] = None
     service: Optional[ServiceResponse] = None
-    quotes: List['QuoteResponse'] = []
     accepted_quote_id: Optional[int] = None
     last_message_content: Optional[str] = None
     last_message_timestamp: Optional[datetime] = None
@@ -71,66 +68,6 @@ class BookingRequestResponse(BookingRequestBase):
     model_config = {
         "from_attributes": True
     }
-
-# --- Quote Schemas ---
-
-class QuoteBase(BaseModel):
-    quote_details: str
-    price: Decimal
-    currency: str = "ZAR"
-    valid_until: Optional[datetime] = None
-
-
-class QuoteTotalsPreview(BaseModel):
-    provider_subtotal: Optional[Decimal] = None
-    platform_fee_ex_vat: Optional[Decimal] = None
-    platform_fee_vat: Optional[Decimal] = None
-    client_total_incl_vat: Optional[Decimal] = None
-
-
-class QuoteCreate(QuoteBase):
-    booking_request_id: int # Artist creates a quote for a specific request
-
-class QuoteUpdateByArtist(BaseModel): # Artist can update details or withdraw quote
-    quote_details: Optional[str] = None
-    price: Optional[Decimal] = Field(default=None)
-    currency: Optional[str] = None
-    valid_until: Optional[datetime] = None
-    status: Optional[QuoteStatus] = None # e.g. WITHDRAWN_BY_ARTIST
-
-class QuoteUpdateByClient(BaseModel): # Client can accept or reject
-    status: QuoteStatus # e.g. ACCEPTED_BY_CLIENT, REJECTED_BY_CLIENT
-
-class QuoteResponse(QuoteBase):
-    id: int
-    booking_request_id: int
-    artist_id: int # Artist who created the quote
-    status: QuoteStatus
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    
-    artist: Optional[UserResponse] = None  # Artist user details
-    # Include service provider profile so quotes also expose the business name
-    artist_profile: Optional[ArtistProfileResponse] = None
-    # Exclude booking_request to avoid recursion when nested under
-    # BookingRequestResponse -> QuoteResponse -> BookingRequestResponse
-    booking_request: Optional[BookingRequestResponse] = Field(
-        default=None, exclude=True
-    )
-    # booking: Optional[BookingResponse] = None # Optional: If a booking was created from this quote
-    totals_preview: Optional[QuoteTotalsPreview] = None
-    provider_subtotal_preview: Optional[Decimal] = None
-    booka_fee_preview: Optional[Decimal] = None
-    booka_fee_vat_preview: Optional[Decimal] = None
-    client_total_preview: Optional[Decimal] = None
-    rates_preview: Optional[Dict] = None
-
-    model_config = {
-        "from_attributes": True
-    }
-
-# Update BookingRequestResponse to include quotes after QuoteResponse is defined
-BookingRequestResponse.model_rebuild()
 
 
 class TravelEstimate(BaseModel):

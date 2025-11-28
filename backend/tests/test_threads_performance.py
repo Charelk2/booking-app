@@ -14,8 +14,8 @@ from app.models import (
     MessageType,
     Notification,
     NotificationType,
-    Quote,
-    QuoteStatus,
+    QuoteV2,
+    QuoteStatusV2,
     SenderType,
     Service,
     ServiceProviderProfile,
@@ -130,13 +130,18 @@ def create_message(
     return msg
 
 
-def create_quote(db, booking_request: BookingRequest, artist: User, status: QuoteStatus) -> Quote:
-    quote = Quote(
+def create_quote(db, booking_request: BookingRequest, artist: User, status: QuoteStatusV2) -> QuoteV2:
+    quote = QuoteV2(
         booking_request_id=booking_request.id,
         artist_id=artist.id,
-        quote_details="Details",
-        price=Decimal("250.00"),
-        currency="ZAR",
+        client_id=booking_request.client_id,
+        services=[{"description": "Performance", "price": Decimal("250.00")}],
+        sound_fee=Decimal("0.00"),
+        travel_fee=Decimal("0.00"),
+        accommodation=None,
+        discount=None,
+        subtotal=Decimal("250.00"),
+        total=Decimal("250.00"),
         status=status,
     )
     db.add(quote)
@@ -175,7 +180,7 @@ def test_minimal_thread_payload_preserves_preview_and_quote():
     service = create_service(db, profile, ServiceType.LIVE_PERFORMANCE)
 
     booking = create_booking_request(db, client, artist, service)
-    create_quote(db, booking, artist, QuoteStatus.ACCEPTED_BY_CLIENT)
+    create_quote(db, booking, artist, QuoteStatusV2.ACCEPTED)
     create_message(db, booking, client, "Latest message")
 
     threads = crud_booking_request.get_booking_requests_with_last_message(

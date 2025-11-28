@@ -9,7 +9,7 @@ from app.main import process_quote_expiration
 from app import models
 from app.models.base import BaseModel
 from app.models import User, UserType, Service
-from app.models.request_quote import BookingRequest, BookingStatus
+from app.models.booking_request import BookingRequest, BookingStatus
 
 
 def setup_db():

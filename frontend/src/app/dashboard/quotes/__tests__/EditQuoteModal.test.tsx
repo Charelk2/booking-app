@@ -2,20 +2,24 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import EditQuoteModal from '@/components/booking/EditQuoteModal';
-import type { Quote } from '@/types';
+import type { QuoteV2 } from '@/types';
 
 describe('EditQuoteModal', () => {
   it('prefills and submits updates', async () => {
-    const quote: Quote = {
+    const quote: QuoteV2 = {
       id: 1,
       booking_request_id: 2,
       artist_id: 3,
-      quote_details: 'Old',
-      price: 100,
-      currency: 'ZAR',
-      status: 'pending_client_action',
+      client_id: 4,
+      services: [{ description: 'Old', price: 100 }],
+      sound_fee: 0,
+      travel_fee: 0,
+      subtotal: 100,
+      total: 100,
+      status: 'pending',
       created_at: '',
       updated_at: '',
+      quote_details: 'Old',
     };
     const onSubmit = jest.fn();
     const div = document.createElement('div');

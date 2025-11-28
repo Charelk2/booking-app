@@ -31,9 +31,6 @@ def get_booking_request(db: Session, request_id: int) -> Optional[models.Booking
             joinedload(models.BookingRequest.client),
             joinedload(models.BookingRequest.artist).joinedload(models.User.artist_profile),
             joinedload(models.BookingRequest.service).joinedload(models.Service.artist),
-            joinedload(models.BookingRequest.quotes)
-            .joinedload(models.Quote.artist)
-            .joinedload(models.User.artist_profile),
         )
         .filter(models.BookingRequest.id == request_id)
         .first()
@@ -45,9 +42,18 @@ def get_booking_request(db: Session, request_id: int) -> Optional[models.Booking
         # Alias for clients expecting `service_provider_profile`
         setattr(db_request, "service_provider_profile", db_request.artist.artist_profile)
     if db_request:
-        for q in db_request.quotes:
-            if q.artist and q.artist.artist_profile:
-                setattr(q, "artist_profile", q.artist.artist_profile)
+        try:
+            accepted = (
+                db.query(models.QuoteV2.id)
+                .filter(models.QuoteV2.booking_request_id == db_request.id)
+                .filter(models.QuoteV2.status == models.QuoteStatusV2.ACCEPTED)
+                .order_by(models.QuoteV2.id.desc())
+                .first()
+            )
+            if accepted and accepted[0]:
+                setattr(db_request, "accepted_quote_id", int(accepted[0]))
+        except Exception:
+            pass
     return db_request
 
 def get_booking_requests_by_client(db: Session, client_id: int, skip: int = 0, limit: int = 100) -> List[models.BookingRequest]:
@@ -57,9 +63,6 @@ def get_booking_requests_by_client(db: Session, client_id: int, skip: int = 0, l
             joinedload(models.BookingRequest.client),
             joinedload(models.BookingRequest.artist).joinedload(models.User.artist_profile),
             joinedload(models.BookingRequest.service).joinedload(models.Service.artist),
-            joinedload(models.BookingRequest.quotes)
-            .joinedload(models.Quote.artist)
-            .joinedload(models.User.artist_profile),
         )
         .filter(models.BookingRequest.client_id == client_id)
         .order_by(models.BookingRequest.created_at.desc())
@@ -67,14 +70,26 @@ def get_booking_requests_by_client(db: Session, client_id: int, skip: int = 0, l
         .limit(limit)
         .all()
     )
+    request_ids = [br.id for br in rows]
+    accepted_map: dict[int, int] = {}
+    if request_ids:
+        try:
+            accepted_rows = (
+                db.query(models.QuoteV2.booking_request_id, models.QuoteV2.id)
+                .filter(models.QuoteV2.booking_request_id.in_(request_ids))
+                .filter(models.QuoteV2.status == models.QuoteStatusV2.ACCEPTED)
+                .all()
+            )
+            accepted_map = {int(r.booking_request_id): int(r.id) for r in accepted_rows}
+        except Exception:
+            accepted_map = {}
     for br in rows:
         if br.artist and br.artist.artist_profile:
             setattr(br, "artist_profile", br.artist.artist_profile)
             setattr(br, "service_provider_profile", br.artist.artist_profile)
             setattr(br, "service_provider_profile", br.artist.artist_profile)
-        for q in br.quotes:
-            if q.artist and q.artist.artist_profile:
-                setattr(q, "artist_profile", q.artist.artist_profile)
+        if br.id in accepted_map:
+            setattr(br, "accepted_quote_id", accepted_map[br.id])
     return rows
 
 def get_booking_requests_by_artist(db: Session, artist_id: int, skip: int = 0, limit: int = 100) -> List[models.BookingRequest]:
@@ -84,9 +99,6 @@ def get_booking_requests_by_artist(db: Session, artist_id: int, skip: int = 0, l
             joinedload(models.BookingRequest.client),
             joinedload(models.BookingRequest.artist).joinedload(models.User.artist_profile),
             joinedload(models.BookingRequest.service).joinedload(models.Service.artist),
-            joinedload(models.BookingRequest.quotes)
-            .joinedload(models.Quote.artist)
-            .joinedload(models.User.artist_profile),
         )
         .filter(models.BookingRequest.artist_id == artist_id)
         .order_by(models.BookingRequest.created_at.desc())
@@ -94,13 +106,25 @@ def get_booking_requests_by_artist(db: Session, artist_id: int, skip: int = 0, l
         .limit(limit)
         .all()
     )
+    request_ids = [br.id for br in rows]
+    accepted_map: dict[int, int] = {}
+    if request_ids:
+        try:
+            accepted_rows = (
+                db.query(models.QuoteV2.booking_request_id, models.QuoteV2.id)
+                .filter(models.QuoteV2.booking_request_id.in_(request_ids))
+                .filter(models.QuoteV2.status == models.QuoteStatusV2.ACCEPTED)
+                .all()
+            )
+            accepted_map = {int(r.booking_request_id): int(r.id) for r in accepted_rows}
+        except Exception:
+            accepted_map = {}
     for br in rows:
         if br.artist and br.artist.artist_profile:
             setattr(br, "artist_profile", br.artist.artist_profile)
             setattr(br, "service_provider_profile", br.artist.artist_profile)
-        for q in br.quotes:
-            if q.artist and q.artist.artist_profile:
-                setattr(q, "artist_profile", q.artist.artist_profile)
+        if br.id in accepted_map:
+            setattr(br, "accepted_quote_id", accepted_map[br.id])
     return rows
 
 def update_booking_request(
@@ -214,28 +238,6 @@ def get_booking_requests_with_last_message(
                 models.Service.currency,
                 models.Service.display_order,
             ),
-            selectinload(models.BookingRequest.quotes)
-            .load_only(
-                models.Quote.id,
-                models.Quote.booking_request_id,
-                models.Quote.status,
-                models.Quote.created_at,
-                models.Quote.price,
-                models.Quote.currency,
-            )
-            .selectinload(models.Quote.artist)
-            .load_only(
-                models.User.id,
-                models.User.first_name,
-                models.User.last_name,
-                models.User.profile_picture_url,
-            )
-            .selectinload(models.User.artist_profile)
-            .load_only(
-                models.ServiceProviderProfile.user_id,
-                models.ServiceProviderProfile.business_name,
-                models.ServiceProviderProfile.profile_picture_url,
-            ),
         )
     else:
             query = query.options(
@@ -336,21 +338,17 @@ def get_booking_requests_with_last_message(
     )
 
     accepted_quote_map: Dict[int, int] = {}
-    if not include_relationships and requests:
-        accepted_rows = (
-            db.query(models.Quote.booking_request_id, models.Quote.id)
-            .filter(models.Quote.booking_request_id.in_(request_ids))
-            .filter(
-                models.Quote.status.in_(
-                    [
-                        models.QuoteStatus.ACCEPTED_BY_CLIENT,
-                        models.QuoteStatus.CONFIRMED_BY_ARTIST,
-                    ]
-                )
+    if requests:
+        try:
+            accepted_rows = (
+                db.query(models.QuoteV2.booking_request_id, models.QuoteV2.id)
+                .filter(models.QuoteV2.booking_request_id.in_(request_ids))
+                .filter(models.QuoteV2.status == models.QuoteStatusV2.ACCEPTED)
+                .all()
             )
-            .all()
-        )
-        accepted_quote_map = {int(r.booking_request_id): int(r.id) for r in accepted_rows}
+            accepted_quote_map = {int(r.booking_request_id): int(r.id) for r in accepted_rows}
+        except Exception:
+            accepted_quote_map = {}
 
     def _state_from_status(status: "models.BookingStatus") -> str:
         if status in [models.BookingStatus.DRAFT, models.BookingStatus.PENDING_QUOTE, models.BookingStatus.PENDING]:
@@ -459,28 +457,8 @@ def get_booking_requests_with_last_message(
 
         if br.artist and br.artist.artist_profile:
             setattr(br, "artist_profile", br.artist.artist_profile)
-        if include_relationships:
-            accepted = next(
-                (
-                    q
-                    for q in br.quotes
-                    if q.status
-                    in [
-                        models.QuoteStatus.ACCEPTED_BY_CLIENT,
-                        models.QuoteStatus.CONFIRMED_BY_ARTIST,
-                    ]
-                ),
-                None,
-            )
-            if accepted:
-                setattr(br, "accepted_quote_id", accepted.id)
-            for q in br.quotes:
-                if q.artist and q.artist.artist_profile:
-                    setattr(q, "artist_profile", q.artist.artist_profile)
-        else:
-            setattr(br, "quotes", [])
-            if br.id in accepted_quote_map:
-                setattr(br, "accepted_quote_id", accepted_quote_map[br.id])
+        if br.id in accepted_quote_map:
+            setattr(br, "accepted_quote_id", accepted_quote_map[br.id])
 
         filtered_results.append(br)
 

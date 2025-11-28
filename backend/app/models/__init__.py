@@ -6,7 +6,7 @@ from .booking_status import BookingStatus
 from .review import Review
 from .client_review import ClientReview
 from .quote_v2 import QuoteV2, QuoteStatusV2
-from .request_quote import BookingRequest, Quote, QuoteStatus
+from .booking_request import BookingRequest
 from .quote_template import QuoteTemplate
 from .booking_simple import BookingSimple
 from .service_category import ServiceCategory
@@ -34,7 +34,6 @@ __all__ = [
     "Review",
     "ClientReview",
     "BookingRequest",
-    "Quote",
     "QuoteV2",
     "QuoteTemplate",
     "BookingSimple",
@@ -43,7 +42,6 @@ __all__ = [
     "ServiceCategory",
     "UserType",
     "BookingStatus",
-    "QuoteStatus",
     "QuoteStatusV2",
     "SenderType",
     "MessageType",

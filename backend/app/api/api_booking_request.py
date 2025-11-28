@@ -574,15 +574,6 @@ def get_booking_id_for_request(
         .order_by(models.Booking.id.desc())
         .first()
     )
-    if booking is None:
-        # Fallback to legacy quotes table
-        booking = (
-            db.query(models.Booking.id)
-            .join(models.Quote, models.Booking.quote_id == models.Quote.id)
-            .filter(models.Quote.booking_request_id == request_id)
-            .order_by(models.Booking.id.desc())
-            .first()
-        )
     return {"booking_id": (booking[0] if booking else None)}
 
 
@@ -1025,21 +1016,6 @@ def read_booking_request(
             {"request_id": "Forbidden"},
             status.HTTP_403_FORBIDDEN,
         )
-    _prepare_quotes_for_response(list(db_request.quotes or []))
-    accepted = next(
-        (
-            q
-            for q in db_request.quotes
-            if q.status
-            in [
-                models.QuoteStatus.ACCEPTED_BY_CLIENT,
-                models.QuoteStatus.CONFIRMED_BY_ARTIST,
-            ]
-        ),
-        None,
-    )
-    if accepted:
-        setattr(db_request, "accepted_quote_id", accepted.id)
     last_msg = crud.crud_message.get_last_message_for_request(db, db_request.id)
     if last_msg:
         # Derive display name to feed the preview helper for QUOTE messages

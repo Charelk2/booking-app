@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SafeImage from '@/components/ui/SafeImage';
 
-import type { Booking, BookingRequest, Quote, QuoteV2 } from '@/types';
+import type { Booking, BookingRequest, QuoteV2 } from '@/types';
 import * as api from '@/lib/api';
 import { useAuth as useContextAuth } from '@/contexts/AuthContext';
 import { getFullImageUrl } from '@/lib/utils';
@@ -29,7 +29,7 @@ import BookingSummarySkeleton from '@/components/chat/BookingSummarySkeleton';
 
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { counterpartyLabel } from '@/lib/names';
-import { useQuotes, prefetchQuotesByIds, toQuoteV2FromLegacy } from '@/hooks/useQuotes';
+import { useQuotes, prefetchQuotesByIds } from '@/hooks/useQuotes';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
 import { resolveQuoteTotalsPreview } from '@/lib/quoteTotals';
@@ -326,16 +326,8 @@ export default function MessageThreadWrapper({
       const seen = new Set<number>();
       for (const raw of arr) {
         if (!raw) continue;
-        let q: QuoteV2 | null = null;
-        if (Array.isArray((raw as any)?.services)) {
-          q = raw as QuoteV2;
-        } else {
-          try {
-            q = toQuoteV2FromLegacy(raw as Quote, { clientId: (bookingRequest as any)?.client_id });
-          } catch {
-            q = null;
-          }
-        }
+        if (!Array.isArray((raw as any)?.services)) continue;
+        const q = raw as QuoteV2;
         const qid = Number(q?.id || 0);
         if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
         seen.add(qid);
@@ -387,16 +379,8 @@ export default function MessageThreadWrapper({
       const seen = new Set<number>();
       for (const raw of arr) {
         if (!raw) continue;
-        let q: QuoteV2 | null = null;
-        if (Array.isArray((raw as any)?.services)) {
-          q = raw as QuoteV2;
-        } else {
-          try {
-            q = toQuoteV2FromLegacy(raw as Quote, { clientId: (request as any)?.client_id });
-          } catch {
-            q = null;
-          }
-        }
+        if (!Array.isArray((raw as any)?.services)) continue;
+        const q = raw as QuoteV2;
         const qid = Number(q?.id || 0);
         if (!q || !Number.isFinite(qid) || seen.has(qid)) continue;
         seen.add(qid);

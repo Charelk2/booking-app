@@ -17,7 +17,6 @@ import {
   Review,
   BookingRequestCreate,
   BookingRequest,
-  QuoteCreate,
   QuoteV2Create,
   QuoteV2,
   BookingSimple,
@@ -1057,7 +1056,7 @@ export const downloadQuotePdf = (id: number) =>
     responseType: 'blob',
   });
 
-// Resolve a booking id for a given booking request (works for v2/legacy quotes)
+// Resolve a booking id for a given booking request (QuoteV2)
 export const getBookingIdForRequest = (bookingRequestId: number) =>
   getDeduped<{ booking_id: number | null }>(`${API_V1}/booking-requests/${bookingRequestId}/booking-id`);
 
@@ -1357,10 +1356,16 @@ export const updateBookingRequestArtist = (
 
 // Create a new quote (artist → client) for an existing booking request:
 //    POST /api/v1/quotes/
-// Body must match QuoteCreate interface.
 export const createQuoteForRequest = async (
   requestId: number,
-  data: QuoteCreate
+  data: {
+    service_provider_id: number;
+    artist_id?: number;
+    quote_details: string;
+    price: number;
+    currency?: string;
+    valid_until?: string | null;
+  }
   // returns AxiosResponse<QuoteV2>
 ) => {
   const br = await getBookingRequestById(requestId);

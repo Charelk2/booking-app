@@ -193,7 +193,7 @@ export interface Booking {
 
   client: User;
   service: Service;
-  source_quote?: Quote;
+  source_quote?: QuoteV2;
 }
 
 export interface Review {
@@ -288,51 +288,12 @@ export interface BookingRequest {
   artist_profile?: ServiceProviderProfile;
 
   service?: Service;
-  quotes?: Quote[];
+  quotes?: QuoteV2[];
   accepted_quote_id?: number | null;
 
   /** Optional UI-only fields used for stable first paint */
   counterparty_label?: string;
   counterparty_avatar_url?: string | null;
-}
-
-// If you need to handle Quotes (e.g. when the service provider replies):
-export interface QuoteCreate {
-  booking_request_id: number;
-
-  /** Canonical */
-  service_provider_id: number;
-  /** DEPRECATED */
-  artist_id?: number;
-
-  quote_details: string;
-  price: number;
-  currency?: string; // defaults to "ZAR"
-  valid_until?: string; // ISO date-time
-}
-
-export interface Quote {
-  id: number;
-  booking_request_id: number;
-
-  /** Canonical */
-  service_provider_id: number;
-  /** DEPRECATED */
-  artist_id?: number;
-
-  quote_details: string;
-  price: number;
-  currency: string;
-  valid_until?: string | null;
-  status: string; // e.g. "pending_client_action", "accepted_by_client", etc.
-  created_at: string;
-  updated_at: string;
-  totals_preview?: QuoteTotalsPreview | null;
-  provider_subtotal_preview?: number;
-  booka_fee_preview?: number;
-  booka_fee_vat_preview?: number;
-  client_total_preview?: number;
-  rates_preview?: Record<string, number> | null;
 }
 
 export interface ServiceItem {

@@ -681,12 +681,19 @@ def supplier_respond(
         # is billed entirely via the separate child booking.
         try:
             if not supplier_mode:
-                # Resolve the booking_request_id via legacy quote link or supplier thread
+                # Resolve the booking_request_id via the current quote link or supplier thread
                 br_id = None
                 if booking.quote_id:
-                    legacy_q = db.query(models.Quote).filter(models.Quote.id == booking.quote_id).first()
-                    if legacy_q:
-                        br_id = legacy_q.booking_request_id
+                    try:
+                        qv2_br = (
+                            db.query(models.QuoteV2.booking_request_id)
+                            .filter(models.QuoteV2.id == booking.quote_id)
+                            .first()
+                        )
+                        if qv2_br and qv2_br[0]:
+                            br_id = int(qv2_br[0])
+                    except Exception:
+                        br_id = None
                 if br_id is None and row.supplier_booking_request_id:
                     br_id = row.supplier_booking_request_id
 
