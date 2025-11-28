@@ -185,6 +185,13 @@ export interface Booking {
   booking_request_id?: number;
   /** Latest invoice id for this booking (server-provided) */
   invoice_id?: number | null;
+  /** Optional list of visible invoices by type */
+  visible_invoices?: {
+    type: string;
+    id: number;
+    pdf_url?: string | null;
+    created_at: string;
+  }[] | null;
 
   /** Canonical */
   service_provider: ServiceProviderProfile;
@@ -194,6 +201,39 @@ export interface Booking {
   client: User;
   service: Service;
   source_quote?: QuoteV2;
+}
+
+export interface BookingPaymentSummary {
+  booking_simple_id?: number | null;
+  payment_status?: string | null;
+  payment_id?: string | null;
+  charged_total_amount?: number | null;
+  currency?: string | null;
+}
+
+export interface InvoiceByBooking {
+  id: number;
+  quote_id: number;
+  booking_id: number;
+  booking_simple_id: number;
+  artist_id: number;
+  client_id: number;
+  issue_date: string;
+  due_date?: string | null;
+  amount_due: number;
+  status: string;
+  invoice_type?: string | null;
+  payment_method?: string | null;
+  notes?: string | null;
+  pdf_url?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BookingFull {
+  booking: Booking;
+  invoice?: InvoiceByBooking | null;
+  payment?: BookingPaymentSummary | null;
 }
 
 export interface Review {

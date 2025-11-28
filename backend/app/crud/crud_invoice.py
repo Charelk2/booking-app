@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..core.config import settings
+from ..services.quote_totals import compute_quote_totals_snapshot
 
 
 def _yyyymm_now() -> str:
@@ -128,8 +129,9 @@ def create_commission_invoice(db: Session, booking: models.BookingSimple) -> mod
     if existing:
         return existing
     base_ex = _quote_base_ex(qv2)
-    COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
-    VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+    snap = compute_quote_totals_snapshot(qv2)
+    COMMISSION_RATE = float((snap.rates.get("commission_rate") if snap and getattr(snap, "rates", None) else None) or (getattr(settings, "COMMISSION_RATE", None) or os.getenv('COMMISSION_RATE', '0.075') or 0.075))
+    VAT_RATE = float((snap.rates.get("vat_rate") if snap and getattr(snap, "rates", None) else None) or (getattr(settings, "VAT_RATE", None) or os.getenv('VAT_RATE', '0.15') or 0.15))
     commission_ex = round(base_ex * COMMISSION_RATE, 2)
     amount_due = round(commission_ex * (1 + VAT_RATE), 2)
     invoice = models.Invoice(
@@ -167,10 +169,12 @@ def create_client_fee_invoice(db: Session, booking: models.BookingSimple) -> mod
     existing = get_invoice_by_booking_and_type(db, int(booking.id), "client_fee")
     if existing:
         return existing
+    snap = compute_quote_totals_snapshot(qv2)
     base_ex = _quote_base_ex(qv2)
-    CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
-    VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-    fee_ex = round(base_ex * CLIENT_FEE_RATE, 2)
+    rates = snap.rates if snap and getattr(snap, "rates", None) else {}
+    CLIENT_FEE_RATE = float((rates.get("client_fee_rate") if isinstance(rates, dict) else None) or (getattr(settings, "CLIENT_FEE_RATE", None) or os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03))
+    VAT_RATE = float((rates.get("vat_rate") if isinstance(rates, dict) else None) or (getattr(settings, "VAT_RATE", None) or os.getenv('VAT_RATE', '0.15') or 0.15))
+    fee_ex = float(snap.platform_fee_ex_vat) if snap and getattr(snap, "platform_fee_ex_vat", None) is not None else round(base_ex * CLIENT_FEE_RATE, 2)
     amount_due = round(fee_ex * (1 + VAT_RATE), 2)
     invoice = models.Invoice(
         quote_id=qv2.id,

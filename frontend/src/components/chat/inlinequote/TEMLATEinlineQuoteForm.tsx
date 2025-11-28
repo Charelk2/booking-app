@@ -4,7 +4,7 @@ import { ServiceItem, QuoteV2Create, QuoteCalculationResponse } from '@/types';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from './QuoteBubble';
-import { calculateQuoteBreakdown, calculateSoundServiceEstimate, getBookingRequestById, getService, getBookingRequestCached } from '@/lib/api';
+import { livePerformanceEstimate, getBookingRequestById, getService, getBookingRequestCached } from '@/lib/api';
 import { getDrivingMetricsCached } from '@/lib/travel';
 import { useSoundQuotePrefill } from '@/components/chat/inlinequote/useSoundQuotePrefill';
 
@@ -234,7 +234,7 @@ const InlineQuoteForm: React.FC<InlineQuoteFormProps> = ({
       if (!calculationParams) return;
       try {
         setLoadingCalc(true);
-        const { data } = (await calculateQuoteBreakdown(calculationParams)) as { data: QuoteCalculationResponse };
+        const { data } = (await livePerformanceEstimate(calculationParams)) as { data: QuoteCalculationResponse };
         if (cancelled) return;
         if (initialBaseFee == null && !dirtyService) setServiceFee(calculationParams.base_fee ?? data?.base_fee ?? 0);
         if (initialTravelCost == null && !dirtyTravel) setTravelFee(Number(data?.travel_cost || 0));
@@ -370,7 +370,7 @@ const InlineQuoteForm: React.FC<InlineQuoteFormProps> = ({
               }
 
               try {
-                const { data } = await calculateQuoteBreakdown(params);
+                const { data } = await livePerformanceEstimate(params);
                 if (!active) return;
                 if (!dirtyService && typeof initialBaseFee !== 'number') setServiceFee(Number(data?.base_fee || baseForCalc || 0));
                 if (!dirtyTravel && typeof initialTravelCost !== 'number') setTravelFee(Number(data?.travel_cost || 0));

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ServiceItem } from '@/types';
-import { calculateQuoteBreakdown, getBookingRequestCached, getService } from '@/lib/api';
+import { livePerformanceEstimate, getBookingRequestCached, getService } from '@/lib/api';
 
 interface UseLiveQuotePrefillArgs {
   bookingRequestId: number;
@@ -69,7 +69,7 @@ export function useLiveQuotePrefill({
       if (!calculationParams) return;
       try {
         setLoadingCalc(true);
-        const { data } = await calculateQuoteBreakdown(calculationParams);
+        const { data } = await livePerformanceEstimate(calculationParams);
         if (cancelled) return;
         if (initialBaseFee == null && !dirtyService) {
           setServiceFee(calculationParams.base_fee ?? (data as any)?.base_fee ?? 0);
@@ -216,4 +216,3 @@ export function useLiveQuotePrefill({
     setSoundFee,
   ]);
 }
-

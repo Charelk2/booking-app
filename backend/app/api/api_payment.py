@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from typing import Optional, Literal
+from typing import Optional, Literal, Any
 import logging
 import os
 from decimal import Decimal, ROUND_HALF_UP
@@ -59,6 +59,25 @@ router = APIRouter(tags=["payments"])
 # - Backend computes the canonical charge (quote total + Booka fee + VAT); clients never supply or recalc amounts.
 # - Frontend displays the amounts returned by these endpoints verbatim.
 # - Receipts/invoices read from stored snapshots (e.g., charged_total_amount) so historical math never drifts.
+
+
+def _resolve_rates_from_quote(qv2: QuoteV2 | None) -> tuple[float, float, float, Any]:
+    """Return (commission_rate, vat_rate, client_fee_rate, snapshot) with env fallback."""
+    commission_rate = float(getattr(settings, "COMMISSION_RATE", None) or os.getenv('COMMISSION_RATE', '0.075') or 0.075)
+    vat_rate = float(getattr(settings, "VAT_RATE", None) or os.getenv('VAT_RATE', '0.15') or 0.15)
+    client_fee_rate = float(getattr(settings, "CLIENT_FEE_RATE", None) or os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
+    snap_cf = None
+    try:
+        if qv2 is not None:
+            snap_cf = compute_quote_totals_snapshot(qv2)
+            if snap_cf and getattr(snap_cf, "rates", None):
+                rates = snap_cf.rates or {}
+                commission_rate = float(rates.get("commission_rate", commission_rate) or commission_rate)
+                vat_rate = float(rates.get("vat_rate", vat_rate) or vat_rate)
+                client_fee_rate = float(rates.get("client_fee_rate", client_fee_rate) or client_fee_rate)
+    except Exception:
+        snap_cf = None
+    return commission_rate, vat_rate, client_fee_rate, snap_cf
 
 
 class PaymentCreate(BaseModel):
@@ -209,15 +228,7 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
             discount_ex = 0.0
 
         # Rates (commission/env) and canonical client-fee snapshot
-        COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
-        VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-        # Prefer centralized Booka fee math from compute_quote_totals_snapshot
-        snap_cf = None
-        try:
-            if qv2 is not None:
-                snap_cf = compute_quote_totals_snapshot(qv2)
-        except Exception:
-            snap_cf = None
+        COMMISSION_RATE, VAT_RATE, CLIENT_FEE_RATE_ENV, snap_cf = _resolve_rates_from_quote(qv2)
 
         # Commissionable base (EX): services + travel + sound − discount
         commissionable_base = round(max(0.0, (services_total + pass_through) - discount_ex), 2)
@@ -231,8 +242,7 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
                 client_fee_vat = 0.0
         else:
             # Fallback (legacy): derive from env rates if snapshot missing
-            CLIENT_FEE_RATE = float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
-            client_fee = round(commissionable_base * CLIENT_FEE_RATE, 2)
+            client_fee = round(commissionable_base * CLIENT_FEE_RATE_ENV, 2)
             client_fee_vat = round(client_fee * VAT_RATE, 2)
         # Commission withheld on EX base (provider-funded)
         commission = round(commissionable_base * COMMISSION_RATE, 2)
@@ -273,19 +283,19 @@ def _ensure_payout_rows(db: Session, simple: models.BookingSimple, total_amount:
             'commissionable_base': round(commissionable_base, 2),
             'discount_ex': round(discount_ex, 2),
             'pass_through': round(pass_through, 2),
-            'rates': {
-                'commission_rate': COMMISSION_RATE,
-                'client_fee_rate': (
-                    snap_cf.rates.get('client_fee_rate')
-                    if (snap_cf and getattr(snap_cf, 'rates', None) and (snap_cf.rates.get('client_fee_rate') is not None))
-                    else float(os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
-                ),
-                'vat_rate': (
-                    snap_cf.rates.get('vat_rate')
-                    if (snap_cf and getattr(snap_cf, 'rates', None) and (snap_cf.rates.get('vat_rate') is not None))
-                    else VAT_RATE
-                ),
-            },
+                'rates': {
+                    'commission_rate': COMMISSION_RATE,
+                    'client_fee_rate': (
+                        snap_cf.rates.get('client_fee_rate')
+                        if (snap_cf and getattr(snap_cf, 'rates', None) and (snap_cf.rates.get('client_fee_rate') is not None))
+                        else float(getattr(settings, "CLIENT_FEE_RATE", None) or os.getenv('CLIENT_FEE_RATE', '0.03') or 0.03)
+                    ),
+                    'vat_rate': (
+                        snap_cf.rates.get('vat_rate')
+                        if (snap_cf and getattr(snap_cf, 'rates', None) and (snap_cf.rates.get('vat_rate') is not None))
+                        else VAT_RATE
+                    ),
+                },
             'commission_ex': commission,
             'vat_on_commission': vat_on_commission,
             'client_fee': client_fee,
@@ -1008,8 +1018,7 @@ def paystack_verify(
                 discount_ex = float(qv2.discount or 0)
         except Exception:
             discount_ex = 0.0
-        COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
-        VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+        COMMISSION_RATE, VAT_RATE, _client_fee_rate_env, _snap_cf = _resolve_rates_from_quote(qv2)
         commissionable_base = round(max(0.0, (services_total + pass_through) - discount_ex), 2)
         commission = round(commissionable_base * COMMISSION_RATE, 2)
         vat_on_commission = round(commission * VAT_RATE, 2)
@@ -1414,8 +1423,7 @@ async def paystack_webhook(
                 discount_ex = float(qv2.discount or 0)
         except Exception:
             discount_ex = 0.0
-        COMMISSION_RATE = float(os.getenv('COMMISSION_RATE', '0.075') or 0.075)
-        VAT_RATE = float(os.getenv('VAT_RATE', '0.15') or 0.15)
+        COMMISSION_RATE, VAT_RATE, _client_fee_rate_env, _snap_cf = _resolve_rates_from_quote(qv2)
         commissionable_base = round(max(0.0, (services_total + pass_through) - discount_ex), 2)
         commission = round(commissionable_base * COMMISSION_RATE, 2)
         vat_on_commission = round(commission * VAT_RATE, 2)

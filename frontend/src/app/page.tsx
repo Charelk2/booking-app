@@ -10,7 +10,9 @@ async function fetchInitial(category: string, limit = 12) {
   // Use absolute API base on the server to avoid relying on Next.js rewrites
   // during SSR/ISR. Relative fetches are not rewritten on the server.
   const API_BASE =
-    process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? 'https://api.booka.co.za' : 'http://localhost:8000');
+    process.env.SERVER_API_ORIGIN ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    (process.env.NODE_ENV === 'production' ? 'https://api.booka.co.za' : 'http://localhost:8000');
   const params = new URLSearchParams({
     limit: String(limit),
     category,

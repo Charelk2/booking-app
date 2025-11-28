@@ -21,6 +21,7 @@ import {
   postMessageToBookingRequest,
   calculateQuote,
   estimatePriceSafe,
+  calculateSoundServiceEstimate,
 } from '@/lib/api';
 import { calculateTravelMode, getDrivingMetricsCached, geocodeCached, findNearestAirport, getMockCoordinates, type TravelResult } from '@/lib/travel';
   import { trackEvent } from '@/lib/analytics';
@@ -779,7 +780,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               normalizedRider = normalizeRiderForPricing(rider?.spec);
             } catch {}
             if (selectedId) {
-              // Preferred: pricebook estimate first (includes travel); then fallback to sound-estimate or local compute
+              // Preferred: pricebook estimate first (includes travel); then fallback to sound estimate or local compute
               let estimatedViaPB = false;
               try {
                 const svcSel = await fetchServiceCached(selectedId);
@@ -824,45 +825,42 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               if (!Number.isFinite(scFromAudience) || scFromAudience <= 0) {
                 try {
                   if (!missingServiceRef.current.has(selectedId)) {
-                    const resp = await fetch(apiUrl(`/api/v1/services/${selectedId}/sound-estimate`), {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        guest_count: guestCount,
-                        venue_type: venueType,
-                        stage_required: !!(details as any).stageRequired,
-                        stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
-                        lighting_evening: !!(details as any).lightingEvening,
-                        upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
-                        rider_units: normalizedRider.units,
-                        backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
-                      }),
+                    const resp = await calculateSoundServiceEstimate(selectedId, {
+                      guest_count: Number.isFinite(guestCount) ? Number(guestCount) : 0,
+                      venue_type: (venueType as any) || 'indoor',
+                      stage_required: !!(details as any).stageRequired,
+                      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
+                      lighting_evening: !!(details as any).lightingEvening,
+                      upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
+                      rider_units: normalizedRider.units,
+                      backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
                     });
-                    if (resp.ok) {
-                      const est = await resp.json();
-                      const t = Number(est?.total);
-                      if (Number.isFinite(t) && t > 0) scFromAudience = t;
-                    } else if (resp.status === 404) {
-                      missingServiceRef.current.add(selectedId);
-                    }
+                    const est = resp?.data;
+                    const t = Number(est?.total);
+                    if (Number.isFinite(t) && t > 0) scFromAudience = t;
                   }
-                } catch {
-                  // Final fallback: compute locally from supplier details
-                  try {
-                    const psvc = await fetchServiceCached(selectedId);
-                    const comp = computeSoundServicePrice({
-                      details: psvc?.details,
-                      guestCount,
-                      venueType,
-                      stageRequired: !!(details as any).stageRequired,
-                      stageSize: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-                      lightingEvening: !!(details as any).lightingEvening,
-                      upgradeLightingAdvanced: !!(details as any).lightingUpgradeAdvanced,
-                      riderUnits: normalizedRider.units,
-                      backlineRequested: (details as any).backlineRequired ? normalizedRider.backline : {},
-                    });
-                    scFromAudience = Number(comp.total) || 0;
-                  } catch {}
+                } catch (err: any) {
+                  const status = (err?.response?.status || err?.status) as number | undefined;
+                  if (status === 404) {
+                    missingServiceRef.current.add(selectedId);
+                  } else {
+                    // Final fallback: compute locally from supplier details
+                    try {
+                      const psvc = await fetchServiceCached(selectedId);
+                      const comp = computeSoundServicePrice({
+                        details: psvc?.details,
+                        guestCount,
+                        venueType,
+                        stageRequired: !!(details as any).stageRequired,
+                        stageSize: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
+                        lightingEvening: !!(details as any).lightingEvening,
+                        upgradeLightingAdvanced: !!(details as any).lightingUpgradeAdvanced,
+                        riderUnits: normalizedRider.units,
+                        backlineRequested: (details as any).backlineRequired ? normalizedRider.backline : {},
+                      });
+                      scFromAudience = Number(comp.total) || 0;
+                    } catch {}
+                  }
                 }
               }
             } else if (details.location) {
@@ -888,27 +886,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               for (const pid of tryIds) {
                 try {
                   if (missingServiceRef.current.has(pid)) continue;
-                  const resp = await fetch(apiUrl(`/api/v1/services/${pid}/sound-estimate`), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      guest_count: guestCount,
-                      venue_type: venueType,
-                      stage_required: !!(details as any).stageRequired,
-                      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
-                      lighting_evening: !!(details as any).lightingEvening,
-                      upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
-                      rider_units: normalizedRider.units,
-                      backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
-                    }),
+                  const resp = await calculateSoundServiceEstimate(pid, {
+                    guest_count: Number.isFinite(guestCount) ? Number(guestCount) : 0,
+                    venue_type: (venueType as any) || 'indoor',
+                    stage_required: !!(details as any).stageRequired,
+                    stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
+                    lighting_evening: !!(details as any).lightingEvening,
+                    upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
+                    rider_units: normalizedRider.units,
+                    backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
                   });
-                  if (resp.ok) {
-                    const est = await resp.json();
-                    const t = Number(est?.total);
-                    if (Number.isFinite(t) && t > 0) { scFromAudience = t; break; }
-                  } else if (resp.status === 404) {
-                    missingServiceRef.current.add(pid);
-                  }
+                  const est = resp?.data;
+                  const t = Number(est?.total);
+                  if (Number.isFinite(t) && t > 0) { scFromAudience = t; break; }
                 } catch {}
               }
 

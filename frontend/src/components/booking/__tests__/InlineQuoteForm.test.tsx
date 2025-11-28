@@ -6,7 +6,7 @@ import type { QuoteV2Create } from '@/types';
 
 jest.mock('@/lib/api', () => ({
   ...(jest.requireActual('@/lib/api')),
-  calculateQuoteBreakdown: jest
+  livePerformanceEstimate: jest
     .fn()
     .mockResolvedValue({ data: { travel_cost: 111, sound_cost: 222 } }),
 }));
@@ -126,4 +126,3 @@ describe('InlineQuoteForm', () => {
     div.remove();
   });
 });
-

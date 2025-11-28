@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { ServiceItem } from '@/types';
-import { calculateSoundServiceEstimate, getBookingRequestCached } from '@/lib/api';
+import { soundEstimate, getBookingRequestCached } from '@/lib/api';
 import { getDrivingMetricsCached } from '@/lib/travel';
 
 interface UseSoundQuotePrefillArgs {
@@ -68,7 +68,8 @@ export function useSoundQuotePrefill({
           if (Number.isFinite(n) && n > 0) backlineRequested[key] = n;
         });
 
-        const est = await calculateSoundServiceEstimate(Number(svcId), {
+        const est = await soundEstimate({
+          service_id: Number(svcId),
           guest_count: Number.isFinite(guests) && guests > 0 ? guests : 0,
           venue_type: (venueType === 'outdoor' || venueType === 'hybrid' ? 'outdoor' : 'indoor') as any,
           stage_required: stageRequired,
@@ -136,4 +137,3 @@ export function useSoundQuotePrefill({
     };
   }, [bookingRequestId, isSoundService, dirtyTravel, dirtyService, items.length, setItems, setServiceFee, setTravelFee]);
 }
-

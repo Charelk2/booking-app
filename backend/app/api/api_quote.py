@@ -23,6 +23,8 @@ from ..services.quote_totals import quote_preview_fields, compute_quote_totals_s
 from ..services.booking_quote import calculate_quote_breakdown
 from ..utils.json import dumps_bytes as _json_dumps
 import asyncio
+from ..schemas.sound_estimate import SoundEstimateOut, SoundEstimateWithService
+from ..services.quote_engines.sound_service import estimate_sound_service
 
 router = APIRouter(tags=["Quotes"])
 logger = logging.getLogger(__name__)
@@ -131,6 +133,37 @@ def estimate_quote(
         backline_requested=getattr(body, "backline_requested", None),
     )
     return breakdown
+
+
+@router.post(
+    "/quotes/estimate/sound",
+    response_model=SoundEstimateOut,
+    response_model_exclude_none=True,
+)
+def estimate_sound_quote(
+    body: SoundEstimateWithService,
+    db: Session = Depends(get_db),
+):
+    """Stateless sound-provider estimate (audience packages + add-ons)."""
+    svc = crud.service.get_service(db, body.service_id)
+    if not svc:
+        raise error_response(
+            "Service not found",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    payload = estimate_sound_service(
+        svc.details or {},
+        guest_count=int(body.guest_count or 0),
+        venue_type=body.venue_type,
+        stage_required=bool(body.stage_required),
+        stage_size=body.stage_size,
+        lighting_evening=bool(body.lighting_evening),
+        upgrade_lighting_advanced=bool(body.upgrade_lighting_advanced),
+        rider_units=body.rider_units.dict() if body.rider_units else None,
+        backline_requested=body.backline_requested,
+    )
+    return SoundEstimateOut(**payload)
 
 
 @router.post(

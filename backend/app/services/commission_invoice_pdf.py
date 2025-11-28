@@ -60,38 +60,47 @@ def generate_pdf(invoice: models.Invoice) -> bytes:
     story.append(parties_tbl)
     story.append(Spacer(1, 8))
 
-    try:
-        import os
-        vat = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-    except Exception:
     # Prefer stored snapshot values; fallback to a basic derive
     total = float(getattr(invoice, 'amount_due', 0) or 0)
     commission_ex = 0.0
     vat_amount = 0.0
+    vat_rate = None
     try:
         snap = getattr(invoice, 'vat_breakdown_snapshot', None) or None
         if isinstance(snap, dict):
             ex = snap.get('ex')
             vat = snap.get('vat')
-            if ex is not None and vat is not None:
+            rate = snap.get('rate')
+            if rate is not None:
+                try:
+                    vat_rate = float(rate)
+                except Exception:
+                    vat_rate = vat_rate
+            if ex is not None:
                 commission_ex = float(ex or 0)
+            if vat is not None:
                 vat_amount = float(vat or 0)
-            else:
-                # Fallback derive from amount_due and VAT_RATE env
-                import os
-                vat_rate = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-                commission_ex = total / (1 + vat_rate) if total else 0.0
-                vat_amount = commission_ex * vat_rate
-        else:
-            import os
-            vat_rate = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-            commission_ex = total / (1 + vat_rate) if total else 0.0
-            vat_amount = commission_ex * vat_rate
     except Exception:
-        import os
-        vat_rate = float(os.getenv('VAT_RATE', '0.15') or 0.15)
-        commission_ex = total / (1 + vat_rate) if total else 0.0
-        vat_amount = commission_ex * vat_rate
+        pass
+
+    # Derive missing pieces from totals + rate
+    if vat_rate is None:
+        try:
+            from ..core.config import settings
+            vat_rate = float(getattr(settings, "VAT_RATE", None) or os.getenv('VAT_RATE', '0.15') or 0.15)
+        except Exception:
+            vat_rate = 0.15
+
+    if commission_ex <= 0.0 and total and vat_rate is not None:
+        try:
+            commission_ex = total / (1 + float(vat_rate))
+        except Exception:
+            commission_ex = 0.0
+    if vat_amount <= 0.0 and commission_ex > 0.0 and vat_rate is not None:
+        try:
+            vat_amount = commission_ex * float(vat_rate)
+        except Exception:
+            vat_amount = 0.0
 
     rows = [[Paragraph("Description", styles["Strong"]), Paragraph("Amount", styles["Strong"])]]
     rows.append([Paragraph("Commission (EX VAT)", styles["NormalSmall"]), Paragraph(_zar(commission_ex), styles["NormalSmall"])])

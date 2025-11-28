@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useId } from 'react';
 import { format, addHours } from 'date-fns';
-import { ServiceItem, QuoteV2Create, QuoteCalculationResponse } from '@/types';
+import { ServiceItem, QuoteV2Create } from '@/types';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from '../QuoteBubble';
-import { calculateQuoteBreakdown } from '@/lib/api';
 import { useLiveQuotePrefill } from '@/components/chat/inlinequote/useLiveQuotePrefill';
 
 /**

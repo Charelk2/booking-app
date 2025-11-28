@@ -30,7 +30,7 @@ from ..models.service import Service
 from ..models import Booking, BookingStatus
 from ..models.booking_simple import BookingSimple
 from ..models.quote_v2 import QuoteV2
-from ..schemas.booking import BookingCreate, BookingUpdate, BookingResponse
+from ..schemas.booking import BookingCreate, BookingUpdate, BookingResponse, BookingFullResponse, BookingPaymentSummary
 from .dependencies import (
     get_current_user,
     get_current_active_client,
@@ -44,6 +44,10 @@ from ..utils import error_response
 from .api_sound_outreach import kickoff_sound_outreach
 from pydantic import BaseModel
 from .. import crud
+from ..crud import crud_invoice
+from ..schemas.invoice import InvoiceByBooking
+from ..core.config import settings
+from datetime import datetime as _dt
 
 router = APIRouter(tags=["bookings"], default_response_class=ORJSONResponse)
 logger = logging.getLogger(__name__)
@@ -483,6 +487,160 @@ def update_booking_status(
 
         notify_review_request(db, booking.client, booking.id)
     return reloaded
+
+
+@router.get(
+    "/{booking_id}/full",
+    response_model=BookingFullResponse,
+    response_model_exclude_none=True,
+)
+def read_booking_full(
+    *,
+    db: Session = Depends(get_db),
+    booking_id: int,
+    invoice_type: str | None = Query(
+        None,
+        alias="type",
+        description="Optional invoice type to include (provider|client_fee|commission)",
+    ),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """Return booking + payment/invoice bundle in one call."""
+    inv_subq = (
+        db.query(models.Invoice.booking_id.label("bs_id"), func.max(models.Invoice.id).label("invoice_id"))
+        .group_by(models.Invoice.booking_id)
+        .subquery()
+    )
+    booking_row = (
+        db.query(
+            Booking,
+            BookingSimple,
+            QuoteV2.booking_request_id,
+            inv_subq.c.invoice_id,
+        )
+        .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
+        .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
+        .outerjoin(inv_subq, inv_subq.c.bs_id == BookingSimple.id)
+        .options(
+            selectinload(Booking.client),
+            selectinload(Booking.service).selectinload(Service.artist),
+            selectinload(Booking.source_quote),
+        )
+        .filter(Booking.id == booking_id)
+        .first()
+    )
+    if not booking_row:
+        logger.warning(
+            "Booking %s not found for user %s",
+            booking_id,
+            getattr(current_user, "id", "anonymous"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Booking with id {booking_id} not found.",
+        )
+
+    booking, booking_simple, booking_request_id, invoice_id = booking_row
+
+    # Only the client or the artist may see it:
+    if not (
+        booking.client_id == current_user.id
+        or (
+            current_user.user_type == UserType.SERVICE_PROVIDER
+            and booking.artist_id == current_user.id
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to view this booking.",
+        )
+
+    if booking_simple is not None:
+        booking.payment_status = getattr(booking_simple, "payment_status", None)
+        try:
+            booking.payment_id = getattr(booking_simple, "payment_id", None)
+        except Exception:
+            booking.payment_id = getattr(booking_simple, "payment_id", None)
+    else:
+        booking.payment_status = None
+
+    if booking_request_id is not None:
+        booking.booking_request_id = booking_request_id
+    try:
+        setattr(booking, "invoice_id", int(invoice_id) if invoice_id is not None else None)
+    except Exception:
+        setattr(booking, "invoice_id", None)
+
+    # Populate visible_invoices best-effort
+    try:
+        vis = []
+        bs_id = getattr(booking_simple, "id", None)
+        if bs_id:
+            invs = (
+                db.query(models.Invoice)
+                .filter(models.Invoice.booking_id == int(bs_id))
+                .order_by(models.Invoice.id.asc())
+                .all()
+            )
+            for iv in invs:
+                vis.append({
+                    "type": (getattr(iv, "invoice_type", None) or "").lower() or "unknown",
+                    "id": int(iv.id),
+                    "pdf_url": getattr(iv, "pdf_url", None),
+                    "created_at": getattr(iv, "created_at", getattr(iv, "updated_at", booking.created_at)),
+                })
+        setattr(booking, "visible_invoices", vis)
+    except Exception:
+        setattr(booking, "visible_invoices", None)
+
+    # Build invoice payload (provider by default)
+    invoice_payload: InvoiceByBooking | None = None
+    inv_type = (invoice_type or "provider").strip().lower() if invoice_type is not None else "provider"
+    try:
+        if booking_simple and inv_type:
+            inv = crud_invoice.get_invoice_by_booking_and_type(db, int(booking_simple.id), inv_type)
+            if inv:
+                created = getattr(inv, "created_at", None) or _dt.utcnow()
+                updated = getattr(inv, "updated_at", None) or created
+                invoice_payload = InvoiceByBooking(
+                    id=int(inv.id),
+                    quote_id=int(inv.quote_id),
+                    booking_id=int(booking.id),
+                    booking_simple_id=int(booking_simple.id),
+                    artist_id=int(inv.artist_id),
+                    client_id=int(inv.client_id),
+                    issue_date=inv.issue_date,
+                    due_date=getattr(inv, "due_date", None),
+                    amount_due=inv.amount_due,
+                    status=inv.status,
+                    invoice_type=getattr(inv, "invoice_type", None),
+                    payment_method=getattr(inv, "payment_method", None),
+                    notes=getattr(inv, "notes", None),
+                    pdf_url=getattr(inv, "pdf_url", None),
+                    created_at=created,
+                    updated_at=updated,
+                )
+    except Exception:
+        invoice_payload = None
+
+    payment_summary: BookingPaymentSummary | None = None
+    try:
+        if booking_simple:
+            payment_summary = BookingPaymentSummary(
+                booking_simple_id=int(getattr(booking_simple, "id", 0) or 0) if getattr(booking_simple, "id", None) else None,
+                payment_status=getattr(booking_simple, "payment_status", None),
+                payment_id=getattr(booking_simple, "payment_id", None),
+                charged_total_amount=getattr(booking_simple, "charged_total_amount", None),
+                currency=getattr(booking_simple, "currency", None) or settings.DEFAULT_CURRENCY or None,
+            )
+    except Exception:
+        payment_summary = None
+
+    return BookingFullResponse(
+        booking=booking,
+        invoice=invoice_payload,
+        payment=payment_summary,
+    )
 
 
 @router.get("/{booking_id}", response_model=BookingResponse)

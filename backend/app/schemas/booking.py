@@ -7,6 +7,7 @@ from .user import UserResponse # For nesting client details
 from .artist import ArtistProfileNested # For nesting artist details (partial)
 from .service import ServiceResponse # For nesting service details
 from .quote_v2 import QuoteRead
+from .invoice import InvoiceByBooking
 
 # Shared properties for Booking
 class BookingBase(BaseModel):
@@ -39,6 +40,7 @@ class BookingResponse(BookingBase):
     updated_at: datetime
     payment_status: Optional[str] = None
     booking_request_id: Optional[int] = None
+    payment_id: Optional[str] = None
     # New: expose invoice_id to avoid per-row lookups on dashboards
     invoice_id: Optional[int] = None
     # New: list all visible invoices for this booking (by type)
@@ -62,3 +64,21 @@ class BookingResponse(BookingBase):
     model_config = {
         "from_attributes": True
     } 
+
+
+class BookingPaymentSummary(BaseModel):
+    booking_simple_id: Optional[int] = None
+    payment_status: Optional[str] = None
+    payment_id: Optional[str] = None
+    charged_total_amount: Optional[Decimal] = None
+    currency: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class BookingFullResponse(BaseModel):
+    booking: BookingResponse
+    invoice: Optional[InvoiceByBooking] = None
+    payment: Optional[BookingPaymentSummary] = None
+
+    model_config = {"from_attributes": True}

@@ -46,10 +46,10 @@ def calculate_totals(
     - VAT: applied only when the provider is VAT‑registered (default rate from env or profile).
     - Total: (subtotal - discount) + VAT.
     """
-    # Read Booka/provider VAT defaults from env; fall back to 15% if unset.
+    # Read Booka/provider VAT defaults from settings (env-backed), fall back to 15% if unset.
     try:
-        import os
-        vat_env = Decimal(os.getenv("VAT_RATE", "0.15") or "0.15")
+        from ..core.config import settings
+        vat_env = Decimal(str(getattr(settings, "VAT_RATE", None) or "0.15"))
     except Exception:
         vat_env = Decimal("0.15")
     # Normalize provider VAT rate: only apply when explicitly registered.

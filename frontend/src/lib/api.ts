@@ -1757,38 +1757,8 @@ export const updateQuoteTemplate = (
 export const deleteQuoteTemplate = (id: number) =>
   api.delete(`${API_V1}/quote-templates/${id}`);
 
-// ─── QUOTE CALCULATOR ─────────────────────────────────────────────────────────
-export const calculateQuoteBreakdown = (data: {
-  base_fee: number;
-  distance_km: number;
-  service_id: number;
-  event_city: string;
-  accommodation_cost?: number;
-}) => api.post<QuoteCalculationResponse>(`${API_V1}/quotes/estimate`, data);
-
-
-// ─── SERVICE CATEGORIES ───────────────────────────────────────────────────────
-export const getServiceCategories = () =>
-  api.get<ServiceCategory[]>(`${API_V1}/service-categories/`);
-
-// ─── QUOTE CALCULATOR ───────────────────────────────────────────────────────
-// Cache quote calculation responses to avoid duplicate network requests during review.
-// Entries expire after a TTL and the cache evicts the least recently used
-// item when the maximum size is exceeded. Use `clearQuoteCache` to manually
-// reset the cache (e.g., between tests or on logout).
-
-interface QuoteCacheEntry {
-  value: QuoteCalculationResponse;
-  timestamp: number;
-}
-
-const QUOTE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const QUOTE_CACHE_MAX_ENTRIES = 50;
-const quoteCache = new Map<string, QuoteCacheEntry>();
-
-export const clearQuoteCache = () => quoteCache.clear();
-
-export const calculateQuote = async (params: {
+// ─── QUOTE CALCULATOR (service-typed) ─────────────────────────────────────────
+type QuoteEstimatePayload = {
   base_fee: number;
   distance_km: number;
   service_id: number;
@@ -1812,7 +1782,61 @@ export const calculateQuote = async (params: {
     di_boxes?: number;
   };
   backline_requested?: Record<string, number>;
-}): Promise<QuoteCalculationResponse> => {
+};
+
+export const livePerformanceEstimate = (data: QuoteEstimatePayload) =>
+  api.post<QuoteCalculationResponse>(`${API_V1}/quotes/estimate`, data);
+
+export const calculateQuoteBreakdown = (data: QuoteEstimatePayload) =>
+  livePerformanceEstimate(data);
+
+// ─── SERVICE CATEGORIES ───────────────────────────────────────────────────────
+const SERVICE_CATEGORIES_TTL_MS = 5 * 60 * 1000;
+let serviceCategoriesCache: { value: Awaited<ReturnType<typeof api.get<ServiceCategory[]>>>; timestamp: number } | null = null;
+let serviceCategoriesPromise: Promise<Awaited<ReturnType<typeof api.get<ServiceCategory[]>>>> | null = null;
+
+export const clearServiceCategoriesCache = () => {
+  serviceCategoriesCache = null;
+  serviceCategoriesPromise = null;
+};
+
+export const getServiceCategories = () => {
+  const now = Date.now();
+  if (serviceCategoriesCache && now - serviceCategoriesCache.timestamp < SERVICE_CATEGORIES_TTL_MS) {
+    return Promise.resolve(serviceCategoriesCache.value);
+  }
+  if (serviceCategoriesPromise) return serviceCategoriesPromise;
+
+  serviceCategoriesPromise = api.get<ServiceCategory[]>(`${API_V1}/service-categories/`).then((res) => {
+    serviceCategoriesCache = { value: res, timestamp: Date.now() };
+    serviceCategoriesPromise = null;
+    return res;
+  }).catch((err) => {
+    serviceCategoriesPromise = null;
+    throw err;
+  });
+
+  return serviceCategoriesPromise;
+};
+
+// ─── QUOTE CALCULATOR ───────────────────────────────────────────────────────
+// Cache quote calculation responses to avoid duplicate network requests during review.
+// Entries expire after a TTL and the cache evicts the least recently used
+// item when the maximum size is exceeded. Use `clearQuoteCache` to manually
+// reset the cache (e.g., between tests or on logout).
+
+interface QuoteCacheEntry {
+  value: QuoteCalculationResponse;
+  timestamp: number;
+}
+
+const QUOTE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const QUOTE_CACHE_MAX_ENTRIES = 50;
+const quoteCache = new Map<string, QuoteCacheEntry>();
+
+export const clearQuoteCache = () => quoteCache.clear();
+
+export const calculateQuote = async (params: QuoteEstimatePayload): Promise<QuoteCalculationResponse> => {
   const cacheKey = JSON.stringify(params);
   const now = Date.now();
   const cached = quoteCache.get(cacheKey);
@@ -1824,10 +1848,7 @@ export const calculateQuote = async (params: {
     return cached.value;
   }
 
-  const res = await api.post<QuoteCalculationResponse>(
-    `${API_V1}/quotes/estimate`,
-    params,
-  );
+  const res = await livePerformanceEstimate(params);
 
   quoteCache.set(cacheKey, { value: res.data, timestamp: now });
 
@@ -1843,7 +1864,7 @@ export const calculateQuote = async (params: {
 };
 
 // ─── SOUND SERVICE ESTIMATE (audience packages + add-ons) ─────────────────────
-export const calculateSoundServiceEstimate = (serviceId: number, payload: {
+type SoundEstimatePayload = {
   guest_count: number;
   venue_type: 'indoor' | 'outdoor' | 'hybrid';
   stage_required?: boolean;
@@ -1858,7 +1879,13 @@ export const calculateSoundServiceEstimate = (serviceId: number, payload: {
     di_boxes?: number;
   };
   backline_requested?: Record<string, number>;
-}) => api.post(`${API_V1}/services/${serviceId}/sound-estimate`, payload);
+};
+
+export const soundEstimate = (payload: SoundEstimatePayload & { service_id: number }) =>
+  api.post(`${API_V1}/quotes/estimate/sound`, payload);
+
+export const calculateSoundServiceEstimate = (serviceId: number, payload: SoundEstimatePayload) =>
+  soundEstimate({ ...payload, service_id: serviceId });
 
 // ─── PAYMENTS ───────────────────────────────────────────────────────────────
 export const createPayment =  (data: {
