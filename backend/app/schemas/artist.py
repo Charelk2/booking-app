@@ -174,3 +174,17 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .service import ServiceResponse  # noqa: F401
     from .review import ReviewDetails  # noqa: F401
+
+# Resolve forward refs for cross-module response models at runtime with concrete namespace
+try:
+    from .service import ServiceResponse  # noqa: F401
+    from .review import ReviewDetails  # noqa: F401
+
+    ArtistFullResponse.model_rebuild(
+        _types_namespace={
+            "ServiceResponse": ServiceResponse,
+            "ReviewDetails": ReviewDetails,
+        }
+    )
+except Exception:
+    pass
