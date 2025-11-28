@@ -1,12 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ProfileClient from '../service-providers/[id]/ProfileClient';
-import {
-  getServiceProvider,
-  getServiceProviderServices,
-  getServiceProviderReviews,
-} from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
+import type { ServiceProviderProfile, Service, Review } from '@/types';
 
 export const revalidate = 60;
 
@@ -37,6 +33,76 @@ const RESERVED_PROVIDER_SLUGS = new Set([
   'security',
 ]);
 
+const API_BASE = (
+  process.env.SERVER_API_ORIGIN ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://api.booka.co.za'
+).replace(/\/+$/, '');
+const apiUrl = (path: string) => {
+  if (/^https?:\/\//i.test(path)) return path;
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return API_BASE ? `${API_BASE}${normalized}` : normalized;
+};
+
+const normalizeProvider = (sp: ServiceProviderProfile): ServiceProviderProfile => {
+  const id = (sp as any).id ?? (sp as any).user_id;
+  const user_id = (sp as any).user_id ?? id;
+  return {
+    ...sp,
+    id: typeof id === 'number' ? id : Number(id || 0),
+    user_id: typeof user_id === 'number' ? user_id : Number(user_id || 0),
+    service_categories: (sp as any).service_categories || [],
+    service_price:
+      (sp as any).service_price != null
+        ? Number((sp as any).service_price)
+        : undefined,
+  } as ServiceProviderProfile;
+};
+
+async function fetchProviderOnly(raw: string): Promise<ServiceProviderProfile> {
+  const isNumeric = /^\d+$/.test(raw);
+  const path = isNumeric
+    ? `/api/v1/service-provider-profiles/${Number(raw)}`
+    : `/api/v1/service-provider-profiles/by-slug/${encodeURIComponent(raw)}`;
+  const res = await fetch(apiUrl(path), {
+    cache: 'force-cache',
+    next: { revalidate },
+    headers: { accept: 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error(`Provider fetch failed (${res.status})`);
+  }
+  const data = (await res.json()) as ServiceProviderProfile;
+  return normalizeProvider(data);
+}
+
+type FullProviderPayload = {
+  provider: ServiceProviderProfile;
+  services: Service[];
+  reviews: Review[];
+};
+
+async function fetchProviderFull(raw: string): Promise<FullProviderPayload> {
+  const isNumeric = /^\d+$/.test(raw);
+  const path = isNumeric
+    ? `/api/v1/service-provider-profiles/${Number(raw)}/full`
+    : `/api/v1/service-provider-profiles/by-slug/${encodeURIComponent(raw)}/full`;
+  const res = await fetch(apiUrl(path), {
+    cache: 'force-cache',
+    next: { revalidate },
+    headers: { accept: 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error(`Provider full fetch failed (${res.status})`);
+  }
+  const payload = (await res.json()) as FullProviderPayload;
+  return {
+    provider: normalizeProvider(payload.provider),
+    services: payload.services,
+    reviews: payload.reviews,
+  };
+}
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const raw = params.providerSlug;
   if (RESERVED_PROVIDER_SLUGS.has(raw)) {
@@ -44,7 +110,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
 
   try {
-    const { data: sp } = await getServiceProvider(/^\d+$/.test(raw) ? Number(raw) : raw);
+    const sp = await fetchProviderOnly(raw);
     const displayName =
       sp.business_name ||
       `${sp.user?.first_name ?? ''} ${sp.user?.last_name ?? ''}`.trim() ||
@@ -90,20 +156,18 @@ export default async function ProviderSlugPage({ params }: Params) {
   }
 
   try {
-    const spRes = await getServiceProvider(/^\d+$/.test(raw) ? Number(raw) : raw);
-    const providerId = (spRes.data.user_id ?? (/^\d+$/.test(raw) ? Number(raw) : 0)) || 0;
-
-    const [svcsRes, revsRes] = await Promise.all([
-      getServiceProviderServices(providerId),
-      getServiceProviderReviews(providerId),
-    ]);
+    const full = await fetchProviderFull(raw);
+    const providerId =
+      (full.provider as any).user_id ??
+      (typeof full.provider.id === 'number' ? full.provider.id : 0) ??
+      0;
 
     return (
       <ProfileClient
         serviceProviderId={providerId}
-        initialServiceProvider={spRes.data}
-        initialServices={svcsRes.data}
-        initialReviews={revsRes.data}
+        initialServiceProvider={full.provider}
+        initialServices={full.services}
+        initialReviews={full.reviews}
       />
     );
   } catch {

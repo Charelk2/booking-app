@@ -210,6 +210,8 @@ export interface Review {
   client_first_name?: string;
   client_last_name?: string;
   client_display_name?: string;
+  // Optional: lightweight location derived from the booking/event city
+  client_location?: string | null;
 }
 
 // ─── BookingRequest / Quote Interfaces ─────────────────────────────────────────

@@ -31,6 +31,7 @@ class ReviewDetails(ReviewResponse):
   client_first_name: Optional[str] = None
   client_last_name: Optional[str] = None
   client_display_name: Optional[str] = None
+  client_location: Optional[str] = None
 
 
 class ClientReviewBase(BaseModel):

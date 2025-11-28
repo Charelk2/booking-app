@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Response, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.params import Query as QueryParam
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func, desc, or_
 from collections import defaultdict
 from datetime import datetime, timedelta, date
@@ -42,6 +42,7 @@ from app.schemas.artist import (
     ArtistProfileUpdate,  # new Pydantic schema for updates
     ArtistAvailabilityResponse,
     ArtistListResponse,
+    ArtistFullResponse,
 )
 from app.utils.profile import is_artist_profile_complete
 from app.api.auth import get_current_user
@@ -1379,16 +1380,10 @@ def presign_portfolio_image_me(
     )
 
 
-@router.get(
-    "/{artist_id}",
-    response_model=ArtistProfileResponse,
-    response_model_exclude_none=True,
-)
-def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
-    artist = db.query(Artist).filter(Artist.user_id == artist_id).first()
+def _hydrate_artist_profile(artist: Artist, db: Session) -> Artist:
+    """Ensure timestamps + aggregate counters are present on an Artist ORM row."""
     if not artist:
-        raise HTTPException(status_code=404, detail="Artist profile not found.")
-    # Defensive: ensure timestamps present for response validation
+        return artist
     try:
         from datetime import datetime as _dt
         if not getattr(artist, "created_at", None):
@@ -1401,6 +1396,7 @@ def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
     except Exception:
         pass
 
+    artist_id = getattr(artist, "user_id", None)
     # Completed / cancelled events counts for this provider
     try:
         completed_count = (
@@ -1453,6 +1449,104 @@ def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
     return artist
 
 
+def _build_full_profile_payload(artist: Artist, db: Session) -> dict[str, Any]:
+    """Return provider + services + reviews in one payload."""
+    artist = _hydrate_artist_profile(artist, db)
+
+    services = (
+        db.query(Service)
+        .filter(Service.artist_id == artist.user_id)
+        .filter(getattr(Service, "status", "approved") == "approved")
+        .order_by(Service.display_order)
+        .all()
+    )
+    try:
+        now = datetime.utcnow()
+        for s in services:
+            if getattr(s, "created_at", None) is None:
+                s.created_at = now
+            if getattr(s, "updated_at", None) is None:
+                s.updated_at = s.created_at or now
+        db.commit()
+    except Exception:
+        pass
+
+    reviews = (
+        db.query(Review)
+        .join(Booking, Review.booking_id == Booking.id)
+        .filter(Booking.artist_id == artist.user_id)
+        .options(selectinload(Review.booking).selectinload(Booking.client))
+        .order_by(Review.created_at.desc())
+        .all()
+    )
+    try:
+        from datetime import datetime as _dt
+        for r in reviews:
+            if not getattr(r, "created_at", None):
+                r.created_at = getattr(r, "updated_at", None) or _dt.utcnow()
+            if not getattr(r, "updated_at", None):
+                r.updated_at = r.created_at
+        db.commit()
+    except Exception:
+        pass
+    for r in reviews:
+        try:
+            booking = getattr(r, "booking", None)
+            client = getattr(booking, "client", None) if booking is not None else None
+            if client is None:
+                continue
+            setattr(r, "client", client)
+            try:
+                setattr(r, "client_id", int(getattr(client, "id")))
+            except Exception:
+                pass
+            first_name = getattr(client, "first_name", None)
+            last_name = getattr(client, "last_name", None)
+            setattr(r, "client_first_name", first_name)
+            setattr(r, "client_last_name", last_name)
+            display = f"{first_name or ''} {last_name or ''}".strip()
+            setattr(r, "client_display_name", display or None)
+            try:
+                loc = getattr(booking, "event_city", None)
+                if loc:
+                    setattr(r, "client_location", loc)
+            except Exception:
+                pass
+        except Exception:
+            continue
+
+    return {
+        "provider": artist,
+        "services": services,
+        "reviews": reviews,
+    }
+
+
+@router.get(
+    "/{artist_id}",
+    response_model=ArtistProfileResponse,
+    response_model_exclude_none=True,
+)
+def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
+    artist = db.query(Artist).filter(Artist.user_id == artist_id).first()
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
+    return _hydrate_artist_profile(artist, db)
+
+
+@router.get(
+    "/{artist_id}/full",
+    response_model=ArtistFullResponse,
+    response_model_exclude_none=True,
+    summary="Get provider profile, services, and reviews by id",
+)
+def read_artist_profile_full_by_id(artist_id: int, db: Session = Depends(get_db)):
+    artist = db.query(Artist).filter(Artist.user_id == artist_id).first()
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
+    return _build_full_profile_payload(artist, db)
+
+
 @router.get(
     "/by-slug/{slug}",
     response_model=ArtistProfileResponse,
@@ -1468,66 +1562,25 @@ def read_artist_profile_by_slug(slug: str, db: Session = Depends(get_db)):
     if not artist:
         raise HTTPException(status_code=404, detail="Artist profile not found.")
 
-    # Defensive timestamp normalization mirroring read_artist_profile_by_id
-    try:
-        from datetime import datetime as _dt
-        if not getattr(artist, "created_at", None):
-            artist.created_at = getattr(artist, "updated_at", None) or _dt.utcnow()
-        if not getattr(artist, "updated_at", None):
-            artist.updated_at = artist.created_at
-        db.add(artist)
-        db.commit()
-        db.refresh(artist)
-    except Exception:
-        pass
+    return _hydrate_artist_profile(artist, db)
 
-    # Completed / cancelled events counts for this provider
-    try:
-        completed_count = (
-            db.query(Booking)
-            .filter(
-                Booking.artist_id == int(artist.user_id),
-                Booking.status == BookingStatus.COMPLETED,
-            )
-            .count()
-        )
-        cancelled_count = (
-            db.query(Booking)
-            .filter(
-                Booking.artist_id == int(artist.user_id),
-                Booking.status == BookingStatus.CANCELLED,
-            )
-            .count()
-        )
-        setattr(artist, "completed_events", int(completed_count))
-        setattr(artist, "cancelled_events", int(cancelled_count))
-    except Exception:
-        setattr(artist, "completed_events", 0)
-        setattr(artist, "cancelled_events", 0)
 
-    # Aggregate rating + review count for this provider
-    try:
-        rating_row = (
-            db.query(func.avg(Review.rating), func.count(Review.id))
-            .filter(Review.artist_id == int(artist.user_id))
-            .first()
-        )
-        if rating_row is not None:
-            avg_rating, rating_count = rating_row
-            setattr(
-                artist,
-                "rating",
-                float(avg_rating) if avg_rating is not None else None,
-            )
-            setattr(
-                artist,
-                "rating_count",
-                int(rating_count or 0),
-            )
-    except Exception:
-        pass
+@router.get(
+    "/by-slug/{slug}/full",
+    response_model=ArtistFullResponse,
+    response_model_exclude_none=True,
+    summary="Get provider profile, services, and reviews by slug",
+)
+def read_artist_profile_full_by_slug(slug: str, db: Session = Depends(get_db)):
+    cleaned = slugify_name(slug)
+    if not cleaned:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
 
-    return artist
+    artist = db.query(Artist).filter(func.lower(Artist.slug) == cleaned).first()
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
+
+    return _build_full_profile_payload(artist, db)
 
 
 @router.get(

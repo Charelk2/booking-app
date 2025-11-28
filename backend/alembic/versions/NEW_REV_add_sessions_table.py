@@ -74,3 +74,9 @@ def downgrade() -> None:
 #   This change is not represented as an Alembic upgrade step; it is tracked
 #   here and in AGENTS.md so future manual DB changes at this baseline can
 #   follow the same pattern.
+#
+# 2026-01-02:
+#   On production appdb at revision ed57deb9c434 (this file), add an index to
+#   speed provider rating aggregates on the reviews table:
+#     CREATE INDEX ix_reviews_artist_id ON reviews (artist_id);
+#   This is manual-only (no Alembic upgrade); also recorded in AGENTS.md.

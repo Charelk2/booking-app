@@ -159,3 +159,18 @@ class ArtistListResponse(BaseModel):
     data: List[ArtistProfileResponse]
     total: int
     price_distribution: List[PriceBucket]
+
+
+class ArtistFullResponse(BaseModel):
+    """Bundled payload for a provider profile + services + reviews."""
+
+    provider: "ArtistProfileResponse"
+    services: List["ServiceResponse"]
+    reviews: List["ReviewDetails"]
+
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .service import ServiceResponse  # noqa: F401
+    from .review import ReviewDetails  # noqa: F401

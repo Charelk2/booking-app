@@ -235,11 +235,30 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const [clientLocations, setClientLocations] = useState<Record<number, string>>({});
 
   useEffect(() => {
+    // Seed any locations that arrived with the initial reviews payload
+    const seeded: Record<number, string> = {};
+    for (const review of displayReviews) {
+      const clientId = review.client?.id ?? review.client_id;
+      const loc = (review as any)?.client_location;
+      if (typeof clientId === 'number' && clientId > 0 && loc && !seeded[clientId]) {
+        seeded[clientId] = String(loc);
+      }
+    }
+    if (Object.keys(seeded).length) {
+      setClientLocations((prev) => ({ ...seeded, ...prev }));
+    }
+
     const ids = Array.from(
       new Set(
         displayReviews
           .map((r) => r.client?.id ?? r.client_id)
-          .filter((id): id is number => typeof id === 'number' && id > 0),
+          .filter(
+            (id): id is number =>
+              typeof id === 'number' &&
+              id > 0 &&
+              !clientLocations[id] &&
+              !seeded[id],
+          ),
       ),
     );
     // Avoid hitting the API for synthetic/demo reviews (negative ids) or when

@@ -177,6 +177,12 @@ def list_reviews_for_service_provider(service_provider_id: int, db: Session = De
             setattr(r, "client_last_name", last_name)
             display = f"{first_name or ''} {last_name or ''}".strip()
             setattr(r, "client_display_name", display or None)
+            try:
+                loc = getattr(booking, "event_city", None)
+                if loc:
+                    setattr(r, "client_location", loc)
+            except Exception:
+                pass
         except Exception:
             continue
     return reviews

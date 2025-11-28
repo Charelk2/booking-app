@@ -213,7 +213,10 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
     - The date and reason.
   - Record the same SQL and rationale here in AGENTS.md.
   - Keep Alembic’s head pinned to `ed57deb9c434` unless there is a strong reason to introduce a new migration chain.
-- If you restore from a dump or recreate the DB at this revision, remember to re‑apply the same DDL before deploying this branch.
+  - If you restore from a dump or recreate the DB at this revision, remember to re‑apply the same DDL before deploying this branch.
+- 2026-01-02 (manual, at `ed57deb9c434`): add index to speed provider rating aggregates on reviews
+  - SQL: `CREATE INDEX ix_reviews_artist_id ON reviews (artist_id);`
+  - Rationale: `read_artist_profile_by_id` / `read_artist_profile_by_slug` aggregate rating/count on `reviews.artist_id`; the index avoids full scans during profile loads.
 
 ---
 
