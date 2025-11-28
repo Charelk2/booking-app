@@ -1198,7 +1198,7 @@ export default function MessageThreadWrapper({
       </div>
 
       {/* Create Quote modal */}
-      {showQuoteModal && bookingRequest && (
+      {showQuoteModal && effectiveBookingRequest && (
         <div className="fixed inset-0 z-[90]">
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowQuoteModal(false)} aria-hidden="true" />
@@ -1222,8 +1222,10 @@ export default function MessageThreadWrapper({
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
-                {(String((bookingRequest as any)?.service?.service_category_slug || '').toLowerCase().includes('sound') ||
-                  String((bookingRequest as any)?.service?.service_category?.name || '').toLowerCase().includes('sound')) ? (
+                {(String((effectiveBookingRequest as any)?.service?.service_category_slug || '').toLowerCase().includes('sound') ||
+                  String((effectiveBookingRequest as any)?.service?.service_category?.name || '').toLowerCase().includes('sound') ||
+                  String(((effectiveBookingRequest as any)?.travel_breakdown || (effectiveBookingRequest as any)?.sound_context || {})?.sound_mode || '')
+                    .toLowerCase() === 'supplier') ? (
                   <SoundInlineQuote
                     onSubmit={async (payload) => {
                       try {
@@ -1235,12 +1237,16 @@ export default function MessageThreadWrapper({
                         console.error('Create quote failed', e);
                       }
                     }}
-                    artistId={Number((bookingRequest as any).service_provider_id || (bookingRequest as any).artist_id || 0)}
-                    clientId={Number((bookingRequest as any).client_id || 0)}
+                    artistId={Number((effectiveBookingRequest as any).service_provider_id || (effectiveBookingRequest as any).artist_id || 0)}
+                    clientId={Number((effectiveBookingRequest as any).client_id || 0)}
                     bookingRequestId={Number(bookingRequestId || 0)}
-                    serviceName={bookingRequest?.service?.title}
-                    initialBaseFee={bookingRequest?.service?.price ? Number(bookingRequest.service.price) : undefined}
-                    initialTravelCost={bookingRequest && bookingRequest.travel_cost != null ? Number(bookingRequest.travel_cost) : undefined}
+                    serviceName={effectiveBookingRequest?.service?.title}
+                    initialBaseFee={effectiveBookingRequest?.service?.price ? Number(effectiveBookingRequest.service.price) : undefined}
+                    initialTravelCost={
+                      effectiveBookingRequest && effectiveBookingRequest.travel_cost != null
+                        ? Number(effectiveBookingRequest.travel_cost)
+                        : undefined
+                    }
                     initialSoundNeeded={false}
                     providerVatRegistered={providerVatRegistered}
                     providerVatRate={providerVatRate ?? undefined}
@@ -1257,12 +1263,16 @@ export default function MessageThreadWrapper({
                       console.error('Create quote failed', e);
                     }
                   }}
-                  artistId={Number((bookingRequest as any).service_provider_id || (bookingRequest as any).artist_id || 0)}
-                  clientId={Number((bookingRequest as any).client_id || 0)}
+                  artistId={Number((effectiveBookingRequest as any).service_provider_id || (effectiveBookingRequest as any).artist_id || 0)}
+                  clientId={Number((effectiveBookingRequest as any).client_id || 0)}
                   bookingRequestId={Number(bookingRequestId || 0)}
-                  serviceName={bookingRequest?.service?.title}
-                  initialBaseFee={bookingRequest?.service?.price ? Number(bookingRequest.service.price) : undefined}
-                  initialTravelCost={bookingRequest && bookingRequest.travel_cost != null ? Number(bookingRequest.travel_cost) : undefined}
+                  serviceName={effectiveBookingRequest?.service?.title}
+                  initialBaseFee={effectiveBookingRequest?.service?.price ? Number(effectiveBookingRequest.service.price) : undefined}
+                  initialTravelCost={
+                    effectiveBookingRequest && effectiveBookingRequest.travel_cost != null
+                      ? Number(effectiveBookingRequest.travel_cost)
+                      : undefined
+                  }
                     initialSoundNeeded={false}
                     providerVatRegistered={providerVatRegistered}
                     providerVatRate={providerVatRate ?? undefined}
