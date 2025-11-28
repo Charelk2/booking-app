@@ -242,11 +242,16 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
           .filter((id): id is number => typeof id === 'number' && id > 0),
       ),
     );
+    // Avoid hitting the API for synthetic/demo reviews (negative ids) or when
+    // we already have a cached location.
     if (!ids.length) return;
 
     ids.forEach((id) => {
       // Avoid refetching if we already have a location cached
       if (clientLocations[id]) return;
+      // Skip demo/fake reviews that don't exist server-side
+      const hasRealReview = displayReviews.some((r) => (r.id ?? 0) > 0 && (r.client?.id ?? r.client_id) === id);
+      if (!hasRealReview) return;
       (async () => {
         try {
           const res = await fetch(apiUrl(`/api/v1/users/${id}/profile`), {

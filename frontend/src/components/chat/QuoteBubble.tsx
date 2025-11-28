@@ -45,6 +45,8 @@ export interface QuotePeekProps {
   subtotal?: number;
   total: number;
   totalsPreview?: QuoteTotalsResolved;
+  /** Optional explicit line items (e.g. sound package + extras) for a richer breakdown. */
+  lineItems?: { label: string; amount: number }[];
 
   // state/time
   status: QuoteStatus;
@@ -204,6 +206,12 @@ export default function QuotePeek(props: QuotePeekProps) {
   const showSound    = typeof soundFee === 'number' && !Number.isNaN(soundFee);
   const showDiscount = typeof discount === 'number' && (discount ?? 0) > 0;
   const showAccom    = (accommodation ?? '').trim().length > 0;
+  const lineItems = Array.isArray((props as any).lineItems)
+    ? ((props as any).lineItems as { label: string; amount: number }[]).filter(
+        (it) => it && typeof it.label === 'string' && Number.isFinite(Number(it.amount)),
+      )
+    : [];
+  const hasLineItems = lineItems.length > 0;
 
   const safeNum = (v: any): number => {
     const n = Number(v);
@@ -584,7 +592,16 @@ export default function QuotePeek(props: QuotePeekProps) {
               {/* breakdown card */}
               <div className="rounded-lg border border-gray-200">
                 <div className="px-3 py-2">
-                  {showPrice  && <Row label="Service Provider Fee" value={money(price)} />}
+                  {hasLineItems
+                    ? lineItems.map((it, idx) => (
+                        <Row
+                          // eslint-disable-next-line react/no-array-index-key
+                          key={`${it.label}-${idx}`}
+                          label={it.label}
+                          value={money(it.amount)}
+                        />
+                      ))
+                    : showPrice && <Row label="Service Provider Fee" value={money(price)} />}
                   {showTravel && <Row label="Travel" value={money(travelFee)} />}
                   {showSound  && <Row label="Sound" value={money(soundFee)} />}
 

@@ -297,14 +297,28 @@ export default function GroupRenderer({
             const rawSubtotal = Number(q?.subtotal ?? q?.total ?? 0);
             const rawTotal = Number(q?.total ?? q?.subtotal ?? 0);
             const rawTravel = Number(q?.travel_fee ?? 0);
-            const baseForSound = Math.max(0, rawSubtotal - rawTravel);
+            const servicesArr: any[] = Array.isArray(q?.services) ? (q as any).services : [];
+            const baseService = servicesArr[0] as any | undefined;
+            const extraServices = servicesArr.slice(1) as any[];
+            const basePrice = Number(baseService?.price ?? 0);
             const description =
-              (q?.services?.[0]?.description as string) || (isSoundThread ? 'Sound package (full estimate)' : '');
-            const basePrice = isSoundThread
-              ? baseForSound
-              : Number(q?.services?.[0]?.price ?? 0);
+              (baseService?.description as string) ||
+              (isSoundThread ? 'Sound package (full estimate)' : '');
             const soundFee = isSoundThread ? undefined : Number(q?.sound_fee ?? 0);
             const travelFee = rawTravel;
+            const lineItems = isSoundThread
+              ? [
+                  ...(Number.isFinite(basePrice) && basePrice > 0
+                    ? [{ label: description || 'Sound package', amount: basePrice }]
+                    : []),
+                  ...extraServices
+                    .map((it) => ({
+                      label: String(it?.description || '').trim() || 'Extra',
+                      amount: Number(it?.price ?? 0),
+                    }))
+                    .filter((it) => it.amount > 0),
+                ]
+              : undefined;
             return (
               <div key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)} className="my-2 w-full flex justify-center">
                 {q ? (
@@ -312,13 +326,14 @@ export default function GroupRenderer({
                     <QuoteBubble
                       quoteId={quoteId}
                       description={description}
-                      price={basePrice}
+                      price={isSoundThread ? undefined : basePrice}
                       soundFee={soundFee}
                       travelFee={travelFee}
                       accommodation={(q?.accommodation as string) || undefined}
                       discount={Number(q?.discount) || undefined}
                       subtotal={rawSubtotal}
                       total={rawTotal}
+                      lineItems={lineItems}
                       totalsPreview={previewTotals}
                       status={(q?.status === 'accepted') ? 'Accepted' : (q?.status === 'rejected') ? 'Rejected' : (q?.status === 'expired') ? 'Expired' : 'Pending'}
                       isClientView={isClientView}
