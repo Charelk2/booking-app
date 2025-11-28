@@ -15,7 +15,8 @@ import BookingDetailsPanel from '@/components/chat/BookingDetailsPanel';
 import ClientProfilePanel from '@/components/chat/MessageThread/ClientProfilePanel';
 import ProviderProfilePanel from '@/components/chat/MessageThread/ProviderProfilePanel';
 import usePaymentModal from '@/hooks/usePaymentModal';
-import InlineQuoteForm from '@/components/chat/InlineQuoteForm';
+import SoundInlineQuote from '@/components/chat/inlinequote/SoundInlineQuote';
+import LivePerformanceInlineQuote from '@/components/chat/inlinequote/LivePerformanceInlineQuote';
 import {
   createQuoteV2,
   getQuotesForBookingRequest,
@@ -1221,7 +1222,31 @@ export default function MessageThreadWrapper({
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
-                <InlineQuoteForm
+                {(String((bookingRequest as any)?.service?.service_category_slug || '').toLowerCase().includes('sound') ||
+                  String((bookingRequest as any)?.service?.service_category?.name || '').toLowerCase().includes('sound')) ? (
+                  <SoundInlineQuote
+                    onSubmit={async (payload) => {
+                      try {
+                        const res = await createQuoteV2(payload);
+                        try { setQuote(res.data as any); } catch {}
+                        try { await ensureQuotesLoaded?.([Number(res.data.id)] as any); } catch {}
+                        setShowQuoteModal(false);
+                      } catch (e) {
+                        console.error('Create quote failed', e);
+                      }
+                    }}
+                    artistId={Number((bookingRequest as any).service_provider_id || (bookingRequest as any).artist_id || 0)}
+                    clientId={Number((bookingRequest as any).client_id || 0)}
+                    bookingRequestId={Number(bookingRequestId || 0)}
+                    serviceName={bookingRequest?.service?.title}
+                    initialBaseFee={bookingRequest?.service?.price ? Number(bookingRequest.service.price) : undefined}
+                    initialTravelCost={bookingRequest && bookingRequest.travel_cost != null ? Number(bookingRequest.travel_cost) : undefined}
+                    initialSoundNeeded={false}
+                    providerVatRegistered={providerVatRegistered}
+                    providerVatRate={providerVatRate ?? undefined}
+                  />
+                ) : (
+                  <LivePerformanceInlineQuote
                   onSubmit={async (payload) => {
                     try {
                       const res = await createQuoteV2(payload);
@@ -1238,10 +1263,11 @@ export default function MessageThreadWrapper({
                   serviceName={bookingRequest?.service?.title}
                   initialBaseFee={bookingRequest?.service?.price ? Number(bookingRequest.service.price) : undefined}
                   initialTravelCost={bookingRequest && bookingRequest.travel_cost != null ? Number(bookingRequest.travel_cost) : undefined}
-                  initialSoundNeeded={false}
-                  providerVatRegistered={providerVatRegistered}
-                  providerVatRate={providerVatRate ?? undefined}
-                />
+                    initialSoundNeeded={false}
+                    providerVatRegistered={providerVatRegistered}
+                    providerVatRate={providerVatRate ?? undefined}
+                  />
+                )}
               </div>
             </div>
           </div>

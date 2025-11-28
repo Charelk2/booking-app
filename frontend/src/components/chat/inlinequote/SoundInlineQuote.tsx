@@ -3,9 +3,8 @@ import { format, addHours } from 'date-fns';
 import { ServiceItem, QuoteV2Create, QuoteCalculationResponse } from '@/types';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
-import type { EventDetails } from './QuoteBubble';
-import { calculateQuoteBreakdown, calculateSoundServiceEstimate, getBookingRequestById, getService, getBookingRequestCached } from '@/lib/api';
-import { getDrivingMetricsCached } from '@/lib/travel';
+import type { EventDetails } from '../QuoteBubble';
+import { calculateQuoteBreakdown } from '@/lib/api';
 import { useSoundQuotePrefill } from '@/components/chat/inlinequote/useSoundQuotePrefill';
 
 /**
@@ -17,7 +16,7 @@ import { useSoundQuotePrefill } from '@/components/chat/inlinequote/useSoundQuot
  * - Mobile-first spacing and clean borders, no heavy UI deps.
  */
 
-export interface InlineQuoteFormProps {
+export interface SoundInlineQuoteProps {
   onSubmit: (data: QuoteV2Create) => Promise<void> | void;
   artistId: number;
   clientId: number;
@@ -166,7 +165,7 @@ const LineItemRow = React.memo(function LineItemRow({
 
 const travelMode = (km?: number) => (km && km > 300 ? 'fly' : 'drive');
 
-const InlineQuoteForm: React.FC<InlineQuoteFormProps> = ({
+const SoundInlineQuote: React.FC<SoundInlineQuoteProps> = ({
   onSubmit,
   artistId,
   clientId,
@@ -196,8 +195,8 @@ const InlineQuoteForm: React.FC<InlineQuoteFormProps> = ({
   const [sending, setSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [agree, setAgree] = useState<boolean>(true);
-  const [isSupplierParent, setIsSupplierParent] = useState<boolean>(false);
-  const [isSoundService, setIsSoundService] = useState<boolean>(false);
+  const [isSupplierParent] = useState<boolean>(false);
+  const [isSoundService] = useState<boolean>(true);
 
   const [quoteNumber] = useState<string>(generateQuoteNumber());
   const todayLabel = format(new Date(), 'PPP');
@@ -251,143 +250,6 @@ const InlineQuoteForm: React.FC<InlineQuoteFormProps> = ({
     };
   }, [calculationParams, initialBaseFee, initialTravelCost, initialSoundCost, initialSoundNeeded, dirtyService, dirtyTravel, dirtySound]);
 
-  // Direct prefill: booking-request details (and service price)
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const br: any = await getBookingRequestCached(bookingRequestId);
-        if (!active) return;
-        const tb: any = br.travel_breakdown || {};
-        const soundModeRaw = tb.sound_mode || (br as any)?.sound_mode;
-        const parentId = Number(br.parent_booking_request_id || 0);
-        const supplierParent =
-          !Number.isNaN(parentId) &&
-          parentId <= 0 &&
-          typeof soundModeRaw === 'string' &&
-          String(soundModeRaw).toLowerCase() === 'supplier';
-        setIsSupplierParent(supplierParent);
-        const svcId = Number(br.service_id || 0);
-        const svcPrice = Number(br?.service?.price);
-        const svcTypeRaw = String(br?.service?.service_type || '').toLowerCase();
-        const svcCatSlug = String((br?.service as any)?.service_category_slug || '').toLowerCase();
-        const svcCatName = String((br?.service as any)?.service_category?.name || '').toLowerCase();
-        // Sound services are represented as a separate service category
-        // ("Sound Service"), while service_type often stays as "Live Performance".
-        // Treat anything whose category slug/name contains "sound" as a
-        // dedicated Sound Service.
-        const isSoundSvc =
-          svcTypeRaw.includes('sound service') ||
-          svcCatSlug.includes('sound') ||
-          svcCatName.includes('sound');
-
-        // Detect dedicated Sound Service threads so we can use audience/supplier
-        // context for better defaults and a sound-specific inline quote UX.
-        setIsSoundService(isSoundSvc);
-
-        // Best-effort sound estimate from the parent wizard, carried via
-        // travel_breakdown. This reflects the supplier audience tier + basic
-        // add-ons that the client saw during booking.
-        const tbSoundEstimateRaw = (tb as any)?.provided_sound_estimate;
-        const tbSoundEstimate = Number(tbSoundEstimateRaw);
-        const hasTbSoundEstimate = Number.isFinite(tbSoundEstimate) && tbSoundEstimate > 0;
-
-        // Base fee from request or service. For dedicated Sound Service threads,
-        // prefer the wizard's supplier estimate so providers see a realistic
-        // starting point instead of a stub price on the Service.
-        if (!dirtyService) {
-          if (isSoundSvc && hasTbSoundEstimate) {
-            setServiceFee(tbSoundEstimate);
-          } else if (Number.isFinite(svcPrice) && svcPrice >= 0) {
-            setServiceFee(svcPrice);
-          } else if (Number.isFinite(svcId) && svcId > 0) {
-            try {
-              const svc = await getService(svcId);
-              if (!active) return;
-              const price2 = Number((svc.data as any)?.price);
-              if (!dirtyService && Number.isFinite(price2)) setServiceFee(price2);
-            } catch {}
-          }
-        }
-
-        // Travel fee from breakdown or fallback field (artists). For dedicated
-        // Sound Service threads we derive travel as the remainder between the
-        // full supplier estimate and the package subtotal (audience + addons)
-        // so that extras can be itemised without double-counting.
-        if (!dirtyTravel) {
-          if (!isSoundSvc) {
-            const travelRaw = Number(tb.travel_cost ?? tb.travel_fee ?? br.travel_cost);
-            if (Number.isFinite(travelRaw)) setTravelFee(travelRaw);
-          } else {
-            // For sound providers, travel is computed below after we fetch a
-            // contextual sound estimate with itemised audience/backline lines.
-            setTravelFee((prev) => prev); // no-op placeholder
-          }
-        }
-
-        // Sound fee best-effort (non-sound-service only). For dedicated sound
-        // providers, the sound package is represented in the base fee +
-        // extras, so we keep soundFee at 0 to avoid double-counting.
-        if (!dirtySound && !supplierParent && !isSoundSvc) {
-          try {
-            const soundRequired = Boolean(tb.sound_required);
-            const provisioning = (br?.service as any)?.details?.sound_provisioning;
-            // Normalize travel mode from multiple possible sources and naming schemes
-            const rawMode = String((br as any)?.travel_mode || tb.travel_mode || tb.mode || '').toLowerCase();
-            const mode = rawMode === 'flight' ? 'fly' : rawMode === 'driving' ? 'drive' : rawMode;
-            let soundCost: number | undefined = undefined;
-            if (soundRequired && provisioning?.mode === 'artist_provides_variable') {
-              const drive = Number(provisioning?.price_driving_sound_zar ?? provisioning?.price_driving_sound ?? 0);
-              const fly = Number(provisioning?.price_flying_sound_zar ?? provisioning?.price_flying_sound ?? 0);
-              soundCost = mode === 'fly' ? fly : drive;
-            } else if (soundRequired && tb.sound_cost) {
-              const sc = Number(tb.sound_cost);
-              soundCost = Number.isFinite(sc) ? sc : undefined;
-            }
-            if (Number.isFinite(soundCost)) setSoundFee(soundCost as number);
-          } catch {}
-        }
-
-        // Calculator for refined costs (best-effort). For dedicated Sound
-        // Service threads, we skip the generic quote calculator entirely so
-        // we don't overwrite the sound provider's context-aware package.
-        try {
-          if (!isSoundSvc) {
-            const distance = Number(tb.distance_km ?? tb.distanceKm);
-            const eventCity = tb.event_city || br.event_city || '';
-            // Allow backend to resolve distance_km from service.base_location + event_city
-            // when we don't have an explicit distance from the client travel engine.
-            if (eventCity && Number.isFinite(Number(br.service_id))) {
-              let baseForCalc = Number.isFinite(Number(br?.service?.price)) ? Number(br?.service?.price) : serviceFee;
-              const params: any = {
-                base_fee: Number(baseForCalc || 0),
-                service_id: Number(br.service_id),
-                event_city: String(eventCity),
-                ...(tb.accommodation_cost ? { accommodation_cost: Number(tb.accommodation_cost) } : {}),
-              };
-              if (Number.isFinite(distance) && distance > 0) {
-                params.distance_km = Number(distance);
-              }
-
-              try {
-                const { data } = await calculateQuoteBreakdown(params);
-                if (!active) return;
-                if (!dirtyService && typeof initialBaseFee !== 'number') setServiceFee(Number(data?.base_fee || baseForCalc || 0));
-                if (!dirtyTravel && typeof initialTravelCost !== 'number') setTravelFee(Number(data?.travel_cost || 0));
-                if (!dirtySound && initialSoundCost == null && initialSoundNeeded == null && !supplierParent) {
-                  setSoundFee(Number(data?.sound_cost || 0));
-                }
-              } catch {}
-            }
-          }
-        } catch {}
-      } catch {
-        // ignore; prefill is best-effort
-      }
-    })();
-    return () => { active = false; };
-  }, [bookingRequestId, dirtyService, dirtyTravel, dirtySound, initialBaseFee, initialTravelCost, initialSoundCost, initialSoundNeeded]);
-
   useSoundQuotePrefill({
     bookingRequestId,
     isSoundService,
@@ -410,8 +272,8 @@ const InlineQuoteForm: React.FC<InlineQuoteFormProps> = ({
 
   const extrasTotal = useMemo(() => items.reduce((sum, it) => sum + Number(it.price || 0), 0), [items]);
   const subtotal = useMemo(
-    () => serviceFee + (isSupplierParent ? 0 : soundFee) + travelFee + extrasTotal,
-    [serviceFee, soundFee, travelFee, extrasTotal, isSupplierParent],
+    () => serviceFee + travelFee + extrasTotal,
+    [serviceFee, travelFee, extrasTotal],
   );
   const discounted = Math.max(0, subtotal - (discount || 0));
 
@@ -465,7 +327,7 @@ const InlineQuoteForm: React.FC<InlineQuoteFormProps> = ({
       trackEvent?.('cta_send_quote', { bookingRequestId, artistId, clientId });
 
       const services: ServiceItem[] = [
-        { description: serviceName ?? (isSoundService ? 'Sound package' : 'Service fee'), price: serviceFee },
+        { description: serviceName ?? 'Sound package', price: serviceFee },
         ...items.map(({ key, ...rest }) => rest),
       ];
 
@@ -477,7 +339,7 @@ const InlineQuoteForm: React.FC<InlineQuoteFormProps> = ({
         artist_id: artistId,
         client_id: clientId,
         services,
-        sound_fee: (isSupplierParent || isSoundService) ? 0 : soundFee,
+        sound_fee: 0,
         travel_fee: travelFee,
         accommodation: accommodation || null,
         discount: discount || null,
@@ -546,32 +408,9 @@ const InlineQuoteForm: React.FC<InlineQuoteFormProps> = ({
               />
             </div>
 
-            {/* Sound (artist-provided sound only). For dedicated Sound Service
-                threads, the full sound package is represented in the base fee,
-                so we hide this row entirely. */}
-            {!isSoundService && (
-              isSupplierParent ? (
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-gray-800 flex-1 min-w-0">
-                    <div>Sound Equipment</div>
-                    <div className="text-xs text-gray-500 font-normal">
-                      Sound for this event will be quoted and paid separately via a linked sound booking.
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-3">
-                  <label htmlFor={soundId} className="text-sm font-medium text-gray-800 flex-1 min-w-0">Sound Equipment</label>
-                  <MoneyInput
-                    id={soundId}
-                    aria-label="Sound fee"
-                    value={soundFee}
-                    onChange={(n) => { setDirtySound(true); setSoundFee(Math.max(0, n)); }}
-                    className="flex-none"
-                  />
-                </div>
-              )
-            )}
+            {/* Dedicated sound-service threads represent the full sound package
+                in the base fee + extras, so there is no separate “Sound
+                Equipment” row here. */}
 
             {/* Extras */}
             <div>
@@ -745,4 +584,4 @@ const InlineQuoteForm: React.FC<InlineQuoteFormProps> = ({
   );
 };
 
-export default InlineQuoteForm;
+export default SoundInlineQuote;
