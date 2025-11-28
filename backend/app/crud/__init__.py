@@ -3,7 +3,6 @@ from .crud_service_provider import service_provider_profile
 from .crud_service import service
 from .crud_booking import (
     booking,
-    create_booking_from_quote,
     create_booking_from_quote_v2,
 )
 from .crud_review import review
