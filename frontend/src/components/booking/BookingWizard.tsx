@@ -1449,7 +1449,14 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         sound_mode: (details as any).soundMode,
         selected_sound_service_id: (details as any).soundSupplierServiceId,
         event_city: details.location,
-        provided_sound_estimate: (details as any).providedSoundEstimate,
+        // For supplier/external sound, prefer the computed soundCost from the
+        // review calculator; fall back to any existing providedSoundEstimate
+        // snapshot for legacy flows like artist_provides tiers.
+        provided_sound_estimate: (() => {
+          const sc = Number(soundCost || 0);
+          if (Number.isFinite(sc) && sc > 0) return sc;
+          return (details as any).providedSoundEstimate;
+        })(),
         managed_by_artist_markup_percent: undefined,
       },
       service_provider_id: 0
@@ -1530,7 +1537,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         sound_mode: (details as any).soundMode,
         selected_sound_service_id: (details as any).soundSupplierServiceId,
         event_city: details.location,
-        provided_sound_estimate: (details as any).providedSoundEstimate,
+        provided_sound_estimate: (() => {
+          const sc = Number(soundCost || 0);
+          if (Number.isFinite(sc) && sc > 0) return sc;
+          return (details as any).providedSoundEstimate;
+        })(),
         stage_required: !!(details as any).stageRequired,
         stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
         lighting_evening: !!(details as any).lightingEvening,
