@@ -38,6 +38,12 @@ export const getApiOrigin = () =>
   // Use same-origin relative API in SSR to avoid cross-origin cookies on Vercel edge/Node
   (typeof window === 'undefined' ? '' : 'https://api.booka.co.za');
 
+// Internal/backend origin for server-side calls (SSR). Falls back to public API if not set.
+const SERVER_API_ORIGIN =
+  (process.env.SERVER_API_ORIGIN || '').replace(/\/+$/, '') ||
+  (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '') ||
+  'https://api.booka.co.za';
+
 // Public constants/helpers so all callers can build absolute API URLs
 export const API_ORIGIN = getApiOrigin();
 export const apiUrl = (path: string) => {
@@ -118,7 +124,7 @@ try { if (typeof window !== 'undefined') ensureDeviceCookie(); } catch {}
 // On the server, prefer the internal origin (empty baseURL) to avoid extra network/TLS hops.
 // On the client, use the public API origin.
 const api = axios.create({
-  baseURL: typeof window === 'undefined' ? '' : API_ORIGIN,
+  baseURL: typeof window === 'undefined' ? SERVER_API_ORIGIN : API_ORIGIN,
   withCredentials: true,
   headers: {
     // Do not force a global Content-Type. Let axios infer JSON for plain objects
