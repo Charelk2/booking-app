@@ -8,8 +8,6 @@ from .crud_booking import (
 )
 from .crud_review import review
 from .crud_booking_request import create_booking_request, get_booking_request, get_booking_requests_by_client, get_booking_requests_by_artist, update_booking_request
-from .crud_quote import create_quote, get_quote, get_quotes_by_booking_request, get_quotes_by_artist, update_quote
-# Avoid importing crud_quote_v2 here to prevent circular imports with API modules.
 from .crud_quote_template import (
     create_template as create_quote_template,
     get_template as get_quote_template,
@@ -17,6 +15,7 @@ from .crud_quote_template import (
     update_template as update_quote_template,
     delete_template as delete_quote_template,
 )
+from . import crud_quote
 from . import crud_message
 from . import crud_message_reaction
 from . import crud_notification

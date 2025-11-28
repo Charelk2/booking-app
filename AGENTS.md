@@ -20,7 +20,7 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 
 | **Provider Matching** | Selects sound and accommodation providers | `backend/app/crud/crud_service.py`<br>`backend/app/api/api_service.py` | During booking and quote steps |
 | **Travel & Accommodation** | Calculates travel distance, lodging costs, and now weather forecasts | `backend/app/services/booking_quote.py`<br>`backend/app/api/api_weather.py` | When estimating travel or lodging expenses |
-| **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote_v2.py`<br>`frontend/src/components/chat/MessageThread.tsx` | After all booking info is entered |
+| **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote.py`<br>`frontend/src/components/chat/MessageThread.tsx` | After all booking info is entered |
 | **Quote Preview** | Shows an estimated total during the review step | `frontend/src/components/booking/wizard/Steps.tsx` | Right before submitting a booking request |
 | **Review** | Manages star ratings and comments for completed bookings | `backend/app/api/api_review.py`<br>`frontend/src/app/service-providers/[id]/page.tsx` | After a booking is marked completed |
 | **Payment** | Handles full upfront payments via `/api/v1/payments` | `backend/app/api/api_payment.py` | After quote acceptance |
@@ -61,13 +61,13 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 
 * **Purpose:** Calculates and presents full, itemized quote: performance fee, provider, travel, accommodation, service fees.
 * **Frontend:** Quote forms in `components/chat/MessageThread.tsx` show running totals.
-* **Backend:** Calculator now lives in `api_quote_v2.py` at `/quotes/estimate` (stateless). Legacy `api_quote.py` routes are retired/unmounted. Persisted quotes remain in `api_quote_v2.py`.
+* **Backend:** Calculator now lives in `api_quote.py` at `/quotes/estimate` (stateless). Persisted quotes remain in `api_quote.py`.
 
 ### 5. Quote Preview Agent
 
 * **Purpose:** Shows an estimated total on the review step so the client knows what to expect.
 * **Frontend:** `ReviewStep.tsx` calls the quote API and displays the total before submission.
-* **Backend:** Reuses `api_quote_v2.py` endpoints to provide quick totals.
+* **Backend:** Reuses `api_quote.py` endpoints to provide quick totals.
 
 ### 6. Review Agent
 
@@ -213,6 +213,8 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 
 **This doc will help future contributors, new devs, and even yourself quickly grok all “smart” parts of the app.**
 If you add new features (like analytics, webhook agents, etc.), just append new rows!
+
+**Note:** This project is still in development (not live), so we do not maintain backwards compatibility for legacy data or endpoints; we prioritize the current, single-source implementations.
 
 ---
 

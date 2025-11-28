@@ -5,8 +5,8 @@ from .booking import Booking
 from .booking_status import BookingStatus
 from .review import Review
 from .client_review import ClientReview
-from .request_quote import BookingRequest, Quote, QuoteStatus
 from .quote_v2 import QuoteV2, QuoteStatusV2
+from .request_quote import BookingRequest, Quote, QuoteStatus
 from .quote_template import QuoteTemplate
 from .booking_simple import BookingSimple
 from .service_category import ServiceCategory

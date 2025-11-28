@@ -15,7 +15,7 @@ import time
 
 from .. import crud
 from .. import schemas, models
-from ..crud import crud_quote_v2
+from ..crud import crud_quote
 from ..crud import crud_invoice
 from ..crud import crud_message
 from ..models import (
@@ -443,7 +443,7 @@ def create_payment(
             # Enforce payment = acceptance: if pending, accept now or return 422 with a helpful error
             if str(status_val).lower() == "pending":
                 try:
-                    crud_quote_v2.accept_quote(db, candidate.id)
+                    crud_quote.accept_quote(db, candidate.id)
                 except Exception as exc:
                     logger.error(
                         "Quote acceptance failed pre-payment for request %s: %s",
@@ -553,7 +553,7 @@ def create_payment(
                 pass
             if str(status_val).lower() == "pending":
                 try:
-                    crud_quote_v2.accept_quote(db, int(qv2_for_booking.id))
+                    crud_quote.accept_quote(db, int(qv2_for_booking.id))
                 except Exception as exc:
                     logger.error(
                         "Quote acceptance failed pre-payment for booking %s (quote %s): %s",
@@ -802,7 +802,7 @@ def paystack_verify(
                 status_val = getattr(qv2.status, "value", qv2.status)
                 if str(status_val).lower() == "pending":
                     try:
-                        crud_quote_v2.accept_quote(db, int(qv2.id))
+                        crud_quote.accept_quote(db, int(qv2.id))
                         t0_db5 = ServerTimer.start()
                         formal_booking = db.query(Booking).filter(Booking.quote_id == qv2.id).first()
                         timer.stop('db', t0_db5)

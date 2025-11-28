@@ -42,7 +42,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 ## Payments & Quotes
 
 - Backend services own every monetary calculation (Booka fee, VAT, payment totals). The frontend only displays the fields returned by the APIs and never recomputes percentages client-side.
-- Quotes use `backend/app/api/api_quote_v2.py` to expose server-calculated previews, payments go through `backend/app/api/api_payment.py`, and invoices/receipts are generated in `backend/app/api/api_invoice.py`.
+- Quotes use `backend/app/api/api_quote.py` to expose server-calculated previews, payments go through `backend/app/api/api_payment.py`, and invoices/receipts are generated in `backend/app/api/api_invoice.py`.
 - When building new UI, rely on the preview totals from those endpoints (or show a placeholder) instead of duplicating 3%/15% math.
 
 ## Observability

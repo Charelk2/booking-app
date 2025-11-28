@@ -1,335 +1,105 @@
-# DEPRECATED: Legacy quote endpoints. Prefer api_quote_v2.py for new features.
-
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
-from typing import List, Any
+from fastapi import APIRouter, Depends, status, HTTPException, Header, Response, Query
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.exc import SQLAlchemyError
 import logging
-from datetime import datetime, timedelta
+import os
+import time
+from datetime import datetime
+import hashlib
+import json
+from typing import List
 
-from .. import crud, models, schemas
-from .dependencies import (
-    get_db,
-    get_current_user,
-    get_current_active_client,
-    get_current_service_provider,
-)
-
-logger = logging.getLogger(__name__)
-from ..crud.crud_booking import (
-    create_booking_from_quote,
-)  # Will be created later
-from ..services.booking_quote import calculate_quote_breakdown, calculate_quote
-from ..schemas.request_quote import (
-    QuoteCalculationParams as CalcParams,
-    QuoteCalculationResponse as CalcResponse,
-)
-from decimal import Decimal
-from decimal import Decimal
+from .. import models, schemas
 from ..utils import error_response
-from .api_sound_outreach import kickoff_sound_outreach
-from ..utils.notifications import notify_user_new_message
-from ..services.quote_totals import quote_preview_fields
+from ..utils.notifications import notify_user_new_message, notify_client_new_quote_email
+from ..crud import crud_quote
+from ..utils.outbox import enqueue_outbox
+from .. import crud
+from .dependencies import get_db, get_current_user
+from .api_ws import manager
+from ..schemas import message as message_schemas
+from ..services.quote_totals import quote_preview_fields, compute_quote_totals_snapshot, quote_totals_preview_payload
+from ..services.booking_quote import calculate_quote_breakdown
+from ..utils.json import dumps_bytes as _json_dumps
+import asyncio
 
-router = APIRouter(
-    tags=["Quotes"],
-)
+router = APIRouter(tags=["Quotes"])
+logger = logging.getLogger(__name__)
 
+QUOTE_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "quotes")
+os.makedirs(QUOTE_DIR, exist_ok=True)
 
-def _log_legacy_usage(endpoint: str) -> None:
-    logger.warning("DEPRECATED api_quote endpoint called: %s. Use api_quote_v2.py instead.", endpoint)
-
-
-def _attach_quote_preview(obj: Any | None) -> None:
-    if not obj:
-        return
-    try:
-        fields = quote_preview_fields(obj)
-        for key, value in fields.items():
-            setattr(obj, key, value)
-    except Exception:
-        pass
+# Use shared JSON serializer (handles Decimals, datetimes, and non-str keys)
 
 
-def _attach_many(items: list[Any] | None) -> None:
-    if not items:
-        return
-    for item in items:
-        _attach_quote_preview(item)
+def _quote_payload_with_preview(quote: models.QuoteV2) -> dict:
+    payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
+    payload.update(quote_preview_fields(quote))
+    return payload
+
+
+def _quote_etag(quote_id: int, marker: str | None) -> str:
+    """Return a weak ETag for a quote based on an updated_at marker."""
+    marker = marker or "0"
+    digest = hashlib.sha1(marker.encode()).hexdigest()
+    return f'W/"q:{int(quote_id)}:{digest}"'
+
+
+# Lightweight totals preview for client-side “Review” (no quote persisted).
+from pydantic import BaseModel
+from decimal import Decimal
+from ..schemas.quote_v2 import QuoteTotalsPreview as _QuoteTotalsPreview
+from ..schemas import request_quote as quote_calc_schemas
+
+
+class TotalsPreviewIn(BaseModel):
+    subtotal: Decimal | float | None = None
+    total: Decimal | float | None = None
+    currency: str | None = None
+
+
+@router.post("/quotes/preview", response_model=_QuoteTotalsPreview)
+def preview_totals(payload: TotalsPreviewIn):
+    """Return platform fee preview and client total from provided amounts.
+
+    Inputs:
+      - subtotal: provider subtotal (EX provider VAT)
+      - total: provider total (INCL provider VAT)
+      - currency: optional currency label (defaults via settings)
+    """
+    src = {
+        "subtotal": payload.subtotal,
+        "total": payload.total,
+        "currency": payload.currency,
+    }
+    snap = compute_quote_totals_snapshot(src)
+    if not snap:
+        return _QuoteTotalsPreview(
+            provider_subtotal=None,
+            platform_fee_ex_vat=None,
+            platform_fee_vat=None,
+            client_total_incl_vat=None,
+        )
+    pv = quote_totals_preview_payload(snap)
+    return _QuoteTotalsPreview(
+        provider_subtotal=pv.get("provider_subtotal"),
+        platform_fee_ex_vat=pv.get("platform_fee_ex_vat"),
+        platform_fee_vat=pv.get("platform_fee_vat"),
+        client_total_incl_vat=pv.get("client_total_incl_vat"),
+    )
 
 
 @router.post(
-    "/booking-requests/{request_id}/quotes",
-    response_model=schemas.QuoteResponse,
-    status_code=status.HTTP_201_CREATED,
+    "/quotes/estimate",
+    response_model=quote_calc_schemas.QuoteCalculationResponse,
     response_model_exclude_none=True,
 )
-def create_quote_for_request(
-    request_id: int,
-    quote_in: schemas.QuoteCreate,
-    db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_service_provider),
-):
-    """
-    _log_legacy_usage("create_quote_for_request")
-    Create a new quote for a specific booking request.
-    Only the artist to whom the request was made can create a quote.
-    The `quote_in` schema's `booking_request_id` must match `request_id` from path.
-    """
-    if quote_in.booking_request_id != request_id:
-        logger.warning(
-            "Quote create mismatch; user_id=%s path=%s body=%s",
-            current_artist.id,
-            f"/booking-requests/{request_id}/quotes",
-            quote_in.model_dump(),
-        )
-        raise error_response(
-            "Booking request ID in path does not match ID in request body.",
-            {"booking_request_id": "Mismatch"},
-            status.HTTP_400_BAD_REQUEST,
-        )
-
-    db_booking_request = crud.crud_booking_request.get_booking_request(
-        db, request_id=request_id
-    )
-    if not db_booking_request:
-        logger.warning(
-            "Booking request %s not found for quote creation; user_id=%s",
-            request_id,
-            current_artist.id,
-        )
-        raise error_response(
-            "Booking request not found",
-            {"booking_request_id": "Not found"},
-            status.HTTP_404_NOT_FOUND,
-        )
-
-    if db_booking_request.artist_id != current_artist.id:
-        logger.warning(
-            "Unauthorized quote creation attempt; user_id=%s request_id=%s",
-            current_artist.id,
-            request_id,
-        )
-        raise error_response(
-            "Not authorized to create a quote for this request",
-            {"request_id": "Forbidden"},
-            status.HTTP_403_FORBIDDEN,
-        )
-
-    try:
-        new_quote = crud.crud_quote.create_quote(
-            db=db, quote=quote_in, artist_id=current_artist.id
-        )
-        msg_quote = crud.crud_message.create_message(
-            db=db,
-            booking_request_id=request_id,
-            sender_id=current_artist.id,
-            sender_type=models.SenderType.ARTIST,
-            content="Artist sent a quote",
-            message_type=models.MessageType.QUOTE,
-            quote_id=new_quote.id,
-            attachment_url=None,
-        )
-        # Prompt the client to review and accept the quote. The system message
-        # is visible only to the client and includes an expiration timestamp so
-        # the frontend can display a countdown.
-        expires_at = datetime.utcnow() + timedelta(days=7)
-        msg_sys = crud.crud_message.create_message(
-            db=db,
-            booking_request_id=request_id,
-            sender_id=current_artist.id,
-            sender_type=models.SenderType.ARTIST,
-            content="Review & Accept Quote",
-            message_type=models.MessageType.SYSTEM,
-            visible_to=models.VisibleTo.CLIENT,
-            action=models.MessageAction.REVIEW_QUOTE,
-            quote_id=new_quote.id,
-            attachment_url=None,
-            expires_at=expires_at,
-        )
-        # Best-effort realtime broadcast so the thread updates immediately
-        try:
-            from .api_ws import manager as ws_manager  # type: ignore
-            try:
-                env1 = schemas.MessageResponse.model_validate(msg_quote).model_dump()
-            except Exception:
-                env1 = {"id": int(getattr(msg_quote, "id", 0) or 0), "booking_request_id": int(request_id)}
-            try:
-                env2 = schemas.MessageResponse.model_validate(msg_sys).model_dump()
-            except Exception:
-                env2 = {"id": int(getattr(msg_sys, "id", 0) or 0), "booking_request_id": int(request_id)}
-            # Fire-and-forget (no await in sync route)
-            try:
-                import asyncio
-                loop = asyncio.get_event_loop()
-                if loop and loop.is_running():
-                    loop.create_task(ws_manager.broadcast(int(request_id), env1))
-                    loop.create_task(ws_manager.broadcast(int(request_id), env2))
-            except Exception:
-                pass
-        except Exception:
-            pass
-        client = (
-            db.query(models.User)
-            .filter(models.User.id == db_booking_request.client_id)
-            .first()
-        )
-        artist = (
-            db.query(models.User).filter(models.User.id == current_artist.id).first()
-        )
-        if client and artist:
-            notify_user_new_message(
-                db,
-                client,
-                artist,
-                request_id,
-                "Artist sent a quote",
-                models.MessageType.QUOTE,
-            )
-        # Avoid circular references when serialized by Pydantic models
-        new_quote.booking_request = None
-    except ValueError as e:
-        logger.warning(
-            "Invalid quote create payload by user %s: %s", current_artist.id, e
-        )
-        raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
-    _attach_quote_preview(new_quote)
-    return new_quote
-
-
-@router.get(
-    "/quotes/{quote_id}",
-    response_model=schemas.QuoteResponse,
-    response_model_exclude_none=True,
-)
-def read_quote(
-    quote_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """
-    _log_legacy_usage("read_quote")
-    Retrieve a specific quote by ID.
-    Accessible by the client of the booking request or the artist who made the quote.
-    """
-    if not current_user.is_active:
-        raise error_response(
-            "Inactive user",
-            {"user": "Inactive"},
-            status.HTTP_400_BAD_REQUEST,
-        )
-
-    db_quote = crud.crud_quote.get_quote(db, quote_id=quote_id)
-    if db_quote is None:
-        raise error_response(
-            f"Quote with id {quote_id} not found",
-            {"quote_id": "Not found"},
-            status.HTTP_404_NOT_FOUND,
-        )
-
-    # Check if current user is the client of the booking request or the artist of the quote
-    if not (
-        db_quote.booking_request.client_id == current_user.id
-        or db_quote.artist_id == current_user.id
-    ):
-        raise error_response(
-            "Not authorized to access this quote",
-            {"quote_id": "Forbidden"},
-            status.HTTP_403_FORBIDDEN,
-        )
-    # Defensive: ensure timestamps present for response validation
-    try:
-        from datetime import datetime as _dt
-        if not getattr(db_quote, "created_at", None):
-            db_quote.created_at = getattr(db_quote, "updated_at", None) or _dt.utcnow()
-        if not getattr(db_quote, "updated_at", None):
-            db_quote.updated_at = db_quote.created_at
-        db.add(db_quote)
-        db.commit()
-        db.refresh(db_quote)
-    except Exception:
-        pass
-    db_quote.booking_request = None
-    _attach_quote_preview(db_quote)
-    return db_quote
-
-
-@router.get(
-    "/booking-requests/{request_id}/quotes",
-    response_model=List[schemas.QuoteResponse],
-    response_model_exclude_none=True,
-)
-def read_quotes_for_booking_request(
-    request_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """
-    _log_legacy_usage("read_quotes_for_booking_request")
-    Retrieve all quotes associated with a specific booking request.
-    Accessible by the client who made the request or the artist it was made to.
-    """
-    if not current_user.is_active:
-        raise error_response(
-            "Inactive user",
-            {"user": "Inactive"},
-            status.HTTP_400_BAD_REQUEST,
-        )
-
-    db_booking_request = crud.crud_booking_request.get_booking_request(
-        db, request_id=request_id
-    )
-    if not db_booking_request:
-        raise error_response(
-            "Booking request not found",
-            {"booking_request_id": "Not found"},
-            status.HTTP_404_NOT_FOUND,
-        )
-
-    if not (
-        db_booking_request.client_id == current_user.id
-        or db_booking_request.artist_id == current_user.id
-    ):
-        raise error_response(
-            "Not authorized to access quotes for this request",
-            {"request_id": "Forbidden"},
-            status.HTTP_403_FORBIDDEN,
-        )
-    quotes = crud.crud_quote.get_quotes_by_booking_request(
-        db, booking_request_id=request_id
-    )
-    # Defensive: ensure timestamps present for response validation
-    try:
-        from datetime import datetime as _dt
-        for q in quotes:
-            if not getattr(q, "created_at", None):
-                q.created_at = getattr(q, "updated_at", None) or _dt.utcnow()
-            if not getattr(q, "updated_at", None):
-                q.updated_at = q.created_at
-            db.add(q)
-        db.commit()
-    except Exception:
-        pass
-    for q in quotes:
-        q.booking_request = None
-    _attach_many(quotes)
-    return quotes
-
-
-@router.post(
-    "/quotes/calculate",
-    response_model=CalcResponse,
-    response_model_exclude_none=True,
-)
-def calculate_quote_endpoint(
-    body: CalcParams,
+def estimate_quote(
+    body: quote_calc_schemas.QuoteCalculationParams,
     db: Session = Depends(get_db),
 ):
-    """Return a consistent quote breakdown for a given service and event.
-
-    Uses the same calculation helpers as booking flows so the UI can prefill
-    inline quotes with travel- and sound-aware pricing.
-    """
-    _log_legacy_usage("calculate_quote_endpoint")
+    """Stateless quote calculator (formerly /quotes/calculate)."""
     svc = crud.service.get_service(db, body.service_id)
     if not svc:
         raise error_response(
@@ -357,48 +127,181 @@ def calculate_quote_endpoint(
         backline_required=getattr(body, "backline_required", None),
         selected_sound_service_id=getattr(body, "selected_sound_service_id", None),
         supplier_distance_km=getattr(body, "supplier_distance_km", None),
-        # Rider/backline
         rider_units=(body.rider_units.dict() if getattr(body, "rider_units", None) else None),
         backline_requested=getattr(body, "backline_requested", None),
     )
     return breakdown
 
 
-@router.get(
-    "/quotes/me/artist",
-    response_model=List[schemas.QuoteResponse],
-    response_model_exclude_none=True,
+@router.post(
+    "/quotes", response_model=schemas.QuoteV2Read, status_code=status.HTTP_201_CREATED
 )
-def read_my_artist_quotes(
-    skip: int = 0,
-    limit: int = 100,
+def create_quote(
+    quote_in: schemas.QuoteV2Create,
     db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_service_provider),
+    current_user: models.User = Depends(get_current_user),
 ):
+    """Create a quote for a booking request.
+
+    Authorization: only the booking's artist may create quotes for it.
     """
-    Retrieve all quotes made by the current artist.
-    """
-    _log_legacy_usage("read_my_artist_quotes")
-    quotes = crud.crud_quote.get_quotes_by_artist(
-        db=db, artist_id=current_artist.id, skip=skip, limit=limit
-    )
-    for q in quotes:
-        q.booking_request = None
-    _attach_many(quotes)
-    return quotes
+    try:
+        # Authorize: ensure the current user is the artist on the booking request
+        booking_request = (
+            db.query(models.BookingRequest)
+            .filter(models.BookingRequest.id == quote_in.booking_request_id)
+            .first()
+        )
+        if not booking_request:
+            raise error_response(
+                "Booking request not found",
+                {"booking_request_id": "not_found"},
+                status.HTTP_404_NOT_FOUND,
+            )
+        if booking_request.artist_id != current_user.id:
+            logger.warning(
+                "Unauthorized quote creation attempt; user_id=%s request_id=%s",
+                current_user.id,
+                quote_in.booking_request_id,
+            )
+            raise error_response(
+                "Not authorized to create a quote for this request",
+                {"booking_request_id": "forbidden"},
+                status.HTTP_403_FORBIDDEN,
+            )
+
+        quote = crud_quote.create_quote(db, quote_in)
+        logger.info(
+            "Created quote %s for booking request %s",
+            quote.id,
+            quote.booking_request_id,
+        )
+        msg_quote = crud.crud_message.create_message(
+            db=db,
+            booking_request_id=quote.booking_request_id,
+            sender_id=quote.artist_id,
+            sender_type=models.SenderType.ARTIST,
+            content="Artist sent a quote",
+            message_type=models.MessageType.QUOTE,
+            quote_id=quote.id,
+            attachment_url=None,
+        )
+        # Provide additional context and notify the client that the quote is
+        # ready to review. Keep the system line neutral (no amounts) so there
+        # is no mismatch between what the artist sees as their total and what
+        # the client pays after Booka fees are applied; detailed totals live in
+        # the quote bubble and booking summary instead.
+        detail_content = "Quote sent."
+
+        msg_sys = crud.crud_message.create_message(
+            db=db,
+            booking_request_id=quote.booking_request_id,
+            sender_id=quote.artist_id,
+            sender_type=models.SenderType.ARTIST,
+            content=detail_content,
+            message_type=models.MessageType.SYSTEM,
+            attachment_url=None,
+        )
+        # Broadcast both the QUOTE message and the SYSTEM line to the thread so
+        # active MessageThread views update immediately without a manual refresh.
+        try:
+            def _payload(m: any) -> dict:
+                try:
+                    return message_schemas.MessageResponse.model_validate(m).model_dump()
+                except Exception:
+                    # Minimal fallback
+                    return {
+                        "id": int(getattr(m, "id", 0) or 0),
+                        "booking_request_id": int(getattr(m, "booking_request_id", quote.booking_request_id)),
+                        "sender_id": int(getattr(m, "sender_id", quote.artist_id)),
+                        "sender_type": str(getattr(m, "sender_type", models.SenderType.ARTIST)),
+                        "message_type": str(getattr(m, "message_type", models.MessageType.USER)),
+                        "content": str(getattr(m, "content", "") or ""),
+                        "quote_id": int(getattr(m, "quote_id", 0) or 0) or None,
+                        "timestamp": getattr(m, "timestamp", None) or getattr(m, "created_at", None) or None,
+                    }
+
+            br_id = int(quote.booking_request_id)
+            for m in (msg_quote, msg_sys):
+                payload = _payload(m)
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(manager.broadcast(br_id, payload))
+                except RuntimeError:
+                    try:
+                        asyncio.run(manager.broadcast(br_id, payload))
+                    except Exception:
+                        pass
+        except Exception:
+            # Best-effort only; thread will still pick up changes on next poll
+            pass
+        booking_request = (
+            db.query(models.BookingRequest)
+            .filter(models.BookingRequest.id == quote.booking_request_id)
+            .first()
+        )
+        if booking_request:
+            client = (
+                db.query(models.User)
+                .filter(models.User.id == booking_request.client_id)
+                .first()
+            )
+            artist = (
+                db.query(models.User)
+                .filter(models.User.id == booking_request.artist_id)
+                .first()
+            )
+            if client and artist:
+                notify_user_new_message(
+                    db,
+                    client,
+                    artist,
+                    quote.booking_request_id,
+                    "Artist sent a quote",
+                    models.MessageType.QUOTE,
+                )
+                # Best-effort: send a richer transactional email to the client
+                # mirroring the provider "New booking request" template flow.
+                try:
+                    notify_client_new_quote_email(
+                        db,
+                        client=client,
+                        artist=artist,
+                        booking_request=booking_request,
+                        quote=quote,
+                    )
+                except Exception:
+                    # Email is best-effort; do not block quote creation on failures.
+                    pass
+        try:
+            return _quote_payload_with_preview(quote)
+        except Exception:
+            return schemas.QuoteV2Read.model_validate(quote).model_dump()
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - generic failure path
+        logger.error(
+            "Failed to create quote; artist_id=%s client_id=%s request_id=%s error=%s",
+            quote_in.artist_id,
+            quote_in.client_id,
+            quote_in.booking_request_id,
+            exc,
+            exc_info=True,
+        )
+        raise error_response(
+            "Unable to create quote",
+            {"quote": "create_failed"},
+            status.HTTP_400_BAD_REQUEST,
+        )
 
 
-@router.get("/quotes")
+@router.get("/quotes/v2/batch", response_model=List[schemas.QuoteV2Read])
 def get_quotes_batch(
     ids: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Batch fetch quotes by IDs (comma-separated list).
-
-    Returns only quotes the caller is authorized to view (owner participant).
-    """
-    _log_legacy_usage("get_quotes_batch")
+    """Batch fetch QuoteV2 rows (authorized participants only)."""
     try:
         id_list = [int(x) for x in ids.split(",") if x.strip()]
     except Exception:
@@ -409,373 +312,455 @@ def get_quotes_batch(
         )
     if not id_list:
         return []
-    results: List[models.Quote] = (
-        db.query(models.Quote)
-        .filter(models.Quote.id.in_(id_list))
-        .all()
-    )
-    # Filter by participation
-    permitted: List[models.Quote] = []
+    results = crud_quote.list_quotes_by_ids(db, id_list)
+    permitted: list[models.QuoteV2] = []
     for q in results:
         br = q.booking_request
         if not br:
             continue
-        if current_user.id in [br.client_id, br.artist_id]:
-            q.booking_request = None
+        if current_user.id in {br.client_id, br.artist_id}:
             permitted.append(q)
-    _attach_many(permitted)
-    return permitted
+    return [schemas.QuoteV2Read.model_validate(q) for q in permitted]
 
 
-@router.put(
-    "/quotes/{quote_id}/client",
-    response_model=schemas.QuoteResponse,
-    response_model_exclude_none=True,
-)
-def update_quote_by_client(
-    quote_id: int,
-    quote_update: schemas.QuoteUpdateByClient,  # Client can only update status (accept/reject)
+@router.get("/quotes/v2/me/artist", response_model=List[schemas.QuoteV2Read])
+def list_my_artist_quotes(
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_client),
+    current_user: models.User = Depends(get_current_user),
 ):
-    """
-    _log_legacy_usage("update_quote_by_client")
-    Update a quote's status (accept or reject).
-    Only accessible by the client to whom the quote was offered (via booking request).
-    """
-    db_quote = crud.crud_quote.get_quote(db, quote_id=quote_id)
-    if db_quote is None:
-        raise error_response(
-            "Quote not found",
-            {"quote_id": "Not found"},
-            status.HTTP_404_NOT_FOUND,
-        )
-
-    if db_quote.booking_request.client_id != current_user.id:
-        raise error_response(
-            "Not authorized to update this quote",
-            {"quote_id": "Forbidden"},
-            status.HTTP_403_FORBIDDEN,
-        )
-
-    if db_quote.status != models.QuoteStatus.PENDING_CLIENT_ACTION:
-        raise error_response(
-            f"Quote cannot be updated. Current status: {db_quote.status.value}",
-            {"status": "Invalid state"},
-            status.HTTP_400_BAD_REQUEST,
-        )
-
-    # Client can only set status to ACCEPTED_BY_CLIENT or REJECTED_BY_CLIENT
-    if quote_update.status not in [
-        models.QuoteStatus.ACCEPTED_BY_CLIENT,
-        models.QuoteStatus.REJECTED_BY_CLIENT,
-    ]:
-        raise error_response(
-            "Invalid status update by client.",
-            {"status": "Not allowed"},
-            status.HTTP_400_BAD_REQUEST,
-        )
-
-    try:
-        updated = crud.crud_quote.update_quote(
-            db=db,
-            db_quote=db_quote,
-            quote_update=quote_update,
-            actor_is_artist=False,
-        )
-        # If client accepted, immediately create a booking (bypass artist confirm)
-        if quote_update.status == models.QuoteStatus.ACCEPTED_BY_CLIENT:
-            booking_request = updated.booking_request
-            if booking_request and booking_request.service_id and booking_request.proposed_datetime_1:
-                from datetime import timedelta
-
-                related_service = (
-                    db.query(models.Service)
-                    .filter(models.Service.id == booking_request.service_id)
-                    .first()
-                )
-                if related_service:
-                    end_time = booking_request.proposed_datetime_1 + timedelta(
-                        minutes=related_service.duration_minutes
-                    )
-                    # Capture event city from the BookingRequest travel_breakdown if present
-                    tb = booking_request.travel_breakdown or {}
-                    event_city = tb.get("event_city") if isinstance(tb, dict) else None
-
-                    booking_data = schemas.BookingCreate(
-                        artist_id=updated.artist_id,
-                        service_id=booking_request.service_id,
-                        start_time=booking_request.proposed_datetime_1,
-                        end_time=end_time,
-                        notes=f"Booking created from client-accepted quote ID: {updated.id}.",
-                    )
-                    new_booking = create_booking_from_quote(
-                        db=db,
-                        booking_create=booking_data,
-                        quote=updated,
-                        client_id=booking_request.client_id,
-                    )
-                    if event_city:
-                        new_booking.event_city = event_city
-                        db.add(new_booking)
-                        db.commit()
-                        db.refresh(new_booking)
-                    # Auto-kickoff sound outreach if client indicated sound is required
-                    try:
-                        tb = booking_request.travel_breakdown or {}
-                        if bool(tb.get("sound_required")):
-                            event_city = tb.get("event_city") or ""
-                            selected_sid = tb.get("selected_sound_service_id")
-                            if isinstance(selected_sid, str):
-                                try:
-                                    selected_sid = int(selected_sid)
-                                except Exception:
-                                    selected_sid = None
-                            if event_city:
-                                kickoff_sound_outreach(
-                                    new_booking.id,
-                                    event_city=event_city,
-                                    request_timeout_hours=24,
-                                    mode="sequential",
-                                    selected_service_id=selected_sid,
-                                    db=db,
-                                    current_artist=db.query(models.User).filter(models.User.id == updated.artist_id).first(),
-                                )
-                    except Exception as exc:  # pragma: no cover
-                        logger.warning(
-                            "Auto outreach failed after client acceptance for booking %s: %s",
-                            new_booking.id,
-                            exc,
-                        )
-            # else: missing info to create a booking; keep quote accepted only
-        _attach_quote_preview(updated)
-        return updated
-    except ValueError as e:
-        raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
-
-
-@router.put(
-    "/quotes/{quote_id}/artist",
-    response_model=schemas.QuoteResponse,
-    response_model_exclude_none=True,
-)
-def update_quote_by_artist(
-    quote_id: int,
-    quote_update: schemas.QuoteUpdateByArtist,  # Artist can update details or withdraw
-    db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_service_provider),
-):
-    """
-    _log_legacy_usage("update_quote_by_artist")
-    Update quote details or withdraw a quote.
-    Only accessible by the artist who created the quote.
-    """
-    db_quote = crud.crud_quote.get_quote(db, quote_id=quote_id)
-    if db_quote is None:
-        raise error_response(
-            "Quote not found",
-            {"quote_id": "Not found"},
-            status.HTTP_404_NOT_FOUND,
-        )
-
-    if db_quote.artist_id != current_artist.id:
-        raise error_response(
-            "Not authorized to update this quote",
-            {"quote_id": "Forbidden"},
-            status.HTTP_403_FORBIDDEN,
-        )
-
-    # Artist can withdraw a PENDING_CLIENT_ACTION quote. Or update details.
-    # Cannot modify if client already acted (ACCEPTED/REJECTED) or artist already confirmed.
-    if db_quote.status not in [models.QuoteStatus.PENDING_CLIENT_ACTION]:
-        if not (
-            quote_update.status == models.QuoteStatus.WITHDRAWN_BY_ARTIST
-            and db_quote.status == models.QuoteStatus.PENDING_CLIENT_ACTION
-        ):
-            raise error_response(
-                f"Quote cannot be modified in its current status: {db_quote.status.value}",
-                {"status": "Invalid state"},
-                status.HTTP_400_BAD_REQUEST,
-            )
-
-    # If updating status, artist can only withdraw (unless it's confirming an accepted quote - separate endpoint)
-    if quote_update.status and quote_update.status not in [
-        models.QuoteStatus.WITHDRAWN_BY_ARTIST
-    ]:
-        raise error_response(
-            "Artist can only withdraw the quote using this endpoint for status changes.",
-            {"status": "Not allowed"},
-            status.HTTP_400_BAD_REQUEST,
-        )
-
-    try:
-        updated = crud.crud_quote.update_quote(
-            db=db,
-            db_quote=db_quote,
-            quote_update=quote_update,
-            actor_is_artist=True,
-        )
-        _attach_quote_preview(updated)
-        return updated
-    except ValueError as e:
-        raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
-
-
-@router.post(
-    "/quotes/{quote_id}/confirm-booking",
-    response_model=schemas.BookingResponse,
-    response_model_exclude_none=True,
-)
-def confirm_quote_and_create_booking(
-    quote_id: int,
-    db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_service_provider),
-):
-    """
-    _log_legacy_usage("confirm_quote_and_create_booking")
-    Artist confirms a client-accepted quote, which creates a formal Booking.
-    """
-    db_quote = crud.crud_quote.get_quote(db, quote_id=quote_id)
-    if db_quote is None:
-        raise error_response(
-            "Quote not found",
-            {"quote_id": "Not found"},
-            status.HTTP_404_NOT_FOUND,
-        )
-
-    if db_quote.artist_id != current_artist.id:
-        raise error_response(
-            (
-                f"Artist id {current_artist.id} is not authorized to confirm quote"
-                f" {quote_id}"
-            ),
-            {"quote_id": "Forbidden"},
-            status.HTTP_403_FORBIDDEN,
-        )
-
-    if db_quote.status != models.QuoteStatus.ACCEPTED_BY_CLIENT:
-        raise error_response(
-            (
-                f"Quote {quote_id} status is {db_quote.status.value}; "
-                "only accepted quotes can be confirmed"
-            ),
-            {"status": "Invalid state"},
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-        )
-
-    # Update quote status to CONFIRMED_BY_ARTIST and subsequently BookingRequest to REQUEST_CONFIRMED
-    quote_update_schema = schemas.QuoteUpdateByArtist(
-        status=models.QuoteStatus.CONFIRMED_BY_ARTIST
+    quotes = crud_quote.list_quotes_for_artist(
+        db=db, artist_id=current_user.id, skip=skip, limit=limit
     )
-    try:
-        updated_quote = crud.crud_quote.update_quote(
-            db=db,
-            db_quote=db_quote,
-            quote_update=quote_update_schema,
-            actor_is_artist=True,
-        )
-    except (
-        ValueError,
-    ) as e:  # Should catch the specific error from crud if client hasn't accepted
-        raise error_response(
-            f"Could not update quote {quote_id}: {e}",
-            {"quote_id": str(e)},
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-        )
+    return [schemas.QuoteV2Read.model_validate(q) for q in quotes]
 
-    # Now, create the actual booking
-    # This part requires careful mapping from BookingRequest/Quote to BookingCreate
-    # Assuming BookingRequest has service_id, proposed_datetime_1 (as start_time)
-    # and Quote has price.
-    booking_request = updated_quote.booking_request
-    if not booking_request.service_id or not booking_request.proposed_datetime_1:
-        raise error_response(
-            "Booking request lacks service_id or proposed_datetime_1; cannot create booking",
-            {"booking_request": "Incomplete"},
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-        )
 
-    # Estimate end_time based on service duration (if service_id is present)
-    # This is a simplified estimation; complex scheduling might need more.
-    related_service = (
-        db.query(models.Service)
-        .filter(models.Service.id == booking_request.service_id)
+@router.get("/quotes/v2/me/client", response_model=List[schemas.QuoteV2Read])
+def list_my_client_quotes(
+    status_filter: str | None = Query(default=None, alias="status"),
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    quotes = crud_quote.list_quotes_for_client(
+        db=db,
+        client_id=current_user.id,
+        status=status_filter,
+        skip=skip,
+        limit=limit,
+    )
+    return [schemas.QuoteV2Read.model_validate(q) for q in quotes]
+
+
+@router.get(
+    "/booking-requests/{request_id}/quotes-v2",
+    response_model=List[schemas.QuoteV2Read],
+    response_model_exclude_none=True,
+)
+def list_quotes_for_booking_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    br = (
+        db.query(models.BookingRequest)
+        .filter(models.BookingRequest.id == request_id)
         .first()
     )
-    if not related_service:
+    if not br:
         raise error_response(
-            (
-                f"Service with id {booking_request.service_id} not found when "
-                "creating booking"
-            ),
-            {"service_id": "Not found"},
+            "Booking request not found",
+            {"booking_request_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    if current_user.id not in {br.client_id, br.artist_id}:
+        raise error_response(
+            "Not authorized to access quotes for this request",
+            {"request_id": "forbidden"},
+            status.HTTP_403_FORBIDDEN,
+        )
+    quotes = crud_quote.list_quotes_for_booking_request(db, request_id)
+    return [schemas.QuoteV2Read.model_validate(q) for q in quotes]
 
-    from datetime import timedelta
 
-    end_time = booking_request.proposed_datetime_1 + timedelta(
-        minutes=related_service.duration_minutes
-    )
+@router.get("/quotes/{quote_id}", response_model=None)
+def read_quote(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    if_none_match: str | None = Header(default=None, convert_underscores=False, alias="If-None-Match"),
+):
+    """Return a quote plus minimal context for the client/artist participant.
 
-    booking_data = schemas.BookingCreate(
-        artist_id=updated_quote.artist_id,
-        service_id=booking_request.service_id,
-        start_time=booking_request.proposed_datetime_1,
-        end_time=end_time,  # Needs calculation based on service duration
-        notes=f"Booking created from accepted quote ID: {updated_quote.id}. Original request message: {booking_request.message or ''}",
-        # total_price will come from the quote
-    )
-
+    Authorization: only the booking's client or artist may read the quote.
+    """
+    logger.info("Fetching quote %s", quote_id)
+    t_start = time.perf_counter()
+    # Early ETag pre-check using updated_at marker
     try:
-        # The actual booking creation logic will need to exist in crud.crud_booking
-        # and handle setting total_price from the quote and linking quote_id.
-        new_booking = create_booking_from_quote(
-            db=db,
-            booking_create=booking_data,
-            quote=updated_quote,
-            client_id=booking_request.client_id,
+        upd = (
+            db.query(models.QuoteV2.updated_at)
+            .filter(models.QuoteV2.id == quote_id)
+            .scalar()
         )
-        # Auto-kickoff sound outreach if the original request indicated sound_required
-        try:
-            tb = booking_request.travel_breakdown or {}
-            if bool(tb.get("sound_required")):
-                event_city = tb.get("event_city") or ""
-                selected_sid = tb.get("selected_sound_service_id")
-                if isinstance(selected_sid, str):
-                    try:
-                        selected_sid = int(selected_sid)
-                    except Exception:
-                        selected_sid = None
-                if event_city:
-                    # Sequential by default; contact selected supplier first if provided
-                    kickoff_sound_outreach(
-                        new_booking.id,
-                        event_city=event_city,
-                        request_timeout_hours=24,
-                        mode="sequential",
-                        selected_service_id=selected_sid,
-                        db=db,
-                        current_artist=current_artist,
-                    )
-        except Exception as exc:
-            logger.warning("Auto outreach failed for booking %s: %s", new_booking.id, exc)
+        marker = upd.isoformat(timespec="seconds") if isinstance(upd, datetime) else "0"
+        etag_pre = _quote_etag(quote_id, marker)
+        if if_none_match and if_none_match.strip() == etag_pre:
+            pre_ms = (time.perf_counter() - t_start) * 1000.0
+            return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag_pre, "Server-Timing": f"pre;dur={pre_ms:.1f}"})
+    except Exception:
+        etag_pre = None
 
-        return new_booking
-    except ValueError as e:
-        logger.error("Failed booking creation from quote %s: %s", quote_id, e)
-        raise error_response(
-            f"Unable to create booking from quote {quote_id}: {e}",
-            {"quote_id": str(e)},
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+    t_comp_start = time.perf_counter()
+    # Compose quote + minimal booking/service context in one roundtrip
+    quote = (
+        db.query(models.QuoteV2)
+        .options(
+            selectinload(models.QuoteV2.booking_request)
+            .selectinload(models.BookingRequest.service)
+            .load_only(models.Service.id, models.Service.service_type, models.Service.price, models.Service.details),
         )
-    except Exception as e:
-        logger.exception("Error creating booking from quote %s: %s", quote_id, e)
+        .filter(models.QuoteV2.id == quote_id)
+        .first()
+    )
+    if not quote:
+        logger.warning("Quote %s not found", quote_id)
         raise error_response(
-            f"Failed to create booking from quote {quote_id}",
-            {"quote_id": "server_error"},
+            f"Quote {quote_id} not found",
+            {"quote_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    # Authorization: only the booking's client or artist can access the quote
+    try:
+        br = quote.booking_request
+        client_id = quote.client_id or (br.client_id if br else None)
+        artist_id = quote.artist_id or (br.artist_id if br else None)
+        if current_user.id not in {client_id, artist_id}:
+            logger.warning(
+                "Unauthorized quote read attempt; user_id=%s quote_id=%s",
+                current_user.id,
+                quote_id,
+            )
+            raise error_response(
+                "Not authorized to access this quote",
+                {"quote_id": "forbidden"},
+                status.HTTP_403_FORBIDDEN,
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        # Fail closed on auth errors
+        raise error_response(
+            "Not authorized to access this quote",
+            {"quote_id": "forbidden"},
+            status.HTTP_403_FORBIDDEN,
+        )
+    # Defensive: coalesce timestamps for legacy rows
+    try:
+        if not getattr(quote, "created_at", None):
+            quote.created_at = getattr(quote, "updated_at", None) or datetime.utcnow()
+        if not getattr(quote, "updated_at", None):
+            quote.updated_at = quote.created_at
+    except Exception:
+        pass
+    # Attach booking_id (if exists)
+    try:
+        bid = (
+            db.query(models.Booking.id)
+            .filter(models.Booking.quote_id == quote_id)
+            .scalar()
+        )
+        setattr(quote, "booking_id", int(bid) if bid else None)
+    except Exception:
+        pass
+    try:
+        payload = _quote_payload_with_preview(quote)
+    except Exception:
+        payload = schemas.QuoteV2Read.model_validate(quote).model_dump()
+    # Serialize with orjson and attach timing
+    comp_ms = (time.perf_counter() - t_comp_start) * 1000.0
+    ser_ms = 0.0
+    try:
+        t_ser = time.perf_counter()
+        body = _json_dumps(payload)
+        ser_ms = (time.perf_counter() - t_ser) * 1000.0
+    except Exception:
+        # Fallback: avoid crashing the endpoint on serialization issues
+        body = json.dumps(payload).encode("utf-8")
+    # ETag based on updated_at marker
+    try:
+        marker = quote.updated_at.isoformat(timespec="seconds") if quote.updated_at else "0"
+        etag = _quote_etag(quote.id, marker)
+    except Exception:
+        etag = etag_pre
+    headers = {"Cache-Control": "no-cache", "Server-Timing": f"compose;dur={comp_ms:.1f}, ser;dur={ser_ms:.1f}"}
+    if etag:
+        headers["ETag"] = etag
+    return Response(content=body, media_type="application/json", headers=headers)
+
+
+@router.post("/quotes/{quote_id}/accept", response_model=schemas.BookingSimpleRead)
+def accept_quote(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    service_id: int | None = None,
+):
+    """Accept a pending quote and create a booking.
+
+    Authorization: only the client on the booking request may accept.
+    """
+    try:
+        # Authorization: only the client participant may accept
+        quote = crud_quote.get_quote(db, quote_id)
+        if not quote:
+            raise error_response(
+                "Quote not found",
+                {"quote_id": "not_found"},
+                status.HTTP_404_NOT_FOUND,
+            )
+        if current_user.id != quote.client_id:
+            logger.warning(
+                "Unauthorized quote accept attempt; user_id=%s quote_id=%s",
+                current_user.id,
+                quote_id,
+            )
+            raise error_response(
+                "Only the client can accept this quote",
+                {"quote_id": "forbidden"},
+                status.HTTP_403_FORBIDDEN,
+            )
+
+        booking = crud_quote.accept_quote(db, quote_id, service_id=service_id)
+        # Defensive: coalesce timestamps for response
+        try:
+            from datetime import datetime as _dt
+            if not getattr(booking, "created_at", None):
+                booking.created_at = getattr(booking, "updated_at", None) or _dt.utcnow()
+            if not getattr(booking, "updated_at", None):
+                booking.updated_at = booking.created_at
+            db.add(booking)
+            db.commit()
+            db.refresh(booking)
+        except Exception:
+            pass
+        logger.info("Quote %s accepted creating booking %s", quote_id, booking.id)
+        return booking
+    except ValueError as exc:
+        quote = crud_quote.get_quote(db, quote_id)
+        logger.warning(
+            "Accepting quote failed; quote_id=%s artist_id=%s client_id=%s error=%s",
+            quote_id,
+            getattr(quote, "artist_id", None),
+            getattr(quote, "client_id", None),
+            exc,
+        )
+        raise error_response(
+            str(exc), {"quote_id": "invalid"}, status.HTTP_400_BAD_REQUEST
+        )
+    except SQLAlchemyError as exc:
+        quote = crud_quote.get_quote(db, quote_id)
+        logger.exception(
+            "Database error accepting quote %s; artist_id=%s client_id=%s",
+            quote_id,
+            getattr(quote, "artist_id", None),
+            getattr(quote, "client_id", None),
+        )
+        raise error_response(
+            "Internal Server Error",
+            {"quote_id": "db_error"},
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-# Duplicate handler consolidated above. FastAPI will use the first definition.
+@router.post("/quotes/{quote_id}/decline", response_model=schemas.QuoteV2Read)
+def decline_quote(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Decline a pending quote without creating a booking.
+
+    Authorization: only the client on the booking request may decline.
+    """
+    try:
+        # Authorization: only the client participant may decline
+        quote = crud_quote.get_quote(db, quote_id)
+        if not quote:
+            raise error_response(
+                "Quote not found",
+                {"quote_id": "not_found"},
+                status.HTTP_404_NOT_FOUND,
+            )
+        if current_user.id != quote.client_id:
+            logger.warning(
+                "Unauthorized quote decline attempt; user_id=%s quote_id=%s",
+                current_user.id,
+                quote_id,
+            )
+            raise error_response(
+                "Only the client can decline this quote",
+                {"quote_id": "forbidden"},
+                status.HTTP_403_FORBIDDEN,
+            )
+
+        quote = crud_quote.decline_quote(db, quote_id)
+        # Defensive: coalesce timestamps for legacy rows
+        try:
+            from datetime import datetime as _dt
+            if not getattr(quote, "created_at", None):
+                quote.created_at = getattr(quote, "updated_at", None) or _dt.utcnow()
+            if not getattr(quote, "updated_at", None):
+                quote.updated_at = quote.created_at
+            db.add(quote)
+            db.commit()
+            db.refresh(quote)
+        except Exception:
+            pass
+        logger.info("Quote %s declined", quote_id)
+        # Reliable realtime: enqueue outbox with the newly created system message
+        try:
+            br_id = int(getattr(quote, "booking_request_id", 0) or 0)
+            if br_id:
+                # Fetch the most recent "Quote declined." system message for this thread
+                from .. import models
+                last = (
+                    db.query(models.Message)
+                    .filter(
+                        models.Message.booking_request_id == br_id,
+                        models.Message.message_type == models.MessageType.SYSTEM,
+                        models.Message.content == "Quote declined.",
+                    )
+                    .order_by(models.Message.id.desc())
+                    .first()
+                )
+                if last:
+                    payload = message_schemas.MessageResponse.model_validate(last).model_dump()
+                    enqueue_outbox(db, topic=f"booking-requests:{br_id}", payload=payload)
+        except Exception:
+            # best-effort only; thread will still update on next fetch
+            pass
+        try:
+            return _quote_payload_with_preview(quote)
+        except Exception:
+            return schemas.QuoteV2Read.model_validate(quote).model_dump()
+    except ValueError as exc:
+        quote = crud_quote.get_quote(db, quote_id)
+        logger.warning(
+            "Declining quote failed; quote_id=%s artist_id=%s client_id=%s error=%s",
+            quote_id,
+            getattr(quote, "artist_id", None),
+            getattr(quote, "client_id", None),
+            exc,
+        )
+        raise error_response(
+            str(exc), {"quote_id": "invalid"}, status.HTTP_400_BAD_REQUEST
+        )
+    except SQLAlchemyError as exc:  # pragma: no cover - generic failure path
+        quote = crud_quote.get_quote(db, quote_id)
+        logger.exception(
+            "Database error declining quote %s; artist_id=%s client_id=%s",
+            quote_id,
+            getattr(quote, "artist_id", None),
+            getattr(quote, "client_id", None),
+        )
+        raise error_response(
+            "Internal Server Error",
+            {"quote_id": "db_error"},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@router.post("/quotes/{quote_id}/withdraw", response_model=schemas.QuoteV2Read)
+def withdraw_quote(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Artist-initiated withdraw -> mark rejected."""
+    try:
+        quote = crud_quote.withdraw_quote(db, quote_id, actor_id=current_user.id)
+        return schemas.QuoteV2Read.model_validate(quote)
+    except ValueError as exc:
+        quote = crud_quote.get_quote(db, quote_id)
+        logger.warning(
+            "Withdrawing quote failed; quote_id=%s artist_id=%s client_id=%s error=%s",
+            quote_id,
+            getattr(quote, "artist_id", None),
+            getattr(quote, "client_id", None),
+            exc,
+        )
+        raise error_response(
+            str(exc), {"quote_id": "invalid"}, status.HTTP_400_BAD_REQUEST
+        )
+    except Exception:
+        raise
+
+
+@router.get("/quotes/{quote_id}/pdf")
+def get_quote_pdf(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    quote = crud_quote.get_quote(db, quote_id)
+    if not quote or (
+        quote.client_id != current_user.id and quote.artist_id != current_user.id
+    ):
+        raise error_response(
+            "Quote not found",
+            {"quote_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    # Lazy import to avoid heavy deps during OpenAPI generation
+    from ..services import quote_pdf  # type: ignore
+    pdf_bytes = quote_pdf.generate_pdf(quote)
+    filename = f"quote_{quote.id}.pdf"
+    path = os.path.join(QUOTE_DIR, filename)
+    with open(path, "wb") as f:
+        f.write(pdf_bytes)
+    return FileResponse(path, media_type="application/pdf", filename=filename)
+
+
+@router.get("/quotes/prefill", response_model=None)
+def get_quote_prefill(
+    booking_request_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return minimal prefill data for an inline quote form.
+
+    Includes service price/type and travel breakdown/cost so providers can seed
+    the quote form instantly without multiple round-trips.
+    """
+    br = (
+        db.query(models.BookingRequest)
+        .options(
+            selectinload(models.BookingRequest.service).load_only(
+                models.Service.id,
+                models.Service.service_type,
+                models.Service.price,
+                models.Service.details,
+            )
+        )
+        .filter(models.BookingRequest.id == booking_request_id)
+        .first()
+    )
+    if not br or (br.client_id != current_user.id and br.artist_id != current_user.id):
+        raise error_response(
+            "Booking request not found",
+            {"booking_request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    svc = br.service
+    payload = {
+        "booking_request_id": int(br.id),
+        "service_id": int(getattr(svc, "id", 0) or 0) or None,
+        "service_type": getattr(svc, "service_type", None).value if getattr(svc, "service_type", None) else None,
+        "service_price": float(getattr(svc, "price", 0) or 0),
+        "travel_breakdown": getattr(br, "travel_breakdown", None) or None,
+        "travel_cost": float(getattr(br, "travel_cost", 0) or 0),
+    }
+    return Response(content=_json_dumps(payload), media_type="application/json", headers={"Cache-Control": "no-cache"})

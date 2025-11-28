@@ -19,7 +19,7 @@ from app.models import (
 )
 from app.models.base import BaseModel
 from fastapi import HTTPException
-from app.api import api_quote_v2
+from app.api import api_quote
 from app import models
 from app.crud import crud_notification
 from app.schemas.quote_v2 import ServiceItem, QuoteCreate
@@ -90,7 +90,7 @@ def test_create_and_accept_quote():
         sound_fee=Decimal("20"),
         travel_fee=Decimal("30"),
     )
-    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
     assert quote.subtotal == Decimal("150")
     assert quote.total == Decimal("150")
     msgs = db.query(Message).all()
@@ -98,7 +98,7 @@ def test_create_and_accept_quote():
     assert any(m.quote_id == quote.id for m in msgs)
 
     before = datetime.utcnow()
-    booking = api_quote_v2.accept_quote(quote.id, db, current_user=client)
+    booking = api_quote.accept_quote(quote.id, db, current_user=client)
     after = datetime.utcnow()
     assert booking.quote_id == quote.id
     assert booking.artist_id == artist.id
@@ -174,7 +174,7 @@ def test_create_quote_updates_request_status():
         sound_fee=Decimal("0"),
         travel_fee=Decimal("0"),
     )
-    api_quote_v2.create_quote(quote_in, db, current_user=artist)
+    api_quote.create_quote(quote_in, db, current_user=artist)
     db.refresh(br)
     assert br.status == BookingStatus.QUOTE_PROVIDED
 
@@ -235,11 +235,11 @@ def test_read_accepted_quote_has_booking_id():
         sound_fee=Decimal("20"),
         travel_fee=Decimal("30"),
     )
-    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
-    booking_simple = api_quote_v2.accept_quote(quote.id, db, current_user=client)
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
+    booking_simple = api_quote.accept_quote(quote.id, db, current_user=client)
     db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
     assert db_booking is not None
-    result = api_quote_v2.read_quote(quote.id, db, current_user=client)
+    result = api_quote.read_quote(quote.id, db, current_user=client)
     data = json.loads(result.body)
     assert data["booking_id"] == db_booking.id
 
@@ -258,7 +258,7 @@ def test_read_quote_not_found():
     db.commit()
     db.refresh(user)
     try:
-        api_quote_v2.read_quote(999, db, current_user=user)
+        api_quote.read_quote(999, db, current_user=user)
     except Exception as exc:
         assert isinstance(exc, HTTPException)
         assert exc.status_code == 404
@@ -294,12 +294,12 @@ def test_accept_quote_logs_db_error(monkeypatch, caplog):
     def fake_get_quote(db_session, quote_id: int):
         return dummy
 
-    monkeypatch.setattr(api_quote_v2.crud_quote_v2, "get_quote", fake_get_quote)
-    monkeypatch.setattr(api_quote_v2.crud_quote_v2, "accept_quote", fail_accept)
-    caplog.set_level(logging.ERROR, logger=api_quote_v2.logger.name)
+    monkeypatch.setattr(api_quote.crud_quote, "get_quote", fake_get_quote)
+    monkeypatch.setattr(api_quote.crud_quote, "accept_quote", fail_accept)
+    caplog.set_level(logging.ERROR, logger=api_quote.logger.name)
 
     with pytest.raises(HTTPException) as exc_info:
-        api_quote_v2.accept_quote(1, db, current_user=client)
+        api_quote.accept_quote(1, db, current_user=client)
 
     assert exc_info.value.status_code == 500
     assert exc_info.value.detail["message"] == "Internal Server Error"
@@ -368,20 +368,20 @@ def test_accept_quote_booking_failure(monkeypatch, caplog):
         sound_fee=Decimal("0"),
         travel_fee=Decimal("0"),
     )
-    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
 
     def fail_create_booking(*_, **__):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(
-        api_quote_v2.crud_quote_v2,
+        api_quote.crud_quote,
         "create_booking_from_quote_v2",
         fail_create_booking,
     )
-    caplog.set_level(logging.ERROR, logger="app.crud.crud_quote_v2")
+    caplog.set_level(logging.ERROR, logger="app.crud.crud_quote")
 
     with pytest.raises(HTTPException) as exc_info:
-        api_quote_v2.accept_quote(quote.id, db, current_user=client)
+        api_quote.accept_quote(quote.id, db, current_user=client)
 
     assert exc_info.value.status_code == 500
     assert exc_info.value.detail["message"] == "Internal Server Error"
@@ -448,7 +448,7 @@ def test_accept_quote_missing_client(caplog):
         sound_fee=Decimal("0"),
         travel_fee=Decimal("0"),
     )
-    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
 
     # Remove the client but keep the booking request intact
     from app.models import Notification
@@ -460,7 +460,7 @@ def test_accept_quote_missing_client(caplog):
 
     caplog.set_level(logging.ERROR, logger="app.utils.notifications")
     with pytest.raises(HTTPException) as exc_info:
-        api_quote_v2.accept_quote(quote.id, db, current_user=client)
+        api_quote.accept_quote(quote.id, db, current_user=client)
     assert exc_info.value.status_code == 422
     assert any("Booking request" in r.getMessage() for r in caplog.records)
 
@@ -510,10 +510,10 @@ def test_create_quote_error_logs_and_response(monkeypatch, caplog):
     # Align payload with actual booking_request_id
     quote_in.booking_request_id = br.id
 
-    monkeypatch.setattr(api_quote_v2.crud_quote_v2, "create_quote", fail_create)
-    caplog.set_level(logging.ERROR, logger=api_quote_v2.logger.name)
+    monkeypatch.setattr(api_quote.crud_quote, "create_quote", fail_create)
+    caplog.set_level(logging.ERROR, logger=api_quote.logger.name)
     with pytest.raises(HTTPException) as exc_info:
-        api_quote_v2.create_quote(quote_in, db, current_user=artist)
+        api_quote.create_quote(quote_in, db, current_user=artist)
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail["message"] == "Unable to create quote"
@@ -547,11 +547,11 @@ def test_accept_quote_value_error_logs(monkeypatch, caplog):
     def fake_get_quote(db_session, quote_id: int):
         return dummy
 
-    monkeypatch.setattr(api_quote_v2.crud_quote_v2, "get_quote", fake_get_quote)
-    monkeypatch.setattr(api_quote_v2.crud_quote_v2, "accept_quote", fail_accept)
-    caplog.set_level(logging.WARNING, logger=api_quote_v2.logger.name)
+    monkeypatch.setattr(api_quote.crud_quote, "get_quote", fake_get_quote)
+    monkeypatch.setattr(api_quote.crud_quote, "accept_quote", fail_accept)
+    caplog.set_level(logging.WARNING, logger=api_quote.logger.name)
     with pytest.raises(HTTPException) as exc_info:
-        api_quote_v2.accept_quote(10, db, current_user=client)
+        api_quote.accept_quote(10, db, current_user=client)
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail["message"] == "nope"
@@ -615,8 +615,8 @@ def test_accept_quote_creates_booking_notification():
         sound_fee=Decimal("0"),
         travel_fee=Decimal("0"),
     )
-    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
-    api_quote_v2.accept_quote(quote.id, db, current_user=client)
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
+    api_quote.accept_quote(quote.id, db, current_user=client)
 
     from app.crud import crud_notification
     from app.models import NotificationType
@@ -682,8 +682,8 @@ def test_accept_quote_booking_notification_link():
         sound_fee=Decimal("0"),
         travel_fee=Decimal("0"),
     )
-    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
-    booking = api_quote_v2.accept_quote(quote.id, db, current_user=client)
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
+    booking = api_quote.accept_quote(quote.id, db, current_user=client)
 
     from app.crud import crud_notification
     from app.models import NotificationType
@@ -750,8 +750,8 @@ def test_accept_quote_supplies_missing_service_id():
         sound_fee=Decimal("0"),
         travel_fee=Decimal("0"),
     )
-    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
-    booking = api_quote_v2.accept_quote(quote.id, db, current_user=client, service_id=service.id)
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
+    booking = api_quote.accept_quote(quote.id, db, current_user=client, service_id=service.id)
 
     db.refresh(br)
     assert br.service_id == service.id
@@ -796,7 +796,7 @@ def test_create_quote_returns_404_for_missing_request():
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        api_quote_v2.create_quote(quote_in, db, current_user=artist)
+        api_quote.create_quote(quote_in, db, current_user=artist)
 
     assert exc_info.value.status_code == 404
     assert (
@@ -858,8 +858,8 @@ def test_accept_quote_without_date_for_video_service():
         sound_fee=Decimal("0"),
         travel_fee=Decimal("0"),
     )
-    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
-    booking = api_quote_v2.accept_quote(quote.id, db, current_user=client)
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
+    booking = api_quote.accept_quote(quote.id, db, current_user=client)
 
     from app.models import Booking
 
@@ -926,11 +926,11 @@ def test_expire_pending_quotes():
         travel_fee=Decimal("0"),
         expires_at=expired_at,
     )
-    quote = api_quote_v2.create_quote(quote_in, db)
+    quote = api_quote.create_quote(quote_in, db)
 
-    from app.crud import crud_quote_v2
+    from app.crud import crud_quote
 
-    expired = crud_quote_v2.expire_pending_quotes(db)
+    expired = crud_quote.expire_pending_quotes(db)
     assert len(expired) == 1
     db.refresh(quote)
     assert quote.status == models.QuoteStatusV2.EXPIRED
@@ -993,12 +993,12 @@ def test_scheduler_posts_system_message():
             travel_fee=Decimal("0"),
             expires_at=datetime.utcnow() + timedelta(days=7),
         )
-        api_quote_v2.create_quote(quote_in, db)
+        api_quote.create_quote(quote_in, db)
 
-    from app.crud import crud_quote_v2
+    from app.crud import crud_quote
 
     with freeze_time("2024-01-09"):
-        expired = crud_quote_v2.expire_pending_quotes(db)
+        expired = crud_quote.expire_pending_quotes(db)
 
     assert len(expired) == 1
     msgs = (
@@ -1065,8 +1065,8 @@ def test_decline_quote():
         sound_fee=Decimal("0"),
         travel_fee=Decimal("0"),
     )
-    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
-    declined = api_quote_v2.decline_quote(quote.id, db, current_user=client)
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
+    declined = api_quote.decline_quote(quote.id, db, current_user=client)
     assert declined.status == models.QuoteStatusV2.REJECTED
     msgs = db.query(Message).all()
     assert any(m.content == "Quote declined." for m in msgs)
@@ -1127,7 +1127,7 @@ def test_create_quote_notifies_client_when_ids_missing():
         sound_fee=Decimal("0"),
         travel_fee=Decimal("0"),
     )
-    api_quote_v2.create_quote(quote_in, db)
+    api_quote.create_quote(quote_in, db)
 
     notifs = crud_notification.get_notifications_for_user(db, client.id)
     assert any(

@@ -16,7 +16,7 @@ from app.models import (
 from app.models.service import ServiceType
 from app import models
 from app.models.base import BaseModel
-from app.api import api_message, api_booking_request, api_quote_v2
+from app.api import api_message, api_booking_request, api_quote
 from app.schemas import (
     MessageCreate,
     BookingRequestCreate,
@@ -1404,7 +1404,7 @@ def test_client_notification_on_quote_sent():
         client_id=client_user.id,
         services=[ServiceItem(description="Performance", price=Decimal("100"))],
     )
-    api_quote_v2.create_quote(quote_in, db, current_user=artist)
+    api_quote.create_quote(quote_in, db, current_user=artist)
 
     notifs = crud_notification.get_notifications_for_user(db, client_user.id)
     assert len(notifs) == 1

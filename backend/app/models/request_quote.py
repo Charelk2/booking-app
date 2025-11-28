@@ -13,9 +13,10 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 
-from ..database import Base # Assuming Base is in database.py
+from ..database import Base  # Assuming Base is in database.py
 from .booking_status import BookingStatus
 from .types import CaseInsensitiveEnum
+
 
 class QuoteStatus(str, enum.Enum):
     PENDING_CLIENT_ACTION = "pending_client_action"
@@ -24,6 +25,7 @@ class QuoteStatus(str, enum.Enum):
     CONFIRMED_BY_ARTIST = "confirmed_by_artist"
     WITHDRAWN_BY_ARTIST = "withdrawn_by_artist"
     EXPIRED = "expired"
+
 
 class BookingRequest(Base):
     __tablename__ = "booking_requests"
@@ -58,7 +60,7 @@ class BookingRequest(Base):
     travel_mode = Column(String, nullable=True)
     travel_cost = Column(Numeric(10, 2), nullable=True)
     travel_breakdown = Column(JSON, nullable=True)
-    
+
     # Use a case-insensitive enum bound to the shared Postgres type 'bookingstatus'
     status = Column(
         CaseInsensitiveEnum(BookingStatus, name="bookingstatus"),
@@ -73,20 +75,21 @@ class BookingRequest(Base):
     client = relationship("User", foreign_keys=[client_id], back_populates="booking_requests_as_client")
     artist = relationship("User", foreign_keys=[artist_id], back_populates="booking_requests_as_artist")
     service = relationship("Service", back_populates="booking_requests")
-    
+
     quotes = relationship("Quote", back_populates="booking_request", cascade="all, delete-orphan")
+
 
 class Quote(Base):
     __tablename__ = "quotes"
 
     id = Column(Integer, primary_key=True, index=True)
     booking_request_id = Column(Integer, ForeignKey("booking_requests.id"), nullable=False)
-    artist_id = Column(Integer, ForeignKey("users.id"), nullable=False) # Artist who made the quote (should match request's artist)
-    
+    artist_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Artist who made the quote (should match request's artist)
+
     quote_details = Column(Text, nullable=False)
     price = Column(Numeric(10, 2), nullable=False)
-    currency = Column(String(3), nullable=False, default="ZAR") # e.g., ZAR, EUR
-    valid_until = Column(DateTime, nullable=True) # Quote expiry date
+    currency = Column(String(3), nullable=False, default="ZAR")  # e.g., ZAR, EUR
+    valid_until = Column(DateTime, nullable=True)  # Quote expiry date
 
     status = Column(
         SQLAlchemyEnum(QuoteStatus, values_callable=lambda enum: [e.value for e in enum]),
@@ -98,7 +101,7 @@ class Quote(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     booking_request = relationship("BookingRequest", back_populates="quotes")
-    artist = relationship("User", foreign_keys=[artist_id]) # Relationship to the artist user who made the quote.
+    artist = relationship("User", foreign_keys=[artist_id])  # Relationship to the artist user who made the quote.
     # If a booking is created from this quote:
     # booking = relationship("Booking", back_populates="source_quote", uselist=False) # One-to-one if a booking is directly tied
 
@@ -112,4 +115,4 @@ class Quote(Base):
 # Consider how Booking model (in models/booking.py) relates.
 # If a booking is made AFTER a quote is accepted and artist confirms:
 # Booking.quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)
-# Booking.source_quote = relationship("Quote", back_populates="booking") 
+# Booking.source_quote = relationship("Quote", back_populates="booking")

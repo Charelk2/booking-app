@@ -31,7 +31,7 @@ Data model references:
 ## Backend Sources (where messages are created)
 
 - Booking request creation and details summaries: `backend/app/api/api_booking_request.py` (+ helpers in `backend/app/utils/messages.py`).
-- Quotes: `backend/app/api/api_quote_v2.py` (quote bubbles), tests at `backend/tests/test_quote_*` show SYSTEM companion lines in some cases.
+- Quotes: `backend/app/api/api_quote.py` (quote bubbles), tests at `backend/tests/test_quote_*` show SYSTEM companion lines in some cases.
 - Payments: `backend/app/api/api_payment.py`.
 - Pre‑event reminders and ops nudges: `backend/app/services/ops_scheduler.py` (invoked by periodic tasks in `backend/app/main.py`).
 

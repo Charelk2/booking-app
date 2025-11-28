@@ -19,7 +19,7 @@ from app.models import (
 )
 from app.models.base import BaseModel
 from app.api.dependencies import get_db, get_current_user
-from app.crud import crud_quote_v2
+from app.crud import crud_quote
 
 
 def setup_app():
@@ -97,7 +97,7 @@ def test_invoice_created_and_api():
     Session = setup_app()
     db, client_user, artist_user, quote = create_records(Session)
 
-    crud_quote_v2.accept_quote(db=db, quote_id=quote.id)
+    crud_quote.accept_quote(db=db, quote_id=quote.id)
 
     invoice = db.query(Invoice).first()
     assert invoice is not None
@@ -145,7 +145,7 @@ def test_invoice_idempotency_by_type():
     Session = setup_app()
     db, client_user, artist_user, quote = create_records(Session)
     # Accept quote to create a BookingSimple row
-    from app.crud import crud_quote_v2 as _cq
+    from app.crud import crud_quote as _cq
     bs = _cq.accept_quote(db=db, quote_id=quote.id)
     assert bs is not None
     # Create client fee invoice twice → expect one record
@@ -165,7 +165,7 @@ def test_invoice_by_booking_provider_and_client_fee():
     db, client_user, artist_user, quote = create_records(Session)
 
     # Accept quote to create Booking + BookingSimple
-    from app.crud import crud_quote_v2 as _cq
+    from app.crud import crud_quote as _cq
     bs = _cq.accept_quote(db=db, quote_id=quote.id)
     assert bs is not None
 

@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.base import BaseModel
-from app.api import api_quote_template, api_quote_v2
+from app.api import api_quote_template, api_quote
 from app.models import User, UserType, BookingRequest, BookingStatus
 from app.schemas import quote_template as schemas, QuoteV2Create
 from fastapi import HTTPException
@@ -52,7 +52,7 @@ def test_create_and_apply_template():
         sound_fee=tmpl.sound_fee,
         travel_fee=tmpl.travel_fee,
     )
-    quote = api_quote_v2.create_quote(quote_in, db, current_user=artist)
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
     assert quote.subtotal == 10
     assert quote.total == 10
 

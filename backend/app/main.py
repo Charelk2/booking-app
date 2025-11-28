@@ -41,7 +41,7 @@ from .api import (
     api_payment,
     api_payout,
     api_quote_template,
-    api_quote_v2,
+    api_quote,
     api_rider,
     api_pricebook,
     api_sound_prefs,
@@ -69,7 +69,7 @@ from .api import (
 from .api.v1 import api_service_provider as api_service_provider_profiles
 from .core.config import settings, FRONTEND_ORIGINS
 from .core.observability import setup_logging, setup_tracer
-from .crud import crud_quote_v2
+from .crud import crud_quote
 from .database import Base, SessionLocal, engine
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
@@ -672,8 +672,8 @@ app.include_router(
 
 
 # ─── QUOTE ROUTES (under /api/v1) ─────────────────────────────────────────────
-# Only the v2 routes are exposed; legacy api_quote.py is retired.
-app.include_router(api_quote_v2.router, prefix=f"{api_prefix}", tags=["quotes-v2"])
+# Single quote router (formerly v2); legacy routes are retired.
+app.include_router(api_quote.router, prefix=f"{api_prefix}", tags=["quotes"])
 app.include_router(
     api_quote_template.router,
     prefix=f"{api_prefix}",
@@ -862,7 +862,7 @@ def process_quote_expiration(db):
         notify_quote_expiring(db, artist, q.id, q.expires_at, q.booking_request_id)
         notify_quote_expiring(db, client, q.id, q.expires_at, q.booking_request_id)
 
-    expired = crud_quote_v2.expire_pending_quotes(db)
+    expired = crud_quote.expire_pending_quotes(db)
     for q in expired:
         artist = q.artist
         client = q.client or db.query(models.User).get(q.client_id)
