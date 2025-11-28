@@ -10,7 +10,7 @@ function setup(props = {}) {
   const allProps = {
     serviceProviderId: 1,
     name: 'Test',
-    href: '/service-providers/1',
+    href: '/1',
     ...props,
   };
   return { container, root, allProps };

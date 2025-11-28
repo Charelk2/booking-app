@@ -10,7 +10,7 @@ function setup(props = {}) {
   const allProps = {
     serviceProviderId: 1,
     name: 'Test Provider',
-    href: '/service-providers/1',
+    href: '/1',
     ...props,
   };
   act(() => {
@@ -123,11 +123,11 @@ describe('ServiceProviderCard optional fields', () => {
   });
 
   it('wraps the image in a link to the service provider profile', () => {
-    const { container, root } = setup({ imageUrl: '/a.jpg', href: '/service-providers/9' });
+    const { container, root } = setup({ imageUrl: '/a.jpg', href: '/9' });
     const img = container.querySelector('img');
     expect(img).not.toBeNull();
     const anchor = img?.closest('a');
-    expect(anchor?.getAttribute('href')).toBe('/service-providers/9');
+    expect(anchor?.getAttribute('href')).toBe('/9');
     act(() => root.unmount());
     container.remove();
   });

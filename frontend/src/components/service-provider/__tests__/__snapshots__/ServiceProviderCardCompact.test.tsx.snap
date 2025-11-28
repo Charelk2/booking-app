@@ -2,7 +2,7 @@
 
 exports[`ServiceProviderCardCompact matches snapshot 1`] = `
 <a
-  href="/service-providers/1"
+  href="/1"
 >
   <div
     class="relative aspect-[4/4] bg-gray-100 overflow-hidden"
