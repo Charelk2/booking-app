@@ -186,6 +186,71 @@ def get_quote(db: Session, quote_id: int) -> Optional[models.QuoteV2]:
     return quote
 
 
+def list_quotes_for_artist(
+    db: Session,
+    artist_id: int,
+    *,
+    skip: int = 0,
+    limit: int = 100,
+) -> list[models.QuoteV2]:
+    return (
+        db.query(models.QuoteV2)
+        .filter(models.QuoteV2.artist_id == artist_id)
+        .order_by(models.QuoteV2.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def list_quotes_for_client(
+    db: Session,
+    client_id: int,
+    *,
+    status: str | None = None,
+    skip: int = 0,
+    limit: int = 100,
+) -> list[models.QuoteV2]:
+    q = (
+        db.query(models.QuoteV2)
+        .filter(models.QuoteV2.client_id == client_id)
+        .order_by(models.QuoteV2.created_at.desc())
+    )
+    if status:
+        try:
+            status_val = models.QuoteStatusV2(status)
+            q = q.filter(models.QuoteV2.status == status_val.value)
+        except Exception:
+            # Ignore invalid filters; return empty to avoid leaking data
+            return []
+    return q.offset(skip).limit(limit).all()
+
+
+def list_quotes_for_booking_request(
+    db: Session,
+    booking_request_id: int,
+) -> list[models.QuoteV2]:
+    return (
+        db.query(models.QuoteV2)
+        .filter(models.QuoteV2.booking_request_id == booking_request_id)
+        .order_by(models.QuoteV2.created_at.desc())
+        .all()
+    )
+
+
+def list_quotes_by_ids(
+    db: Session,
+    ids: list[int],
+) -> list[models.QuoteV2]:
+    if not ids:
+        return []
+    return (
+        db.query(models.QuoteV2)
+        .filter(models.QuoteV2.id.in_(ids))
+        .all()
+    )
+
+
 def accept_quote(
     db: Session, quote_id: int, service_id: int | None = None
 ) -> models.BookingSimple:
@@ -419,6 +484,50 @@ def decline_quote(db: Session, quote_id: int) -> models.QuoteV2:
         from .. import schemas
         env_decline = schemas.MessageResponse.model_validate(msg).model_dump()
         enqueue_outbox(db, topic=f"booking-requests:{int(db_quote.booking_request_id)}", payload=env_decline)
+    except Exception:
+        pass
+
+    return db_quote
+
+
+def withdraw_quote(db: Session, quote_id: int, *, actor_id: int) -> models.QuoteV2:
+    """Artist-initiated withdrawal; maps to rejected."""
+    db_quote = get_quote(db, quote_id)
+    if not db_quote:
+        raise ValueError("Quote not found")
+    if db_quote.artist_id != actor_id:
+        raise ValueError("Not authorized to withdraw this quote")
+    if _status_val(db_quote.status) != models.QuoteStatusV2.PENDING.value:
+        raise ValueError("Only pending quotes can be withdrawn")
+
+    db_quote.status = models.QuoteStatusV2.REJECTED.value
+    db.commit()
+    db.refresh(db_quote)
+
+    # System message for thread visibility
+    try:
+        msg = crud_message.create_message(
+            db=db,
+            booking_request_id=db_quote.booking_request_id,
+            sender_id=db_quote.artist_id,
+            sender_type=models.SenderType.ARTIST,
+            content="Quote withdrawn by artist.",
+            message_type=models.MessageType.SYSTEM,
+        )
+        try:
+            from ..api.api_ws import manager as ws_manager  # type: ignore
+            payload = schemas.MessageResponse.model_validate(msg).model_dump()
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop and loop.is_running():
+                loop.create_task(ws_manager.broadcast(int(db_quote.booking_request_id), payload))
+        except Exception:
+            pass
+        try:
+            payload = schemas.MessageResponse.model_validate(msg).model_dump()
+            enqueue_outbox(db, topic=f"booking-requests:{int(db_quote.booking_request_id)}", payload=payload)
+        except Exception:
+            pass
     except Exception:
         pass
 

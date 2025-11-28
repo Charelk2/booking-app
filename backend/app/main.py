@@ -40,7 +40,6 @@ from .api import (
     api_threads,
     api_payment,
     api_payout,
-    api_quote,
     api_quote_template,
     api_quote_v2,
     api_rider,
@@ -673,9 +672,8 @@ app.include_router(
 
 
 # ─── QUOTE ROUTES (under /api/v1) ─────────────────────────────────────────────
-# Register the newer v2 routes first so they take precedence when paths overlap
+# Only the v2 routes are exposed; legacy api_quote.py is retired.
 app.include_router(api_quote_v2.router, prefix=f"{api_prefix}", tags=["quotes-v2"])
-app.include_router(api_quote.router, prefix=f"{api_prefix}", tags=["quotes"])
 app.include_router(
     api_quote_template.router,
     prefix=f"{api_prefix}",

@@ -431,6 +431,8 @@ export const STATUS_LABELS: Record<string, string> = {
   withdrawn_by_artist: 'Withdrawn by Service Provider',
   expired: 'Expired',
   pending: 'Pending',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
   confirmed: 'Confirmed',
   completed: 'Completed',
   cancelled: 'Cancelled',

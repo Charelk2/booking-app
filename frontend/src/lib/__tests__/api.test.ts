@@ -8,9 +8,7 @@ import api, {
   downloadQuotePdf,
   getMyArtistQuotes,
   getMyClientQuotes,
-  updateQuoteAsArtist,
-  updateQuoteAsClient,
-  confirmQuoteBooking,
+  withdrawQuoteV2,
   acceptQuoteV2,
   declineQuoteV2,
   createReviewForBooking,
@@ -220,7 +218,7 @@ describe('getMyArtistQuotes', () => {
       .spyOn(api, 'get')
       .mockResolvedValue({ data: [] } as unknown as { data: unknown });
     await getMyArtistQuotes({ skip: 1, limit: 5 });
-    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/me/artist', {
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/v2/me/artist', {
       params: { skip: 1, limit: 5 },
     });
     spy.mockRestore();
@@ -233,46 +231,20 @@ describe('getMyClientQuotes', () => {
       .spyOn(api, 'get')
       .mockResolvedValue({ data: [] } as unknown as { data: unknown });
     await getMyClientQuotes({ skip: 2, limit: 10, status: 'pending' });
-    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/me/client', {
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/v2/me/client', {
       params: { skip: 2, limit: 10, status: 'pending' },
     });
     spy.mockRestore();
   });
 });
 
-describe('updateQuoteAsArtist', () => {
-  it('puts to the artist endpoint', async () => {
-    const spy = jest
-      .spyOn(api, 'put')
-      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
-    await updateQuoteAsArtist(2, { quote_details: 'hi' });
-    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/2/artist', {
-      quote_details: 'hi',
-    });
-    spy.mockRestore();
-  });
-});
-
-describe('updateQuoteAsClient', () => {
-  it('puts to the client endpoint', async () => {
-    const spy = jest
-      .spyOn(api, 'put')
-      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
-    await updateQuoteAsClient(4, { status: 'accepted_by_client' });
-    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/4/client', {
-      status: 'accepted_by_client',
-    });
-    spy.mockRestore();
-  });
-});
-
-describe('confirmQuoteBooking', () => {
-  it('posts to confirm-booking', async () => {
+describe('withdrawQuoteV2', () => {
+  it('posts to withdraw endpoint', async () => {
     const spy = jest
       .spyOn(api, 'post')
       .mockResolvedValue({ data: {} } as unknown as { data: unknown });
-    await confirmQuoteBooking(3);
-    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/3/confirm-booking', {});
+    await withdrawQuoteV2(3);
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/3/withdraw', {});
     spy.mockRestore();
   });
 });

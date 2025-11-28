@@ -18,7 +18,6 @@ import {
   BookingRequestCreate,
   BookingRequest,
   QuoteCreate,
-  Quote,
   QuoteV2Create,
   QuoteV2,
   BookingSimple,
@@ -1359,14 +1358,29 @@ export const updateBookingRequestArtist = (
 // Create a new quote (artist → client) for an existing booking request:
 //    POST /api/v1/quotes/
 // Body must match QuoteCreate interface.
-export const createQuoteForRequest = (
+export const createQuoteForRequest = async (
   requestId: number,
   data: QuoteCreate
-) => api.post<Quote>(`${API_V1}/booking-requests/${requestId}/quotes`, data);
+): Promise<ReturnType<typeof createQuoteV2>> => {
+  const br = await getBookingRequestById(requestId);
+  const clientId = (br.data as any)?.client_id ?? 0;
+  return createQuoteV2({
+    booking_request_id: requestId,
+    service_provider_id: data.service_provider_id,
+    artist_id: data.artist_id,
+    client_id: clientId,
+    services: [{ description: data.quote_details, price: data.price }],
+    sound_fee: 0,
+    travel_fee: 0,
+    accommodation: null,
+    discount: null,
+    expires_at: data.valid_until ?? null,
+  });
+};
 
 // Optionally, fetch all quotes for a given booking request:
 export const getQuotesForBookingRequest = (bookingRequestId: number) =>
-  getDeduped<Quote[]>(`${API_V1}/booking-requests/${bookingRequestId}/quotes`);
+  getDeduped<QuoteV2[]>(`${API_V1}/booking-requests/${bookingRequestId}/quotes-v2`);
 
 export const createQuoteV2 = (data: QuoteV2Create) =>
   api.post<QuoteV2>(`${API_V1}/quotes`, data);
@@ -1384,21 +1398,15 @@ export const acceptQuoteV2 = (quoteId: number, serviceId?: number) => {
 export const declineQuoteV2 = (quoteId: number) =>
   api.post<QuoteV2>(`${API_V1}/quotes/${quoteId}/decline`, {});
 
+export const withdrawQuoteV2 = (id: number) =>
+  api.post<QuoteV2>(`${API_V1}/quotes/${id}/withdraw`, {});
+
 export const getMyArtistQuotes = (params: { skip?: number; limit?: number } = {}) =>
-  api.get<Quote[]>(`${API_V1}/quotes/me/artist`, { params });
+  api.get<QuoteV2[]>(`${API_V1}/quotes/v2/me/artist`, { params });
 
 export const getMyClientQuotes = (
   params: { skip?: number; limit?: number; status?: string } = {},
-) => api.get<Quote[]>(`${API_V1}/quotes/me/client`, { params });
-
-export const updateQuoteAsArtist = (id: number, data: Partial<Quote>) =>
-  api.put<Quote>(`${API_V1}/quotes/${id}/artist`, data);
-
-export const updateQuoteAsClient = (id: number, data: { status: string }) =>
-  api.put<Quote>(`${API_V1}/quotes/${id}/client`, data);
-
-export const confirmQuoteBooking = (id: number) =>
-  api.post<Booking>(`${API_V1}/quotes/${id}/confirm-booking`, {});
+) => api.get<QuoteV2[]>(`${API_V1}/quotes/v2/me/client`, { params });
 
 // ─── MESSAGES ───────────────────────────────────────────────────────────
 export interface MessageListResponseEnvelope {
@@ -1719,7 +1727,7 @@ export const calculateQuoteBreakdown = (data: {
   service_id: number;
   event_city: string;
   accommodation_cost?: number;
-}) => api.post<QuoteCalculationResponse>(`${API_V1}/quotes/calculate`, data);
+}) => api.post<QuoteCalculationResponse>(`${API_V1}/quotes/estimate`, data);
 
 
 // ─── SERVICE CATEGORIES ───────────────────────────────────────────────────────
@@ -1780,7 +1788,7 @@ export const calculateQuote = async (params: {
   }
 
   const res = await api.post<QuoteCalculationResponse>(
-    `${API_V1}/quotes/calculate`,
+    `${API_V1}/quotes/estimate`,
     params,
   );
 
@@ -2044,7 +2052,7 @@ function getDedupedMaybeMsgpack<T>(url: string, params?: Record<string, any>, he
 
 // ─── QUOTES BATCH ──────────────────────────────────────────────────────────
 export const getQuotesBatch = (ids: number[]) =>
-  getDeduped<QuoteV2[]>(`${API_V1}/quotes`, { ids: ids.join(',') });
+  getDeduped<QuoteV2[]>(`${API_V1}/quotes/v2/batch`, { ids: ids.join(',') });
 
 // Start a message-only thread to contact an artist, without needing a full booking request
 export const startMessageThread = (payload: {

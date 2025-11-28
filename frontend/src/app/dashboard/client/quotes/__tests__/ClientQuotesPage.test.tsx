@@ -24,8 +24,8 @@ describe('ClientQuotesPage', () => {
     });
     (getMyClientQuotes as jest.Mock).mockResolvedValue({
       data: [
-        { id: 1, booking_request_id: 2, artist_id: 3, quote_details: 'Hi', price: 100, currency: 'ZAR', status: 'pending_client_action', created_at: '', updated_at: '' },
-        { id: 2, booking_request_id: 2, artist_id: 3, quote_details: 'Done', price: 120, currency: 'ZAR', status: 'confirmed_by_artist', created_at: '', updated_at: '' },
+        { id: 1, booking_request_id: 2, artist_id: 3, client_id: 1, services: [{ description: 'Hi', price: 100 }], sound_fee: 0, travel_fee: 0, subtotal: 100, total: 100, status: 'pending', created_at: '', updated_at: '' },
+        { id: 2, booking_request_id: 2, artist_id: 3, client_id: 1, services: [{ description: 'Done', price: 120 }], sound_fee: 0, travel_fee: 0, subtotal: 120, total: 120, status: 'accepted', created_at: '', updated_at: '' },
       ],
     });
 
@@ -40,8 +40,8 @@ describe('ClientQuotesPage', () => {
 
     expect(getMyClientQuotes).toHaveBeenCalled();
     expect(div.textContent).toContain('My Quotes');
-    expect(div.textContent).toContain('Pending Client Action');
-    expect(div.textContent).toContain('Confirmed by Service Provider');
+    expect(div.textContent).toContain('Pending');
+    expect(div.textContent).toContain('Accepted');
 
     act(() => {
       root.unmount();
@@ -61,10 +61,13 @@ describe('ClientQuotesPage', () => {
           id: 1,
           booking_request_id: 2,
           artist_id: 3,
-          quote_details: 'Hi',
-          price: 100,
-          currency: 'ZAR',
-          status: 'pending_client_action',
+          client_id: 1,
+          services: [{ description: 'Hi', price: 100 }],
+          sound_fee: 0,
+          travel_fee: 0,
+          subtotal: 100,
+          total: 100,
+          status: 'pending',
           created_at: '',
           updated_at: '',
         },
@@ -86,10 +89,13 @@ describe('ClientQuotesPage', () => {
           id: 2,
           booking_request_id: 2,
           artist_id: 3,
-          quote_details: 'Done',
-          price: 120,
-          currency: 'ZAR',
-          status: 'accepted_by_client',
+          client_id: 1,
+          services: [{ description: 'Done', price: 120 }],
+          sound_fee: 0,
+          travel_fee: 0,
+          subtotal: 120,
+          total: 120,
+          status: 'accepted',
           created_at: '',
           updated_at: '',
         },

@@ -8,11 +8,11 @@ import { getMyClientQuotes } from '@/lib/api';
 import { formatStatus } from '@/lib/utils';
 import { statusChipClass } from '@/components/ui/status';
 import { Spinner } from '@/components/ui';
-import type { Quote } from '@/types';
+import type { QuoteV2 } from '@/types';
 
 export default function ClientQuotesPage() {
   const { user } = useAuth();
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [quotes, setQuotes] = useState<QuoteV2[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -85,7 +85,8 @@ export default function ClientQuotesPage() {
             <option value="">All</option>
             <option value="pending">Pending</option>
             <option value="accepted">Accepted</option>
-            <option value="declined">Declined</option>
+            <option value="rejected">Rejected</option>
+            <option value="expired">Expired</option>
           </select>
         </div>
         {quotes.length === 0 ? (
@@ -96,7 +97,9 @@ export default function ClientQuotesPage() {
               <li key={q.id} className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">{q.quote_details}</div>
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {Array.isArray(q.services) ? q.services.map((s) => s.description).join(', ') : 'Quote'}
+                    </div>
                     <div className="mt-1 text-xs text-gray-500">{formatStatus(q.status)}</div>
                   </div>
                   <div className="shrink-0 text-right">

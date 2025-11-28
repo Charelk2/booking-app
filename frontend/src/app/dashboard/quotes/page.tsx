@@ -6,18 +6,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import toast from '@/components/ui/Toast';
 import {
   getMyArtistQuotes,
-  updateQuoteAsArtist,
-  confirmQuoteBooking,
+  withdrawQuoteV2,
 } from '@/lib/api';
 import { formatStatus } from '@/lib/utils';
 import { statusChipClass } from '@/components/ui/status';
-import type { Quote } from '@/types';
-import EditQuoteModal from '@/components/booking/EditQuoteModal';
+import type { QuoteV2 } from '@/types';
 import { Spinner } from '@/components/ui';
 
 export default function ArtistQuotesPage() {
   const { user } = useAuth();
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [quotes, setQuotes] = useState<QuoteV2[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -45,50 +43,15 @@ export default function ArtistQuotesPage() {
   const handleWithdraw = async (id: number) => {
     setQuotes((prev) =>
       prev.map((q) =>
-        q.id === id ? { ...q, status: 'withdrawn_by_artist' } : q,
+        q.id === id ? { ...q, status: 'rejected' } : q,
       ),
     );
     try {
-      await updateQuoteAsArtist(id, { status: 'withdrawn_by_artist' });
+      await withdrawQuoteV2(id);
       toast.success('Quote withdrawn');
     } catch (err) {
       console.error('Withdraw failed', err);
       toast.error(err instanceof Error ? err.message : 'Error withdrawing quote');
-    }
-  };
-
-  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
-
-  const handleEdit = (quote: Quote) => {
-    setEditingQuote(quote);
-  };
-
-  const handleSaveEdit = async (data: { quote_details: string; price: number }) => {
-    if (!editingQuote) return;
-    const updated = { ...editingQuote, ...data };
-    setQuotes((prev) => prev.map((q) => (q.id === editingQuote.id ? updated : q)));
-    try {
-      await updateQuoteAsArtist(editingQuote.id, data);
-      toast.success('Quote updated');
-    } catch (err) {
-      console.error('Update failed', err);
-      toast.error(err instanceof Error ? err.message : 'Error updating quote');
-    } finally {
-      setEditingQuote(null);
-    }
-  };
-
-  const handleConfirm = async (id: number) => {
-    try {
-      await confirmQuoteBooking(id);
-      setQuotes((prev) =>
-        prev.map((q) =>
-          q.id === id ? { ...q, status: 'confirmed_by_artist' } : q,
-        ),
-      );
-    } catch (err) {
-      console.error('Confirm booking error', err);
-      toast.error(err instanceof Error ? err.message : 'Failed to confirm');
     }
   };
 
@@ -130,7 +93,9 @@ export default function ArtistQuotesPage() {
               <li key={q.id} className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">{q.quote_details}</div>
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {Array.isArray(q.services) ? q.services.map((s) => s.description).join(', ') : 'Quote'}
+                    </div>
                     <div className="mt-1 text-xs text-gray-500">{formatStatus(q.status)}</div>
                   </div>
                   <div className="shrink-0 text-right">
@@ -138,32 +103,13 @@ export default function ArtistQuotesPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-4">
-                  {q.status === 'pending_client_action' && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleWithdraw(q.id)}
-                        className="text-red-600 hover:underline text-sm"
-                      >
-                        Withdraw
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(q)}
-                        aria-expanded={editingQuote?.id === q.id}
-                        className="text-brand-dark hover:underline text-sm"
-                      >
-                        Edit
-                      </button>
-                    </>
-                  )}
-                  {q.status === 'accepted_by_client' && (
+                  {q.status === 'pending' && (
                     <button
                       type="button"
-                      onClick={() => handleConfirm(q.id)}
-                      className="text-green-600 hover:underline text-sm"
+                      onClick={() => handleWithdraw(q.id)}
+                      className="text-red-600 hover:underline text-sm"
                     >
-                      Confirm Booking
+                      Withdraw
                     </button>
                   )}
                 </div>
@@ -172,12 +118,6 @@ export default function ArtistQuotesPage() {
           </ul>
         )}
       </div>
-      <EditQuoteModal
-        open={editingQuote !== null}
-        onClose={() => setEditingQuote(null)}
-        onSubmit={handleSaveEdit}
-        quote={editingQuote ?? ({} as Quote)}
-      />
     </MainLayout>
   );
 }

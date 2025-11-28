@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import QuoteCard from '@/components/booking/QuoteCard';
 import { Spinner } from '@/components/ui';
-import { getQuoteV2, updateQuoteAsClient, acceptQuoteV2 } from '@/lib/api';
+import { getQuoteV2, acceptQuoteV2, declineQuoteV2 } from '@/lib/api';
 import { QuoteV2 } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -67,14 +67,14 @@ export default function QuoteDetailPage() {
     );
   }
 
-  const handleAction = async (status: 'accepted_by_client' | 'rejected_by_client') => {
+  const handleAction = async (action: 'accept' | 'decline') => {
     if (!quote) return;
     setUpdating(true);
     try {
-      if (status === 'accepted_by_client') {
+      if (action === 'accept') {
         await acceptQuoteV2(quote.id);
       } else {
-        await updateQuoteAsClient(quote.id, { status });
+        await declineQuoteV2(quote.id);
       }
       const res = await getQuoteV2(quote.id);
       setQuote(res.data);
@@ -93,8 +93,8 @@ export default function QuoteDetailPage() {
         <QuoteCard
           quote={quote}
           isClient={user.user_type === 'client'}
-          onAccept={() => handleAction('accepted_by_client')}
-          onDecline={() => handleAction('rejected_by_client')}
+          onAccept={() => handleAction('accept')}
+          onDecline={() => handleAction('decline')}
           bookingConfirmed={false}
         />
         {updating && (

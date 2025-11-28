@@ -20,7 +20,7 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 
 | **Provider Matching** | Selects sound and accommodation providers | `backend/app/crud/crud_service.py`<br>`backend/app/api/api_service.py` | During booking and quote steps |
 | **Travel & Accommodation** | Calculates travel distance, lodging costs, and now weather forecasts | `backend/app/services/booking_quote.py`<br>`backend/app/api/api_weather.py` | When estimating travel or lodging expenses |
-| **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote.py`<br>`frontend/src/components/chat/MessageThread.tsx` | After all booking info is entered |
+| **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote_v2.py`<br>`backend/app/api/api_quote.py` (shim)<br>`frontend/src/components/chat/MessageThread.tsx` | After all booking info is entered |
 | **Quote Preview** | Shows an estimated total during the review step | `frontend/src/components/booking/wizard/Steps.tsx` | Right before submitting a booking request |
 | **Review** | Manages star ratings and comments for completed bookings | `backend/app/api/api_review.py`<br>`frontend/src/app/service-providers/[id]/page.tsx` | After a booking is marked completed |
 | **Payment** | Handles full upfront payments via `/api/v1/payments` | `backend/app/api/api_payment.py` | After quote acceptance |
@@ -61,7 +61,7 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 
 * **Purpose:** Calculates and presents full, itemized quote: performance fee, provider, travel, accommodation, service fees.
 * **Frontend:** Quote forms in `components/chat/MessageThread.tsx` show running totals.
-* **Backend:** `api_quote.py` aggregates, formats, and returns structured JSON to frontend.
+* **Backend:** Calculator now lives in `api_quote_v2.py` at `/quotes/estimate` (stateless). Legacy `/quotes/calculate` in `api_quote.py` is a thin shim for compatibility and will be removed once all callers are on the v2 route. Persisted quotes remain in `api_quote_v2.py`.
 
 ### 5. Quote Preview Agent
 
@@ -273,6 +273,65 @@ Travel estimates must always be driven by the frontend travel engine using Googl
   - Allow travel cost to silently fall back to `0` when airports or flight routes are missing; always derive a drive estimate from Distance Matrix in those cases.
 
 The booking/quote UX assumes travel is **always** computed via this path so numbers stay consistent between Review, quotes, and payments.
+
+---
+
+## Inline Quote Engines (Live vs Sound)
+
+The inline quote forms in the chat are now split by **service type**; this split is routed centrally through `MessageThreadWrapper`. This is a sensitive integration point for all future service‑specific quote flows.
+
+- Files (routing + engines):
+  - `frontend/src/components/chat/MessageThreadWrapper.tsx`
+    - Computes `effectiveBookingRequest = bookingRequestFull || bookingRequest` and uses it as the single source of truth for quotes, header, and side‑panel.
+    - Quote modal chooses the inline form based on **service type + sound mode**:
+      - Sound threads:
+        - `service.service_category_slug` or `service.service_category.name` contains `"sound"`, **or**
+        - `travel_breakdown.sound_mode === 'supplier'` (or equivalent in `sound_context`).
+        - → Renders `SoundInlineQuote`.
+      - Live / generic threads:
+        - → Renders `LivePerformanceInlineQuote`.
+    - Always passes `artistId`, `clientId`, `initialBaseFee`, and `initialTravelCost` from `effectiveBookingRequest` (not the partial `bookingRequest`) so the inline forms see hydrated data.
+  - `frontend/src/components/chat/inlinequote/LivePerformanceInlineQuote.tsx`
+    - Live‑performance (artist) quote form.
+    - Uses `useLiveQuotePrefill` to:
+      - Fetch the booking request.
+      - Infer supplier‑mode (`isSupplierParent`) from `parent_booking_request_id` + `sound_mode`.
+      - Call the **live quote engine** (`calculateQuoteBreakdown`) when appropriate to prefill:
+        - Base fee (performance),
+        - Artist travel,
+        - Artist‑provided sound (when `sound_provisioning` is variable).
+    - Renders “Base Fee”, “Travel”, and a “Sound Equipment” row (artist‑provided sound or supplier‑mode notice), plus Extras, Discount, Expiry, and Accommodation.
+    - Submits a `QuoteV2Create` with `sound_fee` set to 0 when supplier‑mode is active (sound will be handled by a child thread).
+  - `frontend/src/components/chat/inlinequote/SoundInlineQuote.tsx`
+    - Sound‑provider quote form (child sound booking).
+    - Uses `useSoundQuotePrefill` to:
+      - Fetch the booking request.
+      - Call the **sound estimate engine** (`calculateSoundServiceEstimate`) with:
+        - Guest count, venue type, stage, lighting, rider units, backline.
+      - Prefill:
+        - Base “Sound package (full estimate)” from the audience package price,
+        - Extras for stage/lighting/backline (one line per item),
+        - Travel for the sound provider using their `details.base_location`, `travel.per_km_rate`, and Distance Matrix (`getDrivingMetricsCached`).
+    - Does **not** render a separate “Sound Equipment” row; all sound value is in base + extras + travel.
+    - Submits a `QuoteV2Create` with:
+      - One “Sound package” service line plus extras,
+      - `sound_fee = 0`,
+      - `travel_fee` set from the provider travel prefill.
+  - `frontend/src/components/chat/inlinequote/useLiveQuotePrefill.ts`
+    - Live‑only prefill hook; owns all data/estimate logic for the artist path.
+  - `frontend/src/components/chat/inlinequote/useSoundQuotePrefill.ts`
+    - Sound‑only prefill hook; owns all data/estimate logic for the sound‑provider path.
+
+- Why this matters (future services):
+  - `MessageThreadWrapper` is the central **router** for inline quote engines. All new service types (video, corporate packages, etc.) should follow the same pattern:
+    - One service‑type inline quote component (e.g., `VideoInlineQuote`).
+    - One service‑type prefill hook (e.g., `useVideoQuotePrefill`) that calls into the correct backend estimate engine.
+    - A clear routing rule in `MessageThreadWrapper` that chooses the component based on `effectiveBookingRequest` fields (service category, mode flags, etc.).
+  - Bugs where a sound thread is mistakenly routed to the live form (or vice versa) can produce extremely confusing quotes (e.g., `Base Fee = 1.00` for a sound provider). When debugging mis‑quotes, always:
+    - Confirm which inline component was rendered (Sound vs Live).
+    - Check the routing condition in `MessageThreadWrapper` against `effectiveBookingRequest` for that thread.
+
+Keep this split in mind when adding new services: do not push new quote logic back into a single generic inline form. Instead, add a new engine + inline component and extend the routing logic explicitly.
 
 ---
 

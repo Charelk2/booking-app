@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Header, Response
+from fastapi import APIRouter, Depends, status, HTTPException, Header, Response, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import SQLAlchemyError
@@ -8,6 +8,7 @@ import time
 from datetime import datetime
 import hashlib
 import json
+from typing import List
 
 from .. import models, schemas
 from ..utils import error_response
@@ -19,6 +20,7 @@ from .dependencies import get_db, get_current_user
 from .api_ws import manager
 from ..schemas import message as message_schemas
 from ..services.quote_totals import quote_preview_fields, compute_quote_totals_snapshot, quote_totals_preview_payload
+from ..services.booking_quote import calculate_quote_breakdown
 from ..utils.json import dumps_bytes as _json_dumps
 import asyncio
 
@@ -48,6 +50,7 @@ def _quote_etag(quote_id: int, marker: str | None) -> str:
 from pydantic import BaseModel
 from decimal import Decimal
 from ..schemas.quote_v2 import QuoteTotalsPreview as _QuoteTotalsPreview
+from ..schemas import request_quote as quote_calc_schemas
 
 
 class TotalsPreviewIn(BaseModel):
@@ -85,6 +88,49 @@ def preview_totals(payload: TotalsPreviewIn):
         platform_fee_vat=pv.get("platform_fee_vat"),
         client_total_incl_vat=pv.get("client_total_incl_vat"),
     )
+
+
+@router.post(
+    "/quotes/estimate",
+    response_model=quote_calc_schemas.QuoteCalculationResponse,
+    response_model_exclude_none=True,
+)
+def estimate_quote(
+    body: quote_calc_schemas.QuoteCalculationParams,
+    db: Session = Depends(get_db),
+):
+    """Stateless quote calculator (formerly /quotes/calculate)."""
+    svc = crud.service.get_service(db, body.service_id)
+    if not svc:
+        raise error_response(
+            "Service not found",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    accommodation = (
+        Decimal(str(body.accommodation_cost)) if body.accommodation_cost is not None else None
+    )
+    breakdown = calculate_quote_breakdown(
+        base_fee=Decimal(str(body.base_fee)),
+        distance_km=body.distance_km,
+        accommodation_cost=accommodation,
+        service=svc,
+        event_city=body.event_city,
+        db=db,
+        guest_count=getattr(body, "guest_count", None),
+        venue_type=getattr(body, "venue_type", None),
+        stage_required=getattr(body, "stage_required", None),
+        stage_size=getattr(body, "stage_size", None),
+        lighting_evening=getattr(body, "lighting_evening", None),
+        upgrade_lighting_advanced=getattr(body, "upgrade_lighting_advanced", None),
+        backline_required=getattr(body, "backline_required", None),
+        selected_sound_service_id=getattr(body, "selected_sound_service_id", None),
+        supplier_distance_km=getattr(body, "supplier_distance_km", None),
+        rider_units=(body.rider_units.dict() if getattr(body, "rider_units", None) else None),
+        backline_requested=getattr(body, "backline_requested", None),
+    )
+    return breakdown
 
 
 @router.post(
@@ -247,6 +293,96 @@ def create_quote(
             {"quote": "create_failed"},
             status.HTTP_400_BAD_REQUEST,
         )
+
+
+@router.get("/quotes/v2/batch", response_model=List[schemas.QuoteV2Read])
+def get_quotes_batch(
+    ids: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Batch fetch QuoteV2 rows (authorized participants only)."""
+    try:
+        id_list = [int(x) for x in ids.split(",") if x.strip()]
+    except Exception:
+        raise error_response(
+            "Invalid ids parameter",
+            {"ids": "comma-separated integers required"},
+            status.HTTP_400_BAD_REQUEST,
+        )
+    if not id_list:
+        return []
+    results = crud_quote_v2.list_quotes_by_ids(db, id_list)
+    permitted: list[models.QuoteV2] = []
+    for q in results:
+        br = q.booking_request
+        if not br:
+            continue
+        if current_user.id in {br.client_id, br.artist_id}:
+            permitted.append(q)
+    return [schemas.QuoteV2Read.model_validate(q) for q in permitted]
+
+
+@router.get("/quotes/v2/me/artist", response_model=List[schemas.QuoteV2Read])
+def list_my_artist_quotes(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    quotes = crud_quote_v2.list_quotes_for_artist(
+        db=db, artist_id=current_user.id, skip=skip, limit=limit
+    )
+    return [schemas.QuoteV2Read.model_validate(q) for q in quotes]
+
+
+@router.get("/quotes/v2/me/client", response_model=List[schemas.QuoteV2Read])
+def list_my_client_quotes(
+    status_filter: str | None = Query(default=None, alias="status"),
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    quotes = crud_quote_v2.list_quotes_for_client(
+        db=db,
+        client_id=current_user.id,
+        status=status_filter,
+        skip=skip,
+        limit=limit,
+    )
+    return [schemas.QuoteV2Read.model_validate(q) for q in quotes]
+
+
+@router.get(
+    "/booking-requests/{request_id}/quotes-v2",
+    response_model=List[schemas.QuoteV2Read],
+    response_model_exclude_none=True,
+)
+def list_quotes_for_booking_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    br = (
+        db.query(models.BookingRequest)
+        .filter(models.BookingRequest.id == request_id)
+        .first()
+    )
+    if not br:
+        raise error_response(
+            "Booking request not found",
+            {"booking_request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    if current_user.id not in {br.client_id, br.artist_id}:
+        raise error_response(
+            "Not authorized to access quotes for this request",
+            {"request_id": "forbidden"},
+            status.HTTP_403_FORBIDDEN,
+        )
+    quotes = crud_quote_v2.list_quotes_for_booking_request(db, request_id)
+    return [schemas.QuoteV2Read.model_validate(q) for q in quotes]
 
 
 @router.get("/quotes/{quote_id}", response_model=None)
@@ -535,6 +671,32 @@ def decline_quote(
             {"quote_id": "db_error"},
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@router.post("/quotes/{quote_id}/withdraw", response_model=schemas.QuoteV2Read)
+def withdraw_quote(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Artist-initiated withdraw -> mark rejected."""
+    try:
+        quote = crud_quote_v2.withdraw_quote(db, quote_id, actor_id=current_user.id)
+        return schemas.QuoteV2Read.model_validate(quote)
+    except ValueError as exc:
+        quote = crud_quote_v2.get_quote(db, quote_id)
+        logger.warning(
+            "Withdrawing quote failed; quote_id=%s artist_id=%s client_id=%s error=%s",
+            quote_id,
+            getattr(quote, "artist_id", None),
+            getattr(quote, "client_id", None),
+            exc,
+        )
+        raise error_response(
+            str(exc), {"quote_id": "invalid"}, status.HTTP_400_BAD_REQUEST
+        )
+    except Exception:
+        raise
 
 
 @router.get("/quotes/{quote_id}/pdf")

@@ -27,12 +27,11 @@ describe('ArtistQuotesPage', () => {
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider', email: 'a@example.com' } });
     (api.getMyArtistQuotes as jest.Mock).mockResolvedValue({
       data: [
-        { id: 1, booking_request_id: 9, artist_id: 2, quote_details: 'Offer', price: 100, currency: 'ZAR', status: 'pending_client_action', created_at: '', updated_at: '' },
-        { id: 2, booking_request_id: 9, artist_id: 2, quote_details: 'Accepted', price: 120, currency: 'ZAR', status: 'accepted_by_client', created_at: '', updated_at: '' },
+        { id: 1, booking_request_id: 9, artist_id: 2, client_id: 7, services: [{ description: 'Offer', price: 100 }], sound_fee: 0, travel_fee: 0, subtotal: 100, total: 100, status: 'pending', created_at: '', updated_at: '' },
+        { id: 2, booking_request_id: 9, artist_id: 2, client_id: 7, services: [{ description: 'Accepted', price: 120 }], sound_fee: 0, travel_fee: 0, subtotal: 120, total: 120, status: 'accepted', created_at: '', updated_at: '' },
       ],
     });
-    (api.updateQuoteAsArtist as jest.Mock).mockResolvedValue({ data: {} });
-    (api.confirmQuoteBooking as jest.Mock).mockResolvedValue({ data: {} });
+    (api.withdrawQuoteV2 as jest.Mock).mockResolvedValue({ data: {} });
 
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -48,68 +47,13 @@ describe('ArtistQuotesPage', () => {
     await act(async () => {
       withdrawBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(api.updateQuoteAsArtist).toHaveBeenCalledWith(1, { status: 'withdrawn_by_artist' });
-
-    const confirmBtn = Array.from(div.querySelectorAll('button')).find(b => b.textContent === 'Confirm Booking') as HTMLButtonElement;
-    expect(confirmBtn).toBeTruthy();
-    await act(async () => {
-      confirmBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(api.confirmQuoteBooking).toHaveBeenCalledWith(2);
-    expect(
-      (toast.success as jest.Mock).mock.calls.some(
-        (c) => c[0] === 'Booking confirmed',
-      ),
-    ).toBe(false);
+    expect(api.withdrawQuoteV2).toHaveBeenCalledWith(1);
 
     act(() => {
       root.unmount();
     });
     div.remove();
   });
-
-  it('opens edit modal and saves changes', async () => {
-    useRouter.mockReturnValue({ push: jest.fn() });
-    usePathname.mockReturnValue('/dashboard/quotes');
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider', email: 'a@example.com' } });
-    (api.getMyArtistQuotes as jest.Mock).mockResolvedValue({
-      data: [
-        { id: 1, booking_request_id: 9, artist_id: 2, quote_details: 'Offer', price: 100, currency: 'ZAR', status: 'pending_client_action', created_at: '', updated_at: '' },
-      ],
-    });
-    (api.updateQuoteAsArtist as jest.Mock).mockResolvedValue({ data: {} });
-
-    const div = document.createElement('div');
-    document.body.appendChild(div);
-    const root = createRoot(div);
-
-    await act(async () => {
-      root.render(<ArtistQuotesPage />);
-    });
-    await flushPromises();
-
-    const editBtn = Array.from(div.querySelectorAll('button')).find(b => b.textContent === 'Edit') as HTMLButtonElement;
-    expect(editBtn).toBeTruthy();
-    await act(async () => {
-      editBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    const textarea = div.querySelector('textarea') as HTMLTextAreaElement;
-    const input = div.querySelector('input[type="number"]') as HTMLInputElement;
-    expect(textarea).not.toBeNull();
-    await act(async () => {
-      textarea.value = 'Updated';
-      textarea.dispatchEvent(new Event('change', { bubbles: true }));
-      input.value = '150';
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-
-    const form = div.querySelector('form') as HTMLFormElement;
-    await act(async () => {
-      form.dispatchEvent(new Event('submit', { bubbles: true }));
-    });
-
-    expect(api.updateQuoteAsArtist).toHaveBeenCalledWith(1, { quote_details: 'Updated', price: 150 });
 
     act(() => {
       root.unmount();
