@@ -1361,7 +1361,8 @@ export const updateBookingRequestArtist = (
 export const createQuoteForRequest = async (
   requestId: number,
   data: QuoteCreate
-): Promise<ReturnType<typeof createQuoteV2>> => {
+  // returns AxiosResponse<QuoteV2>
+) => {
   const br = await getBookingRequestById(requestId);
   const clientId = (br.data as any)?.client_id ?? 0;
   return createQuoteV2({
