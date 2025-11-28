@@ -356,8 +356,8 @@ const InlineQuoteForm: React.FC<Props> = ({
         // Sound Service specific prefill: derive itemised extras (stage,
         // lighting, unit add-ons, backline) from the sound-estimate endpoint
         // and align Base + Extras + Travel with the wizard's supplier
-        // estimate. This runs once per mount for sound threads.
-        if (isSoundSvc && hasTbSoundEstimate) {
+        // estimate when available. This runs once per mount for sound threads.
+        if (isSoundSvc) {
           try {
             const guests = Number(tb.guests_count);
             const venueType = String(tb.venue_type || '').toLowerCase() || 'indoor';
