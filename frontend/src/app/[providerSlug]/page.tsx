@@ -92,15 +92,54 @@ async function fetchProviderFull(raw: string): Promise<FullProviderPayload> {
     next: { revalidate },
     headers: { accept: 'application/json' },
   });
-  if (!res.ok) {
+  if (res.ok) {
+    const payload = (await res.json()) as FullProviderPayload;
+    return {
+      provider: normalizeProvider(payload.provider),
+      services: payload.services,
+      reviews: payload.reviews,
+    };
+  }
+  if (res.status !== 404) {
     throw new Error(`Provider full fetch failed (${res.status})`);
   }
-  const payload = (await res.json()) as FullProviderPayload;
-  return {
-    provider: normalizeProvider(payload.provider),
-    services: payload.services,
-    reviews: payload.reviews,
-  };
+  // Backend not yet updated with /full endpoints; fall back to the legacy trio.
+  const provider = await fetchProviderOnly(raw);
+  const providerId =
+    (provider as any).user_id ??
+    (typeof (provider as any).id === 'number' ? (provider as any).id : 0) ??
+    0;
+  const [services, reviews] = await Promise.all([
+    fetchServices(providerId),
+    fetchReviews(providerId),
+  ]);
+  return { provider, services, reviews };
+}
+
+async function fetchServices(providerId: number): Promise<Service[]> {
+  const res = await fetch(
+    apiUrl(`/api/v1/services/artist/${providerId}`),
+    {
+      cache: 'force-cache',
+      next: { revalidate },
+      headers: { accept: 'application/json' },
+    },
+  );
+  if (!res.ok) throw new Error(`Services fetch failed (${res.status})`);
+  return (await res.json()) as Service[];
+}
+
+async function fetchReviews(providerId: number): Promise<Review[]> {
+  const res = await fetch(
+    apiUrl(`/api/v1/reviews/service-provider-profiles/${providerId}/reviews`),
+    {
+      cache: 'force-cache',
+      next: { revalidate },
+      headers: { accept: 'application/json' },
+    },
+  );
+  if (!res.ok) throw new Error(`Reviews fetch failed (${res.status})`);
+  return (await res.json()) as Review[];
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
