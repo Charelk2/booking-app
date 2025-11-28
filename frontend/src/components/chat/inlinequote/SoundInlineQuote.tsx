@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useId } from 'react';
 import { format, addHours } from 'date-fns';
-import { ServiceItem, QuoteV2Create, QuoteCalculationResponse } from '@/types';
+import { ServiceItem, QuoteV2Create } from '@/types';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from '../QuoteBubble';
-import { calculateQuoteBreakdown } from '@/lib/api';
 import { useSoundQuotePrefill } from '@/components/chat/inlinequote/useSoundQuotePrefill';
 
 /**
@@ -225,30 +224,6 @@ const SoundInlineQuote: React.FC<SoundInlineQuoteProps> = ({
       setTravelFee(initialTravelCost);
     }
   }, [initialTravelCost, dirtyTravel]);
-
-  // Prefill from backend calculator if provided
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      if (!calculationParams) return;
-      try {
-        setLoadingCalc(true);
-        const { data } = (await calculateQuoteBreakdown(calculationParams)) as { data: QuoteCalculationResponse };
-        if (cancelled) return;
-        if (initialBaseFee == null && !dirtyService) setServiceFee(calculationParams.base_fee ?? data?.base_fee ?? 0);
-        if (initialTravelCost == null && !dirtyTravel) setTravelFee(Number(data?.travel_cost || 0));
-        if (initialSoundCost == null && initialSoundNeeded == null && !dirtySound) setSoundFee(Number(data?.sound_cost || 0));
-      } catch {
-        // soft-fail
-      } finally {
-        if (!cancelled) setLoadingCalc(false);
-      }
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [calculationParams, initialBaseFee, initialTravelCost, initialSoundCost, initialSoundNeeded, dirtyService, dirtyTravel, dirtySound]);
 
   useSoundQuotePrefill({
     bookingRequestId,
