@@ -624,12 +624,27 @@ export const prefetchServiceProviders = async (params: Parameters<typeof getServ
 };
 
 export const getServiceProvider = async (slugOrId: number | string) => {
-  const path =
-    typeof slugOrId === 'string' && !/^\d+$/.test(slugOrId)
-      ? `${API_V1}/service-provider-profiles/by-slug/${encodeURIComponent(slugOrId)}`
-      : withApiOrigin(`${API_V1}/service-provider-profiles/${Number(slugOrId)}`);
-  const res = await api.get<ServiceProviderProfile>(path);
-  return { ...res, data: normalizeServiceProviderProfile(res.data) };
+  const isStringSlug = typeof slugOrId === 'string' && !/^\d+$/.test(slugOrId);
+  const slugPath = `${API_V1}/service-provider-profiles/by-slug/${encodeURIComponent(String(slugOrId))}`;
+  const idPath = withApiOrigin(`${API_V1}/service-provider-profiles/${Number(slugOrId)}`);
+
+  // Try slug first when it looks like one; fall back to id on 404 or slug failure.
+  const tryPaths = isStringSlug ? [slugPath, idPath] : [idPath];
+  let lastErr: any = null;
+  for (const path of tryPaths) {
+    try {
+      const res = await api.get<ServiceProviderProfile>(path);
+      return { ...res, data: normalizeServiceProviderProfile(res.data) };
+    } catch (err: any) {
+      lastErr = err;
+      // If slug lookup 404s, fall back; otherwise rethrow
+      const status = err?.response?.status;
+      if (!(status === 404 && path === slugPath)) {
+        throw err;
+      }
+    }
+  }
+  throw lastErr;
 };
 
 export const getServiceProviderAvailability = (serviceProviderId: number) =>
