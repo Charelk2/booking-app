@@ -11,6 +11,7 @@ import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import ErrorState from '@/components/ui/ErrorState';
 import { formatCurrency } from '@/lib/utils';
 import { colors, radii, spacing, typography } from '@/theme/tokens';
+import { tableCellStyle, tableHeaderStyle } from '@/theme/table';
 import { getPayoutStageLabel, getPayoutStatusTheme } from '@/theme/payoutStatus';
 
 type Payout = {
@@ -203,12 +204,14 @@ export default function ProviderPayoutsPage() {
 
 // Small helpers
 const Th = (props: any) => (
-  <th scope="col" className="px-4 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+  <th scope="col" style={tableHeaderStyle}>
     {props.children}
   </th>
 );
 const Td = (props: any) => (
-  <td className="px-4 py-2 align-middle text-[13px] text-gray-900 whitespace-nowrap">{props.children}</td>
+  <td className="align-middle whitespace-nowrap" style={tableCellStyle}>
+    {props.children}
+  </td>
 );
 
 function StagePill({ type }: { type: string }) {
