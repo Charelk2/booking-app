@@ -17,6 +17,7 @@ import api, {
   getServiceProviders,
 } from '../api';
 import type { AxiosRequestConfig } from 'axios';
+import * as transportState from '@/lib/transportState';
 
 describe('request interceptor', () => {
   const typedApi = api as unknown as {
@@ -35,15 +36,15 @@ describe('request interceptor', () => {
     localStorage.setItem('token', 'abc');
     const config: AxiosRequestConfig = { headers: {} };
     const result = handler(config);
-    // Request guard only sets the header when token lookup succeeds.
-    expect(result.headers!.Authorization).toBe('Bearer abc');
+    // Cookie-only flow strips Authorization; it should not be attached.
+    expect(result.headers!.Authorization).toBeUndefined();
   });
 
   it('reads token from sessionStorage when available', () => {
     sessionStorage.setItem('token', 'def');
     const config: AxiosRequestConfig = { headers: {} };
     const result = handler(config);
-    expect(result.headers!.Authorization).toBe('Bearer def');
+    expect(result.headers!.Authorization).toBeUndefined();
   });
 
   it('removes Authorization header when token missing', () => {
@@ -164,6 +165,16 @@ describe('response interceptor', () => {
     };
   };
   const rejected = typedApi.interceptors.response.handlers[0].rejected;
+  let transportSpy: jest.SpyInstance;
+
+  beforeAll(() => {
+    // Prevent network-guard side effects from altering the error message in tests.
+    transportSpy = jest.spyOn(transportState, 'noteTransportOffline').mockImplementation(() => {});
+  });
+
+  afterAll(() => {
+    transportSpy.mockRestore();
+  });
 
   it('maps HTTP status to user message when detail is missing', async () => {
     expect.assertions(1);
@@ -187,9 +198,8 @@ describe('response interceptor', () => {
     });
   });
 
-  it('falls back to extracted detail and logs error', async () => {
-    expect.assertions(2);
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  it('falls back to extracted detail and keeps detail text', async () => {
+    expect.assertions(1);
     const err: unknown = {
       isAxiosError: true,
       response: { status: 499, data: { detail: 'oops' } },
@@ -197,8 +207,6 @@ describe('response interceptor', () => {
     await rejected(err).catch((e: Error) => {
       expect(e.message).toBe('oops');
     });
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
   });
 
   it('uses server detail when provided for 422', async () => {

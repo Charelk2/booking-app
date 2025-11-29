@@ -368,7 +368,14 @@ We cut the preview route latency by ≈10× without changing the JSON contract.
   - After: `brs≈435ms`, `unread≈60ms`, `build≈27ms`, `ser≈0.2ms`. End‑to‑end TTFB now mostly network/TLS.
 
 - Next steps
-  - Client: persist ETag and send `If‑None‑Match` on first load; render from cache immediately.
-  - Server: Redis ephemeral preview cache (per user+role+limit) updated on events; serve cached bytes + stored ETag for near‑instant previews across instances.
+- Client: persist ETag and send `If-None-Match` on first load; render from cache immediately.
+- Server: Redis ephemeral preview cache (per user+role+limit) updated on events; serve cached bytes + stored ETag for near-instant previews across instances.
 
 See `backend/app/api/THREADS_PREVIEW_OPTIMIZATION.md` for details.
+
+## UI Tokens (Jan 2026)
+
+- Added a shared token set (`frontend/src/theme/tokens.ts`) for colors/radii/spacing/typography, plus status/payout/table helpers.
+- Status chips/badges and payout badges now use token-based helpers (`statusChipStyles`, `payoutStatus`), reducing hardcoded Tailwind.
+- Common UI primitives (Button variants, Chip, Tag, PillButton, Card, Section, EmptyState, payouts table headers/cells) are tokenized for reuse across web and future React Native surfaces.
+- Tests were aligned to current behavior (auth guard messages, local date formatting) and button variant shape. The network guard is stubbed in `api.test.ts` to keep tests focused on app logic.
