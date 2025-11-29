@@ -46,6 +46,7 @@ describe('useWebSocket', () => {
 
   it('reconnects with exponential backoff', () => {
     jest.useFakeTimers();
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
 
     function Test() {
       useWebSocket('ws://test');
@@ -78,6 +79,7 @@ describe('useWebSocket', () => {
     });
     expect(StubSocket.instances.length).toBe(3);
 
+    randomSpy.mockRestore();
     jest.useRealTimers();
   });
 
@@ -173,14 +175,14 @@ describe('useWebSocket', () => {
     act(() => {
       socket.onmessage?.({ data: JSON.stringify({ type: 'ping' }) } as MessageEvent);
     });
-    expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ type: 'pong' }));
+    expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ v: 1, type: 'pong' }));
     socket.send.mockClear();
 
     act(() => {
       jest.advanceTimersByTime(1000);
     });
     expect(socket.send).toHaveBeenCalledWith(
-      JSON.stringify({ type: 'presence', updates: { 1: 'online', 2: 'away' } }),
+      JSON.stringify({ v: 1, type: 'presence', updates: { 1: 'online', 2: 'away' } }),
     );
 
     jest.useRealTimers();

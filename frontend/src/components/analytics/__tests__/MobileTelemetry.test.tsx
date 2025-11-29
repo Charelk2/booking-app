@@ -39,12 +39,19 @@ describe('MobileTelemetry', () => {
       root.render(<MobileTelemetry />);
     });
 
-    // Three taps in the same spot
+    // Three taps in the same spot on a disabled button
+    const button = document.createElement('button');
+    button.disabled = true;
+    document.body.appendChild(button);
     act(() => {
-      const event = new MouseEvent('click', { clientX: 10, clientY: 10, bubbles: true });
-      document.dispatchEvent(event);
-      document.dispatchEvent(event);
-      document.dispatchEvent(event);
+      const event = new MouseEvent('click', {
+        clientX: 10,
+        clientY: 10,
+        bubbles: true,
+      });
+      button.dispatchEvent(event);
+      button.dispatchEvent(event);
+      button.dispatchEvent(event);
     });
 
     expect(trackEvent).toHaveBeenCalledWith(
@@ -56,10 +63,12 @@ describe('MobileTelemetry', () => {
       expect.objectContaining({ name: 'INP' }),
     );
     expect(trackEvent).toHaveBeenCalledWith('rage_tap', expect.any(Object));
+    expect(trackEvent).toHaveBeenCalledWith('tap_error', expect.any(Object));
 
     act(() => {
       root.unmount();
     });
+    button.remove();
     container.remove();
   });
 });

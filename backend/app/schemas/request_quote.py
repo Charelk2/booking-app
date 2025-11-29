@@ -7,6 +7,7 @@ from ..models.booking_status import BookingStatus
 from .user import UserResponse  # For nesting user details
 from .artist import ArtistProfileResponse  # Include artist business name
 from .service import ServiceResponse  # For nesting service details
+from .quote_v2 import QuoteRead
 
 # --- BookingRequest Schemas ---
 
@@ -64,7 +65,7 @@ class BookingRequestResponse(BookingRequestBase):
     accepted_quote_id: Optional[int] = None
     last_message_content: Optional[str] = None
     last_message_timestamp: Optional[datetime] = None
-    quotes: Optional[List[Any]] = None
+    quotes: Optional[List[QuoteRead]] = None
 
     model_config = {
         "from_attributes": True

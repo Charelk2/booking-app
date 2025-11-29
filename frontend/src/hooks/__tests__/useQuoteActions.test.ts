@@ -22,21 +22,18 @@ describe('quote action hooks', () => {
       travel_fee: 0,
     };
     await sendQuote(payload);
-    expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:8000/api/v1/quotes',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
+    expect(global.fetch).toHaveBeenCalledWith('/api/v1/quotes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+    });
   });
 
   it('posts to accept endpoint with service id', async () => {
     const acceptQuote = useAcceptQuote();
     await acceptQuote(5, 7);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:8000/api/v1/quotes/5/accept?service_id=7',
+      '/api/v1/quotes/5/accept?service_id=7',
       {
         method: 'POST',
         body: '{}',
@@ -48,13 +45,10 @@ describe('quote action hooks', () => {
   it('posts to decline endpoint', async () => {
     const declineQuote = useDeclineQuote();
     await declineQuote(9);
-    expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:8000/api/v1/quotes/9/decline',
-      {
-        method: 'POST',
-        body: '{}',
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
+    expect(global.fetch).toHaveBeenCalledWith('/api/v1/quotes/9/decline', {
+      method: 'POST',
+      body: '{}',
+      headers: { 'Content-Type': 'application/json' },
+    });
   });
 });

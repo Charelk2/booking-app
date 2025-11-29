@@ -27,6 +27,7 @@ describe('SocialLoginButtons redirect handling', () => {
     container.remove();
     window.location = originalLocation;
     delete process.env.NEXT_PUBLIC_API_URL;
+    delete process.env.NEXT_PUBLIC_APPLE_SIGNIN;
   });
 
   it('defaults to /dashboard', () => {
@@ -47,12 +48,12 @@ describe('SocialLoginButtons redirect handling', () => {
       root.render(<SocialLoginButtons redirectPath="/profile" />);
     });
     const buttons = container.querySelectorAll('button');
-    const githubBtn = buttons[1] as HTMLButtonElement;
+    const googleBtn = buttons[0] as HTMLButtonElement;
     act(() => {
-      githubBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      googleBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(window.location.href).toBe(
-      'http://api/auth/github/login?next=%2Fprofile',
+      'http://api/auth/google/login?next=%2Fprofile',
     );
   });
 });

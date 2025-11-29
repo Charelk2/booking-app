@@ -387,20 +387,26 @@ def _maybe_create_linked_sound_booking_request(
         return
 
 
-def _prepare_quotes_for_response(quotes: list[Any] | None) -> None:
+def _prepare_quotes_for_response(quotes: list[Any] | None) -> list[dict]:
+    """
+    Normalize QuoteV2 rows into JSON-friendly dicts with preview fields.
+    """
     if not quotes:
-        return
+        return []
+    out: list[dict] = []
     for q in quotes:
         try:
-            setattr(q, "booking_request", None)
+          # Detach heavy relationships to avoid circular refs
+            try:
+                setattr(q, "booking_request", None)
+            except Exception:
+                pass
+            payload = schemas.QuoteV2Read.model_validate(q).model_dump()
+            payload.update(quote_preview_fields(q))
+            out.append(payload)
         except Exception:
             continue
-        try:
-            fields = quote_preview_fields(q)
-            for key, value in fields.items():
-                setattr(q, key, value)
-        except Exception:
-            continue
+    return out
 
 
 def _to_lite_booking_request_response(
@@ -956,7 +962,7 @@ def read_my_client_booking_requests(
         if getattr(req, "updated_at", None) is None:
             req.updated_at = req.created_at
         if not lite:
-            _prepare_quotes_for_response(list(req.quotes or []))
+            req.quotes = _prepare_quotes_for_response(list(req.quotes or []))
     try:
         response.headers["ETag"] = etag
         response.headers["Cache-Control"] = "no-cache, private"
@@ -1000,7 +1006,7 @@ def read_my_artist_booking_requests(
             req.created_at = datetime.utcnow()
         if getattr(req, "updated_at", None) is None:
             req.updated_at = req.created_at
-        _prepare_quotes_for_response(list(req.quotes or []))
+        req.quotes = _prepare_quotes_for_response(list(req.quotes or []))
     return requests
 
 

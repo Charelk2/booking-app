@@ -12,7 +12,6 @@ import {
   getCityFromAddress,
 } from '../utils';
 import { DEFAULT_CURRENCY } from '../constants';
-import api from '../api';
 import { format } from 'date-fns';
 import type { Service, ServiceProviderProfile, QuoteTemplate } from '@/types';
 
@@ -107,11 +106,15 @@ describe('getNextAvailableDates', () => {
 
 describe('getFullImageUrl', () => {
   it('joins base url and path removing /api suffix', () => {
-    const orig = api.defaults.baseURL;
-    api.defaults.baseURL = 'http://example.com/api';
+    const origEnv = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = 'http://example.com/api';
     const result = getFullImageUrl('profile_pics/foo.jpg');
     expect(result).toBe('http://example.com/static/profile_pics/foo.jpg');
-    api.defaults.baseURL = orig;
+    if (origEnv === undefined) {
+      delete process.env.NEXT_PUBLIC_API_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_URL = origEnv;
+    }
   });
 
   it('returns absolute path unchanged', () => {
