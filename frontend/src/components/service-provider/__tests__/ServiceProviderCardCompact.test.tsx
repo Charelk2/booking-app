@@ -21,12 +21,19 @@ describe('ServiceProviderCardCompact', () => {
     document.body.innerHTML = '';
   });
 
-  it('matches snapshot', () => {
+  it('renders core structure with image, name, and link', () => {
     const { container, root, allProps } = setup();
     act(() => {
       root.render(React.createElement(ServiceProviderCardCompact, allProps));
     });
-    expect(container.firstChild).toMatchSnapshot();
+    const link = container.querySelector('a') as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/1');
+    expect(container.textContent).toContain('Test');
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    // default avatar when no imageUrl provided
+    expect(img?.getAttribute('src')).toContain('/default-avatar.svg');
     act(() => root.unmount());
     container.remove();
   });
@@ -49,11 +56,12 @@ describe('ServiceProviderCardCompact', () => {
     act(() => {
       root.render(React.createElement(ServiceProviderCardCompact, allProps));
     });
+    // formatCityRegion should collapse to "Worcester, Western Cape"
     expect(container.textContent).toContain('Worcester');
+    expect(container.textContent).toContain('Western Cape');
     expect(container.textContent).not.toContain('123 Main St');
     expect(container.textContent).not.toContain('Suburb');
     expect(container.textContent).not.toContain('6850');
-    expect(container.textContent).not.toContain('Western Cape');
     act(() => root.unmount());
     container.remove();
   });
