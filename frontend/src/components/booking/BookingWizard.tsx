@@ -372,9 +372,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
     const focusHandler = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
-      // Scroll slightly after keyboard open
+      // Scroll slightly after keyboard open (guard for jsdom/tests where
+      // scrollIntoView may be undefined).
       setTimeout(() => {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof (target as any).scrollIntoView === 'function') {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }, 100);
     };
     formEl.addEventListener('focusin', focusHandler);
@@ -1781,7 +1784,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     ×
                   </button>
                 </div>
-                <div className="mt-3 h-1.5 w-full rounded bg-black/10">
+                <div
+                  className="mt-3 h-1.5 w-full rounded bg-black/10"
+                  role="progressbar"
+                  aria-valuenow={progressValue}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
                   <div
                     className="h-full rounded bg-black transition-[width] duration-300"
                     style={{ width: `${progressValue}%` }}

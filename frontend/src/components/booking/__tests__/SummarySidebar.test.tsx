@@ -42,12 +42,12 @@ describe('SummarySidebar', () => {
     act(() => {
       root.render(<SummarySidebar />);
     });
-    expect(container.textContent).not.toContain('Jan 2, 2024');
+    expect(container.textContent).not.toContain('January 2nd, 2024');
     const button = container.querySelector('button');
     act(() => {
       button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(container.textContent).toContain('Jan 2, 2024');
+    expect(container.textContent).toContain('January 2nd, 2024');
     expect(container.textContent).toContain('Wedding');
     expect(container.textContent).toContain('A small ceremony');
   });
@@ -70,12 +70,12 @@ describe('SummarySidebar', () => {
     act(() => {
       root.render(<SummarySidebar />);
     });
-    expect(container.textContent).not.toContain('May 3, 2024');
+    expect(container.textContent).not.toContain('May 3rd, 2024');
     const button = container.querySelector('button');
     act(() => {
       button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(container.textContent).toContain('May 3, 2024');
+    expect(container.textContent).toContain('May 3rd, 2024');
     expect(container.textContent).toContain('50');
     expect(container.textContent).toContain('Corporate');
     expect(container.textContent).toContain('Year end function');

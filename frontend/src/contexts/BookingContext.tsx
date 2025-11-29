@@ -104,7 +104,8 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
   // Determine whether saved data is meaningful (user actually started)
   const hasMeaningfulProgress = (p: SavedState) => {
     if (!p) return false;
-    if ((p.step ?? 0) > 0) return true;
+    const stepNum = p.step ?? 0;
+    if (stepNum > 0) return true;
     const d = p.details || {};
     const nonempty = (v?: string | null) => !!(v && String(v).trim());
     return (
@@ -112,7 +113,9 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
       nonempty(d.location) ||
       nonempty(d.guests) ||
       nonempty(d.eventType) ||
-      (d.date != null && String(d.date).trim() !== '')
+      // Treat date as meaningful progress only when the user is on or past the
+      // Date step; avoid persisting a brand‑new wizard with just today's date.
+      (stepNum >= 2 && d.date != null && String(d.date).trim() !== '')
     );
   };
 

@@ -3,11 +3,10 @@ import { act } from "react-dom/test-utils";
 import { createRoot } from "react-dom/client";
 import BookingDetailsClient from "../[id]/BookingDetailsClient";
 import { downloadBookingIcs } from "@/lib/api";
-import type { BookingFull } from "@/types";
 
 jest.mock("@/components/booking/PaymentModal", () => ({
   __esModule: true,
-  default: ({ open }: any) => (open ? <div data-testid="payment-modal">Pay Now</div> : null),
+  default: (props) => (props.open ? <div data-testid="payment-modal">Pay Now</div> : null),
 }));
 
 jest.mock("next/link", () => {
@@ -28,7 +27,7 @@ jest.mock("@/lib/api", () => ({
   downloadBookingIcs: jest.fn(),
 }));
 
-const baseBooking = (): BookingFull => ({
+const baseBooking = () => ({
   booking: {
     id: 1,
     service_provider_id: 2,

@@ -29,7 +29,6 @@ class QuoteV2(BaseModel):
     artist_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     client_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     services = Column(JSON, nullable=False)
-    quote_details = Column(String, nullable=True)
     sound_fee = Column(Numeric(10, 2), nullable=False, default=0)
     # When true (stored as 'true' string for compatibility), the sound line is firm
     # Note: kept as a simple string column to avoid enum migrations in older DBs

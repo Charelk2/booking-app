@@ -440,7 +440,18 @@ def accept_quote(
 
     # Do not simulate payment here; payment and receipt issuance happen via the
     # payments API after the client completes checkout.
-
+    try:
+        booking.confirmed = True
+        db.add(booking)
+        db.commit()
+        db.refresh(booking)
+    except Exception:
+        db.rollback()
+    try:
+        if db_booking and client:
+            notify_new_booking(db, client, db_booking.id)
+    except Exception:
+        logger.warning("Notify new booking failed for booking_id=%s", getattr(db_booking, "id", None))
     return booking
 
 

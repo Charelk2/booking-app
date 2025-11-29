@@ -1,6 +1,7 @@
 // Enable React 18 act() environment
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
+import '@testing-library/jest-dom';
 import React from "react";
 import "@/tests/mocks/no-network";
 import {
