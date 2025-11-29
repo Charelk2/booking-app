@@ -42,6 +42,11 @@ DEFAULT_ATTACHMENTS_DIR = os.path.abspath(
 ATTACHMENTS_DIR = os.getenv("ATTACHMENTS_DIR", DEFAULT_ATTACHMENTS_DIR)
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 
+_PARSE_TASKS: dict[str, Any] = {}
+
+class ParseTaskResponse(BaseModel):
+    task_id: str
+
 
 def _maybe_create_linked_sound_booking_request(
     db: Session,
@@ -238,7 +243,7 @@ def _maybe_create_linked_sound_booking_request(
                     booking_request_id=child.id,
                     sender_id=int(parent_request.client_id),
                     sender_type=models.SenderType.CLIENT,
-                    content="You have a new booking request for sound.",
+                    content="New booking request for sound.",
                     message_type=models.MessageType.SYSTEM,
                     visible_to=models.VisibleTo.ARTIST,
                 )
@@ -516,14 +521,14 @@ async def upload_booking_attachment(file: UploadFile = File(...)):
 
 @router.post(
     "/parse",
-    status_code=status.HTTP_200_OK,
-    response_model=schemas.ParsedBookingDetails,
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=ParseTaskResponse,
     response_model_exclude_none=True,
 )
 def parse_booking_text(payload: schemas.BookingParseRequest):
     """Parse free-form booking text synchronously and return structured details."""
     try:
-        return nlp_booking.extract_booking_details(payload.text)
+        result = nlp_booking.extract_booking_details(payload.text)
     except nlp_booking.NLPModelError as exc:  # pragma: no cover - environment specific
         logger.error("NLP model error: %s", exc)
         raise error_response(
@@ -538,6 +543,9 @@ def parse_booking_text(payload: schemas.BookingParseRequest):
             {"text": "Parsing failed"},
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
+    task_id = str(uuid.uuid4())
+    _PARSE_TASKS[task_id] = result
+    return {"task_id": task_id}
 
 
 @router.get(
@@ -546,12 +554,15 @@ def parse_booking_text(payload: schemas.BookingParseRequest):
     response_model_exclude_none=True,
 )
 async def get_parsed_booking(task_id: str):
-    """Deprecated: kept for compatibility; parse is now synchronous."""
-    raise error_response(
-        "Task not found",
-        {"task_id": "not_found"},
-        status.HTTP_404_NOT_FOUND,
-    )
+    """Return parsed booking details for a previously submitted task."""
+    data = _PARSE_TASKS.get(task_id)
+    if data is None:
+        raise error_response(
+            "Task not found",
+            {"task_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    return data
 
 
 @router.get("/{request_id}/booking-id", summary="Resolve booking id for a booking request")
@@ -831,7 +842,7 @@ def create_booking_request(
         booking_request_id=new_request.id,
         sender_id=current_user.id,
         sender_type=models.SenderType.CLIENT,
-        content="You have a new booking request.",
+        content="New booking request.",
         message_type=models.MessageType.SYSTEM,
         visible_to=models.VisibleTo.ARTIST,
     )
@@ -847,7 +858,7 @@ def create_booking_request(
                 user=artist_user,
                 sender=current_user,
                 booking_request_id=new_request.id,
-                content="You have a new booking request.",
+                content="New booking request.",
                 message_type=models.MessageType.SYSTEM,
             )
     except Exception:
@@ -878,7 +889,7 @@ def create_booking_request(
     response_model_exclude_none=True,
 )
 def read_my_client_booking_requests(
-    response: Response,
+    response: Response = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=200),
     lite: bool = Query(True, description="Return a lighter shape for list views"),
@@ -891,6 +902,22 @@ def read_my_client_booking_requests(
     """
     Retrieve booking requests made by the current client.
     """
+    if response is None:
+        response = Response()
+    if hasattr(skip, "default"):
+        try:
+            skip = int(getattr(skip, "default", 0) or 0)
+        except Exception:
+            skip = 0
+    if hasattr(limit, "default"):
+        try:
+            limit = int(getattr(limit, "default", 20) or 20)
+        except Exception:
+            limit = 20
+    if hasattr(lite, "default"):
+        lite = bool(getattr(lite, "default", True))
+    if not isinstance(if_none_match, str):
+        if_none_match = None
     # Cheap snapshot for ETag: max ids + count
     try:
         max_br = (

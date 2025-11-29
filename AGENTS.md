@@ -332,6 +332,9 @@ The inline quote forms in the chat are now split by **service type**; this split
     - Live‑only prefill hook; owns all data/estimate logic for the artist path.
   - `frontend/src/components/chat/inlinequote/useSoundQuotePrefill.ts`
     - Sound‑only prefill hook; owns all data/estimate logic for the sound‑provider path.
+- Engine locations:
+  - Backend service types live under `backend/app/service_types/live_performance/estimate.py` and `backend/app/service_types/sound_service/estimate.py` (facaded by `backend/app/services/booking_quote.py`).
+  - Frontend request helpers live under `frontend/src/lib/estimates/livePerformance.ts` and `frontend/src/lib/estimates/sound.ts`, with compatibility wrappers still exported from `frontend/src/lib/api.ts`.
 
 - Why this matters (future services):
   - `MessageThreadWrapper` is the central **router** for inline quote engines. All new service types (video, corporate packages, etc.) should follow the same pattern:

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from decimal import Decimal
 
@@ -64,6 +64,7 @@ class BookingRequestResponse(BookingRequestBase):
     accepted_quote_id: Optional[int] = None
     last_message_content: Optional[str] = None
     last_message_timestamp: Optional[datetime] = None
+    quotes: Optional[List[Any]] = None
 
     model_config = {
         "from_attributes": True

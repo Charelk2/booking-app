@@ -6,6 +6,8 @@ from .booking_status import BookingStatus
 from .review import Review
 from .client_review import ClientReview
 from .quote_v2 import QuoteV2, QuoteStatusV2
+# Legacy alias: v1 Quote table no longer exists; provide Quote -> QuoteV2 for tests/backward-compat imports.
+Quote = QuoteV2
 from .booking_request import BookingRequest
 from .quote_template import QuoteTemplate
 from .booking_simple import BookingSimple
@@ -43,6 +45,7 @@ __all__ = [
     "UserType",
     "BookingStatus",
     "QuoteStatusV2",
+    "Quote",
     "SenderType",
     "MessageType",
     "VisibleTo",

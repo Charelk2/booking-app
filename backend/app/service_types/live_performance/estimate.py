@@ -5,11 +5,11 @@ from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
-from ..travel_estimator import estimate_travel
-from ..distance_service import get_distance_metrics
-from ...crud import crud_service
-from ...models import Service, Rider
-from .sound_service import estimate_sound_service_total
+from app.services.travel_estimator import estimate_travel
+from app.services.distance_service import get_distance_metrics
+from app.crud import crud_service
+from app.models import Service, Rider, ServiceProviderProfile
+from app.service_types.sound_service import estimate_sound_service_total
 
 
 def calculate_quote(
@@ -55,8 +55,6 @@ def calculate_quote_breakdown(
     # If distance not provided, compute from artist base location to event city
     if (distance_km is None or distance_km <= 0) and service and event_city and db:
         try:
-            from ...models import ServiceProviderProfile
-
             artist_loc = (
                 db.query(ServiceProviderProfile)
                 .filter(ServiceProviderProfile.user_id == service.artist_id)

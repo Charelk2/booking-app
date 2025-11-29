@@ -32,6 +32,15 @@ import {
   ServiceCategory,
   BookingAgentState,
 } from '@/types';
+import {
+  livePerformanceEstimate as livePerformanceEstimateRequest,
+  type QuoteEstimatePayload,
+} from './estimates/livePerformance';
+import {
+  soundEstimate as soundEstimateRequest,
+  soundEstimateForService,
+  type SoundEstimatePayload,
+} from './estimates/sound';
 
 export const getApiOrigin = () =>
   (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '') ||
@@ -1758,34 +1767,8 @@ export const deleteQuoteTemplate = (id: number) =>
   api.delete(`${API_V1}/quote-templates/${id}`);
 
 // ─── QUOTE CALCULATOR (service-typed) ─────────────────────────────────────────
-type QuoteEstimatePayload = {
-  base_fee: number;
-  distance_km: number;
-  service_id: number;
-  event_city: string;
-  accommodation_cost?: number;
-  // New optional sound-context inputs for better sizing/pricing
-  guest_count?: number;
-  venue_type?: 'indoor' | 'outdoor' | 'hybrid';
-  stage_required?: boolean;
-  stage_size?: 'S' | 'M' | 'L';
-  lighting_evening?: boolean;
-  backline_required?: boolean;
-  upgrade_lighting_advanced?: boolean;
-  selected_sound_service_id?: number;
-  supplier_distance_km?: number;
-  rider_units?: {
-    vocal_mics?: number;
-    speech_mics?: number;
-    monitor_mixes?: number;
-    iem_packs?: number;
-    di_boxes?: number;
-  };
-  backline_requested?: Record<string, number>;
-};
-
 export const livePerformanceEstimate = (data: QuoteEstimatePayload) =>
-  api.post<QuoteCalculationResponse>(`${API_V1}/quotes/estimate`, data);
+  livePerformanceEstimateRequest(api, data);
 
 export const calculateQuoteBreakdown = (data: QuoteEstimatePayload) =>
   livePerformanceEstimate(data);
@@ -1864,28 +1847,11 @@ export const calculateQuote = async (params: QuoteEstimatePayload): Promise<Quot
 };
 
 // ─── SOUND SERVICE ESTIMATE (audience packages + add-ons) ─────────────────────
-type SoundEstimatePayload = {
-  guest_count: number;
-  venue_type: 'indoor' | 'outdoor' | 'hybrid';
-  stage_required?: boolean;
-  stage_size?: 'S' | 'M' | 'L' | null;
-  lighting_evening?: boolean;
-  upgrade_lighting_advanced?: boolean;
-  rider_units?: {
-    vocal_mics?: number;
-    speech_mics?: number;
-    monitor_mixes?: number;
-    iem_packs?: number;
-    di_boxes?: number;
-  };
-  backline_requested?: Record<string, number>;
-};
-
 export const soundEstimate = (payload: SoundEstimatePayload & { service_id: number }) =>
-  api.post(`${API_V1}/quotes/estimate/sound`, payload);
+  soundEstimateRequest(api, payload);
 
 export const calculateSoundServiceEstimate = (serviceId: number, payload: SoundEstimatePayload) =>
-  soundEstimate({ ...payload, service_id: serviceId });
+  soundEstimateForService(api, serviceId, payload);
 
 // ─── PAYMENTS ───────────────────────────────────────────────────────────────
 export const createPayment =  (data: {

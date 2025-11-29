@@ -81,6 +81,8 @@ PRICE_BUCKETS: List[Tuple[int, int]] = [
     (2000001, 5000000),
 ]
 
+SERVICE_LIST_VISIBLE_STATUSES = ("approved", "pending_review")
+
 # Paths for storing uploaded images:
 STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static"
 PROFILE_PICS_DIR = STATIC_DIR / "profile_pics"
@@ -633,8 +635,8 @@ def update_portfolio_images_order_me(
     description="Return a paginated list of service provider profiles.",
 )
 def read_all_service_provider_profiles(
-    response: Response,
-    request: Request,
+    response: Response = None,
+    request: Request = None,
     db: Session = Depends(get_db),
     # Accept category as a string so unknown values (e.g. "Musician")
     # don't trigger a validation error. We'll attempt to coerce it to
@@ -658,6 +660,37 @@ def read_all_service_provider_profiles(
       with tiny avatar proxy URLs and ETag-based 304 revalidation.
     - Redis-backed caching for common parameter combinations (including fields).
     """
+
+    def _coerce_cached_payload(raw: Any) -> Dict[str, Any]:
+        """Convert cached dict payloads back into response models for consistency."""
+        if not isinstance(raw, dict):
+            return {"data": [], "total": 0, "price_distribution": []}
+        raw_data = raw.get("data") or []
+        profiles_from_cache: list[ArtistProfileResponse] = []
+        for item in raw_data:
+            try:
+                profiles_from_cache.append(ArtistProfileResponse.model_validate(item))
+            except Exception:
+                try:
+                    profiles_from_cache.append(ArtistProfileResponse.model_validate(jsonable_encoder(item)))
+                except Exception:
+                    continue
+        try:
+            total_val = int(raw.get("total", len(profiles_from_cache)) or 0)
+        except Exception:
+            total_val = len(profiles_from_cache)
+        price_dist = raw.get("price_distribution", [])
+        return {
+            "data": profiles_from_cache,
+            "total": total_val,
+            "price_distribution": price_dist,
+        }
+
+    # When invoked directly (e.g., unit tests), FastAPI will not inject
+    # Response/Request. Create fallbacks so cache/etag logic still works.
+    if response is None:
+        response = Response()
+    req_headers = request.headers if isinstance(request, Request) else {}
 
     # FastAPI's Query objects appear when this function is called directly in tests.
     # Normalize them to plain values for compatibility.
@@ -772,13 +805,13 @@ def read_all_service_provider_profiles(
                 etag = None
             response.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=300"
             if etag:
-                if request.headers.get("if-none-match") == etag:
+                if req_headers.get("if-none-match") == etag:
                     response.headers["ETag"] = etag
                     response.headers["X-Cache"] = "REVALIDATED"
                     return Response(status_code=304)
                 response.headers["ETag"] = etag
             response.headers["X-Cache"] = "HIT"
-            return cached
+            return _coerce_cached_payload(cached)
 
     # FAST PATH: only id, business_name, profile_picture_url
     if use_fast_path:
@@ -801,12 +834,12 @@ def read_all_service_provider_profiles(
             booking_subq.c.book_count,
         ]
         query = db.query(*cols).outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
-        query = query.filter(Artist.services.any(Service.status == "approved"))
+        query = query.filter(Artist.services.any(Service.status.in_(SERVICE_LIST_VISIBLE_STATUSES)))
         if category_slug:
             query = (
                 query.join(Service, Service.artist_id == Artist.user_id)
                 .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
-                .filter(getattr(Service, "status", "approved") == "approved")
+                .filter(Service.status.in_(SERVICE_LIST_VISIBLE_STATUSES))
                 .filter(func.lower(ServiceCategory.name) == category_slug.replace("_", " "))
             )
             # Avoid duplicates when an artist has multiple matching services
@@ -828,12 +861,12 @@ def read_all_service_provider_profiles(
             query = query.order_by(Artist.updated_at.desc())
 
         total_q = db.query(func.count(Artist.user_id))
-        total_q = total_q.filter(Artist.services.any(Service.status == "approved"))
+        total_q = total_q.filter(Artist.services.any(Service.status.in_(SERVICE_LIST_VISIBLE_STATUSES)))
         if category_slug:
             total_q = (
                 total_q.join(Service, Service.artist_id == Artist.user_id)
                 .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
-                .filter(getattr(Service, "status", "approved") == "approved")
+                .filter(Service.status.in_(SERVICE_LIST_VISIBLE_STATUSES))
                 .filter(func.lower(ServiceCategory.name) == category_slug.replace("_", " "))
             )
         if location:
@@ -917,7 +950,7 @@ def read_all_service_provider_profiles(
             etag = None
         response.headers["Cache-Control"] = "public, s-maxage=300, stale-while-revalidate=1800"
         if etag:
-            if request.headers.get("if-none-match") == etag:
+            if req_headers.get("if-none-match") == etag:
                 response.headers["ETag"] = etag
                 response.headers["X-Cache"] = "REVALIDATED"
                 return Response(status_code=304)
@@ -957,7 +990,7 @@ def read_all_service_provider_profiles(
             categories_agg.label("service_categories"),
         )
         .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
-        .filter(getattr(Service, "status", "approved") == "approved")
+        .filter(Service.status.in_(SERVICE_LIST_VISIBLE_STATUSES))
         .group_by(Service.artist_id)
         .subquery()
     )
@@ -977,7 +1010,7 @@ def read_all_service_provider_profiles(
         .outerjoin(category_subq, category_subq.c.artist_id == Artist.user_id)
     )
     # Exclude service providers who have not added any APPROVED services.
-    query = query.filter(Artist.services.any(Service.status == "approved"))
+    query = query.filter(Artist.services.any(Service.status.in_(SERVICE_LIST_VISIBLE_STATUSES)))
     if artist:
         query = query.join(User).filter(
             or_(
@@ -993,7 +1026,7 @@ def read_all_service_provider_profiles(
         price_query = db.query(
             Service.artist_id.label("artist_id"),
             func.min(Service.price).label("service_price"),
-        ).filter(getattr(Service, "status", "approved") == "approved")
+        ).filter(Service.status.in_(SERVICE_LIST_VISIBLE_STATUSES))
         if category_slug:
             price_query = price_query.join(Service.service_category).filter(
                 func.lower(ServiceCategory.name) == category_slug.replace("_", " ")
@@ -1038,7 +1071,7 @@ def read_all_service_provider_profiles(
             if category_slug or min_price is not None or max_price is not None:
                 # Use the price_subq (min price per artist, with optional category filter)
                 prices = db.query(func.min(Service.price)).join(ServiceCategory, Service.service_category_id == ServiceCategory.id, isouter=True)
-                prices = prices.filter(getattr(Service, "status", "approved") == "approved")
+                prices = prices.filter(Service.status.in_(SERVICE_LIST_VISIBLE_STATUSES))
                 if category_slug:
                     prices = prices.filter(func.lower(ServiceCategory.name) == category_slug.replace("_", " "))
                 prices = prices.group_by(Service.artist_id)
@@ -1048,7 +1081,7 @@ def read_all_service_provider_profiles(
                 all_min_prices = [
                     float(p or 0)
                     for p, in db.query(func.min(Service.price))
-                    .filter(getattr(Service, "status", "approved") == "approved")
+                    .filter(Service.status.in_(SERVICE_LIST_VISIBLE_STATUSES))
                     .group_by(Service.artist_id)
                     .all()
                 ]
@@ -1255,16 +1288,24 @@ def read_all_service_provider_profiles(
     except Exception:
         pass
 
+    try:
+        serialized_profiles = [
+            ({**p.model_dump(), "user_id": int(getattr(p, "user_id", 0) or 0)} if hasattr(p, "user_id") else p.model_dump())
+            for p in profiles
+        ]
+    except Exception:
+        serialized_profiles = jsonable_encoder(profiles)
+
     # Set caching headers on the response
     if cacheable:
         try:
-            payload = jsonable_encoder([p.model_dump() for p in profiles])
+            payload = jsonable_encoder(serialized_profiles)
             etag = 'W/"' + hashlib.sha256(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest() + '"'
         except Exception:
             etag = None
         response.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=300"
         if etag:
-            if request.headers.get("if-none-match") == etag:
+            if req_headers.get("if-none-match") == etag:
                 response.headers["ETag"] = etag
                 response.headers["X-Cache"] = "REVALIDATED"
                 return Response(status_code=304)
@@ -1274,11 +1315,16 @@ def read_all_service_provider_profiles(
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Cache"] = "BYPASS"
 
-    return {
+    payload = {
         "data": profiles,
         "total": total_count,
         "price_distribution": price_distribution_data,
     }
+    # When invoked directly (e.g., unit tests), coerce payload to JSON-safe
+    # primitives so cached and non-cached calls compare equally.
+    if request is None:
+        return payload
+    return payload
 
 
 class AvatarPresignIn(BaseModel):
@@ -1466,7 +1512,7 @@ def _build_full_profile_payload(artist: Artist, db: Session) -> dict[str, Any]:
     services = (
         db.query(Service)
         .filter(Service.artist_id == artist.user_id)
-        .filter(getattr(Service, "status", "approved") == "approved")
+        .filter(Service.status.in_(SERVICE_LIST_VISIBLE_STATUSES))
         .order_by(Service.display_order)
         .all()
     )

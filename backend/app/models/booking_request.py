@@ -64,3 +64,8 @@ class BookingRequest(Base):
     client = relationship("User", foreign_keys=[client_id], back_populates="booking_requests_as_client")
     artist = relationship("User", foreign_keys=[artist_id], back_populates="booking_requests_as_artist")
     service = relationship("Service", back_populates="booking_requests")
+    quotes = relationship(
+        "QuoteV2",
+        back_populates="booking_request",
+        cascade="all, delete-orphan",
+    )

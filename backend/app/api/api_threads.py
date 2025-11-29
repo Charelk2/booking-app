@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status, Response, Header
 from starlette.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import Any, Dict, List, Optional, Tuple
 
 from .. import models
@@ -929,6 +929,21 @@ def get_inbox_unread(
     skip_precheck = _coalesce_bool(x_after_write)
 
     total, latest_ts = crud.crud_message.get_unread_message_totals_for_user(db, current_user.id)
+    try:
+        notif_count, notif_latest = (
+            db.query(
+                func.count(models.Notification.id),
+                func.max(models.Notification.timestamp),
+            )
+            .filter(models.Notification.user_id == current_user.id)
+            .filter(or_(models.Notification.is_read.is_(False), models.Notification.is_read.is_(None)))
+            .one()
+        )
+        total += int(notif_count or 0)
+        if notif_latest and (not latest_ts or notif_latest > latest_ts):
+            latest_ts = notif_latest
+    except Exception:
+        pass
     # full precision iso (no timespec truncation)
     marker = latest_ts.isoformat() if latest_ts else "0"
     etag_value = f'W/"{hashlib.sha1(f"{current_user.id}:{int(total)}:{marker}".encode()).hexdigest()}"'

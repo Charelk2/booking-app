@@ -532,9 +532,12 @@ async def catch_exceptions(request: Request, call_next):
 
     # Ensure the CORS headers are present even when an exception occurs
     origin = request.headers.get("origin")
-    if origin and (origin in ALLOWED_ORIGINS):
+    if origin:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
+        # Mirror the header we emit on success responses so browsers keep sharing mode consistent
+        if "Vary" not in response.headers:
+            response.headers["Vary"] = "Origin"
     # Do not emit wildcard with credentials; browsers will reject it
 
     return response

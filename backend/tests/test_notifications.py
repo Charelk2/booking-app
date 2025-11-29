@@ -1141,12 +1141,6 @@ def _skip_deposit_due_notification_falls_back_to_artist_user_avatar():
     db.refresh(booking)
 
     # deposit notifications removed
-        db,
-        client,
-        booking.id,
-        float(booking.deposit_amount),
-        booking.deposit_due_by,
-    )
     db.close()
 
     token = create_access_token({"sub": client.email})

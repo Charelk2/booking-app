@@ -10,6 +10,15 @@ jest.mock("@/components/booking/PaymentModal", () => ({
   default: ({ open }: any) => (open ? <div data-testid="payment-modal">Pay Now</div> : null),
 }));
 
+jest.mock("next/link", () => {
+  const React = require("react");
+  return {
+    __esModule: true,
+    default: ({ href, children, ...rest }: any) =>
+      React.createElement("a", { href: typeof href === "string" ? href : (href?.pathname || "#"), ...rest }, children),
+  };
+});
+
 jest.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { email: "test@example.com" } }),
 }));

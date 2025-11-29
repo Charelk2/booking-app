@@ -5,7 +5,7 @@ from ..database import get_db
 from .. import crud
 from ..utils import error_response
 from ..schemas.sound_estimate import SoundEstimateIn, SoundEstimateOut
-from ..services.quote_engines.sound_service import estimate_sound_service
+from app.service_types.sound_service import estimate_sound_service
 
 
 router = APIRouter(tags=["sound-estimate"])

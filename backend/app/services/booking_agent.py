@@ -2126,14 +2126,67 @@ def run_booking_agent_step(
         negative = re.search(r"\b(no|not|don't|do not|cancel|change)\b", last_user_text)
     else:
         positive = negative = None
+    has_minimum_fields = bool(state.chosen_provider_id and state.date and effective_city)
+    has_required_fields = _has_required_booking_fields(state)
 
     if negative:
         # User declined; drop back to suggesting/providers stage unless a
         # booking was already created.
         if state.stage != "booking_created":
             state.stage = "suggesting_providers"
-    elif positive and _has_required_booking_fields(state) and state.chosen_provider_id and state.date and effective_city:
-        if state.stage == "awaiting_confirmation" and (
+    elif positive and has_minimum_fields and (state.stage in ("awaiting_confirmation", "awaiting_final_confirmation") or has_required_fields):
+        def _create_booking_request_and_respond() -> bool:
+            user_texts = [
+                (m.get("content") or "").strip()
+                for m in messages
+                if m.get("role") == "user" and (m.get("content") or "").strip()
+            ]
+            combined_message = "\n".join(user_texts) or "Booking request created via the Booka AI assistant."
+            booking_id = tool_create_booking_request(
+                db=db,
+                current_user=current_user,
+                state=state,
+                message=combined_message,
+            )
+            if booking_id:
+                nonlocal final_action
+                final_action = {
+                    "type": "booking_created",
+                    "booking_request_id": booking_id,
+                    "url": f"/booking-requests/{booking_id}",
+                }
+                tool_calls.append(
+                    AgentToolCall(
+                        name="create_booking_request",
+                        args={"booking_request_id": booking_id},
+                    )
+                )
+                provider_name = state.chosen_provider_name or "the artist"
+                city = effective_city or ""
+                line = f"I've created a booking request with {provider_name} on {state.date}"
+                if city:
+                    line += f" in {city}"
+                line += f". You can review it in your bookings inbox (reference #{booking_id})."
+                messages_out.append(line)
+                state.stage = "booking_created"
+                return True
+            return False
+
+        can_create_now = (
+            state.stage == "awaiting_final_confirmation"
+            or (
+                state.stage == "awaiting_confirmation"
+                and state.availability_status != "unavailable"
+                and state.availability_checked
+                and has_minimum_fields
+            )
+        )
+        if can_create_now:
+            created = _create_booking_request_and_respond()
+            if created:
+                # Skip the two-step summary if we've already created/reused a booking.
+                pass
+        if not final_action and state.stage == "awaiting_confirmation" and has_minimum_fields and (
             not state.availability_checked
             or state.availability_status != "unavailable"
         ):
@@ -2175,43 +2228,6 @@ def run_booking_agent_step(
                 )
             messages_out.append(line)
             state.stage = "awaiting_final_confirmation"
-        elif state.stage == "awaiting_final_confirmation" and (
-            not state.availability_checked
-            or state.availability_status != "unavailable"
-        ):
-            # Second confirmation: actually create the booking request.
-            user_texts = [
-                (m.get("content") or "").strip()
-                for m in messages
-                if m.get("role") == "user" and (m.get("content") or "").strip()
-            ]
-            combined_message = "\n".join(user_texts) or "Booking request created via the Booka AI assistant."
-            booking_id = tool_create_booking_request(
-                db=db,
-                current_user=current_user,
-                state=state,
-                message=combined_message,
-            )
-            if booking_id:
-                final_action = {
-                    "type": "booking_created",
-                    "booking_request_id": booking_id,
-                    "url": f"/booking-requests/{booking_id}",
-                }
-                tool_calls.append(
-                    AgentToolCall(
-                        name="create_booking_request",
-                        args={"booking_request_id": booking_id},
-                    )
-                )
-                provider_name = state.chosen_provider_name or "the artist"
-                city = effective_city or ""
-                line = f"I've created a booking request with {provider_name} on {state.date}"
-                if city:
-                    line += f" in {city}"
-                line += f". You can review it in your bookings inbox (reference #{booking_id})."
-                messages_out.append(line)
-                state.stage = "booking_created"
 
     # If we have enough information and we're not already awaiting confirmation
     # or finished, append a clear booking-offer line when the provider looks

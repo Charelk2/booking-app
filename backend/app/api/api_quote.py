@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Header, Response, Query
+from fastapi import APIRouter, Depends, status, HTTPException, Header, Response, Query, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import SQLAlchemyError
@@ -16,7 +16,7 @@ from ..utils.notifications import notify_user_new_message, notify_client_new_quo
 from ..crud import crud_quote
 from ..utils.outbox import enqueue_outbox
 from .. import crud
-from .dependencies import get_db, get_current_user
+from .dependencies import get_db, get_current_user, get_current_service_provider
 from .api_ws import manager
 from ..schemas import message as message_schemas
 from ..services.quote_totals import quote_preview_fields, compute_quote_totals_snapshot, quote_totals_preview_payload
@@ -24,7 +24,7 @@ from ..services.booking_quote import calculate_quote_breakdown
 from ..utils.json import dumps_bytes as _json_dumps
 import asyncio
 from ..schemas.sound_estimate import SoundEstimateOut, SoundEstimateWithService
-from ..services.quote_engines.sound_service import estimate_sound_service
+from app.service_types.sound_service import estimate_sound_service
 
 router = APIRouter(tags=["Quotes"])
 logger = logging.getLogger(__name__)
@@ -167,12 +167,34 @@ def estimate_sound_quote(
 
 
 @router.post(
+    "/booking-requests/{request_id}/quotes",
+    response_model=schemas.QuoteV2Read,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_quote_for_request(
+    request_id: int,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_service_provider),
+):
+    """Compatibility wrapper that enforces path/payload agreement."""
+    if payload.get("booking_request_id") != request_id:
+        raise error_response(
+            "Booking request mismatch",
+            {"booking_request_id": "Mismatch"},
+            status.HTTP_400_BAD_REQUEST,
+        )
+    quote_in = schemas.QuoteV2Create.model_validate(payload)
+    return create_quote(quote_in=quote_in, db=db, current_user=current_user)
+
+
+@router.post(
     "/quotes", response_model=schemas.QuoteV2Read, status_code=status.HTTP_201_CREATED
 )
 def create_quote(
     quote_in: schemas.QuoteV2Create,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_service_provider),
 ):
     """Create a quote for a booking request.
 

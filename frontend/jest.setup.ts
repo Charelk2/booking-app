@@ -144,3 +144,6 @@ Object.defineProperty(window, 'location', {
   value: { ...window.location, assign: jest.fn() },
   writable: true,
 });
+
+// Stub CSS imports that Jest doesn't transform
+jest.mock('@/styles/datepicker.css', () => ({}), { virtual: true });

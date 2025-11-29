@@ -48,7 +48,8 @@ class SoundOutreachRequest(BaseModel):
 
     # Link to the supplier chat thread (BookingRequest) and the supplier's quote, if used
     supplier_booking_request_id = Column(Integer, ForeignKey("booking_requests.id", ondelete="SET NULL"), nullable=True)
-    supplier_quote_id = Column(Integer, ForeignKey("quotes.id", ondelete="SET NULL"), nullable=True)
+    # Reference the v2 quotes table (quotes_v2) since v1 quotes table is absent in the current schema.
+    supplier_quote_id = Column(Integer, ForeignKey("quotes_v2.id", ondelete="SET NULL"), nullable=True)
 
     # Helpful denormalized fields for white‑label timeline and audit
     supplier_public_name = Column(String, nullable=True)
