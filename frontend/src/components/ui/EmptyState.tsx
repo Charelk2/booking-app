@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { colors, radii, spacing, typography } from "@/theme/tokens";
 
 type EmptyStateProps = {
   title?: string;
@@ -15,14 +16,31 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   className,
 }) => (
   <div className={className}>
-    <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center">
+    <div
+      className="text-center"
+      style={{
+        borderRadius: radii.card,
+        border: `1px dashed ${colors.neutral.border}`,
+        padding: spacing.lg,
+        backgroundColor: colors.brand.surface,
+      }}
+    >
       <div className="text-2xl mb-2">🗂️</div>
-      <h3 className="text-base font-semibold text-gray-800">{title}</h3>
-      <p className="text-sm text-gray-500 mt-1">{description}</p>
+      <h3
+        className="font-semibold"
+        style={{ fontSize: "16px", color: colors.neutral.strong }}
+      >
+        {title}
+      </h3>
+      <p
+        className="mt-1"
+        style={{ fontSize: typography.body, color: colors.neutral.text }}
+      >
+        {description}
+      </p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   </div>
 );
 
 export default EmptyState;
-

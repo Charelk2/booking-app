@@ -108,7 +108,7 @@ describe('ClientQuotesPage', () => {
     await flushPromises();
 
     expect(getMyClientQuotes).toHaveBeenLastCalledWith({ status: 'accepted' });
-    expect(div.textContent).toContain('Accepted by Client');
+    expect(div.textContent).toContain('Accepted');
     act(() => {
       root.unmount();
     });

@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import clsx from "clsx";
+import { colors, radii, spacing, typography } from "@/theme/tokens";
 
 type SectionProps = {
   title?: string;
@@ -22,20 +23,51 @@ const Section: React.FC<SectionProps> = ({
   contentClassName,
 }) => {
   return (
-    <section className={clsx("rounded-2xl border border-gray-200 bg-white shadow-sm", className)}>
+    <section
+      className={clsx("shadow-sm", className)}
+      style={{
+        borderRadius: radii.card,
+        border: `1px solid ${colors.neutral.border}`,
+        backgroundColor: colors.brand.surface,
+      }}
+    >
       {(title || subtitle || action) && (
-        <div className={clsx("flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5", headerClassName)}>
+        <div
+          className={clsx("flex items-start justify-between gap-4", headerClassName)}
+          style={{
+            borderBottom: `1px solid ${colors.neutral.border}`,
+            padding: `${spacing.md} ${spacing.lg}`,
+          }}
+        >
           <div>
-            {title && <h2 className="text-lg font-semibold text-gray-900">{title}</h2>}
-            {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
+            {title && (
+              <h2
+                className="font-semibold"
+                style={{ fontSize: "18px", color: colors.neutral.strong }}
+              >
+                {title}
+              </h2>
+            )}
+            {subtitle && (
+              <p
+                className="mt-1"
+                style={{ fontSize: typography.body, color: colors.neutral.text }}
+              >
+                {subtitle}
+              </p>
+            )}
           </div>
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
-      <div className={clsx("px-6 py-5", contentClassName)}>{children}</div>
+      <div
+        className={clsx(contentClassName)}
+        style={{ padding: `${spacing.md} ${spacing.lg}` }}
+      >
+        {children}
+      </div>
     </section>
   );
 };
 
 export default Section;
-

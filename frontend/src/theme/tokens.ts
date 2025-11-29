@@ -3,7 +3,10 @@
 export const colors = {
   brand: {
     primary: "#0F172A", // slate-900
+    dark: "#0B1224",
+    light: "#1F2937", // slate-800-ish
     accent: "#111827", // slate-800
+    surface: "#FFFFFF",
   },
   success: {
     bg: "#ECFDF3",
@@ -31,18 +34,21 @@ export const colors = {
 export const radii = {
   pill: "9999px",
   card: "16px",
+  md: "12px",
 };
 
 export const spacing = {
   xs: "4px",
   sm: "8px",
   md: "16px",
+  lg: "24px",
 };
 
 export const typography = {
   tiny: "11px",
   small: "13px",
   body: "14px",
+  label: "12px",
 };
 
 export type StatusTone = "success" | "warning" | "danger" | "neutral";

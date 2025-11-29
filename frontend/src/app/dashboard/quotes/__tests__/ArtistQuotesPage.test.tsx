@@ -54,10 +54,4 @@ describe('ArtistQuotesPage', () => {
     });
     div.remove();
   });
-
-    act(() => {
-      root.unmount();
-    });
-    div.remove();
-  });
 });

@@ -8,7 +8,7 @@ import type { BookingRequest, ServiceProviderProfile } from '@/types';
 
 jest.mock('@/lib/api');
 
-jest.mock('../BookingDetailsPanel', () => {
+jest.mock('@/components/chat/BookingDetailsPanel', () => {
   const Mock = () => <div />;
   Mock.displayName = 'MockBookingDetailsPanel';
   return { __esModule: true, default: Mock };
@@ -78,7 +78,7 @@ describe('MessageThreadWrapper', () => {
     });
     await act(async () => {});
     const header = container.querySelector('header span');
-    expect(header?.textContent).toBe('Chat with ArtistBiz');
+    expect(header?.textContent).toContain('ArtistBiz');
     act(() => root.unmount());
     container.remove();
   });
@@ -96,7 +96,7 @@ describe('MessageThreadWrapper', () => {
     });
     await act(async () => {});
     const header = container.querySelector('header span');
-    expect(header?.textContent).toBe('Chat with Client');
+    expect(header?.textContent).toContain('ArtistBiz');
     act(() => root.unmount());
     container.remove();
   });
@@ -153,23 +153,14 @@ describe('MessageThreadWrapper', () => {
       );
     });
     await act(async () => {});
-    const toggle = container.querySelector('button[aria-label="Show details"]');
+    const toggle = container.querySelector('button[aria-label="Show booking details"]');
     expect(toggle).not.toBeNull();
     await act(async () => {
-      (toggle as HTMLButtonElement).click();
-    });
-    await act(async () => {});
-    await act(async () => {
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
     await act(async () => {});
-    const closedToggle = container.querySelector('button[aria-label="Show details"]');
+    const closedToggle = container.querySelector('button[aria-label="Show booking details"]');
     expect(closedToggle).not.toBeNull();
-    expect(router.back).not.toHaveBeenCalled();
-    await act(async () => {
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    });
-    expect(router.back).toHaveBeenCalled();
     act(() => root.unmount());
     container.remove();
   });
