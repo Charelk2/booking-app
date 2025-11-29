@@ -36,13 +36,14 @@ import {
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 
 import SafeImage from '@/components/ui/SafeImage';
-import { getFullImageUrl, normalizeService, getTownProvinceFromAddress } from '@/lib/utils';
+import { getFullImageUrl, normalizeService } from '@/lib/utils';
 import ServiceCard from '@/components/services/ServiceCard';
 import AboutSection from '@/components/profile/AboutSection';
 import VettedBanner from '@/components/profile/VettedBanner';
 import { getServiceDisplay } from '@/lib/display';
 import Chip from '@/components/ui/Chip';
 import { useScrollSync } from '@/hooks/useScrollSync';
+import { formatCityRegion } from '@/lib/shared/mappers/location';
 
 const BookingWizard = dynamic(() => import('@/components/booking/BookingWizard'), {
   ssr: false,
@@ -285,7 +286,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
             '';
           if (!rawLocation) return;
           const formatted =
-            getTownProvinceFromAddress(rawLocation) || rawLocation;
+            formatCityRegion(rawLocation) || rawLocation;
           if (!formatted) return;
           setClientLocations((prev) =>
             prev[id] ? prev : { ...prev, [id]: formatted },
@@ -421,7 +422,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const coverPhotoUrl = getFullImageUrl(serviceProvider.cover_photo_url);
   const profilePictureUrl = getFullImageUrl(serviceProvider.profile_picture_url);
   const displayName = serviceProvider.business_name || `${serviceProvider.user.first_name} ${serviceProvider.user.last_name}`;
-  const formattedLocation = serviceProvider.location ? getTownProvinceFromAddress(serviceProvider.location) : '';
+  const formattedLocation = serviceProvider.location ? formatCityRegion(serviceProvider.location) : '';
   const selectedServiceObj = selectedServiceId ? services.find((s) => s.id === selectedServiceId) ?? null : null;
 
   async function handleBookService(service: Service) {

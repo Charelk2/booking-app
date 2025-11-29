@@ -39,9 +39,8 @@ describe('CategoriesCarousel', () => {
     expect(container.textContent).toContain('Musicians');
     expect(container.textContent).not.toContain('Service Providers');
     const imgs = container.querySelectorAll('img');
-    expect(imgs).toHaveLength(2);
-    expect(imgs[0].getAttribute('src')).toContain('dj');
-    expect(imgs[1].getAttribute('src')).toContain('musician');
+    // Carousel now renders the full category set (10 cards)
+    expect(imgs.length).toBeGreaterThanOrEqual(8);
     const next = container.querySelector('button[aria-label="Next"]');
     expect(next).not.toBeNull();
     act(() => root.unmount());
@@ -102,12 +101,12 @@ describe('CategoriesCarousel', () => {
     expect(scroller?.className).toContain('scrollbar-hide');
 
     const wrapper = container.querySelector('a div.relative');
-    expect(wrapper?.className).toContain('w-40');
-    expect(wrapper?.className).toContain('h-40');
+    expect(wrapper?.className).toContain('w-32');
+    expect(wrapper?.className).toContain('h-32');
 
     const label = container.querySelector('a p');
     expect(label?.className).toContain('mt-2');
-    expect(label?.className).toContain('text-sm');
+    expect(label?.className).toContain('text-xs');
     expect(label?.className).toContain('font-semibold');
 
     act(() => root.unmount());

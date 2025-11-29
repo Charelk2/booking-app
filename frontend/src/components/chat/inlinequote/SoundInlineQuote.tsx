@@ -5,6 +5,7 @@ import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from '../QuoteBubble';
 import { useSoundQuotePrefill } from '@/components/chat/inlinequote/useSoundQuotePrefill';
+import { buildSoundQuotePayload } from '@/lib/shared/quotes/builders';
 
 /**
  * InlineQuoteForm (v3.1 - optimized UX + perf)
@@ -301,25 +302,20 @@ const SoundInlineQuote: React.FC<SoundInlineQuoteProps> = ({
       setSending(true);
       trackEvent?.('cta_send_quote', { bookingRequestId, artistId, clientId });
 
-      const services: ServiceItem[] = [
-        { description: serviceName ?? 'Sound package', price: serviceFee },
-        ...items.map(({ key, ...rest }) => rest),
-      ];
-
-      const expires_at = expiresHours ? new Date(Date.now() + Number(expiresHours) * 3600000).toISOString() : null;
-
-      await onSubmit({
-        booking_request_id: bookingRequestId,
-        service_provider_id: artistId,
-        artist_id: artistId,
-        client_id: clientId,
-        services,
-        sound_fee: 0,
-        travel_fee: travelFee,
-        accommodation: accommodation || null,
-        discount: discount || null,
-        expires_at,
+      const payload = buildSoundQuotePayload({
+        bookingRequestId,
+        artistId,
+        clientId,
+        serviceName,
+        serviceFee,
+        items,
+        travelFee,
+        accommodation,
+        discount,
+        expiresHours,
       });
+
+      await onSubmit(payload);
     } catch (e: any) {
       setError(e?.message ?? 'Could not send quote. Please try again.');
     } finally {

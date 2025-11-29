@@ -20,17 +20,26 @@ describe('Avatar component', () => {
     container.remove();
   });
 
-  it('matches snapshot for default placeholder', () => {
+  it('renders default placeholder avatar image when no props provided', () => {
     act(() => {
       root.render(<Avatar />);
     });
-    expect(container.firstChild).toMatchSnapshot();
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute('alt')).toBe('avatar');
+    expect(img?.getAttribute('src')).toContain('/default-avatar.svg');
+    // wrapped in a rounded container with fixed size
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper.style.width).toBe('40px');
+    expect(wrapper.style.height).toBe('40px');
   });
 
-  it('matches snapshot with initials', () => {
+  it('renders initials when provided and no src', () => {
     act(() => {
       root.render(<Avatar initials="A" />);
     });
-    expect(container.firstChild).toMatchSnapshot();
+    const img = container.querySelector('img');
+    expect(img).toBeNull();
+    expect(container.textContent).toBe('A');
   });
 });

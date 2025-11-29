@@ -2,9 +2,9 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import BookingRequestIcon from '../BookingRequestIcon';
-import useNotifications from '@/hooks/useNotifications';
+import useNotifications from '@/hooks/useNotifications.tsx';
 
-jest.mock('@/hooks/useNotifications');
+jest.mock('@/hooks/useNotifications.tsx');
 
 function setup(unread: number) {
   (useNotifications as jest.Mock).mockReturnValue({

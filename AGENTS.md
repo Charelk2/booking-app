@@ -388,6 +388,9 @@ See `backend/app/api/THREADS_PREVIEW_OPTIMIZATION.md` for details.
   - Added shared date formatter `formatDateYMDLocal` in `frontend/src/lib/shared/date.ts` and wired `lib/api.ts`/`lib/urlParams.ts`.
   - Centralized phone validation in `frontend/src/lib/shared/validation/phone.ts` (re-exported via `lib/phoneValidation.ts`).
   - Booking wizard validation/mappers extracted to `frontend/src/lib/shared/validation/booking.ts` + `bookingSchema.ts` (step field map, unavailable-date guard, guest/event normalizers). Wizard now imports these helpers instead of inline definitions.
+  - Inline quote payload builders extracted to `frontend/src/lib/shared/quotes/builders.ts` (live + sound). Web inline quote forms now call these pure helpers so RN can reuse the same payload shaping.
+  - Location/media display mappers extracted to `frontend/src/lib/shared/mappers/location.ts` (city/region formatting, hero media picker, distance formatter); service/provider cards and client/profile views now consume these helpers.
+  - Introduced a thin, pluggable API client wrapper (`apiClient` in `frontend/src/lib/api.ts`) with overridable transport for RN; new calls (e.g., service-provider list fetch) use the wrapper instead of raw axios.
 - Planned next steps:
   - Introduce a thin `apiClient` wrapper (pluggable transport) and shared DTO/schemas under `frontend/src/types/api` + `frontend/src/schemas/`.
   - Add a short flow doc for booking + inline quote navigation; define platform-neutral adapters for realtime/notifications/storage.

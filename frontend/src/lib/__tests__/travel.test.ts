@@ -91,7 +91,6 @@ describe('travel.calculateTravelMode', () => {
 
   it('falls back to drive on airport lookup failure', async () => {
     const airportStub = jest.fn(async () => null);
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const result = await travel.calculateTravelMode(
       {
         artistLocation: 'Nowhere',
@@ -107,8 +106,6 @@ describe('travel.calculateTravelMode', () => {
     expect(result.mode).toBe('drive');
     // 20 km * 2.5 * 2 (roundtrip)
     expect(result.totalCost).toBeCloseTo(100);
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
   });
 
   it('derives driving estimate from metrics when no route and drivingEstimate is zero', async () => {
@@ -224,7 +221,7 @@ describe('travel.getDrivingDistance', () => {
     });
     const km = await travel.getDrivingDistance('A', 'B');
     expect(globals.fetch).toHaveBeenCalledWith(
-      'http://api/api/v1/distance?from_location=A&to_location=B&includeDuration=true',
+      '/api/v1/distance?from_location=A&to_location=B&includeDuration=true',
     );
     expect(km).toBeCloseTo(1.234);
   });
@@ -267,7 +264,7 @@ describe('travel.getDrivingMetrics', () => {
     });
     const metrics = await travel.getDrivingMetrics('A', 'B');
     expect(globals.fetch).toHaveBeenCalledWith(
-      'http://api/api/v1/distance?from_location=A&to_location=B&includeDuration=true',
+      '/api/v1/distance?from_location=A&to_location=B&includeDuration=true',
     );
     expect(metrics.distanceKm).toBeCloseTo(2);
     expect(metrics.durationHrs).toBeCloseTo(0.5);

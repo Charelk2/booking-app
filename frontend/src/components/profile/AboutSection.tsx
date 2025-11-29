@@ -9,7 +9,7 @@ import {
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import type { ServiceProviderProfile } from "@/types";
-import { getTownProvinceFromAddress } from "@/lib/utils";
+import { formatProfileLocation } from "@/lib/shared/mappers/location";
 
 type Props = {
   variant?: "mobile" | "desktop";
@@ -33,9 +33,7 @@ export default function AboutSection({
   const [isExpanded, setIsExpanded] = useState(false);
   const isMobile = variant === "mobile";
 
-  const formattedLocation = serviceProvider?.location
-    ? getTownProvinceFromAddress(serviceProvider.location)
-    : "";
+  const formattedLocation = formatProfileLocation(serviceProvider);
 
   const description = (serviceProvider?.description || "").trim();
 

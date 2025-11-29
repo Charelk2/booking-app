@@ -10,8 +10,8 @@ import {
   StarIcon,
   CheckBadgeIcon,
 } from '@heroicons/react/24/solid';
-import { getFullImageUrl, getTownProvinceFromAddress } from '@/lib/utils';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
+import { formatCityRegion } from '@/lib/shared/mappers/location';
 
 export interface ServiceProviderCardProps extends HTMLMotionProps<'div'> {
   serviceProviderId: number;
@@ -157,7 +157,7 @@ export default function ServiceProviderCard({
         <div className="flex justify-between items-center mt-4">
           {location ? (
             <span className="text-sm text-gray-600 truncate">
-              {getTownProvinceFromAddress(location)}
+              {formatCityRegion(location)}
             </span>
           ) : (
             <span />

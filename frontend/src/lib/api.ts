@@ -132,7 +132,7 @@ try { if (typeof window !== 'undefined') ensureDeviceCookie(); } catch {}
 // Create a single axios instance for all requests.
 // On the server, prefer the internal origin (empty baseURL) to avoid extra network/TLS hops.
 // On the client, use the public API origin.
-const api = axios.create({
+export const api = axios.create({
   baseURL: typeof window === 'undefined' ? SERVER_API_ORIGIN : API_ORIGIN,
   withCredentials: true,
   headers: {
@@ -140,6 +140,28 @@ const api = axios.create({
     // and let the browser set multipart boundaries for FormData uploads.
   },
 });
+
+export type ApiTransport = {
+  request: <T = unknown>(config: AxiosRequestConfig) => Promise<{ data: T }>;
+};
+
+// Pluggable transport: defaults to the shared axios instance but can be replaced (e.g., RN fetch/axios).
+let transport: ApiTransport = {
+  request: <T>(config: AxiosRequestConfig) => api.request<T>(config),
+};
+
+export function setApiTransport(custom: ApiTransport) {
+  transport = custom;
+}
+
+export const apiClient = {
+  request: <T = unknown>(config: AxiosRequestConfig) => transport.request<T>(config),
+  get:  <T = unknown>(url: string, config?: AxiosRequestConfig) => transport.request<T>({ ...(config || {}), url, method: 'get' }),
+  post: <T = unknown>(url: string, data?: any, config?: AxiosRequestConfig) => transport.request<T>({ ...(config || {}), url, data, method: 'post' }),
+  put:  <T = unknown>(url: string, data?: any, config?: AxiosRequestConfig) => transport.request<T>({ ...(config || {}), url, data, method: 'put' }),
+  patch:<T = unknown>(url: string, data?: any, config?: AxiosRequestConfig) => transport.request<T>({ ...(config || {}), url, data, method: 'patch' }),
+  delete:<T = unknown>(url: string, config?: AxiosRequestConfig) => transport.request<T>({ ...(config || {}), url, method: 'delete' }),
+};
 
 // One-shot after-write flag: when true, the next preview/threads/unread GETs
 // will include X-After-Write: 1 to force a fresh compute (skip premature 304).
@@ -593,7 +615,7 @@ export const getServiceProviders = async (params?: {
     (query as any).fields = (params as any).fields!.join(',');
   }
 
-  const res = await api.get<GetServiceProvidersResponse>(`${API_V1}/service-provider-profiles/`, {
+  const res = await apiClient.get<GetServiceProvidersResponse>(`${API_V1}/service-provider-profiles/`, {
     params: query,
   });
   return {

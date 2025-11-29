@@ -3,7 +3,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { apiUrl } from '@/lib/api';
-import { getFullImageUrl, getTownProvinceFromAddress } from '@/lib/utils';
+import { getFullImageUrl } from '@/lib/utils';
+import { formatCityRegion } from '@/lib/shared/mappers/location';
 import { ChevronLeft, ChevronRight, ShieldCheck, Star, MapPin } from 'lucide-react';
 
 // --- Types ---
@@ -59,7 +60,7 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
   const rawLocation =
     review.provider?.location || review.provider?.city || '';
   const providerLocation = rawLocation
-    ? getTownProvinceFromAddress(rawLocation) || rawLocation
+    ? formatCityRegion(rawLocation) || rawLocation
     : '';
   const dateLabel = new Date(review.created_at).toLocaleDateString('en', {
     month: 'long',
@@ -377,7 +378,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
                           firstProvider?.location ||
                           firstProvider?.city ||
                           '';
-                        const formatted = raw ? getTownProvinceFromAddress(raw) || raw : '';
+                        const formatted = raw ? formatCityRegion(raw) || raw : '';
                         return formatted
                           ? `Active in ${formatted}.`
                           : 'Active in major cities.';

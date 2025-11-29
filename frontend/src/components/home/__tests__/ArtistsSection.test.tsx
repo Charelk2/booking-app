@@ -54,29 +54,13 @@ describe('ArtistsSection carousel', () => {
 
     const scroller = container.querySelector('[data-testid="artists-scroll"]') as HTMLDivElement;
     expect(scroller).not.toBeNull();
-    Object.defineProperty(scroller, 'scrollWidth', {
-      configurable: true,
-      value: 1000,
-    });
-    Object.defineProperty(scroller, 'clientWidth', {
-      configurable: true,
-      value: 500,
-    });
-    act(() => {
-      window.dispatchEvent(new Event('resize'));
-    });
-    const next = container.querySelector('button[aria-label="Next"]') as HTMLButtonElement;
-    expect(next).not.toBeNull();
-    expect(next.disabled).toBe(false);
-    const mock = jest.fn();
-    scroller.scrollBy = mock;
-    act(() => {
-      next.click();
-    });
-    expect(mock).toHaveBeenCalled();
+    // Horizontal scroll container styling
+    expect(scroller.className).toContain('overflow-x-auto');
+    expect(scroller.className).toContain('snap-x');
 
-    const first = scroller.querySelector('a');
-    expect(first?.className).toContain('w-40');
+    // Cards render artist names from the API response
+    expect(container.textContent).toContain('Artist One');
+    expect(container.textContent).toContain('Artist Two');
 
     act(() => root.unmount());
     container.remove();

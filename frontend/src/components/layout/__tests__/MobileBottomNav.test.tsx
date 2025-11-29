@@ -12,21 +12,9 @@ jest.mock('next/link', () => ({
   default: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />,
 }));
 
-jest.mock('../../../hooks/useNotifications', () => ({
+jest.mock('../../../hooks/useUnreadThreadsCount', () => ({
   __esModule: true,
-  default: () => ({
-    items: [
-      {
-        type: 'message',
-        unread_count: 3,
-        is_read: false,
-        timestamp: '2024-01-01T00:00:00Z',
-        content: '',
-        booking_request_id: 1,
-        name: 'User',
-      },
-    ],
-  }),
+  default: () => ({ count: 3 }),
 }));
 
 describe('MobileBottomNav', () => {
@@ -64,9 +52,10 @@ describe('MobileBottomNav', () => {
       );
     });
     expect(container.textContent).toContain('Home');
-    expect(container.textContent).toContain('Service Providers');
+    expect(container.textContent).toContain('Messages');
+    expect(container.textContent).toContain('Dashboard');
     const nav = container.querySelector('nav');
-    expect(nav?.className).toContain('pb-safe');
+    expect(nav).not.toBeNull();
   });
 
   it('sets CSS variable with nav height on the document root', () => {
@@ -114,7 +103,7 @@ describe('MobileBottomNav', () => {
         React.createElement(MobileBottomNav, { user: {} as User })
       );
     });
-    const activeLink = container.querySelector('a.text-brand-dark');
+    const activeLink = container.querySelector('a[aria-current="page"]');
     expect(activeLink).not.toBeNull();
   });
 
@@ -126,8 +115,8 @@ describe('MobileBottomNav', () => {
       );
     });
     const link = container.querySelector('a');
-    expect(link?.className).toContain('min-w-[44px]');
-    expect(link?.className).toContain('min-h-[44px]');
+    expect(link?.className).toContain('flex');
+    expect(link?.className).toContain('h-full');
   });
 
   it('hides on scroll down and shows on scroll up', () => {
