@@ -28,6 +28,7 @@ import SummarySidebar from '../SummarySidebar';
 import { trackEvent } from '@/lib/analytics';
 import { QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 import { getQuoteTotalsPreview } from '@/lib/api';
+import { isUnavailableDate } from '@/lib/shared/validation/booking';
 
 // Inline DateTimeStep to avoid per-file CSS imports; styles live in wizard.css
 const ReactDatePicker: any = dynamic(() => import('react-datepicker'), { ssr: false });
@@ -56,9 +57,10 @@ export function DateTimeStep({
   }, [open, isMobile]);
 
   const filterDate = (date: Date) => {
-    const day = format(date, 'yyyy-MM-dd');
     const today = startOfDay(new Date());
-    return !unavailable.includes(day) && !isBefore(date, today);
+    const day = format(date, 'yyyy-MM-dd');
+    // Reuse shared unavailable check but also keep the minDate guard
+    return !isUnavailableDate({ date }, unavailable) && !isBefore(date, today) && !unavailable.includes(day);
   };
 
   return (

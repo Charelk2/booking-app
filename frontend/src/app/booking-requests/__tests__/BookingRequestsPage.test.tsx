@@ -4,12 +4,12 @@ import React from 'react';
 import { act } from 'react';
 import BookingRequestsPage from '../page';
 import * as api from '@/lib/api';
-import useNotifications from '@/hooks/useNotifications';
+import useNotifications from '@/hooks/useNotifications.tsx';
 import { useRouter, usePathname } from '@/tests/mocks/next-navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('@/lib/api');
-jest.mock('@/hooks/useNotifications');
+jest.mock('@/hooks/useNotifications.tsx');
 jest.mock('@/contexts/AuthContext');
 jest.mock('@/components/layout/MainLayout', () => {
   const Mock = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
@@ -36,6 +36,8 @@ function setup(markItem = jest.fn()) {
     ],
     markItem,
   });
+  (api.getMyBookingRequestsCached as jest.Mock).mockResolvedValue(null);
+  (api.getBookingRequestsForArtistCached as jest.Mock).mockResolvedValue(null);
   (api.getMyBookingRequests as jest.Mock).mockResolvedValue({
     data: [
       {
@@ -48,6 +50,7 @@ function setup(markItem = jest.fn()) {
         updated_at: '',
         client: { first_name: 'Alice', last_name: 'A' },
         artist: { business_name: 'Artist One', user: { first_name: 'AO' } },
+        artist_profile: { business_name: 'Artist One' },
         service: { service_type: 'Live Performance' },
       },
       {
@@ -60,6 +63,7 @@ function setup(markItem = jest.fn()) {
         updated_at: '',
         client: { first_name: 'Bob', last_name: 'B' },
         artist: { business_name: 'Artist Two', user: { first_name: 'AT' } },
+        artist_profile: { business_name: 'Artist Two' },
         service: { service_type: 'Custom Song' },
       },
     ],
@@ -101,7 +105,7 @@ describe('BookingRequestsPage', () => {
       'input[aria-label="Search by artist name"]',
     ) as HTMLInputElement;
     act(() => {
-      input.value = 'Bob';
+      input.value = 'Artist Two';
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await flushPromises();

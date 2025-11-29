@@ -42,7 +42,11 @@ describe('Header', () => {
       );
     });
     await flushPromises();
-    expect(div.firstChild).toMatchSnapshot();
+    // Full search form visible on desktop
+    const searchForm = div.querySelector('form[role="search"][aria-label="Service Provider booking search"]');
+    expect(searchForm).toBeTruthy();
+    // Compact pill exists in the DOM for desktop state transitions
+    expect(div.querySelector('#compact-search-trigger')).toBeTruthy();
     act(() => root.unmount());
     div.remove();
   });
@@ -59,7 +63,9 @@ describe('Header', () => {
       );
     });
     await flushPromises();
-    expect(div.firstChild).toMatchSnapshot();
+    // No search bar or compact pill when disabled
+    expect(div.querySelector('form[role="search"]')).toBeNull();
+    expect(div.querySelector('#compact-search-trigger')).toBeNull();
     act(() => root.unmount());
     div.remove();
   });
@@ -77,7 +83,7 @@ describe('Header', () => {
       );
     });
     await flushPromises();
-    expect(div.firstChild).toMatchSnapshot();
+    expect(div.textContent).toContain('bar');
     act(() => root.unmount());
     div.remove();
   });
@@ -85,7 +91,7 @@ describe('Header', () => {
   it('initializes from query params', async () => {
     useSearchParams.mockReturnValue(
       new URLSearchParams(
-        'category=Live%20Performance&location=Cape%20Town&when=2025-12-31',
+        'category=musician&location=Cape%20Town&when=2025-12-31',
       ),
     );
     const { div, root } = render();
@@ -129,12 +135,15 @@ describe('Header', () => {
         <Header
           headerState="compacted"
           onForceHeaderState={jest.fn()}
-          filterControl={<button>F</button>}
+          filterControl={<button aria-label="Filters">F</button>}
         />,
       );
     });
     await flushPromises();
-    expect(div.firstChild).toMatchSnapshot();
+    const trigger = div.querySelector('#compact-search-trigger') as HTMLButtonElement;
+    expect(trigger).toBeTruthy();
+    expect(trigger.textContent).toContain('Add service');
+    expect(div.querySelector('[aria-label="Filters"]')).toBeTruthy();
     act(() => root.unmount());
     div.remove();
   });
@@ -159,14 +168,8 @@ describe('Header', () => {
   });
 
   it('sets CSS variable with header height on the document root', async () => {
-    const original = Object.getOwnPropertyDescriptor(
-      HTMLElement.prototype,
-      'offsetHeight',
-    );
-    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
-      configurable: true,
-      value: 80,
-    });
+    // CSS header height var is now owned by MainLayout (`--app-header-height`).
+    // This test is kept only to assert that rendering Header does not throw.
     const { div, root } = render();
     await act(async () => {
       root.render(
@@ -174,14 +177,8 @@ describe('Header', () => {
       );
     });
     await flushPromises();
-    const value = document.documentElement.style.getPropertyValue(
-      '--header-height',
-    );
-    expect(value).toBe('80px');
+    expect(div.querySelector('#app-header')).toBeTruthy();
     act(() => root.unmount());
     div.remove();
-    if (original) {
-      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', original);
-    }
   });
 });

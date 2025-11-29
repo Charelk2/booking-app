@@ -379,3 +379,15 @@ See `backend/app/api/THREADS_PREVIEW_OPTIMIZATION.md` for details.
 - Status chips/badges and payout badges now use token-based helpers (`statusChipStyles`, `payoutStatus`), reducing hardcoded Tailwind.
 - Common UI primitives (Button variants, Chip, Tag, PillButton, Card, Section, EmptyState, payouts table headers/cells) are tokenized for reuse across web and future React Native surfaces.
 - Tests were aligned to current behavior (auth guard messages, local date formatting) and button variant shape. The network guard is stubbed in `api.test.ts` to keep tests focused on app logic.
+
+## Shared Logic Extraction (Jan 2026, in progress)
+
+- Goals: make key helpers portable for RN (pure TS, no DOM/React), reduce drift between web and native.
+- Done:
+  - Moved live/sound quote estimators to pure shared modules: `frontend/src/lib/shared/estimates/{livePerformance,sound}.ts` (used by `lib/api.ts`).
+  - Added shared date formatter `formatDateYMDLocal` in `frontend/src/lib/shared/date.ts` and wired `lib/api.ts`/`lib/urlParams.ts`.
+  - Centralized phone validation in `frontend/src/lib/shared/validation/phone.ts` (re-exported via `lib/phoneValidation.ts`).
+  - Booking wizard validation/mappers extracted to `frontend/src/lib/shared/validation/booking.ts` + `bookingSchema.ts` (step field map, unavailable-date guard, guest/event normalizers). Wizard now imports these helpers instead of inline definitions.
+- Planned next steps:
+  - Introduce a thin `apiClient` wrapper (pluggable transport) and shared DTO/schemas under `frontend/src/types/api` + `frontend/src/schemas/`.
+  - Add a short flow doc for booking + inline quote navigation; define platform-neutral adapters for realtime/notifications/storage.

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, useCallback, startTransition } from
 import { Dialog } from '@headlessui/react';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
+import { bookingWizardSchema } from '@/lib/shared/validation/bookingSchema';
 
 import { useBooking, initialDetails } from '@/contexts/BookingContext';
 import type { EventDetails } from '@/contexts/BookingContext';
@@ -24,9 +25,10 @@ import {
   calculateSoundServiceEstimate,
 } from '@/lib/api';
 import { calculateTravelMode, getDrivingMetricsCached, geocodeCached, findNearestAirport, getMockCoordinates, type TravelResult } from '@/lib/travel';
-  import { trackEvent } from '@/lib/analytics';
-  import { format } from 'date-fns';
-  import { computeSoundServicePrice, type LineItem } from '@/lib/soundPricing';
+import { trackEvent } from '@/lib/analytics';
+import { format } from 'date-fns';
+import { computeSoundServicePrice, type LineItem } from '@/lib/soundPricing';
+import { bookingWizardStepFields, isUnavailableDate, normalizeEventType, normalizeGuestCount } from '@/lib/shared/validation/booking';
 
 import { BookingRequestCreate } from '@/types';
 import './wizard/wizard.css';
@@ -70,32 +72,7 @@ import {
 
 // --- EventDetails Schema (uses context type at runtime only) ---
 
-const schema = yup.object({
-  eventType: yup.string().required('Event type is required.'),
-  eventDescription: yup.string().required('Event description is required.').min(5, 'Description must be at least 5 characters.'),
-  date: yup.date().required('Date is required.').min(new Date(), 'Date cannot be in the past.'),
-  time: yup.string().optional(),
-  location: yup.string().required('Location is required.'),
-  locationName: yup.string().optional(),
-  guests: yup.string().required('Number of guests is required.').matches(/^\d+$/, 'Guests must be a number.'),
-  venueType: yup
-    .mixed<'indoor' | 'outdoor' | 'hybrid'>()
-    .oneOf(['indoor', 'outdoor', 'hybrid'], 'Venue type is required.')
-    .required(),
-  sound: yup.string().oneOf(['yes', 'no'], 'Sound equipment preference is required.').required(),
-  // Optional sound-context fields (not required for basic validation)
-  soundMode: yup
-    .mixed<'supplier' | 'provided_by_artist' | 'managed_by_artist' | 'client_provided' | 'none'>()
-    .optional(),
-  soundSupplierServiceId: yup.number().optional(),
-  stageRequired: yup.boolean().optional(),
-  stageSize: yup.mixed<'S' | 'M' | 'L'>().optional(),
-  lightingEvening: yup.boolean().optional(),
-  backlineRequired: yup.boolean().optional(),
-  providedSoundEstimate: yup.number().optional(),
-  notes: yup.string().optional(),
-  attachment_url: yup.string().optional(),
-}) as yup.ObjectSchema<any>;
+const schema = bookingWizardSchema;
 
 // --- Wizard Steps & Instructions ---
 const steps = [
@@ -627,7 +604,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const isSoundService = typeof svcCategorySlug === 'string' && svcCategorySlug.toLowerCase().includes('sound');
       const hasAudiencePkgs = Array.isArray(svcRes?.details?.audience_packages) && svcRes.details.audience_packages.length > 0;
       if (isSoundService && hasAudiencePkgs) {
-        const guestCount = parseInt((details as any).guests || '0', 10) || undefined;
+        const guestCount = normalizeGuestCount((details as any).guests);
         const venueType = (details as any).venueType as any;
         const stageRequired = !!(details as any).stageRequired;
         const stageSize = stageRequired ? ((details as any).stageSize || 'S') : undefined;
@@ -697,7 +674,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   rider_spec: {
-                    guest_count: parseInt((details as any).guests || '0', 10) || undefined,
+                    guest_count: normalizeGuestCount((details as any).guests),
                     venue_type: (details as any).venueType,
                     stage_required: !!(details as any).stageRequired,
                     stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
@@ -749,7 +726,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           // distance_km omitted: backend computes it from artist base → event city
           service_id: serviceId,
           event_city: details.location,
-          guest_count: parseInt((details as any).guests || '0', 10) || undefined,
+          guest_count: normalizeGuestCount((details as any).guests),
           venue_type: (details as any).venueType,
           stage_required: !!(details as any).stageRequired,
           stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
@@ -1348,28 +1325,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     }
     // Guard for step 2 (Date): prevent selecting unavailable dates (especially on mobile native pickers)
     if (step === 2) {
-      const d = (details as any)?.date as Date | string | undefined;
-      if (d) {
-        const dt = typeof d === 'string' ? new Date(d) : d;
-        const day = format(dt, 'yyyy-MM-dd');
-        if (unavailable.includes(day)) {
-          setShowUnavailableModal(true);
-          return;
-        }
+      if (isUnavailableDate(details as any, unavailable)) {
+        setShowUnavailableModal(true);
+        return;
       }
     }
-    const stepFields: (keyof EventDetails)[][] = [
-      ['eventDescription'],
-      ['location'],
-      ['date'],
-      ['eventType'],
-      ['guests'],
-      ['venueType'],
-      ['sound'],
-      [],
-      [], // Review step has no fields to validate for "next"
-    ];
-    const fieldsToValidate = stepFields[step] as (keyof EventDetails)[];
+    const fieldsToValidate = bookingWizardStepFields[step] as (keyof EventDetails)[];
     const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate as any) : true;
 
     if (valid) {
@@ -1432,12 +1393,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         mode: travelResult?.mode,
         venue_name: vals.locationName,
         venue_type: (vals as any).venueType || (details as any)?.venueType || undefined,
-        event_type: vals.eventType || (details as any)?.eventType || undefined,
-        guests_count: (() => {
-          const raw = (vals.guests ?? (details as any)?.guests) as string | number | undefined;
-          const n = typeof raw === 'number' ? raw : parseInt(String(raw || '').trim() || '0', 10);
-          return Number.isFinite(n) && n > 0 ? n : undefined;
-        })(),
+        event_type: normalizeEventType((vals as any).eventType ?? (details as any)?.eventType),
+        guests_count: normalizeGuestCount((vals as any).guests ?? (details as any)?.guests),
         sound_required: vals.sound === 'yes',
         sound_mode: (details as any).soundMode,
         selected_sound_service_id: (details as any).soundSupplierServiceId,
@@ -1458,7 +1415,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     (payload as any).sound_context = {
       sound_required: vals.sound === 'yes',
       mode: (details as any).soundMode || 'none',
-      guest_count: parseInt((details as any).guests || '0', 10) || undefined,
+      guest_count: normalizeGuestCount((details as any).guests),
       venue_type: (details as any).venueType,
       stage_required: !!(details as any).stageRequired,
       stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
@@ -1520,12 +1477,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         mode: travelResult.mode,
         venue_name: vals.locationName,
         venue_type: (vals as any).venueType || (details as any)?.venueType || undefined,
-        event_type: vals.eventType || (details as any)?.eventType || undefined,
-        guests_count: (() => {
-          const raw = (vals.guests ?? (details as any)?.guests) as string | number | undefined;
-          const n = typeof raw === 'number' ? raw : parseInt(String(raw || '').trim() || '0', 10);
-          return Number.isFinite(n) && n > 0 ? n : undefined;
-        })(),
+        event_type: normalizeEventType((vals as any).eventType ?? (details as any)?.eventType),
+        guests_count: normalizeGuestCount((vals as any).guests ?? (details as any)?.guests),
         sound_required: vals.sound === 'yes',
         sound_mode: (details as any).soundMode,
         selected_sound_service_id: (details as any).soundSupplierServiceId,
@@ -1547,7 +1500,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     (payload as any).sound_context = {
       sound_required: vals.sound === 'yes',
       mode: (details as any).soundMode || 'none',
-      guest_count: parseInt((details as any).guests || '0', 10) || undefined,
+      guest_count: normalizeGuestCount((details as any).guests),
       venue_type: (details as any).venueType,
       stage_required: !!(details as any).stageRequired,
       stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
