@@ -4,6 +4,9 @@ import { act } from 'react';
 import { useForm, Control } from 'react-hook-form';
 import type { EventDetails } from '@/contexts/BookingContext';
 import { DateTimeStep } from '../../wizard/Steps';
+import useIsMobile from '@/hooks/useIsMobile';
+
+jest.mock('@/hooks/useIsMobile', () => jest.fn(() => true));
 
 function Wrapper() {
   const { control } = useForm<EventDetails>({
@@ -34,6 +37,7 @@ describe('DateTimeStep mobile input', () => {
   let errorSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    (useIsMobile as jest.Mock).mockReturnValue(true);
     Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
     container = document.createElement('div');
     document.body.appendChild(container);

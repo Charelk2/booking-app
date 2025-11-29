@@ -925,25 +925,10 @@ def get_inbox_unread(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Return total unread message notifications with lightweight ETag support."""
+    """Return total unread messages with lightweight ETag support."""
     skip_precheck = _coalesce_bool(x_after_write)
 
     total, latest_ts = crud.crud_message.get_unread_message_totals_for_user(db, current_user.id)
-    try:
-        notif_count, notif_latest = (
-            db.query(
-                func.count(models.Notification.id),
-                func.max(models.Notification.timestamp),
-            )
-            .filter(models.Notification.user_id == current_user.id)
-            .filter(or_(models.Notification.is_read.is_(False), models.Notification.is_read.is_(None)))
-            .one()
-        )
-        total += int(notif_count or 0)
-        if notif_latest and (not latest_ts or notif_latest > latest_ts):
-            latest_ts = notif_latest
-    except Exception:
-        pass
     # full precision iso (no timespec truncation)
     marker = latest_ts.isoformat() if latest_ts else "0"
     etag_value = f'W/"{hashlib.sha1(f"{current_user.id}:{int(total)}:{marker}".encode()).hexdigest()}"'

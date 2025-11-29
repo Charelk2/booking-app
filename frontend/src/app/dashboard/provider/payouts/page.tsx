@@ -10,6 +10,8 @@ import { apiUrl } from '@/lib/api';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import ErrorState from '@/components/ui/ErrorState';
 import { formatCurrency } from '@/lib/utils';
+import { colors, radii, spacing, typography } from '@/theme/tokens';
+import { getPayoutStageLabel, getPayoutStatusTheme } from '@/theme/payoutStatus';
 
 type Payout = {
   id: number;
@@ -210,9 +212,20 @@ const Td = (props: any) => (
 );
 
 function StagePill({ type }: { type: string }) {
-  const label = type === 'first50' ? 'First 50%' : type === 'final50' ? 'Final 50%' : 'Payout';
+  const label = getPayoutStageLabel(type);
   return (
-    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+    <span
+      className="inline-flex items-center border"
+      style={{
+        borderRadius: radii.pill,
+        backgroundColor: colors.neutral.bg,
+        borderColor: colors.neutral.border,
+        color: colors.neutral.text,
+        padding: `${spacing.xs} ${spacing.sm}`,
+        fontSize: typography.tiny,
+        fontWeight: 600,
+      }}
+    >
       {label}
     </span>
   );
@@ -220,16 +233,19 @@ function StagePill({ type }: { type: string }) {
 
 function StatusChip({ status }: { status: string }) {
   const normalized = status.toLowerCase();
-  const theme =
-    normalized === 'paid'
-      ? 'bg-green-50 text-green-700 border-green-200'
-      : normalized === 'queued'
-      ? 'bg-amber-50 text-amber-700 border-amber-200'
-      : normalized === 'failed' || normalized === 'blocked'
-      ? 'bg-red-50 text-red-700 border-red-200'
-      : 'bg-gray-50 text-gray-600 border-gray-200';
+  const palette = getPayoutStatusTheme(status);
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${theme}`}>
+    <span
+      className="inline-flex items-center border font-medium"
+      style={{
+        borderRadius: radii.pill,
+        backgroundColor: palette.bg,
+        borderColor: palette.border,
+        color: palette.text,
+        padding: `${spacing.xs} ${spacing.sm}`,
+        fontSize: typography.tiny,
+      }}
+    >
       {normalized.charAt(0).toUpperCase() + normalized.slice(1)}
     </span>
   );

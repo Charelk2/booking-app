@@ -6,13 +6,18 @@ import ClientBookingsPage from "../page";
 import { getMyClientBookings, getBookingDetails } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/tests/mocks/next-navigation";
+import usePaymentModal from "@/hooks/usePaymentModal";
 
 jest.mock("@/lib/api");
 jest.mock("@/contexts/AuthContext");
-jest.mock("next/navigation", () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(() => "/dashboard/client/bookings"),
+const mockOpenPayment = jest.fn();
+jest.mock("@/hooks/usePaymentModal", () => ({
+  __esModule: true,
+  default: (_onSuccess: any, _onError: any) => ({
+    openPaymentModal: mockOpenPayment,
+    paymentModal: null,
+  }),
 }));
 /* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
 jest.mock("next/link", () => {
@@ -31,7 +36,7 @@ describe("ClientBookingsPage", () => {
   });
 
   it("renders upcoming and past bookings", async () => {
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn(), pathname: "/dashboard/client/bookings" });
     (useAuth as jest.Mock).mockReturnValue({
       user: {
         id: 1,
@@ -48,6 +53,7 @@ describe("ClientBookingsPage", () => {
             artist_id: 2,
             client_id: 1,
             service_id: 4,
+            service_provider_id: 2,
             start_time: new Date().toISOString(),
             end_time: new Date().toISOString(),
             status: "confirmed",
@@ -56,6 +62,7 @@ describe("ClientBookingsPage", () => {
             payment_status: "paid",
             payment_id: "pay_upcoming",
             service: { title: "Gig", artist: { business_name: "Artist", slug: "artist-slug" } },
+            service_provider: { id: 2, slug: "artist-slug", business_name: "Artist" },
             client: { id: 1 },
           },
         ],
@@ -67,6 +74,7 @@ describe("ClientBookingsPage", () => {
             artist_id: 2,
             client_id: 1,
             service_id: 4,
+            service_provider_id: 2,
             start_time: new Date().toISOString(),
             end_time: new Date().toISOString(),
             status: "completed",
@@ -74,6 +82,7 @@ describe("ClientBookingsPage", () => {
             notes: "",
             payment_status: "paid",
             service: { title: "Gig", artist: { business_name: "Artist", slug: "artist-slug" } },
+            service_provider: { id: 2, slug: "artist-slug", business_name: "Artist" },
             client: { id: 1 },
           },
         ],
@@ -226,8 +235,13 @@ describe("ClientBookingsPage", () => {
     await flushPromises();
 
     expect(getBookingDetails).toHaveBeenCalledWith(5);
-    const input = div.querySelector('input[type="text"]') as HTMLInputElement;
-    expect(input.value).toBe(formatCurrency(120));
+    expect(mockOpenPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookingRequestId: 5,
+        amount: 120,
+        customerEmail: "c@example.com",
+      }),
+    );
 
     act(() => {
       root.unmount();
@@ -253,6 +267,7 @@ describe("ClientBookingsPage", () => {
             artist_id: 2,
             client_id: 1,
             service_id: 4,
+            service_provider_id: 2,
             start_time: new Date().toISOString(),
             end_time: new Date().toISOString(),
             status: "confirmed",
@@ -260,6 +275,7 @@ describe("ClientBookingsPage", () => {
             notes: "",
             payment_status: "paid",
             service: { title: "Gig", artist: { business_name: "Artist", slug: "artist-slug" } },
+            service_provider: { id: 2, slug: "artist-slug", business_name: "Artist" },
             client: { id: 1 },
             booking_request_id: 12,
           },

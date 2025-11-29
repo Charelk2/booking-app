@@ -6,9 +6,22 @@ import ClientBookingsPage from '../page';
 jest.mock('@/lib/api', () => ({
   __esModule: true,
   getMyClientBookings: jest.fn(async ({ status }: any) => ({
-    data: status === 'upcoming' ? [
-      { id: 10, payment_status: 'pending', start_time: new Date().toISOString(), service_provider_id: 1, total_price: 123, service: { title: 'Show', service_provider: { business_name: 'SP' } } },
-    ] : [],
+    data: status === 'upcoming'
+      ? [
+          {
+            id: 10,
+            status: 'pending',
+            payment_status: 'pending',
+            start_time: new Date().toISOString(),
+            service_provider_id: 1,
+            total_price: 123,
+            service: {
+              title: 'Show',
+              service_provider: { business_name: 'SP' },
+            },
+          },
+        ]
+      : [],
   })),
   getBookingDetails: jest.fn(async (_id: number) => ({
     data: { id: 10, total_price: 123, payment_status: 'pending', booking_request_id: 77, service: { title: 'Show', service_provider: { business_name: 'SP' } } },
@@ -16,11 +29,11 @@ jest.mock('@/lib/api', () => ({
 }));
 
 // Mock payment hook to capture args and simulate success on open
-const openSpy = jest.fn();
+const mockOpenPayment = jest.fn();
 jest.mock('@/hooks/usePaymentModal', () => ({
   __esModule: true,
   default: (onSuccess: any, _onError: any) => ({
-    openPaymentModal: (args: any) => { openSpy(args); onSuccess({ status: 'paid', amount: args.amount }); },
+    openPaymentModal: (args: any) => { mockOpenPayment(args); onSuccess({ status: 'paid', amount: args.amount }); },
     paymentModal: null,
   }),
 }));
@@ -31,7 +44,7 @@ import { useAuth } from '@/contexts/AuthContext';
 describe('ClientBookingsPage payments', () => {
   beforeEach(() => {
     (useAuth as any).mockReturnValue({ user: { email: 'buyer@example.com', user_type: 'client' }, loading: false });
-    openSpy.mockReset();
+    mockOpenPayment.mockReset();
   });
 
   it('clicking Pay now forwards customerEmail and marks paid in UI', async () => {
@@ -42,7 +55,7 @@ describe('ClientBookingsPage payments', () => {
     fireEvent.click(payBtn);
 
     await waitFor(() => {
-      expect(openSpy).toHaveBeenCalledWith(expect.objectContaining({
+      expect(mockOpenPayment).toHaveBeenCalledWith(expect.objectContaining({
         bookingRequestId: 77,
         amount: 123,
         customerEmail: 'buyer@example.com',
@@ -50,4 +63,3 @@ describe('ClientBookingsPage payments', () => {
     });
   });
 });
-

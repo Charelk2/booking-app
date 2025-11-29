@@ -7,7 +7,7 @@ import { formatCurrency, formatStatus } from "@/lib/utils";
 import Section from "@/components/ui/Section";
 import SoundOutreachSection from "./SoundOutreachSection";
 import IllustratedEmpty from "@/components/ui/IllustratedEmpty";
-import { statusChipClass } from "@/components/ui/status";
+import { statusChipStyles } from "@/components/ui/status";
 
 type Props = {
   bookings: Booking[];
@@ -51,7 +51,12 @@ const BookingsSection: React.FC<Props> = ({ bookings, loading, error, onRetry })
                 <div className="mt-1 text-xs text-gray-500">{format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}</div>
               </div>
               <div className="shrink-0 text-right">
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(booking.status)}`}>{formatStatus(booking.status)}</span>
+                <span
+                  className="inline-flex items-center font-medium"
+                  style={statusChipStyles(booking.status)}
+                >
+                  {formatStatus(booking.status)}
+                </span>
                 <div className="mt-2 text-sm font-semibold text-gray-900">{formatCurrency(Number(booking.total_price))}</div>
               </div>
             </div>

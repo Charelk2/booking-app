@@ -9,7 +9,15 @@ from app.main import app
 from app.api.dependencies import get_db
 from app.api.auth import create_access_token
 from app.models.base import BaseModel
-from app.models import User, UserType, Notification, NotificationType
+from app.models import (
+    User,
+    UserType,
+    BookingRequest,
+    Message,
+    SenderType,
+    MessageType,
+    VisibleTo,
+)
 
 
 def setup_app():
@@ -41,7 +49,7 @@ def test_inbox_unread_counts_and_etag():
     Session = setup_app()
     db = Session()
 
-    user = User(
+    artist = User(
         email="artist@example.com",
         password="x",
         first_name="Art",
@@ -49,36 +57,57 @@ def test_inbox_unread_counts_and_etag():
         user_type=UserType.SERVICE_PROVIDER,
         is_active=True,
     )
-    db.add(user)
+    client = User(
+        email="client@example.com",
+        password="y",
+        first_name="Cli",
+        last_name="Ent",
+        user_type=UserType.CLIENT,
+        is_active=True,
+    )
+    db.add_all([artist, client])
     db.commit()
-    db.refresh(user)
+    db.refresh(artist)
+    db.refresh(client)
 
     client = TestClient(app)
 
     # Initial request: no notifications
-    res = client.get("/api/v1/inbox/unread", headers=auth_headers(user))
+    res = client.get("/api/v1/inbox/unread", headers=auth_headers(artist))
     assert res.status_code == 200
     assert res.json() == {"total": 0}
     etag_initial = res.headers.get("etag")
     assert etag_initial
 
-    # Insert two unread message notifications
+    # Insert two unread messages (artist is the recipient)
+    booking_request = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+    )
+    db.add(booking_request)
+    db.commit()
+    db.refresh(booking_request)
+
     base_ts = datetime.utcnow()
     db.add_all(
         [
-            Notification(
-                user_id=user.id,
-                type=NotificationType.NEW_MESSAGE,
-                message="Hello",
-                link="/inbox?requestId=1",
+            Message(
+                booking_request_id=booking_request.id,
+                sender_id=client.id,
+                sender_type=SenderType.CLIENT,
+                message_type=MessageType.USER,
+                visible_to=VisibleTo.BOTH,
+                content="Hello",
                 is_read=False,
                 timestamp=base_ts,
             ),
-            Notification(
-                user_id=user.id,
-                type=NotificationType.NEW_MESSAGE,
-                message="Hi again",
-                link="/inbox?requestId=1",
+            Message(
+                booking_request_id=booking_request.id,
+                sender_id=client.id,
+                sender_type=SenderType.CLIENT,
+                message_type=MessageType.USER,
+                visible_to=VisibleTo.BOTH,
+                content="Hi again",
                 is_read=False,
                 timestamp=base_ts + timedelta(seconds=5),
             ),
@@ -86,7 +115,7 @@ def test_inbox_unread_counts_and_etag():
     )
     db.commit()
 
-    res2 = client.get("/api/v1/inbox/unread", headers=auth_headers(user))
+    res2 = client.get("/api/v1/inbox/unread", headers=auth_headers(artist))
     assert res2.status_code == 200
     assert res2.json() == {"total": 2}
     etag_after = res2.headers.get("etag")
@@ -95,7 +124,7 @@ def test_inbox_unread_counts_and_etag():
     # Matching ETag should return 304 and reuse the same ETag header
     res3 = client.get(
         "/api/v1/inbox/unread",
-        headers={**auth_headers(user), "If-None-Match": etag_after},
+        headers={**auth_headers(artist), "If-None-Match": etag_after},
     )
     assert res3.status_code == 304
     assert res3.headers.get("etag") == etag_after

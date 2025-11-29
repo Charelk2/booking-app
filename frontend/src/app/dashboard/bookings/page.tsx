@@ -13,7 +13,7 @@ import {
 } from '@/lib/api';
 import { Booking } from '@/types';
 import { formatCurrency, formatStatus } from '@/lib/utils';
-import { statusChipClass } from '@/components/ui/status';
+import { statusChipStyles } from '@/components/ui/status';
 import { Spinner } from '@/components/ui';
 
 export default function ArtistBookingsPage() {
@@ -144,7 +144,12 @@ export default function ArtistBookingsPage() {
                     <div className="mt-1 text-xs text-gray-500">{format(new Date(b.start_time), 'MMM d, yyyy h:mm a')}</div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(b.status)}`}>{formatStatus(b.status)}</span>
+                    <span
+                      className="inline-flex items-center font-medium"
+                      style={statusChipStyles(b.status)}
+                    >
+                      {formatStatus(b.status)}
+                    </span>
                     <div className="mt-2 text-sm font-semibold text-gray-900">{formatCurrency(Number(b.total_price))}</div>
                   </div>
                 </div>

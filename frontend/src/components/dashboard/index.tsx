@@ -30,7 +30,7 @@ import './dashboard.css';
 
 import { BookingRequest, ServiceProviderProfile } from '@/types';
 import { formatStatus } from '@/lib/utils';
-import { statusChipClass } from '@/components/ui/status';
+import { statusChipStyles } from '@/components/ui/status';
 import { Avatar } from '../ui';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -172,10 +172,8 @@ export function BookingRequestCard({ req }: BookingRequestCardProps) {
         <div className="shrink-0 text-right">
           <span
             data-testid="status-chip"
-            className={clsx(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-              statusChipClass(req.status)
-            )}
+            className="inline-flex items-center font-medium"
+            style={statusChipStyles(req.status)}
           >
             {formatStatus(req.status)}
           </span>

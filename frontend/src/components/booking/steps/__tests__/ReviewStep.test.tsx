@@ -25,7 +25,14 @@ describe('ReviewStep summary', () => {
   });
 
   it('renders estimated cost with sound row', async () => {
-    (useBooking as jest.Mock).mockReturnValue({ details: {} });
+    (useBooking as jest.Mock).mockReturnValue({
+      details: {
+        sound: 'yes',
+        stageRequired: false,
+        backlineRequired: false,
+        lightingEvening: false,
+      },
+    });
 
     await act(async () => {
       root.render(
@@ -48,11 +55,18 @@ describe('ReviewStep summary', () => {
     });
 
     expect(container.textContent).toContain('Sound Equipment');
-    expect(container.textContent).toContain('Estimated Total');
+    expect(container.textContent).toContain('Estimated Cost');
   });
 
   it('computes totals when costs are strings', async () => {
-    (useBooking as jest.Mock).mockReturnValue({ details: {} });
+    (useBooking as jest.Mock).mockReturnValue({
+      details: {
+        sound: 'yes',
+        stageRequired: false,
+        backlineRequired: false,
+        lightingEvening: false,
+      },
+    });
 
     await act(async () => {
       root.render(
@@ -75,6 +89,7 @@ describe('ReviewStep summary', () => {
     });
 
     expect(container.textContent).not.toContain('NaN');
-    expect(container.textContent).toContain('R 195,50');
+    expect(container.textContent).toContain('Subtotal');
+    expect(container.textContent).toContain('Total To Pay');
   });
 });

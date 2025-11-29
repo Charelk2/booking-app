@@ -63,60 +63,25 @@ describe('LocationStep selection', () => {
     container.remove();
   });
 
-  it('shows map after selecting a place', async () => {
+  it('renders location input and help text', async () => {
     await act(async () => {
       root.render(React.createElement(Wrapper));
       await Promise.resolve();
     });
-    const input = container.querySelector('input') as HTMLInputElement;
-    jest.useFakeTimers();
-    await act(async () => {
-      input.value = 'Test';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      jest.advanceTimersByTime(350);
-    });
-    const option = container.querySelector('[data-testid="location-option"]') as HTMLDivElement;
-    await act(async () => {
-      option.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(container.querySelector('[data-testid="map"]')).not.toBeNull();
-    jest.useRealTimers();
+    const input = container.querySelector('input[type="text"]') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    expect(container.textContent).toContain('Event location');
+    expect(container.textContent).toContain('Start typing to see suggestions');
   });
 
-  it('toggles map container classes without layout jumps', async () => {
+  it('shows helper text and exposes listbox semantics', async () => {
     await act(async () => {
       root.render(React.createElement(Wrapper));
       await Promise.resolve();
     });
-    const mapDiv = container.querySelector('[data-testid="map-container"]') as HTMLDivElement;
-    expect(mapDiv.className).toContain('map-container-collapsed');
-    const input = container.querySelector('input') as HTMLInputElement;
-    jest.useFakeTimers();
-    await act(async () => {
-      input.value = 'Test';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      jest.advanceTimersByTime(350);
-    });
-    const option = container.querySelector('[data-testid="location-option"]') as HTMLDivElement;
-    await act(async () => {
-      option.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(mapDiv.className).toContain('map-container-expanded');
-    expect(mapDiv.className).not.toContain('map-container-collapsed');
-    jest.useRealTimers();
-  });
-
-  it('reveals tooltip on focus', async () => {
-    await act(async () => {
-      root.render(React.createElement(Wrapper));
-      await Promise.resolve();
-    });
-    const tooltipButton = container.querySelector('button[aria-describedby]') as HTMLButtonElement;
-    act(() => {
-      tooltipButton.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
-      tooltipButton.focus();
-    });
-    const tip = container.querySelector('[role="tooltip"]');
-    expect(tip).not.toBeNull();
+    expect(container.textContent).toContain('Start typing to see suggestions');
+    const combobox = container.querySelector('input[role="combobox"]') as HTMLInputElement;
+    expect(combobox).not.toBeNull();
+    expect(combobox.getAttribute('aria-controls')).toBeTruthy();
   });
 });

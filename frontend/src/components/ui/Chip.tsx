@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { colors, radii, spacing, typography } from '@/theme/tokens';
 
 type Props = {
   children: React.ReactNode;
@@ -10,10 +11,20 @@ type Props = {
 
 export default function Chip({ children, leadingIcon, className = '' }: Props) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white/70 px-2.5 py-1 text-xs text-gray-700 shadow-sm ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1 border shadow-sm ${className}`}
+      style={{
+        borderRadius: radii.pill,
+        borderColor: colors.neutral.border,
+        backgroundColor: colors.neutral.bg,
+        color: colors.neutral.text,
+        padding: `${spacing.xs} ${spacing.md}`,
+        fontSize: typography.small,
+        fontWeight: 600,
+      }}
+    >
       {leadingIcon}
       {children}
     </span>
   );
 }
-

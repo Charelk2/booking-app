@@ -6,7 +6,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { getMyClientQuotes } from '@/lib/api';
 import { formatStatus } from '@/lib/utils';
-import { statusChipClass } from '@/components/ui/status';
+import { statusChipStyles } from '@/components/ui/status';
 import { Spinner } from '@/components/ui';
 import type { QuoteV2 } from '@/types';
 
@@ -66,7 +66,7 @@ export default function ClientQuotesPage() {
     );
   }
 
-  // statusChipClass provides consistent soft badge styling
+  // statusChipStyles provides consistent soft badge styling
 
   return (
     <MainLayout>
@@ -103,7 +103,12 @@ export default function ClientQuotesPage() {
                     <div className="mt-1 text-xs text-gray-500">{formatStatus(q.status)}</div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(q.status)}`}>{formatStatus(q.status)}</span>
+                    <span
+                      className="inline-flex items-center font-medium"
+                      style={statusChipStyles(q.status)}
+                    >
+                      {formatStatus(q.status)}
+                    </span>
                     <div className="mt-2">
                       <Link href={`/quotes/${q.id}`} className="text-brand-dark hover:underline text-sm">View</Link>
                     </div>

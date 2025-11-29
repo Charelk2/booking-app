@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import { useForm, Control, FieldValues } from 'react-hook-form';
-import VenueStep from '../VenueStep';
+import { VenueStep } from '../../wizard/Steps';
+import useIsMobile from '@/hooks/useIsMobile';
+
+jest.mock('@/hooks/useIsMobile', () => jest.fn(() => false));
 
 
 function MobileWrapper() {
@@ -21,6 +24,7 @@ describe('VenueStep radio buttons', () => {
   let root: ReturnType<typeof createRoot>;
 
   beforeEach(() => {
+    (useIsMobile as jest.Mock).mockReturnValue(false);
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -54,6 +58,7 @@ describe('VenueStep bottom sheet mobile', () => {
   let root: ReturnType<typeof createRoot>;
 
   beforeEach(() => {
+    (useIsMobile as jest.Mock).mockReturnValue(true);
     Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
     container = document.createElement('div');
     document.body.appendChild(container);

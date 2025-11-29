@@ -18,7 +18,7 @@ import {
 import { Spinner } from "@/components/ui";
 import { format } from "date-fns";
 import { formatCurrency, formatStatus } from "@/lib/utils";
-import { statusChipClass } from "@/components/ui/status";
+import { statusChipStyles } from "@/components/ui/status";
 import Link from "next/link";
 
 type TabId = "requests" | "bookings";
@@ -326,9 +326,8 @@ export default function ClientDashboardPage() {
                       </div>
                       <div className="shrink-0 text-right">
                         <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(
-                            booking.status,
-                          )}`}
+                          className="inline-flex items-center font-medium"
+                          style={statusChipStyles(booking.status)}
                         >
                           {formatStatus(booking.status)}
                         </span>
