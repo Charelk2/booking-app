@@ -4,9 +4,9 @@ import axios, { AxiosProgressEvent, type AxiosRequestConfig, type InternalAxiosR
 import { ensureFreshAccess } from '@/lib/refreshCoordinator';
 import { setTransportErrorMeta, runWithTransport, noteTransportOnline, noteTransportOffline } from '@/lib/transportState';
 import logger from './logger';
-import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
 import { decodeMsgpack } from './msgpackDecode';
+import { formatDateYMDLocal } from './shared/date';
 import {
   User,
   ServiceProviderProfile,
@@ -584,7 +584,7 @@ export const getServiceProviders = async (params?: {
   const { includePriceDistribution, ...rest } = params || {};
   const query = { ...rest } as Record<string, unknown>;
   if (query.when instanceof Date) {
-    query.when = format(query.when, 'yyyy-MM-dd');
+    query.when = formatDateYMDLocal(query.when);
   }
   if (includePriceDistribution) {
     query.include_price_distribution = true;

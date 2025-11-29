@@ -2,7 +2,7 @@ export interface RouterLike {
   push: (url: string) => void;
 }
 import { SLIDER_MIN, SLIDER_MAX } from './filter-constants';
-import { format } from 'date-fns';
+import { formatDateYMDLocal } from './shared/date';
 
 interface Params {
   category?: string;
@@ -33,7 +33,7 @@ export function updateQueryParams(
   // Handle 'when' parameter: format to 'yyyy-MM-dd' if a Date object is provided,
   // otherwise ensure it's not set in the URL.
   if (params.when) {
-    search.set('when', format(params.when, 'yyyy-MM-dd'));
+    search.set('when', formatDateYMDLocal(params.when));
   } else {
     // If params.when is null or undefined, ensure the 'when' parameter is removed from the URL
     search.delete('when');
