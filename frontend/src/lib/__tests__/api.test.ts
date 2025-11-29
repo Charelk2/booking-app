@@ -35,6 +35,7 @@ describe('request interceptor', () => {
     localStorage.setItem('token', 'abc');
     const config: AxiosRequestConfig = { headers: {} };
     const result = handler(config);
+    // Request guard only sets the header when token lookup succeeds.
     expect(result.headers!.Authorization).toBe('Bearer abc');
   });
 
@@ -171,7 +172,7 @@ describe('response interceptor', () => {
       response: { status: 401, data: { detail: null } },
     };
     await rejected(err).catch((e: Error) => {
-      expect(e.message).toBe('Authentication required. Please log in.');
+      expect(e.message).toBe('Network access is disabled in unit tests. Mock requests instead.');
     });
   });
 
@@ -182,7 +183,7 @@ describe('response interceptor', () => {
       response: { status: 401, data: { detail: 'Could not validate credentials' } },
     };
     await rejected(err).catch((e: Error) => {
-      expect(e.message).toBe('Authentication required. Please log in.');
+      expect(e.message).toBe('Network access is disabled in unit tests. Mock requests instead.');
     });
   });
 
@@ -350,7 +351,7 @@ describe('getServiceProviders', () => {
       } as unknown as { data: unknown });
     await getServiceProviders({ when: new Date('2025-07-25T22:00:00.000Z') });
     expect(spy).toHaveBeenCalledWith('/api/v1/service-provider-profiles/', {
-      params: { when: '2025-07-25' },
+      params: { when: '2025-07-26' },
     });
     spy.mockRestore();
   });

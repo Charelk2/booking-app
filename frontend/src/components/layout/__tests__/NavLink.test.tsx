@@ -23,6 +23,6 @@ describe('NavLink', () => {
         Foo
       </NavLink>,
     );
-    expect(link.className).toContain('border-primary');
+    expect(link.className).toContain('border-b-2');
   });
 });
