@@ -52,7 +52,21 @@ def calculate_quote_breakdown(
     display on the frontend.
     """
 
-    # If distance not provided, compute from artist base location to event city
+    # If distance not provided, compute from artist base location to event city.
+    # Prefer any distance already provided (e.g., from frontend travel engine / travel_breakdown)
+    # to avoid redundant lookups.
+    if distance_km is None or distance_km <= 0:
+        try:
+            # Travel breakdown may carry a precomputed distance_km
+            tb_distance = None
+            try:
+                tb_distance = float((service.details or {}).get("travel_breakdown", {}).get("distance_km"))  # type: ignore[union-attr]
+            except Exception:
+                tb_distance = None
+            if tb_distance and tb_distance > 0:
+                distance_km = tb_distance
+        except Exception:
+            pass
     if (distance_km is None or distance_km <= 0) and service and event_city and db:
         try:
             artist_loc = (
