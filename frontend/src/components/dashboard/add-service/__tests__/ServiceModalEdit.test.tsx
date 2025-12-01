@@ -32,6 +32,8 @@ describe("AddServiceModalMusician editing", () => {
       />,
     );
 
+    // Step through all wizard steps until the Review screen
+    await user.click(screen.getByTestId("next"));
     await user.click(screen.getByTestId("next"));
     await user.click(screen.getByTestId("next"));
     await user.click(screen.getByTestId("next"));
