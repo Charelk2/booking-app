@@ -167,7 +167,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     setStatus(attemptsRef.current > 0 ? 'reconnecting' : 'connecting');
     connectingRef.current = true;
     // Prefer bearer via subprotocol; fall back to cookies if present
-    const bearerToken = (wsToken || '').trim();
+    const bearerToken = (wsToken || lastTokenRef.current || '').trim();
     const protocols = bearerToken ? ['bearer', bearerToken] : undefined;
     const ws = protocols ? new WebSocket(wsUrl, protocols) : new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -248,31 +248,15 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
         attemptsRef.current += 1;
       }
       openedAtRef.current = null;
-      if (e?.code === 4401) {
-        // Unauthorized – coordinate refresh with the global refresh coordinator, then reconnect once
-        (async () => {
-          try {
-            const mod = await import('@/lib/refreshCoordinator');
-            try { console.warn('[realtime] WS unauthorized (4401) - coordinating refresh'); } catch {}
-            await mod.ensureFreshAccess();
-            attemptsRef.current = 0;
-            setRefreshAttemptedFlag(true);
-            setStatus('reconnecting');
-            openWS();
-            return;
-          } catch {}
-          // If refresh fails, keep closed; do not use SSE fallback
-          setStatus('closed');
-        })();
-        return;
-      }
-      // Early handshake failures (e.g., 1006/403 with no token) – attempt a single refresh before normal backoff
-      if (!refreshAttemptedRef.current && uptimeMs < 2000 && (e?.code === 1006 || e?.code === 403 || !e?.code)) {
+      // Early auth/handshake failures – attempt a single refresh before normal backoff
+      const authishClose = e?.code === 4401 || e?.code === 4403;
+      const earlyHandshakeFail = uptimeMs < 2000 && (e?.code === 1006 || e?.code === 403 || !e?.code);
+      if (!refreshAttemptedRef.current && (authishClose || earlyHandshakeFail)) {
         setRefreshAttemptedFlag(true);
         (async () => {
           try {
             const mod = await import('@/lib/refreshCoordinator');
-            try { console.warn('[realtime] WS handshake failed – attempting refresh'); } catch {}
+            try { console.warn('[realtime] WS unauthorized/handshake failed – attempting refresh'); } catch {}
             await mod.ensureFreshAccess();
             attemptsRef.current = 0;
             setStatus('reconnecting');

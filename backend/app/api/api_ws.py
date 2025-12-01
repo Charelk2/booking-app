@@ -34,8 +34,8 @@ PONG_TIMEOUT = 45.0
 SEND_TIMEOUT = 10.0
 WS_4401_UNAUTHORIZED = 4401
 WS_4403_FORBIDDEN = 4403
-MAX_WS_TOKEN_LEN = int(os.getenv("WS_TOKEN_MAX_LEN", "4096") or 4096)
-MAX_PROTO_LEN = int(os.getenv("WS_PROTO_MAX_LEN", "4096") or 4096)
+MAX_BEARER_LEN = int(os.getenv("WS_MAX_BEARER_LEN", "4096") or 4096)
+MAX_PROTOCOL_HEADER_LEN = int(os.getenv("WS_MAX_PROTOCOL_HEADER_LEN", "8192") or 8192)
 
 ENABLE_NOISE = os.getenv("ENABLE_NOISE", "0").lower() in {"1","true","yes"}
 WS_ENABLE_RECONNECT_HINT = os.getenv("WS_ENABLE_RECONNECT_HINT", "0").lower() in {"1","true","yes"}
@@ -190,32 +190,47 @@ def _extract_bearer_token(ws: WebSocket) -> tuple[Optional[str], str]:
     """Return (token, source). Source is one of protocol/query/authorization/cookie/none."""
     try:
         proto = ws.headers.get("sec-websocket-protocol", "") or ""
-        if proto and len(proto) > MAX_PROTO_LEN:
+        if proto and len(proto) > MAX_PROTOCOL_HEADER_LEN:
             return None, "protocol_oversize"
         if proto:
             parts = [p.strip() for p in proto.split(",")]
             if len(parts) == 2 and parts[0].lower() == "bearer" and parts[1]:
-                return parts[1], "protocol"
+                token = parts[1]
+                if len(token) > MAX_BEARER_LEN:
+                    return None, "protocol_oversize"
+                return token, "protocol"
             for p in parts:
                 pl = p.lower()
                 if pl.startswith("bearer ") and len(p.split(" ", 1)) == 2:
-                    return p.split(" ", 1)[1].strip(), "protocol"
+                    token = p.split(" ", 1)[1].strip()
+                    if len(token) > MAX_BEARER_LEN:
+                        return None, "protocol_oversize"
+                    return token, "protocol"
     except Exception:
         pass
     try:
         qtok = ws.query_params.get("token")  # type: ignore[attr-defined]
-        if qtok: return qtok, "query"
+        if qtok:
+            if len(qtok) > MAX_BEARER_LEN:
+                return None, "query_oversize"
+            return qtok, "query"
     except Exception:
         pass
     try:
         auth = ws.headers.get("authorization") or ws.headers.get("Authorization")
         if auth and auth.lower().startswith("bearer "):
-            return auth.split(" ", 1)[1].strip(), "authorization"
+            token = auth.split(" ", 1)[1].strip()
+            if len(token) > MAX_BEARER_LEN:
+                return None, "authorization_oversize"
+            return token, "authorization"
     except Exception:
         pass
     try:
         tok = ws.cookies.get("access_token")
-        if tok: return tok, "cookie"
+        if tok:
+            if len(tok) > MAX_BEARER_LEN:
+                return None, "cookie_oversize"
+            return tok, "cookie"
     except Exception:
         pass
     return None, "none"
@@ -275,26 +290,34 @@ async def _ws_db_call(fn, *args, **kwargs):
             pass
 
 
-async def _current_user_from_token(token: str) -> tuple[Optional[User], Optional[str]]:
+async def _current_user_from_token(token: str) -> tuple[Optional[User], Optional[str], Optional[dict]]:
     token = _sanitize_bearer(token)
     if not token:
-        return None, "missing"
+        return None, "missing", None
     try:
-        if len(token) > MAX_WS_TOKEN_LEN:
-            return None, "token_too_long"
+        if len(token) > MAX_BEARER_LEN:
+            return None, "token_too_long", None
     except Exception:
         pass
+    payload: dict | None = None
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"leeway": 60})
     except ExpiredSignatureError:
-        return None, "expired"
+        return None, "expired", None
     except JWTError:
-        return None, "invalid"
+        return None, "invalid", None
     except Exception:
-        return None, "invalid"
+        return None, "invalid", None
+    if payload is None:
+        return None, "invalid", None
     email = payload.get("sub")
+    meta = {"exp": payload.get("exp"), "iat": payload.get("iat"), "typ": payload.get("typ")}
+    # Prevent refresh tokens from being used on WS
+    token_type = str(payload.get("typ") or "").lower()
+    if token_type == "refresh":
+        return None, "invalid_type", meta
     if not email:
-        return None, "missing_sub"
+        return None, "missing_sub", meta
     try:
         exp = payload.get("exp")
         iat = payload.get("iat")
@@ -304,8 +327,8 @@ async def _current_user_from_token(token: str) -> tuple[Optional[User], Optional
         pass
     user = await _ws_db_call(get_user_by_email, email)
     if not user:
-        return None, "user_not_found"
-    return user, None
+        return None, "user_not_found", meta
+    return user, None, meta
 
 # -------- presence & topic mux --------
 
@@ -416,11 +439,22 @@ async def booking_request_ws(
     if not token:
         _log_ws_auth_failure("missing_token" if token_src != "protocol_oversize" else "protocol_oversize", websocket, token_src)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
-    user, fail_reason = await _current_user_from_token(token)
+    user, fail_reason, meta = await _current_user_from_token(token)
     if not user:
-        _log_ws_auth_failure(fail_reason or "invalid_token", websocket, token_src)
-        reason = "refresh_required" if fail_reason == "expired" else "Invalid token"
-        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason=reason)
+        detail = None
+        try:
+            if meta:
+                detail = json.dumps({"exp": meta.get("exp"), "iat": meta.get("iat"), "typ": meta.get("typ")})
+        except Exception:
+            detail = None
+        has_refresh_cookie = bool(websocket.cookies.get("refresh_token"))
+        ws_reason = "Invalid token"
+        if fail_reason == "expired":
+            ws_reason = "Refresh required" if has_refresh_cookie else "Expired token"
+            if has_refresh_cookie:
+                fail_reason = "refresh_required"
+        _log_ws_auth_failure(fail_reason or "invalid_token", websocket, token_src, detail=detail)
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason=ws_reason)
 
     # Authorization
     br = await _ws_db_call(crud.crud_booking_request.get_booking_request, request_id=request_id)
@@ -520,11 +554,22 @@ async def multiplex_ws(
     if not token:
         _log_ws_auth_failure("missing_token" if token_src != "protocol_oversize" else "protocol_oversize", websocket, token_src)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
-    user, fail_reason = await _current_user_from_token(token)
+    user, fail_reason, meta = await _current_user_from_token(token)
     if not user:
-        _log_ws_auth_failure(fail_reason or "invalid_token", websocket, token_src)
-        reason = "refresh_required" if fail_reason == "expired" else "Invalid token"
-        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason=reason)
+        detail = None
+        try:
+            if meta:
+                detail = json.dumps({"exp": meta.get("exp"), "iat": meta.get("iat"), "typ": meta.get("typ")})
+        except Exception:
+            detail = None
+        has_refresh_cookie = bool(websocket.cookies.get("refresh_token"))
+        ws_reason = "Invalid token"
+        if fail_reason == "expired":
+            ws_reason = "Refresh required" if has_refresh_cookie else "Expired token"
+            if has_refresh_cookie:
+                fail_reason = "refresh_required"
+        _log_ws_auth_failure(fail_reason or "invalid_token", websocket, token_src, detail=detail)
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason=ws_reason)
 
     conn = NoiseWS(websocket)
     await conn.handshake()
@@ -691,11 +736,22 @@ async def notifications_ws(
     if not token:
         _log_ws_auth_failure("missing_token" if token_src != "protocol_oversize" else "protocol_oversize", websocket, token_src)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
-    user, fail_reason = await _current_user_from_token(token)
+    user, fail_reason, meta = await _current_user_from_token(token)
     if not user:
-        _log_ws_auth_failure(fail_reason or "invalid_token", websocket, token_src)
-        reason = "refresh_required" if fail_reason == "expired" else "Invalid token"
-        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason=reason)
+        detail = None
+        try:
+            if meta:
+                detail = json.dumps({"exp": meta.get("exp"), "iat": meta.get("iat"), "typ": meta.get("typ")})
+        except Exception:
+            detail = None
+        has_refresh_cookie = bool(websocket.cookies.get("refresh_token"))
+        ws_reason = "Invalid token"
+        if fail_reason == "expired":
+            ws_reason = "Refresh required" if has_refresh_cookie else "Expired token"
+            if has_refresh_cookie:
+                fail_reason = "refresh_required"
+        _log_ws_auth_failure(fail_reason or "invalid_token", websocket, token_src, detail=detail)
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason=ws_reason)
 
     conn = NoiseWS(websocket)
     await conn.handshake()

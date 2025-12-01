@@ -89,15 +89,35 @@ export function useThreads(user: User | null | undefined) {
   const refreshThreads = useCallback(async () => {
     if (!user) return false;
     const role = user.user_type === 'service_provider' ? 'artist' : 'client';
+    // Only send If-None-Match when we actually have cached data to reuse.
     let prevEtag: string | null = null;
+    let hasCache = false;
     try {
-      if (typeof window !== 'undefined') {
+      const cached = cacheGetSummaries();
+      hasCache = Array.isArray(cached) && cached.length > 0;
+    } catch {}
+    try {
+      if (!hasCache || typeof window === 'undefined') {
+        // no cache to reuse → skip conditional header
+      } else {
         prevEtag = sessionStorage.getItem(etagKey) || localStorage.getItem(etagKey);
       }
     } catch {}
-    const res = await getMessageThreadsPreview(role as any, 100, prevEtag || undefined);
-    const status = Number((res as any)?.status ?? 200);
-    if (status === 304) return true;
+
+    let res = await getMessageThreadsPreview(role as any, 100, hasCache ? prevEtag || undefined : undefined);
+    let status = Number((res as any)?.status ?? 200);
+
+    // If the server replied 304 but we had no cache (or it was empty), retry without ETag to force a body.
+    if (status === 304 && !hasCache) {
+      res = await getMessageThreadsPreview(role as any, 100, undefined);
+      status = Number((res as any)?.status ?? 200);
+    }
+
+    if (status === 304) {
+      // Cache is already hydrated; nothing else to do.
+      return true;
+    }
+
     const items = (res?.data?.items || []) as any[];
     if (!Array.isArray(items)) return false;
     const mapped: BookingRequest[] = items.map((it: any) => ({
