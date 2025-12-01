@@ -44,6 +44,7 @@ def calculate_quote_breakdown(
     supplier_distance_km: Optional[float] = None,
     rider_units: Optional[Dict[str, Any]] = None,
     backline_requested: Optional[Dict[str, int]] = None,
+    allow_distance_lookup: bool = True,
 ) -> Dict[str, Any]:
     """Return a detailed cost breakdown including the grand total.
 
@@ -69,7 +70,7 @@ def calculate_quote_breakdown(
                 distance_km = tb_distance
         except Exception:
             pass
-    if (distance_km is None or distance_km <= 0) and service and event_city and db:
+    if allow_distance_lookup and (distance_km is None or distance_km <= 0) and service and event_city and db:
         try:
             artist_loc = (
                 db.query(ServiceProviderProfile)
@@ -275,7 +276,7 @@ def _estimate_sound_cost_contextual(
                     .first()
                 )
                 # Compute distance if not provided
-                if pb and (supplier_distance_km is None or supplier_distance_km <= 0):
+                if allow_distance_lookup and pb and (supplier_distance_km is None or supplier_distance_km <= 0):
                     base_loc = pb.base_location or (provider.details or {}).get("base_location")
                     if base_loc and event_city:
                         dm = get_distance_metrics(str(base_loc), event_city)

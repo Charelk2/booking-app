@@ -1064,6 +1064,7 @@ def tool_quote_preview(
             supplier_distance_km=None,
             rider_units=None,
             backline_requested=None,
+            allow_distance_lookup=False,  # avoid blocking distance lookups when state lacks travel context
         )
         total = breakdown.get("total")
         if total is None:
