@@ -18,6 +18,7 @@ export function useThreads(user: User | null | undefined) {
     const uid = user?.id ? String(user.id) : 'anon';
     return `inbox:threadsIndexEtag:${role}:${uid}`;
   }, [user?.user_type, user?.id]);
+  const refreshCountKey = 'inbox:refreshCount';
 
   // Cache keys (session + long-lived)
   const cacheKey = useMemo(() => {
@@ -88,6 +89,23 @@ export function useThreads(user: User | null | undefined) {
 
   const refreshThreads = useCallback(async () => {
     if (!user) return false;
+    // Gentle debounce after multiple rapid refreshes to reduce SSE/WS thrash.
+    let shouldDelay = false;
+    try {
+      if (typeof window !== 'undefined') {
+        const prev = Number(window.sessionStorage.getItem(refreshCountKey) || '0');
+        const next = prev + 1;
+        window.sessionStorage.setItem(refreshCountKey, String(next));
+        if (next >= 5) {
+          shouldDelay = true;
+          // decay the counter quickly so normal use isn’t penalized
+          window.sessionStorage.setItem(refreshCountKey, '0');
+        }
+      }
+    } catch {}
+    if (shouldDelay) {
+      await new Promise((res) => setTimeout(res, 300));
+    }
     const role = user.user_type === 'service_provider' ? 'artist' : 'client';
     const PREVIEW_LIMIT = 50;
     // Only send If-None-Match when we actually have cached data to reuse.
