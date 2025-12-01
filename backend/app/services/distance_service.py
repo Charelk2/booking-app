@@ -65,6 +65,9 @@ async def get_distance_metrics_async(from_addr: str, to_addr: str) -> DistanceMe
 
     # Prefer direct Google API if key configured
     api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    # Keep timeouts short to avoid blocking workers; allow overrides via env
+    google_timeout = float(os.getenv("DIST_MATRIX_TIMEOUT", "3.0") or 3.0)
+    proxy_timeout = float(os.getenv("DIST_PROXY_TIMEOUT", "2.5") or 2.5)
     try:
         if api_key:
             url = "https://maps.googleapis.com/maps/api/distancematrix/json"
@@ -76,7 +79,7 @@ async def get_distance_metrics_async(from_addr: str, to_addr: str) -> DistanceMe
                 "traffic_model": "best_guess",
                 "key": api_key,
             }
-            async with httpx.AsyncClient(timeout=8.0) as http:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(google_timeout, connect=1.0)) as http:
                 res = await http.get(url, params=params)
                 res.raise_for_status()
                 data = res.json()
@@ -91,22 +94,23 @@ async def get_distance_metrics_async(from_addr: str, to_addr: str) -> DistanceMe
     except Exception as exc:
         logger.warning("Google Distance Matrix failed: %s", exc)
 
-    # Try internal proxy if available
+    # Try internal proxy only if explicitly allowed; avoid self-calls that can starve workers
     try:
-        port = os.getenv("PORT", "8000")
-        url = f"http://127.0.0.1:{port}/api/v1/distance"
-        async with httpx.AsyncClient(timeout=5.0) as http:
-            res = await http.get(url, params={"from_location": from_addr, "to_location": to_addr, "includeDuration": True})
-            if res.status_code == 200:
-                data = res.json()
-                meters = data.get("rows", [{}])[0].get("elements", [{}])[0].get("distance", {}).get("value", 0)
-                secs = data.get("rows", [{}])[0].get("elements", [{}])[0].get("duration", {}).get("value", 0)
-                dm = DistanceMetrics(distance_km=meters / 1000.0, duration_hrs=secs / 3600.0, rough=False)
-                try:
-                    client.setex(key, 900, f"{dm.distance_km},{dm.duration_hrs},0")
-                except Exception:
-                    pass
-                return dm
+        if os.getenv("DISTANCE_PROXY_ALLOW_SELF", "0") in {"1", "true", "yes"}:
+            port = os.getenv("PORT", "8000")
+            url = f"http://127.0.0.1:{port}/api/v1/distance"
+            async with httpx.AsyncClient(timeout=httpx.Timeout(proxy_timeout, connect=0.8)) as http:
+                res = await http.get(url, params={"from_location": from_addr, "to_location": to_addr, "includeDuration": True})
+                if res.status_code == 200:
+                    data = res.json()
+                    meters = data.get("rows", [{}])[0].get("elements", [{}])[0].get("distance", {}).get("value", 0)
+                    secs = data.get("rows", [{}])[0].get("elements", [{}])[0].get("duration", {}).get("value", 0)
+                    dm = DistanceMetrics(distance_km=meters / 1000.0, duration_hrs=secs / 3600.0, rough=False)
+                    try:
+                        client.setex(key, 900, f"{dm.distance_km},{dm.duration_hrs},0")
+                    except Exception:
+                        pass
+                    return dm
     except Exception as exc:  # pragma: no cover
         logger.warning("Distance proxy failed: %s", exc)
 
@@ -124,4 +128,3 @@ def get_distance_metrics(from_addr: str, to_addr: str) -> DistanceMetrics:
     """Sync wrapper around async distance lookup for convenience."""
     import anyio
     return anyio.run(get_distance_metrics_async, from_addr, to_addr)
-
