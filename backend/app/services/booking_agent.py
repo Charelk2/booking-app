@@ -787,18 +787,69 @@ def tool_search_providers(
     Returns a tuple of (providers, filters_dict).
     """
     payload = _build_search_payload_from_state(query_text, state, limit=limit)
-    # Skip LLM-derived filters and rerank/explanations when invoked from the
-    # booking agent; the agent already calls Gemini for conversational text,
-    # so we keep search deterministic here to reduce latency.
-    payload["disable_llm"] = True
-    try:
-        result = ai_provider_search(db, payload)
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning("Agent search_providers failed: %s", exc)
-        return [], {}
 
-    providers = result.get("providers") or []
-    filters = result.get("filters") or {}
+    def _run_search(search_payload: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        # Skip LLM-derived filters and rerank/explanations when invoked from the
+        # booking agent; the agent already calls Gemini for conversational text,
+        # so we keep search deterministic here to reduce latency.
+        search_payload["disable_llm"] = True
+        try:
+            result = ai_provider_search(db, search_payload)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Agent search_providers failed: %s", exc)
+            return [], {}
+        return result.get("providers") or [], result.get("filters") or {}
+
+    providers, filters = _run_search(payload)
+    if providers:
+        return providers, filters
+
+    # Fallback: if the initial query returns nothing (e.g. because the text was
+    # messy or the location filter was too narrow), retry with progressively
+    # simpler queries so the assistant can still suggest concrete providers.
+    original_query = (query_text or "").strip().lower()
+    fallback_candidates: List[str] = []
+    simple_category = (state.service_category or "").replace("_", " ").strip()
+    if simple_category and state.city:
+        fallback_candidates.append(f"{simple_category} in {state.city}")
+    if simple_category:
+        fallback_candidates.append(simple_category)
+    if state.event_type and state.city:
+        fallback_candidates.append(f"{state.event_type} in {state.city}")
+
+    seen: set[str] = set()
+    for candidate in fallback_candidates:
+        cand = candidate.strip()
+        if not cand:
+            continue
+        cand_l = cand.lower()
+        if cand_l == original_query or cand_l in seen:
+            continue
+        seen.add(cand_l)
+        fallback_payload = _build_search_payload_from_state(cand, state, limit=limit)
+        # Loosen hard filters so we don't discard viable providers because of
+        # an over-specific date or price guess.
+        fallback_payload["when"] = None
+        fallback_payload["min_price"] = None
+        fallback_payload["max_price"] = None
+        providers, filters = _run_search(fallback_payload)
+        if providers:
+            return providers, filters
+
+    # Final attempt: broad category-only search without location/date filters.
+    if simple_category:
+        broad_payload = {
+            "query": simple_category,
+            "category": state.service_category,
+            "location": None,
+            "when": None,
+            "min_price": None,
+            "max_price": None,
+            "limit": limit,
+            "disable_llm": True,
+        }
+        providers, filters = _run_search(broad_payload)
+
     return providers, filters
 
 
@@ -1560,6 +1611,15 @@ def run_booking_agent_step(
     # message so we can progressively fill the state (e.g. sound preference).
     try:
         t = (query_text or "").lower()
+        # Users sometimes say "I need everything" to imply full production
+        # (sound, stage, lighting). Treat that as a positive for the core
+        # production flags so we don't keep re-asking for basics.
+        need_everything = bool(
+            re.search(r"\b(need|want|include)\s+(everything|all)\b", t)
+            or "need the works" in t
+            or "need it all" in t
+            or "need all of it" in t
+        )
         # Best-effort date extraction from recent user text. When we can
         # confidently parse a concrete calendar date, let the newest mention
         # win so users can refine from “somewhere in October 2027” to “30
@@ -1571,6 +1631,8 @@ def run_booking_agent_step(
             if re.search(r"\b(no sound|without sound|have our own sound|sound is sorted)\b", t):
                 state.sound = "no"
             elif "sound system" in t or "sound equipment" in t or "need sound" in t:
+                state.sound = "yes"
+            elif need_everything:
                 state.sound = "yes"
         if state.guests is None:
             m = re.search(r"(\d{1,4})\s+(guests?|people|pax)", t)
@@ -1589,6 +1651,8 @@ def run_booking_agent_step(
                 # Assume stage is required unless explicitly negated.
                 if not re.search(r"\b(no stage|without stage)\b", t):
                     state.stage_required = True
+            elif need_everything:
+                state.stage_required = True
             elif re.search(r"\b(no stage|without stage)\b", t):
                 state.stage_required = False
         if state.stage_required and state.stage_size is None:
@@ -1600,6 +1664,8 @@ def run_booking_agent_step(
                 state.stage_size = "L"
         if state.lighting_evening is None:
             if "evening" in t and "light" in t:
+                state.lighting_evening = True
+            elif need_everything:
                 state.lighting_evening = True
         if state.backline_required is None and "backline" in t:
             state.backline_required = True
