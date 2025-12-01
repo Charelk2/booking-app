@@ -90,9 +90,10 @@ export default function QuoteDetailPage() {
     <MainLayout>
       <div className="max-w-md mx-auto p-4">
         <h1 className="text-xl font-semibold mb-2">Quote #{quote.id}</h1>
+        {/* Treat the viewer as the client when they are the quote.client_id, even if their user_type is service_provider */}
         <QuoteCard
           quote={quote}
-          isClient={user.user_type === 'client'}
+          isClient={user.id === quote.client_id}
           onAccept={() => handleAction('accept')}
           onDecline={() => handleAction('decline')}
           bookingConfirmed={false}

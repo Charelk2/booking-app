@@ -251,7 +251,12 @@ export default function BookingSummaryCard({
     return { list, accepted: accepted || null, latestPending, best: accepted || latestPending || null };
   }, [quotes, bookingRequestId]);
 
-  const isClient = user?.user_type === 'client';
+  // Treat the viewer as the client for this booking when they are the booking.client_id,
+  // even if their global user_type is 'service_provider'.
+  const isClient =
+    !!user &&
+    !!bookingDetails &&
+    Number(user.id) === Number((bookingDetails as any).client_id);
 
   // Sticky mobile CTA height measurement to create safe bottom space
   const stickyRef = React.useRef<HTMLDivElement | null>(null);
