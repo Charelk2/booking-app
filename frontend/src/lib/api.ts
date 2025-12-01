@@ -590,6 +590,53 @@ export interface GetServiceProvidersResponse {
   price_distribution: PriceBucket[];
 }
 
+// ─── SERVICE PROVIDERS LIST CACHE + CONCURRENCY ──────────────────────────────
+type ProvidersKey = string;
+interface ProvidersCacheEntry {
+  value: GetServiceProvidersResponse;
+  timestamp: number;
+}
+const PROVIDERS_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+const PROVIDERS_MAX_CONCURRENT = 3;
+const providersCache = new Map<ProvidersKey, ProvidersCacheEntry>();
+const providersInFlight = new Map<ProvidersKey, Promise<GetServiceProvidersResponse>>();
+let providersActive = 0;
+const providersQueue: Array<() => void> = [];
+
+const providersKey = (params: Record<string, unknown>): ProvidersKey => {
+  // Only keys that affect list rendering
+  const { category, location, when, sort, minPrice, maxPrice, page = 1, limit = 20, fields } = params as any;
+  const k = { category, location, when, sort, minPrice, maxPrice, page, limit, fields };
+  return JSON.stringify(k);
+};
+
+const acquireProvidersSlot = async () => {
+  if (providersActive < PROVIDERS_MAX_CONCURRENT) {
+    providersActive += 1;
+    return;
+  }
+  await new Promise<void>((resolve) => providersQueue.push(resolve));
+  providersActive += 1;
+};
+
+const releaseProvidersSlot = () => {
+  providersActive = Math.max(0, providersActive - 1);
+  const next = providersQueue.shift();
+  if (next) {
+    try { next(); } catch {}
+  }
+};
+
+export const getCachedServiceProviders = (params: Parameters<typeof getServiceProviders>[0] = {}): GetServiceProvidersResponse | null => {
+  const key = providersKey(params || {});
+  const now = Date.now();
+  const entry = providersCache.get(key);
+  if (entry && now - entry.timestamp < PROVIDERS_CACHE_TTL_MS) {
+    return entry.value;
+  }
+  return null;
+};
+
 export const getServiceProviders = async (params?: {
   category?: string;
   location?: string;
@@ -615,39 +662,38 @@ export const getServiceProviders = async (params?: {
     (query as any).fields = (params as any).fields!.join(',');
   }
 
-  const res = await apiClient.get<GetServiceProvidersResponse>(`${API_V1}/service-provider-profiles/`, {
-    params: query,
-  });
-  return {
-    ...res.data,
-    data: res.data.data.map(normalizeServiceProviderProfile),
-  };
-};
+  const key = providersKey(query);
+  // Return cached entry if fresh
+  const cached = getCachedServiceProviders(query);
+  if (cached) return cached;
 
-// ─── SERVICE PROVIDERS LIST CACHE + PREFETCH ───────────────────────────────────
-type ProvidersKey = string;
-interface ProvidersCacheEntry {
-  value: GetServiceProvidersResponse;
-  timestamp: number;
-}
-const PROVIDERS_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
-const providersCache = new Map<ProvidersKey, ProvidersCacheEntry>();
-
-const providersKey = (params: Record<string, unknown>): ProvidersKey => {
-  // Only keys that affect list rendering
-  const { category, location, when, sort, minPrice, maxPrice, page = 1, limit = 20, fields } = params as any;
-  const k = { category, location, when, sort, minPrice, maxPrice, page, limit, fields };
-  return JSON.stringify(k);
-};
-
-export const getCachedServiceProviders = (params: Parameters<typeof getServiceProviders>[0] = {}): GetServiceProvidersResponse | null => {
-  const key = providersKey(params || {});
-  const now = Date.now();
-  const entry = providersCache.get(key);
-  if (entry && now - entry.timestamp < PROVIDERS_CACHE_TTL_MS) {
-    return entry.value;
+  // Deduplicate in-flight identical requests
+  const inflight = providersInFlight.get(key);
+  if (inflight) {
+    const res = await inflight;
+    return res;
   }
-  return null;
+
+  await acquireProvidersSlot();
+  const run = (async () => {
+    try {
+      const res = await apiClient.get<GetServiceProvidersResponse>(`${API_V1}/service-provider-profiles/`, {
+        params: query,
+      });
+      const normalized: GetServiceProvidersResponse = {
+        ...res.data,
+        data: res.data.data.map(normalizeServiceProviderProfile),
+      };
+      providersCache.set(key, { value: normalized, timestamp: Date.now() });
+      return normalized;
+    } finally {
+      providersInFlight.delete(key);
+      releaseProvidersSlot();
+    }
+  })();
+
+  providersInFlight.set(key, run);
+  return run;
 };
 
 export const prefetchServiceProviders = async (params: Parameters<typeof getServiceProviders>[0] = {}): Promise<void> => {
