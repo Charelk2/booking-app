@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import ServiceProviderCardCompact from '@/components/service-provider/ServiceProviderCardCompact';
 import { getServiceProviders, getCachedServiceProviders, prefetchServiceProviders } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
@@ -34,6 +35,7 @@ export default function ArtistsSection({
   hideIfEmpty = false,
   initialData,
 }: ArtistsSectionProps) {
+  const pathname = usePathname();
   const [artists, setArtists] = useState<ServiceProviderProfile[]>(initialData || []);
   const [loading, setLoading] = useState(() => !initialData);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -42,6 +44,12 @@ export default function ArtistsSection({
 
   // Fetch data: fast minimal fields, then hydrate with full details
   useEffect(() => {
+    // Guard against accidental mounts on non-home routes (e.g., prefetch/layout reuse)
+    if (typeof window !== 'undefined' && pathname && pathname !== '/') {
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     // If we already have server-provided data, don't refetch on first render
@@ -139,7 +147,7 @@ export default function ArtistsSection({
     return () => {
       isMounted = false;
     };
-  }, [serializedQuery, limit, initialData]);
+  }, [serializedQuery, limit, initialData, pathname]);
 
   if (!loading && artists.length === 0 && hideIfEmpty) {
     return null;
