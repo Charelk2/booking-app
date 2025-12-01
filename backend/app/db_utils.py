@@ -802,8 +802,10 @@ def normalize_message_type_values(engine: Engine) -> None:
         return
     with engine.connect() as conn:
         try:
-            conn.execute(text("UPDATE messages SET message_type='USER' WHERE lower(message_type)='text'"))
-            conn.execute(text("UPDATE messages SET message_type=upper(message_type)"))
+            # message_type is a Postgres ENUM; cast to text before LOWER/UPPER to avoid
+            # function-not-found errors when the column is an enum type.
+            conn.execute(text("UPDATE messages SET message_type='USER' WHERE lower(message_type::text)='text'"))
+            conn.execute(text("UPDATE messages SET message_type=upper(message_type::text)::message_type"))
             conn.commit()
         except Exception:
             # Best-effort; don't block app startup if normalization fails

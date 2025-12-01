@@ -244,26 +244,27 @@ ensure_booking_event_city_column(engine)
 ensure_booking_artist_deadline_column(engine)
 ensure_quote_v2_sound_firm_column(engine)
 ensure_rider_tables(engine)
-ensure_legacy_artist_user_type(engine)
-ensure_service_category_id_column(engine)
-seed_service_categories(engine)
-ensure_service_provider_contact_columns(engine)
-ensure_service_provider_onboarding_columns(engine)
-ensure_service_provider_slug_column(engine)
-backfill_service_provider_slugs(engine)
-ensure_service_provider_slug_index(engine)
-ensure_service_provider_vat_columns(engine)
-ensure_invoice_agent_columns(engine)
-ensure_invoice_sequences_table(engine)
-ensure_booking_simple_agent_columns(engine)
-ensure_invoice_number_unique_index(engine)
-ensure_invoice_booking_type_unique_index(engine)
-ensure_performance_indexes(engine)
-ensure_message_system_key_index(engine)
-ensure_message_core_indexes(engine)
-ensure_notification_core_indexes(engine)
-ensure_message_unread_indexes(engine)
-ensure_booking_requests_user_indexes(engine)
+if os.getenv("SKIP_DB_BOOTSTRAP", "0").strip().lower() not in {"1", "true", "yes"}:
+    ensure_legacy_artist_user_type(engine)
+    ensure_service_category_id_column(engine)
+    seed_service_categories(engine)
+    ensure_service_provider_contact_columns(engine)
+    ensure_service_provider_onboarding_columns(engine)
+    ensure_service_provider_slug_column(engine)
+    backfill_service_provider_slugs(engine)
+    ensure_service_provider_slug_index(engine)
+    ensure_service_provider_vat_columns(engine)
+    ensure_invoice_agent_columns(engine)
+    ensure_invoice_sequences_table(engine)
+    ensure_booking_simple_agent_columns(engine)
+    ensure_invoice_number_unique_index(engine)
+    ensure_invoice_booking_type_unique_index(engine)
+    ensure_performance_indexes(engine)
+    ensure_message_system_key_index(engine)
+    ensure_message_core_indexes(engine)
+    ensure_notification_core_indexes(engine)
+    ensure_message_unread_indexes(engine)
+    ensure_booking_requests_user_indexes(engine)
 try:
     # Ensure key enums contain all labels in Postgres
     from .models.booking_status import BookingStatus
@@ -278,34 +279,35 @@ try:
     ensure_enum_values(engine, "invoicestatus", [s.value for s in InvoiceStatus])
 except Exception as _exc:
     logger.warning("Enum ensure skipped: %s", _exc)
-ensure_ledger_tables(engine)
-ensure_payout_tables(engine)
-ensure_dispute_table(engine)
-ensure_email_sms_event_tables(engine)
-ensure_audit_events_table(engine)
-ensure_service_moderation_logs(engine)
-ensure_search_events_table(engine)
-try:
-    from .db_utils import ensure_booka_system_user
-    ensure_booka_system_user(engine)
-except Exception as _exc:
-    logger.warning("System user ensure skipped: %s", _exc)
-# Additive EventPrep schedule columns (safe/idempotent)
-try:
-    from .db_utils import add_column_if_missing
-    add_column_if_missing(engine, "event_preps", "soundcheck_time", "soundcheck_time TIME")
-    add_column_if_missing(engine, "event_preps", "guests_arrival_time", "guests_arrival_time TIME")
-    add_column_if_missing(engine, "event_preps", "performance_start_time", "performance_start_time TIME")
-    add_column_if_missing(engine, "event_preps", "performance_end_time", "performance_end_time TIME")
-    # Separate free-text field for schedule-specific notes
-    add_column_if_missing(engine, "event_preps", "schedule_notes", "schedule_notes VARCHAR")
-    # Separate free-text field for parking and access notes (Location section)
-    add_column_if_missing(engine, "event_preps", "parking_access_notes", "parking_access_notes VARCHAR")
-    # Canonical fields captured from Booking Wizard
-    add_column_if_missing(engine, "event_preps", "event_type", "event_type VARCHAR")
-    add_column_if_missing(engine, "event_preps", "guests_count", "guests_count INTEGER")
-except Exception as _exc:
-    logger.warning("EventPrep schedule columns ensure skipped: %s", _exc)
+if os.getenv("SKIP_DB_BOOTSTRAP", "0").strip().lower() not in {"1", "true", "yes"}:
+    ensure_ledger_tables(engine)
+    ensure_payout_tables(engine)
+    ensure_dispute_table(engine)
+    ensure_email_sms_event_tables(engine)
+    ensure_audit_events_table(engine)
+    ensure_service_moderation_logs(engine)
+    ensure_search_events_table(engine)
+    try:
+        from .db_utils import ensure_booka_system_user
+        ensure_booka_system_user(engine)
+    except Exception as _exc:
+        logger.warning("System user ensure skipped: %s", _exc)
+    # Additive EventPrep schedule columns (safe/idempotent)
+    try:
+        from .db_utils import add_column_if_missing
+        add_column_if_missing(engine, "event_preps", "soundcheck_time", "soundcheck_time TIME")
+        add_column_if_missing(engine, "event_preps", "guests_arrival_time", "guests_arrival_time TIME")
+        add_column_if_missing(engine, "event_preps", "performance_start_time", "performance_start_time TIME")
+        add_column_if_missing(engine, "event_preps", "performance_end_time", "performance_end_time TIME")
+        # Separate free-text field for schedule-specific notes
+        add_column_if_missing(engine, "event_preps", "schedule_notes", "schedule_notes VARCHAR")
+        # Separate free-text field for parking and access notes (Location section)
+        add_column_if_missing(engine, "event_preps", "parking_access_notes", "parking_access_notes VARCHAR")
+        # Canonical fields captured from Booking Wizard
+        add_column_if_missing(engine, "event_preps", "event_type", "event_type VARCHAR")
+        add_column_if_missing(engine, "event_preps", "guests_count", "guests_count INTEGER")
+    except Exception as _exc:
+        logger.warning("EventPrep schedule columns ensure skipped: %s", _exc)
 Base.metadata.create_all(bind=engine)
 try:
     ensure_default_admin()
