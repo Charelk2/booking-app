@@ -558,10 +558,7 @@ export default function GroupRenderer({
                     const rawPct = typeof (m as any)?._upload_pct === 'number' ? (m as any)._upload_pct : undefined;
                     const progressPct = (metaState === 'sending' && typeof rawPct === 'number' && rawPct >= 0 && rawPct < 100) ? rawPct : undefined;
                     blocks.push(
-                  <div
-                    key="media"
-                    className="relative inline-block"
-                  >
+                      <div key="media">
                         <Attachments
                           imageUrl={hasImage ? mediaUrl : undefined}
                           videoUrl={hasVideo ? mediaUrl : undefined}
@@ -571,9 +568,12 @@ export default function GroupRenderer({
                           onOpenImage={hasImage ? (() => openLightbox((mediaUrl as string), galleryItems)) : undefined}
                           onOpenVideo={hasVideo ? ((s) => openLightbox((mediaUrl as string), galleryItems, { time: s?.time, play: s?.playing })) : undefined}
                         />
-                        <div className="pointer-events-none absolute bottom-2 right-2 drop-shadow" aria-hidden>
-                          {renderMeta()}
-                        </div>
+                      </div>
+                    );
+                    // Render timestamp + ticks just below the media, aligned to the right, inside the bubble.
+                    blocks.push(
+                      <div key="meta" className="mt-1 flex justify-end">
+                        {renderMeta()}
                       </div>
                     );
                   } else if (hasAudio) {
@@ -588,7 +588,7 @@ export default function GroupRenderer({
                         />
                       </div>
                     );
-                  blocks.push(
+                    blocks.push(
                       <div key="meta" className="mt-1 flex justify-end">
                         {renderMeta()}
                       </div>
