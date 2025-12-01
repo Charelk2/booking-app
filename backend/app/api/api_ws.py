@@ -38,6 +38,10 @@ WS_4403_FORBIDDEN = 4403
 MAX_BEARER_LEN = int(os.getenv("WS_MAX_BEARER_LEN", "4096") or 4096)
 MAX_PROTOCOL_HEADER_LEN = int(os.getenv("WS_MAX_PROTOCOL_HEADER_LEN", "8192") or 8192)
 USER_CACHE_TTL = float(os.getenv("WS_USER_CACHE_TTL", "10") or 10.0)
+try:
+    WS_AUTH_WARN_MS = float(os.getenv("WS_AUTH_WARN_MS") or 300.0)
+except Exception:
+    WS_AUTH_WARN_MS = 300.0
 
 ENABLE_NOISE = os.getenv("ENABLE_NOISE", "0").lower() in {"1","true","yes"}
 WS_ENABLE_RECONNECT_HINT = os.getenv("WS_ENABLE_RECONNECT_HINT", "0").lower() in {"1","true","yes"}
@@ -613,6 +617,16 @@ async def multiplex_ws(
                 "auth_ms": round(auth_ms, 1),
             },
         )
+        if auth_ms >= WS_AUTH_WARN_MS:
+            logger.warning(
+                "ws.mux.auth.slow",
+                extra={
+                    "user_id": int(user.id),
+                    "auth_ms": round(auth_ms, 1),
+                    "attempt": attempt,
+                    "token_source": token_src,
+                },
+            )
     except Exception:
         pass
 

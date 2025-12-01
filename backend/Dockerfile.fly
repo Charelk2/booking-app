@@ -8,7 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # System deps (for building some wheels) and clean up
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential curl ca-certificates pgbouncer \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl ca-certificates \
+    pgbouncer postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps

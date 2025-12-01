@@ -112,10 +112,19 @@ def get_db():
 _POOL_LOGGER = logging.getLogger(__name__)
 _POOL_SAMPLES = deque(maxlen=2000)
 _POOL_COUNT = 0
+_POOL_WARN_LAST_TS = 0.0
+try:
+    _POOL_WARN_MS = float(os.getenv("DB_POOL_WARN_MS") or 400.0)
+except Exception:
+    _POOL_WARN_MS = 400.0
+try:
+    _POOL_WARN_THROTTLE_S = float(os.getenv("DB_POOL_WARN_THROTTLE_S") or 30.0)
+except Exception:
+    _POOL_WARN_THROTTLE_S = 30.0
 
 
 def _record_pool_wait_ms(ms: float) -> None:
-    global _POOL_COUNT
+    global _POOL_COUNT, _POOL_WARN_LAST_TS
     try:
         _POOL_SAMPLES.append(float(ms))
         _POOL_COUNT += 1
@@ -135,6 +144,36 @@ def _record_pool_wait_ms(ms: float) -> None:
                 p99,
                 len(vals),
             )
+        # Warn on unusually high waits (throttled)
+        if ms >= _POOL_WARN_MS:
+            now = time.time()
+            if (now - _POOL_WARN_LAST_TS) >= _POOL_WARN_THROTTLE_S:
+                _POOL_WARN_LAST_TS = now
+                pool_size = None
+                max_overflow = None
+                checked_out = None
+                try:
+                    pool_size = engine.pool.size()
+                except Exception:
+                    pool_size = None
+                try:
+                    max_overflow = getattr(engine.pool, "_max_overflow", None)
+                except Exception:
+                    max_overflow = None
+                try:
+                    checked_out = engine.pool.checkedout()
+                except Exception:
+                    checked_out = None
+                _POOL_LOGGER.warning(
+                    "db_pool_wait_high_ms %.1f",
+                    ms,
+                    extra={
+                        "wait_ms": round(ms, 1),
+                        "pool_size": pool_size,
+                        "max_overflow": max_overflow,
+                        "checked_out": checked_out,
+                    },
+                )
     except Exception:
         pass
 
