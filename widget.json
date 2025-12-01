@@ -1,0 +1,34 @@
+{
+  "xyChart": {
+    "dataSets": [
+      {
+        "timeSeriesQuery": {
+          "timeSeriesFilter": {
+            "filter": "metric.type=\"logging.googleapis.com/log_entry_count\" resource.type=\"cloudsql_database\" metric.label.\"severity\"=\"ERROR\" resource.label.\"database_id\"=\"genial-venture-474508-v3:booking-app-dev\" resource.label.\"project_id\"=\"genial-venture-474508-v3\"",
+            "aggregation": {
+              "perSeriesAligner": "ALIGN_DELTA",
+              "crossSeriesReducer": "REDUCE_SUM",
+              "groupByFields": [
+                "metric.label.\"severity\"",
+                "resource.label.\"database_id\""
+              ],
+              "alignmentPeriod": "60s"
+            }
+          }
+        },
+        "plotType": "STACKED_BAR",
+        "targetAxis": "Y1",
+        "minAlignmentPeriod": "60s",
+        "legendTemplate": "${metric.labels.severity}"
+      }
+    ],
+    "chartOptions": {
+      "mode": "COLOR",
+      "displayHorizontal": false
+    },
+    "thresholds": [],
+    "yAxis": {
+      "scale": "LINEAR"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+TimeSeries ID,tex-chart-0-0
+severity,ERROR
+database_id,genial-venture-474508-v3:booking-app-dev
+project_id,genial-venture-474508-v3
+Mon Dec 01 2025 11:00:00 GMT+0200 (South Africa Standard Time),40
+Mon Dec 01 2025 12:00:00 GMT+0200 (South Africa Standard Time),80
+Mon Dec 01 2025 13:00:00 GMT+0200 (South Africa Standard Time),40
+Mon Dec 01 2025 14:00:00 GMT+0200 (South Africa Standard Time),120
+Mon Dec 01 2025 15:00:00 GMT+0200 (South Africa Standard Time),164
+Mon Dec 01 2025 16:00:00 GMT+0200 (South Africa Standard Time),40
+Mon Dec 01 2025 18:00:00 GMT+0200 (South Africa Standard Time),280
+Mon Dec 01 2025 19:00:00 GMT+0200 (South Africa Standard Time),496

@@ -1,0 +1,442 @@
+[
+  {
+    "textPayload": "2025-12-01 16:57:41.957 UTC [1332739]: [1-1] db=appdb,user=appuser ERROR:  function lower(messagetype) does not exist at character 47",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b410;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df4349c9fd;t=644e6dd43ca8a;x=82d271f3d3406b20-0@a3",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:41.957546Z",
+    "severity": "ERROR",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:43.456677384Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:41.958 UTC [1332737]: [1-1] db=appdb,user=appuser ERROR:  function lower(messagetype) does not exist at character 47",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b410;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df4349c9fd;t=644e6dd43ca8a;x=82d271f3d3406b20-0@a6",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:41.958405Z",
+    "severity": "ERROR",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:43.456677384Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:41.964 UTC [1332737]: [4-1] db=appdb,user=appuser ERROR:  function lower(messagetype) does not exist at character 47",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b410;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df4349c9fd;t=644e6dd43ca8a;x=82d271f3d3406b20-0@a9",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:41.964265Z",
+    "severity": "ERROR",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:43.456677384Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:41.966 UTC [1332740]: [1-1] db=appdb,user=appuser ERROR:  function lower(messagetype) does not exist at character 47",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b410;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df4349c9fd;t=644e6dd43ca8a;x=82d271f3d3406b20-0@ac",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:41.966719Z",
+    "severity": "ERROR",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:43.456677384Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:42.790 UTC [1332737]: [7-1] db=appdb,user=appuser ERROR:  column \"id\" of relation \"message_reactions\" is already an identity column",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b410;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df4349c9fd;t=644e6dd43ca8a;x=82d271f3d3406b20-0@af",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:42.791380Z",
+    "severity": "ERROR",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:43.456677384Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:42.793 UTC [1332738]: [1-1] db=appdb,user=appuser ERROR:  column \"id\" of relation \"message_reactions\" is already an identity column",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b490;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b1e109;t=644e6e0abe196;x=32134d6f125b58ad-0@a2",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:42.793261Z",
+    "severity": "ERROR",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:44.395595652Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:42.796 UTC [1332737]: [9-1] db=appdb,user=appuser ERROR:  current transaction is aborted, commands ignored until end of transaction block",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b490;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b1e109;t=644e6e0abe196;x=32134d6f125b58ad-0@a4",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:42.796631Z",
+    "severity": "ERROR",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:44.395595652Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:42.798 UTC [1332738]: [3-1] db=appdb,user=appuser ERROR:  current transaction is aborted, commands ignored until end of transaction block",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b490;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b1e109;t=644e6e0abe196;x=32134d6f125b58ad-0@a6",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:42.798888Z",
+    "severity": "ERROR",
+    "labels": {
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:44.395595652Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:42.808 UTC [1332740]: [4-1] db=appdb,user=appuser ERROR:  column \"id\" of relation \"message_reactions\" is already an identity column",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b490;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b1e109;t=644e6e0abe196;x=32134d6f125b58ad-0@a8",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:42.808217Z",
+    "severity": "ERROR",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:44.395595652Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:42.813 UTC [1332740]: [6-1] db=appdb,user=appuser ERROR:  current transaction is aborted, commands ignored until end of transaction block",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b490;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b1e109;t=644e6e0abe196;x=32134d6f125b58ad-0@aa",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:42.813560Z",
+    "severity": "ERROR",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:44.395595652Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:42.827 UTC [1332740]: [8-1] db=appdb,user=appuser ERROR:  column \"id\" of relation \"message_reactions\" is already an identity column",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b490;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b1e109;t=644e6e0abe196;x=32134d6f125b58ad-0@ac",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:42.827997Z",
+    "severity": "ERROR",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:44.395595652Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:42.834 UTC [1332740]: [10-1] db=appdb,user=appuser ERROR:  current transaction is aborted, commands ignored until end of transaction block",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b490;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b1e109;t=644e6e0abe196;x=32134d6f125b58ad-0@ae",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:42.834433Z",
+    "severity": "ERROR",
+    "labels": {
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:57:44.395595652Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:52.115 UTC [1332738]: [5-1] db=appdb,user=appuser ERROR:  could not create unique index \"invoices_booking_type_uidx\"",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b49e;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b288e0;t=644e6e0ac896d;x=5c7465a0fcec6ce9-0@a2",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:52.115749Z",
+    "severity": "ERROR",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:58:06.818641855Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:52.169 UTC [1332740]: [12-1] db=appdb,user=appuser ERROR:  could not create unique index \"invoices_booking_type_uidx\"",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b49e;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b288e0;t=644e6e0ac896d;x=5c7465a0fcec6ce9-0@a5",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:52.169612Z",
+    "severity": "ERROR",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:58:06.818641855Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:52.225 UTC [1332738]: [8-1] db=appdb,user=appuser ERROR:  could not create unique index \"invoices_booking_type_uidx\"",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b49e;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b288e0;t=644e6e0ac896d;x=5c7465a0fcec6ce9-0@a8",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:52.226691Z",
+    "severity": "ERROR",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:58:06.818641855Z"
+  },
+  {
+    "textPayload": "2025-12-01 16:57:52.371 UTC [1332740]: [15-1] db=appdb,user=appuser ERROR:  could not create unique index \"invoices_booking_type_uidx\"",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b49e;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df46b288e0;t=644e6e0ac896d;x=5c7465a0fcec6ce9-0@ab",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-01T16:57:52.372496Z",
+    "severity": "ERROR",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T16:58:06.818641855Z"
+  },
+  {
+    "textPayload": "2025-12-01 17:04:09.185 UTC [1332740]: [18-1] db=appdb,user=appuser FATAL:  terminating connection due to idle-in-transaction timeout",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b764;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df5db9cb3f;t=644e6f7b3cbcc;x=b7c34351bdec6957-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-01T17:04:09.186252Z",
+    "severity": "ALERT",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T17:04:49.782023456Z"
+  },
+  {
+    "textPayload": "2025-12-01 17:09:02.745 UTC [1332798]: [1-1] db=appdb,user=appuser FATAL:  terminating connection due to idle-in-transaction timeout",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b8ff;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df6f3928c5;t=644e709332951;x=1577228d1b369458-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-01T17:09:02.745937Z",
+    "severity": "ALERT",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T17:09:04.191761182Z"
+  },
+  {
+    "textPayload": "2025-12-01 17:09:02.946 UTC [1332737]: [11-1] db=appdb,user=appuser FATAL:  terminating connection due to idle-in-transaction timeout",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b8ff;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df6f3928c5;t=644e709332951;x=1577228d1b369458-0@a3",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-01T17:09:02.947250Z",
+    "severity": "ALERT",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T17:09:04.191761182Z"
+  },
+  {
+    "textPayload": "2025-12-01 17:09:03.536 UTC [1332739]: [4-1] db=appdb,user=appuser FATAL:  terminating connection due to idle-in-transaction timeout",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=32b8ff;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1df6f3928c5;t=644e709332951;x=1577228d1b369458-0@a5",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-01T17:09:03.538436Z",
+    "severity": "ALERT",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-01T17:09:04.191761182Z"
+  }
+]
