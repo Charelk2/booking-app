@@ -57,6 +57,11 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const pendingSubTopics = useRef<Set<string>>(new Set());
   const [wsToken, setWsToken] = useState<string | null>(token ?? null);
   const [refreshAttempted, setRefreshAttempted] = useState(false);
+  const refreshAttemptedRef = useRef(false);
+  const setRefreshAttemptedFlag = useCallback((val: boolean) => {
+    refreshAttemptedRef.current = val;
+    setRefreshAttempted(val);
+  }, []);
   useEffect(() => { setWsToken(token ?? null); }, [token]);
   // Keep last non-empty token to avoid flipping WS URL between with/without token
   const lastTokenRef = useRef<string | null>(null);
@@ -170,6 +175,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       // Mark open time; do not reset attempts immediately - only after a
       // stable open (see onclose schedule below). This prevents infinite
       // open→close flapping from forever avoiding SSE fallback.
+      setRefreshAttemptedFlag(false);
       openedAtRef.current = Date.now();
       lastDelayRef.current = null;
       connectingRef.current = false;
@@ -250,11 +256,29 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
             try { console.warn('[realtime] WS unauthorized (4401) - coordinating refresh'); } catch {}
             await mod.ensureFreshAccess();
             attemptsRef.current = 0;
+            setRefreshAttemptedFlag(true);
             setStatus('reconnecting');
             openWS();
             return;
           } catch {}
           // If refresh fails, keep closed; do not use SSE fallback
+          setStatus('closed');
+        })();
+        return;
+      }
+      // Early handshake failures (e.g., 1006/403 with no token) – attempt a single refresh before normal backoff
+      if (!refreshAttemptedRef.current && uptimeMs < 2000 && (e?.code === 1006 || e?.code === 403 || !e?.code)) {
+        setRefreshAttemptedFlag(true);
+        (async () => {
+          try {
+            const mod = await import('@/lib/refreshCoordinator');
+            try { console.warn('[realtime] WS handshake failed – attempting refresh'); } catch {}
+            await mod.ensureFreshAccess();
+            attemptsRef.current = 0;
+            setStatus('reconnecting');
+            openWS();
+            return;
+          } catch {}
           setStatus('closed');
         })();
         return;
@@ -282,7 +306,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       try { console.error('[realtime] WS error', err); } catch {}
     };
     ws.onclose = schedule;
-  }, [wsUrl, deliver, wsToken]);
+  }, [wsUrl, deliver, wsToken, setRefreshAttemptedFlag]);
 
   // SSE fallback is disabled for now to avoid proxy/404 churn
   const openSSE = useCallback(() => {
