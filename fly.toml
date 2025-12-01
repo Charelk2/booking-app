@@ -11,6 +11,11 @@ primary_region = "jnb"  # Johannesburg (fallback to ams if not available)
 
 [env]
   PORT = "8000"
+  UVICORN_WORKERS = "4"
+  # Keep DB connections modest when running behind PgBouncer/Cloud SQL
+  DB_POOL_SIZE = "6"
+  DB_MAX_OVERFLOW = "6"
+  DB_POOL_TIMEOUT = "5"
   # Persist DB and uploads on the mounted volume
   SQLALCHEMY_DATABASE_URL = "sqlite:////data/booking.db"
   ATTACHMENTS_DIR = "/data/attachments"
@@ -36,9 +41,10 @@ primary_region = "jnb"  # Johannesburg (fallback to ams if not available)
   # WebSockets are supported automatically over the same service
 
   [http_service.concurrency]
-    type = "connections"
-    soft_limit = 200
-    hard_limit = 400
+    # Count HTTP requests only (keep long WS/SSE sockets from burning slots)
+    type = "requests"
+    soft_limit = 80
+    hard_limit = 100
 
   # Health check against FastAPI health endpoint
   [[http_service.checks]]

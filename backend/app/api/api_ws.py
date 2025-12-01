@@ -11,6 +11,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Set
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
@@ -36,6 +37,7 @@ WS_4401_UNAUTHORIZED = 4401
 WS_4403_FORBIDDEN = 4403
 MAX_BEARER_LEN = int(os.getenv("WS_MAX_BEARER_LEN", "4096") or 4096)
 MAX_PROTOCOL_HEADER_LEN = int(os.getenv("WS_MAX_PROTOCOL_HEADER_LEN", "8192") or 8192)
+USER_CACHE_TTL = float(os.getenv("WS_USER_CACHE_TTL", "10") or 10.0)
 
 ENABLE_NOISE = os.getenv("ENABLE_NOISE", "0").lower() in {"1","true","yes"}
 WS_ENABLE_RECONNECT_HINT = os.getenv("WS_ENABLE_RECONNECT_HINT", "0").lower() in {"1","true","yes"}
@@ -47,6 +49,9 @@ try:
         _HAS_NOISE = True
 except Exception:
     _HAS_NOISE = False
+
+# Tiny in-memory cache to avoid repeated DB hits during WS handshake bursts.
+_USER_CACHE: Dict[str, tuple[float, Any]] = {}
 
 @dataclass
 class Envelope:
@@ -312,6 +317,15 @@ async def _current_user_from_token(token: str) -> tuple[Optional[User], Optional
         return None, "invalid", None
     email = payload.get("sub")
     meta = {"exp": payload.get("exp"), "iat": payload.get("iat"), "typ": payload.get("typ")}
+    if email:
+        try:
+            cached = _USER_CACHE.get(email)
+            if cached:
+                ts, user_obj = cached
+                if (time.time() - ts) < USER_CACHE_TTL:
+                    return user_obj, None, meta
+        except Exception:
+            pass
     # Prevent refresh tokens from being used on WS
     token_type = str(payload.get("typ") or "").lower()
     if token_type == "refresh":
@@ -328,6 +342,16 @@ async def _current_user_from_token(token: str) -> tuple[Optional[User], Optional
     user = await _ws_db_call(get_user_by_email, email)
     if not user:
         return None, "user_not_found", meta
+    try:
+        user_lite = SimpleNamespace(
+            id=int(user.id),
+            email=getattr(user, "email", None),
+            user_type=getattr(user, "user_type", None),
+        )
+        _USER_CACHE[email] = (time.time(), user_lite)
+        user = user_lite  # light, detached object is enough for WS auth paths
+    except Exception:
+        pass
     return user, None, meta
 
 # -------- presence & topic mux --------

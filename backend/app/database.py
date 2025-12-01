@@ -29,13 +29,15 @@ if is_sqlite:
 else:
     connect_args = {}
     try:
-        pool_size = int(os.getenv("DB_POOL_SIZE") or 10)
-        max_overflow = int(os.getenv("DB_MAX_OVERFLOW") or 20)
+        pool_size = int(os.getenv("DB_POOL_SIZE") or 6)
+        max_overflow = int(os.getenv("DB_MAX_OVERFLOW") or 6)
         pool_recycle = int(os.getenv("DB_POOL_RECYCLE") or 300)
+        pool_timeout = float(os.getenv("DB_POOL_TIMEOUT") or 5.0)
         pool_kwargs.update({
             "pool_size": pool_size,
             "max_overflow": max_overflow,
             "pool_recycle": pool_recycle,
+            "pool_timeout": pool_timeout,
         })
     except Exception:
         # Fall back to defaults if env parsing fails
