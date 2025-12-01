@@ -29,6 +29,8 @@ export interface FlyBreakdown {
 export interface TravelResult {
   mode: 'fly' | 'drive';
   totalCost: number;
+  /** Direct artist->event driving distance in km (one-way) */
+  distanceKm: number;
   breakdown: {
     drive: { estimate: number };
     fly: FlyBreakdown;
@@ -374,10 +376,12 @@ export async function calculateTravelMode(
     // direct driving estimate using Distance Matrix so travel never
     // silently collapses to zero.
     let drivingEstimate = input.drivingEstimate;
+    let directDistanceKm = 0;
     if (!drivingEstimate || drivingEstimate <= 0) {
       try {
         const direct = await metricsFn(input.artistLocation, input.eventLocation);
         if (direct && Number.isFinite(direct.distanceKm) && direct.distanceKm > 0) {
+          directDistanceKm = direct.distanceKm;
           drivingEstimate = direct.distanceKm * rate * 2;
         } else {
           drivingEstimate = 0;
@@ -390,6 +394,7 @@ export async function calculateTravelMode(
     return {
       mode: 'drive',
       totalCost: drivingEstimate,
+      distanceKm: directDistanceKm,
       breakdown: {
         drive: { estimate: drivingEstimate },
         fly: makeEmptyFlyBreakdown(input, input.flightPricePerPerson ?? DEFAULT_FLIGHT_COST_PER_PERSON),
@@ -421,6 +426,7 @@ export async function calculateTravelMode(
     return {
       mode: 'drive',
       totalCost: drivingEstimate,
+      distanceKm: direct.distanceKm,
       breakdown: {
         drive: { estimate: drivingEstimate },
         fly: makeEmptyFlyBreakdown(input, price),
@@ -441,6 +447,7 @@ export async function calculateTravelMode(
     return {
       mode: 'drive',
       totalCost: drivingEstimate,
+      distanceKm: direct.distanceKm,
       breakdown: {
         drive: { estimate: drivingEstimate },
         fly: makeEmptyFlyBreakdown(input, flightPrice),
@@ -449,7 +456,7 @@ export async function calculateTravelMode(
   }
 
   if (direct.durationHrs > DIRECT_DRIVE_THRESHOLD_HOURS) {
-    return computeFlyResult(input, depXfer, arrXfer, flightPrice);
+    return computeFlyResult(input, depXfer, arrXfer, flightPrice, direct.distanceKm);
   }
 
   const totalFlyTime =
@@ -464,6 +471,7 @@ export async function calculateTravelMode(
     return {
       mode: 'drive',
       totalCost: drivingEstimate,
+      distanceKm: direct.distanceKm,
       breakdown: {
         drive: { estimate: drivingEstimate },
         fly: flyBreakdown,
@@ -488,6 +496,7 @@ export async function calculateTravelMode(
     return {
       mode: 'fly',
       totalCost: flyBreakdown.total,
+      distanceKm: direct.distanceKm,
       breakdown: {
         drive: { estimate: drivingEstimate },
         fly: flyBreakdown,
@@ -498,6 +507,7 @@ export async function calculateTravelMode(
   return {
     mode: 'drive',
     totalCost: drivingEstimate,
+    distanceKm: direct.distanceKm,
     breakdown: {
       drive: { estimate: drivingEstimate },
       fly: flyBreakdown,
@@ -550,6 +560,7 @@ function computeFlyResult(
   depXfer: DriveMetrics,
   arrXfer: DriveMetrics,
   pricePerPerson: number,
+  directDistanceKm: number,
 ): TravelResult {
   const flyBreakdown = computeFlyBreakdown(
     input,
@@ -567,6 +578,7 @@ function computeFlyResult(
   return {
     mode: 'fly',
     totalCost: flyBreakdown.total,
+    distanceKm: directDistanceKm,
     breakdown: {
       drive: { estimate: drivingEstimate },
       fly: flyBreakdown,

@@ -1389,6 +1389,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_cost: travelResult?.totalCost,
       travel_breakdown: {
         ...(travelResult?.breakdown || {}),
+        distance_km: travelResult?.distanceKm,
         // Include a normalized mode for downstream consumers that expect it here
         mode: travelResult?.mode,
         venue_name: vals.locationName,
@@ -1473,6 +1474,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_cost: travelResult.totalCost,
       travel_breakdown: {
         ...travelResult.breakdown,
+        distance_km: travelResult.distanceKm,
         // Include a normalized mode for downstream consumers that expect it here
         mode: travelResult.mode,
         venue_name: vals.locationName,
