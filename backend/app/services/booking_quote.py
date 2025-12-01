@@ -2,7 +2,12 @@
 
 This module preserves the original public API (`calculate_quote_breakdown`,
 `calculate_quote`, `_normalize_rider_for_pricing`) while delegating the
-implementation to service-specific engines under `service_types/`.
+implementation to service-specific engines under :mod:`app.service_types`.
+
+New code should import from the service-type engines directly
+(`app.service_types.live_performance`, `app.service_types.sound_service`).
+This module exists to keep legacy imports, tests, and older APIs working
+without duplicating logic.
 """
 
 from app.service_types.live_performance import (

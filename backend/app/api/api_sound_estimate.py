@@ -8,6 +8,12 @@ from ..schemas.sound_estimate import SoundEstimateIn, SoundEstimateOut
 from app.service_types.sound_service import estimate_sound_service
 
 
+# Legacy compatibility router.
+#
+# New clients should prefer the service-typed estimate endpoint exposed under
+# `/api/v1/quotes/estimate/sound` in :mod:`app.api.api_quote`, which calls the
+# same sound-service engine. This module remains to support older consumers
+# that are bound to `/services/{service_id}/sound-estimate`.
 router = APIRouter(tags=["sound-estimate"])
 
 

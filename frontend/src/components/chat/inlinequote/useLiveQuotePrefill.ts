@@ -179,7 +179,7 @@ export function useLiveQuotePrefill({
             }
 
             try {
-              const { data } = await calculateQuoteBreakdown(params);
+              const { data } = await livePerformanceEstimate(params);
               if (!active) return;
               if (!dirtyService && typeof initialBaseFee !== 'number') {
                 setServiceFee(Number((data as any)?.base_fee || baseForCalc || 0));

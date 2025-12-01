@@ -1853,9 +1853,6 @@ export const deleteQuoteTemplate = (id: number) =>
 export const livePerformanceEstimate = (data: QuoteEstimatePayload) =>
   livePerformanceEstimateRequest(api, data);
 
-export const calculateQuoteBreakdown = (data: QuoteEstimatePayload) =>
-  livePerformanceEstimate(data);
-
 // ─── SERVICE CATEGORIES ───────────────────────────────────────────────────────
 const SERVICE_CATEGORIES_TTL_MS = 5 * 60 * 1000;
 let serviceCategoriesCache: { value: Awaited<ReturnType<typeof api.get<ServiceCategory[]>>>; timestamp: number } | null = null;

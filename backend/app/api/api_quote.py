@@ -101,7 +101,12 @@ def estimate_quote(
     body: quote_calc_schemas.QuoteCalculationParams,
     db: Session = Depends(get_db),
 ):
-    """Stateless quote calculator (formerly /quotes/calculate)."""
+    """Stateless Live Performance estimate (formerly /quotes/calculate).
+
+    This endpoint delegates to the live-performance engine under
+    :mod:`app.service_types.live_performance` via the
+    :func:`calculate_quote_breakdown` facade in ``services.booking_quote``.
+    """
     svc = crud.service.get_service(db, body.service_id)
     if not svc:
         raise error_response(
@@ -145,7 +150,12 @@ def estimate_sound_quote(
     body: SoundEstimateWithService,
     db: Session = Depends(get_db),
 ):
-    """Stateless sound-provider estimate (audience packages + add-ons)."""
+    """Stateless sound-provider estimate (audience packages + add-ons).
+
+    This endpoint calls the shared sound-service engine under
+    :mod:`app.service_types.sound_service` so sound pricing stays consistent
+    across the wizard, inline quotes, and booking agents.
+    """
     svc = crud.service.get_service(db, body.service_id)
     if not svc:
         raise error_response(
