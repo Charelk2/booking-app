@@ -649,8 +649,9 @@ export const getServiceProviders = async (params?: {
   artist?: string;
   includePriceDistribution?: boolean;
   fields?: string[];
+  allowOnInbox?: boolean;
 }): Promise<GetServiceProvidersResponse> => {
-  const { includePriceDistribution, ...rest } = params || {};
+  const { includePriceDistribution, allowOnInbox, ...rest } = params || {};
   const query = { ...rest } as Record<string, unknown>;
   if (query.when instanceof Date) {
     query.when = formatDateYMDLocal(query.when);
@@ -661,6 +662,20 @@ export const getServiceProviders = async (params?: {
   if (Array.isArray((params as any)?.fields) && (params as any).fields!.length > 0) {
     (query as any).fields = (params as any).fields!.join(',');
   }
+
+  // Hard guard: if the current route is Inbox, skip provider list fetches unless explicitly allowed.
+  // Inbox hard-refreshes were triggering dozens of provider list requests via prefetch; this avoids
+  // hammering the backend when the user is not on discovery pages.
+  try {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname || '';
+      if (path.startsWith('/inbox') && allowOnInbox !== true) {
+        const cached = getCachedServiceProviders(query);
+        if (cached) return cached;
+        return { data: [], total: 0, price_distribution: [] };
+      }
+    }
+  } catch {}
 
   const key = providersKey(query);
   // Return cached entry if fresh
