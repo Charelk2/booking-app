@@ -19,6 +19,7 @@ export default function NavLink({
   return (
     <Link
       {...props}
+      prefetch={false}
       aria-current={isActive ? 'page' : undefined}
       className={clsx(navLinkClasses(isActive), className)}
     >

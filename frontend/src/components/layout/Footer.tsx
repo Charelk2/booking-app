@@ -172,6 +172,7 @@ export default function Footer() {
             <div className="space-y-2">
               <Link
                 href="/"
+                prefetch={false}
                 className="block text-5xl md:text-6xl font-black tracking-tighter text-black hover:opacity-80 transition-opacity"
               >
                 booka

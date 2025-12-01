@@ -527,10 +527,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
             <Link
               href="/"
+              prefetch={false}
               className={clsx(brandLinkClasses, 'flex items-center gap-3')}
               aria-label="Booka home"
-              onMouseEnter={() => router.prefetch?.('/')}
-              onFocus={() => router.prefetch?.('/')}
             >
               {(() => {
                 const src = process.env.NEXT_PUBLIC_BRAND_LOGO_URL || '';
