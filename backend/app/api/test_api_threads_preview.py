@@ -213,3 +213,56 @@ def test_threads_preview_requested_without_messages_uses_fallback_label(db):
             headers={"If-None-Match": etag},
         )
         assert r2.status_code == 304
+
+
+def test_threads_preview_auto_includes_client_and_artist_threads_for_provider(db):
+    # Arrange a user who acts as both client and artist across different threads.
+    provider = _mk_user(db, "provider-both@example.com", models.UserType.SERVICE_PROVIDER)
+    other_artist = _mk_user(db, "other-artist@example.com", models.UserType.SERVICE_PROVIDER)
+    other_client = _mk_user(db, "other-client@example.com", models.UserType.CLIENT)
+
+    # Thread where provider is the CLIENT (legacy bookings before they listed their service)
+    br_client_side = _mk_request(db, client_id=provider.id, artist_id=other_artist.id, service_id=None)
+    _mk_message(
+        db,
+        booking_request_id=br_client_side.id,
+        sender_id=other_artist.id,
+        sender_type=models.SenderType.ARTIST,
+        content="Legacy booking as client",
+        message_type=models.MessageType.USER,
+        visible_to=models.VisibleTo.BOTH,
+    )
+
+    # Thread where provider is the ARTIST (new bookings after listing their service)
+    br_artist_side = _mk_request(db, client_id=other_client.id, artist_id=provider.id, service_id=None)
+    _mk_message(
+        db,
+        booking_request_id=br_artist_side.id,
+        sender_id=other_client.id,
+        sender_type=models.SenderType.CLIENT,
+        content="New booking as artist",
+        message_type=models.MessageType.USER,
+        visible_to=models.VisibleTo.BOTH,
+    )
+
+    app.dependency_overrides[get_db] = _override_get_db
+    app.dependency_overrides[get_current_user] = lambda: provider
+
+    with TestClient(app) as http:
+        r = http.get("/api/v1/message-threads/preview", params={"role": "auto", "limit": 100})
+        assert r.status_code == 200, r.text
+        data = r.json()
+        tids = {it["thread_id"] for it in data["items"]}
+        # In auto mode, provider should see both sides of their history.
+        assert br_client_side.id in tids
+        assert br_artist_side.id in tids
+
+        # ETag / 304 behavior should still work for role=auto.
+        etag = r.headers.get("ETag")
+        assert etag
+        r2 = http.get(
+            "/api/v1/message-threads/preview",
+            params={"role": "auto", "limit": 100},
+            headers={"If-None-Match": etag},
+        )
+        assert r2.status_code == 304

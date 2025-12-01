@@ -107,7 +107,7 @@ export function useThreads(user: User | null | undefined) {
       await new Promise((res) => setTimeout(res, 300));
     }
     const isServiceProvider = user.user_type === 'service_provider';
-    let role: 'artist' | 'client' = isServiceProvider ? 'artist' : 'client';
+    let role: 'artist' | 'client' | 'auto' = isServiceProvider ? 'auto' : 'client';
     const PREVIEW_LIMIT = 50;
     // Only send If-None-Match when we actually have cached data to reuse.
     let prevEtag: string | null = null;
@@ -157,21 +157,7 @@ export function useThreads(user: User | null | undefined) {
       return true;
     }
 
-    let items = (res?.data?.items || []) as any[];
-
-    if (items.length === 0 && isServiceProvider && role === 'artist') {
-      const fallbackRes = await getMessageThreadsPreview('client', PREVIEW_LIMIT, undefined);
-      const fallbackStatus = Number((fallbackRes as any)?.status ?? 200);
-      if (fallbackStatus !== 304) {
-        const fallbackItems = (fallbackRes?.data?.items || []) as any[];
-        if (fallbackItems.length > 0) {
-          role = 'client';
-          res = fallbackRes;
-          status = fallbackStatus;
-          items = fallbackItems;
-        }
-      }
-    }
+    const items = (res?.data?.items || []) as any[];
 
     if (!Array.isArray(items)) return false;
     const mapped: BookingRequest[] = items.map((it: any) => ({

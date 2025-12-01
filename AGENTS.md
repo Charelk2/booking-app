@@ -390,6 +390,20 @@ We cut the preview route latency by ≈10× without changing the JSON contract.
 
 See `backend/app/api/THREADS_PREVIEW_OPTIMIZATION.md` for details.
 
+## Threads Preview Roles (Dec 2025)
+
+- `GET /api/v1/message-threads/preview` supports `role=client`, `role=artist`, and `role=auto`.
+- `role=client` — threads where the current user is the client; preview is built from messages visible to the client.
+- `role=artist` — threads where the current user is the artist; preview is built from messages visible to the artist.
+- `role=auto` — threads where the user is either client or artist (`booking_requests.client_id = me OR booking_requests.artist_id = me`); per-thread visibility:
+  - include messages when `visible_to = BOTH`,
+  - or `visible_to = CLIENT` and `client_id = me`,
+  - or `visible_to = ARTIST` and `artist_id = me`.
+- JSON shape, PV filters, labels, and ETag semantics are identical for all roles; only the thread set changes.
+- Inbox behavior:
+  - Clients (`user_type = client`) use `role=client`.
+  - Service providers (`user_type = service_provider`) use `role=auto` so providers who previously booked as clients see both legacy client threads and new provider threads in one list.
+
 ## UI Tokens (Jan 2026)
 
 - Added a shared token set (`frontend/src/theme/tokens.ts`) for colors/radii/spacing/typography, plus status/payout/table helpers.

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status, Response, Header
 from starlette.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_
 from typing import Any, Dict, List, Optional, Tuple
 
 from .. import models
@@ -119,6 +119,52 @@ def _cheap_snapshot(db: Session, user_id: int, is_artist: bool) -> Tuple[int, in
     return int(max_msg_id), int(max_br_id), int(unread_total), int(thread_count)
 
 
+def _cheap_snapshot_any(db: Session, user_id: int) -> Tuple[int, int, int, int]:
+    """Return (max_msg_id, max_br_id, unread_total, thread_count) across client+artist roles.
+
+    Threads included when the user participates as either client or artist.
+    Messages are only counted when visible to the user in that role:
+      - BOTH
+      - CLIENT and booking_requests.client_id == user_id
+      - ARTIST and booking_requests.artist_id == user_id
+    """
+    br = models.BookingRequest
+    msg = models.Message
+
+    q = (
+        db.query(
+            func.coalesce(func.max(msg.id), 0),
+            func.coalesce(func.max(br.id), 0),
+            func.count(func.distinct(br.id)),
+        )
+        .select_from(br)
+        .outerjoin(
+            msg,
+            (msg.booking_request_id == br.id)
+            & (
+                (msg.visible_to == models.VisibleTo.BOTH)
+                | and_(msg.visible_to == models.VisibleTo.CLIENT, br.client_id == user_id)
+                | and_(msg.visible_to == models.VisibleTo.ARTIST, br.artist_id == user_id)
+            ),
+        )
+        .filter(or_(br.client_id == user_id, br.artist_id == user_id))
+    )
+    try:
+        max_msg_id, max_br_id, thread_count = q.one()
+        max_msg_id = int(max_msg_id or 0)
+        max_br_id = int(max_br_id or 0)
+        thread_count = int(thread_count or 0)
+    except Exception:
+        max_msg_id, max_br_id, thread_count = 0, 0, 0
+
+    try:
+        unread_total, _ = crud.crud_message.get_unread_message_totals_for_user(db, int(user_id))
+    except Exception:
+        unread_total = 0
+
+    return int(max_msg_id), int(max_br_id), int(unread_total), int(thread_count)
+
+
 # ---- /message-threads/preview -----------------------------------------------
 
 @router.get(
@@ -128,7 +174,7 @@ def _cheap_snapshot(db: Session, user_id: int, is_artist: bool) -> Tuple[int, in
 )
 def get_threads_preview(
     response: Response,
-    role: Optional[str] = Query(None, regex="^(artist|client)$"),
+    role: Optional[str] = Query(None, regex="^(artist|client|auto)$"),
     limit: int = Query(50, ge=1, le=200),
     cursor: Optional[str] = None,
     if_none_match: Optional[str] = Header(default=None, convert_underscores=False, alias="If-None-Match"),
@@ -144,11 +190,14 @@ def get_threads_preview(
     - Optional X-After-Write header to skip 304 right after writes
     """
     t_start = time.perf_counter()
-    is_artist = current_user.user_type == models.UserType.SERVICE_PROVIDER
-    if role == "client":
-        is_artist = False
-    elif role == "artist":
-        is_artist = True
+    is_service_provider = current_user.user_type == models.UserType.SERVICE_PROVIDER
+    if role in ("artist", "client", "auto"):
+        view_mode = role
+    else:
+        # Preserve historical default: providers saw artist view, clients saw client view.
+        view_mode = "artist" if is_service_provider else "client"
+    is_artist = view_mode == "artist"
+    is_auto = view_mode == "auto"
 
     skip_precheck = _coalesce_bool(x_after_write)
 
@@ -163,7 +212,7 @@ def get_threads_preview(
         cache_on_early = False
     if cache_on_early and not skip_precheck:
         try:
-            role_key_early = "artist" if is_artist else "client"
+            role_key_early = view_mode or ("artist" if is_artist else "client")
             base_key_early = f"preview:{int(current_user.id)}:{role_key_early}:{int(limit)}"
             etag_key_early = f"{base_key_early}:etag"
             body_key_early = f"{base_key_early}:body"
@@ -206,7 +255,10 @@ def get_threads_preview(
             pass
 
     # Always compute the cheap snapshot once (shared by pre-check and final ETag)
-    snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count = _cheap_snapshot(db, int(current_user.id), is_artist)
+    if is_auto:
+        snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count = _cheap_snapshot_any(db, int(current_user.id))
+    else:
+        snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count = _cheap_snapshot(db, int(current_user.id), is_artist)
 
     # ---- ETag pre-check (cheap) --------------------------------------------
     etag_pre = _change_token("prev", int(current_user.id), snap_max_msg_id, snap_max_br_id, snap_unread_total, snap_thread_count)
@@ -229,7 +281,7 @@ def get_threads_preview(
         cache_on = False
     if cache_on and not skip_precheck:
         try:
-            role_key = "artist" if is_artist else "client"
+            role_key = view_mode or ("artist" if is_artist else "client")
             base_key = f"preview:{int(current_user.id)}:{role_key}:{int(limit)}"
             etag_key = f"{base_key}:etag"
             body_key = f"{base_key}:body"
@@ -258,27 +310,66 @@ def get_threads_preview(
     t_brs_start = time.perf_counter()
     viewer_role = models.VisibleTo.ARTIST if is_artist else models.VisibleTo.CLIENT
 
+    msg = models.Message
+    br = models.BookingRequest
+
     # Windowed last visible message per thread
-    win = (
-        db.query(
-            models.Message.booking_request_id.label("br_id"),
-            models.Message.id.label("message_id"),
-            models.Message.timestamp.label("msg_ts"),
-            models.Message.content.label("msg_content"),
-            models.Message.message_type.label("msg_type"),
-            models.Message.sender_type.label("sender_type"),
-            models.Message.visible_to.label("visible_to"),
-            models.Message.system_key.label("system_key"),
-            func.row_number()
-            .over(
-                partition_by=models.Message.booking_request_id,
-                order_by=models.Message.timestamp.desc(),
+    if is_auto:
+        win = (
+            db.query(
+                msg.booking_request_id.label("br_id"),
+                msg.id.label("message_id"),
+                msg.timestamp.label("msg_ts"),
+                msg.content.label("msg_content"),
+                msg.message_type.label("msg_type"),
+                msg.sender_type.label("sender_type"),
+                msg.visible_to.label("visible_to"),
+                msg.system_key.label("system_key"),
+                func.row_number()
+                .over(
+                    partition_by=msg.booking_request_id,
+                    order_by=msg.timestamp.desc(),
+                )
+                .label("rn"),
             )
-            .label("rn"),
+            .select_from(msg)
+            .join(br, msg.booking_request_id == br.id)
+            .filter(
+                or_(
+                    br.client_id == current_user.id,
+                    br.artist_id == current_user.id,
+                )
+            )
+            .filter(
+                or_(
+                    msg.visible_to == models.VisibleTo.BOTH,
+                    and_(msg.visible_to == models.VisibleTo.CLIENT, br.client_id == current_user.id),
+                    and_(msg.visible_to == models.VisibleTo.ARTIST, br.artist_id == current_user.id),
+                )
+            )
+            .subquery()
         )
-        .filter(models.Message.visible_to.in_([models.VisibleTo.BOTH, viewer_role]))
-        .subquery()
-    )
+    else:
+        win = (
+            db.query(
+                msg.booking_request_id.label("br_id"),
+                msg.id.label("message_id"),
+                msg.timestamp.label("msg_ts"),
+                msg.content.label("msg_content"),
+                msg.message_type.label("msg_type"),
+                msg.sender_type.label("sender_type"),
+                msg.visible_to.label("visible_to"),
+                msg.system_key.label("system_key"),
+                func.row_number()
+                .over(
+                    partition_by=msg.booking_request_id,
+                    order_by=msg.timestamp.desc(),
+                )
+                .label("rn"),
+            )
+            .filter(msg.visible_to.in_([models.VisibleTo.BOTH, viewer_role]))
+            .subquery()
+        )
 
     last_msg = (
         db.query(
@@ -297,8 +388,8 @@ def get_threads_preview(
 
     br_query = (
         db.query(
-            models.BookingRequest,
-            func.coalesce(last_msg.c.msg_ts, models.BookingRequest.created_at).label("last_ts"),
+            br,
+            func.coalesce(last_msg.c.msg_ts, br.created_at).label("last_ts"),
             last_msg.c.message_id,
             last_msg.c.msg_content,
             last_msg.c.msg_type,
@@ -306,15 +397,15 @@ def get_threads_preview(
             last_msg.c.visible_to,
             last_msg.c.system_key,
         )
-        .outerjoin(last_msg, models.BookingRequest.id == last_msg.c.br_id)
+        .outerjoin(last_msg, br.id == last_msg.c.br_id)
         .options(
-            selectinload(models.BookingRequest.client).load_only(
+            selectinload(br.client).load_only(
                 models.User.id,
                 models.User.first_name,
                 models.User.last_name,
                 models.User.profile_picture_url,
             ),
-            selectinload(models.BookingRequest.artist)
+            selectinload(br.artist)
             .load_only(
                 models.User.id,
                 models.User.first_name,
@@ -327,16 +418,18 @@ def get_threads_preview(
                 models.ServiceProviderProfile.business_name,
                 models.ServiceProviderProfile.profile_picture_url,
             ),
-            selectinload(models.BookingRequest.service).load_only(
+            selectinload(br.service).load_only(
                 models.Service.id,
                 models.Service.service_type,
             ),
         )
     )
-    if is_artist:
-        br_query = br_query.filter(models.BookingRequest.artist_id == current_user.id)
+    if view_mode == "artist":
+        br_query = br_query.filter(br.artist_id == current_user.id)
+    elif view_mode == "client":
+        br_query = br_query.filter(br.client_id == current_user.id)
     else:
-        br_query = br_query.filter(models.BookingRequest.client_id == current_user.id)
+        br_query = br_query.filter(or_(br.client_id == current_user.id, br.artist_id == current_user.id))
 
     # Protect DB from preview storms under load
     _sem = _get_preview_sem()
@@ -404,8 +497,8 @@ def get_threads_preview(
             "artist" if sender_type == models.SenderType.ARTIST else "client"
         )
 
-        # Counterparty
-        if is_artist:
+        # Counterparty (per-thread role: viewer may be client or artist)
+        if int(getattr(br, "artist_id", 0) or 0) == int(current_user.id):
             other = br.client
             display = f"{other.first_name} {other.last_name}" if other else "Client"
             avatar_url = other.profile_picture_url if other else None
@@ -514,7 +607,7 @@ def get_threads_preview(
     # Write to cache for subsequent requests (best-effort)
     try:
         if cache_on:
-            role_key = "artist" if is_artist else "client"
+            role_key = view_mode or ("artist" if is_artist else "client")
             base_key = f"preview:{int(current_user.id)}:{role_key}:{int(limit)}"
             etag_key = f"{base_key}:etag"
             body_key = f"{base_key}:body"
@@ -540,7 +633,7 @@ def get_threads_preview(
     except Exception:
         pass
 
-    role_label = "artist" if is_artist else "client"
+    role_label = view_mode or ("artist" if is_artist else "client")
     try:
         if t_brs_ms >= 400 or t_unread_ms >= 200 or t_build_ms >= 200:
             logger.info(

@@ -2043,7 +2043,7 @@ export interface ThreadPreviewResponse {
 }
 
 export const getMessageThreadsPreview = (
-  role?: 'artist' | 'client',
+  role?: 'artist' | 'client' | 'auto',
   limit = 50,
   etag?: string,
 ) =>
