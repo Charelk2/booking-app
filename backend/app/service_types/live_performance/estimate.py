@@ -28,6 +28,7 @@ def calculate_quote_breakdown(
     distance_km: float,
     accommodation_cost: Optional[Decimal] = None,
     *,
+    travel_breakdown: Optional[Dict[str, Any]] = None,
     service: Optional[Service] = None,
     event_city: Optional[str] = None,
     db: Optional[Session] = None,
@@ -59,10 +60,11 @@ def calculate_quote_breakdown(
         try:
             # Travel breakdown may carry a precomputed distance_km
             tb_distance = None
-            try:
-                tb_distance = float((service.details or {}).get("travel_breakdown", {}).get("distance_km"))  # type: ignore[union-attr]
-            except Exception:
-                tb_distance = None
+            if travel_breakdown:
+                try:
+                    tb_distance = float(travel_breakdown.get("distance_km") or travel_breakdown.get("distanceKm") or 0)
+                except Exception:
+                    tb_distance = None
             if tb_distance and tb_distance > 0:
                 distance_km = tb_distance
         except Exception:

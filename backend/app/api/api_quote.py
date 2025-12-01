@@ -117,6 +117,7 @@ def estimate_quote(
         base_fee=Decimal(str(body.base_fee)),
         distance_km=body.distance_km,
         accommodation_cost=accommodation,
+        travel_breakdown=getattr(body, "travel_breakdown", None),
         service=svc,
         event_city=body.event_city,
         db=db,
