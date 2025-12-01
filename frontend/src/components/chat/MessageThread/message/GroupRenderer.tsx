@@ -209,8 +209,9 @@ export default function GroupRenderer({
             const text = rawText.toLowerCase();
             if (!text) return true;
             if (text === 'attachment' || text === '[attachment]' || text === '[image]' || text === 'image') return true;
-            // Filename heuristic: single token with image extension
-            const looksLikeFilename = !text.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(text);
+            // Filename heuristic: treat any text ending with an image extension as image-only,
+            // even when the filename contains spaces (e.g., "Screenshot 2025-12-01 at 21.37.49.png").
+            const looksLikeFilename = /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(text);
             if (looksLikeFilename) return true;
             const fn = String(meta?.original_filename || '').trim().toLowerCase();
             if (fn && text === fn) return true;
@@ -266,8 +267,8 @@ export default function GroupRenderer({
           const byCtVid = ct.startsWith('video/');
           const byCtAud = ct.startsWith('audio/');
           const byNameImg = !!(meta?.original_filename || '').toLowerCase().match(/\.(jpe?g|png|webp|gif|heic|heif)$/i);
-          const textLowerForDetect = String((m as any)?.content || '').toLowerCase();
-          const byTextImg = !!textLowerForDetect && !textLowerForDetect.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(textLowerForDetect);
+          const textLowerForDetect = String((m as any)?.content || '').toLowerCase().trim();
+          const byTextImg = !!textLowerForDetect && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(textLowerForDetect);
           const hasImage = byCtImg || byNameImg || isImage(url) || (byTextImg && !!url);
           const hasVideo = byCtVid || (!byCtAud && isVideo(url));
           const hasAudio = byCtAud || (!byCtVid && isAudio(url));
