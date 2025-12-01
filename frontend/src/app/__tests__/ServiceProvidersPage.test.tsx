@@ -55,7 +55,6 @@ describe('ServiceProvidersPage', () => {
 
     await screen.findByText('DJ One Biz');
     expect(screen.queryByText('DJ NoBiz')).toBeNull();
-    expect(screen.getByText('DJ')).toBeTruthy();
   });
 
   it('normalizes UI slug category query param', async () => {

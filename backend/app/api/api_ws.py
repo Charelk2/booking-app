@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional, Set
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from starlette.exceptions import WebSocketException
 from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError
 
 from ..database import get_db_session
 from ..models.user import User
@@ -32,6 +33,7 @@ PING_INTERVAL_DEFAULT = 30.0
 PONG_TIMEOUT = 45.0
 SEND_TIMEOUT = 10.0
 WS_4401_UNAUTHORIZED = 4401
+WS_4403_FORBIDDEN = 4403
 
 ENABLE_NOISE = os.getenv("ENABLE_NOISE", "0").lower() in {"1","true","yes"}
 WS_ENABLE_RECONNECT_HINT = os.getenv("WS_ENABLE_RECONNECT_HINT", "0").lower() in {"1","true","yes"}
@@ -182,36 +184,37 @@ class NoiseWS:
 
 # -------- auth helpers --------
 
-def _extract_bearer_token(ws: WebSocket) -> Optional[str]:
+def _extract_bearer_token(ws: WebSocket) -> tuple[Optional[str], str]:
+    """Return (token, source). Source is one of protocol/query/authorization/cookie/none."""
     try:
         proto = ws.headers.get("sec-websocket-protocol", "") or ""
         if proto:
             parts = [p.strip() for p in proto.split(",")]
             if len(parts) == 2 and parts[0].lower() == "bearer" and parts[1]:
-                return parts[1]
+                return parts[1], "protocol"
             for p in parts:
                 pl = p.lower()
                 if pl.startswith("bearer ") and len(p.split(" ", 1)) == 2:
-                    return p.split(" ", 1)[1].strip()
+                    return p.split(" ", 1)[1].strip(), "protocol"
     except Exception:
         pass
     try:
         qtok = ws.query_params.get("token")  # type: ignore[attr-defined]
-        if qtok: return qtok
+        if qtok: return qtok, "query"
     except Exception:
         pass
     try:
         auth = ws.headers.get("authorization") or ws.headers.get("Authorization")
         if auth and auth.lower().startswith("bearer "):
-            return auth.split(" ", 1)[1].strip()
+            return auth.split(" ", 1)[1].strip(), "authorization"
     except Exception:
         pass
     try:
         tok = ws.cookies.get("access_token")
-        if tok: return tok
+        if tok: return tok, "cookie"
     except Exception:
         pass
-    return None
+    return None, "none"
 
 def _sanitize_bearer(val: Optional[str]) -> Optional[str]:
     if val is None:
@@ -225,6 +228,25 @@ def _sanitize_bearer(val: Optional[str]) -> Optional[str]:
         return s
     except Exception:
         return val
+
+
+def _log_ws_auth_failure(reason: str, websocket: WebSocket, source: str, detail: Optional[str] = None) -> None:
+    try:
+        path = ""
+        try:
+            path = str(getattr(websocket, "url", "") or "")
+        except Exception:
+            path = ""
+        logger.warning(
+            "WS auth failed: %s",
+            reason,
+            extra={"path": path, "source": source, "detail": detail},
+        )
+    except Exception:
+        try:
+            logger.warning("WS auth failed: %s (%s)", reason, source)
+        except Exception:
+            pass
 
 def _call_with_session(fn, *args, **kwargs):
     """Run a DB function with a short‑lived session (sync)."""
@@ -245,16 +267,25 @@ async def _ws_db_call(fn, *args, **kwargs):
             pass
 
 
-async def _current_user_from_token(token: str) -> Optional[User]:
+async def _current_user_from_token(token: str) -> tuple[Optional[User], Optional[str]]:
     token = _sanitize_bearer(token)
+    if not token:
+        return None, "missing"
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"leeway": 60})
+    except ExpiredSignatureError:
+        return None, "expired"
     except JWTError:
-        return None
+        return None, "invalid"
+    except Exception:
+        return None, "invalid"
     email = payload.get("sub")
     if not email:
-        return None
-    return await _ws_db_call(get_user_by_email, email)
+        return None, "missing_sub"
+    user = await _ws_db_call(get_user_by_email, email)
+    if not user:
+        return None, "user_not_found"
+    return user, None
 
 # -------- presence & topic mux --------
 
@@ -361,17 +392,21 @@ async def booking_request_ws(
     attempt: int = Query(0),
     heartbeat: float = Query(PING_INTERVAL_DEFAULT),
 ):
-    token = _extract_bearer_token(websocket)
+    token, token_src = _extract_bearer_token(websocket)
     if not token:
+        _log_ws_auth_failure("missing_token", websocket, token_src)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
-    user = await _current_user_from_token(token)
+    user, fail_reason = await _current_user_from_token(token)
     if not user:
-        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
+        _log_ws_auth_failure(fail_reason or "invalid_token", websocket, token_src)
+        reason = "Expired token" if fail_reason == "expired" else "Invalid token"
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason=reason)
 
     # Authorization
     br = await _ws_db_call(crud.crud_booking_request.get_booking_request, request_id=request_id)
     if not br or int(user.id) not in {int(br.client_id), int(br.artist_id)}:
-        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Unauthorized")
+        _log_ws_auth_failure("unauthorized_room", websocket, token_src, detail=f"request_id={request_id}")
+        raise WebSocketException(code=WS_4403_FORBIDDEN, reason="Forbidden")
 
     conn = NoiseWS(websocket)
     await conn.handshake()
@@ -461,12 +496,15 @@ async def multiplex_ws(
     attempt: int = Query(0),
     heartbeat: float = Query(PING_INTERVAL_DEFAULT),
 ):
-    token = _extract_bearer_token(websocket)
+    token, token_src = _extract_bearer_token(websocket)
     if not token:
+        _log_ws_auth_failure("missing_token", websocket, token_src)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
-    user = await _current_user_from_token(token)
+    user, fail_reason = await _current_user_from_token(token)
     if not user:
-        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
+        _log_ws_auth_failure(fail_reason or "invalid_token", websocket, token_src)
+        reason = "Expired token" if fail_reason == "expired" else "Invalid token"
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason=reason)
 
     conn = NoiseWS(websocket)
     await conn.handshake()
@@ -629,12 +667,15 @@ async def notifications_ws(
     attempt: int = Query(0),
     heartbeat: float = Query(PING_INTERVAL_DEFAULT),
 ):
-    token = _extract_bearer_token(websocket)
+    token, token_src = _extract_bearer_token(websocket)
     if not token:
+        _log_ws_auth_failure("missing_token", websocket, token_src)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
-    user = await _current_user_from_token(token)
+    user, fail_reason = await _current_user_from_token(token)
     if not user:
-        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
+        _log_ws_auth_failure(fail_reason or "invalid_token", websocket, token_src)
+        reason = "Expired token" if fail_reason == "expired" else "Invalid token"
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason=reason)
 
     conn = NoiseWS(websocket)
     await conn.handshake()

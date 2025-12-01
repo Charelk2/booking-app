@@ -161,8 +161,10 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
     setStatus(attemptsRef.current > 0 ? 'reconnecting' : 'connecting');
     connectingRef.current = true;
-    // Authenticate via cookies; avoid passing bearer tokens in subprotocols
-    const ws = new WebSocket(wsUrl);
+    // Prefer bearer via subprotocol; fall back to cookies if present
+    const bearerToken = (wsToken || '').trim();
+    const protocols = bearerToken ? ['bearer', bearerToken] : undefined;
+    const ws = protocols ? new WebSocket(wsUrl, protocols) : new WebSocket(wsUrl);
     wsRef.current = ws;
     ws.onopen = () => {
       // Mark open time; do not reset attempts immediately - only after a
@@ -280,7 +282,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       try { console.error('[realtime] WS error', err); } catch {}
     };
     ws.onclose = schedule;
-  }, [wsUrl, deliver]);
+  }, [wsUrl, deliver, wsToken]);
 
   // SSE fallback is disabled for now to avoid proxy/404 churn
   const openSSE = useCallback(() => {
