@@ -335,16 +335,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     router.push(`/auth?intent=login&next=${encodeURIComponent(nextAfterAuth)}`);
   }, [router, nextAfterAuth]);
 
-  // Proactively prefetch Home so clicking the brand is instant
-  useEffect(() => {
-    const idle = (cb: () => void) => (
-      'requestIdleCallback' in window
-        ? (window as any).requestIdleCallback(cb, { timeout: 600 })
-        : setTimeout(cb, 200)
-    );
-    idle(() => router.prefetch?.('/'));
-  }, [router]);
-
   const goToRegister = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     router.push(`/auth?intent=signup&next=${encodeURIComponent(nextAfterAuth)}`);
