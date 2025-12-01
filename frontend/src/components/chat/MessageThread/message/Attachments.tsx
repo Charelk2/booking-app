@@ -33,21 +33,59 @@ export default function Attachments({ imageUrl, videoUrl, audioUrl, fileLabel, f
   }, []);
 
   if (imageUrl) {
+    const imgRef = React.useRef<HTMLImageElement | null>(null);
+    const [size, setSize] = React.useState<{ w: number; h: number } | null>(null);
+
+    const handleImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+      try {
+        const el = e.currentTarget as HTMLImageElement;
+        const w = Number(el.naturalWidth || 0);
+        const h = Number(el.naturalHeight || 0);
+        if (w > 0 && h > 0) {
+          const next = computeTargetSize(w, h);
+          if (next) setSize(next);
+        }
+      } catch {}
+      try { onMediaLoad?.(); } catch {}
+    };
+
+    React.useEffect(() => {
+      if (!size) return;
+      const onResize = () => {
+        try {
+          const el = imgRef.current;
+          const w = Number(el?.naturalWidth || 0);
+          const h = Number(el?.naturalHeight || 0);
+          if (w > 0 && h > 0) {
+            const next = computeTargetSize(w, h);
+            if (next) setSize(next);
+          }
+        } catch {}
+      };
+      if (typeof window !== 'undefined') {
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+      }
+      return () => {};
+    }, [size, computeTargetSize]);
+
     const open = () => { try { onOpenImage?.(); } catch {} };
     return (
       <button
         type="button"
         onClick={open}
-        className="group relative inline-block max-w-[420px] w-[min(420px,62vw)] overflow-hidden rounded-xl border border-gray-200 bg-black/5 hover:bg-black/10 transition"
+        className="group relative inline-block overflow-hidden rounded-xl border border-gray-200 bg-black/5 hover:bg-black/10 transition"
+        style={size ? { width: `${size.w}px`, height: `${size.h}px`, maxWidth: '100%' } : { width: 'min(420px,62vw)' }}
         aria-label="Open image"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
+          ref={imgRef}
           src={imageUrl}
           alt={fileLabel || 'Image'}
-          className="block max-h-72 w-full object-cover"
+          className="block w-full h-full object-cover"
           loading="lazy"
-          onLoad={() => { try { onMediaLoad?.(); } catch {} }}
+          onLoad={handleImgLoad}
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent" />
         {typeof progressPct === 'number' && (
