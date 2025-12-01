@@ -550,11 +550,14 @@ async def multiplex_ws(
     attempt: int = Query(0),
     heartbeat: float = Query(PING_INTERVAL_DEFAULT),
 ):
+    session_start = time.time()
     token, token_src = _extract_bearer_token(websocket)
     if not token:
         _log_ws_auth_failure("missing_token" if token_src != "protocol_oversize" else "protocol_oversize", websocket, token_src)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
+    auth_start = time.perf_counter()
     user, fail_reason, meta = await _current_user_from_token(token)
+    auth_ms = (time.perf_counter() - auth_start) * 1000.0
     if not user:
         detail = None
         try:
@@ -575,6 +578,19 @@ async def multiplex_ws(
     await conn.handshake()
 
     Presence.mark_online(int(user.id))
+    try:
+        logger.info(
+            "ws.mux.connect",
+            extra={
+                "user_id": int(user.id),
+                "attempt": attempt,
+                "heartbeat": heartbeat,
+                "token_source": token_src,
+                "auth_ms": round(auth_ms, 1),
+            },
+        )
+    except Exception:
+        pass
 
     try:
         if WS_ENABLE_RECONNECT_HINT:
@@ -684,13 +700,35 @@ async def multiplex_ws(
 
                 # ignore others
                 continue
-        except WebSocketDisconnect:
-            pass
+        except WebSocketDisconnect as exc:
+            try:
+                logger.info(
+                    "ws.mux.disconnect",
+                    extra={
+                        "user_id": int(user.id),
+                        "attempt": attempt,
+                        "code": getattr(exc, "code", None),
+                        "duration_ms": int((time.time() - session_start) * 1000),
+                    },
+                )
+            except Exception:
+                pass
         finally:
             pinger.cancel()
     finally:
         Presence.mark_offline(int(user.id))
         await mux.disconnect(conn)
+        try:
+            logger.info(
+                "ws.mux.closed",
+                extra={
+                    "user_id": int(user.id),
+                    "attempt": attempt,
+                    "duration_ms": int((time.time() - session_start) * 1000),
+                },
+            )
+        except Exception:
+            pass
 
 # -------- /ws/notifications --------
 
@@ -732,11 +770,14 @@ async def notifications_ws(
     attempt: int = Query(0),
     heartbeat: float = Query(PING_INTERVAL_DEFAULT),
 ):
+    session_start = time.time()
     token, token_src = _extract_bearer_token(websocket)
     if not token:
         _log_ws_auth_failure("missing_token" if token_src != "protocol_oversize" else "protocol_oversize", websocket, token_src)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
+    auth_start = time.perf_counter()
     user, fail_reason, meta = await _current_user_from_token(token)
+    auth_ms = (time.perf_counter() - auth_start) * 1000.0
     if not user:
         detail = None
         try:
@@ -758,6 +799,19 @@ async def notifications_ws(
 
     await notify.connect(int(user.id), conn)
     Presence.mark_online(int(user.id))
+    try:
+        logger.info(
+            "ws.notifications.connect",
+            extra={
+                "user_id": int(user.id),
+                "attempt": attempt,
+                "heartbeat": heartbeat,
+                "token_source": token_src,
+                "auth_ms": round(auth_ms, 1),
+            },
+        )
+    except Exception:
+        pass
 
     try:
         if WS_ENABLE_RECONNECT_HINT:
@@ -807,13 +861,35 @@ async def notifications_ws(
                         pass
                     continue
                 # notifications are server-push only
-        except WebSocketDisconnect:
-            pass
+        except WebSocketDisconnect as exc:
+            try:
+                logger.info(
+                    "ws.notifications.disconnect",
+                    extra={
+                        "user_id": int(user.id),
+                        "attempt": attempt,
+                        "code": getattr(exc, "code", None),
+                        "duration_ms": int((time.time() - session_start) * 1000),
+                    },
+                )
+            except Exception:
+                pass
         finally:
             pinger.cancel()
     finally:
         Presence.mark_offline(int(user.id))
         notify.disconnect(int(user.id), conn)
+        try:
+            logger.info(
+                "ws.notifications.closed",
+                extra={
+                    "user_id": int(user.id),
+                    "attempt": attempt,
+                    "duration_ms": int((time.time() - session_start) * 1000),
+                },
+            )
+        except Exception:
+            pass
 
 # -------- compatibility shims --------
 

@@ -23,6 +23,7 @@ from datetime import datetime
 import hashlib
 import time
 import asyncio
+import logging
 
 from ..utils.json import dumps_bytes as _json_dumps
 from ..utils.redis_cache import get_redis_client, cache_bytes, get_cached_bytes
@@ -38,6 +39,7 @@ except Exception:  # pragma: no cover - optional dependency
 
 
 router = APIRouter(tags=["threads"])
+logger = logging.getLogger(__name__)
 
 
 # ---- Helpers ----------------------------------------------------------------
@@ -538,6 +540,28 @@ def get_threads_preview(
     except Exception:
         pass
 
+    role_label = "artist" if is_artist else "client"
+    try:
+        if t_brs_ms >= 400 or t_unread_ms >= 200 or t_build_ms >= 200:
+            logger.info(
+                "threads.preview.slow",
+                extra={
+                    "user_id": int(current_user.id),
+                    "role": role_label,
+                    "limit": int(limit),
+                    "items": len(items),
+                    "durations_ms": {
+                        "pre": round(pre_ms, 1),
+                        "brs": round(t_brs_ms, 1),
+                        "unread": round(t_unread_ms, 1),
+                        "build": round(t_build_ms, 1),
+                        "ser": round(t_ser_ms, 1),
+                    },
+                },
+            )
+    except Exception:
+        pass
+
     return Response(content=body, media_type=media_type, headers=headers)
 
 
@@ -968,6 +992,12 @@ async def inbox_stream(
     elif role == "artist":
         is_artist = True
 
+    try:
+        poll_interval = float(os.getenv("INBOX_STREAM_POLL_INTERVAL", "1.0") or 1.0)
+    except Exception:
+        poll_interval = 1.0
+    poll_interval = max(0.5, min(poll_interval, 5.0))
+
     user_id = int(current_user.id)
 
     # Concurrency guard for stream snapshot DB touches
@@ -1022,9 +1052,56 @@ async def inbox_stream(
                 last_emit_ts = time.time()
 
             # Non-blocking delay between polls
-            await asyncio.sleep(1.0)  # tune between 0.5–2.0
+            await asyncio.sleep(poll_interval)
 
-    return StreamingResponse(_aiter_events(), media_type="text/event-stream", headers={
+    async def _logged_stream():
+        stream_start = time.time()
+        stream_id = f"{user_id}:{int(stream_start * 1000)}"
+        try:
+            logger.info(
+                "inbox_stream.open",
+                extra={
+                    "stream_id": stream_id,
+                    "user_id": user_id,
+                    "role": ("artist" if is_artist else "client"),
+                    "heartbeat": heartbeat,
+                    "poll_interval": poll_interval,
+                },
+            )
+        except Exception:
+            pass
+        try:
+            async for chunk in _aiter_events():
+                yield chunk
+        except asyncio.CancelledError:
+            try:
+                logger.info(
+                    "inbox_stream.cancelled",
+                    extra={"stream_id": stream_id, "user_id": user_id, "role": ("artist" if is_artist else "client")},
+                )
+            except Exception:
+                pass
+            raise
+        except Exception as exc:
+            try:
+                logger.warning(
+                    "inbox_stream.error",
+                    extra={"stream_id": stream_id, "user_id": user_id, "role": ("artist" if is_artist else "client"), "error": str(exc)},
+                )
+            except Exception:
+                pass
+            raise
+        finally:
+            try:
+                elapsed_ms = int((time.time() - stream_start) * 1000)
+                logger.info(
+                    "inbox_stream.close",
+                    extra={"stream_id": stream_id, "user_id": user_id, "role": ("artist" if is_artist else "client"), "duration_ms": elapsed_ms},
+                )
+            except Exception:
+                pass
+
+    return StreamingResponse(_logged_stream(), media_type="text/event-stream", headers={
         "Cache-Control": "no-cache, private",
         "Connection": "keep-alive",
         "X-Accel-Buffering": "no",  # Nginx: disable response buffering

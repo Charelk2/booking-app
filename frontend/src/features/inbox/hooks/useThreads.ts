@@ -89,6 +89,7 @@ export function useThreads(user: User | null | undefined) {
   const refreshThreads = useCallback(async () => {
     if (!user) return false;
     const role = user.user_type === 'service_provider' ? 'artist' : 'client';
+    const PREVIEW_LIMIT = 50;
     // Only send If-None-Match when we actually have cached data to reuse.
     let prevEtag: string | null = null;
     let hasCache = false;
@@ -97,19 +98,40 @@ export function useThreads(user: User | null | undefined) {
       hasCache = Array.isArray(cached) && cached.length > 0;
     } catch {}
     try {
-      if (!hasCache || typeof window === 'undefined') {
-        // no cache to reuse → skip conditional header
-      } else {
+      if (typeof window !== 'undefined') {
+        // Persisted caches survive hard reloads; use them to drive conditional GETs.
+        if (!hasCache) {
+          const sessionCached =
+            sessionStorage.getItem(cacheKey) ||
+            sessionStorage.getItem(latestCacheKey);
+          if (sessionCached) {
+            try {
+              const parsed = JSON.parse(sessionCached);
+              hasCache = Array.isArray(parsed) && parsed.length > 0;
+            } catch {}
+          } else {
+            const raw = localStorage.getItem(persistKey);
+            if (raw) {
+              try {
+                const obj = JSON.parse(raw) as { ts?: number; items?: BookingRequest[] };
+                if (Array.isArray(obj?.items) && obj.items.length > 0) {
+                  hasCache = true;
+                }
+              } catch {}
+            }
+          }
+        }
         prevEtag = sessionStorage.getItem(etagKey) || localStorage.getItem(etagKey);
       }
     } catch {}
 
-    let res = await getMessageThreadsPreview(role as any, 100, hasCache ? prevEtag || undefined : undefined);
+    const conditionalEtag = prevEtag || undefined;
+    let res = await getMessageThreadsPreview(role as any, PREVIEW_LIMIT, conditionalEtag);
     let status = Number((res as any)?.status ?? 200);
 
     // If the server replied 304 but we had no cache (or it was empty), retry without ETag to force a body.
     if (status === 304 && !hasCache) {
-      res = await getMessageThreadsPreview(role as any, 100, undefined);
+      res = await getMessageThreadsPreview(role as any, PREVIEW_LIMIT, undefined);
       status = Number((res as any)?.status ?? 200);
     }
 

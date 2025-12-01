@@ -81,12 +81,24 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     inflightRef.current = (async () => {
       try {
-        // Note: shared api client currently does not expose ETag-aware
-        // options. We keep a simple 5s throttle which is sufficient.
-        const res = await apiGetNotifications(0, 20);
+        const res = await apiGetNotifications(
+          0,
+          20,
+          {
+            headers: lastEtagRef.current ? { 'If-None-Match': lastEtagRef.current } : undefined,
+            validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+          }
+        );
         lastFetchAtRef.current = Date.now();
+        const status = Number((res as any)?.status ?? 200);
+        if (status === 304) {
+          // Keep existing notifications; only bump ETag if server sent one.
+          try { lastEtagRef.current = String((res as any)?.headers?.etag || '') || lastEtagRef.current; } catch {}
+          setError(null);
+          return;
+        }
         try { lastEtagRef.current = String((res as any)?.headers?.etag || '') || lastEtagRef.current; } catch {}
-        const items = res.data as any as Notification[];
+        const items = (res.data as any) as Notification[];
         setNotifications(items);
         setUnreadCount(items.filter((n) => !n.is_read).length);
         setHasMore(items.length === 20);
