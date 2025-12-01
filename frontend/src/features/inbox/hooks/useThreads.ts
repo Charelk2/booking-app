@@ -106,7 +106,8 @@ export function useThreads(user: User | null | undefined) {
     if (shouldDelay) {
       await new Promise((res) => setTimeout(res, 300));
     }
-    const role = user.user_type === 'service_provider' ? 'artist' : 'client';
+    const isServiceProvider = user.user_type === 'service_provider';
+    let role: 'artist' | 'client' = isServiceProvider ? 'artist' : 'client';
     const PREVIEW_LIMIT = 50;
     // Only send If-None-Match when we actually have cached data to reuse.
     let prevEtag: string | null = null;
@@ -147,18 +148,31 @@ export function useThreads(user: User | null | undefined) {
     let res = await getMessageThreadsPreview(role as any, PREVIEW_LIMIT, conditionalEtag);
     let status = Number((res as any)?.status ?? 200);
 
-    // If the server replied 304 but we had no cache (or it was empty), retry without ETag to force a body.
     if (status === 304 && !hasCache) {
       res = await getMessageThreadsPreview(role as any, PREVIEW_LIMIT, undefined);
       status = Number((res as any)?.status ?? 200);
     }
 
     if (status === 304) {
-      // Cache is already hydrated; nothing else to do.
       return true;
     }
 
-    const items = (res?.data?.items || []) as any[];
+    let items = (res?.data?.items || []) as any[];
+
+    if (items.length === 0 && isServiceProvider && role === 'artist') {
+      const fallbackRes = await getMessageThreadsPreview('client', PREVIEW_LIMIT, undefined);
+      const fallbackStatus = Number((fallbackRes as any)?.status ?? 200);
+      if (fallbackStatus !== 304) {
+        const fallbackItems = (fallbackRes?.data?.items || []) as any[];
+        if (fallbackItems.length > 0) {
+          role = 'client';
+          res = fallbackRes;
+          status = fallbackStatus;
+          items = fallbackItems;
+        }
+      }
+    }
+
     if (!Array.isArray(items)) return false;
     const mapped: BookingRequest[] = items.map((it: any) => ({
       id: Number(it.thread_id || it.booking_request_id || it.id),
