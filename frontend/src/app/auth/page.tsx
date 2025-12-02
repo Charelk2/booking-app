@@ -424,7 +424,7 @@ export default function AuthPage() {
       <a
         href={googleHref}
         onClick={markExternalAuthPending}
-        className="flex w-full items-center justify-center gap-3 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#4285F4] focus:ring-offset-2"
+        className="flex w-full items-center justify-center gap-3 rounded-lg border border-black bg-white px-4 py-2 text-sm font-medium text-black shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-0 focus:ring-offset-0 no-underline hover:no-underline"
         aria-label="Continue with Google"
         title="Continue with Google"
       >

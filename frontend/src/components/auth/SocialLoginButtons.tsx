@@ -19,12 +19,12 @@ export default function SocialLoginButtons({ redirectPath = '/dashboard' }: Soci
         onClick={handleGoogleLogin}
         variant="outline"
         fullWidth
-        className="rounded-full border border-gray-300 bg-white text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:ring-[#4285F4]"
+        className="rounded-lg border border-black bg-white text-black shadow-sm hover:bg-gray-50 focus-visible:ring-0 focus-visible:ring-offset-0 no-underline hover:no-underline"
         style={{
-          borderRadius: 9999,
+          borderRadius: 8,
           backgroundColor: '#ffffff',
-          color: '#111827',
-          border: '1px solid #D1D5DB',
+          color: '#000000',
+          border: '1px solid #000000',
         }}
       >
         <span className="mr-2 inline-flex items-center">
