@@ -294,6 +294,17 @@ export default function SystemMessage({
       );
     }
 
+    // Tombstone: backend-deleted message (safety net; main path handled in GroupRenderer)
+    if (key.startsWith('message_deleted')) {
+      return (
+        <div className="my-2 w-full flex justify-center">
+          <div className="text-[12px] italic text-gray-600">
+            This message has been deleted
+          </div>
+        </div>
+      );
+    }
+
     // Dispute opened banner
     if (
       key.startsWith('dispute_opened_v1') ||

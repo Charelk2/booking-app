@@ -276,6 +276,31 @@ export default function GroupRenderer({
           const isSystem = String(m?.message_type || '').toUpperCase() === 'SYSTEM';
           const isInquiryCard = text.includes('inquiry_sent_v1');
           const quoteId = Number(m?.quote_id || 0);
+          const isBackendDeleted =
+            isSystem &&
+            String((m as any)?.system_key || '')
+              .toLowerCase()
+              .startsWith('message_deleted');
+          const isDeleted = Boolean((m as any)?._deleted) || isBackendDeleted;
+
+          if (isDeleted) {
+            return (
+              <div
+                key={String(
+                  m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId,
+                )}
+                className={`my-1 flex ${
+                  fromSelfMsg ? 'justify-end pr-2' : 'justify-start pl-2'
+                }`}
+              >
+                <Bubble fromSelf={fromSelfMsg}>
+                  <div className="text-[12px] italic text-gray-600">
+                    This message has been deleted
+                  </div>
+                </Bubble>
+              </div>
+            );
+          }
 
           // Quote block (render if loaded, else show placeholder; effect above requests loads)
           if (quoteId > 0) {
@@ -378,28 +403,33 @@ export default function GroupRenderer({
               }
             } catch {}
             return (
-                <SystemMessage
-                  key={String(m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId)}
-                  msg={m}
-                  hasAnyQuote={hasAnyQuote}
-                  onOpenDetails={onOpenDetailsPanel}
-                  onOpenQuote={onOpenQuote}
-                  onMarkCompletedFromSystem={onMarkCompletedFromSystem}
-                  onReportProblemFromSystem={onReportProblemFromSystem}
-                  onOpenReviewFromSystem={onOpenReviewFromSystem}
-                  onOpenEventPrepFromSystem={
-                    typeof onContinueEventPrep === 'function'
-                      ? () => {
-                          try {
-                            const tid = Number((m as any)?.booking_request_id || bookingRequestId || 0);
-                            if (Number.isFinite(tid) && tid > 0) onContinueEventPrep?.(tid);
-                          } catch {
-                            // no-op
-                          }
+              <SystemMessage
+                key={String(
+                  m?.id ?? (m as any)?.client_request_id ?? (m as any)?.clientId,
+                )}
+                msg={m}
+                hasAnyQuote={hasAnyQuote}
+                onOpenDetails={onOpenDetailsPanel}
+                onOpenQuote={onOpenQuote}
+                onMarkCompletedFromSystem={onMarkCompletedFromSystem}
+                onReportProblemFromSystem={onReportProblemFromSystem}
+                onOpenReviewFromSystem={onOpenReviewFromSystem}
+                onOpenEventPrepFromSystem={
+                  typeof onContinueEventPrep === 'function'
+                    ? () => {
+                        try {
+                          const tid = Number(
+                            (m as any)?.booking_request_id || bookingRequestId || 0,
+                          );
+                          if (Number.isFinite(tid) && tid > 0)
+                            onContinueEventPrep?.(tid);
+                        } catch {
+                          // no-op
                         }
-                      : undefined
-                  }
-                />
+                      }
+                    : undefined
+                }
+              />
             );
           }
           return (
