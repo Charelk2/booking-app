@@ -184,7 +184,6 @@ export default function TermsPage() {
                 support@booka.co.za
               </a>
             </span>
-            <span className="block text-sm text-slate-700">Phone: tbc</span>
           </p>
 
           <p className="text-sm text-slate-600">
