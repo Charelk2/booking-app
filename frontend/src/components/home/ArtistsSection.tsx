@@ -52,8 +52,9 @@ export default function ArtistsSection({
 
     let isMounted = true;
 
-    // If we already have server-provided data, don't refetch on first render
-    if (initialData && initialData.length > 0) {
+    // If we already have server-provided data (including "no results"),
+    // treat it as authoritative and do not refetch on the client.
+    if (initialData) {
       setLoading(false);
       return () => {
         isMounted = false;
