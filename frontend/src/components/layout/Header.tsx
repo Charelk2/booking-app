@@ -523,12 +523,33 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             >
               {(() => {
                 const src = process.env.NEXT_PUBLIC_BRAND_LOGO_URL || '';
+                const logoBgClasses = isAuthVariant ? 'bg-black' : 'bg-white';
+                const logoTextClasses = isAuthVariant ? 'text-white' : 'text-black';
                 return (
-                  <span className="inline-flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-md bg-white">
+                  <span
+                    className={clsx(
+                      'inline-flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-md',
+                      logoBgClasses,
+                    )}
+                  >
                     {src ? (
-                      <Image src={src} alt="Brand logo" width={30} height={30} priority className="h-5 w-auto sm:h-6 md:h-7" />
+                      <Image
+                        src={src}
+                        alt="Brand logo"
+                        width={30}
+                        height={30}
+                        priority
+                        className="h-5 w-auto sm:h-6 md:h-7"
+                      />
                     ) : (
-                      <span className="text-black font-black text-xl sm:text-2xl md:text-3xl leading-none">B</span>
+                      <span
+                        className={clsx(
+                          logoTextClasses,
+                          'font-black text-xl sm:text-2xl md:text-3xl leading-none',
+                        )}
+                      >
+                        B
+                      </span>
                     )}
                   </span>
                 );

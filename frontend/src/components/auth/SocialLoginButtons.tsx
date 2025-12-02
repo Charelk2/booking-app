@@ -7,30 +7,55 @@ interface SocialLoginButtonsProps {
   redirectPath?: string;
 }
 
-const providers = [
-  { id: 'google', name: 'Google', className: 'bg-red-500 hover:bg-red-600' },
-  ...(process.env.NEXT_PUBLIC_APPLE_SIGNIN === '1'
-    ? ([{ id: 'apple', name: 'Apple', className: 'bg-black hover:bg-gray-900' }] as const)
-    : ([] as const)),
-];
-
 export default function SocialLoginButtons({ redirectPath = '/dashboard' }: SocialLoginButtonsProps) {
-  const handleLogin = (provider: string) => {
-    window.location.href = `${getApiOrigin()}/auth/${provider}/login?next=${encodeURIComponent(redirectPath)}`;
+  const handleGoogleLogin = () => {
+    window.location.href = `${getApiOrigin()}/auth/google/login?next=${encodeURIComponent(redirectPath)}`;
   };
 
   return (
     <div className="space-y-2">
-      {providers.map((p) => (
-        <Button
-          key={p.id}
-          type="button"
-          onClick={() => handleLogin(p.id)}
-          className={`w-full ${p.className}`}
-        >
-          Continue with {p.name}
-        </Button>
-      ))}
+      <Button
+        type="button"
+        onClick={handleGoogleLogin}
+        variant="outline"
+        fullWidth
+        className="rounded-full border border-gray-300 bg-white text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:ring-[#4285F4]"
+        style={{
+          borderRadius: 9999,
+          backgroundColor: '#ffffff',
+          color: '#111827',
+          border: '1px solid #D1D5DB',
+        }}
+      >
+        <span className="mr-2 inline-flex items-center">
+          <svg
+            viewBox="0 0 262 262"
+            xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid"
+            aria-hidden="true"
+            focusable="false"
+            className="h-5 w-5"
+          >
+            <path
+              d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027"
+              fill="#4285F4"
+            />
+            <path
+              d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1"
+              fill="#34A853"
+            />
+            <path
+              d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782"
+              fill="#FBBC05"
+            />
+            <path
+              d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251"
+              fill="#EB4335"
+            />
+          </svg>
+        </span>
+        <span>Continue with Google</span>
+      </Button>
     </div>
   );
 }
