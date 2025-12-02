@@ -1,7 +1,7 @@
 // frontend/src/app/dashboard/today/page.tsx
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { format, isToday, isWithinInterval, addDays } from 'date-fns';
@@ -22,7 +22,6 @@ export default function TodayPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [view, setView] = useState<'today' | 'upcoming'>('today');
 
   // Redirect non-artists, copy the pattern from ArtistDashboardPage
   // frontend/src/app/dashboard/artist/page.tsx
@@ -109,8 +108,6 @@ export default function TodayPage() {
     [todayBookings.length, upcomingSoon.length, actionableRequests.length, unreadThreads],
   );
 
-  const activeList = view === 'today' ? todayBookings : upcomingSoon;
-
   if (!user || authLoading) {
     return (
       <MainLayout>
@@ -143,40 +140,15 @@ export default function TodayPage() {
 
   return (
     <MainLayout>
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 md:py-10 space-y-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 space-y-8">
         {/* Header */}
-        <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+        <header className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <hgroup>
             <h1 className="text-2xl font-semibold text-gray-900">Today</h1>
             <p className="text-sm text-gray-500">
-              {format(now, "EEEE, d MMM yyyy")} · A snapshot of today&apos;s shows, upcoming gigs, and tasks.
+              {format(now, "EEEE, d MMM yyyy")} · Snapshot of your shows, tasks, and messages.
             </p>
-          </div>
-          {/* Today / Upcoming segmented control */}
-          <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1 text-xs font-medium">
-            <button
-              type="button"
-              onClick={() => setView('today')}
-              className={`px-3 py-1.5 rounded-lg ${
-                view === 'today'
-                  ? 'bg-white shadow-sm text-gray-900'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Today ({todayBookings.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('upcoming')}
-              className={`px-3 py-1.5 rounded-lg ${
-                view === 'upcoming'
-                  ? 'bg-white shadow-sm text-gray-900'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Next 7 days ({upcomingSoon.length})
-            </button>
-          </div>
+          </hgroup>
         </header>
 
         {/* Stat cards */}
@@ -188,31 +160,85 @@ export default function TodayPage() {
           {/* Left: bookings lists */}
           <div className="space-y-6">
             <Section
-              title={view === 'today' ? "Today's bookings" : 'Upcoming bookings'}
-              subtitle={
-                view === 'today'
-                  ? "Your confirmed gigs scheduled for today"
-                  : 'Your next confirmed gigs at a glance'
-              }
+              title="Today&apos;s bookings"
+              subtitle="Your confirmed gigs scheduled for today"
             >
               <div className="space-y-3">
-                {activeList.length === 0 && (
+                {todayBookings.length === 0 && (
                   <IllustratedEmpty
                     variant="bookings"
-                    title={
-                      view === 'today'
-                        ? 'No bookings today'
-                        : 'No upcoming bookings in the next 7 days'
-                    }
-                    description={
-                      view === 'today'
-                        ? 'When you confirm a booking for today, it will appear here with client, time and status.'
-                        : 'When you confirm a booking, it will show up here with date, status, and payout.'
-                    }
+                    title="No bookings today"
+                    description="When you confirm a booking for today, it will appear here with client, time and status."
                   />
                 )}
 
-                {activeList.map((booking: Booking) => (
+                {todayBookings.map((booking: Booking) => (
+                  <div
+                    key={booking.id}
+                    className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {booking.client?.first_name || 'Unknown'}{' '}
+                          {booking.client?.last_name || ''}
+                        </div>
+                        <div className="mt-0.5 text-sm text-gray-600 truncate">
+                          {booking.service?.title || '—'}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {format(
+                            new Date(booking.start_time),
+                            'MMM d, yyyy h:mm a',
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span
+                          className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                          style={statusChipStyles(booking.status)}
+                        >
+                          {formatStatus(booking.status)}
+                        </span>
+                        <div className="mt-2 text-sm font-semibold text-gray-900">
+                          {formatCurrency(Number(booking.total_price))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                      <Link
+                        href={`/dashboard/events/${booking.id}`}
+                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-700 hover:bg-gray-50 hover:no-underline"
+                      >
+                        View event
+                      </Link>
+                      <Link
+                        href={`/dashboard/bookings`}
+                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-700 hover:bg-gray-50 hover:no-underline"
+                      >
+                        All bookings
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            <Section
+              title="Next 7 days"
+              subtitle="Your next confirmed gigs at a glance"
+            >
+              <div className="space-y-3">
+                {upcomingSoon.length === 0 && (
+                  <IllustratedEmpty
+                    variant="bookings"
+                    title="No upcoming bookings in the next 7 days"
+                    description="When you confirm a booking, it will show up here with date, status, and payout."
+                  />
+                )}
+
+                {upcomingSoon.map((booking: Booking) => (
                   <div
                     key={booking.id}
                     className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md"
