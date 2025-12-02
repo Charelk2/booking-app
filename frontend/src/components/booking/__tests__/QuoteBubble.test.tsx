@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react-dom/test-utils';
-import QuoteBubble from '../QuoteBubble';
+import QuoteBubble from '@/components/chat/QuoteBubble';
 
 describe('QuoteBubble', () => {
   it('matches snapshot', () => {

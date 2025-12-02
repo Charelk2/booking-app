@@ -2,166 +2,121 @@
 
 exports[`QuoteBubble matches snapshot 1`] = `
 <div
-  class="w-full bg-brand/10 dark:bg-brand-dark/30 rounded-xl p-4"
+  class="w-full md:w-1/2 lg:w-1/2 rounded-xl border border-gray-200 bg-white"
 >
   <div
-    class="grid grid-cols-1 gap-6 md:grid-cols-2"
+    class="flex items-start justify-between gap-2 px-3 py-2"
   >
-    <div>
-      <h4
-        class="mb-2 text-sm font-semibold"
-      >
-        New Booking Request
-      </h4>
-      <p
-        class="mb-2 text-xs"
-      >
-        From: 
-        Client Name
-         | Received: 
-        Jul 30, 2025
-      </p>
+    <div
+      class="min-w-0"
+    >
       <div
-        class="text-xs"
+        class="mt-0.5 text-[13px] font-semibold text-gray-900 inline-flex items-center gap-1 truncate"
       >
-        <p
-          class="mb-1 font-semibold"
+         
+        Performance
+      </div>
+      <div
+        class="mt-1 flex flex-wrap gap-1 sm:hidden"
+      >
+        <span
+          class="truncate rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
         >
-          Event Details
-        </p>
-        <ul
-          class="space-y-1"
+          Wedding Reception
+        </span>
+        <span
+          class="truncate rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
         >
-          <li>
-            Event: 
-            Wedding Reception
-          </li>
-          <li>
-            Date: 
+          ~120 guests
+        </span>
+        <span
+          class="truncate rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
+        >
+          Molenvliet
+        </span>
+      </div>
+      <div
+        class="mt-1 hidden sm:flex flex-wrap gap-1"
+      >
+        <span
+          class="truncate rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
+        >
+          Wedding Reception
+        </span>
+        <span
+          class="truncate rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
+        >
+          ~120 guests
+        </span>
+        <span
+          class="truncate rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
+        >
+          Molenvliet
+        </span>
+      </div>
+      <div
+        class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-gray-600 pb-5"
+      >
+        <span
+          class="inline-flex items-center gap-1"
+        >
+          <svg
+            aria-hidden="true"
+            class="h-3.5 w-3.5 text-gray-500"
+            data-slot="icon"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12.75 12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM7.5 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM8.25 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM9.75 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM10.5 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM12.75 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM14.25 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM15 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM16.5 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM15 12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM16.5 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"
+            />
+            <path
+              clip-rule="evenodd"
+              d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z"
+              fill-rule="evenodd"
+            />
+          </svg>
+          <span>
             Oct 26, 2025
-          </li>
-          <li>
-            Guests: 
-            ~120
-          </li>
-          <li>
-            Venue: 
-            Molenvliet
-          </li>
-          <li>
-            Notes: "
-            Client requests a specific song for the first dance.
-            "
-          </li>
-        </ul>
+          </span>
+        </span>
       </div>
     </div>
-    <div>
-      <h4
-        class="mb-2 text-sm font-semibold"
-      >
-        Review & Adjust Quote
-      </h4>
-      <ul
-        class="space-y-1 text-xs"
-      >
-        <li
-          class="flex justify-between"
-        >
-          <span>
-            Performance
-          </span>
-          <span
-            class="font-semibold"
-          >
-            R 100,00
-          </span>
-        </li>
-        <li
-          class="flex justify-between"
-        >
-          <span>
-            Travel
-          </span>
-          <span
-            class="font-semibold"
-          >
-            R 20,00
-          </span>
-        </li>
-        <li
-          class="flex justify-between"
-        >
-          <span>
-            Sound
-          </span>
-          <span
-            class="font-semibold"
-          >
-            R 10,00
-          </span>
-        </li>
-        <li
-          class="flex justify-between"
-        >
-          <span>
-            Accommodation
-          </span>
-          <span
-            class="font-semibold"
-          >
-            R 0,00
-          </span>
-        </li>
-        <li
-          class="flex justify-between"
-        >
-          <span>
-            Discount
-          </span>
-          <span
-            class="font-semibold"
-          >
-            -
-            R 5,00
-          </span>
-        </li>
-        <li
-          class="mt-2 flex justify-between border-t pt-2 font-medium"
-        >
-          <span>
-            Total
-          </span>
-          <span
-            class="font-semibold"
-          >
-            R 130,00
-          </span>
-        </li>
-        <li
-          class="text-xs text-gray-600"
-        >
-          Expires: 
-          August 1st, 2025
-        </li>
-      </ul>
+    <div
+      class="shrink-0 text-right"
+    >
       <div
-        class="mt-3 flex gap-2"
+        class="text-sm font-extrabold tabular-nums text-gray-900"
       >
-        <button
-          class="rounded bg-green-600 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-green-700"
-          type="button"
-        >
-          Accept Quote
-        </button>
-        <button
-          class="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-700"
-          type="button"
-        >
-          Reject Quote
-        </button>
+        R 130,00
       </div>
     </div>
+  </div>
+  <div
+    class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 bg-gray-50 px-3 py-2 rounded-b-xl"
+  >
+    <div
+      class="flex items-center gap-1 sm:gap-2 flex-wrap"
+    >
+      <span
+        class="inline-flex items-center font-medium"
+        style="background-color: rgb(255, 251, 235); color: rgb(146, 64, 14); border-color: #fde68a; border-width: 1px; border-style: solid; border-radius: 9999px; padding: 4px 8px; font-size: 11px; font-weight: 600; line-height: 1.2;"
+      >
+        Pending
+      </span>
+      <span
+        class="inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] border-red-200 bg-red-50 text-red-700"
+      >
+        Expired 4 months ago
+      </span>
+    </div>
+    <button
+      class="rounded border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-800 transition-colors hover:bg-gray-50"
+      type="button"
+    >
+      View quote
+    </button>
   </div>
 </div>
 `;
