@@ -4,22 +4,24 @@ import Link from 'next/link';
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto max-w-5xl px-6 py-12">
-      <section className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-8 py-10 text-white shadow-xl ring-1 ring-white/10">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-300">
-          Privacy Policy
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold leading-tight">Booka South Africa</h1>
-        <p className="mt-2 text-sm text-slate-200">Last Updated: November 2025</p>
-        <p className="mt-4 max-w-3xl text-slate-100">
-          This Privacy Policy explains how Booka SA Pty Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;,
-          &ldquo;our&rdquo;) collects, uses, discloses, and protects personal information when
-          Clients and Service Providers use the Platform. We comply with the Protection of
-          Personal Information Act, 4 of 2013 (POPIA).
-        </p>
+    <main className="mx-auto max-w-5xl px-6 py-12 text-slate-900">
+      <section className="rounded-3xl bg-white px-8 py-10 shadow-lg ring-1 ring-slate-200">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Privacy Policy</p>
+        <h1 className="mt-3 text-3xl font-semibold leading-tight text-slate-900">Booka South Africa</h1>
+        <p className="mt-2 text-sm text-slate-600">Last Updated: November 2025</p>
+        <div className="mt-6 space-y-3 text-base leading-relaxed text-slate-800">
+          <p>
+            This Privacy Policy explains how Booka SA Pty Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;)
+            collects, uses, discloses, and protects personal information when Clients and Service Providers use the Platform.
+          </p>
+          <p>
+            We comply with the Protection of Personal Information Act, 4 of 2013 (POPIA). The sections below outline what we
+            collect, why we collect it, and your rights.
+          </p>
+        </div>
       </section>
 
-      <article className="prose prose-slate mt-10 max-w-none lg:prose-lg">
+      <article className="prose prose-slate mt-10 max-w-none text-slate-900 prose-headings:text-slate-900 prose-p:text-slate-800 prose-li:text-slate-800 prose-strong:text-slate-900 prose-a:text-slate-900 prose-a:font-semibold prose-a:underline-offset-4 hover:prose-a:underline lg:prose-lg">
         <h2>1. Introduction</h2>
         <p>
           This Privacy Policy explains how Booka SA Pty Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;,
@@ -135,7 +137,7 @@ export default function PrivacyPage() {
           </span>
           <span className="mt-3 block text-sm text-slate-600">
             Email:{' '}
-            <a className="text-slate-900 underline" href="mailto:support@booka.co.za">
+            <a className="text-slate-900 underline-offset-4 hover:underline" href="mailto:support@booka.co.za">
               support@booka.co.za
             </a>
           </span>
@@ -143,7 +145,11 @@ export default function PrivacyPage() {
         </p>
 
         <p className="text-sm text-slate-500">
-          See also our <Link href="/terms">Terms &amp; Conditions</Link>.
+          See also our{' '}
+          <Link className="text-slate-900 underline-offset-4 hover:underline" href="/terms">
+            Terms &amp; Conditions
+          </Link>
+          .
         </p>
       </article>
     </main>

@@ -4,21 +4,27 @@ import Link from 'next/link';
 
 export default function TermsPage() {
   return (
-    <main className="mx-auto max-w-5xl px-6 py-12">
-      <section className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-8 py-10 text-white shadow-xl ring-1 ring-white/10">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-300">
+    <main className="mx-auto max-w-5xl px-6 py-12 text-slate-900">
+      <section className="rounded-3xl bg-white px-8 py-10 shadow-lg ring-1 ring-slate-200">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
           Booka Terms &amp; Conditions
         </p>
-        <h1 className="mt-3 text-3xl font-semibold leading-tight">Booka SA (Pty) Ltd</h1>
-        <p className="mt-2 text-sm text-slate-200">Effective Date: November 2025</p>
-        <p className="mt-4 max-w-3xl text-slate-100">
-          These Terms &amp; Conditions (&ldquo;Terms&rdquo;) govern your use of the Booka website,
-          platform, and services (&ldquo;the Platform&rdquo;). By using Booka, you agree to these
-          Terms. If you don't agree, you may not use the Platform.
-        </p>
+        <h1 className="mt-3 text-3xl font-semibold leading-tight text-slate-900">Booka SA (Pty) Ltd</h1>
+        <p className="mt-2 text-sm text-slate-600">Effective Date: November 2025</p>
+        <div className="mt-6 space-y-3 text-base leading-relaxed text-slate-800">
+          <p>
+            These Terms &amp; Conditions (&ldquo;Terms&rdquo;) govern your use of the Booka website, platform, and services
+            (&ldquo;the Platform&rdquo;). By using Booka, you agree to these Terms. If you do not agree, please do not use
+            the Platform.
+          </p>
+          <p>
+            We connect clients with service providers; we do not employ, manage, or guarantee the work of any provider. Key
+            responsibilities and limitations are outlined below.
+          </p>
+        </div>
       </section>
 
-      <article className="prose prose-slate mt-10 max-w-none lg:prose-lg">
+      <article className="prose prose-slate mt-10 max-w-none text-slate-900 prose-headings:text-slate-900 prose-p:text-slate-800 prose-li:text-slate-800 prose-strong:text-slate-900 prose-a:text-slate-900 prose-a:font-semibold prose-a:underline-offset-4 hover:prose-a:underline lg:prose-lg">
         <h2>1. The Platform</h2>
         <p>
           Booka provides an online platform that connects Service Providers (people or companies
@@ -157,7 +163,7 @@ export default function TermsPage() {
           </span>
           <span className="mt-3 block text-sm text-slate-600">
             Email:{' '}
-            <a className="text-slate-900 underline" href="mailto:support@booka.co.za">
+            <a className="text-slate-900 underline-offset-4 hover:underline" href="mailto:support@booka.co.za">
               support@booka.co.za
             </a>
           </span>
@@ -165,7 +171,11 @@ export default function TermsPage() {
         </p>
 
         <p className="text-sm text-slate-500">
-          See also our <Link href="/privacy">Privacy Policy</Link>.
+          See also our{' '}
+          <Link className="text-slate-900 underline-offset-4 hover:underline" href="/privacy">
+            Privacy Policy
+          </Link>
+          .
         </p>
       </article>
     </main>
