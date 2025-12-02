@@ -47,7 +47,7 @@ export default function PrivacyPage() {
           </nav>
         </aside>
 
-        <article className="prose prose-slate max-w-none rounded-3xl bg-white p-8 text-slate-900 shadow-sm ring-1 ring-slate-200 prose-headings:text-slate-900 prose-p:text-slate-800 prose-li:text-slate-800 prose-strong:text-slate-900 prose-a:text-slate-900 prose-a:font-semibold prose-a:underline-offset-4 hover:prose-a:underline prose-h2:mt-10 prose-h2:pt-2 prose-h3:mt-6 prose-h3:pt-1 prose-p:mt-3 prose-ul:my-3 prose-ol:my-3 lg:prose-lg">
+        <article className="prose prose-slate max-w-none rounded-3xl bg-white p-8 text-slate-900 shadow-sm ring-1 ring-slate-200 prose-headings:text-slate-900 prose-headings:font-semibold prose-p:text-slate-800 prose-li:text-slate-800 prose-strong:text-slate-900 prose-a:text-slate-900 prose-a:font-semibold prose-a:underline-offset-4 hover:prose-a:underline prose-h2:mt-10 prose-h2:pt-2 prose-h3:mt-6 prose-h3:pt-1 prose-p:mt-3 prose-ul:my-3 prose-ol:my-3 lg:prose-lg">
           <h2 id="intro">1. Introduction</h2>
           <p>
             This Privacy Policy explains how Booka SA Pty Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) collects,
