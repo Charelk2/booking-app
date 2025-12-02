@@ -137,7 +137,7 @@ export default function PrivacyPage() {
           <p>We may update this Privacy Policy. Continued use of the Platform means acceptance of updates.</p>
 
           <h2 id="contact" className="font-semibold">13. Contact Information</h2>
-          <p className="not-prose mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 shadow-sm">
+          <p className="mt-4 mb-4">
             <span className="block font-semibold text-slate-900">Booka SA Pty Ltd</span>
             <span className="mt-1 block text-sm text-slate-700">
               Midlands Office Park West, Mount Quray road, Midstream Estate, Centurion, 1683
