@@ -58,6 +58,8 @@ export type GroupRendererProps = {
   onMarkCompletedFromSystem?: () => void;
   onReportProblemFromSystem?: () => void;
   onOpenReviewFromSystem?: () => void;
+  /** Optional thread-level client user id so providers booking other artists are treated as the client for this thread. */
+  threadClientId?: number;
 };
 
 export default function GroupRenderer({
@@ -93,6 +95,7 @@ export default function GroupRenderer({
   onMarkCompletedFromSystem,
   onReportProblemFromSystem,
   onOpenReviewFromSystem,
+  threadClientId,
 }: GroupRendererProps) {
   if (!group || !Array.isArray(group.messages) || group.messages.length === 0) return null;
 
@@ -165,6 +168,9 @@ export default function GroupRenderer({
 
   const first = group.messages[0];
   const fromSelf = Number(first?.sender_id) === Number(myUserId);
+  const viewerRole = String(userType).toLowerCase();
+  const threadClientUserId = Number(threadClientId || 0);
+  const viewerIsThreadClient = Number.isFinite(threadClientUserId) && threadClientUserId > 0 && Number(myUserId) === threadClientUserId;
   const showHeader = false; // header hidden to match WhatsApp style
   const dayLabel = group.showDayDivider ? format(safeParseDate(first.timestamp), 'EEE, d LLL') : null;
   const showNewDivider = newMessageAnchorId != null && group.messages.some((m: any) => Number(m.id) === newMessageAnchorId);
@@ -276,11 +282,13 @@ export default function GroupRenderer({
           const isSystem = String(m?.message_type || '').toUpperCase() === 'SYSTEM';
           const isInquiryCard = text.includes('inquiry_sent_v1');
           const quoteId = Number(m?.quote_id || 0);
+          const sysKeyRaw = String((m as any)?.system_key || '');
+          const lowSystemKey = sysKeyRaw.trim().toLowerCase();
+          const lowContent = text.trim().toLowerCase();
           const isBackendDeleted =
-            isSystem &&
-            String((m as any)?.system_key || '')
-              .toLowerCase()
-              .startsWith('message_deleted');
+            lowSystemKey.startsWith('message_deleted') ||
+            lowContent === 'this message was deleted.' ||
+            lowContent === 'this message has been deleted';
           const isDeleted = Boolean((m as any)?._deleted) || isBackendDeleted;
 
           if (isDeleted) {
@@ -305,7 +313,7 @@ export default function GroupRenderer({
           // Quote block (render if loaded, else show placeholder; effect above requests loads)
           if (quoteId > 0) {
             const q = quotesById?.[quoteId];
-            const isClientView = String(userType).toLowerCase() === 'client';
+            const isClientView = viewerIsThreadClient || viewerRole === 'client';
             const previewTotals = q ? resolveQuoteTotalsPreview(q as any) : undefined;
             if (process.env.NODE_ENV !== 'production' && q && typeof window !== 'undefined') {
               try {
@@ -571,7 +579,9 @@ export default function GroupRenderer({
                     lowTextForHide === '[image]' ||
                     lowTextForHide === 'attachment' ||
                     lowTextForHide === '[attachment]';
-                  const looksLikeFilenameText = !lowTextForHide.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(lowTextForHide);
+                  // Hide captions that are just a filename, even when the
+                  // filename contains spaces (e.g., "Screenshot 2025-12-01 at 21.37.49.png").
+                  const looksLikeFilenameText = /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(lowTextForHide);
                   const equalsOriginalName = Boolean((meta?.original_filename || '').toLowerCase() === lowTextForHide && lowTextForHide.length > 0);
                   const hideTextForMedia =
                     (hasImage || hasVideo) &&

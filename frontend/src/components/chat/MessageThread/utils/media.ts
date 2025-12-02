@@ -24,8 +24,13 @@ export function isAttachmentCandidate(m: any): boolean {
     const name = String(m?.attachment_meta?.original_filename || '').toLowerCase();
     const url = String(m?.attachment_url || '');
     const contentText = String(m?.content || '').toLowerCase().trim();
-    const looksFilenameText = !!contentText && !contentText.includes(' ') && /\.(jpe?g|png|webp|gif|heic|heif|mp4|mov|webm|mkv|m4v|mp3|m4a|wav|ogg)$/i.test(contentText);
-    if (!ct && !name && !url) return false;
+    // Treat plain-text filenames like "Screenshot 2025-12-01 at 21.37.49.png"
+    // as attachment candidates even when attachment_meta/url are not yet set.
+    const looksFilenameText =
+      !!contentText &&
+      /\.(jpe?g|png|webp|gif|heic|heif|mp4|mov|webm|mkv|m4v|mp3|m4a|wav|ogg)$/i.test(contentText);
+
+    if (!ct && !name && !url && !looksFilenameText) return false;
     if (ct.startsWith('image/') || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(name) || looksFilenameText) return true;
     if (ct.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v)$/i.test(name) || looksFilenameText) return true;
     if (ct.startsWith('audio/') || /\.(webm|mp3|m4a|ogg|wav)$/i.test(name) || looksFilenameText) return true;

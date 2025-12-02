@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import GroupRenderer from './GroupRenderer';
+import GroupRenderer from '../GroupRenderer';
+import type { MessageGroup } from '../../grouping/types';
 
 describe('GroupRenderer tombstone rendering', () => {
   it('renders deleted bubble for backend tombstone messages', () => {
@@ -13,13 +14,17 @@ describe('GroupRenderer tombstone rendering', () => {
       sender_id: 123,
     };
 
+    const group: MessageGroup = {
+      sender_id: msg.sender_id,
+      sender_type: 'CLIENT',
+      messages: [msg],
+      showDayDivider: false,
+    };
+
     render(
       <GroupRenderer
-        groupId="g1"
-        messages={[msg]}
-        fromSelfMsg={false}
-        resolveReplyPreview={() => ''}
-        onJumpToMessage={() => {}}
+        group={group}
+        myUserId={999}
       />,
     );
 
@@ -28,3 +33,4 @@ describe('GroupRenderer tombstone rendering', () => {
     ).toBeInTheDocument();
   });
 });
+

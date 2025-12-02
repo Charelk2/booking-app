@@ -149,6 +149,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
   const transport = useTransportState();
   const myUserId = Number(user?.id || 0);
   const userType = (user?.user_type as any) || 'client';
+  const threadClientId = Number((props as any)?.clientId || 0);
 
   // --- Realtime
   const { status: rtStatus, mode: rtMode, failureCount: rtFailures } = useRealtimeContext();
@@ -1339,6 +1340,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         galleryItems={galleryItems}
         resolveReplyPreview={resolveReplyPreview}
         threadHasQuote={threadHasQuote}
+        threadClientId={threadClientId}
         onJumpToMessage={jumpToMessage}
         onRetryMessage={(id) => {
           const mid = Number(id);
