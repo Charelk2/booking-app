@@ -1094,7 +1094,6 @@ async def inbox_stream(
     user_id = int(current_user.id)
 
     # Concurrency guard for stream snapshot DB touches
-    global _STREAM_SEM
     sem = _get_stream_sem()
 
     def _snapshot_once(uid: int, as_artist: bool) -> Tuple[int, int, int, int]:
@@ -1102,9 +1101,27 @@ async def inbox_stream(
             return _cheap_snapshot(_db, uid, as_artist)
 
     async def _poll_snapshot(uid: int, as_artist: bool) -> Tuple[int, int, int, int]:
-        sem.acquire()
+        # Use an asyncio semaphore so we never block the event loop when
+        # concurrency is high; excess callers will await instead of hanging
+        # the entire worker. This keeps /healthz responsive under load.
+        await sem.acquire()
         try:
-            return await run_in_threadpool(_snapshot_once, uid, as_artist)
+            t0 = time.perf_counter()
+            result = await run_in_threadpool(_snapshot_once, uid, as_artist)
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            if elapsed_ms >= 500:
+                try:
+                    logger.info(
+                        "inbox_stream.snapshot.slow",
+                        extra={
+                            "user_id": uid,
+                            "role": ("artist" if as_artist else "client"),
+                            "duration_ms": round(elapsed_ms, 1),
+                        },
+                    )
+                except Exception:
+                    pass
+            return result
         finally:
             try:
                 sem.release()
@@ -1150,7 +1167,9 @@ async def inbox_stream(
     async def _logged_stream():
         stream_start = time.time()
         stream_id = f"{user_id}:{int(stream_start * 1000)}"
+        global _STREAM_ACTIVE
         try:
+            _STREAM_ACTIVE += 1
             logger.info(
                 "inbox_stream.open",
                 extra={
@@ -1159,6 +1178,7 @@ async def inbox_stream(
                     "role": ("artist" if is_artist else "client"),
                     "heartbeat": heartbeat,
                     "poll_interval": poll_interval,
+                    "active_streams": _STREAM_ACTIVE,
                 },
             )
         except Exception:
@@ -1170,7 +1190,12 @@ async def inbox_stream(
             try:
                 logger.info(
                     "inbox_stream.cancelled",
-                    extra={"stream_id": stream_id, "user_id": user_id, "role": ("artist" if is_artist else "client")},
+                    extra={
+                        "stream_id": stream_id,
+                        "user_id": user_id,
+                        "role": ("artist" if is_artist else "client"),
+                        "active_streams": _STREAM_ACTIVE,
+                    },
                 )
             except Exception:
                 pass
@@ -1187,9 +1212,16 @@ async def inbox_stream(
         finally:
             try:
                 elapsed_ms = int((time.time() - stream_start) * 1000)
+                _STREAM_ACTIVE = max(0, _STREAM_ACTIVE - 1)
                 logger.info(
                     "inbox_stream.close",
-                    extra={"stream_id": stream_id, "user_id": user_id, "role": ("artist" if is_artist else "client"), "duration_ms": elapsed_ms},
+                    extra={
+                        "stream_id": stream_id,
+                        "user_id": user_id,
+                        "role": ("artist" if is_artist else "client"),
+                        "duration_ms": elapsed_ms,
+                        "active_streams": _STREAM_ACTIVE,
+                    },
                 )
             except Exception:
                 pass
@@ -1201,11 +1233,11 @@ async def inbox_stream(
         "Vary": "Authorization, Cookie",  # Per-user stream
     })
 
-# Stream DB semaphore (protects pool under many open streams)
-_STREAM_SEM: BoundedSemaphore | None = None
+_STREAM_SEM: asyncio.BoundedSemaphore | None = None
+_STREAM_ACTIVE: int = 0
 
 
-def _get_stream_sem() -> BoundedSemaphore:
+def _get_stream_sem() -> asyncio.BoundedSemaphore:
     global _STREAM_SEM
     if _STREAM_SEM is None:
         try:
@@ -1214,7 +1246,7 @@ def _get_stream_sem() -> BoundedSemaphore:
                 limit = 16
         except Exception:
             limit = 16
-        _STREAM_SEM = BoundedSemaphore(limit)
+        _STREAM_SEM = asyncio.BoundedSemaphore(limit)
     return _STREAM_SEM
 _PREVIEW_SEM: BoundedSemaphore | None = None
 

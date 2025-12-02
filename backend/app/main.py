@@ -169,6 +169,17 @@ from .api import api_search_analytics, api_ai
 setup_logging()
 logger = logging.getLogger(__name__)
 
+# Record bootstrap start so we can see how long schema/DDL work takes per
+# process (useful when debugging health‑check flaps on restarts).
+_bootstrap_started_at = datetime.utcnow()
+_skip_db_bootstrap_raw = os.getenv("SKIP_DB_BOOTSTRAP", "0").strip().lower()
+logger.info(
+    "startup.bootstrap.begin skip_db_bootstrap=%s dialect=%s pid=%s",
+    _skip_db_bootstrap_raw or "0",
+    getattr(engine.dialect, "name", "unknown"),
+    os.getpid(),
+)
+
 # Optionally enable tracemalloc for richer allocation tracebacks on RuntimeWarning hints
 try:
     import tracemalloc  # type: ignore
@@ -313,6 +324,17 @@ try:
     ensure_default_admin()
 except Exception as _exc:
     logger.warning("Default admin bootstrap skipped: %s", _exc)
+
+_bootstrap_finished_at = datetime.utcnow()
+_bootstrap_ms = int(
+    (_bootstrap_finished_at - _bootstrap_started_at).total_seconds() * 1000
+)
+logger.info(
+    "startup.bootstrap.end duration_ms=%s skip_db_bootstrap=%s pid=%s",
+    _bootstrap_ms,
+    _skip_db_bootstrap_raw or "0",
+    os.getpid(),
+)
 
 # Always use ORJSONResponse for JSON payloads to ensure consistent, fast
 # serialization across all endpoints.
@@ -547,8 +569,17 @@ async def catch_exceptions(request: Request, call_next):
 
 @app.get("/healthz", tags=["health"])
 async def healthz():
-    """Lightweight unauthenticated health check for load balancers."""
-    return {"status": "ok", "time": datetime.utcnow().isoformat()}
+    """Lightweight unauthenticated health check for load balancers.
+
+    Logs a small timing line so we can correlate health‑check behaviour with
+    Fly's sidecar logs when debugging unhealthy events.
+    """
+    started = datetime.utcnow()
+    payload = {"status": "ok", "time": started.isoformat()}
+    finished = datetime.utcnow()
+    duration_ms = int((finished - started).total_seconds() * 1000)
+    logger.info("healthz.ok duration_ms=%s pid=%s", duration_ms, os.getpid())
+    return payload
 
 
 @app.exception_handler(RequestValidationError)

@@ -1,0 +1,5 @@
+Line limit: "100 (2 displayed)"
+
+
+2025-12-02 09:27:46.182	Health check 'servicecheck-00-http-8000' on port 8000 is now passing.
+2025-12-02 09:21:47.192	Health check 'servicecheck-00-http-8000' on port 8000 has failed. Your app is not responding properly. Services exposed on ports [80, 443] will have intermittent failures until the health check passes.

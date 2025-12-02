@@ -1,0 +1,596 @@
+[
+  {
+    "textPayload": "2025-12-02 07:11:06.904 UTC [1365408]: [1-1] db=,user= LOG:  automatic vacuum of table \"cloudsqladmin.public.heartbeat\": index scans: 0\npages: 0 removed, 1 remain, 1 scanned (100.00% of total)\ntuples: 60 removed, 1 remain, 0 are dead but not yet removable\nremovable cutoff: 1043004, which was 0 XIDs old when operation ended\nnew relfrozenxid: 1043003, which is 64 XIDs ahead of previous value\nfrozen: 0 pages from table (0.00% of total) had 0 tuples frozen\nindex scan not needed: 0 pages from table (0.00% of total) had 0 dead item identifiers removed\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 50.403 MB/s\nbuffer usage: 41 hits, 0 misses, 1 dirtied\nWAL usage: 1 records, 1 full page images, 5421 bytes\nsystem usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f2ac;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb32b2a4fa;t=644f2ccaca587;x=b0de11a276f398e7-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-02T07:11:06.904967Z",
+    "severity": "INFO",
+    "labels": {
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:11:35.833050047Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:11:06.907 UTC [1365408]: [2-1] db=,user= LOG:  automatic analyze of table \"cloudsqladmin.public.heartbeat\"\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 1.953 MB/s\nbuffer usage: 175 hits, 0 misses, 1 dirtied\nsystem usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f2b8;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb32b2afa6;t=644f2ccacb032;x=113d438ca4df9011-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T07:11:06.907698Z",
+    "severity": "INFO",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:11:38.103608040Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:14:31.542 UTC [20]: [14085-1] db=,user= LOG:  checkpoint starting: time",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f3e4;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb3ee52b56;t=644f2d8df2be3;x=13404ccbee3f4722-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:14:31.542755Z",
+    "severity": "INFO",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:14:52.088519491Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:14:32.556 UTC [20]: [14086-1] db=,user= LOG:  checkpoint complete: wrote 11 buffers (0.0%); 0 WAL file(s) added, 0 removed, 1 recycled; write=1.005 s, sync=0.004 s, total=1.014 s; sync files=10, longest=0.003 s, average=0.001 s; distance=12727 kB, estimate=19312 kB; lsn=3D/FB006078, redo lsn=3D/FB006040",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f3e7;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb3ef4a3f0;t=644f2d8eea47d;x=1a84121941f9b103-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:14:32.556669Z",
+    "severity": "INFO",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:15:36.815998277Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:16:06.925 UTC [1365601]: [1-1] db=,user= LOG:  automatic vacuum of table \"cloudsqladmin.public.heartbeat\": index scans: 0\npages: 0 removed, 1 remain, 1 scanned (100.00% of total)\ntuples: 60 removed, 1 remain, 0 are dead but not yet removable\nremovable cutoff: 1043066, which was 0 XIDs old when operation ended\nnew relfrozenxid: 1043065, which is 62 XIDs ahead of previous value\nfrozen: 0 pages from table (0.00% of total) had 0 tuples frozen\nindex scan not needed: 0 pages from table (0.00% of total) had 0 dead item identifiers removed\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 48.828 MB/s\nbuffer usage: 41 hits, 0 misses, 1 dirtied\nWAL usage: 1 records, 1 full page images, 5421 bytes\nsystem usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f49f;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb44949afc;t=644f2de8e9b89;x=fa1cd85e696e7b2c-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T07:16:06.926217Z",
+    "severity": "INFO",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:16:33.526520025Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:16:06.928 UTC [1365601]: [2-1] db=,user= LOG:  automatic analyze of table \"cloudsqladmin.public.heartbeat\"\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 1.953 MB/s\nbuffer usage: 175 hits, 0 misses, 1 dirtied\nsystem usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f49f;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb44949afc;t=644f2de8e9b89;x=fa1cd85e696e7b2c-0@a2",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:16:06.928990Z",
+    "severity": "INFO",
+    "labels": {
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:16:33.526520025Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:16:18.525 UTC [1365606]: [1-1] db=[unknown],user=[unknown] LOG:  incomplete startup packet",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f4b5;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb45459a07;t=644f2df3f9a93;x=983b5687d8c6611d-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:16:18.525843Z",
+    "severity": "INFO",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:01.827469947Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:02.908 UTC [1365635]: [1-1] db=[unknown],user=[unknown] LOG:  incomplete startup packet",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f506;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb47eadfc4;t=644f2e1e4e051;x=8d04ed294a564ed2-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:02.911569Z",
+    "severity": "INFO",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:31.301720135Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:10.580 UTC [1364787]: [7-1] db=appdb,user=appuser LOG:  unexpected EOF on client connection with an open transaction",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f506;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb47eadfc4;t=644f2e1e4e051;x=8d04ed294a564ed2-0@a2",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:10.581616Z",
+    "severity": "INFO",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:31.301720135Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:18.103 UTC [1365649]: [2-1] db=appdb,user=appuser STATEMENT:  ALTER TABLE message_reactions ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f506;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb47eadfc4;t=644f2e1e4e051;x=8d04ed294a564ed2-0@a4",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:18.103809Z",
+    "severity": "INFO",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:31.301720135Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:18.111 UTC [1365649]: [4-1] db=appdb,user=appuser STATEMENT:  DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'message_reactions_id_seq') THEN CREATE SEQUENCE message_reactions_id_seq; END IF; END $$;",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f506;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb47eadfc4;t=644f2e1e4e051;x=8d04ed294a564ed2-0@a6",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:18.112050Z",
+    "severity": "INFO",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:31.301720135Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:18.284 UTC [1365650]: [2-1] db=appdb,user=appuser STATEMENT:  ALTER TABLE message_reactions ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f506;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb47eadfc4;t=644f2e1e4e051;x=8d04ed294a564ed2-0@a8",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:18.285518Z",
+    "severity": "INFO",
+    "labels": {
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:31.301720135Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:18.290 UTC [1365650]: [4-1] db=appdb,user=appuser STATEMENT:  DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'message_reactions_id_seq') THEN CREATE SEQUENCE message_reactions_id_seq; END IF; END $$;",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f506;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb47eadfc4;t=644f2e1e4e051;x=8d04ed294a564ed2-0@aa",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:18.290622Z",
+    "severity": "INFO",
+    "labels": {
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:31.301720135Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:18.514 UTC [1365648]: [2-1] db=appdb,user=appuser STATEMENT:  ALTER TABLE message_reactions ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f506;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb47eadfc4;t=644f2e1e4e051;x=8d04ed294a564ed2-0@ac",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:18.515814Z",
+    "severity": "INFO",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:31.301720135Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:18.520 UTC [1365648]: [4-1] db=appdb,user=appuser STATEMENT:  DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'message_reactions_id_seq') THEN CREATE SEQUENCE message_reactions_id_seq; END IF; END $$;",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f506;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb47eadfc4;t=644f2e1e4e051;x=8d04ed294a564ed2-0@ae",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:18.520867Z",
+    "severity": "INFO",
+    "labels": {
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:31.301720135Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:18.751 UTC [1365648]: [6-1] db=appdb,user=appuser STATEMENT:  ALTER TABLE message_reactions ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f506;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb47eadfc4;t=644f2e1e4e051;x=8d04ed294a564ed2-0@ag",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:18.752518Z",
+    "severity": "INFO",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:31.301720135Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:18.757 UTC [1365648]: [8-1] db=appdb,user=appuser STATEMENT:  DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'message_reactions_id_seq') THEN CREATE SEQUENCE message_reactions_id_seq; END IF; END $$;",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f506;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb47eadfc4;t=644f2e1e4e051;x=8d04ed294a564ed2-0@ai",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:18.758011Z",
+    "severity": "INFO",
+    "labels": {
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:31.301720135Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:30.827 UTC [1365663]: [1-1] db=,user= LOG:  automatic vacuum of table \"appdb.public.messages\": index scans: 1\npages: 0 removed, 512 remain, 512 scanned (100.00% of total)\ntuples: 12 removed, 5140 remain, 0 are dead but not yet removable\nremovable cutoff: 1043140, which was 0 XIDs old when operation ended\nnew relfrozenxid: 1043084, which is 110 XIDs ahead of previous value\nfrozen: 0 pages from table (0.00% of total) had 0 tuples frozen\nindex scan needed: 386 pages from table (75.39% of total) had 20483 dead item identifiers removed\nindex \"messages_pkey\": pages: 59 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nindex \"ix_messages_system_key\": pages: 27 in total, 13 newly deleted, 13 currently deleted, 0 reusable\nindex \"ix_messages_system_key_lower\": pages: 27 in total, 13 newly deleted, 13 currently deleted, 0 reusable\nindex \"ix_messages_request_time\": pages: 56 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nindex \"ix_messages_request_id_id\": pages: 59 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nindex \"ix_messages_read_fast\": pages: 57 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nindex \"ix_messages_req_vis_id\": pages: 56 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nindex \"ix_messages_req_vis_time\": pages: 57 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nindex \"ix_messages_unread_bsid_partial\": pages: 21 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nindex \"idx_messages_brid_ts\": pages: 56 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nindex \"ix_messages_request_type_time\": pages: 55 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nI/O timings: read: 0.024 ms, write: 0.037 ms\navg read rate: 0.299 MB/s, avg write rate: 1.644 MB/s\nbuffer usage: 2406 hits, 2 misses, 11 dirtied\nWAL usage: 1438 records, 9 full page images, 560635 bytes\nsystem usage: CPU: user: 0.02 s, system: 0.00 s, elapsed: 0.05 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f546;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb4994d86a;t=644f2e38ed8f7;x=6db4475fe87cadbb-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:30.828023Z",
+    "severity": "INFO",
+    "labels": {
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:32.868012176Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:30.873 UTC [1365663]: [2-1] db=,user= LOG:  automatic analyze of table \"appdb.public.messages\"\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 3.736 MB/s\nbuffer usage: 1411 hits, 0 misses, 22 dirtied\nsystem usage: CPU: user: 0.02 s, system: 0.00 s, elapsed: 0.04 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f546;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb4994d86a;t=644f2e38ed8f7;x=6db4475fe87cadbb-0@a2",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:30.873711Z",
+    "severity": "INFO",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:32.868012176Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:30.896 UTC [1365663]: [3-1] db=,user= LOG:  automatic analyze of table \"appdb.pg_catalog.pg_attribute\"\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 3.348 MB/s\nbuffer usage: 801 hits, 0 misses, 9 dirtied\nsystem usage: CPU: user: 0.01 s, system: 0.00 s, elapsed: 0.02 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f546;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb4994d86a;t=644f2e38ed8f7;x=6db4475fe87cadbb-0@a3",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:30.896765Z",
+    "severity": "INFO",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:32.868012176Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:30.897 UTC [1365663]: [4-1] db=,user= LOG:  automatic vacuum of table \"appdb.pg_catalog.pg_attrdef\": index scans: 1\npages: 0 removed, 7 remain, 7 scanned (100.00% of total)\ntuples: 32 removed, 99 remain, 0 are dead but not yet removable\nremovable cutoff: 1043142, which was 0 XIDs old when operation ended\nnew relfrozenxid: 1043092, which is 333 XIDs ahead of previous value\nfrozen: 0 pages from table (0.00% of total) had 0 tuples frozen\nindex scan needed: 7 pages from table (100.00% of total) had 96 dead item identifiers removed\nindex \"pg_attrdef_adrelid_adnum_index\": pages: 2 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nindex \"pg_attrdef_oid_index\": pages: 2 in total, 0 newly deleted, 0 currently deleted, 0 reusable\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 70.701 MB/s\nbuffer usage: 58 hits, 0 misses, 2 dirtied\nWAL usage: 25 records, 3 full page images, 26739 bytes\nsystem usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f546;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb4994d86a;t=644f2e38ed8f7;x=6db4475fe87cadbb-0@a4",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:30.898498Z",
+    "severity": "INFO",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:32.868012176Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:30.898 UTC [1365663]: [5-1] db=,user= LOG:  automatic analyze of table \"appdb.pg_catalog.pg_attrdef\"\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 7.812 MB/s\nbuffer usage: 107 hits, 0 misses, 1 dirtied\nsystem usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f546;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb4994d86a;t=644f2e38ed8f7;x=6db4475fe87cadbb-0@a5",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:30.899725Z",
+    "severity": "INFO",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:17:32.868012176Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:17:30.903 UTC [1365663]: [6-1] db=,user= LOG:  automatic analyze of table \"appdb.pg_catalog.pg_depend\"\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 11.719 MB/s\nbuffer usage: 126 hits, 0 misses, 6 dirtied\nsystem usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f57a;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb4995fe2b;t=644f2e38ffeb7;x=cb142d90b3dcce4-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-02T07:17:30.903223Z",
+    "severity": "INFO",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:18:05.467008917Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:19:31.939 UTC [20]: [14087-1] db=,user= LOG:  checkpoint starting: time",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f658;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb50ccdd5c;t=644f2eac6dde9;x=a7e2f885ec0ff52-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T07:19:31.939817Z",
+    "severity": "INFO",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:20:48.712027431Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:21:06.956 UTC [1365796]: [1-1] db=,user= LOG:  automatic vacuum of table \"cloudsqladmin.public.heartbeat\": index scans: 0\npages: 0 removed, 1 remain, 1 scanned (100.00% of total)\ntuples: 60 removed, 1 remain, 0 are dead but not yet removable\nremovable cutoff: 1043191, which was 0 XIDs old when operation ended\nnew relfrozenxid: 1043190, which is 125 XIDs ahead of previous value\nfrozen: 0 pages from table (0.00% of total) had 0 tuples frozen\nindex scan not needed: 0 pages from table (0.00% of total) had 0 dead item identifiers removed\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 45.956 MB/s\nbuffer usage: 41 hits, 0 misses, 1 dirtied\nWAL usage: 1 records, 1 full page images, 5421 bytes\nsystem usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f6cf;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb5676b525;t=644f2f070b5b2;x=76ecc268f32eb11c-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-02T07:21:06.956722Z",
+    "severity": "INFO",
+    "labels": {
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:21:33.568967273Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:21:06.959 UTC [1365796]: [2-1] db=,user= LOG:  automatic analyze of table \"cloudsqladmin.public.heartbeat\"\nI/O timings: read: 0.000 ms, write: 0.000 ms\navg read rate: 0.000 MB/s, avg write rate: 2.604 MB/s\nbuffer usage: 175 hits, 0 misses, 1 dirtied\nsystem usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f6cf;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb5676b525;t=644f2f070b5b2;x=76ecc268f32eb11c-0@a2",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T07:21:06.959525Z",
+    "severity": "INFO",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:21:33.568967273Z"
+  },
+  {
+    "textPayload": "2025-12-02 07:21:25.168 UTC [20]: [14088-1] db=,user= LOG:  checkpoint complete: wrote 1134 buffers (0.7%); 0 WAL file(s) added, 0 removed, 2 recycled; write=113.217 s, sync=0.005 s, total=113.229 s; sync files=64, longest=0.002 s, average=0.001 s; distance=42141 kB, estimate=42141 kB; lsn=3D/FD92FBE0, redo lsn=3D/FD92D4E8",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=33f6eb;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1eb578c9898;t=644f2f1869925;x=8bffa2848e321ff1-0@a1",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T07:21:25.168421Z",
+    "severity": "INFO",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T07:22:10.212299388Z"
+  }
+]

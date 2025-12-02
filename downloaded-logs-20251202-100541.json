@@ -1,0 +1,178 @@
+[
+  {
+    "textPayload": "2025-12-02 08:00:00.882 UTC [1367288]: [1-1] db=appdb,user=appuser ERROR:  column \"id\" of relation \"message_reactions\" is already an identity column",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=340598;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1ebe0966733;t=644f37a9067bf;x=67f88a7d7c78f677-0@a2",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T08:00:00.882780Z",
+    "severity": "ERROR",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T08:00:03.513532780Z"
+  },
+  {
+    "textPayload": "2025-12-02 08:00:00.890 UTC [1367288]: [3-1] db=appdb,user=appuser ERROR:  current transaction is aborted, commands ignored until end of transaction block",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=340598;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1ebe0966733;t=644f37a9067bf;x=67f88a7d7c78f677-0@a4",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T08:00:00.891292Z",
+    "severity": "ERROR",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T08:00:03.513532780Z"
+  },
+  {
+    "textPayload": "2025-12-02 08:00:01.028 UTC [1367291]: [1-1] db=appdb,user=appuser ERROR:  column \"id\" of relation \"message_reactions\" is already an identity column",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=340598;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1ebe0966733;t=644f37a9067bf;x=67f88a7d7c78f677-0@a6",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T08:00:01.030377Z",
+    "severity": "ERROR",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T08:00:03.513532780Z"
+  },
+  {
+    "textPayload": "2025-12-02 08:00:01.034 UTC [1367291]: [3-1] db=appdb,user=appuser ERROR:  current transaction is aborted, commands ignored until end of transaction block",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=340598;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1ebe0966733;t=644f37a9067bf;x=67f88a7d7c78f677-0@a8",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev"
+      }
+    },
+    "timestamp": "2025-12-02T08:00:01.034345Z",
+    "severity": "ERROR",
+    "labels": {
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T08:00:03.513532780Z"
+  },
+  {
+    "textPayload": "2025-12-02 08:00:01.125 UTC [1367288]: [5-1] db=appdb,user=appuser ERROR:  column \"id\" of relation \"message_reactions\" is already an identity column",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=340598;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1ebe0966733;t=644f37a9067bf;x=67f88a7d7c78f677-0@aa",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T08:00:01.126119Z",
+    "severity": "ERROR",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T08:00:03.513532780Z"
+  },
+  {
+    "textPayload": "2025-12-02 08:00:01.132 UTC [1367288]: [7-1] db=appdb,user=appuser ERROR:  current transaction is aborted, commands ignored until end of transaction block",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=340598;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1ebe0966733;t=644f37a9067bf;x=67f88a7d7c78f677-0@ac",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "region": "africa-south1",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T08:00:01.132606Z",
+    "severity": "ERROR",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "LOG_BUCKET_NUM": "18",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "PROJECT_NUMBER": "227610941821"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T08:00:03.513532780Z"
+  },
+  {
+    "textPayload": "2025-12-02 08:00:01.284 UTC [1367290]: [1-1] db=appdb,user=appuser ERROR:  column \"id\" of relation \"message_reactions\" is already an identity column",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=340598;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1ebe0966733;t=644f37a9067bf;x=67f88a7d7c78f677-0@ae",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1",
+        "project_id": "genial-venture-474508-v3"
+      }
+    },
+    "timestamp": "2025-12-02T08:00:01.285824Z",
+    "severity": "ERROR",
+    "labels": {
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442",
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "LOG_BUCKET_NUM": "18"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T08:00:03.513532780Z"
+  },
+  {
+    "textPayload": "2025-12-02 08:00:01.289 UTC [1367290]: [3-1] db=appdb,user=appuser ERROR:  current transaction is aborted, commands ignored until end of transaction block",
+    "insertId": "s=5baf8a532127427abdd21f7afa54bdb6;i=340598;b=a4699279a03846d9a0a7bd63a3d3da2e;m=1ebe0966733;t=644f37a9067bf;x=67f88a7d7c78f677-0@ag",
+    "resource": {
+      "type": "cloudsql_database",
+      "labels": {
+        "project_id": "genial-venture-474508-v3",
+        "database_id": "genial-venture-474508-v3:booking-app-dev",
+        "region": "africa-south1"
+      }
+    },
+    "timestamp": "2025-12-02T08:00:01.290092Z",
+    "severity": "ERROR",
+    "labels": {
+      "LOG_BUCKET_NUM": "18",
+      "PROJECT_NUMBER": "227610941821",
+      "INSTANCE_UID": "49-9e31a986-83f5-4e64-a974-33096a96a242",
+      "SOURCE_ID": "31386530313934366437326534613630e3b0c442"
+    },
+    "logName": "projects/genial-venture-474508-v3/logs/cloudsql.googleapis.com%2Fpostgres.log",
+    "receiveTimestamp": "2025-12-02T08:00:03.513532780Z"
+  }
+]
