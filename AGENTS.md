@@ -390,6 +390,42 @@ We cut the preview route latency by ≈10× without changing the JSON contract.
 
 See `backend/app/api/THREADS_PREVIEW_OPTIMIZATION.md` for details.
 
+## Artist Dashboard Booking Requests (Dec 2025)
+
+- What broke
+  - The artist dashboard “Requests to me” panel calls `GET /api/v1/booking-requests/me/artist`. When at least one booking request had `QuoteV2` rows attached, this endpoint began 500’ing with `"'dict' object has no attribute '_sa_instance_state'"`.
+  - Root cause: both `/me/client` and `/me/artist` paths were mutating the ORM `BookingRequest.quotes` relationship to hold **dicts** from `_prepare_quotes_for_response(...)` instead of `QuoteV2` entities, so SQLAlchemy’s relationship manager blew up when it tried to treat those dicts as instances.
+
+- Fix (backend)
+  - File: `backend/app/api/api_booking_request.py`
+    - `read_my_client_booking_requests()`:
+      - Still uses `crud_booking_request.get_booking_requests_with_last_message(...)` for list composition and preserves the `lite` path via `_to_lite_booking_request_response(...)`.
+      - For the full (non-lite) response, it no longer assigns dicts into `req.quotes`. Instead it:
+        - Calls `_prepare_quotes_for_response(list(req.quotes or []))` to build enriched quote payloads.
+        - Builds a Pydantic `BookingRequestResponse` via `BookingRequestResponse.model_validate(req)`.
+        - Overlays the enriched quotes on the response model using `model_copy(update={"quotes": quotes_data})`.
+      - Per-row validation failures are logged and skipped so one bad request doesn’t take down the whole list.
+    - `read_my_artist_booking_requests()`:
+      - Uses the same pattern as the client path: fetches ORM rows via `get_booking_requests_with_last_message(...)`, normalizes `created_at`/`updated_at`, then builds per-request `BookingRequestResponse` models with enriched `quotes` via `model_validate(...).model_copy(...)`.
+      - Wrapped the body in a `try/except` that logs a full traceback and context (`artist_id`, `skip`, `limit`) and returns a structured 500 via `error_response(...)` when an unexpected error occurs. This makes production failures debuggable without crashing the entire task tree.
+
+- Why this matters
+  - ORM instances remain “clean” (no dicts in relationship attributes), which avoids SQLAlchemy invariants breaking in future refactors.
+  - The response contract stays strongly typed through Pydantic (`BookingRequestResponse` with `quotes: List[QuoteRead]`), and quote preview enrichment lives at the serialization layer instead of leaking back into the model.
+  - The artist dashboard can safely show booking requests (including those with quotes) without 500s, and logs now include enough context to trace any future edge cases.
+
+## Realtime on Non-Chat Pages (Design Intent)
+
+- The header and layout intentionally keep realtime wiring active on **all** authenticated routes, not only `/inbox` or thread views.
+  - Files:
+    - `frontend/src/contexts/chat/RealtimeContext.tsx` — single global `RealtimeProvider` owning the WS/SSE connection and `unread_total` updates.
+    - `frontend/src/components/layout/MainLayout.tsx` — maintains a lightweight SSE `/api/v1/inbox/stream?role=artist|client` outside the Inbox route for unread snapshots (kept, not removed).
+    - `frontend/src/components/layout/Header.tsx` and `frontend/src/components/layout/MobileBottomNav.tsx` — consume unread counts to surface message badges in the header and mobile nav.
+- This is **by design**: providers should see new-message badges while they are on dashboard, profile, or other non-chat pages, without having the Inbox open.
+- Do not “optimize away” the header’s realtime WS/SSE on non-chat routes purely for perceived performance; any changes here must preserve:
+  - Global awareness of new messages via header/bottom-nav badges.
+  - Reliable `unread_total` updates from the backend (`inbox:unread_total` events) even when the Inbox UI is not active.
+
 ## Threads Preview Roles (Dec 2025)
 
 - `GET /api/v1/message-threads/preview` supports `role=client`, `role=artist`, and `role=auto`.
