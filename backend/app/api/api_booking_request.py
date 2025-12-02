@@ -994,20 +994,35 @@ def read_my_artist_booking_requests(
     """
     Retrieve booking requests made to the current artist.
     """
-    requests = crud.crud_booking_request.get_booking_requests_with_last_message(
-        db=db,
-        artist_id=current_artist.id,
-        skip=skip,
-        limit=limit,
-        viewer=models.VisibleTo.ARTIST,
-    )
-    for req in requests:
-        if getattr(req, "created_at", None) is None:
-            req.created_at = datetime.utcnow()
-        if getattr(req, "updated_at", None) is None:
-            req.updated_at = req.created_at
-        req.quotes = _prepare_quotes_for_response(list(req.quotes or []))
-    return requests
+    try:
+        requests = crud.crud_booking_request.get_booking_requests_with_last_message(
+            db=db,
+            artist_id=current_artist.id,
+            skip=skip,
+            limit=limit,
+            viewer=models.VisibleTo.ARTIST,
+        )
+        for req in requests:
+            if getattr(req, "created_at", None) is None:
+                req.created_at = datetime.utcnow()
+            if getattr(req, "updated_at", None) is None:
+                req.updated_at = req.created_at
+            req.quotes = _prepare_quotes_for_response(list(req.quotes or []))
+        return requests
+    except Exception:
+        # Log full traceback with context so production errors are debuggable.
+        logger.exception(
+            "Failed to load artist booking requests: artist_id=%s skip=%s limit=%s",
+            getattr(current_artist, "id", None),
+            skip,
+            limit,
+        )
+        # Preserve 500 semantics but return a explicit error payload.
+        raise error_response(
+            "Failed to load booking requests",
+            {"non_field_error": "internal_error"},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @router.get(
