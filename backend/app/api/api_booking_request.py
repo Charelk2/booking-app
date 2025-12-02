@@ -961,8 +961,6 @@ def read_my_client_booking_requests(
             req.created_at = datetime.utcnow()
         if getattr(req, "updated_at", None) is None:
             req.updated_at = req.created_at
-        if not lite:
-            req.quotes = _prepare_quotes_for_response(list(req.quotes or []))
     try:
         response.headers["ETag"] = etag
         response.headers["Cache-Control"] = "no-cache, private"
@@ -975,7 +973,25 @@ def read_my_client_booking_requests(
         # image arrays on service provider profiles. This keeps the response
         # both smaller on the wire and faster to serialize.
         return [_to_lite_booking_request_response(req) for req in requests]
-    return requests
+
+    # Full response: build Pydantic models per request and attach enriched quotes
+    out: list[schemas.BookingRequestResponse] = []
+    for req in requests:
+        quotes_data = _prepare_quotes_for_response(list(getattr(req, "quotes", []) or []))
+        try:
+            base = schemas.BookingRequestResponse.model_validate(req)
+        except Exception:
+            # If validation fails for a particular row, skip it rather than failing the whole list.
+            logger.exception(
+                "Failed to validate booking request for client list: user_id=%s request_id=%s",
+                getattr(current_user, "id", None),
+                getattr(req, "id", None),
+            )
+            continue
+        if quotes_data is not None:
+            base = base.model_copy(update={"quotes": quotes_data})
+        out.append(base)
+    return out
 
 
 @router.get(
@@ -1002,13 +1018,26 @@ def read_my_artist_booking_requests(
             limit=limit,
             viewer=models.VisibleTo.ARTIST,
         )
+        responses: list[schemas.BookingRequestResponse] = []
         for req in requests:
             if getattr(req, "created_at", None) is None:
                 req.created_at = datetime.utcnow()
             if getattr(req, "updated_at", None) is None:
                 req.updated_at = req.created_at
-            req.quotes = _prepare_quotes_for_response(list(req.quotes or []))
-        return requests
+            quotes_data = _prepare_quotes_for_response(list(getattr(req, "quotes", []) or []))
+            try:
+                base = schemas.BookingRequestResponse.model_validate(req)
+            except Exception:
+                logger.exception(
+                    "Failed to validate booking request for artist list: artist_id=%s request_id=%s",
+                    getattr(current_artist, "id", None),
+                    getattr(req, "id", None),
+                )
+                continue
+            if quotes_data is not None:
+                base = base.model_copy(update={"quotes": quotes_data})
+            responses.append(base)
+        return responses
     except Exception:
         # Log full traceback with context so production errors are debuggable.
         logger.exception(
