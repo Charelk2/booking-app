@@ -48,7 +48,7 @@ export default function PrivacyPage() {
         </aside>
 
         <article className="prose prose-slate max-w-none rounded-3xl bg-white p-8 text-slate-900 shadow-sm ring-1 ring-slate-200 prose-headings:text-slate-900 prose-headings:font-semibold prose-p:text-slate-800 prose-li:text-slate-800 prose-strong:text-slate-900 prose-a:text-slate-900 prose-a:font-semibold prose-a:underline-offset-4 hover:prose-a:underline prose-h2:mt-10 prose-h2:pt-2 prose-h3:mt-6 prose-h3:pt-1 prose-p:mt-3 prose-ul:my-3 prose-ol:my-3 lg:prose-lg">
-          <h2 id="intro">1. Introduction</h2>
+          <h2 id="intro" className="font-semibold">1. Introduction</h2>
           <p>
             This Privacy Policy explains how Booka SA Pty Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) collects,
             uses, discloses, and protects personal information when Users (&ldquo;you&rdquo;, &ldquo;Clients&rdquo;,
@@ -56,8 +56,8 @@ export default function PrivacyPage() {
             Personal Information Act, 4 of 2013 (POPIA).
           </p>
 
-          <h2 id="info">2. Information We Collect</h2>
-          <h3>2.1 Information Provided Directly by Users</h3>
+          <h2 id="info" className="font-semibold">2. Information We Collect</h2>
+          <h3 className="font-semibold">2.1 Information Provided Directly by Users</h3>
           <p>Clients:</p>
           <ul>
             <li>Name and surname</li>
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
             <li>Banking details for payouts</li>
           </ul>
 
-          <h3>2.2 Automatically Collected Information</h3>
+          <h3 className="font-semibold">2.2 Automatically Collected Information</h3>
           <ul>
             <li>IP address</li>
             <li>Device and browser details</li>
@@ -83,10 +83,10 @@ export default function PrivacyPage() {
             <li>Cookies and tracking data</li>
           </ul>
 
-          <h3>2.3 Third-Party Information</h3>
+          <h3 className="font-semibold">2.3 Third-Party Information</h3>
           <p>We may receive information from payment gateways, social login services, and public sources.</p>
 
-          <h2 id="use">3. How We Use Your Information</h2>
+          <h2 id="use" className="font-semibold">3. How We Use Your Information</h2>
           <ul>
             <li>Operating the Platform</li>
             <li>Booking processing and confirmations</li>
@@ -96,10 +96,10 @@ export default function PrivacyPage() {
             <li>Analytics and improvements</li>
           </ul>
 
-          <h2 id="legal">4. Legal Basis for Processing (POPIA)</h2>
+          <h2 id="legal" className="font-semibold">4. Legal Basis for Processing (POPIA)</h2>
           <p>We process personal information based on consent, contractual necessity, legal obligations, and legitimate interests.</p>
 
-          <h2 id="sharing">5. Sharing of Personal Information</h2>
+          <h2 id="sharing" className="font-semibold">5. Sharing of Personal Information</h2>
           <p>We may share information with:</p>
           <ul>
             <li>Service Providers (to fulfill bookings)</li>
@@ -108,16 +108,16 @@ export default function PrivacyPage() {
             <li>Legal authorities if required</li>
           </ul>
 
-          <h2 id="cookies">6. Cookies and Tracking</h2>
+          <h2 id="cookies" className="font-semibold">6. Cookies and Tracking</h2>
           <p>We use cookies for performance, analytics, and user experience. Users may disable cookies in browser settings.</p>
 
-          <h2 id="security">7. Data Storage and Security</h2>
+          <h2 id="security" className="font-semibold">7. Data Storage and Security</h2>
           <p>We implement reasonable technical and organizational measures including encryption, secure servers, and role-based access.</p>
 
-          <h2 id="retention">8. Data Retention</h2>
+          <h2 id="retention" className="font-semibold">8. Data Retention</h2>
           <p>Data is retained only as long as necessary for service provision, legal compliance, or business operations. Users may request deletion of personal data.</p>
 
-          <h2 id="rights">9. Your POPIA Rights</h2>
+          <h2 id="rights" className="font-semibold">9. Your POPIA Rights</h2>
           <p>You may request:</p>
           <ul>
             <li>Access to your data</li>
@@ -127,16 +127,16 @@ export default function PrivacyPage() {
             <li>Withdrawal of consent</li>
           </ul>
 
-          <h2 id="children">10. Children's Privacy</h2>
+          <h2 id="children" className="font-semibold">10. Children's Privacy</h2>
           <p>The Platform is not for users under 18 years old. We do not knowingly collect minor data.</p>
 
-          <h2 id="transfers">11. International Data Transfers</h2>
+          <h2 id="transfers" className="font-semibold">11. International Data Transfers</h2>
           <p>Any transfers outside South Africa are protected by POPIA-compliant safeguards.</p>
 
-          <h2 id="changes">12. Changes to This Policy</h2>
+          <h2 id="changes" className="font-semibold">12. Changes to This Policy</h2>
           <p>We may update this Privacy Policy. Continued use of the Platform means acceptance of updates.</p>
 
-          <h2 id="contact">13. Contact Information</h2>
+          <h2 id="contact" className="font-semibold">13. Contact Information</h2>
           <p className="not-prose mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 shadow-sm">
             <span className="block font-semibold text-slate-900">Booka SA Pty Ltd</span>
             <span className="mt-1 block text-sm text-slate-700">

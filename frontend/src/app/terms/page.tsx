@@ -51,7 +51,7 @@ export default function TermsPage() {
         </aside>
 
         <article className="prose prose-slate max-w-none rounded-3xl bg-white p-8 text-slate-900 shadow-sm ring-1 ring-slate-200 prose-headings:text-slate-900 prose-headings:font-semibold prose-p:text-slate-800 prose-li:text-slate-800 prose-strong:text-slate-900 prose-a:text-slate-900 prose-a:font-semibold prose-a:underline-offset-4 hover:prose-a:underline prose-h2:mt-10 prose-h2:pt-2 prose-h3:mt-6 prose-h3:pt-1 prose-p:mt-3 prose-ul:my-3 prose-ol:my-3 lg:prose-lg">
-          <h2 id="platform">1. The Platform</h2>
+          <h2 id="platform" className="font-semibold">1. The Platform</h2>
           <p>
             Booka provides an online platform that connects Service Providers (people or companies offering event-related
             services) with Clients (people seeking services). Booka does not provide the services directly, and we are not a
@@ -62,7 +62,7 @@ export default function TermsPage() {
             <li>We act as a facilitator of bookings, not as the employer or agent of Service Providers.</li>
           </ul>
 
-          <h2 id="using">2. Using Booka</h2>
+          <h2 id="using" className="font-semibold">2. Using Booka</h2>
           <ul>
             <li>You must be at least 18 years old to use the Platform.</li>
             <li>You are responsible for all content you post and all interactions with other users.</li>
@@ -73,7 +73,7 @@ export default function TermsPage() {
             <li>Misuse may result in account suspension.</li>
           </ul>
 
-          <h2 id="providers">3. Providers</h2>
+          <h2 id="providers" className="font-semibold">3. Providers</h2>
           <ul>
             <li>Providers must be punctual, professional, and communicate clearly.</li>
             <li>You are an independent contractor, not an employee, agent, partner, or representative of Booka.</li>
@@ -83,7 +83,7 @@ export default function TermsPage() {
             <li>Each Service Provider is responsible for the quality and execution of the service they offer.</li>
           </ul>
 
-          <h2 id="clients">4. Clients</h2>
+          <h2 id="clients" className="font-semibold">4. Clients</h2>
           <ul>
             <li>You agree to provide accurate information, ensure safety, allow setup access, and pay fees on time.</li>
             <li>You can search, book, and pay for services offered by Providers.</li>
@@ -94,35 +94,35 @@ export default function TermsPage() {
             </li>
           </ul>
 
-          <h2 id="travel">5. Travel, Setup and Logistics</h2>
+          <h2 id="travel" className="font-semibold">5. Travel, Setup and Logistics</h2>
           <ul>
             <li>Clients must ensure venue accessibility and safety.</li>
             <li>Additional fees may apply for travel, accommodation, or special requirements.</li>
             <li>Clients must ensure all necessary permits and power sources are available.</li>
           </ul>
 
-          <h2 id="payments">6. Payments &amp; Fees</h2>
+          <h2 id="payments" className="font-semibold">6. Payments &amp; Fees</h2>
           <ul>
             <li>Payments may be processed through Booka's payment system.</li>
             <li>Providers may set their own prices, but Booka may collect a service fee as described on the Site.</li>
             <li>Booka is not responsible for failed payments or disputes over fees; these must be resolved directly between Providers and Clients.</li>
           </ul>
 
-          <h2 id="ip">7. Intellectual Property</h2>
+          <h2 id="ip" className="font-semibold">7. Intellectual Property</h2>
           <ul>
             <li>Booka owns all rights to the Site and its content (logos, text, graphics, code).</li>
             <li>You may not copy, distribute, or use Booka's intellectual property without permission.</li>
             <li>Providers may only use Booka's content in ways approved by Booka.</li>
           </ul>
 
-          <h2 id="content">8. User Content</h2>
+          <h2 id="content" className="font-semibold">8. User Content</h2>
           <ul>
             <li>You are responsible for anything you post or upload to Booka.</li>
             <li>You may not post content that is illegal, harmful, or infringes others' rights.</li>
             <li>Booka can remove content at our discretion but is not obligated to monitor or review all content.</li>
           </ul>
 
-          <h2 id="liability">9. Disclaimers &amp; Limitations of Liability</h2>
+          <h2 id="liability" className="font-semibold">9. Disclaimers &amp; Limitations of Liability</h2>
           <ul>
             <li>We are not liable for performance issues, event disruptions, or negligence by the Client or venue.</li>
             <li>Booka provides the Site &ldquo;as is&rdquo; and does not guarantee that it will be error-free or uninterrupted.</li>
@@ -130,17 +130,17 @@ export default function TermsPage() {
             <li>To the maximum extent allowed by law, Booka disclaims all liability for actions of Providers, Clients, or other users, or for the quality, safety, or legality of any services offered.</li>
           </ul>
 
-          <h2 id="disputes">10. Disputes</h2>
+          <h2 id="disputes" className="font-semibold">10. Disputes</h2>
           <p>Disputes should be resolved between Client and Provider; we may assist but are not obligated to.</p>
 
-          <h2 id="termination">11. Termination</h2>
+          <h2 id="termination" className="font-semibold">11. Termination</h2>
           <ul>
             <li>Booka may suspend or terminate your access if you violate these Terms.</li>
             <li>You may also stop using Booka at any time.</li>
             <li>Sections that should survive termination (like disclaimers and liability limits) will remain in effect.</li>
           </ul>
 
-          <h2 id="cancellations">12. Cancellation &amp; Refund Policy</h2>
+          <h2 id="cancellations" className="font-semibold">12. Cancellation &amp; Refund Policy</h2>
           <ul>
             <li>Client cancellations must be made in writing.</li>
             <li>
@@ -153,26 +153,26 @@ export default function TermsPage() {
             </li>
           </ul>
 
-          <h2 id="law">13. Governing Law</h2>
+          <h2 id="law" className="font-semibold">13. Governing Law</h2>
           <ul>
             <li>These Terms are governed by the laws of South Africa.</li>
             <li>Any disputes will be resolved in the courts of South Africa.</li>
           </ul>
 
-          <h2 id="popia">14. POPIA Compliance</h2>
+          <h2 id="popia" className="font-semibold">14. POPIA Compliance</h2>
           <p>
             We comply with the Protection of Personal Information Act. Your information is used only for booking and
             communication purposes and will not be shared with third parties without your consent.
           </p>
 
-          <h2 id="changes">15. Changes to Terms</h2>
+          <h2 id="changes" className="font-semibold">15. Changes to Terms</h2>
           <ul>
             <li>Booka may update these Terms from time to time.</li>
             <li>The latest version will always be posted on the Site.</li>
             <li>Continued use of Booka after changes means you accept the new Terms.</li>
           </ul>
 
-          <h2 id="contact">16. Contact</h2>
+          <h2 id="contact" className="font-semibold">16. Contact</h2>
           <p className="not-prose mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 shadow-sm">
             <span className="block font-semibold text-slate-900">Booka SA Pty Ltd</span>
             <span className="mt-1 block text-sm text-slate-700">
