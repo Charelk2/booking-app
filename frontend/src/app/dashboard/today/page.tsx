@@ -44,10 +44,8 @@ export default function TodayPage() {
     bookingRequests,
     dashboardStats,
   } = useArtistDashboardData(user?.id); // same hook as artist dashboard
-  // :contentReference[oaicite:12]{index=12}
 
-  const { count: unreadThreads } = useUnreadThreadsCount(30000); // same interval as header/inbox
-  // :contentReference[oaicite:13]{index=13}
+  const { count: unreadThreads } = useUnreadThreadsCount();
 
   if (!user || authLoading) {
     return (
