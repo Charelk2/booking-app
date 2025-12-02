@@ -75,9 +75,8 @@ function PasswordField({
           id={id}
           type={visible ? 'text' : 'password'}
           className={[
-            'block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm',
-            'focus:outline-none focus:ring-2 focus:ring-brand/60 focus:border-brand',
-            'dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700',
+            'block w-full rounded-md border border-transparent bg-white px-3 py-2 text-sm text-gray-900 shadow-sm',
+            'focus:outline-none focus:ring-1 focus:ring-black focus:border-black',
             error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '',
           ].join(' ')}
           placeholder={placeholder}
@@ -471,7 +470,7 @@ export default function AuthPage() {
           </header>
 
           {/* Auth Card */}
-          <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+          <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-8">
             {/* Tabs (Sign in / Create account) */}
             <nav
               role="tablist"
@@ -555,7 +554,11 @@ export default function AuthPage() {
                   </div>
                 )}
 
-                <Button type="submit" disabled={signingIn} className="w-full">
+                <Button
+                  type="submit"
+                  disabled={signingIn}
+                  className="w-full rounded-lg bg-black px-3 py-3 text-sm font-semibold text-white hover:bg-gray-900"
+                >
                   {signingIn ? 'Signing in…' : 'Sign in'}
                 </Button>
 
