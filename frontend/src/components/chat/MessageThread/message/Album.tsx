@@ -1,35 +1,108 @@
 // components/chat/MessageThread/message/Album.tsx
 import * as React from 'react';
 
-type AlbumItem = { id: number; url: string };
+export type AlbumItem = {
+  id: number;
+  url: string;
+  alt?: string;
+  ariaLabel?: string;
+};
 
-export default function Album({ items, onMediaLoad, onOpenItem }: { items: AlbumItem[]; onMediaLoad?: () => void; onOpenItem?: (index: number) => void }) {
+export type AlbumProps = {
+  items: AlbumItem[];
+  onMediaLoad?: () => void;
+  onOpenItem?: (index: number) => void;
+  className?: string;
+  aspectRatio?: number; // width / height
+  objectFit?: 'cover' | 'contain';
+};
+
+const MAX_TILES = 4;
+const DEFAULT_ASPECT_RATIO = 3 / 2;
+
+const AlbumComponent: React.FC<AlbumProps> = ({
+  items,
+  onMediaLoad,
+  onOpenItem,
+  className,
+  aspectRatio = DEFAULT_ASPECT_RATIO,
+  objectFit = 'cover',
+}) => {
   if (!Array.isArray(items) || items.length === 0) return null;
-  const maxTiles = 4;
-  const visible = items.slice(0, maxTiles);
-  const extraCount = items.length > maxTiles ? items.length - maxTiles : 0;
+
+  const ratio = aspectRatio > 0 ? aspectRatio : DEFAULT_ASPECT_RATIO;
+  const paddingTop = `${(1 / ratio) * 100}%`;
+  const visible = items.slice(0, MAX_TILES);
+  const extraCount = Math.max(0, items.length - MAX_TILES);
+  const hasExtra = extraCount > 0;
+  const gridCols = visible.length === 1 ? 'grid-cols-1' : 'grid-cols-2';
+  const objectFitClass = objectFit === 'contain' ? 'object-contain' : 'object-cover';
+
   return (
-    <div className="grid grid-cols-2 gap-1 w-full max-w-[420px]">
-      {visible.map((it, idx) => {
-        const isLast = idx === visible.length - 1 && extraCount > 0;
+    <div
+      className={[
+        'grid w-full max-w-[420px] gap-1',
+        gridCols,
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {visible.map((item, index) => {
+        const absoluteIndex = items.findIndex((candidate) => candidate.id === item.id);
+        const itemIndex = absoluteIndex === -1 ? index : absoluteIndex;
+        const showExtraOverlay = hasExtra && index === visible.length - 1;
+
+        const description = item.alt?.trim();
+        const labelBase =
+          item.ariaLabel?.trim() ||
+          (description
+            ? `${description} (image ${itemIndex + 1} of ${items.length})`
+            : `Open image ${itemIndex + 1} of ${items.length}`);
+        const ariaLabel = showExtraOverlay ? `${labelBase}, plus ${extraCount} more` : labelBase;
+
+        const altText = description || 'Image attachment';
+
         return (
-          <div key={it.id} className="relative w-full" style={{ paddingTop: '66.66%' }}>
+          <div key={item.id} className="relative w-full" style={{ paddingTop }}>
             <button
               type="button"
-              aria-label="Open image"
-              className="absolute inset-0 w-full h-full block"
-              onClick={() => onOpenItem?.(idx)}
+              aria-label={ariaLabel}
+              className={[
+                'group absolute inset-0 block h-full w-full rounded-lg',
+                'focus-visible:outline-none',
+                'focus-visible:ring-2 focus-visible:ring-offset-2',
+                'focus-visible:ring-white/80 focus-visible:ring-offset-black/60',
+                'active:scale-[0.98] transition-transform duration-100 ease-out',
+                'touch-manipulation',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => onOpenItem?.(itemIndex)}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={it.url}
-                alt="Image attachment"
-                className="absolute inset-0 w-full h-full object-cover rounded-lg"
+                src={item.url}
+                alt={altText}
+                loading="lazy"
+                draggable={false}
+                className={[
+                  'absolute inset-0 h-full w-full rounded-lg',
+                  objectFitClass,
+                  'transition-transform duration-150 ease-out',
+                  'group-hover:scale-[1.03] group-active:scale-[0.97]',
+                ].join(' ')}
                 onLoad={onMediaLoad}
               />
-              {isLast && (
-                <div className="absolute inset-0 rounded-lg bg-black/40 flex items-center justify-center">
-                  <span className="px-3 py-1.5 rounded-full bg-black/70 text-white text-sm font-semibold">
+
+              <div className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-black/5 dark:ring-white/10" />
+
+              {showExtraOverlay && (
+                <div
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/45"
+                  aria-hidden="true"
+                >
+                  <span className="rounded-full bg-black/80 px-3 py-1.5 text-sm font-semibold text-white">
                     +{extraCount}
                   </span>
                 </div>
@@ -40,4 +113,8 @@ export default function Album({ items, onMediaLoad, onOpenItem }: { items: Album
       })}
     </div>
   );
-}
+};
+
+AlbumComponent.displayName = 'Album';
+
+export default React.memo(AlbumComponent);
