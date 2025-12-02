@@ -843,6 +843,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
             ? {
                 ...m,
                 _deleted: true,
+                content: '',
                 attachment_url: null,
                 attachment_meta: null,
                 reactions: {},
@@ -1429,6 +1430,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
                   ? {
                       ...m,
                       _deleted: true,
+                      content: '',
                       attachment_url: null,
                       attachment_meta: null,
                       reactions: {},

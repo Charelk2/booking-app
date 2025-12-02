@@ -1,11 +1,14 @@
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
+import logging
 
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func, or_, and_
 
 from .. import models, schemas
 
+
+logger = logging.getLogger(__name__)
 
 DELETED_SYSTEM_KEY = "message_deleted_v1"
 DELETED_CONTENT = "This message was deleted."
@@ -346,9 +349,9 @@ def mark_message_deleted(msg: models.Message) -> None:
             and (msg.system_key or "").startswith("message_deleted")
         ):
             return
-    except Exception:
-        # Best-effort; if enums misbehave, fall back to simple mutation below.
-        pass
+    except Exception as exc:
+        # Best-effort; if enums misbehave, log and fall back to simple mutation.
+        logger.warning("mark_message_deleted idempotency check failed: %r", exc)
 
     msg.message_type = models.MessageType.SYSTEM
     msg.system_key = DELETED_SYSTEM_KEY
@@ -371,7 +374,8 @@ def is_deleted_message(msg: models.Message) -> bool:
             msg.message_type == models.MessageType.SYSTEM
             and (msg.system_key or "").startswith("message_deleted")
         )
-    except Exception:
+    except Exception as exc:
+        logger.warning("is_deleted_message check failed: %r", exc)
         return False
 
 
@@ -405,6 +409,13 @@ def get_unread_counts_for_user_threads(
         )
         .filter(models.Message.sender_id != user_id)
         .filter(or_(models.Message.is_read.is_(False), models.Message.is_read.is_(None)))
+        # Tombstone rows should not contribute to unread counts.
+        .filter(
+            or_(
+                models.Message.system_key.is_(None),
+                models.Message.system_key != DELETED_SYSTEM_KEY,
+            )
+        )
     )
     if thread_ids:
         query = query.filter(models.Message.booking_request_id.in_(thread_ids))
@@ -446,6 +457,13 @@ def get_unread_message_totals_for_user(
         )
         .filter(models.Message.sender_id != user_id)
         .filter(or_(models.Message.is_read.is_(False), models.Message.is_read.is_(None)))
+        # Exclude tombstone rows from aggregate unread totals.
+        .filter(
+            or_(
+                models.Message.system_key.is_(None),
+                models.Message.system_key != DELETED_SYSTEM_KEY,
+            )
+        )
         .one()
     )
     return int(count or 0), latest_ts
