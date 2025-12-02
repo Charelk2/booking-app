@@ -27,5 +27,4 @@ describe('GroupRenderer tombstone rendering', () => {
       screen.getByText(/This message has been deleted/i),
     ).toBeInTheDocument();
   });
-}
-
+});
