@@ -289,11 +289,26 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         let label = '';
         if (base && Number.isFinite(base.getTime())) {
           const now = new Date();
-          const sameDay =
-            base.getFullYear() === now.getFullYear() &&
-            base.getMonth() === now.getMonth() &&
-            base.getDate() === now.getDate();
-          label = sameDay ? `Last seen ${format(base, 'HH:mm')}` : `Last seen ${format(base, 'd LLL HH:mm')}`;
+          const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+          const startOfBaseDay = new Date(base.getFullYear(), base.getMonth(), base.getDate()).getTime();
+          const diffDays = Math.floor((startOfToday - startOfBaseDay) / (24 * 60 * 60 * 1000));
+
+          if (diffDays <= 0) {
+            // Today
+            label = `Last seen ${format(base, 'HH:mm')}`;
+          } else if (diffDays === 1) {
+            // Yesterday
+            label = `Last seen yesterday ${format(base, 'HH:mm')}`;
+          } else if (diffDays >= 2 && diffDays <= 6) {
+            // 2–6 days ago
+            label = `Last seen ${diffDays} days ago`;
+          } else if (diffDays >= 7 && diffDays <= 13) {
+            // About a week ago
+            label = 'Last seen a week ago';
+          } else {
+            // Older: fall back to absolute date/time
+            label = `Last seen ${format(base, 'd LLL HH:mm')}`;
+          }
         }
         onPresenceUpdate({ label, typing: false, status: null });
       } catch {
