@@ -60,7 +60,7 @@ function sumFromCache(): number {
   }
 }
 
-export default function useUnreadThreadsCount() {
+export default function useUnreadThreadsCount(p0?: number) {
   const { user } = useAuth();
   const [count, setCount] = useState(0);
   const countRef = useRef(0);
