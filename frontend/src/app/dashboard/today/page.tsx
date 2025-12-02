@@ -53,7 +53,7 @@ export default function TodayPage() {
     return (
       <MainLayout>
         <div className="flex min-h-screen items-center justify-center">
-          <Spinner />
+          <Spinner size="lg" />
         </div>
       </MainLayout>
     );
@@ -63,7 +63,7 @@ export default function TodayPage() {
     return (
       <MainLayout>
         <div className="flex min-h-screen items-center justify-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-2 border-brand-dark border-t-transparent" />
+          <Spinner size="lg" />
         </div>
       </MainLayout>
     );
@@ -151,7 +151,7 @@ export default function TodayPage() {
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Today</h1>
             <p className="text-sm text-gray-500">
-              {format(now, "EEEE, d MMM yyyy")} · A snapshot of your shows, tasks and messages.
+              {format(now, "EEEE, d MMM yyyy")} · A snapshot of today&apos;s shows, upcoming gigs, and tasks.
             </p>
           </div>
           {/* Today / Upcoming segmented control */}
@@ -165,7 +165,7 @@ export default function TodayPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Today
+              Today ({todayBookings.length})
             </button>
             <button
               type="button"
@@ -176,7 +176,7 @@ export default function TodayPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Next 7 days
+              Next 7 days ({upcomingSoon.length})
             </button>
           </div>
         </header>
@@ -231,9 +231,7 @@ export default function TodayPage() {
                         <div className="mt-1 text-xs text-gray-500">
                           {format(
                             new Date(booking.start_time),
-                            view === 'today'
-                              ? 'HH:mm – MMM d, yyyy'
-                              : 'EEE, MMM d · HH:mm',
+                            'MMM d, yyyy h:mm a',
                           )}
                         </div>
                       </div>
