@@ -5,15 +5,15 @@ import Link from 'next/link';
 export default function PrivacyPage() {
   return (
     <main className="bg-slate-50 pb-16 pt-10 text-slate-900">
-      <section className="mx-auto max-w-6xl rounded-3xl bg-amber-300 px-8 py-10 shadow-lg ring-1 ring-amber-200 sm:px-12 sm:py-12">
-        <div className="max-w-3xl space-y-4">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-900/80">Privacy &amp; Data</p>
-          <h1 className="text-4xl font-semibold leading-tight text-amber-950 sm:text-5xl">Booka Privacy Policy</h1>
-          <p className="text-lg leading-relaxed text-amber-950/90">
+      <section className="mx-auto max-w-6xl rounded-3xl bg-slate-950 px-10 py-12 shadow-lg ring-1 ring-slate-800 sm:px-14 sm:py-14">
+        <div className="max-w-3xl space-y-4 text-white">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">Privacy &amp; Data</p>
+          <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">Booka Privacy Policy</h1>
+          <p className="text-lg leading-relaxed text-white/85">
             How we collect, use, store, and protect your information when you book through Booka or provide services on our
             platform.
           </p>
-          <p className="text-sm font-medium text-amber-950/80">Last Updated: November 2025</p>
+          <p className="text-sm font-medium text-white/70">Last Updated: November 2025</p>
         </div>
       </section>
 
@@ -47,7 +47,7 @@ export default function PrivacyPage() {
           </nav>
         </aside>
 
-        <article className="prose prose-slate max-w-none rounded-3xl bg-white p-8 text-slate-900 shadow-sm ring-1 ring-slate-200 prose-headings:text-slate-900 prose-p:text-slate-800 prose-li:text-slate-800 prose-strong:text-slate-900 prose-a:text-slate-900 prose-a:font-semibold prose-a:underline-offset-4 hover:prose-a:underline lg:prose-lg">
+        <article className="prose prose-slate max-w-none rounded-3xl bg-white p-8 text-slate-900 shadow-sm ring-1 ring-slate-200 prose-headings:text-slate-900 prose-p:text-slate-800 prose-li:text-slate-800 prose-strong:text-slate-900 prose-a:text-slate-900 prose-a:font-semibold prose-a:underline-offset-4 hover:prose-a:underline prose-h2:mt-10 prose-h2:pt-2 prose-h3:mt-6 prose-h3:pt-1 prose-p:mt-3 prose-ul:my-3 prose-ol:my-3 lg:prose-lg">
           <h2 id="intro">1. Introduction</h2>
           <p>
             This Privacy Policy explains how Booka SA Pty Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) collects,
