@@ -423,7 +423,10 @@ export default function GroupRenderer({
                     ) : null}
                   </div>
                 );
-                const isDeleted = Boolean((m as any)?._deleted);
+                const isBackendDeleted =
+                  String((m as any)?.message_type || '').toUpperCase() === 'SYSTEM' &&
+                  String((m as any)?.system_key || '').toLowerCase().startsWith('message_deleted');
+                const isDeleted = Boolean((m as any)?._deleted) || isBackendDeleted;
                 if (isDeleted) {
                   return (
                     <Bubble fromSelf={fromSelfMsg}>

@@ -1733,8 +1733,14 @@ def delete_message(
                 status.HTTP_403_FORBIDDEN,
             )
 
-    ok = crud.crud_message.delete_message(db, message_id)
-    if not ok:
+    # Soft delete: transform the row into a tombstone instead of hard-deleting.
+    try:
+        crud.crud_message.mark_message_deleted(msg)
+        db.add(msg)
+        db.commit()
+        db.refresh(msg)
+    except Exception:
+        db.rollback()
         raise error_response(
             "Delete failed",
             {"message_id": "delete_failed"},

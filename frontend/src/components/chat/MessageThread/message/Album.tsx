@@ -1,5 +1,6 @@
 // components/chat/MessageThread/message/Album.tsx
 import * as React from 'react';
+import clsx from 'clsx';
 
 export type AlbumItem = {
   id: number;
@@ -39,15 +40,7 @@ const AlbumComponent: React.FC<AlbumProps> = ({
   const objectFitClass = objectFit === 'contain' ? 'object-contain' : 'object-cover';
 
   return (
-    <div
-      className={[
-        'grid w-full max-w-[420px] gap-1',
-        gridCols,
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
+    <div className={clsx('grid w-full max-w-[420px] gap-1', gridCols, className)}>
       {visible.map((item, index) => {
         const absoluteIndex = items.findIndex((candidate) => candidate.id === item.id);
         const itemIndex = absoluteIndex === -1 ? index : absoluteIndex;
@@ -68,16 +61,14 @@ const AlbumComponent: React.FC<AlbumProps> = ({
             <button
               type="button"
               aria-label={ariaLabel}
-              className={[
+              className={clsx(
                 'group absolute inset-0 block h-full w-full rounded-lg',
                 'focus-visible:outline-none',
                 'focus-visible:ring-2 focus-visible:ring-offset-2',
                 'focus-visible:ring-white/80 focus-visible:ring-offset-black/60',
                 'active:scale-[0.98] transition-transform duration-100 ease-out',
                 'touch-manipulation',
-              ]
-                .filter(Boolean)
-                .join(' ')}
+              )}
               onClick={() => onOpenItem?.(itemIndex)}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -86,12 +77,12 @@ const AlbumComponent: React.FC<AlbumProps> = ({
                 alt={altText}
                 loading="lazy"
                 draggable={false}
-                className={[
+                className={clsx(
                   'absolute inset-0 h-full w-full rounded-lg',
                   objectFitClass,
                   'transition-transform duration-150 ease-out',
                   'group-hover:scale-[1.03] group-active:scale-[0.97]',
-                ].join(' ')}
+                )}
                 onLoad={onMediaLoad}
               />
 

@@ -1,8 +1,8 @@
 export const revalidate = 60;
 
-import MainLayout from '@/components/layout/MainLayout'
-import ArtistsSection from '@/components/home/ArtistsSection'
-import dynamic from 'next/dynamic'
+import MainLayout from '@/components/layout/MainLayout';
+import ArtistsSection from '@/components/home/ArtistsSection';
+import dynamic from 'next/dynamic';
 const GoogleOneTap = dynamic(() => import('@/components/auth/GoogleOneTap'), { ssr: false });
 import CategoriesCarouselServer from '@/components/home/CategoriesCarouselServer';
 
@@ -17,15 +17,21 @@ async function fetchInitial(category: string, limit = 12) {
     limit: String(limit),
     category,
     sort: 'most_booked',
-    // Only what home cards actually need: rating + location + slug for URLs
+    // Full card fields so home strips can hydrate without an extra client fetch.
     fields: [
       'id',
       'business_name',
       'slug',
       'profile_picture_url',
+      'custom_subtitle',
+      'hourly_rate',
+      'price_visible',
       'rating',
       'rating_count',
       'location',
+      'service_categories',
+      'user.first_name',
+      'user.last_name',
     ].join(','),
   });
   const url = `${API_BASE}/api/v1/service-provider-profiles/?${params.toString()}`;
@@ -55,10 +61,31 @@ async function fetchInitial(category: string, limit = 12) {
 }
 
 export default async function HomePage() {
-  // Keep SSR light: prefetch only top section to avoid thundering herd
-  const [musicians] = await Promise.all([
+  // SSR all home strips so they hydrate like the Musicians row.
+  const [
+    musicians,
+    photographers,
+    videographers,
+    caterers,
+    djs,
+    speakers,
+    soundServices,
+    weddingVenues,
+    bartenders,
+    mcHosts,
+  ] = await Promise.all([
     fetchInitial('musician'),
+    fetchInitial('photographer'),
+    fetchInitial('videographer'),
+    fetchInitial('caterer'),
+    fetchInitial('dj'),
+    fetchInitial('speaker'),
+    fetchInitial('sound_service'),
+    fetchInitial('wedding_venue'),
+    fetchInitial('bartender'),
+    fetchInitial('mc_host'),
   ]);
+
   return (
     <MainLayout>
       {/* Surface Google One Tap on the homepage for logged-out users */}
@@ -73,57 +100,57 @@ export default async function HomePage() {
       <ArtistsSection
         title="Photography"
         query={{ category: 'photographer', sort: 'most_booked' }}
-        deferUntilVisible
+        initialData={photographers}
         hideIfEmpty
       />
       <ArtistsSection
         title="Videographers"
         query={{ category: 'videographer', sort: 'most_booked' }}
-        deferUntilVisible
+        initialData={videographers}
         hideIfEmpty
       />
       <ArtistsSection
         title="Catering"
         query={{ category: 'caterer', sort: 'most_booked' }}
-        deferUntilVisible
+        initialData={caterers}
         hideIfEmpty
       />
       <ArtistsSection
         title="DJs"
         query={{ category: 'dj', sort: 'most_booked' }}
-        deferUntilVisible
+        initialData={djs}
         hideIfEmpty
       />
       <ArtistsSection
         title="Speakers"
         query={{ category: 'speaker', sort: 'most_booked' }}
-        deferUntilVisible
+        initialData={speakers}
         hideIfEmpty
       />
       <ArtistsSection
         title="Sound Services"
         query={{ category: 'sound_service', sort: 'most_booked' }}
-        deferUntilVisible
+        initialData={soundServices}
         hideIfEmpty
       />
       <ArtistsSection
         title="Wedding Venues"
         query={{ category: 'wedding_venue', sort: 'most_booked' }}
-        deferUntilVisible
+        initialData={weddingVenues}
         hideIfEmpty
       />
       <ArtistsSection
         title="Bartending"
         query={{ category: 'bartender', sort: 'most_booked' }}
-        deferUntilVisible
+        initialData={bartenders}
         hideIfEmpty
       />
       <ArtistsSection
         title="MC & Hosts"
         query={{ category: 'mc_host', sort: 'most_booked' }}
-        deferUntilVisible
+        initialData={mcHosts}
         hideIfEmpty
       />
     </MainLayout>
-  )
+  );
 }

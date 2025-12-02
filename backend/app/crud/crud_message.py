@@ -7,6 +7,10 @@ from sqlalchemy import func, or_, and_
 from .. import models, schemas
 
 
+DELETED_SYSTEM_KEY = "message_deleted_v1"
+DELETED_CONTENT = "This message was deleted."
+
+
 def create_message(
     db: Session,
     booking_request_id: int,
@@ -327,6 +331,48 @@ def delete_message(db: Session, message_id: int) -> bool:
     db.delete(msg)
     db.commit()
     return True
+
+
+def mark_message_deleted(msg: models.Message) -> None:
+    """Transform a message row into a tombstone instead of hard-deleting it.
+
+    This keeps ordering and read receipts consistent while ensuring the original
+    content/attachments are no longer exposed.
+    """
+    try:
+        # Idempotent: if it's already a tombstone, do nothing.
+        if (
+            msg.message_type == models.MessageType.SYSTEM
+            and (msg.system_key or "").startswith("message_deleted")
+        ):
+            return
+    except Exception:
+        # Best-effort; if enums misbehave, fall back to simple mutation below.
+        pass
+
+    msg.message_type = models.MessageType.SYSTEM
+    msg.system_key = DELETED_SYSTEM_KEY
+    msg.content = DELETED_CONTENT
+    msg.visible_to = models.VisibleTo.BOTH
+
+    # Clear payload / linkage fields so no original content leaks.
+    msg.attachment_url = None
+    msg.attachment_meta = None
+    msg.quote_id = None
+    msg.action = None
+    msg.expires_at = None
+    msg.reply_to_message_id = None
+
+
+def is_deleted_message(msg: models.Message) -> bool:
+    """Return True when a message row represents a deletion tombstone."""
+    try:
+        return (
+            msg.message_type == models.MessageType.SYSTEM
+            and (msg.system_key or "").startswith("message_deleted")
+        )
+    except Exception:
+        return False
 
 
 def get_unread_counts_for_user_threads(

@@ -10,8 +10,8 @@ jest.mock('@/components/layout/MainLayout', () => {
 });
 
 jest.mock('@/components/home/ArtistsSection', () => {
-  const Mock = ({ title, query }: { title: string; query: unknown }) => (
-    <div data-title={title} data-query={JSON.stringify(query)}>
+  const Mock = ({ title, query }: { title: string; query?: unknown }) => (
+    <div data-title={title} data-query={JSON.stringify(query ?? {})}>
       {title}
     </div>
   );
@@ -25,13 +25,15 @@ describe('HomePage', () => {
     document.body.appendChild(div);
     const root = createRoot(div);
     await act(async () => {
-      root.render(<HomePage />);
+      // HomePage is an async App Router page; call it and render the resolved element.
+      const element = (await (HomePage() as any)) as React.ReactElement;
+      root.render(element);
     });
-    const popular = div.querySelector('[data-title="Popular Musicians"]');
-    expect(popular).not.toBeNull();
-    expect(popular?.getAttribute('data-query')).toContain('"category":"musician"');
-    expect(div.textContent).toContain('Top Rated');
-    expect(div.textContent).toContain('New on Booka');
+    const musicians = div.querySelector('[data-title="Musicians"]');
+    expect(musicians).not.toBeNull();
+    expect(musicians?.getAttribute('data-query')).toContain('"category":"musician"');
+    expect(div.textContent).toContain('Photography');
+    expect(div.textContent).toContain('Sound Services');
     act(() => {
       root.unmount();
     });

@@ -375,7 +375,11 @@ def get_booking_requests_with_last_message(
         if viewer is not None:
             try:
                 vis_allowed = {models.VisibleTo.BOTH, viewer}
-                message_candidates = [m for m in message_candidates if getattr(m, 'visible_to', models.VisibleTo.BOTH) in vis_allowed]
+                message_candidates = [
+                    m
+                    for m in message_candidates
+                    if getattr(m, "visible_to", models.VisibleTo.BOTH) in vis_allowed
+                ]
             except Exception:
                 # On any error, fall back to unfiltered candidates
                 pass
@@ -397,7 +401,16 @@ def get_booking_requests_with_last_message(
         if is_pv and br.id not in paid_pv_ids:
             continue
 
-        preview_message = last_m
+        # Prefer the first non-deleted candidate as the preview message so that
+        # tombstones do not dominate list snippets when more recent real
+        # messages exist.
+        preview_message = None
+        for cand in message_candidates:
+            if not crud_message.is_deleted_message(cand):
+                preview_message = cand
+                break
+        if preview_message is None:
+            preview_message = last_m
         preview_key = None
         preview_args: Dict[str, int | str] = {}
 

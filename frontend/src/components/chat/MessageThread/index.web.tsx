@@ -840,7 +840,14 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
       setMessages((prev: any[]) =>
         prev.map((m: any) =>
           Number(m?.id) === Number(messageId)
-            ? { ...m, _deleted: true, content: '', attachment_url: null, attachment_meta: null, reactions: {}, my_reactions: [] }
+            ? {
+                ...m,
+                _deleted: true,
+                attachment_url: null,
+                attachment_meta: null,
+                reactions: {},
+                my_reactions: [],
+              }
             : m,
         ),
       );
@@ -1419,7 +1426,14 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
               snapshot = prev;
               return prev.map((m: any) =>
                 Number(m?.id) === mid
-                  ? { ...m, _deleted: true, content: '', attachment_url: null, attachment_meta: null, reactions: {}, my_reactions: [] }
+                  ? {
+                      ...m,
+                      _deleted: true,
+                      attachment_url: null,
+                      attachment_meta: null,
+                      reactions: {},
+                      my_reactions: [],
+                    }
                   : m,
               );
             });
