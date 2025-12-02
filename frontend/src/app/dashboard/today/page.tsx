@@ -47,36 +47,6 @@ export default function TodayPage() {
 
   const { count: unreadThreads } = useUnreadThreadsCount();
 
-  if (!user || authLoading) {
-    return (
-      <MainLayout>
-        <div className="flex min-h-screen items-center justify-center">
-          <Spinner size="lg" />
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (loading) {
-    return (
-      <MainLayout>
-        <div className="flex min-h-screen items-center justify-center">
-          <Spinner size="lg" />
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <MainLayout>
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="text-red-600 text-sm">{error}</div>
-        </div>
-      </MainLayout>
-    );
-  }
-
   const now = new Date();
   const upcomingEnd = addDays(now, 7);
 
@@ -140,6 +110,36 @@ export default function TodayPage() {
   );
 
   const activeList = view === 'today' ? todayBookings : upcomingSoon;
+
+  if (!user || authLoading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-screen items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-screen items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-red-600 text-sm">{error}</div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
