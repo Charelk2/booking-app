@@ -7,6 +7,7 @@ interface AuthInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: FieldError;
 }
 
+
 export default function AuthInput({
   label,
   registration,
