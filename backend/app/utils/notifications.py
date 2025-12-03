@@ -454,6 +454,118 @@ def _send_whatsapp_text(phone: Optional[str], body: str, *, preview_url: bool = 
         logger.warning("WhatsApp enqueue failed: %s", exc)
 
 
+def _send_whatsapp_template(
+    phone: Optional[str],
+    template_name: str,
+    language_code: str,
+    body_params: list[str] | tuple[str, ...],
+    *,
+    button_url_param: Optional[str] = None,
+) -> None:
+    """Send a WhatsApp template message via the Cloud API.
+
+    Best-effort only: logs and returns on failure without raising. This helper
+    is intended for approved templates like ``new_booking_request_1`` so we
+    can benefit from the 24h+ template window instead of plain-text fallbacks.
+    """
+    if not WHATSAPP_ENABLED:
+        return
+    if not phone or not WHATSAPP_PHONE_ID or not WHATSAPP_TOKEN:
+        logger.debug(
+            "WhatsApp template disabled or misconfigured; skipping send (phone=%r, enabled=%r, phone_id=%r)",
+            phone,
+            WHATSAPP_ENABLED,
+            bool(WHATSAPP_PHONE_ID),
+        )
+        return
+
+    try:
+        to = re.sub(r"[^\d+]", "", str(phone))
+        if not to:
+            return
+    except Exception:
+        return
+
+    components: list[dict[str, Any]] = []
+    if body_params:
+        components.append(
+            {
+                "type": "body",
+                "parameters": [{"type": "text", "text": str(p)} for p in body_params],
+            }
+        )
+    if button_url_param:
+        components.append(
+            {
+                "type": "button",
+                "sub_type": "url",
+                "index": "0",
+                "parameters": [
+                    {
+                        "type": "text",
+                        "text": str(button_url_param),
+                    }
+                ],
+            }
+        )
+
+    template: dict[str, Any] = {
+        "name": template_name,
+        "language": {"code": language_code},
+    }
+    if components:
+        template["components"] = components
+
+    payload: dict[str, Any] = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": template,
+    }
+
+    url = f"https://graph.facebook.com/v22.0/{WHATSAPP_PHONE_ID}/messages"
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={
+            "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    def _task() -> None:
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:  # nosec B310
+                try:
+                    raw = resp.read()
+                    logger.info(
+                        "WhatsApp template send ok status=%s body=%s",
+                        resp.status,
+                        raw.decode("utf-8", "ignore"),
+                    )
+                except Exception:
+                    logger.info("WhatsApp template send ok status=%s", resp.status)
+        except urllib.error.HTTPError as exc:  # pragma: no cover - best-effort
+            try:
+                detail = exc.read().decode("utf-8", "ignore")
+            except Exception:
+                detail = "<unavailable>"
+            logger.warning(
+                "WhatsApp template HTTPError status=%s body=%s",
+                getattr(exc, "code", "?"),
+                detail,
+            )
+        except Exception as exc:  # pragma: no cover - network errors
+            logger.warning("WhatsApp template send failed: %s", exc)
+
+    try:
+        background_worker.enqueue(_task)
+    except Exception as exc:  # pragma: no cover - background scheduling errors
+        logger.warning("WhatsApp template enqueue failed: %s", exc)
+
+
 def _create_and_broadcast(
     db: Session,
     user_id: int,
@@ -665,6 +777,23 @@ def notify_user_new_booking_request(
     except Exception:
         event_location = None
 
+    guest_count: str | None = None
+    try:
+        if br and isinstance(br.travel_breakdown, dict):
+            raw_guests = br.travel_breakdown.get("guests") or br.travel_breakdown.get("guest_count")
+            if raw_guests is not None:
+                guest_count = str(raw_guests)
+    except Exception:
+        guest_count = None
+
+    estimate_numeric: str | None = None
+    try:
+        svc_price = getattr(br.service, "price", None) if br and br.service is not None else None
+        if svc_price is not None:
+            estimate_numeric = str(svc_price)
+    except Exception:
+        estimate_numeric = None
+
     special_requests = (br.message if br else "") or ""
     frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
     booking_url = (
@@ -706,22 +835,26 @@ def notify_user_new_booking_request(
             exc,
         )
 
-    # Best-effort: WhatsApp summary to the provider, when configured.
+    # Best-effort: WhatsApp template notification to the provider, when configured.
     try:
-        lines = [
-            f"New booking request from {client_name}",
+        # Template: new_booking_request_1 (body variables order must match Meta config)
+        body_params: list[str] = [
+            provider_name or "",
+            client_name or "",
             service_name or "Booking request",
+            event_date or "",
+            event_location or "",
+            guest_count or "",
+            estimate_numeric or "",
         ]
-        if event_date:
-            when_line = f"On {event_date}"
-            if event_time:
-                when_line += f" at {event_time}"
-            lines.append(when_line)
-        if event_location:
-            lines.append(f"Location: {event_location}")
-        lines.append(booking_url)
-        wa_body = "\n".join([ln for ln in lines if ln])
-        _send_whatsapp_text(user.phone_number, wa_body)
+        _send_whatsapp_template(
+            user.phone_number,
+            template_name="new_booking_request_1",
+            language_code="en",
+            body_params=body_params,
+            # Dynamic URL button param – aligns with template's {{1}} in the URL.
+            button_url_param=str(request_id),
+        )
     except Exception as exc:  # pragma: no cover - WhatsApp is best-effort
         logger.warning(
             "Failed to send WhatsApp booking request for request %s to %s: %s",
