@@ -460,6 +460,7 @@ def _send_whatsapp_template(
     language_code: str,
     body_params: list[str] | tuple[str, ...],
     *,
+    header_image_url: Optional[str] = None,
     button_url_param: Optional[str] = None,
 ) -> None:
     """Send a WhatsApp template message via the Cloud API.
@@ -487,6 +488,18 @@ def _send_whatsapp_template(
         return
 
     components: list[dict[str, Any]] = []
+    if header_image_url:
+        components.append(
+            {
+                "type": "header",
+                "parameters": [
+                    {
+                        "type": "image",
+                        "image": {"link": str(header_image_url)},
+                    }
+                ],
+            }
+        )
     if body_params:
         components.append(
             {
@@ -801,6 +814,7 @@ def notify_user_new_booking_request(
         if frontend_base
         else f"/booking-requests/{request_id}"
     )
+    header_image_url = f"{frontend_base}/booka_logo.jpg" if frontend_base else None
 
     # Best-effort: send a richer email via Mailjet template, if configured.
     try:
@@ -837,15 +851,24 @@ def notify_user_new_booking_request(
 
     # Best-effort: WhatsApp template notification to the provider, when configured.
     try:
-        # Template: new_booking_request_1 (body variables order must match Meta config)
+        # Template: new_booking_request_1 (body variables order must match Meta config).
+        # WhatsApp requires every text parameter to have a non-empty value, so we
+        # coerce missing values to sensible defaults instead of sending "".
+        def _safe_text(value: str | None, default: str) -> str:
+            try:
+                s = str(value).strip() if value is not None else ""
+            except Exception:
+                s = ""
+            return s or default
+
         body_params: list[str] = [
-            provider_name or "",
-            client_name or "",
-            service_name or "Booking request",
-            event_date or "",
-            event_location or "",
-            guest_count or "",
-            estimate_numeric or "",
+            _safe_text(provider_name, "Artist"),
+            _safe_text(client_name, "Client"),
+            _safe_text(service_name or "Booking request", "Booking request"),
+            _safe_text(event_date, "To be confirmed"),
+            _safe_text(event_location, "To be confirmed"),
+            _safe_text(guest_count, "—"),
+            _safe_text(estimate_numeric, "0"),
         ]
         _send_whatsapp_template(
             user.phone_number,
@@ -853,6 +876,7 @@ def notify_user_new_booking_request(
             language_code="en",
             body_params=body_params,
             # Dynamic URL button param – aligns with template's {{1}} in the URL.
+             header_image_url=header_image_url,
             button_url_param=str(request_id),
         )
     except Exception as exc:  # pragma: no cover - WhatsApp is best-effort
