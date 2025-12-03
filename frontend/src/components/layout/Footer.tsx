@@ -175,7 +175,7 @@ export default function Footer() {
                 prefetch={false}
                 className="block text-5xl md:text-6xl font-black tracking-tighter text-black hover:opacity-80 transition-opacity"
               >
-                booka
+                Booka
               </Link>
               <p className="text-xs text-gray-500 font-medium max-w-sm">
                 Peace, Love & Gigs ® <br />

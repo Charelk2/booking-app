@@ -256,12 +256,26 @@ def handle_pre_event_reminders(db: Session) -> int:
         label: str | None = None
         horizon: str | None = None
 
-        if days_until == 7:
+        # 30 days out: early heads-up so both sides can still change plans.
+        if days_until == 30:
+            horizon = "30d"
+            label = "Event in 30 days"
+        # 7 days: existing weekly reminder.
+        elif days_until == 7:
             horizon = "7d"
             label = "Event in 7 days"
+        # 3 days: existing last‑few‑days reminder.
         elif days_until == 3:
             horizon = "3d"
             label = "Event in 3 days"
+        # 1 day: “tomorrow” reminder.
+        elif days_until == 1:
+            horizon = "1d"
+            label = "Event tomorrow"
+        # 0 days: same‑day reminder rendered as “Event is today: …”.
+        elif days_until == 0:
+            horizon = "0d"
+            label = "Event today"
         else:
             continue
 
@@ -287,7 +301,6 @@ def handle_pre_event_reminders(db: Session) -> int:
         if existing:
             continue
 
-        # Compose concise, actionable reminders (date-only; no time)
         date_str = b.start_time.strftime("%Y-%m-%d")
 
         client = db.query(models.User).filter(models.User.id == b.client_id).first()
@@ -295,9 +308,18 @@ def handle_pre_event_reminders(db: Session) -> int:
         if not client or not artist:
             continue
 
-        # Role-specific, globally-standard copy while keeping a stable
-        # "Event in N days: YYYY-MM-DD" prefix for preview parsing.
-        if horizon == "7d":
+        if horizon == "30d":
+            client_content = (
+                f"{label}: {date_str}. "
+                "Your event is in 30 days. Take a moment to double-check the date, "
+                "location and guest count, and share any important details in this chat."
+            )
+            artist_content = (
+                f"{label}: {date_str}. "
+                "You have an event in 30 days. Block your calendar, review travel and "
+                "equipment needs, and message the client if anything major changes."
+            )
+        elif horizon == "7d":
             client_content = (
                 f"{label}: {date_str}. "
                 "Your event is in 7 days. Please review your booking details "
@@ -321,6 +343,28 @@ def handle_pre_event_reminders(db: Session) -> int:
                 "Your event is in 3 days. Please confirm the time and address, "
                 "check technical and setup requirements, and share your arrival "
                 "plan with the client."
+            )
+        elif horizon == "1d":
+            client_content = (
+                f"{label}: {date_str}. "
+                "Your event is tomorrow. Double-check the time and address, keep your "
+                "phone handy, and share any last-minute updates here."
+            )
+            artist_content = (
+                f"{label}: {date_str}. "
+                "Your event is tomorrow. Confirm load-in time and route, check your gear, "
+                "and let the client know when you expect to arrive."
+            )
+        else:  # "0d" (today)
+            client_content = (
+                f"Event is today: {date_str}. "
+                "Your event is today. Please be ready at the agreed time and keep your "
+                "phone nearby in case your provider needs to reach you."
+            )
+            artist_content = (
+                f"Event is today: {date_str}. "
+                "Your event is today. Leave enough time for travel and setup, and send a quick "
+                "message here once you are on your way or on site."
             )
 
         _post_system(
