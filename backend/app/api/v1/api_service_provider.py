@@ -248,6 +248,29 @@ def update_current_artist_profile(
     ):
         update_data["profile_picture_url"] = str(update_data["profile_picture_url"])
 
+    # Keep the provider's contact_phone and account phone_number in sync so
+    # editing the cell number in the profile updates the number used for
+    # notifications (SMS, WhatsApp, etc.).
+    try:
+        if "contact_phone" in update_data:
+            raw_phone = update_data.get("contact_phone")
+            if isinstance(raw_phone, str):
+                normalized_phone = raw_phone.strip() or None
+            else:
+                normalized_phone = None
+            update_data["contact_phone"] = normalized_phone
+            try:
+                if artist_profile.user is not None:
+                    artist_profile.user.phone_number = normalized_phone
+                    db.add(artist_profile.user)
+            except Exception:
+                # Non-fatal: profile update should still succeed even if the
+                # backing User row cannot be updated for some reason.
+                pass
+    except Exception:
+        # Be conservative: do not block updates on normalization errors.
+        pass
+
     # Validation: if resulting state is vat_registered==True, require vat_number
     try:
         effective_vat_registered = (
