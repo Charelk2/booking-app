@@ -1241,12 +1241,19 @@ def _get_stream_sem() -> asyncio.BoundedSemaphore:
     global _STREAM_SEM
     if _STREAM_SEM is None:
         try:
-            limit = int(os.getenv("INBOX_STREAM_CONCURRENCY") or 16)
+            raw = os.getenv("INBOX_STREAM_CONCURRENCY") or ""
+            # Default to a conservative limit so inbox polling cannot starve
+            # other traffic or health checks when env is not tuned.
+            limit = int(raw) if raw.strip() else 2
             if limit <= 0:
-                limit = 16
+                limit = 2
         except Exception:
-            limit = 16
+            limit = 2
         _STREAM_SEM = asyncio.BoundedSemaphore(limit)
+        try:
+            logger.info("inbox_stream.sem.init", extra={"limit": limit})
+        except Exception:
+            pass
     return _STREAM_SEM
 _PREVIEW_SEM: BoundedSemaphore | None = None
 
@@ -1255,10 +1262,18 @@ def _get_preview_sem() -> BoundedSemaphore:
     global _PREVIEW_SEM
     if _PREVIEW_SEM is None:
         try:
-            limit = int(os.getenv("THREADS_PREVIEW_CONCURRENCY") or 32)
+            raw = os.getenv("THREADS_PREVIEW_CONCURRENCY") or ""
+            # Use a modest default here as well; heavy preview fan-out is gated
+            # primarily by the DB pool, but this guard keeps per-process work
+            # bounded even when env is unset.
+            limit = int(raw) if raw.strip() else 4
             if limit <= 0:
-                limit = 32
+                limit = 4
         except Exception:
-            limit = 32
+            limit = 4
         _PREVIEW_SEM = BoundedSemaphore(limit)
+        try:
+            logger.info("threads_preview.sem.init", extra={"limit": limit})
+        except Exception:
+            pass
     return _PREVIEW_SEM
