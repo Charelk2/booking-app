@@ -11,6 +11,11 @@ import os
 import logging
 import enum
 import re
+from typing import Any
+
+import json
+import urllib.request
+import urllib.error
 try:  # optional dependency
     from twilio.rest import Client  # type: ignore
     _HAS_TWILIO = True
@@ -24,6 +29,10 @@ from ..core.config import settings
 TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_FROM = os.getenv("TWILIO_FROM_NUMBER")
+
+WHATSAPP_ENABLED = os.getenv("WHATSAPP_ENABLED", "0").strip().lower() in {"1", "true", "yes", "y"}
+WHATSAPP_PHONE_ID = (os.getenv("WHATSAPP_PHONE_ID") or "").strip()
+WHATSAPP_TOKEN = (os.getenv("WHATSAPP_TOKEN") or "").strip()
 
 logger = logging.getLogger(__name__)
 
@@ -374,6 +383,77 @@ def _send_sms(phone: Optional[str], message: str) -> None:
         logger.warning("SMS enqueue failed: %s", exc)
 
 
+def _send_whatsapp_text(phone: Optional[str], body: str, *, preview_url: bool = True) -> None:
+    """Send a basic WhatsApp text via the Cloud API.
+
+    Best-effort only: logs and returns on failure without raising. Requires:
+      - WHATSAPP_ENABLED=1
+      - WHATSAPP_PHONE_ID and WHATSAPP_TOKEN set in the environment.
+    """
+    if not WHATSAPP_ENABLED:
+        return
+    if not phone or not WHATSAPP_PHONE_ID or not WHATSAPP_TOKEN:
+        logger.debug(
+            "WhatsApp disabled or misconfigured; skipping send (phone=%r, enabled=%r, phone_id=%r)",
+            phone,
+            WHATSAPP_ENABLED,
+            bool(WHATSAPP_PHONE_ID),
+        )
+        return
+
+    try:
+        # Normalize phone to digits only; Cloud API expects E.164 without spaces.
+        to = re.sub(r"[^\d+]", "", str(phone))
+        if not to:
+            return
+    except Exception:
+        return
+
+    payload: dict[str, Any] = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
+        "text": {
+            "preview_url": bool(preview_url),
+            "body": body,
+        },
+    }
+
+    url = f"https://graph.facebook.com/v22.0/{WHATSAPP_PHONE_ID}/messages"
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={
+            "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    def _task() -> None:
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:  # nosec B310
+                try:
+                    raw = resp.read()
+                    logger.info("WhatsApp send ok status=%s body=%s", resp.status, raw.decode("utf-8", "ignore"))
+                except Exception:
+                    logger.info("WhatsApp send ok status=%s", resp.status)
+        except urllib.error.HTTPError as exc:  # pragma: no cover - best-effort
+            try:
+                detail = exc.read().decode("utf-8", "ignore")
+            except Exception:
+                detail = "<unavailable>"
+            logger.warning("WhatsApp HTTPError status=%s body=%s", getattr(exc, "code", "?"), detail)
+        except Exception as exc:  # pragma: no cover - network errors
+            logger.warning("WhatsApp send failed: %s", exc)
+
+    try:
+        background_worker.enqueue(_task)
+    except Exception as exc:  # pragma: no cover - background scheduling errors
+        logger.warning("WhatsApp enqueue failed: %s", exc)
+
+
 def _create_and_broadcast(
     db: Session,
     user_id: int,
@@ -511,120 +591,142 @@ def notify_user_new_booking_request(
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
+    # Enrich: email + WhatsApp, best-effort only.
+    br: models.BookingRequest | None = None
+    client: User | None = None
+    try:
+        br = (
+            db.query(models.BookingRequest)
+            .filter(models.BookingRequest.id == request_id)
+            .first()
+        )
+        if br:
+            client = br.client or db.query(models.User).filter(models.User.id == br.client_id).first()
+    except Exception:
+        br = None
+
+    provider_name: str | None = None
+    try:
+        profile = (
+            db.query(models.ServiceProviderProfile)
+            .filter(models.ServiceProviderProfile.user_id == user.id)
+            .first()
+        )
+        if profile and profile.business_name:
+            provider_name = profile.business_name
+    except Exception:
+        provider_name = None
+    if not provider_name:
+        provider_name = f"{user.first_name} {user.last_name}".strip()
+
+    client_name: str | None = None
+    if client:
+        client_name = f"{client.first_name} {client.last_name}".strip()
+    if not client_name:
+        client_name = sender_name or "Client"
+
+    event_date: str | None = None
+    event_time: str | None = None
+    if br and br.proposed_datetime_1:
+        try:
+            dt = br.proposed_datetime_1
+            event_date = dt.date().isoformat()
+            event_time = dt.strftime("%H:%M")
+        except Exception:
+            event_date = None
+            event_time = None
+
+    service_name: str | None = None
+    budget: str | None = None
+    if br and br.service_id and br.service:
+        svc = br.service
+        title = getattr(svc, "title", None)
+        if title:
+            service_name = title
+        price = getattr(svc, "price", None)
+        currency = getattr(svc, "currency", None)
+        if price is not None:
+            budget = f"{currency or 'ZAR'} {price}"
+    if not service_name:
+        # Fall back to booking_type as a human label.
+        if isinstance(booking_type, enum.Enum):
+            service_name = booking_type.value
+        else:
+            service_name = str(booking_type)
+
+    event_location: str | None = None
+    try:
+        if br and isinstance(br.travel_breakdown, dict):
+            event_location = (
+                br.travel_breakdown.get("event_city")
+                or br.travel_breakdown.get("city")
+                or br.travel_breakdown.get("location")
+            )
+    except Exception:
+        event_location = None
+
+    special_requests = (br.message if br else "") or ""
+    frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
+    booking_url = (
+        f"{frontend_base}/booking-requests/{request_id}"
+        if frontend_base
+        else f"/booking-requests/{request_id}"
+    )
+
     # Best-effort: send a richer email via Mailjet template, if configured.
     try:
         template_id = getattr(
             settings, "MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER", 0
         ) or 0
         if template_id and user.email:
-            br = (
-                db.query(models.BookingRequest)
-                .filter(models.BookingRequest.id == request_id)
-                .first()
+            variables = {
+                "provider_name": provider_name,
+                "client_name": client_name,
+                "event_date": event_date,
+                "event_time": event_time,
+                "event_location": event_location,
+                "service_name": service_name,
+                "budget": budget,
+                "special_requests": special_requests,
+                "booking_url": booking_url,
+            }
+            clean_vars = {k: v for k, v in variables.items() if v is not None}
+            email_subject = f"New booking request from {client_name}"
+            send_template_email(
+                recipient=user.email,
+                template_id=int(template_id),
+                variables=clean_vars,
+                subject=email_subject,
             )
-            if br:
-                client = br.client
-                if client is None:
-                    client = (
-                        db.query(models.User)
-                        .filter(models.User.id == br.client_id)
-                        .first()
-                    )
-                # Provider display name: prefer business name if available.
-                provider_name: str | None = None
-                try:
-                    profile = (
-                        db.query(models.ServiceProviderProfile)
-                        .filter(models.ServiceProviderProfile.user_id == user.id)
-                        .first()
-                    )
-                    if profile and profile.business_name:
-                        provider_name = profile.business_name
-                except Exception:
-                    provider_name = None
-                if not provider_name:
-                    provider_name = f"{user.first_name} {user.last_name}".strip()
-
-                client_name: str | None = None
-                if client:
-                    client_name = f"{client.first_name} {client.last_name}".strip()
-                if not client_name:
-                    client_name = sender_name or "Client"
-
-                event_date: str | None = None
-                event_time: str | None = None
-                if br.proposed_datetime_1:
-                    try:
-                        dt = br.proposed_datetime_1
-                        event_date = dt.date().isoformat()
-                        event_time = dt.strftime("%H:%M")
-                    except Exception:
-                        event_date = None
-                        event_time = None
-
-                service_name: str | None = None
-                budget: str | None = None
-                if br.service_id and br.service:
-                    svc = br.service
-                    title = getattr(svc, "title", None)
-                    if title:
-                        service_name = title
-                    price = getattr(svc, "price", None)
-                    currency = getattr(svc, "currency", None)
-                    if price is not None:
-                        budget = f"{currency or 'ZAR'} {price}"
-                if not service_name:
-                    # Fall back to booking_type as a human label.
-                    if isinstance(booking_type, enum.Enum):
-                        service_name = booking_type.value
-                    else:
-                        service_name = str(booking_type)
-
-                event_location: str | None = None
-                try:
-                    if isinstance(br.travel_breakdown, dict):
-                        event_location = (
-                            br.travel_breakdown.get("event_city")
-                            or br.travel_breakdown.get("city")
-                            or br.travel_breakdown.get("location")
-                        )
-                except Exception:
-                    event_location = None
-
-                special_requests = br.message or ""
-                frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip(
-                    "/"
-                )
-                booking_url = (
-                    f"{frontend_base}/booking-requests/{request_id}"
-                    if frontend_base
-                    else f"/booking-requests/{request_id}"
-                )
-
-                variables = {
-                    "provider_name": provider_name,
-                    "client_name": client_name,
-                    "event_date": event_date,
-                    "event_time": event_time,
-                    "event_location": event_location,
-                    "service_name": service_name,
-                    "budget": budget,
-                    "special_requests": special_requests,
-                    "booking_url": booking_url,
-                }
-                clean_vars = {k: v for k, v in variables.items() if v is not None}
-                email_subject = f"New booking request from {client_name}"
-                send_template_email(
-                    recipient=user.email,
-                    template_id=int(template_id),
-                    variables=clean_vars,
-                    subject=email_subject,
-                )
     except Exception as exc:  # pragma: no cover - email is best-effort
         logger.warning(
             "Failed to send booking request email for request %s to %s: %s",
             request_id,
             user.email,
+            exc,
+        )
+
+    # Best-effort: WhatsApp summary to the provider, when configured.
+    try:
+        lines = [
+            f"New booking request from {client_name}",
+            service_name or "Booking request",
+        ]
+        if event_date:
+            when_line = f"On {event_date}"
+            if event_time:
+                when_line += f" at {event_time}"
+            lines.append(when_line)
+        if event_location:
+            lines.append(f"Location: {event_location}")
+        lines.append(booking_url)
+        wa_body = "\n".join([ln for ln in lines if ln])
+        _send_whatsapp_text(user.phone_number, wa_body)
+    except Exception as exc:  # pragma: no cover - WhatsApp is best-effort
+        logger.warning(
+            "Failed to send WhatsApp booking request for request %s to %s: %s",
+            request_id,
+            user.phone_number,
             exc,
         )
 
