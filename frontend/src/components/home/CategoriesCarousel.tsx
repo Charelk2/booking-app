@@ -14,7 +14,7 @@ const CARD_W = 144; // h/w-36 = 9rem = 144px
 const GAP = 12;     // gap-3 = 12px
 
 const DISPLAY_LABELS: Record<string, string> = {
-  photographer: 'PhTEST',
+  photographer: 'Photography',
   caterer: 'Catering',
   dj: "DJ's",
   musician: 'Musicians',

@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { CATEGORY_IMAGES, UI_CATEGORY_TO_ID } from '@/lib/categoryMap';
 
 const DISPLAY_LABELS: Record<string, string> = {
-  photographer: 'Photography',
+  photographer: 'PhotographyTEST',
   caterer: 'Catering',
   dj: "DJ's",
   musician: 'Musicians',
