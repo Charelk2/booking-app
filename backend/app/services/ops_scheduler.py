@@ -268,10 +268,6 @@ def handle_pre_event_reminders(db: Session) -> int:
         elif days_until == 3:
             horizon = "3d"
             label = "Event in 3 days"
-        # 1 day: “tomorrow” reminder.
-        elif days_until == 1:
-            horizon = "1d"
-            label = "Event tomorrow"
         # 0 days: same‑day reminder rendered as “Event is today: …”.
         elif days_until == 0:
             horizon = "0d"
@@ -343,17 +339,6 @@ def handle_pre_event_reminders(db: Session) -> int:
                 "Your event is in 3 days. Please confirm the time and address, "
                 "check technical and setup requirements, and share your arrival "
                 "plan with the client."
-            )
-        elif horizon == "1d":
-            client_content = (
-                f"{label}: {date_str}. "
-                "Your event is tomorrow. Double-check the time and address, keep your "
-                "phone handy, and share any last-minute updates here."
-            )
-            artist_content = (
-                f"{label}: {date_str}. "
-                "Your event is tomorrow. Confirm load-in time and route, check your gear, "
-                "and let the client know when you expect to arrive."
             )
         else:  # "0d" (today)
             client_content = (

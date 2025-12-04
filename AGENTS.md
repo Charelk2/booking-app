@@ -519,24 +519,34 @@ This section documents how all user‑facing communications are wired — emails
       - Adds a `body` component with text parameters in the exact order expected by the template.
       - When `button_url_param` is set, adds a `button` component with `sub_type="url"`/`index="0"` and a single text parameter, used for dynamic `{{1}}` URL placeholders.
     - `notify_user_new_booking_request(...)`:
+      - Entry point in `backend/app/utils/notifications.py`; now a thin facade that delegates to the booking‑request intent.
       - In‑app notification + SMS as before.
       - Mailjet provider email via `MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER`.
-      - WhatsApp template `new_booking_request` to the provider with:
+      - WhatsApp template `new_booking_request1` to the provider with:
         - Body variables mapped to:
-          - `{{1}}` — provider name (fallback `"Artist"`).
-          - `{{2}}` — client name (fallback `"Client"`).
+          - `{{1}}` — provider name.
+          - `{{2}}` — client name.
           - `{{3}}` — service name / booking type.
-          - `{{4}}` — event date (fallback `"To be confirmed"`).
-          - `{{5}}` — location (fallback `"To be confirmed"`).
-          - `{{6}}` — guest count (fallback `"—"`).
-          - `{{7}}` — estimate amount (fallback `"0"`).
-        - Header image: Booka logo via `FRONTEND_URL + "/booka_logo.jpg"`.
-        - Button: “View Request” pointing at `https://booka.co.za/inbox?requestId={{1}}` with `{{1}} = request_id` (passed via `button_url_param`).
+          - `{{4}}` — event date.
+          - `{{5}}` — location.
+          - `{{6}}` — guest count (from `travel_breakdown.guests_count`).
+          - `{{7}}` — estimate amount (service price).
+        - Header image: Booka logo via `FRONTEND_URL + "/booka_logo.jpg"` (asset: `frontend/public/booka_logo.jpg`).
+        - Button: “View Request” pointing at `https://booka.co.za/inbox?requestId={{1}}` with `{{1}} = booking_request.id` (passed via `button_url_param`).
       - All WhatsApp sends are **best effort**: failures are logged but do not block the request or other channels (email/SMS/in‑app).
+
+- **Notification intents vs channel helpers**
+  - Intent modules live under `backend/app/notifications/intents/` and own all channels (in‑app, email, SMS, WhatsApp) for a single business event:
+    - `booking_request.py` — “new booking request” to providers (in‑app, SMS, Mailjet provider email, WhatsApp template).
+    - `quote.py` — quote lifecycle (new quote email to client, quote accepted/expiring/expired, “quote requested” nudges).
+    - `booking_lifecycle.py` — new bookings, booking status updates, booking‑confirmed emails (client + provider), review request prompts.
+  - `backend/app/utils/notifications.py` now primarily:
+    - Exposes `notify_*` entrypoints as thin facades that delegate into the appropriate intent module (e.g. `notify_user_new_booking_request`, `notify_quote_accepted`, `notify_new_booking`).
+    - Hosts shared channel helpers: `_create_and_broadcast` (in‑app + WS), `_send_sms`, `_send_whatsapp_template`, and `format_notification_message`.
 
 - **In‑app vs system messages**
   - In‑app notifications:
-    - Represented by `Notification` rows; driven by helper functions in `backend/app/utils/notifications.py` (e.g. `notify_user_new_message`, `notify_new_booking`, `notify_quote_accepted`, `notify_review_request`).
+    - Represented by `Notification` rows; driven by helper functions in `backend/app/utils/notifications.py` (e.g. `notify_user_new_message`, `notify_new_booking`, `notify_quote_accepted`, `notify_review_request`), which in turn call the relevant intent modules.
     - Delivered to clients via `/api/v1/notifications` and `/api/v1/inbox/stream`.
   - System chat messages:
     - Created in booking/message flows (e.g. booking details, event finished, auto‑completed, review prompts) and stored as `Message` rows with `message_type=SYSTEM`.
@@ -545,6 +555,8 @@ This section documents how all user‑facing communications are wired — emails
 
 When adding new communications (e.g., additional WhatsApp templates, new Mailjet flows, or app‑only nudges), prefer to:
 
-- Add the logic in `backend/app/utils/notifications.py` (for notifications + external channels) or `backend/app/services/ops_scheduler.py` (for time‑based/system messages).
+- Add a new or extended intent in `backend/app/notifications/intents/` for that business event (e.g. `payout.py`, `review.py`) and call it from a small `notify_*` facade in `backend/app/utils/notifications.py`.
+- Keep transport‑level helpers (email/SMS/WhatsApp) in `backend/app/utils/notifications.py` or dedicated channel modules so intents stay focused on business context and template variables.
+- Use `backend/app/services/ops_scheduler.py` + `_post_system(...)` for time‑based **system chat messages** that should also notify via `notify_user_new_message` when appropriate.
 - Expose any new client‑visible notification types via `NotificationType` and the existing `/notifications` + `/inbox/stream` paths.
 - Update this section with the new flow, template IDs, and key files so future debugging starts from a single place.
