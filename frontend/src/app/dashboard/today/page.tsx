@@ -130,11 +130,6 @@ export default function TodayPage() {
     (view === 'today' ? todayBookings : upcomingSoon), 
   [view, todayBookings, upcomingSoon]);
 
-  const greeting = useMemo(() => {
-    const h = getHours(now);
-    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-  }, [now]);
-
   if (!user || authLoading || loading) {
     return (
       <MainLayout>
@@ -151,13 +146,13 @@ export default function TodayPage() {
         <div className="mx-auto max-w-3xl px-6 py-10">
           
           {/* Header */}
-          <header className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              {greeting}, {user.first_name}.
-            </h1>
-            <p className="mt-1 text-base font-medium text-gray-500">
-              {format(now, 'EEEE, d MMMM yyyy')}
+          <header className="mb-8 space-y-1">
+            <p className="text-xs uppercase tracking-[0.2em] text-gray-400">
+              Today
             </p>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {format(now, 'EEEE, d MMM yyyy')}
+            </h1>
           </header>
 
           {/* Tabs */}
