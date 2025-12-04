@@ -77,34 +77,33 @@ const SidebarItem = ({
   </button>
 );
 
-const BottomNavItem = ({ 
+const MobileTabItem = ({ 
   active, 
-  icon: Icon, 
   label, 
   count, 
   onClick 
 }: { 
   active: boolean; 
-  icon: any; 
   label: string; 
   count?: number; 
   onClick: () => void; 
 }) => (
   <button
     onClick={onClick}
-    className={`relative flex flex-1 flex-col items-center justify-center py-3 transition-colors ${
-      active ? "text-black" : "text-gray-400 hover:text-gray-600"
+    className={`flex shrink-0 items-center gap-2 rounded-full border px-5 py-2 text-sm font-semibold transition-all ${
+      active
+        ? "border-black bg-black text-white shadow-md"
+        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
     }`}
   >
-    <div className="relative">
-      <Icon size={24} strokeWidth={active ? 2.5 : 2} />
-      {count !== undefined && count > 0 && (
-        <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
-          {count}
-        </span>
-      )}
-    </div>
-    <span className="mt-1 text-[10px] font-medium">{label}</span>
+    <span>{label}</span>
+    {count !== undefined && count > 0 && (
+      <span className={`flex h-4 min-w-[16px] items-center justify-center rounded-full text-[9px] font-bold ${
+        active ? "bg-white text-black" : "bg-gray-200 text-gray-600"
+      }`}>
+        {count}
+      </span>
+    )}
   </button>
 );
 
@@ -276,13 +275,14 @@ export default function DashboardPage() {
 
   return (
     <MainLayout>
-      {/* Parent Container: 
-        - items-start is CRITICAL for 'sticky' to work on the child 
+      {/* LAYOUT CONTAINER
+         md:items-start -> Critical for sticky sidebar positioning
       */}
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pt-6 pb-24 md:flex-row md:items-start md:px-8 md:pb-12">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pt-6 pb-12 md:flex-row md:items-start md:px-8">
         
         {/* === DESKTOP SIDEBAR (Sticky) === */}
         <aside className="hidden w-64 shrink-0 md:block">
+          {/* sticky top-24 makes it stick below the main header */}
           <div className="sticky top-24 space-y-8">
             
             {/* User Snippet */}
@@ -296,7 +296,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Navigation */}
+            {/* Desktop Navigation */}
             <nav className="space-y-1">
               <SidebarItem 
                 active={activeView === 'overview'} 
@@ -349,6 +349,35 @@ export default function DashboardPage() {
 
         {/* === MAIN CONTENT AREA === */}
         <main className="min-w-0 flex-1">
+
+          {/* === MOBILE NAV (Horizontal Scroll Pills) === */}
+          {/* Only visible on mobile (md:hidden). Replaces the sidebar. */}
+          <div className="mb-6 flex overflow-x-auto pb-1 md:hidden no-scrollbar">
+            <div className="flex gap-2">
+              <MobileTabItem 
+                active={activeView === 'overview'} 
+                label="Overview" 
+                onClick={() => setActiveView('overview')}
+              />
+              <MobileTabItem 
+                active={activeView === 'requests'} 
+                label="Requests" 
+                count={pendingQuoteCount + unreadRequestsCount}
+                onClick={() => setActiveView('requests')}
+              />
+              <MobileTabItem 
+                active={activeView === 'bookings'} 
+                label="Bookings" 
+                count={upcomingBookingsCount}
+                onClick={() => setActiveView('bookings')}
+              />
+              <MobileTabItem 
+                active={activeView === 'services'} 
+                label="Services" 
+                onClick={() => setActiveView('services')}
+              />
+            </div>
+          </div>
           
           {/* VIEW: OVERVIEW */}
           {activeView === 'overview' && (
@@ -503,36 +532,6 @@ export default function DashboardPage() {
 
         </main>
       </div>
-
-      {/* === MOBILE BOTTOM NAVIGATION === */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-gray-200 bg-white/90 px-2 pb-5 pt-2 backdrop-blur-lg md:hidden">
-        <BottomNavItem 
-          active={activeView === 'overview'} 
-          icon={LayoutDashboard} 
-          label="Home" 
-          onClick={() => setActiveView('overview')} 
-        />
-        <BottomNavItem 
-          active={activeView === 'requests'} 
-          icon={MessageSquare} 
-          label="Inbox" 
-          count={pendingQuoteCount + unreadRequestsCount}
-          onClick={() => setActiveView('requests')} 
-        />
-        <BottomNavItem 
-          active={activeView === 'bookings'} 
-          icon={Calendar} 
-          label="Calendar" 
-          count={upcomingBookingsCount}
-          onClick={() => setActiveView('bookings')} 
-        />
-        <BottomNavItem 
-          active={activeView === 'services'} 
-          icon={Briefcase} 
-          label="Services" 
-          onClick={() => setActiveView('services')} 
-        />
-      </nav>
 
       {/* --- Modals --- */}
       
