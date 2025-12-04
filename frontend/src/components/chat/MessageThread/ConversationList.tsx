@@ -285,12 +285,12 @@ function computeRow(
   })();
 
   const displayPreview = (() => {
-    if (
-      thread.last_message_content === "Artist sent a quote" ||
-      thread.last_message_content === "Service Provider sent a quote"
-    ) {
+    const previewText = String(rawPreview || "");
+    if (/(sent a quote|quote sent)/i.test(previewText)) {
       const isArtist = currentUser?.user_type === "service_provider";
-      return isArtist ? "You sent a quote" : `${counterpartyName || "Partner"} sent a quote`;
+      return isArtist
+        ? "You sent a quote"
+        : `${counterpartyName || "Partner"} sent a quote`;
     }
     if (isBookaModeration && /\bnew\s+booking\s+request\b/i.test(rawPreviewLower)) {
       return "Booka update";
