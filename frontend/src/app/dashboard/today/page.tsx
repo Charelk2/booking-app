@@ -13,7 +13,6 @@ import {
 } from 'date-fns';
 import { 
   MapPin, 
-  Calendar as CalendarIcon,
   ChevronRight,
   Clock
 } from 'lucide-react';
@@ -206,7 +205,7 @@ export default function TodayPage() {
                 />
                 <Link 
                   href="/dashboard/artist" 
-                  className="text-sm font-semibold text-black underline decoration-2 underline-offset-4 hover:text-gray-700"
+                  className="text-sm font-semibold text-black hover:text-gray-700"
                 >
                   Go to Dashboard
                 </Link>
@@ -216,19 +215,6 @@ export default function TodayPage() {
                 {activeList.map((booking: Booking) => (
                   <AirbnbCard key={booking.id} booking={booking} />
                 ))}
-              </div>
-            )}
-            
-            {/* Bottom Link */}
-            {activeList.length > 0 && (
-              <div className="mt-8 text-center">
-                <Link 
-                  href="/dashboard/bookings" 
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  <CalendarIcon size={16} />
-                  View full calendar
-                </Link>
               </div>
             )}
           </div>
