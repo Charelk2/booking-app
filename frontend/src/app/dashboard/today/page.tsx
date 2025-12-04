@@ -203,7 +203,7 @@ export default function TodayPage() {
           ) : (
             <div className="mt-6 w-full max-w-xl text-left">
               <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-400">
-                {view === 'today' ? 'Today&apos;s bookings' : 'Upcoming bookings'}
+                {view === 'today' ? "Today's bookings" : 'Upcoming bookings'}
               </p>
               <ul className="space-y-3">
                 {activeList.map((booking: Booking) => (
