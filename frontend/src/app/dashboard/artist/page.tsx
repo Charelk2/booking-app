@@ -14,8 +14,7 @@ import {
   ChevronRight,
   AlertCircle,
   TrendingUp,
-  Clock,
-  Menu
+  Clock
 } from "lucide-react";
 
 import MainLayout from "@/components/layout/MainLayout";
@@ -89,17 +88,20 @@ const MobileTabItem = ({
   onClick: () => void; 
 }) => (
   <button
-    onClick={onClick}
-    className={`flex shrink-0 items-center gap-2 rounded-full border px-5 py-2 text-sm font-semibold transition-all ${
+    onClick={(e) => {
+      // Optional: scroll into view logic could go here
+      onClick();
+    }}
+    className={`relative flex shrink-0 items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition-all active:scale-95 ${
       active
-        ? "border-black bg-black text-white shadow-md"
+        ? "border-black bg-black text-white shadow-md z-10"
         : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
     }`}
   >
     <span>{label}</span>
     {count !== undefined && count > 0 && (
-      <span className={`flex h-4 min-w-[16px] items-center justify-center rounded-full text-[9px] font-bold ${
-        active ? "bg-white text-black" : "bg-gray-200 text-gray-600"
+      <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full text-[10px] font-bold ${
+        active ? "bg-white text-black" : "bg-gray-100 text-gray-600"
       }`}>
         {count}
       </span>
@@ -113,7 +115,7 @@ const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: 
       <h2 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">{title}</h2>
       {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
     </div>
-    {action && <div className="shrink-0">{action}</div>}
+    {action && <div className="shrink-0 w-full sm:w-auto">{action}</div>}
   </div>
 );
 
@@ -269,21 +271,16 @@ export default function DashboardPage() {
     }
   };
 
-  // --- Loading / Error ---
   if (!user || authLoading) return <MainLayout><div className="flex h-screen items-center justify-center"><Spinner /></div></MainLayout>;
   if (loading && activeView === 'overview') return <MainLayout><div className="flex h-screen items-center justify-center"><Spinner /></div></MainLayout>;
 
   return (
     <MainLayout>
-      {/* LAYOUT CONTAINER
-         md:items-start -> Critical for sticky sidebar positioning
-      */}
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pt-6 pb-12 md:flex-row md:items-start md:px-8">
         
         {/* === DESKTOP SIDEBAR (Sticky) === */}
         <aside className="hidden w-64 shrink-0 md:block">
-          {/* Sticky rail aligned with dynamic header height via --sp-sticky-top */}
-          <div className="sticky space-y-8" style={{ top: 'var(--sp-sticky-top)' }}>
+          <div className="sticky space-y-8" style={{ top: 'var(--sp-sticky-top, 96px)' }}>
             
             {/* User Snippet */}
             <div className="flex items-center gap-3 px-2">
@@ -350,10 +347,15 @@ export default function DashboardPage() {
         {/* === MAIN CONTENT AREA === */}
         <main className="min-w-0 flex-1">
 
-          {/* === MOBILE NAV (Horizontal Scroll Pills) === */}
-          {/* Only visible on mobile (md:hidden). Replaces the sidebar. */}
-          <div className="mb-6 flex overflow-x-auto pb-1 md:hidden no-scrollbar">
-            <div className="flex gap-2">
+          {/* === MOBILE STICKY NAV === */}
+          {/* Features:
+              - Sticky top-0: Stays visible while scrolling content.
+              - -mx-4: Pulls it to the edges of the screen (counteracting parent padding).
+              - backdrop-blur: Glass effect over content.
+              - z-30: Stays above content.
+          */}
+          <div className="sticky top-0 z-30 -mx-4 mb-6 md:hidden">
+            <div className="flex items-center gap-2 overflow-x-auto border-b border-gray-100 bg-white/90 px-4 py-3 backdrop-blur-xl no-scrollbar">
               <MobileTabItem 
                 active={activeView === 'overview'} 
                 label="Overview" 
@@ -376,7 +378,11 @@ export default function DashboardPage() {
                 label="Services" 
                 onClick={() => setActiveView('services')}
               />
+               {/* Spacer to allow scrolling past last item */}
+               <div className="w-2 shrink-0" />
             </div>
+            {/* Fade to transparent indicator on the right if needed, 
+                but simpler is often cleaner. The border-b does the work. */}
           </div>
           
           {/* VIEW: OVERVIEW */}
@@ -384,14 +390,14 @@ export default function DashboardPage() {
             <div className="space-y-8 animate-in fade-in duration-300">
               <SectionHeader 
                 title={`Good ${new Date().getHours() < 12 ? 'morning' : 'afternoon'}, ${user.first_name}`} 
-                subtitle="Here is what is happening with your business today."
+                subtitle="Your daily business snapshot."
               />
 
               {/* Action Cards */}
               {(pendingQuoteCount > 0 || unreadRequestsCount > 0) && (
                 <section className="grid gap-4 sm:grid-cols-2">
                   {pendingQuoteCount > 0 && (
-                    <button onClick={() => setActiveView('requests')} className="flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50/50 p-5 text-left transition-colors hover:bg-blue-50">
+                    <button onClick={() => setActiveView('requests')} className="flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50/50 p-5 text-left transition-transform active:scale-[0.98] hover:bg-blue-50">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse"/>
@@ -404,7 +410,7 @@ export default function DashboardPage() {
                     </button>
                   )}
                   {unreadRequestsCount > 0 && (
-                     <button onClick={() => setActiveView('requests')} className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:border-black">
+                     <button onClick={() => setActiveView('requests')} className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-transform active:scale-[0.98] hover:border-black">
                       <div>
                         <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Inbox</p>
                         <p className="text-lg font-bold text-gray-900">{unreadRequestsCount} Unread Message{unreadRequestsCount !== 1 && 's'}</p>
@@ -424,7 +430,7 @@ export default function DashboardPage() {
                 {primaryBooking ? (
                    <div className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_2px_10px_rgb(0,0,0,0.03)]">
                       <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                        <div className="flex items-start gap-5">
+                        <div className="flex flex-col sm:flex-row items-start gap-5">
                           {/* Date Box */}
                           <div className="flex flex-col items-center justify-center rounded-2xl bg-gray-50 px-5 py-4 min-w-[90px] border border-gray-100">
                             <span className="text-xs font-bold uppercase text-gray-400">{format(new Date(primaryBooking.start_time), "MMM")}</span>
@@ -433,11 +439,11 @@ export default function DashboardPage() {
                           
                           {/* Info */}
                           <div className="pt-1">
-                            <h4 className="text-xl font-bold text-gray-900">{primaryBooking.service?.title || "Booking"}</h4>
-                            <p className="text-sm font-medium text-gray-600 mt-1">
+                            <h4 className="text-xl font-bold text-gray-900 line-clamp-2">{primaryBooking.service?.title || "Booking"}</h4>
+                            <p className="text-sm font-medium text-gray-600 mt-1 line-clamp-1">
                               {primaryBooking.client ? `${primaryBooking.client.first_name} ${primaryBooking.client.last_name}` : "Client"}
                             </p>
-                            <div className="mt-3 flex items-center gap-3 text-xs font-medium text-gray-500">
+                            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium text-gray-500">
                               <span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-1">
                                 <Clock size={12} />
                                 {format(new Date(primaryBooking.start_time), "h:mm a")}
@@ -448,8 +454,8 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-end gap-3 md:flex-col">
-                           <Link href={`/dashboard/events/${primaryBooking.id}`} className="w-full rounded-xl bg-black px-6 py-3 text-center text-sm font-bold text-white transition-transform hover:scale-[1.02] md:w-auto">
+                        <div className="flex w-full items-end gap-3 md:w-auto md:flex-col">
+                           <Link href={`/dashboard/events/${primaryBooking.id}`} className="w-full rounded-xl bg-black px-6 py-3 text-center text-sm font-bold text-white transition-transform active:scale-95 md:w-auto">
                              View Details
                            </Link>
                         </div>
@@ -481,7 +487,7 @@ export default function DashboardPage() {
           {/* VIEW: REQUESTS */}
           {activeView === 'requests' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <SectionHeader title="Booking Requests" subtitle="Manage inquiries and send quotes." />
+              <SectionHeader title="Requests" subtitle="Manage inquiries." />
               <ErrorBoundary onRetry={fetchAll}>
                 <React.Suspense fallback={<LoadingSkeleton lines={6} />}>
                   <RequestsSection requests={bookingRequests} loading={loading} error={error || undefined} onRetry={fetchAll} />
@@ -493,7 +499,7 @@ export default function DashboardPage() {
           {/* VIEW: BOOKINGS */}
           {activeView === 'bookings' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <SectionHeader title="Schedule" subtitle="Your confirmed upcoming and past events." />
+              <SectionHeader title="Schedule" subtitle="Confirmed upcoming events." />
               <BookingsSection bookings={bookings} loading={loading} error={error || undefined} onRetry={fetchAll} />
             </div>
           )}
@@ -502,14 +508,14 @@ export default function DashboardPage() {
           {activeView === 'services' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                <SectionHeader 
-                  title="My Services" 
-                  subtitle="Manage what you offer to clients." 
+                  title="Services" 
+                  subtitle="Manage what you offer." 
                   action={
                     <button 
                       onClick={() => handleServiceAction('add')}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] sm:w-auto"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-bold text-white shadow-lg transition-transform active:scale-95 sm:w-auto"
                     >
-                      <Plus size={18} /> <span className="sm:hidden">Add New</span><span className="hidden sm:inline">Add Service</span>
+                      <Plus size={18} /> Add Service
                     </button>
                   }
                />
