@@ -10,13 +10,12 @@ import {
   MessageSquare, 
   Calendar, 
   Briefcase, 
-  Settings, 
   Plus, 
   ChevronRight,
   AlertCircle,
   TrendingUp,
   Clock,
-  CheckCircle2
+  Menu
 } from "lucide-react";
 
 import MainLayout from "@/components/layout/MainLayout";
@@ -58,14 +57,14 @@ const SidebarItem = ({
 }) => (
   <button
     onClick={onClick}
-    className={`group flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+    className={`group flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
       active
-        ? "bg-black text-white shadow-sm"
-        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+        ? "bg-black text-white shadow-md"
+        : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
     }`}
   >
     <div className="flex items-center gap-3">
-      <Icon size={18} className={active ? "text-white" : "text-gray-400 group-hover:text-gray-600"} />
+      <Icon size={20} className={active ? "text-white" : "text-gray-400 group-hover:text-gray-900"} />
       <span>{label}</span>
     </div>
     {count !== undefined && count > 0 && (
@@ -78,13 +77,44 @@ const SidebarItem = ({
   </button>
 );
 
+const BottomNavItem = ({ 
+  active, 
+  icon: Icon, 
+  label, 
+  count, 
+  onClick 
+}: { 
+  active: boolean; 
+  icon: any; 
+  label: string; 
+  count?: number; 
+  onClick: () => void; 
+}) => (
+  <button
+    onClick={onClick}
+    className={`relative flex flex-1 flex-col items-center justify-center py-3 transition-colors ${
+      active ? "text-black" : "text-gray-400 hover:text-gray-600"
+    }`}
+  >
+    <div className="relative">
+      <Icon size={24} strokeWidth={active ? 2.5 : 2} />
+      {count !== undefined && count > 0 && (
+        <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+          {count}
+        </span>
+      )}
+    </div>
+    <span className="mt-1 text-[10px] font-medium">{label}</span>
+  </button>
+);
+
 const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) => (
-  <div className="mb-6 flex items-end justify-between border-b border-gray-100 pb-4">
+  <div className="mb-6 flex flex-col justify-between gap-4 border-b border-gray-100 pb-4 sm:flex-row sm:items-end">
     <div>
-      <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+      <h2 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">{title}</h2>
       {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
     </div>
-    {action}
+    {action && <div className="shrink-0">{action}</div>}
   </div>
 );
 
@@ -109,7 +139,7 @@ export default function DashboardPage() {
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState<boolean>(false);
   
-  // Dynamic Imports for Wizards
+  // Dynamic Imports
   type WizardProps = { isOpen: boolean; onClose: () => void; onServiceSaved: (svc: Service) => void; service?: Service };
   const [WizardComponent, setWizardComponent] = useState<ComponentType<WizardProps> | null>(null);
 
@@ -129,7 +159,7 @@ export default function DashboardPage() {
     reorderServices 
   } = useArtistDashboardData(user?.id);
 
-  // --- Dynamic Wizard Loader ---
+  // --- Wizards ---
   const wizardLoaders: Record<string, () => Promise<{ default: ComponentType<WizardProps> }>> = {
     musician: () => import("@/components/dashboard/add-service/AddServiceModalMusician"),
     photographer: () => import("@/components/dashboard/add-service/AddServiceModalPhotographer"),
@@ -151,7 +181,7 @@ export default function DashboardPage() {
     });
   }, [wizardCategory]);
 
-  // --- Effect: Sync URL & Handle Add Param ---
+  // --- URL Sync ---
   useEffect(() => {
     const cat = params.get('addCategory');
     if (cat) {
@@ -169,7 +199,7 @@ export default function DashboardPage() {
     }
   }, [activeView, router, pathname]);
 
-  // --- Effect: Calendar Status ---
+  // --- Calendar Status ---
   useEffect(() => {
     if (!user || user.user_type !== 'service_provider') return;
     let cancelled = false;
@@ -184,7 +214,7 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [user?.user_type]);
 
-  // --- Derived State (Profile Completeness) ---
+  // --- Derived State ---
   const missingFields = useMemo(() => {
     const p = artistProfile;
     const list: string[] = [];
@@ -201,7 +231,6 @@ export default function DashboardPage() {
 
   const isProfileComplete = missingFields.length === 0;
 
-  // --- Derived State (Stats) ---
   const upcomingBookingsCount = useMemo(() => bookings.filter(b => new Date(b.start_time).getTime() >= Date.now() && b.status !== "cancelled").length, [bookings]);
   const pendingQuoteCount = useMemo(() => bookingRequests.filter(r => r.status === "pending_quote").length, [bookingRequests]);
   const unreadRequestsCount = useMemo(() => bookingRequests.filter(r => r.is_unread_by_current_user).length, [bookingRequests]);
@@ -219,13 +248,6 @@ export default function DashboardPage() {
     const sorted = [...bookings].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
     return sorted.find(b => new Date(b.start_time).getTime() >= now && b.status !== "cancelled") || sorted[sorted.length - 1] || null;
   }, [bookings]);
-
-  // --- Auth Guard ---
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) router.push(`/auth?intent=login&next=${encodeURIComponent(pathname)}`);
-    else if (user.user_type !== "service_provider") router.push("/dashboard/client");
-  }, [user, authLoading, router, pathname]);
 
   // --- Handlers ---
   const handleServiceAction = (action: 'add' | 'edit' | 'delete', service?: Service) => {
@@ -252,24 +274,25 @@ export default function DashboardPage() {
   if (!user || authLoading) return <MainLayout><div className="flex h-screen items-center justify-center"><Spinner /></div></MainLayout>;
   if (loading && activeView === 'overview') return <MainLayout><div className="flex h-screen items-center justify-center"><Spinner /></div></MainLayout>;
 
-  // --- Render ---
-
   return (
     <MainLayout>
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 md:flex-row md:px-8">
+      {/* Parent Container: 
+        - items-start is CRITICAL for 'sticky' to work on the child 
+      */}
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pt-6 pb-24 md:flex-row md:items-start md:px-8 md:pb-12">
         
-        {/* === LEFT SIDEBAR === */}
-        <aside className="w-full shrink-0 md:w-64">
+        {/* === DESKTOP SIDEBAR (Sticky) === */}
+        <aside className="hidden w-64 shrink-0 md:block">
           <div className="sticky top-24 space-y-8">
             
             {/* User Snippet */}
             <div className="flex items-center gap-3 px-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black text-sm font-bold text-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-black text-sm font-bold text-white shadow-lg shadow-gray-200">
                 {user.first_name?.[0]}{user.last_name?.[0]}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-gray-900">{artistProfile?.business_name || user.first_name}</p>
-                <p className="truncate text-xs text-gray-500">Artist Dashboard</p>
+                <p className="truncate text-xs font-medium text-gray-500">Artist Dashboard</p>
               </div>
             </div>
 
@@ -303,19 +326,19 @@ export default function DashboardPage() {
               />
             </nav>
 
-            {/* Profile Status Widget */}
+            {/* Setup Widget */}
             {!isProfileComplete && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <div className="mb-2 flex items-center gap-2 text-amber-800">
+                <div className="mb-2 flex items-center gap-2 text-amber-900">
                   <AlertCircle size={16} />
-                  <span className="text-xs font-bold uppercase tracking-wide">Setup Required</span>
+                  <span className="text-xs font-bold uppercase tracking-wide">Action Needed</span>
                 </div>
-                <p className="mb-3 text-xs text-amber-700">
-                  Complete your profile to start accepting bookings.
+                <p className="mb-3 text-xs font-medium text-amber-800">
+                  Your profile is incomplete. Clients can't find you yet.
                 </p>
                 <Link 
                   href="/dashboard/profile/edit?incomplete=1"
-                  className="block w-full rounded-lg bg-white py-2 text-center text-xs font-semibold text-amber-900 shadow-sm ring-1 ring-amber-200 hover:bg-amber-50"
+                  className="block w-full rounded-lg bg-white py-2 text-center text-xs font-bold text-amber-900 shadow-sm ring-1 ring-amber-200 hover:bg-amber-50"
                 >
                   Finish Setup
                 </Link>
@@ -332,28 +355,33 @@ export default function DashboardPage() {
             <div className="space-y-8 animate-in fade-in duration-300">
               <SectionHeader 
                 title={`Good ${new Date().getHours() < 12 ? 'morning' : 'afternoon'}, ${user.first_name}`} 
-                subtitle="Here's what's happening with your business today."
+                subtitle="Here is what is happening with your business today."
               />
 
-              {/* Top Cards: Tasks */}
+              {/* Action Cards */}
               {(pendingQuoteCount > 0 || unreadRequestsCount > 0) && (
-                <section className="grid gap-4 md:grid-cols-2">
+                <section className="grid gap-4 sm:grid-cols-2">
                   {pendingQuoteCount > 0 && (
-                    <button onClick={() => setActiveView('requests')} className="flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50 p-4 text-left transition-colors hover:bg-blue-100">
+                    <button onClick={() => setActiveView('requests')} className="flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50/50 p-5 text-left transition-colors hover:bg-blue-50">
                       <div>
-                        <p className="font-bold text-blue-900">{pendingQuoteCount} pending quote{pendingQuoteCount !== 1 && 's'}</p>
-                        <p className="text-xs text-blue-700">Clients are waiting for your price.</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse"/>
+                          <p className="text-xs font-bold uppercase tracking-wide text-blue-600">Action Required</p>
+                        </div>
+                        <p className="text-lg font-bold text-gray-900">{pendingQuoteCount} Quote Request{pendingQuoteCount !== 1 && 's'}</p>
+                        <p className="text-sm text-gray-600">Clients are waiting for your price.</p>
                       </div>
-                      <ChevronRight size={18} className="text-blue-400" />
+                      <ChevronRight size={20} className="text-blue-400" />
                     </button>
                   )}
                   {unreadRequestsCount > 0 && (
-                     <button onClick={() => setActiveView('requests')} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-black">
+                     <button onClick={() => setActiveView('requests')} className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:border-black">
                       <div>
-                        <p className="font-bold text-gray-900">{unreadRequestsCount} unread message{unreadRequestsCount !== 1 && 's'}</p>
-                        <p className="text-xs text-gray-500">Fast replies improve booking rates.</p>
+                        <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Inbox</p>
+                        <p className="text-lg font-bold text-gray-900">{unreadRequestsCount} Unread Message{unreadRequestsCount !== 1 && 's'}</p>
+                        <p className="text-sm text-gray-600">Reply fast to secure bookings.</p>
                       </div>
-                      <ChevronRight size={18} className="text-gray-300" />
+                      <ChevronRight size={20} className="text-gray-300" />
                     </button>
                   )}
                 </section>
@@ -361,49 +389,53 @@ export default function DashboardPage() {
 
               {/* Next Event */}
               <section>
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-sm font-bold uppercase tracking-wide text-gray-500">Up Next</h3>
                 </div>
                 {primaryBooking ? (
-                   <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                   <div className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_2px_10px_rgb(0,0,0,0.03)]">
                       <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                        <div className="flex items-start gap-4">
-                          <div className="flex flex-col items-center justify-center rounded-xl bg-gray-100 px-4 py-3 min-w-[80px]">
-                            <span className="text-xs font-bold uppercase text-gray-500">{format(new Date(primaryBooking.start_time), "MMM")}</span>
-                            <span className="text-2xl font-bold text-gray-900">{format(new Date(primaryBooking.start_time), "d")}</span>
+                        <div className="flex items-start gap-5">
+                          {/* Date Box */}
+                          <div className="flex flex-col items-center justify-center rounded-2xl bg-gray-50 px-5 py-4 min-w-[90px] border border-gray-100">
+                            <span className="text-xs font-bold uppercase text-gray-400">{format(new Date(primaryBooking.start_time), "MMM")}</span>
+                            <span className="text-3xl font-bold text-gray-900">{format(new Date(primaryBooking.start_time), "d")}</span>
                           </div>
-                          <div>
-                            <h4 className="text-lg font-bold text-gray-900">{primaryBooking.service?.title || "Booking"}</h4>
-                            <p className="text-sm font-medium text-gray-600">
+                          
+                          {/* Info */}
+                          <div className="pt-1">
+                            <h4 className="text-xl font-bold text-gray-900">{primaryBooking.service?.title || "Booking"}</h4>
+                            <p className="text-sm font-medium text-gray-600 mt-1">
                               {primaryBooking.client ? `${primaryBooking.client.first_name} ${primaryBooking.client.last_name}` : "Client"}
                             </p>
-                            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                              <Clock size={14} />
-                              {format(new Date(primaryBooking.start_time), "h:mm a")}
-                              <span>•</span>
-                              <span style={statusChipStyles(primaryBooking.status)} className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase">
+                            <div className="mt-3 flex items-center gap-3 text-xs font-medium text-gray-500">
+                              <span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-1">
+                                <Clock size={12} />
+                                {format(new Date(primaryBooking.start_time), "h:mm a")}
+                              </span>
+                              <span style={statusChipStyles(primaryBooking.status)} className="rounded-full px-2 py-1 text-[10px] font-bold uppercase">
                                 {formatStatus(primaryBooking.status)}
                               </span>
                             </div>
                           </div>
                         </div>
                         <div className="flex items-end gap-3 md:flex-col">
-                           <Link href={`/dashboard/events/${primaryBooking.id}`} className="rounded-lg bg-black px-4 py-2 text-sm font-bold text-white transition-transform hover:scale-105">
+                           <Link href={`/dashboard/events/${primaryBooking.id}`} className="w-full rounded-xl bg-black px-6 py-3 text-center text-sm font-bold text-white transition-transform hover:scale-[1.02] md:w-auto">
                              View Details
                            </Link>
                         </div>
                       </div>
                    </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
-                    <p className="text-sm text-gray-500">No upcoming events scheduled.</p>
+                  <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-10 text-center">
+                    <p className="text-sm font-medium text-gray-500">No upcoming events scheduled.</p>
                   </div>
                 )}
               </section>
 
               {/* Stats */}
               <section>
-                 <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-gray-500">Performance (This Month)</h3>
+                 <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-gray-500">This Month</h3>
                  <StatGrid 
                     columns={2}
                     items={[
@@ -446,9 +478,9 @@ export default function DashboardPage() {
                   action={
                     <button 
                       onClick={() => handleServiceAction('add')}
-                      className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-bold text-white hover:bg-gray-800"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] sm:w-auto"
                     >
-                      <Plus size={16} /> Add Service
+                      <Plus size={18} /> <span className="sm:hidden">Add New</span><span className="hidden sm:inline">Add Service</span>
                     </button>
                   }
                />
@@ -471,6 +503,36 @@ export default function DashboardPage() {
 
         </main>
       </div>
+
+      {/* === MOBILE BOTTOM NAVIGATION === */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-gray-200 bg-white/90 px-2 pb-5 pt-2 backdrop-blur-lg md:hidden">
+        <BottomNavItem 
+          active={activeView === 'overview'} 
+          icon={LayoutDashboard} 
+          label="Home" 
+          onClick={() => setActiveView('overview')} 
+        />
+        <BottomNavItem 
+          active={activeView === 'requests'} 
+          icon={MessageSquare} 
+          label="Inbox" 
+          count={pendingQuoteCount + unreadRequestsCount}
+          onClick={() => setActiveView('requests')} 
+        />
+        <BottomNavItem 
+          active={activeView === 'bookings'} 
+          icon={Calendar} 
+          label="Calendar" 
+          count={upcomingBookingsCount}
+          onClick={() => setActiveView('bookings')} 
+        />
+        <BottomNavItem 
+          active={activeView === 'services'} 
+          icon={Briefcase} 
+          label="Services" 
+          onClick={() => setActiveView('services')} 
+        />
+      </nav>
 
       {/* --- Modals --- */}
       
