@@ -872,7 +872,7 @@ def notify_user_new_booking_request(
         ]
         _send_whatsapp_template(
             user.phone_number,
-            template_name="new_booking_request_1",
+            template_name="new_booking_request",
             language_code="en",
             body_params=body_params,
             # Dynamic URL button param – aligns with template's {{1}} in the URL.
