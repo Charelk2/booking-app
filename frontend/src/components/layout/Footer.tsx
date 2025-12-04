@@ -182,6 +182,7 @@ export default function Footer() {
                 Empowering entertainers, enabling planners.
               </p>
             </div>
+            
 
             {/* Socials & Copyright */}
             <div className="flex flex-col md:items-end gap-6">
