@@ -1,7 +1,6 @@
-// frontend/src/app/dashboard/artist/page.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState, type ComponentType } from "react";
+import React, { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -32,6 +31,7 @@ import RequestsSection from "@/components/dashboard/artist/RequestsSection";
 import BookingsSection from "@/components/dashboard/artist/BookingsSection";
 import ServicesSection from "@/components/dashboard/artist/ServicesSection";
 import { useArtistDashboardData } from "@/hooks/useArtistDashboardData";
+import { useScrollSync } from "@/hooks/useScrollSync";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import { statusChipStyles } from "@/components/ui/status";
@@ -139,6 +139,11 @@ export default function DashboardPage() {
   const [requestToUpdate, setRequestToUpdate] = useState<any | null>(null);
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState<boolean>(false);
+
+  // Desktop scroll rails (match service provider profile behavior)
+  const leftScrollRef = useRef<HTMLDivElement | null>(null);
+  const rightScrollRef = useRef<HTMLDivElement | null>(null);
+  useScrollSync([leftScrollRef, rightScrollRef]);
   
   // Dynamic Imports
   type WizardProps = { isOpen: boolean; onClose: () => void; onServiceSaved: (svc: Service) => void; service?: Service };
@@ -283,7 +288,10 @@ export default function DashboardPage() {
           className="hidden w-64 shrink-0 md:block md:sticky md:self-start"
           style={{ top: 'var(--sp-sticky-top)' }}
         >
-          <div className="h-[calc(100vh-var(--sp-sticky-top))] space-y-8 overflow-y-auto">
+          <div
+            ref={leftScrollRef}
+            className="h-[calc(100vh-var(--sp-sticky-top))] space-y-8 overflow-y-auto"
+          >
             
             {/* User Snippet */}
             <div className="flex items-center gap-3 px-2">
@@ -347,9 +355,15 @@ export default function DashboardPage() {
           </div>
         </aside>
 
-        {/* === MAIN CONTENT AREA === */}
-        <main className="min-w-0 flex-1">
-
+        {/* === MAIN CONTENT AREA (desktop rail uses same sticky + scroller pattern) === */}
+        <main
+          className="min-w-0 flex-1 md:sticky md:self-start"
+          style={{ top: 'var(--sp-sticky-top)' }}
+        >
+          <div
+            ref={rightScrollRef}
+            className="h-auto md:h-[calc(100vh-var(--sp-sticky-top))] md:overflow-y-auto"
+          >
           {/* === MOBILE STICKY NAV === */}
           {/* Features:
               - Sticky top-0: Stays visible while scrolling content.
