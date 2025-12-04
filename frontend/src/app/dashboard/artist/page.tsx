@@ -61,15 +61,18 @@ export default function DashboardPage() {
   }, [wizardCategory]);
   const params = useSearchParams();
   const initialTabParam = params.get('tab');
-  const initialTab: 'requests' | 'bookings' | 'services' =
-    initialTabParam === 'services' ? 'services' : 'requests';
-  const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>(initialTab);
+  type ArtistTabId = "overview" | "requests" | "services";
+  const initialTab: ArtistTabId =
+    initialTabParam === "requests" || initialTabParam === "services"
+      ? (initialTabParam as ArtistTabId)
+      : "overview";
+  const [activeTab, setActiveTab] = useState<ArtistTabId>(initialTab);
 
   // Open a specific add-service wizard when arriving with ?addCategory=...
   useEffect(() => {
     const cat = params.get('addCategory');
     if (cat) {
-      setActiveTab('services');
+      setActiveTab("services");
       setWizardCategory(cat);
     }
   }, [params]);
@@ -77,9 +80,9 @@ export default function DashboardPage() {
   useEffect(() => {
     // Keep URL in sync with tab without scrolling to top
     const params = new URLSearchParams(window.location.search);
-    const currentTab = params.get('tab') || 'requests';
+    const currentTab = params.get("tab") || "overview";
     if (currentTab !== activeTab) {
-      params.set('tab', activeTab);
+      params.set("tab", activeTab);
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     }
   }, [activeTab, router, pathname]);
@@ -197,7 +200,6 @@ export default function DashboardPage() {
       },
     ];
   }, [earningsThisMonth, dashboardStats, upcomingBookingsCount]);
-  // Section data derived in child components
 
   const primaryBooking: Booking | null = useMemo(() => {
     if (!bookings.length) return null;
@@ -224,101 +226,6 @@ export default function DashboardPage() {
       ? "Today’s event"
       : "Next event"
     : "Today";
-
-  const pipelineNewRequests = useMemo(
-    () =>
-      bookingRequests
-        .filter((r) => r.status === "pending_quote")
-        .slice(0, 3),
-    [bookingRequests],
-  );
-
-  const pipelineQuoteSent = useMemo(
-    () =>
-      bookingRequests
-        .filter((r) => r.status === "quote_provided")
-        .slice(0, 3),
-    [bookingRequests],
-  );
-
-  const pipelineConfirmed = useMemo(
-    () =>
-      bookings
-        .filter((b) => b.status === "confirmed")
-        .slice(0, 3),
-    [bookings],
-  );
-
-  const pipelineCompleted = useMemo(
-    () =>
-      bookings
-        .filter((b) => b.status === "completed")
-        .slice(0, 3),
-    [bookings],
-  );
-
-  const activityItems = useMemo(() => {
-    type ActivityItem = {
-      id: string;
-      label: string;
-      timestamp: Date;
-      href: string;
-    };
-    const items: ActivityItem[] = [];
-
-    bookingRequests.forEach((r) => {
-      const when = new Date(r.created_at);
-      const clientName = r.client
-        ? `${r.client.first_name} ${r.client.last_name}`
-        : "Client";
-      if (r.status === "pending_quote") {
-        items.push({
-          id: `req:${r.id}:new`,
-          label: `New request from ${clientName}`,
-          timestamp: when,
-          href: `/booking-requests/${r.id}`,
-        });
-      } else if (r.status === "quote_provided") {
-        items.push({
-          id: `req:${r.id}:quote`,
-          label: `Quote sent to ${clientName}`,
-          timestamp: when,
-          href: `/booking-requests/${r.id}`,
-        });
-      }
-    });
-
-    bookings.forEach((b) => {
-      const anyBooking = b as any;
-      const when = new Date(
-        typeof anyBooking.created_at === "string"
-          ? anyBooking.created_at
-          : b.start_time,
-      );
-      const clientName = b.client
-        ? `${b.client.first_name} ${b.client.last_name}`
-        : "Client";
-      if (b.status === "confirmed") {
-        items.push({
-          id: `booking:${b.id}:confirmed`,
-          label: `Booking confirmed for ${clientName}`,
-          timestamp: when,
-          href: `/dashboard/events/${b.id}`,
-        });
-      } else if (b.status === "completed") {
-        items.push({
-          id: `booking:${b.id}:completed`,
-          label: `Event completed for ${clientName}`,
-          timestamp: when,
-          href: `/dashboard/events/${b.id}`,
-        });
-      }
-    });
-
-    return items
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-      .slice(0, 8);
-  }, [bookingRequests, bookings]);
 
 
   useEffect(() => {
@@ -391,406 +298,266 @@ export default function DashboardPage() {
           }}
         />
         <div className="space-y-8">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)]">
-            <Section title={primaryBookingTitle}>
-              {primaryBooking ? (
-                <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                  <div className="flex flex-1 items-start gap-4">
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {format(new Date(primaryBooking.start_time), "MMM")}
-                      </span>
-                      <span className="text-xl font-bold text-gray-900">
-                        {format(new Date(primaryBooking.start_time), "d")}
-                      </span>
-                      <span className="mt-1 text-xs font-medium text-gray-600">
-                        {format(new Date(primaryBooking.start_time), "HH:mm")}
-                      </span>
+          <DashboardTabs
+            tabs={[
+              { id: "overview", label: "Overview" },
+              { id: "requests", label: "Requests" },
+              { id: "services", label: "Services" },
+            ]}
+            active={activeTab}
+            onChange={setActiveTab}
+            variant="segmented"
+          />
+
+          {activeTab === "overview" && (
+            <>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)]">
+                <Section title={primaryBookingTitle}>
+                  {primaryBooking ? (
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                      <div className="flex flex-1 items-start gap-4">
+                        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            {format(new Date(primaryBooking.start_time), "MMM")}
+                          </span>
+                          <span className="text-xl font-bold text-gray-900">
+                            {format(new Date(primaryBooking.start_time), "d")}
+                          </span>
+                          <span className="mt-1 text-xs font-medium text-gray-600">
+                            {format(new Date(primaryBooking.start_time), "HH:mm")}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {primaryBooking.service?.title || "Booking"}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-600 truncate">
+                            {primaryBooking.client
+                              ? `${primaryBooking.client.first_name} ${primaryBooking.client.last_name}`
+                              : "Client"}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {format(
+                              new Date(primaryBooking.start_time),
+                              "EEE, MMM d · h:mm a",
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span
+                          className="inline-flex items-center font-medium"
+                          style={statusChipStyles(primaryBooking.status)}
+                        >
+                          {formatStatus(primaryBooking.status)}
+                        </span>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {formatCurrency(Number(primaryBooking.total_price))}
+                        </p>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <Link
+                            href={`/dashboard/events/${primaryBooking.id}`}
+                            className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            View event
+                          </Link>
+                          <Link
+                            href="/dashboard/bookings"
+                            className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            Upcoming schedule
+                          </Link>
+                        </div>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
-                        {primaryBooking.service?.title || "Booking"}
-                      </p>
-                      <p className="mt-1 text-sm text-gray-600 truncate">
-                        {primaryBooking.client
-                          ? `${primaryBooking.client.first_name} ${primaryBooking.client.last_name}`
-                          : "Client"}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {format(new Date(primaryBooking.start_time), "EEE, MMM d · h:mm a")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span
-                      className="inline-flex items-center font-medium"
-                      style={statusChipStyles(primaryBooking.status)}
-                    >
-                      {formatStatus(primaryBooking.status)}
-                    </span>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(Number(primaryBooking.total_price))}
-                    </p>
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Link
-                        href={`/dashboard/events/${primaryBooking.id}`}
-                        className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  ) : (
+                    <div className="flex items-center justify-between rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          No events scheduled yet
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          When you confirm a booking, it will show here with time,
+                          client, and payout.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("requests")}
+                        className="rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-900"
                       >
-                        View event
-                      </Link>
-                      <Link
-                        href="/dashboard/bookings"
-                        className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        View requests
+                      </button>
+                    </div>
+                  )}
+                </Section>
+
+                <Section title="Business at a glance">
+                  <StatGrid items={statCards} columns={2} />
+                </Section>
+              </div>
+
+              {/* Location Prompt for Artists */}
+              {showLocationPrompt && (
+                <div className="mt-4 rounded-md bg-yellow-50 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="h-5 w-5 text-yellow-400"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
                       >
-                        Upcoming schedule
-                      </Link>
+                        <path
+                          fillRule="evenodd"
+                          d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">
+                        Complete Your Profile
+                      </h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <p>
+                          Please add your location to help clients discover your
+                          services.
+                          <Link
+                            href="/dashboard/profile/edit"
+                            className="font-medium underline text-yellow-800 hover:text-yellow-900 ml-1"
+                          >
+                            Update your profile now.
+                          </Link>
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">No events scheduled yet</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      When you confirm a booking, it will show here with time, client, and payout.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("requests")}
-                    className="rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-900"
-                  >
-                    View requests
-                  </button>
                 </div>
               )}
-            </Section>
 
-            <Section title="Business at a glance">
-              <StatGrid items={statCards} columns={2} />
-            </Section>
-          </div>
+              <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] mb-4">
+                <Section
+                  title="Your tasks"
+                  subtitle="A quick list of what needs your attention."
+                >
+                  <div className="space-y-3">
+                    {pendingQuoteCount > 0 && (
+                      <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+                        <div className="pr-3">
+                          <p className="text-sm font-medium text-gray-900">
+                            {pendingQuoteCount} request
+                            {pendingQuoteCount === 1 ? "" : "s"} need a quote
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            Send quotes so clients can confirm and pay.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("requests")}
+                          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          View requests
+                        </button>
+                      </div>
+                    )}
 
-          {/* Location Prompt for Artists */}
-          {showLocationPrompt && (
-            <div className="mt-4 rounded-md bg-yellow-50 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-yellow-400"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
-                      clipRule="evenodd"
+                    {unreadRequestsCount > 0 && (
+                      <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+                        <div className="pr-3">
+                          <p className="text-sm font-medium text-gray-900">
+                            {unreadRequestsCount} conversation
+                            {unreadRequestsCount === 1 ? "" : "s"} waiting for a
+                            reply
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            Fast replies improve your response rate and booking
+                            chances.
+                          </p>
+                        </div>
+                        <Link
+                          href="/inbox"
+                          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Open inbox
+                        </Link>
+                      </div>
+                    )}
+
+                    {!isProfileComplete && (
+                      <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+                        <div className="pr-3">
+                          <p className="text-sm font-medium text-gray-900">
+                            Complete your profile
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            Finish your profile so clients can easily find and
+                            trust you.
+                            {missingFields.length > 0 && (
+                              <span className="block mt-1">
+                                Missing: {missingFields.join(", ")}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.push("/dashboard/profile/edit?incomplete=1")
+                          }
+                          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Finish profile
+                        </button>
+                      </div>
+                    )}
+
+                    {pendingQuoteCount === 0 &&
+                      unreadRequestsCount === 0 &&
+                      isProfileComplete && (
+                        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-600">
+                          You’re all caught up. New requests and tasks will appear
+                          here.
+                        </div>
+                      )}
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <QuickActionButton label="Request Review" />
+                    <QuickActionButton label="Boost a Service" />
+                    <QuickActionButton
+                      href="/dashboard/quotes"
+                      label="View All Quotes"
                     />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    Complete Your Profile
-                  </h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <p>
-                      Please add your location to help clients discover your
-                      services.
-                      <Link
-                        href="/dashboard/profile/edit"
-                        className="font-medium underline text-yellow-800 hover:text-yellow-900 ml-1"
-                      >
-                        Update your profile now.
-                      </Link>
-                    </p>
                   </div>
-                </div>
-              </div>
-            </div>
+                </Section>
+
+                <BookingsSection
+                  bookings={bookings}
+                  loading={loading}
+                  error={error || undefined}
+                  onRetry={fetchAll}
+                />
+              </section>
+            </>
           )}
 
-          <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] mb-4">
-            <Section
-              title="Your tasks"
-              subtitle="A quick list of what needs your attention."
-            >
-              <div className="space-y-3">
-                {pendingQuoteCount > 0 && (
-                  <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
-                    <div className="pr-3">
-                      <p className="text-sm font-medium text-gray-900">
-                        {pendingQuoteCount} request
-                        {pendingQuoteCount === 1 ? "" : "s"} need a quote
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        Send quotes so clients can confirm and pay.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("requests")}
-                      className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      View requests
-                    </button>
-                  </div>
-                )}
-
-                {unreadRequestsCount > 0 && (
-                  <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
-                    <div className="pr-3">
-                      <p className="text-sm font-medium text-gray-900">
-                        {unreadRequestsCount} conversation
-                        {unreadRequestsCount === 1 ? "" : "s"} waiting for a reply
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        Fast replies improve your response rate and booking chances.
-                      </p>
-                    </div>
-                    <Link
-                      href="/inbox"
-                      className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      Open inbox
-                    </Link>
-                  </div>
-                )}
-
-                {!isProfileComplete && (
-                  <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
-                    <div className="pr-3">
-                      <p className="text-sm font-medium text-gray-900">
-                        Complete your profile
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        Finish your profile so clients can easily find and trust you.
-                        {missingFields.length > 0 && (
-                          <span className="block mt-1">
-                            Missing: {missingFields.join(", ")}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => router.push("/dashboard/profile/edit?incomplete=1")}
-                      className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      Finish profile
-                    </button>
-                  </div>
-                )}
-
-                {pendingQuoteCount === 0 &&
-                  unreadRequestsCount === 0 &&
-                  isProfileComplete && (
-                    <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-600">
-                      You’re all caught up. New requests and tasks will appear here.
-                    </div>
-                  )}
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <QuickActionButton label="Request Review" />
-                <QuickActionButton label="Boost a Service" />
-                <QuickActionButton href="/dashboard/quotes" label="View All Quotes" />
-              </div>
-            </Section>
-
-            <BookingsSection bookings={bookings} loading={loading} error={error || undefined} onRetry={fetchAll} />
-          </section>
-
-          <Section
-            title="Booking pipeline"
-            subtitle="See where your bookings are in the journey."
-          >
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    New
-                  </p>
-                  <span className="text-xs font-medium text-gray-500">
-                    {pipelineNewRequests.length}
-                  </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {pipelineNewRequests.length === 0 ? (
-                    <p className="text-xs text-gray-400">
-                      No new requests waiting.
-                    </p>
-                  ) : (
-                    pipelineNewRequests.map((r) => (
-                      <Link
-                        key={r.id}
-                        href={`/booking-requests/${r.id}`}
-                        className="block rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:border-gray-200 hover:bg-gray-100"
-                      >
-                        <span className="line-clamp-1">
-                          {r.client
-                            ? `${r.client.first_name} ${r.client.last_name}`
-                            : "Client"}{" "}
-                          · {r.service?.title || "Request"}
-                        </span>
-                      </Link>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Quote sent
-                  </p>
-                  <span className="text-xs font-medium text-gray-500">
-                    {pipelineQuoteSent.length}
-                  </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {pipelineQuoteSent.length === 0 ? (
-                    <p className="text-xs text-gray-400">
-                      No quotes waiting on clients.
-                    </p>
-                  ) : (
-                    pipelineQuoteSent.map((r) => (
-                      <Link
-                        key={r.id}
-                        href={`/booking-requests/${r.id}`}
-                        className="block rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:border-gray-200 hover:bg-gray-100"
-                      >
-                        <span className="line-clamp-1">
-                          {r.client
-                            ? `${r.client.first_name} ${r.client.last_name}`
-                            : "Client"}{" "}
-                          · {r.service?.title || "Quote"}
-                        </span>
-                      </Link>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Confirmed
-                  </p>
-                  <span className="text-xs font-medium text-gray-500">
-                    {pipelineConfirmed.length}
-                  </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {pipelineConfirmed.length === 0 ? (
-                    <p className="text-xs text-gray-400">
-                      No confirmed events in this lane.
-                    </p>
-                  ) : (
-                    pipelineConfirmed.map((b) => (
-                      <Link
-                        key={b.id}
-                        href={`/dashboard/events/${b.id}`}
-                        className="block rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:border-gray-200 hover:bg-gray-100"
-                      >
-                        <span className="line-clamp-1">
-                          {b.client
-                            ? `${b.client.first_name} ${b.client.last_name}`
-                            : "Client"}{" "}
-                          · {b.service?.title || "Booking"}
-                        </span>
-                      </Link>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Completed
-                  </p>
-                  <span className="text-xs font-medium text-gray-500">
-                    {pipelineCompleted.length}
-                  </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {pipelineCompleted.length === 0 ? (
-                    <p className="text-xs text-gray-400">
-                      Recently completed events will appear here.
-                    </p>
-                  ) : (
-                    pipelineCompleted.map((b) => (
-                      <Link
-                        key={b.id}
-                        href={`/dashboard/events/${b.id}`}
-                        className="block rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:border-gray-200 hover:bg-gray-100"
-                      >
-                        <span className="line-clamp-1">
-                          {b.client
-                            ? `${b.client.first_name} ${b.client.last_name}`
-                            : "Client"}{" "}
-                          · {b.service?.title || "Booking"}
-                        </span>
-                      </Link>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </Section>
-
-          {activityItems.length > 0 && (
-            <Section
-              title="Recent activity"
-              subtitle="The latest updates to your requests and bookings."
-            >
-              <ul className="space-y-2">
-                {activityItems.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex items-center justify-between rounded-md border border-gray-100 bg-white px-3 py-2 text-xs text-gray-700"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate">{item.label}</p>
-                      <p className="mt-0.5 text-[11px] text-gray-400">
-                        {format(item.timestamp, "dd MMM yyyy · HH:mm")}
-                      </p>
-                    </div>
-                    <Link
-                      href={item.href}
-                      className="ml-3 shrink-0 text-[11px] font-medium text-gray-700 hover:underline"
-                    >
-                      View
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          <div className="mt-2">
-            <DashboardTabs
-              tabs={[
-                { id: 'requests', label: 'Requests' },
-                { id: 'services', label: 'Services' },
-              ]}
-              active={activeTab}
-              onChange={setActiveTab}
-              variant="segmented"
-            />
-          </div>
-
-          {activeTab === 'requests' && (
+          {activeTab === "requests" && (
             <ErrorBoundary onRetry={fetchAll}>
               <React.Suspense fallback={<LoadingSkeleton lines={6} />}>
-                <RequestsSection requests={bookingRequests} loading={loading} error={error || undefined} onRetry={fetchAll} />
+                <RequestsSection
+                  requests={bookingRequests}
+                  loading={loading}
+                  error={error || undefined}
+                  onRetry={fetchAll}
+                />
               </React.Suspense>
             </ErrorBoundary>
           )}
 
-          {user?.user_type === 'service_provider' && activeTab === 'services' && (
+          {user?.user_type === 'service_provider' && activeTab === "services" && (
             <ErrorBoundary onRetry={fetchAll}>
               <React.Suspense fallback={<LoadingSkeleton lines={6} />}>
                 {!isProfileComplete && (

@@ -195,7 +195,7 @@ export function BookingRequestCard({ req }: BookingRequestCardProps) {
 // DashboardTabs
 
 interface Tab {
-  id: 'bookings' | 'services' | 'requests';
+  id: string;
   label: string;
   icon?: React.ReactNode;
   count?: number;
@@ -203,8 +203,8 @@ interface Tab {
 
 interface DashboardTabsProps {
   tabs?: Tab[];
-  active: 'bookings' | 'services' | 'requests';
-  onChange: (id: 'bookings' | 'services' | 'requests') => void;
+  active: string;
+  onChange: (id: string) => void;
   variant?: 'underline' | 'segmented';
 }
 
