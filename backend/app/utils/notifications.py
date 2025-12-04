@@ -715,43 +715,29 @@ def notify_booking_status_update(
     request_id: int,
     status: str,
 ) -> None:
-    """Create a notification for a booking status change."""
-    message = format_notification_message(
-        NotificationType.BOOKING_STATUS_UPDATED,
+    """Facade for booking status change notifications."""
+    from app.notifications.intents import booking_lifecycle as booking_lifecycle_intent
+
+    booking_lifecycle_intent.send_booking_status_update_notification(
+        db=db,
+        user=user,
         request_id=request_id,
         status=status,
     )
-    _create_and_broadcast(
-        db,
-        user.id,
-        NotificationType.BOOKING_STATUS_UPDATED,
-        message,
-        f"/booking-requests/{request_id}",
-        status=status,
-        request_id=request_id,
-    )
-    logger.info("Notify %s: %s", user.email, message)
-    _send_sms(user.phone_number, message)
 
 
 def notify_quote_accepted(
     db: Session, user: User, quote_id: int, booking_request_id: int
 ) -> None:
-    """Notify a user that a quote was accepted."""
-    message = format_notification_message(
-        NotificationType.QUOTE_ACCEPTED,
+    """Facade for quote accepted notifications."""
+    from app.notifications.intents import quote as quote_intent
+
+    quote_intent.send_quote_accepted_notification(
+        db=db,
+        user=user,
         quote_id=quote_id,
+        booking_request_id=booking_request_id,
     )
-    _create_and_broadcast(
-        db,
-        user.id,
-        NotificationType.QUOTE_ACCEPTED,
-        message,
-        f"/booking-requests/{booking_request_id}",
-        quote_id=quote_id,
-    )
-    logger.info("Notify %s: %s", user.email, message)
-    _send_sms(user.phone_number, message)
 
 
 def notify_client_new_quote_email(
@@ -761,126 +747,16 @@ def notify_client_new_quote_email(
     booking_request: "models.BookingRequest",
     quote: "models.QuoteV2",
 ) -> None:
-    """Best-effort Mailjet email to a client when a new quote is sent.
+    """Facade for Mailjet quote email to client."""
+    from app.notifications.intents import quote as quote_intent
 
-    Mirrors the structure of ``notify_user_new_booking_request`` so templates
-    stay easy to reason about. Uses ``MAILJET_TEMPLATE_NEW_QUOTE_CLIENT`` and
-    passes a minimal variable set the template can render.
-    """
-    try:
-        template_id = getattr(settings, "MAILJET_TEMPLATE_NEW_QUOTE_CLIENT", 0) or 0
-        if not (template_id and client.email):
-            return
-
-        # Client display name
-        client_name = f"{client.first_name} {client.last_name}".strip() or "Client"
-
-        # Provider display name: prefer business name from profile when present.
-        provider_name: str | None = None
-        try:
-            profile = (
-                db.query(models.ServiceProviderProfile)
-                .filter(models.ServiceProviderProfile.user_id == artist.id)
-                .first()
-            )
-            if profile and profile.business_name:
-                provider_name = profile.business_name
-        except Exception:
-            provider_name = None
-        if not provider_name:
-            provider_name = f"{artist.first_name} {artist.last_name}".strip()
-
-        # Event date/time from booking request
-        event_date: str | None = None
-        event_time: str | None = None
-        try:
-            dt = getattr(booking_request, "proposed_datetime_1", None)
-            if dt is not None:
-                event_date = dt.date().isoformat()
-                event_time = dt.strftime("%H:%M")
-        except Exception:
-            event_date = None
-            event_time = None
-
-        # Service + currency context
-        service_name: str | None = None
-        currency: str | None = None
-        try:
-            svc = getattr(booking_request, "service", None)
-            if svc is not None:
-                title = getattr(svc, "title", None)
-                if title:
-                    service_name = title
-                currency = getattr(svc, "currency", None)
-        except Exception:
-            service_name = service_name or None
-            currency = currency or None
-
-        # Quote total formatted similarly to budget strings
-        quote_total: str | None = None
-        try:
-            total = getattr(quote, "total", None)
-            if total is not None:
-                cur = currency or getattr(settings, "DEFAULT_CURRENCY", "ZAR") or "ZAR"
-                quote_total = f"{cur} {total}"
-        except Exception:
-            quote_total = None
-
-        # Quote expiry (optional)
-        quote_expires_at: str | None = None
-        try:
-            expires = getattr(quote, "expires_at", None)
-            if expires is not None:
-                quote_expires_at = expires.isoformat()
-        except Exception:
-            quote_expires_at = None
-
-        # Event location, if captured on the booking request travel_breakdown
-        event_location: str | None = None
-        try:
-            tb = getattr(booking_request, "travel_breakdown", None) or {}
-            if isinstance(tb, dict):
-                event_location = (
-                    tb.get("event_city")
-                    or tb.get("city")
-                    or tb.get("location")
-                )
-        except Exception:
-            event_location = None
-
-        frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
-        booking_url = (
-            f"{frontend_base}/booking-requests/{booking_request.id}"
-            if frontend_base
-            else f"/booking-requests/{booking_request.id}"
-        )
-
-        variables = {
-            "client_name": client_name,
-            "provider_name": provider_name,
-            "event_date": event_date,
-            "event_time": event_time,
-            "event_location": event_location,
-            "service_name": service_name,
-            "quote_total": quote_total,
-            "quote_expires_at": quote_expires_at,
-            "booking_url": booking_url,
-        }
-        clean_vars = {k: v for k, v in variables.items() if v is not None}
-        email_subject = f"New quote from {provider_name} for your booking"
-        send_template_email(
-            recipient=client.email,
-            template_id=int(template_id),
-            variables=clean_vars,
-            subject=email_subject,
-        )
-    except Exception as exc:  # pragma: no cover - email is best-effort
-        logger.warning(
-            "Failed to send quote email for quote %s to %s: %s",
-            getattr(quote, "id", None),
-            getattr(client, "email", None),
-            exc,
-        )
+    quote_intent.send_new_quote_email_to_client(
+        db=db,
+        client=client,
+        artist=artist,
+        booking_request=booking_request,
+        quote=quote,
+    )
 
 
 def notify_quote_expiring(
@@ -890,65 +766,30 @@ def notify_quote_expiring(
     expires_at: "datetime",
     booking_request_id: int,
 ) -> None:
-    """Notify a user that a quote will expire soon."""
-    if user is None:
-        logger.error(
-            "Failed to send quote expiring notification: user missing for quote %s",
-            quote_id,
-        )
-        return
-    from ..crud import crud_notification
+    """Facade for quote expiring notifications."""
+    from app.notifications.intents import quote as quote_intent
 
-    existing = crud_notification.get_notifications_for_user(db, user.id)
-    already_sent = any(
-        n.type == NotificationType.QUOTE_EXPIRING and f"/quotes/{quote_id}" in n.link
-        for n in existing
-    )
-    if already_sent:
-        return
-
-    message = format_notification_message(
-        NotificationType.QUOTE_EXPIRING,
-        quote_id=quote_id,
-    )
-    _create_and_broadcast(
-        db,
-        user.id,
-        NotificationType.QUOTE_EXPIRING,
-        message,
-        f"/quotes/{quote_id}",
+    quote_intent.send_quote_expiring_notification(
+        db=db,
+        user=user,
         quote_id=quote_id,
         expires_at=expires_at,
+        booking_request_id=booking_request_id,
     )
-    logger.info("Notify %s: %s", user.email, message)
-    _send_sms(user.phone_number, message)
 
 
 def notify_quote_expired(
     db: Session, user: Optional[User], quote_id: int, booking_request_id: int
 ) -> None:
-    """Notify a user that a quote expired."""
-    if user is None:
-        logger.error(
-            "Failed to send quote expired notification: user missing for quote %s",
-            quote_id,
-        )
-        return
+    """Facade for quote expired notifications."""
+    from app.notifications.intents import quote as quote_intent
 
-    message = format_notification_message(
-        NotificationType.QUOTE_EXPIRED,
+    quote_intent.send_quote_expired_notification(
+        db=db,
+        user=user,
         quote_id=quote_id,
+        booking_request_id=booking_request_id,
     )
-    _create_and_broadcast(
-        db,
-        user.id,
-        NotificationType.QUOTE_EXPIRED,
-        message,
-        f"/booking-requests/{booking_request_id}",
-        quote_id=quote_id,
-    )
-    logger.info("Notify %s: %s", user.email, message)
-    _send_sms(user.phone_number, message)
 
 
 def notify_quote_requested(
@@ -956,97 +797,25 @@ def notify_quote_requested(
     user: User,
     booking_request_id: int,
 ) -> None:
-    """Notify a provider that a client requested a new quote in this thread.
+    """Facade for quote requested notifications."""
+    from app.notifications.intents import quote as quote_intent
 
-    Uses NEW_MESSAGE type for compatibility with existing clients. The
-    notification builder will enrich sender/avatar based on the thread link.
-    """
-    message = format_notification_message(
-        NotificationType.NEW_MESSAGE,
-        content="New quote requested",
+    quote_intent.send_quote_requested_notification(
+        db=db,
+        user=user,
+        booking_request_id=booking_request_id,
     )
-    _create_and_broadcast(
-        db,
-        user.id,
-        NotificationType.NEW_MESSAGE,
-        message,
-        f"/booking-requests/{booking_request_id}",
-        request_id=booking_request_id,
-    )
-    logger.info("Notify %s: %s", user.email, message)
-    _send_sms(user.phone_number, message)
 
 
 def notify_new_booking(db: Session, user: Optional[User], booking_id: int) -> None:
-    """Notify a user of a new booking.
+    """Facade for new booking notifications."""
+    from app.notifications.intents import booking_lifecycle as booking_lifecycle_intent
 
-    If ``user`` is ``None`` the function logs an error and returns gracefully
-    without raising an exception. This prevents runtime errors when a booking
-    references a missing or deleted user record.
-    """
-    if user is None:
-        logger.error(
-            "Failed to send booking notification: user missing for booking %s",
-            booking_id,
-        )
-        return
-
-    booking = (
-        db.query(models.BookingSimple)
-        .filter(models.BookingSimple.id == booking_id)
-        .first()
-    )
-    if booking is None:
-        logger.error(
-            "Failed to send booking notification: booking %s missing",
-            booking_id,
-        )
-        return
-
-    # Determine the opposite party for avatar/sender info.
-    sender_name: str | None = None
-    avatar_url: str | None = None
-    if user.id == booking.client_id:
-        artist = (
-            db.query(models.User).filter(models.User.id == booking.artist_id).first()
-        )
-        if artist:
-            sender_name = f"{artist.first_name} {artist.last_name}"
-            profile = (
-                db.query(models.ServiceProviderProfile)
-                .filter(models.ServiceProviderProfile.user_id == artist.id)
-                .first()
-            )
-            if profile and profile.business_name:
-                sender_name = profile.business_name
-            if profile and profile.profile_picture_url:
-                avatar_url = profile.profile_picture_url
-            elif artist.profile_picture_url:
-                avatar_url = artist.profile_picture_url
-    elif user.id == booking.artist_id:
-        client = (
-            db.query(models.User).filter(models.User.id == booking.client_id).first()
-        )
-        if client:
-            sender_name = f"{client.first_name} {client.last_name}"
-            avatar_url = client.profile_picture_url
-
-    message = format_notification_message(
-        NotificationType.NEW_BOOKING,
+    booking_lifecycle_intent.send_new_booking_notification(
+        db=db,
+        user=user,
         booking_id=booking_id,
     )
-    _create_and_broadcast(
-        db,
-        user.id,
-        NotificationType.NEW_BOOKING,
-        message,
-        f"/dashboard/client/bookings/{booking_id}",
-        booking_id=booking_id,
-        sender_name=sender_name,
-        avatar_url=avatar_url,
-    )
-    logger.info("Notify %s: %s", user.email, message)
-    _send_sms(user.phone_number, message)
 
 
 def notify_booking_confirmed_email_for_provider(
@@ -1056,115 +825,16 @@ def notify_booking_confirmed_email_for_provider(
     booking: "models.BookingSimple",
     booking_request: "models.BookingRequest",
 ) -> None:
-    """Best-effort Mailjet email to provider when a booking is confirmed (payment received)."""
-    try:
-        template_id = getattr(settings, "MAILJET_TEMPLATE_BOOKING_CONFIRMED_PROVIDER", 0) or 0
-        if not (template_id and provider.email):
-            return
+    """Facade for provider booking-confirmed Mailjet email."""
+    from app.notifications.intents import booking_lifecycle as booking_lifecycle_intent
 
-        # Provider display name: prefer business name when present.
-        provider_name: str | None = None
-        try:
-            profile = (
-                db.query(models.ServiceProviderProfile)
-                .filter(models.ServiceProviderProfile.user_id == provider.id)
-                .first()
-            )
-            if profile and profile.business_name:
-                provider_name = profile.business_name
-        except Exception:
-            provider_name = None
-        if not provider_name:
-            provider_name = f"{provider.first_name} {provider.last_name}".strip()
-
-        client_name = f"{client.first_name} {client.last_name}".strip() or "Client"
-
-        # Event date/time: prefer BookingSimple.date, fall back to BookingRequest.proposed_datetime_1
-        event_date: str | None = None
-        event_time: str | None = None
-        try:
-            dt = getattr(booking, "date", None) or getattr(booking_request, "proposed_datetime_1", None)
-            if dt is not None:
-                event_date = dt.date().isoformat()
-                event_time = dt.strftime("%H:%M")
-        except Exception:
-            event_date = None
-            event_time = None
-
-        # Event location: prefer BookingSimple.location, fall back to travel_breakdown/event_city
-        event_location: str | None = None
-        try:
-            event_location = getattr(booking, "location", None)
-            if not event_location:
-                tb = getattr(booking_request, "travel_breakdown", None) or {}
-                if isinstance(tb, dict):
-                    event_location = (
-                        tb.get("event_city")
-                        or tb.get("city")
-                        or tb.get("location")
-                    )
-        except Exception:
-            event_location = event_location or None
-
-        # Service name + currency
-        service_name: str | None = None
-        currency: str | None = None
-        try:
-            svc = getattr(booking_request, "service", None)
-            if svc is not None:
-                title = getattr(svc, "title", None)
-                if title:
-                    service_name = title
-                currency = getattr(svc, "currency", None)
-        except Exception:
-            service_name = service_name or None
-            currency = currency or None
-
-        # Total paid from BookingSimple.charged_total_amount
-        total_paid: str | None = None
-        try:
-            amt = getattr(booking, "charged_total_amount", None)
-            if amt is not None:
-                cur = currency or getattr(settings, "DEFAULT_CURRENCY", "ZAR") or "ZAR"
-                total_paid = f"{cur} {amt}"
-        except Exception:
-            total_paid = None
-
-        booking_reference = str(getattr(booking, "id", "")) or ""
-
-        frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
-        booking_url = (
-            f"{frontend_base}/dashboard/client/bookings/{booking.id}"
-            if frontend_base
-            else f"/dashboard/client/bookings/{booking.id}"
-        )
-
-        variables = {
-            "provider_name": provider_name,
-            "client_name": client_name,
-            "event_date": event_date,
-            "event_time": event_time,
-            "event_location": event_location,
-            "service_name": service_name,
-            "total_paid": total_paid,
-            "booking_reference": booking_reference,
-            "booking_url": booking_url,
-        }
-        clean_vars = {k: v for k, v in variables.items() if v is not None}
-        email_subject = f"New booking confirmed from {client_name}"
-        send_template_email(
-            recipient=provider.email,
-            template_id=int(template_id),
-            variables=clean_vars,
-            subject=email_subject,
-        )
-    except Exception as exc:  # pragma: no cover - email is best-effort
-        logger.warning(
-            "Failed to send provider booking-confirmed email for booking %s to %s: %s",
-            getattr(booking, "id", None),
-            getattr(provider, "email", None),
-            exc,
-        )
+    booking_lifecycle_intent.send_booking_confirmed_email_for_provider(
+        db=db,
+        provider=provider,
+        client=client,
+        booking=booking,
+        booking_request=booking_request,
+    )
 
 
 def notify_booking_confirmed_email_for_client(
@@ -1174,140 +844,27 @@ def notify_booking_confirmed_email_for_client(
     booking: "models.BookingSimple",
     booking_request: "models.BookingRequest",
 ) -> None:
-    """Best-effort Mailjet email to client when a booking is confirmed (payment received)."""
-    try:
-        template_id = getattr(settings, "MAILJET_TEMPLATE_BOOKING_CONFIRMED_CLIENT", 0) or 0
-        if not (template_id and client.email):
-            return
+    """Facade for client booking-confirmed Mailjet email."""
+    from app.notifications.intents import booking_lifecycle as booking_lifecycle_intent
 
-        client_name = f"{client.first_name} {client.last_name}".strip() or "Client"
-
-        # Provider display name: prefer business name when present.
-        provider_name: str | None = None
-        try:
-            profile = (
-                db.query(models.ServiceProviderProfile)
-                .filter(models.ServiceProviderProfile.user_id == provider.id)
-                .first()
-            )
-            if profile and profile.business_name:
-                provider_name = profile.business_name
-        except Exception:
-            provider_name = None
-        if not provider_name:
-            provider_name = f"{provider.first_name} {provider.last_name}".strip()
-
-        # Event date/time: prefer BookingSimple.date, fall back to BookingRequest.proposed_datetime_1
-        event_date: str | None = None
-        event_time: str | None = None
-        try:
-            dt = getattr(booking, "date", None) or getattr(booking_request, "proposed_datetime_1", None)
-            if dt is not None:
-                event_date = dt.date().isoformat()
-                event_time = dt.strftime("%H:%M")
-        except Exception:
-            event_date = None
-            event_time = None
-
-        # Event location: prefer BookingSimple.location, fall back to travel_breakdown/event_city
-        event_location: str | None = None
-        try:
-            event_location = getattr(booking, "location", None)
-            if not event_location:
-                tb = getattr(booking_request, "travel_breakdown", None) or {}
-                if isinstance(tb, dict):
-                    event_location = (
-                        tb.get("event_city")
-                        or tb.get("city")
-                        or tb.get("location")
-                    )
-        except Exception:
-            event_location = event_location or None
-
-        # Service name + currency
-        service_name: str | None = None
-        currency: str | None = None
-        try:
-            svc = getattr(booking_request, "service", None)
-            if svc is not None:
-                title = getattr(svc, "title", None)
-                if title:
-                    service_name = title
-                currency = getattr(svc, "currency", None)
-        except Exception:
-            service_name = service_name or None
-            currency = currency or None
-
-        # Total paid from BookingSimple.charged_total_amount
-        total_paid: str | None = None
-        try:
-            amt = getattr(booking, "charged_total_amount", None)
-            if amt is not None:
-                cur = currency or getattr(settings, "DEFAULT_CURRENCY", "ZAR") or "ZAR"
-                total_paid = f"{cur} {amt}"
-        except Exception:
-            total_paid = None
-
-        booking_reference = str(getattr(booking, "id", "")) or ""
-
-        frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
-        booking_url = (
-            f"{frontend_base}/dashboard/client/bookings/{booking.id}"
-            if frontend_base
-            else f"/dashboard/client/bookings/{booking.id}"
-        )
-
-        variables = {
-            "client_name": client_name,
-            "provider_name": provider_name,
-            "event_date": event_date,
-            "event_time": event_time,
-            "event_location": event_location,
-            "service_name": service_name,
-            "total_paid": total_paid,
-            "booking_reference": booking_reference,
-            "booking_url": booking_url,
-        }
-        clean_vars = {k: v for k, v in variables.items() if v is not None}
-        email_subject = f"Booking confirmed – {service_name or 'your booking'} on {event_date or ''}"
-        send_template_email(
-            recipient=client.email,
-            template_id=int(template_id),
-            variables=clean_vars,
-            subject=email_subject,
-        )
-    except Exception as exc:  # pragma: no cover - email is best-effort
-        logger.warning(
-            "Failed to send client booking-confirmed email for booking %s to %s: %s",
-            getattr(booking, "id", None),
-            getattr(client, "email", None),
-            exc,
-        )
+    booking_lifecycle_intent.send_booking_confirmed_email_for_client(
+        db=db,
+        client=client,
+        provider=provider,
+        booking=booking,
+        booking_request=booking_request,
+    )
 
 
 def notify_review_request(db: Session, user: Optional[User], booking_id: int) -> None:
-    """Notify a user to review a completed booking."""
-    if user is None:
-        logger.error(
-            "Failed to send review request notification: user missing for booking %s",
-            booking_id,
-        )
-        return
+    """Facade for review request notifications."""
+    from app.notifications.intents import booking_lifecycle as booking_lifecycle_intent
 
-    message = format_notification_message(
-        NotificationType.REVIEW_REQUEST,
+    booking_lifecycle_intent.send_review_request_notification(
+        db=db,
+        user=user,
         booking_id=booking_id,
     )
-    _create_and_broadcast(
-        db,
-        user.id,
-        NotificationType.REVIEW_REQUEST,
-        message,
-        f"/dashboard/client/bookings/{booking_id}?review=1",
-        booking_id=booking_id,
-    )
-    logger.info("Notify %s: %s", user.email, message)
-    _send_sms(user.phone_number, message)
 
 
 try:  # pragma: no cover - module import side effect
