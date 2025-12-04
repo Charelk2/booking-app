@@ -282,8 +282,8 @@ export default function DashboardPage() {
         
         {/* === DESKTOP SIDEBAR (Sticky) === */}
         <aside className="hidden w-64 shrink-0 md:block">
-          {/* sticky top-24 makes it stick below the main header */}
-          <div className="sticky top-24 space-y-8">
+          {/* Sticky rail aligned with dynamic header height via --sp-sticky-top */}
+          <div className="sticky space-y-8" style={{ top: 'var(--sp-sticky-top)' }}>
             
             {/* User Snippet */}
             <div className="flex items-center gap-3 px-2">
