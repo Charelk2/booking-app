@@ -81,10 +81,10 @@ const AirbnbCard = ({ booking }: { booking: Booking }) => {
                <Clock size={12} className="text-gray-400" />
                <span>{format(startTime, 'h:mm a')}</span>
              </div>
-             {booking.location && (
+             {(booking as any).location && (
                <div className="flex items-center gap-1 min-w-0">
                  <MapPin size={12} className="text-gray-400 shrink-0" />
-                 <span className="truncate max-w-[150px]">Location</span>
+                 <span className="truncate max-w-[150px]">{(booking as any).location || 'Location'}</span>
                </div>
              )}
           </div>

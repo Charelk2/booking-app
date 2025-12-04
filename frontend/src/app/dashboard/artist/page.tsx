@@ -365,13 +365,11 @@ export default function DashboardPage() {
             className="h-auto md:h-[calc(100vh-var(--sp-sticky-top))] md:overflow-y-auto"
           >
           {/* === MOBILE STICKY NAV === */}
-          {/* Features:
-              - Sticky top-0: Stays visible while scrolling content.
-              - -mx-4: Pulls it to the edges of the screen (counteracting parent padding).
-              - backdrop-blur: Glass effect over content.
-              - z-30: Stays above content.
-          */}
-          <div className="sticky top-0 z-30 -mx-4 mb-6 md:hidden">
+          {/* Aligned under the global header using the shared --app-header-height var */}
+          <div
+            className="sticky top-0 z-30 -mx-4 mb-6 md:hidden"
+            style={{ top: 'var(--app-header-height, 64px)' }}
+          >
             <div className="flex items-center gap-2 overflow-x-auto border-b border-gray-100 bg-white/90 px-4 py-3 backdrop-blur-xl no-scrollbar">
               <MobileTabItem 
                 active={activeView === 'overview'} 
