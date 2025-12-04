@@ -15,18 +15,15 @@ import {
   Calendar, 
   Clock, 
   MapPin, 
-  MessageCircle, 
   ChevronRight, 
-  Briefcase,
-  AlertCircle
+  Briefcase
 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@/components/ui';
 import IllustratedEmpty from '@/components/ui/IllustratedEmpty';
 import { useArtistDashboardData } from '@/hooks/useArtistDashboardData';
-import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
-import type { Booking, BookingRequest } from '@/types';
+import type { Booking } from '@/types';
 
 // --- Utility Components for the "Glass" Look ---
 
@@ -39,14 +36,21 @@ const GlassCard = ({ children, className = "", onClick }: { children: React.Reac
   </div>
 );
 
-const StatChip = ({ icon: Icon, label, value, active = false }: any) => (
-  <div className={`flex flex-col items-center justify-center rounded-2xl p-4 transition-all duration-300 ${active ? 'bg-black text-white shadow-lg' : 'bg-white/50 text-gray-600 hover:bg-white'}`}>
+const StatChip = ({ icon: Icon, label, value, active = false, onClick }: any) => (
+  <button 
+    onClick={onClick}
+    className={`flex w-full flex-col items-center justify-center rounded-2xl p-4 transition-all duration-300 ${
+      active 
+        ? 'bg-black text-white shadow-lg scale-[1.02]' 
+        : 'bg-white/50 text-gray-600 hover:bg-white hover:scale-[1.02]'
+    }`}
+  >
     <div className="flex items-center gap-2 mb-1">
       <Icon size={16} className={active ? 'text-white/80' : 'text-gray-400'} />
       <span className="text-xs font-medium uppercase tracking-wider opacity-80">{label}</span>
     </div>
     <span className="text-2xl font-semibold tracking-tight">{value}</span>
-  </div>
+  </button>
 );
 
 // --- Main Page Component ---
@@ -73,10 +77,7 @@ export default function TodayPage() {
     loading,
     error,
     bookings,
-    bookingRequests,
   } = useArtistDashboardData(user?.id);
-
-  const { count: unreadThreads } = useUnreadThreadsCount();
 
   // --- Data Logic ---
   const now = new Date();
@@ -92,10 +93,6 @@ export default function TodayPage() {
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()),
   [bookings, now, upcomingEnd]);
 
-  const actionableRequests = useMemo(() => 
-    bookingRequests.filter((r: BookingRequest) => r.status === 'pending_quote' || r.status === 'quote_provided'),
-  [bookingRequests]);
-
   const activeList = useMemo(() => 
     (view === 'today' ? todayBookings : upcomingSoon), 
   [view, todayBookings, upcomingSoon]);
@@ -106,7 +103,7 @@ export default function TodayPage() {
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
-  }, []);
+  }, [now]);
 
   // --- Render States ---
 
@@ -125,8 +122,7 @@ export default function TodayPage() {
       <MainLayout>
         <div className="flex min-h-screen items-center justify-center bg-gray-50/50">
           <div className="rounded-2xl bg-red-50 px-6 py-4 text-red-600 shadow-sm border border-red-100">
-            <div className="flex items-center gap-2 font-medium"><AlertCircle size={18}/> Error loading dashboard</div>
-            <p className="text-sm opacity-80 mt-1">{error}</p>
+            <p className="text-sm font-medium">{error}</p>
           </div>
         </div>
       </MainLayout>
@@ -135,7 +131,7 @@ export default function TodayPage() {
 
   return (
     <MainLayout>
-      {/* Background Decor - subtle gradients */}
+      {/* Background Decor */}
       <div className="fixed inset-0 pointer-events-none -z-10 bg-gray-50/50">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-blue-100/30 rounded-full blur-[100px] opacity-60 mix-blend-multiply" />
         <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-100/30 rounded-full blur-[100px] opacity-60 mix-blend-multiply" />
@@ -153,79 +149,47 @@ export default function TodayPage() {
           </h1>
         </header>
 
-        {/* HUD / Stats Grid */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-10">
+        {/* HUD / Stats Grid (Just 2 items now) */}
+        <div className="grid grid-cols-2 gap-4 mb-10">
           <StatChip 
             icon={Calendar} 
             label="Today" 
             value={todayBookings.length} 
             active={view === 'today'}
+            onClick={() => setView('today')}
           />
           <StatChip 
             icon={Briefcase} 
             label="Upcoming" 
             value={upcomingSoon.length} 
             active={view === 'upcoming'}
+            onClick={() => setView('upcoming')}
           />
-          <Link href="/dashboard/messages" className="contents">
-            <StatChip 
-              icon={MessageCircle} 
-              label="Unread" 
-              value={unreadThreads} 
-            />
-          </Link>
-          <Link href="/dashboard/requests" className="contents">
-            <StatChip 
-              icon={AlertCircle} 
-              label="Pending" 
-              value={actionableRequests.length} 
-            />
-          </Link>
         </div>
 
         {/* Content Wrapper */}
         <div className="space-y-8">
           
-          {/* Custom Tabs */}
-          <div className="flex items-center justify-between">
-            <div className="inline-flex rounded-full bg-gray-200/50 p-1.5 backdrop-blur-md">
-              <button
-                onClick={() => setView('today')}
-                className={`relative rounded-full px-6 py-2 text-sm font-medium transition-all duration-300 ${
-                  view === 'today'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Today
-              </button>
-              <button
-                onClick={() => setView('upcoming')}
-                className={`relative rounded-full px-6 py-2 text-sm font-medium transition-all duration-300 ${
-                  view === 'upcoming'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Next 7 Days
-              </button>
-            </div>
-            
+          {/* Sub Header / Count */}
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-lg font-semibold text-gray-900">
+              {view === 'today' ? "Today's Schedule" : "Next 7 Days"}
+            </h2>
             {activeList.length > 0 && (
-              <span className="text-xs font-medium text-gray-400 hidden sm:block">
-                {activeList.length} {activeList.length === 1 ? 'event' : 'events'} scheduled
+              <span className="text-xs font-medium text-gray-400">
+                {activeList.length} {activeList.length === 1 ? 'event' : 'events'}
               </span>
             )}
           </div>
 
           {/* Timeline / List View */}
           {activeList.length === 0 ? (
-            <div className="py-12">
+            <div className="py-8">
                <IllustratedEmpty
                 variant="bookings"
                 title={view === 'today' ? "Clear Schedule" : "No Upcoming Gigs"}
                 description={view === 'today' 
-                  ? "You have no bookings scheduled for today. Take some time to rest or update your portfolio." 
+                  ? "You have no bookings scheduled for today." 
                   : "Your schedule is clear for the next week."}
                 className="max-w-md mx-auto"
               />
@@ -240,7 +204,7 @@ export default function TodayPage() {
             </div>
           ) : (
             <div className="relative border-l-2 border-gray-100 ml-3 sm:ml-6 space-y-8 py-2">
-              {activeList.map((booking: Booking, index: number) => {
+              {activeList.map((booking: Booking) => {
                 const startTime = new Date(booking.start_time);
                 const isPast = new Date() > startTime && view === 'today';
 
@@ -264,7 +228,7 @@ export default function TodayPage() {
                     <Link href={`/dashboard/events/${booking.id}`}>
                       <GlassCard className={`p-5 flex items-center justify-between ${isPast ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                         <div className="flex items-center gap-4">
-                          {/* Avatar Placeholder / Client Initials */}
+                          {/* Avatar Placeholder */}
                           <div className="h-12 w-12 flex-shrink-0 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-sm font-bold shadow-inner">
                             {booking.client?.first_name?.[0] || 'C'}
                             {booking.client?.last_name?.[0]}
@@ -285,7 +249,6 @@ export default function TodayPage() {
                                   <span className="h-1 w-1 rounded-full bg-gray-300" />
                                   <span className="flex items-center gap-1 truncate max-w-[150px]">
                                     <MapPin size={10} />
-                                    {/* Assuming location string exists, or modify to fit your type */}
                                     Location details
                                   </span>
                                 </>
