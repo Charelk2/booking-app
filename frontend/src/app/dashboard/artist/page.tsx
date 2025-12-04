@@ -225,6 +225,101 @@ export default function DashboardPage() {
       : "Next event"
     : "Today";
 
+  const pipelineNewRequests = useMemo(
+    () =>
+      bookingRequests
+        .filter((r) => r.status === "pending_quote")
+        .slice(0, 3),
+    [bookingRequests],
+  );
+
+  const pipelineQuoteSent = useMemo(
+    () =>
+      bookingRequests
+        .filter((r) => r.status === "quote_provided")
+        .slice(0, 3),
+    [bookingRequests],
+  );
+
+  const pipelineConfirmed = useMemo(
+    () =>
+      bookings
+        .filter((b) => b.status === "confirmed")
+        .slice(0, 3),
+    [bookings],
+  );
+
+  const pipelineCompleted = useMemo(
+    () =>
+      bookings
+        .filter((b) => b.status === "completed")
+        .slice(0, 3),
+    [bookings],
+  );
+
+  const activityItems = useMemo(() => {
+    type ActivityItem = {
+      id: string;
+      label: string;
+      timestamp: Date;
+      href: string;
+    };
+    const items: ActivityItem[] = [];
+
+    bookingRequests.forEach((r) => {
+      const when = new Date(r.created_at);
+      const clientName = r.client
+        ? `${r.client.first_name} ${r.client.last_name}`
+        : "Client";
+      if (r.status === "pending_quote") {
+        items.push({
+          id: `req:${r.id}:new`,
+          label: `New request from ${clientName}`,
+          timestamp: when,
+          href: `/booking-requests/${r.id}`,
+        });
+      } else if (r.status === "quote_provided") {
+        items.push({
+          id: `req:${r.id}:quote`,
+          label: `Quote sent to ${clientName}`,
+          timestamp: when,
+          href: `/booking-requests/${r.id}`,
+        });
+      }
+    });
+
+    bookings.forEach((b) => {
+      const anyBooking = b as any;
+      const when = new Date(
+        typeof anyBooking.created_at === "string"
+          ? anyBooking.created_at
+          : b.start_time,
+      );
+      const clientName = b.client
+        ? `${b.client.first_name} ${b.client.last_name}`
+        : "Client";
+      if (b.status === "confirmed") {
+        items.push({
+          id: `booking:${b.id}:confirmed`,
+          label: `Booking confirmed for ${clientName}`,
+          timestamp: when,
+          href: `/dashboard/events/${b.id}`,
+        });
+      } else if (b.status === "completed") {
+        items.push({
+          id: `booking:${b.id}:completed`,
+          label: `Event completed for ${clientName}`,
+          timestamp: when,
+          href: `/dashboard/events/${b.id}`,
+        });
+      }
+    });
+
+    return items
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 8);
+  }, [bookingRequests, bookings]);
+
 
   useEffect(() => {
     if (authLoading) return;
@@ -506,6 +601,174 @@ export default function DashboardPage() {
 
             <BookingsSection bookings={bookings} loading={loading} error={error || undefined} onRetry={fetchAll} />
           </section>
+
+          <Section
+            title="Booking pipeline"
+            subtitle="See where your bookings are in the journey."
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    New
+                  </p>
+                  <span className="text-xs font-medium text-gray-500">
+                    {pipelineNewRequests.length}
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {pipelineNewRequests.length === 0 ? (
+                    <p className="text-xs text-gray-400">
+                      No new requests waiting.
+                    </p>
+                  ) : (
+                    pipelineNewRequests.map((r) => (
+                      <Link
+                        key={r.id}
+                        href={`/booking-requests/${r.id}`}
+                        className="block rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:border-gray-200 hover:bg-gray-100"
+                      >
+                        <span className="line-clamp-1">
+                          {r.client
+                            ? `${r.client.first_name} ${r.client.last_name}`
+                            : "Client"}{" "}
+                          · {r.service?.title || "Request"}
+                        </span>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Quote sent
+                  </p>
+                  <span className="text-xs font-medium text-gray-500">
+                    {pipelineQuoteSent.length}
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {pipelineQuoteSent.length === 0 ? (
+                    <p className="text-xs text-gray-400">
+                      No quotes waiting on clients.
+                    </p>
+                  ) : (
+                    pipelineQuoteSent.map((r) => (
+                      <Link
+                        key={r.id}
+                        href={`/booking-requests/${r.id}`}
+                        className="block rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:border-gray-200 hover:bg-gray-100"
+                      >
+                        <span className="line-clamp-1">
+                          {r.client
+                            ? `${r.client.first_name} ${r.client.last_name}`
+                            : "Client"}{" "}
+                          · {r.service?.title || "Quote"}
+                        </span>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Confirmed
+                  </p>
+                  <span className="text-xs font-medium text-gray-500">
+                    {pipelineConfirmed.length}
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {pipelineConfirmed.length === 0 ? (
+                    <p className="text-xs text-gray-400">
+                      No confirmed events in this lane.
+                    </p>
+                  ) : (
+                    pipelineConfirmed.map((b) => (
+                      <Link
+                        key={b.id}
+                        href={`/dashboard/events/${b.id}`}
+                        className="block rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:border-gray-200 hover:bg-gray-100"
+                      >
+                        <span className="line-clamp-1">
+                          {b.client
+                            ? `${b.client.first_name} ${b.client.last_name}`
+                            : "Client"}{" "}
+                          · {b.service?.title || "Booking"}
+                        </span>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Completed
+                  </p>
+                  <span className="text-xs font-medium text-gray-500">
+                    {pipelineCompleted.length}
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {pipelineCompleted.length === 0 ? (
+                    <p className="text-xs text-gray-400">
+                      Recently completed events will appear here.
+                    </p>
+                  ) : (
+                    pipelineCompleted.map((b) => (
+                      <Link
+                        key={b.id}
+                        href={`/dashboard/events/${b.id}`}
+                        className="block rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:border-gray-200 hover:bg-gray-100"
+                      >
+                        <span className="line-clamp-1">
+                          {b.client
+                            ? `${b.client.first_name} ${b.client.last_name}`
+                            : "Client"}{" "}
+                          · {b.service?.title || "Booking"}
+                        </span>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          {activityItems.length > 0 && (
+            <Section
+              title="Recent activity"
+              subtitle="The latest updates to your requests and bookings."
+            >
+              <ul className="space-y-2">
+                {activityItems.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center justify-between rounded-md border border-gray-100 bg-white px-3 py-2 text-xs text-gray-700"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate">{item.label}</p>
+                      <p className="mt-0.5 text-[11px] text-gray-400">
+                        {format(item.timestamp, "dd MMM yyyy · HH:mm")}
+                      </p>
+                    </div>
+                    <Link
+                      href={item.href}
+                      className="ml-3 shrink-0 text-[11px] font-medium text-gray-700 hover:underline"
+                    >
+                      View
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
           <div className="mt-2">
             <DashboardTabs
