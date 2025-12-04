@@ -144,6 +144,11 @@ export default function DashboardPage() {
   const leftScrollRef = useRef<HTMLDivElement | null>(null);
   const rightScrollRef = useRef<HTMLDivElement | null>(null);
   useScrollSync([leftScrollRef, rightScrollRef]);
+
+  const todayFormatted = useMemo(
+    () => format(new Date(), "EEEE, d MMM yyyy"),
+    []
+  );
   
   // Dynamic Imports
   type WizardProps = { isOpen: boolean; onClose: () => void; onServiceSaved: (svc: Service) => void; service?: Service };
@@ -407,10 +412,10 @@ export default function DashboardPage() {
           {/* VIEW: OVERVIEW */}
           {activeView === 'overview' && (
             <div className="space-y-8 animate-in fade-in duration-300">
-              <SectionHeader 
-                title={`Good ${new Date().getHours() < 12 ? 'morning' : 'afternoon'}, ${user.first_name}`} 
-                subtitle="Your daily business snapshot."
-              />
+              <div className="space-y-1 border-b border-gray-100 pb-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Today</p>
+                <h1 className="text-2xl font-semibold text-gray-900">{todayFormatted}</h1>
+              </div>
 
               {/* Action Cards */}
               {(pendingQuoteCount > 0 || unreadRequestsCount > 0) && (
