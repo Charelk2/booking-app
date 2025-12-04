@@ -2,17 +2,18 @@
 
 import React, { useEffect, useMemo, useState, type ComponentType } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { format } from "date-fns";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Service } from "@/types";
-import { deleteService } from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
+import type { Booking, Service } from "@/types";
+import { deleteService, getGoogleCalendarStatus } from "@/lib/api";
+import { formatCurrency, formatStatus } from "@/lib/utils";
 import { categorySlug } from "@/lib/categoryMap";
 import { AddServiceCategorySelector, UpdateRequestModal, DashboardTabs, QuickActionButton } from "@/components/dashboard";
 import { Spinner } from "@/components/ui";
 import StatGrid from "@/components/ui/StatGrid";
 import Section from "@/components/ui/Section";
-import Link from "next/link";
 import OverviewHeader from "@/components/dashboard/artist/OverviewHeader";
 import RequestsSection from "@/components/dashboard/artist/RequestsSection";
 import BookingsSection from "@/components/dashboard/artist/BookingsSection";
@@ -20,7 +21,7 @@ import ServicesSection from "@/components/dashboard/artist/ServicesSection";
 import { useArtistDashboardData } from "@/hooks/useArtistDashboardData";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
-import { getGoogleCalendarStatus } from "@/lib/api";
+import { statusChipStyles } from "@/components/ui/status";
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -59,12 +60,9 @@ export default function DashboardPage() {
     });
   }, [wizardCategory]);
   const params = useSearchParams();
-  const initialTab =
-    params.get('tab') === 'bookings'
-      ? 'bookings'
-      : params.get('tab') === 'services'
-        ? 'services'
-        : 'requests';
+  const initialTabParam = params.get('tab');
+  const initialTab: 'requests' | 'bookings' | 'services' =
+    initialTabParam === 'services' ? 'services' : 'requests';
   const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>(initialTab);
 
   // Open a specific add-service wizard when arriving with ?addCategory=...
@@ -147,7 +145,23 @@ export default function DashboardPage() {
   }, [artistProfile, calendarConnected]);
 
   // Aggregated totals for dashboard statistics
-  const servicesCount = services.length;
+  const upcomingBookingsCount = useMemo(() => {
+    if (!bookings.length) return 0;
+    const now = Date.now();
+    return bookings.filter((booking) => {
+      const start = new Date(booking.start_time).getTime();
+      return start >= now && booking.status !== "cancelled";
+    }).length;
+  }, [bookings]);
+  const pendingQuoteCount = useMemo(
+    () => bookingRequests.filter((r) => r.status === "pending_quote").length,
+    [bookingRequests],
+  );
+  const unreadRequestsCount = useMemo(
+    () => bookingRequests.filter((r) => r.is_unread_by_current_user).length,
+    [bookingRequests],
+  );
+
   const earningsThisMonth = useMemo(() => {
     return bookings
       .filter((booking) => {
@@ -158,15 +172,58 @@ export default function DashboardPage() {
       })
       .reduce((acc, booking) => acc + booking.total_price, 0);
   }, [bookings]);
+
   const statCards = useMemo(() => {
     return [
-      { label: 'Total Bookings', value: bookings.length, color: 'text-brand-primary' },
-      { label: 'New Inquiries', value: dashboardStats?.monthly_new_inquiries ?? 0, color: 'text-brand-accent' },
-      { label: 'Total Services', value: servicesCount, color: 'text-brand-primary' },
-      { label: 'Earnings This Month', value: formatCurrency(earningsThisMonth), color: 'text-brand-secondary' },
+      {
+        label: "Earnings this month",
+        value: formatCurrency(earningsThisMonth),
+      },
+      {
+        label: "New inquiries",
+        value: dashboardStats?.monthly_new_inquiries ?? 0,
+        hint:
+          typeof dashboardStats?.response_rate === "number"
+            ? `Response rate ${dashboardStats.response_rate}%`
+            : undefined,
+      },
+      {
+        label: "Upcoming bookings",
+        value: upcomingBookingsCount,
+      },
+      {
+        label: "Profile views",
+        value: dashboardStats?.profile_views ?? 0,
+      },
     ];
-  }, [bookings.length, servicesCount, earningsThisMonth, dashboardStats]);
+  }, [earningsThisMonth, dashboardStats, upcomingBookingsCount]);
   // Section data derived in child components
+
+  const primaryBooking: Booking | null = useMemo(() => {
+    if (!bookings.length) return null;
+    const now = Date.now();
+    const sorted = [...bookings].sort(
+      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+    );
+    const upcoming = sorted.filter(
+      (b) => new Date(b.start_time).getTime() >= now && b.status !== "cancelled",
+    );
+    if (upcoming.length > 0) return upcoming[0];
+    return sorted[sorted.length - 1] ?? null;
+  }, [bookings]);
+
+  const primaryBookingIsToday = useMemo(() => {
+    if (!primaryBooking) return false;
+    const start = new Date(primaryBooking.start_time);
+    const today = new Date();
+    return start.toDateString() === today.toDateString();
+  }, [primaryBooking]);
+
+  const primaryBookingTitle = primaryBooking
+    ? primaryBookingIsToday
+      ? "Today’s event"
+      : "Next event"
+    : "Today";
 
 
   useEffect(() => {
@@ -239,7 +296,86 @@ export default function DashboardPage() {
           }}
         />
         <div className="space-y-8">
-          <StatGrid items={statCards.map((s) => ({ label: s.label, value: s.value }))} />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)]">
+            <Section title={primaryBookingTitle}>
+              {primaryBooking ? (
+                <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                  <div className="flex flex-1 items-start gap-4">
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {format(new Date(primaryBooking.start_time), "MMM")}
+                      </span>
+                      <span className="text-xl font-bold text-gray-900">
+                        {format(new Date(primaryBooking.start_time), "d")}
+                      </span>
+                      <span className="mt-1 text-xs font-medium text-gray-600">
+                        {format(new Date(primaryBooking.start_time), "HH:mm")}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {primaryBooking.service?.title || "Booking"}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600 truncate">
+                        {primaryBooking.client
+                          ? `${primaryBooking.client.first_name} ${primaryBooking.client.last_name}`
+                          : "Client"}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {format(new Date(primaryBooking.start_time), "EEE, MMM d · h:mm a")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span
+                      className="inline-flex items-center font-medium"
+                      style={statusChipStyles(primaryBooking.status)}
+                    >
+                      {formatStatus(primaryBooking.status)}
+                    </span>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {formatCurrency(Number(primaryBooking.total_price))}
+                    </p>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Link
+                        href={`/dashboard/events/${primaryBooking.id}`}
+                        className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        View event
+                      </Link>
+                      <Link
+                        href="/dashboard/bookings"
+                        className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Upcoming schedule
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">No events scheduled yet</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      When you confirm a booking, it will show here with time, client, and payout.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("requests")}
+                    className="rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-900"
+                  >
+                    View requests
+                  </button>
+                </div>
+              )}
+            </Section>
+
+            <Section title="Business at a glance">
+              <StatGrid items={statCards} columns={2} />
+            </Section>
+          </div>
+
           {/* Location Prompt for Artists */}
           {showLocationPrompt && (
             <div className="mt-4 rounded-md bg-yellow-50 p-4">
@@ -280,37 +416,101 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Removed duplicate stats grid; StatGrid above is the single source */}
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] mb-4">
+            <Section
+              title="Your tasks"
+              subtitle="A quick list of what needs your attention."
+            >
+              <div className="space-y-3">
+                {pendingQuoteCount > 0 && (
+                  <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+                    <div className="pr-3">
+                      <p className="text-sm font-medium text-gray-900">
+                        {pendingQuoteCount} request
+                        {pendingQuoteCount === 1 ? "" : "s"} need a quote
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Send quotes so clients can confirm and pay.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("requests")}
+                      className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      View requests
+                    </button>
+                  </div>
+                )}
 
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
-            <Section title="Quick Actions">
-              <div className="grid grid-cols-2 gap-3">
+                {unreadRequestsCount > 0 && (
+                  <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+                    <div className="pr-3">
+                      <p className="text-sm font-medium text-gray-900">
+                        {unreadRequestsCount} conversation
+                        {unreadRequestsCount === 1 ? "" : "s"} waiting for a reply
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Fast replies improve your response rate and booking chances.
+                      </p>
+                    </div>
+                    <Link
+                      href="/inbox"
+                      className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Open inbox
+                    </Link>
+                  </div>
+                )}
+
+                {!isProfileComplete && (
+                  <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+                    <div className="pr-3">
+                      <p className="text-sm font-medium text-gray-900">
+                        Complete your profile
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Finish your profile so clients can easily find and trust you.
+                        {missingFields.length > 0 && (
+                          <span className="block mt-1">
+                            Missing: {missingFields.join(", ")}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/dashboard/profile/edit?incomplete=1")}
+                      className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Finish profile
+                    </button>
+                  </div>
+                )}
+
+                {pendingQuoteCount === 0 &&
+                  unreadRequestsCount === 0 &&
+                  isProfileComplete && (
+                    <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-600">
+                      You’re all caught up. New requests and tasks will appear here.
+                    </div>
+                  )}
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
                 <QuickActionButton label="Request Review" />
                 <QuickActionButton label="Boost a Service" />
                 <QuickActionButton href="/dashboard/quotes" label="View All Quotes" />
               </div>
             </Section>
 
-            <Section title="Response & Activity">
-              <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <p className="text-sm text-gray-600">Profile Views</p>
-                  <p className="text-sm font-semibold text-gray-900">{dashboardStats?.profile_views ?? 0}</p>
-                </div>
-                <div className="flex items-center justify-between px-4 py-3">
-                  <p className="text-sm text-gray-600">Avg. Response Time</p>
-                  <p className="text-sm font-semibold text-gray-900">2 hours</p>
-                </div>
-              </div>
-            </Section>
+            <BookingsSection bookings={bookings} loading={loading} error={error || undefined} onRetry={fetchAll} />
           </section>
 
-
-          <div className="mt-4">
+          <div className="mt-2">
             <DashboardTabs
               tabs={[
                 { id: 'requests', label: 'Requests' },
-                { id: 'bookings', label: 'Bookings' },
                 { id: 'services', label: 'Services' },
               ]}
               active={activeTab}
@@ -327,13 +527,6 @@ export default function DashboardPage() {
             </ErrorBoundary>
           )}
 
-          {activeTab === 'bookings' && (
-            <ErrorBoundary onRetry={fetchAll}>
-              <React.Suspense fallback={<LoadingSkeleton lines={6} />}>
-                <BookingsSection bookings={bookings} loading={loading} error={error || undefined} onRetry={fetchAll} />
-              </React.Suspense>
-            </ErrorBoundary>
-          )}
           {user?.user_type === 'service_provider' && activeTab === 'services' && (
             <ErrorBoundary onRetry={fetchAll}>
               <React.Suspense fallback={<LoadingSkeleton lines={6} />}>
