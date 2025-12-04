@@ -693,199 +693,20 @@ def notify_user_new_booking_request(
     sender_name: str,
     booking_type: str | enum.Enum,
 ) -> None:
-    """Create a notification for a new booking request.
+    """Facade for booking-request notifications.
 
-    In addition to in-app and SMS notifications, this can also send a
-    transactional email to the provider using a Mailjet template when
-    SMTP is configured to use Mailjet.
+    All channel-specific behaviour (email, WhatsApp, SMS, in-app) for this
+    intent lives under ``app.notifications.intents.booking_request``.
     """
-    message = format_notification_message(
-        NotificationType.NEW_BOOKING_REQUEST,
+    from app.notifications.intents import booking_request as booking_request_intent
+
+    booking_request_intent.send_booking_request_notifications(
+        db=db,
+        provider=user,
         request_id=request_id,
         sender_name=sender_name,
         booking_type=booking_type,
     )
-    _create_and_broadcast(
-        db,
-        user.id,
-        NotificationType.NEW_BOOKING_REQUEST,
-        message,
-        f"/booking-requests/{request_id}",
-        sender_name=sender_name,
-        booking_type=booking_type,
-    )
-    logger.info("Notify %s: %s", user.email, message)
-    _send_sms(user.phone_number, message)
-    # Enrich: email + WhatsApp, best-effort only.
-    br: models.BookingRequest | None = None
-    client: User | None = None
-    try:
-        br = (
-            db.query(models.BookingRequest)
-            .filter(models.BookingRequest.id == request_id)
-            .first()
-        )
-        if br:
-            client = br.client or db.query(models.User).filter(models.User.id == br.client_id).first()
-    except Exception:
-        br = None
-
-    provider_name: str | None = None
-    try:
-        profile = (
-            db.query(models.ServiceProviderProfile)
-            .filter(models.ServiceProviderProfile.user_id == user.id)
-            .first()
-        )
-        if profile and profile.business_name:
-            provider_name = profile.business_name
-    except Exception:
-        provider_name = None
-    if not provider_name:
-        provider_name = f"{user.first_name} {user.last_name}".strip()
-
-    client_name: str | None = None
-    if client:
-        client_name = f"{client.first_name} {client.last_name}".strip()
-    if not client_name:
-        client_name = sender_name or "Client"
-
-    event_date: str | None = None
-    event_time: str | None = None
-    if br and br.proposed_datetime_1:
-        try:
-            dt = br.proposed_datetime_1
-            event_date = dt.date().isoformat()
-            event_time = dt.strftime("%H:%M")
-        except Exception:
-            event_date = None
-            event_time = None
-
-    service_name: str | None = None
-    budget: str | None = None
-    if br and br.service_id and br.service:
-        svc = br.service
-        title = getattr(svc, "title", None)
-        if title:
-            service_name = title
-        price = getattr(svc, "price", None)
-        currency = getattr(svc, "currency", None)
-        if price is not None:
-            budget = f"{currency or 'ZAR'} {price}"
-    if not service_name:
-        # Fall back to booking_type as a human label.
-        if isinstance(booking_type, enum.Enum):
-            service_name = booking_type.value
-        else:
-            service_name = str(booking_type)
-
-    event_location: str | None = None
-    try:
-        if br and isinstance(br.travel_breakdown, dict):
-            event_location = (
-                br.travel_breakdown.get("event_city")
-                or br.travel_breakdown.get("city")
-                or br.travel_breakdown.get("location")
-            )
-    except Exception:
-        event_location = None
-
-    guest_count: str | None = None
-    try:
-        if br and isinstance(br.travel_breakdown, dict):
-            raw_guests = br.travel_breakdown.get("guests") or br.travel_breakdown.get("guest_count")
-            if raw_guests is not None:
-                guest_count = str(raw_guests)
-    except Exception:
-        guest_count = None
-
-    estimate_numeric: str | None = None
-    try:
-        svc_price = getattr(br.service, "price", None) if br and br.service is not None else None
-        if svc_price is not None:
-            estimate_numeric = str(svc_price)
-    except Exception:
-        estimate_numeric = None
-
-    special_requests = (br.message if br else "") or ""
-    frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
-    booking_url = (
-        f"{frontend_base}/booking-requests/{request_id}"
-        if frontend_base
-        else f"/booking-requests/{request_id}"
-    )
-    header_image_url = f"{frontend_base}/booka_logo.jpg" if frontend_base else None
-
-    # Best-effort: send a richer email via Mailjet template, if configured.
-    try:
-        template_id = getattr(
-            settings, "MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER", 0
-        ) or 0
-        if template_id and user.email:
-            variables = {
-                "provider_name": provider_name,
-                "client_name": client_name,
-                "event_date": event_date,
-                "event_time": event_time,
-                "event_location": event_location,
-                "service_name": service_name,
-                "budget": budget,
-                "special_requests": special_requests,
-                "booking_url": booking_url,
-            }
-            clean_vars = {k: v for k, v in variables.items() if v is not None}
-            email_subject = f"New booking request from {client_name}"
-            send_template_email(
-                recipient=user.email,
-                template_id=int(template_id),
-                variables=clean_vars,
-                subject=email_subject,
-            )
-    except Exception as exc:  # pragma: no cover - email is best-effort
-        logger.warning(
-            "Failed to send booking request email for request %s to %s: %s",
-            request_id,
-            user.email,
-            exc,
-        )
-
-    # Best-effort: WhatsApp template notification to the provider, when configured.
-    try:
-        # Template: new_booking_request_1 (body variables order must match Meta config).
-        # WhatsApp requires every text parameter to have a non-empty value, so we
-        # coerce missing values to sensible defaults instead of sending "".
-        def _safe_text(value: str | None, default: str) -> str:
-            try:
-                s = str(value).strip() if value is not None else ""
-            except Exception:
-                s = ""
-            return s or default
-
-        body_params: list[str] = [
-            _safe_text(provider_name, "Artist"),
-            _safe_text(client_name, "Client"),
-            _safe_text(service_name or "Booking request", "Booking request"),
-            _safe_text(event_date, "To be confirmed"),
-            _safe_text(event_location, "To be confirmed"),
-            _safe_text(guest_count, "—"),
-            _safe_text(estimate_numeric, "0"),
-        ]
-        _send_whatsapp_template(
-            user.phone_number,
-            template_name="new_booking_request1",
-            language_code="en",
-            body_params=body_params,
-            # Dynamic URL button param – aligns with template's {{1}} in the URL.
-             header_image_url=header_image_url,
-            button_url_param=str(request_id),
-        )
-    except Exception as exc:  # pragma: no cover - WhatsApp is best-effort
-        logger.warning(
-            "Failed to send WhatsApp booking request for request %s to %s: %s",
-            request_id,
-            user.phone_number,
-            exc,
-        )
 
 
 def notify_booking_status_update(
