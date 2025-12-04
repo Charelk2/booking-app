@@ -146,7 +146,7 @@ export default function TodayPage() {
         <div className="mx-auto max-w-xl px-6 py-10">
           
           {/* Header */}
-          <header className="mb-8 space-y-1">
+          <header className="mb-8 space-y-1 text-center">
             <p className="text-xs uppercase tracking-[0.2em] text-gray-400">
               Today
             </p>
