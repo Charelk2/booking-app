@@ -143,7 +143,7 @@ export default function TodayPage() {
   return (
     <MainLayout>
       <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-3xl px-6 py-10">
+        <div className="mx-auto max-w-xl px-6 py-10">
           
           {/* Header */}
           <header className="mb-8 space-y-1">
