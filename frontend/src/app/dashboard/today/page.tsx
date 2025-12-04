@@ -12,10 +12,10 @@ import {
   getHours 
 } from 'date-fns';
 import { 
-  Clock, 
   MapPin, 
-  ArrowUpRight,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  ChevronRight,
+  Clock
 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,55 +26,87 @@ import type { Booking } from '@/types';
 
 // --- Components ---
 
-const TimeDisplay = ({ date, subtext }: { date: Date, subtext?: string }) => (
-  <div className="flex w-20 flex-shrink-0 flex-col items-end pr-4 text-right">
-    <span className="text-sm font-bold text-gray-900">{format(date, 'h:mm a')}</span>
-    {subtext ? (
-      <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">{subtext}</span>
-    ) : (
-      <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Start</span>
-    )}
-  </div>
-);
-
-const BookingCard = ({ booking, isPast }: { booking: Booking, isPast: boolean }) => (
-  <Link 
-    href={`/dashboard/events/${booking.id}`}
-    className={`group relative flex w-full items-center overflow-hidden rounded-3xl border border-white/40 bg-white/60 p-1.5 transition-all duration-300 hover:scale-[1.01] hover:bg-white/80 hover:shadow-xl hover:shadow-gray-200/50 ${isPast ? 'opacity-60 grayscale' : 'shadow-lg shadow-gray-200/40 backdrop-blur-xl'}`}
+const TabButton = ({ active, label, count, onClick }: any) => (
+  <button
+    onClick={onClick}
+    className={`flex-1 py-3 text-sm font-semibold transition-all border-b-2 ${
+      active
+        ? 'border-black text-black'
+        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+    }`}
   >
-    {/* Avatar / Icon */}
-    <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-[1.2rem] bg-gradient-to-br from-gray-100 to-white text-lg font-bold text-gray-900 shadow-sm ring-1 ring-black/5">
-      {booking.client?.first_name?.[0] || 'C'}
-    </div>
-
-    {/* Info */}
-    <div className="flex-1 px-4 py-1">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">
-          {booking.service?.title || 'Private Session'}
-        </h3>
-      </div>
-      <p className="text-sm text-gray-500">
-        {booking.client ? `${booking.client.first_name} ${booking.client.last_name}` : 'Client'}
-      </p>
-      
-      {/* Footer Info */}
-      <div className="mt-1.5 flex items-center gap-3">
-        {booking.location && (
-           <div className="flex items-center gap-1 text-[11px] font-medium text-gray-400">
-             <MapPin size={10} />
-             <span className="max-w-[120px] truncate">Location details</span>
-           </div>
-        )}
-      </div>
-    </div>
-
-    {/* Action Arrow */}
-    <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-300 opacity-0 shadow-sm transition-all duration-300 group-hover:opacity-100 group-hover:text-black">
-      <ArrowUpRight size={16} />
-    </div>
-  </Link>
+    <span className="flex items-center justify-center gap-2">
+      {label}
+      {count > 0 && (
+        <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] ${
+          active ? 'bg-black text-white' : 'bg-gray-200 text-gray-600'
+        }`}>
+          {count}
+        </span>
+      )}
+    </span>
+  </button>
 );
+
+const AirbnbCard = ({ booking }: { booking: Booking }) => {
+  const startTime = new Date(booking.start_time);
+  
+  return (
+    <Link 
+      href={`/dashboard/events/${booking.id}`}
+      className="group flex flex-col sm:flex-row gap-4 w-full rounded-xl border border-gray-200 bg-white p-4 transition-all hover:shadow-lg hover:border-gray-300 active:scale-[0.99]"
+    >
+      {/* Date/Time Block */}
+      <div className="flex flex-row sm:flex-col items-center sm:items-start justify-between sm:justify-center rounded-lg bg-gray-50 px-4 py-3 sm:w-24 border border-gray-100">
+        <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
+          {format(startTime, 'MMM')}
+        </span>
+        <div className="flex items-baseline gap-1 sm:block">
+          <span className="text-xl font-bold text-gray-900">
+            {format(startTime, 'd')}
+          </span>
+          <span className="text-xs font-medium text-gray-500 sm:hidden">
+             , {format(startTime, 'h:mm a')}
+          </span>
+        </div>
+        <span className="hidden sm:block text-xs font-semibold text-gray-900 mt-1">
+          {format(startTime, 'HH:mm')}
+        </span>
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-1 items-center justify-between">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-lg font-bold text-gray-900 line-clamp-1">
+            {booking.service?.title || 'Service Booking'}
+          </h3>
+          <p className="text-sm font-medium text-gray-600">
+            {booking.client ? `${booking.client.first_name} ${booking.client.last_name}` : 'Client Name'}
+          </p>
+          
+          {/* Meta Info */}
+          <div className="mt-2 flex items-center gap-4 text-xs font-medium text-gray-500">
+             <div className="flex items-center gap-1">
+               <Clock size={12} className="text-gray-400" />
+               <span>{format(startTime, 'h:mm a')}</span>
+             </div>
+             {booking.location && (
+               <div className="flex items-center gap-1">
+                 <MapPin size={12} className="text-gray-400" />
+                 <span className="truncate max-w-[150px]">Location</span>
+               </div>
+             )}
+          </div>
+        </div>
+
+        {/* Chevron */}
+        <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full text-gray-400 transition-colors group-hover:bg-gray-100 group-hover:text-black">
+          <ChevronRight size={20} strokeWidth={2.5} />
+        </div>
+      </div>
+    </Link>
+  );
+};
 
 export default function TodayPage() {
   const { user, loading: authLoading } = useAuth();
@@ -82,7 +114,6 @@ export default function TodayPage() {
   const pathname = usePathname();
   const [view, setView] = useState<'today' | 'upcoming'>('today');
 
-  // Auth Protection
   useEffect(() => {
     if (authLoading) return;
     if (!user) router.push(`/auth?intent=login&next=${encodeURIComponent(pathname)}`);
@@ -91,7 +122,6 @@ export default function TodayPage() {
 
   const { loading, error, bookings } = useArtistDashboardData(user?.id);
 
-  // --- Logic ---
   const now = new Date();
   const upcomingEnd = addDays(now, 7);
 
@@ -114,118 +144,95 @@ export default function TodayPage() {
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   }, [now]);
 
-  // --- Loading / Error States ---
   if (!user || authLoading || loading) {
     return (
       <MainLayout>
-        <div className="flex h-[calc(100vh-100px)] items-center justify-center"><Spinner size="lg" /></div>
+        <div className="flex min-h-screen items-center justify-center bg-white"><Spinner size="lg" /></div>
       </MainLayout>
     );
   }
 
-  if (error) return <MainLayout><div className="p-10 text-center text-red-500">{error}</div></MainLayout>;
+  if (error) return <MainLayout><div className="p-10 text-center text-red-600 font-medium">{error}</div></MainLayout>;
 
   return (
     <MainLayout>
-      {/* Subtle Dynamic Background */}
-      <div className="fixed inset-0 -z-10 bg-[#FAFAFA]">
-        <div className="absolute -top-[20%] -right-[10%] h-[600px] w-[600px] rounded-full bg-blue-50/50 blur-[120px]" />
-        <div className="absolute top-[20%] -left-[10%] h-[500px] w-[500px] rounded-full bg-purple-50/50 blur-[120px]" />
-      </div>
-
-      <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-12">
-        
-        {/* Top Navigation / Heading */}
-        <div className="mb-12 flex flex-col items-center gap-6 sm:flex-row sm:justify-between sm:items-end">
-          <div className="text-center sm:text-left">
-            <h1 className="text-3xl font-light tracking-tight text-gray-900 sm:text-4xl">
-              {greeting}, <span className="font-semibold">{user.first_name}</span>
+      <div className="min-h-screen bg-white">
+        <div className="mx-auto max-w-3xl px-6 py-10">
+          
+          {/* Header */}
+          <header className="mb-8">
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+              {greeting}, {user.first_name}.
             </h1>
-            <p className="mt-2 text-sm font-medium uppercase tracking-widest text-gray-400">
-              {format(now, 'EEEE, d MMMM')}
+            <p className="mt-1 text-base font-medium text-gray-500">
+              {format(now, 'EEEE, d MMMM yyyy')}
             </p>
+          </header>
+
+          {/* Tabs */}
+          <div className="mb-8 flex border-b border-gray-200">
+            <TabButton 
+              active={view === 'today'} 
+              label="Today" 
+              count={todayBookings.length}
+              onClick={() => setView('today')} 
+            />
+            <TabButton 
+              active={view === 'upcoming'} 
+              label="Upcoming" 
+              count={upcomingSoon.length}
+              onClick={() => setView('upcoming')} 
+            />
           </div>
 
-          {/* Combined Tabs & Stats (The "Pill") */}
-          <div className="flex overflow-hidden rounded-full bg-gray-200/50 p-1.5 backdrop-blur-md">
-            <button
-              onClick={() => setView('today')}
-              className={`relative flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold uppercase tracking-wide transition-all duration-300 ${
-                view === 'today' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              Today
-              <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] ${
-                view === 'today' ? 'bg-black text-white' : 'bg-gray-300 text-gray-600'
-              }`}>
-                {todayBookings.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setView('upcoming')}
-              className={`relative flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold uppercase tracking-wide transition-all duration-300 ${
-                view === 'upcoming' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              Upcoming
-              <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] ${
-                view === 'upcoming' ? 'bg-black text-white' : 'bg-gray-300 text-gray-600'
-              }`}>
-                {upcomingSoon.length}
-              </span>
-            </button>
+          {/* Content */}
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">
+                {view === 'today' ? "Today's Schedule" : "Next 7 Days"}
+              </h2>
+            </div>
+
+            {activeList.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 py-16 text-center">
+                <IllustratedEmpty
+                  variant="bookings"
+                  title="No bookings found"
+                  description={view === 'today' 
+                    ? "Your schedule is clear for today."
+                    : "You have no upcoming bookings for the next week."
+                  }
+                  className="mx-auto max-w-xs mb-4"
+                />
+                <Link 
+                  href="/dashboard/artist" 
+                  className="text-sm font-semibold text-black underline decoration-2 underline-offset-4 hover:text-gray-700"
+                >
+                  Go to Dashboard
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {activeList.map((booking: Booking) => (
+                  <AirbnbCard key={booking.id} booking={booking} />
+                ))}
+              </div>
+            )}
+            
+            {/* Bottom Link */}
+            {activeList.length > 0 && (
+              <div className="mt-8 text-center">
+                <Link 
+                  href="/dashboard/bookings" 
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  <CalendarIcon size={16} />
+                  View full calendar
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Content Area */}
-        <div className="flex-1">
-          {activeList.length === 0 ? (
-            <div className="flex flex-col items-center justify-center pt-10">
-              <IllustratedEmpty
-                variant="bookings"
-                title={view === 'today' ? "Enjoy your day off" : "No upcoming gigs"}
-                description={view === 'today' 
-                  ? "Your schedule is clear today. Rest up or manage your profile."
-                  : "You have no confirmed bookings for the next 7 days."
-                }
-                className="max-w-xs opacity-80"
-              />
-              <Link href="/dashboard/artist" className="mt-8 text-xs font-semibold uppercase tracking-widest text-gray-400 hover:text-black transition-colors">
-                Go to Dashboard
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {activeList.map((booking: Booking) => {
-                const startTime = new Date(booking.start_time);
-                const isPast = new Date() > startTime && view === 'today';
-                const dayLabel = view === 'upcoming' ? format(startTime, 'EEE') : undefined;
-
-                return (
-                  <div key={booking.id} className="flex items-center gap-2">
-                    {/* Time Column */}
-                    <TimeDisplay date={startTime} subtext={dayLabel} />
-                    
-                    {/* Card Column */}
-                    <div className="flex-1">
-                      <BookingCard booking={booking} isPast={isPast} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        
-        {/* Footer Hint */}
-        {activeList.length > 0 && (
-           <div className="mt-12 text-center">
-             <Link href="/dashboard/bookings" className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-gray-300 transition-colors hover:text-gray-500">
-               <CalendarIcon size={12} />
-               View Full Calendar
-             </Link>
-           </div>
-        )}
       </div>
     </MainLayout>
   );
