@@ -1,67 +1,255 @@
 // frontend/src/app/dashboard/today/page.tsx
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { 
-  format, 
-  isToday, 
-  isWithinInterval, 
-  addDays, 
-  getHours 
-} from 'date-fns';
-import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  ChevronRight, 
-  Briefcase
-} from 'lucide-react';
+import { addDays, format, isToday, isWithinInterval } from 'date-fns';
+
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@/components/ui';
 import IllustratedEmpty from '@/components/ui/IllustratedEmpty';
 import { useArtistDashboardData } from '@/hooks/useArtistDashboardData';
-import type { Booking } from '@/types';
+import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
+import type { Booking, BookingRequest } from '@/types';
 
-// --- Utility Components for the "Glass" Look ---
+type ViewMode = 'today' | 'upcoming';
 
-const GlassCard = ({ children, className = "", onClick }: { children: React.ReactNode, className?: string, onClick?: () => void }) => (
-  <div 
-    onClick={onClick}
-    className={`group relative overflow-hidden rounded-3xl border border-white/20 bg-white/70 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 ${className}`}
-  >
-    {children}
-  </div>
-);
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ');
+}
 
-const StatChip = ({ icon: Icon, label, value, active = false, onClick }: any) => (
-  <button 
-    onClick={onClick}
-    className={`flex w-full flex-col items-center justify-center rounded-2xl p-4 transition-all duration-300 ${
-      active 
-        ? 'bg-black text-white shadow-lg scale-[1.02]' 
-        : 'bg-white/50 text-gray-600 hover:bg-white hover:scale-[1.02]'
-    }`}
-  >
-    <div className="flex items-center gap-2 mb-1">
-      <Icon size={16} className={active ? 'text-white/80' : 'text-gray-400'} />
-      <span className="text-xs font-medium uppercase tracking-wider opacity-80">{label}</span>
+/* --------- Tiny inline icons (no new deps) --------- */
+function IconArrowRight(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" />
+    </svg>
+  );
+}
+function IconCalendar(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v4M16 2v4" />
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18" />
+    </svg>
+  );
+}
+function IconSparkles(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 2l1.2 4.2L17 8l-3.8 1.8L12 14l-1.2-4.2L7 8l3.8-1.8L12 2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 12l.7 2.4L22 15l-2.3.6L19 18l-.7-2.4L16 15l2.3-.6L19 12z" />
+    </svg>
+  );
+}
+function IconBolt(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 2L3 14h8l-1 8 11-14h-8l0-6z" />
+    </svg>
+  );
+}
+function IconChat(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 15a4 4 0 01-4 4H9l-6 3V7a4 4 0 014-4h10a4 4 0 014 4v8z" />
+    </svg>
+  );
+}
+
+/* --------- UI blocks --------- */
+function BackgroundBlobs() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[440px] overflow-hidden">
+      <div className="absolute left-1/2 top-[-140px] h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-indigo-200 via-fuchsia-200 to-sky-200 blur-3xl opacity-60" />
+      <div className="absolute left-[8%] top-[80px] h-[280px] w-[280px] rounded-full bg-gradient-to-tr from-emerald-200 via-white to-amber-200 blur-3xl opacity-40" />
+      <div className="absolute right-[6%] top-[140px] h-[260px] w-[260px] rounded-full bg-gradient-to-tr from-rose-200 via-white to-violet-200 blur-3xl opacity-35" />
     </div>
-    <span className="text-2xl font-semibold tracking-tight">{value}</span>
-  </button>
-);
+  );
+}
 
-// --- Main Page Component ---
+function TodaySkeleton() {
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-8">
+      <div className="animate-pulse space-y-4">
+        <div className="rounded-3xl border border-black/5 bg-white/70 p-6 shadow-sm ring-1 ring-black/5 backdrop-blur">
+          <div className="h-3 w-20 rounded bg-black/10" />
+          <div className="mt-3 h-10 w-64 rounded bg-black/10" />
+          <div className="mt-2 h-4 w-40 rounded bg-black/10" />
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-24 rounded-2xl border border-black/5 bg-white/70 ring-1 ring-black/5 backdrop-blur"
+              />
+            ))}
+          </div>
+        </div>
 
+        <div className="h-12 rounded-full border border-black/5 bg-white/70 ring-1 ring-black/5 backdrop-blur" />
+
+        <div className="rounded-3xl border border-black/5 bg-white/70 p-3 shadow-sm ring-1 ring-black/5 backdrop-blur">
+          <div className="h-6 w-40 rounded bg-black/10" />
+          <div className="mt-3 space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-16 rounded-2xl border border-black/5 bg-white ring-1 ring-black/5" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  icon: (p: React.SVGProps<SVGSVGElement>) => React.ReactNode;
+}) {
+  return (
+    <div className="group relative overflow-hidden rounded-2xl border border-black/5 bg-white/70 p-4 shadow-sm ring-1 ring-black/5 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500">{label}</p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-gray-900">{value}</p>
+        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/5 ring-1 ring-black/5">
+          {Icon({ className: 'h-5 w-5 text-gray-700' })}
+        </div>
+      </div>
+      <p className="mt-2 text-xs leading-relaxed text-gray-600">{hint}</p>
+
+      <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-tr from-indigo-100 via-fuchsia-100 to-sky-100 blur-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-90" />
+    </div>
+  );
+}
+
+function Segmented({
+  view,
+  onChange,
+  todayCount,
+  upcomingCount,
+}: {
+  view: ViewMode;
+  onChange: (v: ViewMode) => void;
+  todayCount: number;
+  upcomingCount: number;
+}) {
+  return (
+    <div
+      className="inline-flex items-center rounded-full border border-black/5 bg-white/70 p-1 shadow-sm ring-1 ring-black/5 backdrop-blur"
+      role="tablist"
+      aria-label="Schedule view"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={view === 'today'}
+        onClick={() => onChange('today')}
+        className={cn(
+          'flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20',
+          view === 'today' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-700 hover:bg-black/5',
+        )}
+      >
+        Today
+        <span
+          className={cn(
+            'rounded-full px-2 py-0.5 text-[10px] font-bold',
+            view === 'today' ? 'bg-white/15 text-white' : 'bg-black/5 text-gray-700',
+          )}
+        >
+          {todayCount}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        role="tab"
+        aria-selected={view === 'upcoming'}
+        onClick={() => onChange('upcoming')}
+        className={cn(
+          'flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20',
+          view === 'upcoming' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-700 hover:bg-black/5',
+        )}
+      >
+        Next 7 days
+        <span
+          className={cn(
+            'rounded-full px-2 py-0.5 text-[10px] font-bold',
+            view === 'upcoming' ? 'bg-white/15 text-white' : 'bg-black/5 text-gray-700',
+          )}
+        >
+          {upcomingCount}
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function BookingCard({ booking, view }: { booking: Booking; view: ViewMode }) {
+  const start = new Date(booking.start_time);
+  const title = booking.service?.title || 'Booking';
+  const clientName = booking.client
+    ? `${booking.client.first_name} ${booking.client.last_name}`.trim()
+    : 'Client';
+
+  const when = view === 'today' ? format(start, 'h:mm a') : format(start, 'EEE, MMM d · h:mm a');
+
+  return (
+    <li>
+      <Link
+        href={`/dashboard/events/${booking.id}`}
+        className={cn(
+          'group relative flex items-center justify-between gap-4 rounded-2xl border border-black/5 bg-white px-4 py-4 shadow-sm ring-1 ring-black/5',
+          'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20',
+        )}
+      >
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/5 ring-1 ring-black/5">
+              <IconCalendar className="h-5 w-5 text-gray-700" />
+            </div>
+
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-900">{title}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600">
+                <span className="truncate">{clientName || 'Client'}</span>
+                <span className="text-gray-300">•</span>
+                <span className="whitespace-nowrap">{when}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden rounded-full bg-black/5 px-3 py-1 text-[11px] font-semibold text-gray-700 sm:inline-flex">
+            View
+          </span>
+          <IconArrowRight className="h-5 w-5 text-gray-400 transition group-hover:translate-x-0.5 group-hover:text-gray-600" />
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+/* --------- Page --------- */
 export default function TodayPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [view, setView] = useState<'today' | 'upcoming'>('today');
+  const [view, setView] = useState<ViewMode>('today');
 
-  // Auth Redirection
+  // Redirect non-artists, copy the pattern from ArtistDashboardPage
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -73,45 +261,87 @@ export default function TodayPage() {
     }
   }, [user, authLoading, router, pathname]);
 
-  const {
-    loading,
-    error,
-    bookings,
-  } = useArtistDashboardData(user?.id);
+  const { loading, error, bookings, bookingRequests } = useArtistDashboardData(user?.id);
+  const { count: unreadThreads } = useUnreadThreadsCount();
 
-  // --- Data Logic ---
-  const now = new Date();
-  const upcomingEnd = addDays(now, 7);
+  const now = useMemo(() => new Date(), []);
+  const upcomingEnd = useMemo(() => addDays(now, 7), [now]);
 
-  const todayBookings = useMemo(() => 
-    bookings.filter((b: Booking) => isToday(new Date(b.start_time))), 
-  [bookings]);
+  const safeBookings: Booking[] = bookings ?? [];
+  const safeRequests: BookingRequest[] = bookingRequests ?? [];
 
-  const upcomingSoon = useMemo(() => 
-    bookings
-      .filter((b: Booking) => isWithinInterval(new Date(b.start_time), { start: now, end: upcomingEnd }))
-      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()),
-  [bookings, now, upcomingEnd]);
+  const todayBookings = useMemo(
+    () => safeBookings.filter((b) => isToday(new Date(b.start_time))),
+    [safeBookings],
+  );
 
-  const activeList = useMemo(() => 
-    (view === 'today' ? todayBookings : upcomingSoon), 
-  [view, todayBookings, upcomingSoon]);
+  const upcomingSoon = useMemo(
+    () =>
+      safeBookings
+        .filter((b) => isWithinInterval(new Date(b.start_time), { start: now, end: upcomingEnd }))
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()),
+    [safeBookings, now, upcomingEnd],
+  );
 
-  // Greeting Logic
-  const greeting = useMemo(() => {
-    const hour = getHours(now);
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  }, [now]);
+  const actionableRequests = useMemo(
+    () => safeRequests.filter((r) => r.status === 'pending_quote' || r.status === 'quote_provided'),
+    [safeRequests],
+  );
 
-  // --- Render States ---
+  const stats = useMemo(
+    () => [
+      {
+        label: 'Bookings Today',
+        value: todayBookings.length,
+        hint: todayBookings.length > 0 ? 'Confirmed gigs scheduled for today' : 'No shows booked today',
+        icon: IconSparkles,
+      },
+      {
+        label: 'Next 7 Days',
+        value: upcomingSoon.length,
+        hint: 'Confirmed bookings in the next week',
+        icon: IconCalendar,
+      },
+      {
+        label: 'Quotes to Answer',
+        value: actionableRequests.length,
+        hint: 'Booking requests waiting for a quote',
+        icon: IconBolt,
+      },
+      {
+        label: 'Unread Messages',
+        value: unreadThreads,
+        hint: unreadThreads > 0 ? 'Head to your inbox to reply' : 'You are all caught up',
+        icon: IconChat,
+      },
+    ],
+    [todayBookings.length, upcomingSoon.length, actionableRequests.length, unreadThreads],
+  );
 
-  if (!user || authLoading || loading) {
+  const activeList = useMemo(
+    () => (view === 'today' ? todayBookings : upcomingSoon),
+    [view, todayBookings, upcomingSoon],
+  );
+
+  const hasBookings = activeList.length > 0;
+  const dateLine = useMemo(() => format(now, 'EEEE, MMM d, yyyy'), [now]);
+
+  if (!user || authLoading) {
     return (
       <MainLayout>
-        <div className="flex min-h-screen items-center justify-center bg-gray-50/50">
+        <div className="flex min-h-screen items-center justify-center">
           <Spinner size="lg" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="relative">
+          <BackgroundBlobs />
+          <TodaySkeleton />
         </div>
       </MainLayout>
     );
@@ -120,9 +350,27 @@ export default function TodayPage() {
   if (error) {
     return (
       <MainLayout>
-        <div className="flex min-h-screen items-center justify-center bg-gray-50/50">
-          <div className="rounded-2xl bg-red-50 px-6 py-4 text-red-600 shadow-sm border border-red-100">
-            <p className="text-sm font-medium">{error}</p>
+        <div className="relative">
+          <BackgroundBlobs />
+          <div className="mx-auto flex min-h-[calc(100vh-120px)] max-w-3xl items-center px-4 py-10">
+            <div className="w-full rounded-3xl border border-red-200/60 bg-red-50/70 p-6 shadow-sm ring-1 ring-red-200/60 backdrop-blur">
+              <p className="text-sm font-semibold text-red-900">Something went wrong</p>
+              <p className="mt-1 text-sm text-red-700">{error}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  href="/dashboard/artist"
+                  className="inline-flex items-center rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-black hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                >
+                  Open artist dashboard
+                </Link>
+                <Link
+                  href="/dashboard/bookings"
+                  className="inline-flex items-center rounded-full bg-white px-4 py-2 text-xs font-semibold text-gray-900 shadow-sm ring-1 ring-black/5 transition hover:bg-gray-50 hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                >
+                  View bookings
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </MainLayout>
@@ -131,140 +379,113 @@ export default function TodayPage() {
 
   return (
     <MainLayout>
-      {/* Background Decor */}
-      <div className="fixed inset-0 pointer-events-none -z-10 bg-gray-50/50">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-blue-100/30 rounded-full blur-[100px] opacity-60 mix-blend-multiply" />
-        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-100/30 rounded-full blur-[100px] opacity-60 mix-blend-multiply" />
-      </div>
+      <div className="relative">
+        <BackgroundBlobs />
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-80px)] max-w-2xl flex-col px-6 py-10">
-        
-        {/* Header Section */}
-        <header className="mb-10 text-center sm:text-left">
-          <p className="text-sm font-medium uppercase tracking-widest text-gray-400 mb-2">
-            {format(now, 'EEEE, d MMMM')}
-          </p>
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900">
-            {greeting}, <span className="text-gray-500 font-normal">{user.first_name || 'Artist'}.</span>
-          </h1>
-        </header>
+        <div className="mx-auto min-h-[calc(100vh-120px)] max-w-6xl px-4 py-8">
+          {/* Hero */}
+          <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-white/70 p-6 shadow-sm ring-1 ring-black/5 backdrop-blur">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">Today</p>
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl">
+                  {dateLine}
+                </h1>
+                <p className="mt-1 text-sm text-gray-600">
+                  A quick snapshot of your schedule and what needs attention.
+                </p>
+              </div>
 
-        {/* HUD / Stats Grid (Just 2 items now) */}
-        <div className="grid grid-cols-2 gap-4 mb-10">
-          <StatChip 
-            icon={Calendar} 
-            label="Today" 
-            value={todayBookings.length} 
-            active={view === 'today'}
-            onClick={() => setView('today')}
-          />
-          <StatChip 
-            icon={Briefcase} 
-            label="Upcoming" 
-            value={upcomingSoon.length} 
-            active={view === 'upcoming'}
-            onClick={() => setView('upcoming')}
-          />
-        </div>
-
-        {/* Content Wrapper */}
-        <div className="space-y-8">
-          
-          {/* Sub Header / Count */}
-          <div className="flex items-center justify-between px-2">
-            <h2 className="text-lg font-semibold text-gray-900">
-              {view === 'today' ? "Today's Schedule" : "Next 7 Days"}
-            </h2>
-            {activeList.length > 0 && (
-              <span className="text-xs font-medium text-gray-400">
-                {activeList.length} {activeList.length === 1 ? 'event' : 'events'}
-              </span>
-            )}
-          </div>
-
-          {/* Timeline / List View */}
-          {activeList.length === 0 ? (
-            <div className="py-8">
-               <IllustratedEmpty
-                variant="bookings"
-                title={view === 'today' ? "Clear Schedule" : "No Upcoming Gigs"}
-                description={view === 'today' 
-                  ? "You have no bookings scheduled for today." 
-                  : "Your schedule is clear for the next week."}
-                className="max-w-md mx-auto"
-              />
-              <div className="flex justify-center mt-6">
+              <div className="flex flex-wrap items-center gap-2">
                 <Link
                   href="/dashboard/artist"
-                  className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-2.5 text-xs font-semibold text-white shadow-lg transition-transform hover:scale-105 hover:bg-gray-800"
+                  className={cn(
+                    'inline-flex items-center justify-center rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white shadow-sm',
+                    'transition hover:bg-black hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20',
+                  )}
                 >
-                  Go to Dashboard <ChevronRight size={14} />
+                  Open artist dashboard
+                </Link>
+                <Link
+                  href="/dashboard/bookings"
+                  className={cn(
+                    'inline-flex items-center justify-center rounded-full bg-white px-4 py-2 text-xs font-semibold text-gray-900 shadow-sm ring-1 ring-black/5',
+                    'transition hover:bg-gray-50 hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20',
+                  )}
+                >
+                  View all bookings
+                </Link>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {stats.map((s) => (
+                <StatCard key={s.label} label={s.label} value={s.value} hint={s.hint} icon={s.icon} />
+              ))}
+            </div>
+
+            {/* subtle shine */}
+            <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/40 blur-2xl" />
+          </div>
+
+          {/* Tabs + schedule */}
+          <div className="mt-6 flex flex-col items-center justify-between gap-3 sm:flex-row sm:items-center">
+            <Segmented
+              view={view}
+              onChange={setView}
+              todayCount={todayBookings.length}
+              upcomingCount={upcomingSoon.length}
+            />
+
+            <p className="text-xs text-gray-600">
+              Showing <span className="font-semibold text-gray-900">{activeList.length}</span>{' '}
+              {view === 'today' ? 'booking(s) for today' : 'booking(s) in the next 7 days'}.
+            </p>
+          </div>
+
+          {/* Main content */}
+          {!hasBookings ? (
+            <div className="mt-6 overflow-hidden rounded-3xl border border-dashed border-black/10 bg-white/60 p-8 shadow-sm ring-1 ring-black/5 backdrop-blur">
+              <IllustratedEmpty
+                variant="bookings"
+                title="No bookings here (yet)"
+                description="Once a client confirms a booking, it’ll show up here for today or your upcoming schedule."
+                className="mx-auto max-w-md"
+              />
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <p className="text-xs text-gray-600">
+                  Tip: Keep an eye on quotes—new requests can land anytime.
+                </p>
+                <Link
+                  href="/dashboard/artist"
+                  className="inline-flex items-center rounded-full bg-gray-900 px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-black hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                >
+                  Review requests & messages
+                  <IconArrowRight className="ml-1.5 h-4 w-4 text-white/80" />
                 </Link>
               </div>
             </div>
           ) : (
-            <div className="relative border-l-2 border-gray-100 ml-3 sm:ml-6 space-y-8 py-2">
-              {activeList.map((booking: Booking) => {
-                const startTime = new Date(booking.start_time);
-                const isPast = new Date() > startTime && view === 'today';
+            <div className="mt-6 rounded-3xl border border-black/5 bg-white/70 p-3 shadow-sm ring-1 ring-black/5 backdrop-blur">
+              <div className="flex items-center justify-between px-3 pb-2 pt-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
+                  {view === 'today' ? "Today's schedule" : 'Next 7 days'}
+                </p>
 
-                return (
-                  <div key={booking.id} className="relative pl-8 sm:pl-10 group">
-                    {/* Timeline Dot */}
-                    <div className={`absolute -left-[9px] top-6 h-4 w-4 rounded-full border-4 border-white ${
-                      isPast ? 'bg-gray-300' : 'bg-blue-600 shadow-[0_0_0_4px_rgba(37,99,235,0.1)]'
-                    }`} />
-                    
-                    {/* Time Label */}
-                    <div className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-wider text-gray-400">
-                      <Clock size={12} />
-                      {format(startTime, 'h:mm a')}
-                      {view === 'upcoming' && (
-                        <span className="text-gray-300 font-light">| {format(startTime, 'EEE, MMM d')}</span>
-                      )}
-                    </div>
+                <Link
+                  href="/dashboard/bookings"
+                  className="text-xs font-semibold text-gray-700 transition hover:text-gray-900 hover:underline"
+                >
+                  View all
+                </Link>
+              </div>
 
-                    {/* Card */}
-                    <Link href={`/dashboard/events/${booking.id}`}>
-                      <GlassCard className={`p-5 flex items-center justify-between ${isPast ? 'opacity-60 grayscale-[0.5]' : ''}`}>
-                        <div className="flex items-center gap-4">
-                          {/* Avatar Placeholder */}
-                          <div className="h-12 w-12 flex-shrink-0 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-sm font-bold shadow-inner">
-                            {booking.client?.first_name?.[0] || 'C'}
-                            {booking.client?.last_name?.[0]}
-                          </div>
-
-                          <div className="min-w-0">
-                            <h3 className="truncate text-base font-semibold text-gray-900">
-                              {booking.service?.title || 'Private Booking'}
-                            </h3>
-                            <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                              <span className="font-medium text-gray-700">
-                                {booking.client 
-                                  ? `${booking.client.first_name} ${booking.client.last_name}` 
-                                  : 'Client'}
-                              </span>
-                              {booking.location && (
-                                <>
-                                  <span className="h-1 w-1 rounded-full bg-gray-300" />
-                                  <span className="flex items-center gap-1 truncate max-w-[150px]">
-                                    <MapPin size={10} />
-                                    Location details
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="ml-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-gray-100 bg-white text-gray-400 transition-colors group-hover:border-black group-hover:bg-black group-hover:text-white">
-                          <ChevronRight size={16} />
-                        </div>
-                      </GlassCard>
-                    </Link>
-                  </div>
-                );
-              })}
+              <ul className="space-y-2 p-2">
+                {activeList.map((booking) => (
+                  <BookingCard key={booking.id} booking={booking} view={view} />
+                ))}
+              </ul>
             </div>
           )}
         </div>

@@ -959,9 +959,14 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
           </div>
           <div className="flex items-center gap-2">
             <SavedPill saving={saving} saved={saved} />
-            <Link href={`/dashboard/events/${bookingId}`} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-              View booking
-            </Link>
+            {booking.booking_request_id && (
+              <Link
+                href={`/inbox?requestId=${booking.booking_request_id}`}
+                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Open chat
+              </Link>
+            )}
           </div>
         </div>
       </div>
