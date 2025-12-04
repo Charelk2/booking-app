@@ -277,10 +277,13 @@ export default function DashboardPage() {
   return (
     <MainLayout>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pt-6 pb-12 md:flex-row md:items-start md:px-8">
-        
-        {/* === DESKTOP SIDEBAR (Sticky) === */}
-        <aside className="hidden w-64 shrink-0 md:block">
-          <div className="sticky space-y-8" style={{ top: 'var(--sp-sticky-top, 96px)' }}>
+
+        {/* === DESKTOP SIDEBAR (Sticky rail, like service-provider profile) === */}
+        <aside
+          className="hidden w-64 shrink-0 md:block md:sticky md:self-start"
+          style={{ top: 'var(--sp-sticky-top)' }}
+        >
+          <div className="h-[calc(100vh-var(--sp-sticky-top))] space-y-8 overflow-y-auto">
             
             {/* User Snippet */}
             <div className="flex items-center gap-3 px-2">
