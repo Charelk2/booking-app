@@ -461,3 +461,90 @@ See `backend/app/api/THREADS_PREVIEW_OPTIMIZATION.md` for details.
 - Planned next steps:
   - Introduce a thin `apiClient` wrapper (pluggable transport) and shared DTO/schemas under `frontend/src/types/api` + `frontend/src/schemas/`.
   - Add a short flow doc for booking + inline quote navigation; define platform-neutral adapters for realtime/notifications/storage.
+
+## Communications & Notifications (Email, WhatsApp, In‑App)
+
+This section documents how all user‑facing communications are wired — emails, WhatsApp, and in‑app notifications — and where to look when debugging.
+
+- **Core notification pipeline**
+  - Backend entrypoint: `backend/app/utils/notifications.py`
+    - `_create_and_broadcast(...)` — persists `Notification` rows and broadcasts them via WebSocket/SSE using `notifications_manager`.
+    - `_build_response(...)` — enriches notification JSON with sender name, avatar, booking/request context for the frontend.
+    - `format_notification_message(...)` — converts `NotificationType` + kwargs into human‑readable strings.
+  - Realtime delivery:
+    - `backend/app/api/api_notification.py` — CRUD + list endpoints for notifications.
+    - `backend/app/api/api_threads.py` — inbox preview + `/api/v1/inbox/stream` event source; emits `inbox:unread_total`, `threads:preview`, and message deltas.
+    - `frontend/src/contexts/chat/RealtimeContext.tsx` — owns the single WS/SSE connection and distributes events.
+    - `frontend/src/hooks/useNotifications.ts` — subscribes to notification events, applies local state updates and badges.
+    - `frontend/src/components/layout/Header.tsx`, `frontend/src/components/layout/MobileBottomNav.tsx` — display unread badges and menu indicators.
+
+- **Email sending**
+  - Plain SMTP:
+    - `backend/app/utils/email.py:send_email` — sends simple text emails via the `SMTP_*` env settings (used by magic‑link flow and generic alerts).
+  - Mailjet templates over SMTP:
+    - `backend/app/utils/email.py:send_template_email` — sends Mailjet template emails using `X-MJ-TemplateID` and `X-MJ-Vars` headers.
+    - Booking/quote/payment templates:
+      - New booking request to provider: `MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER` (default `7527677`), used in `notify_user_new_booking_request`.
+      - Client received quote: `MAILJET_TEMPLATE_NEW_QUOTE_CLIENT`, used in `notify_client_new_quote_email`.
+      - Booking confirmed (provider/client): `MAILJET_TEMPLATE_BOOKING_CONFIRMED_PROVIDER` / `MAILJET_TEMPLATE_BOOKING_CONFIRMED_CLIENT`, used in the payment/booking confirmation paths.
+  - Magic login emails:
+    - `backend/app/api/api_magic.py:request_magic_link`:
+      - Accepts `{ email, next? }`, auto‑provisions a minimal client account if none exists.
+      - Issues a short‑lived JWT with `typ="magic"` and optional `next` URL, then builds a link:
+        - `FRONTEND_URL.rstrip('/') + "/magic?token=<jwt>"`
+      - Sends a plain‑text email via `send_email(recipient=user.email, subject="Your sign-in link", body="Click to sign in: <link>")`.
+      - In `EMAIL_DEV_MODE` it also returns the `magic_link` in the JSON response for easy local testing.
+    - `backend/app/api/api_magic.py:consume_magic_link`:
+      - POST `/auth/magic-link/consume` with `{ "token": "<jwt>" }` from the frontend (typically from `/magic` page).
+      - Verifies the JWT, looks up the user by normalized email, and if found:
+        - Mints a normal access token (same semantics as password login).
+        - Creates and stores a refresh token via `_create_refresh_token` / `_store_refresh_token`.
+        - Sets **both** access and refresh cookies on the response (`_set_access_cookie`, `_set_refresh_cookie`) so the browser session is logged in.
+      - Returns JSON `{ "ok": true, "next": <next or FRONTEND_URL> }`. The frontend should:
+        - Call `/auth/magic-link/consume` from `/magic?token=...`,
+        - Then read the `next` value from the JSON and route the user (usually via `router.replace(next)`).
+      - If the magic link “does not log the user in”, it is usually because the frontend never calls `/auth/magic-link/consume` or ignores the success payload; the backend **does** set cookies when the consume endpoint is invoked successfully.
+
+- **WhatsApp (Cloud API)**
+  - Config:
+    - `WHATSAPP_ENABLED` — `"1"/"true"/"yes"` to enable sending.
+    - `WHATSAPP_PHONE_ID` — Meta phone number ID (not the MSISDN).
+    - `WHATSAPP_TOKEN` — long‑lived WhatsApp Cloud API bearer token.
+  - Helpers in `backend/app/utils/notifications.py`:
+    - `_send_whatsapp_text(phone, body, preview_url=True)` — simple text sends (used for earlier experiments; not template‑aware).
+    - `_send_whatsapp_template(phone, template_name, language_code, body_params, header_image_url?, button_url_param?)` — sends approved templates:
+      - Normalizes the `phone` to E.164, builds a `template` payload, and POSTs to `https://graph.facebook.com/v22.0/{WHATSAPP_PHONE_ID}/messages`.
+      - When `header_image_url` is set and the template header type is **Image**, adds a `header` component:
+        - `image.link = FRONTEND_URL + "/booka_logo.jpg"` (logo lives at `frontend/public/booka_logo.jpg`).
+      - Adds a `body` component with text parameters in the exact order expected by the template.
+      - When `button_url_param` is set, adds a `button` component with `sub_type="url"`/`index="0"` and a single text parameter, used for dynamic `{{1}}` URL placeholders.
+    - `notify_user_new_booking_request(...)`:
+      - In‑app notification + SMS as before.
+      - Mailjet provider email via `MAILJET_TEMPLATE_NEW_BOOKING_PROVIDER`.
+      - WhatsApp template `new_booking_request` to the provider with:
+        - Body variables mapped to:
+          - `{{1}}` — provider name (fallback `"Artist"`).
+          - `{{2}}` — client name (fallback `"Client"`).
+          - `{{3}}` — service name / booking type.
+          - `{{4}}` — event date (fallback `"To be confirmed"`).
+          - `{{5}}` — location (fallback `"To be confirmed"`).
+          - `{{6}}` — guest count (fallback `"—"`).
+          - `{{7}}` — estimate amount (fallback `"0"`).
+        - Header image: Booka logo via `FRONTEND_URL + "/booka_logo.jpg"`.
+        - Button: “View Request” pointing at `https://booka.co.za/inbox?requestId={{1}}` with `{{1}} = request_id` (passed via `button_url_param`).
+      - All WhatsApp sends are **best effort**: failures are logged but do not block the request or other channels (email/SMS/in‑app).
+
+- **In‑app vs system messages**
+  - In‑app notifications:
+    - Represented by `Notification` rows; driven by helper functions in `backend/app/utils/notifications.py` (e.g. `notify_user_new_message`, `notify_new_booking`, `notify_quote_accepted`, `notify_review_request`).
+    - Delivered to clients via `/api/v1/notifications` and `/api/v1/inbox/stream`.
+  - System chat messages:
+    - Created in booking/message flows (e.g. booking details, event finished, auto‑completed, review prompts) and stored as `Message` rows with `message_type=SYSTEM`.
+    - Centralized in `backend/app/services/ops_scheduler.py` for pre‑ and post‑event flows using `_post_system(...)`, which both inserts the message and calls `notify_user_new_message` when appropriate.
+    - Rendered in the inbox/thread UI via `frontend/src/components/chat/MessageThread/message/SystemMessage.tsx` with consistent styling and CTA patterns.
+
+When adding new communications (e.g., additional WhatsApp templates, new Mailjet flows, or app‑only nudges), prefer to:
+
+- Add the logic in `backend/app/utils/notifications.py` (for notifications + external channels) or `backend/app/services/ops_scheduler.py` (for time‑based/system messages).
+- Expose any new client‑visible notification types via `NotificationType` and the existing `/notifications` + `/inbox/stream` paths.
+- Update this section with the new flow, template IDs, and key files so future debugging starts from a single place.
