@@ -364,40 +364,44 @@ export default function DashboardPage() {
             ref={rightScrollRef}
             className="h-auto md:h-[calc(100vh-var(--sp-sticky-top))] md:overflow-y-auto"
           >
-          {/* === MOBILE STICKY NAV === */}
-          {/* Aligned under the global header using the shared --app-header-height var */}
-          <div
-            className="sticky top-0 z-30 -mx-4 mb-6 md:hidden"
-            style={{ top: 'var(--app-header-height, 64px)' }}
-          >
-            <div className="flex items-center gap-2 overflow-x-auto border-b border-gray-100 bg-white/90 px-4 py-3 backdrop-blur-xl no-scrollbar">
-              <MobileTabItem 
-                active={activeView === 'overview'} 
-                label="Overview" 
-                onClick={() => setActiveView('overview')}
-              />
-              <MobileTabItem 
-                active={activeView === 'requests'} 
-                label="Requests" 
-                count={pendingQuoteCount + unreadRequestsCount}
-                onClick={() => setActiveView('requests')}
-              />
-              <MobileTabItem 
-                active={activeView === 'bookings'} 
-                label="Bookings" 
-                count={upcomingBookingsCount}
-                onClick={() => setActiveView('bookings')}
-              />
-              <MobileTabItem 
-                active={activeView === 'services'} 
-                label="Services" 
-                onClick={() => setActiveView('services')}
-              />
-               {/* Spacer to allow scrolling past last item */}
-               <div className="w-2 shrink-0" />
+          {/* === MOBILE STICKY NAV (fixed bar under header) === */}
+          <div className="md:hidden mb-6">
+            {/* Fixed bar pinned under the global header using --app-header-height */}
+            <div
+              className="fixed left-0 right-0 z-30"
+              style={{ top: 'var(--app-header-height, 64px)' }}
+            >
+              <div className="mx-auto max-w-7xl px-4">
+                <div className="flex items-center gap-2 overflow-x-auto border-b border-gray-100 bg-white/90 py-3 backdrop-blur-xl no-scrollbar">
+                  <MobileTabItem 
+                    active={activeView === 'overview'} 
+                    label="Overview" 
+                    onClick={() => setActiveView('overview')}
+                  />
+                  <MobileTabItem 
+                    active={activeView === 'requests'} 
+                    label="Requests" 
+                    count={pendingQuoteCount + unreadRequestsCount}
+                    onClick={() => setActiveView('requests')}
+                  />
+                  <MobileTabItem 
+                    active={activeView === 'bookings'} 
+                    label="Bookings" 
+                    count={upcomingBookingsCount}
+                    onClick={() => setActiveView('bookings')}
+                  />
+                  <MobileTabItem 
+                    active={activeView === 'services'} 
+                    label="Services" 
+                    onClick={() => setActiveView('services')}
+                  />
+                  {/* Spacer to allow scrolling past last item */}
+                  <div className="w-2 shrink-0" />
+                </div>
+              </div>
             </div>
-            {/* Fade to transparent indicator on the right if needed, 
-                but simpler is often cleaner. The border-b does the work. */}
+            {/* Spacer to offset the fixed bar height so content doesn't jump under it */}
+            <div className="h-14" />
           </div>
           
           {/* VIEW: OVERVIEW */}
