@@ -182,8 +182,7 @@ export default function AboutSection({
                 Message {displayName}
               </button>
               <p className="mt-2 text-[11px] text-gray-500">
-                To help protect your payment, always use Booka to send money and
-                communicate with artists.
+                For your safety, only send payments and messages to artists through Booka.
               </p>
             </div>
           )}

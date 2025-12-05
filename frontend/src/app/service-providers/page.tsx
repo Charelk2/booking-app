@@ -271,11 +271,22 @@ export default function ServiceProvidersPage() {
     }) => {
       setError(null);
 
+      // Derive effective sort:
+      // - If user explicitly chose a sort, honor it.
+      // - Else, when a location is present, default to closest-first.
+      // - Else, fall back to backend default ("best match").
+      const effectiveSort =
+        sort && sort.trim().length > 0
+          ? sort
+          : location && location.trim().length > 0
+          ? 'closest'
+          : undefined;
+
       const params = {
         category: serviceName,
         location: location || undefined,
         when: when || undefined,
-        sort,
+        sort: effectiveSort,
         minPrice: debouncedMinPrice,
         maxPrice: debouncedMaxPrice,
         page: pageNumber,
@@ -359,7 +370,7 @@ export default function ServiceProvidersPage() {
               results_count:
                 typeof res.total === 'number' ? res.total : filtered.length,
               meta: {
-                sort,
+                sort: effectiveSort,
                 minPrice: debouncedMinPrice,
                 maxPrice: debouncedMaxPrice,
               },
@@ -375,16 +386,7 @@ export default function ServiceProvidersPage() {
         setLoading(false);
       }
     },
-    [
-      serviceName,
-      location,
-      when,
-      sort,
-      debouncedMinPrice,
-      debouncedMaxPrice,
-      sid,
-      sourceParam,
-    ],
+    [serviceName, location, when, sort, debouncedMinPrice, debouncedMaxPrice, sid, sourceParam],
   );
 
   // ── Initial load + re-run when filters change ─────────────────────────────

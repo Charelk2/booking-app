@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, 
 from fastapi.encoders import jsonable_encoder
 from fastapi.params import Query as QueryParam
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import func, desc, or_
+from sqlalchemy import func, desc, or_, case
 from collections import defaultdict
 from datetime import datetime, timedelta, date
 import logging
@@ -666,7 +666,10 @@ def read_all_service_provider_profiles(
     # ``ServiceType`` below and ignore it if it's not a known value.
     category: Optional[str] = Query(None, description="Filter by service category"),
     location: Optional[str] = Query(None),
-    sort: Optional[str] = Query(None, pattern="^(top_rated|most_booked|newest)$"),
+    sort: Optional[str] = Query(
+        None,
+        pattern="^(top_rated|most_booked|newest|closest|best_match)$",
+    ),
     when: Optional[date] = Query(None),
     min_price: Optional[float] = Query(None, alias="minPrice", ge=0),
     max_price: Optional[float] = Query(None, alias="maxPrice", ge=0),
@@ -1073,7 +1076,13 @@ def read_all_service_provider_profiles(
             service_price_col,
         )
 
-    if location:
+    # Location filter:
+    # - For most sort modes, keep the existing behavior of filtering to artists
+    #   whose location string matches the search term.
+    # - For "closest", we treat location as a soft proximity hint instead of a
+    #   hard filter so all artists remain eligible and can be ordered by
+    #   textual closeness.
+    if location and sort != "closest":
         query = query.filter(Artist.location.ilike(f"%{location}%"))
 
     if sort == "top_rated":
@@ -1082,8 +1091,23 @@ def read_all_service_provider_profiles(
         query = query.order_by(desc(booking_subq.c.book_count))
     elif sort == "newest":
         query = query.order_by(desc(Artist.created_at))
+    elif sort == "closest" and location:
+        # Lightweight proximity ordering based on textual location match.
+        # Artists whose location string contains the search term rank first;
+        # others follow, preserving overall result set.
+        pattern = f"%{location.lower()}%"
+        # SQLAlchemy will compile ilike appropriately for the current dialect.
+        closeness = case(
+            (func.lower(Artist.location).ilike(pattern), 0),
+            else_=1,
+        )
+        query = query.order_by(
+            closeness,
+            desc(rating_subq.c.rating),
+            desc(booking_subq.c.book_count),
+            desc(Artist.created_at),
+        )
 
-    # Count total BEFORE pagination
     total_count = query.count()
 
     price_distribution_data: List[Dict[str, Any]] = []
