@@ -460,7 +460,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Visual style
   const headerClasses = clsx(
-    'z-50 border-b',
+    'z-50 border-b pt-4 pb-4',
     // Keep header pinned to the top on all viewports
     'fixed top-0 left-0 right-0',
     isAuthVariant
@@ -469,7 +469,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   );
 
   const topRowClasses = clsx(
-    'grid px-2 grid-cols-[auto,1fr,auto] items-center gap-2',
+    'grid px-2 pb-4 grid-cols-[auto,1fr,auto] items-center gap-2',
     isAuthVariant ? 'bg-transparent text-gray-900' : 'bg-black text-white'
   );
 
@@ -493,7 +493,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     <>
     <header
       ref={ref}
-      id="app-headr"
+      id="app-headr test"
       className={headerClasses}
       data-header-state={headerState}
       data-lock-compact={mobileSearchOpen ? 'true' : 'false'}

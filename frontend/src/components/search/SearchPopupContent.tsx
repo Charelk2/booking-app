@@ -17,6 +17,7 @@ import {
   type SearchHistoryItem,
   type PopularLocationSuggestion,
 } from '@/lib/api';
+import { getFullImageUrl } from '@/lib/utils';
 import type { ServiceProviderProfile } from '@/types';
 import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
 import {
@@ -473,14 +474,36 @@ export default function SearchPopupContent({
             const name =
               a.business_name ||
               `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`.trim();
+            const avatarUrl =
+              getFullImageUrl(
+                (a as any).profile_picture_url || (a as any).portfolio_urls?.[0],
+              ) || undefined;
+            const initial =
+              (name || '').trim().charAt(0)?.toUpperCase() || '?';
             return (
               <li key={a.user_id}>
                 <button
                   type="button"
                   onClick={() => handleArtistSelect(a)}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 rounded-lg"
                 >
-                  {name}
+                  <span className="flex items-center gap-2">
+                    {avatarUrl ? (
+                      <SafeImage
+                        src={avatarUrl}
+                        alt={name}
+                        width={32}
+                        height={32}
+                        sizes="32px"
+                        className="h-8 w-8 rounded-full object-cover flex-shrink-0 bg-gray-100"
+                      />
+                    ) : (
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-700 flex-shrink-0">
+                        {initial}
+                      </span>
+                    )}
+                    <span className="truncate">{name}</span>
+                  </span>
                 </button>
               </li>
             );
