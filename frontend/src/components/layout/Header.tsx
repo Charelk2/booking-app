@@ -939,12 +939,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     type="button"
                     onClick={goToLogin}
                     aria-label="Account"
-                    className={clsx(
-                      'p-2 rounded-full bg-white/90 text-black hover:bg-white',
-                      hoverNeutralLink2
-                    )}
+                    className="p-0 text-white"
                   >
-                    <UserCircleIcon className="h-5 w-5" />
+                    <UserCircleIcon className="h-8 w-8" />
                   </button>
                 </div>
               )
