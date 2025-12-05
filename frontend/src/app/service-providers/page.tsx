@@ -494,6 +494,13 @@ export default function ServiceProvidersPage() {
 
   const qs = searchParams.toString();
   const aiEnabled = process.env.NEXT_PUBLIC_FEATURE_AI_SEARCH === '1';
+  const hasLocationMatch =
+    !!location &&
+    artists.some(
+      (a) =>
+        a.location &&
+        a.location.toLowerCase().includes(location.toLowerCase()),
+    );
 
   return (
     <MainLayout headerFilter={filterControl}>
@@ -535,27 +542,38 @@ export default function ServiceProvidersPage() {
           </div>
         )}
 
+        {/* Location hint when no providers match the search city directly */}
+        {!loading && artists.length > 0 && location && !hasLocationMatch && (
+          <p className="text-sm text-gray-700 mb-2">
+            {serviceName
+              ? `No ${pluralizeServiceLabel(
+                  serviceName,
+                )} in ${location}. Showing providers from other areas.`
+              : `No service providers in ${location}. Showing providers from other areas.`}
+          </p>
+        )}
+
         {/* Initial skeleton: only when we have NO data yet */}
         {loading && artists.length === 0 && <SkeletonGrid />}
         {/* Top spinner while we append or refetch with data already on screen */}
         {loading && artists.length > 0 && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
 
+        {/* No results for current filters */}
         {!loading && artists.length === 0 && (
-          <div className="mt-4 space-y-2">
-            <p className="text-sm text-gray-700">
+          <div className="mt-4 space-y-1">
+            <p className="text-sm font-medium text-gray-900">
               {serviceName
-                ? `No ${pluralizeServiceLabel(serviceName)} near you.`
-                : 'No service providers near you.'}
+                ? `No ${pluralizeServiceLabel(serviceName)} found.`
+                : 'No service providers found.'}
             </p>
-            <h2 className="text-base font-semibold text-gray-900">
-              {serviceName
-                ? `${pluralizeServiceLabel(serviceName)} outside your area`
-                : 'Service providers outside your area'}
-            </h2>
+            <p className="text-xs text-gray-600">
+              Try updating your filters or search.
+            </p>
           </div>
         )}
 
+        {/* Results list */}
         {artists.length > 0 && (
           <div className="flex flex-wrap justify-center gap-4 sm:justify-start">
             {artists.map((a, index) => {

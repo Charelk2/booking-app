@@ -1141,8 +1141,10 @@ def read_all_service_provider_profiles(
             lng = None
 
         if lat is not None and lng is not None:
-            # Artists with stored coordinates are ordered by distance first;
-            # others follow, preserving the full result set.
+            # Artists whose location text matches the search term should always
+            # appear first, even when only some providers have coordinates.
+            # Within each text_closeness group, prefer providers with stored
+            # coordinates ordered by distance; others follow by rating/recency.
             has_coords = case(
                 (
                     (Artist.location_lat.isnot(None) & Artist.location_lng.isnot(None)),
@@ -1155,9 +1157,9 @@ def read_all_service_provider_profiles(
                 + (Artist.location_lng - lng) * (Artist.location_lng - lng)
             )
             query = query.order_by(
+                text_closeness,
                 has_coords,
                 distance_sq,
-                text_closeness,
                 desc(rating_subq.c.rating),
                 desc(booking_subq.c.book_count),
                 desc(Artist.created_at),
