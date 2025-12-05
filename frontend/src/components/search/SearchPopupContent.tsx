@@ -458,7 +458,7 @@ export default function SearchPopupContent({
         value={artistQuery}
         onChange={(e) => setArtistQuery(e.target.value)}
         placeholder="Search"
-        className="mb-3 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-0"
+        className="mb-3 w-full rounded-md border border-black px-3 py-2 text-sm focus:outline-none focus:ring-0"
         aria-label="Search"
       />
       {artistResults.length > 0 && (
