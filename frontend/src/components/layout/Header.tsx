@@ -493,7 +493,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     <>
     <header
       ref={ref}
-      id="app-header"
+      id="app-headr"
       className={headerClasses}
       data-header-state={headerState}
       data-lock-compact={mobileSearchOpen ? 'true' : 'false'}
