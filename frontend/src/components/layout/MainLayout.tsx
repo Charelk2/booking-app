@@ -534,10 +534,9 @@ export default function MainLayout({
           className={clsx('', {})}
           style={{
             paddingBottom: 'var(--mobile-bottom-nav-height, 0px)',
-            paddingTop:
-              isMobile || isSmToMd
-                ? 'calc(var(--app-header-height, 64px) - 70px)'
-                : 'var(--app-header-height, 64px)',
+            // Always offset content by the full header height so it
+            // doesn't sit underneath the fixed header on any viewport.
+            paddingTop: 'var(--app-header-height, 64px)',
           }}
         >
           <div

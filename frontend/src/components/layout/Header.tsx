@@ -461,8 +461,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   // Visual style
   const headerClasses = clsx(
     'z-50 border-b',
-    // Mobile: sticky; Desktop: fixed so the header never scrolls away
-    'sticky top-0 md:fixed md:top-0 md:left-0 md:right-0',
+    // Keep header pinned to the top on all viewports
+    'fixed top-0 left-0 right-0',
     isAuthVariant
       ? 'bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm border-slate-200'
       : 'bg-black supports-[backdrop-filter]:backdrop-blur-md border-black/5'
@@ -499,7 +499,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       data-lock-compact={mobileSearchOpen ? 'true' : 'false'}
     >
       <HeaderMessagesLink.Definition />
-      <div className="mx-auto full-width px-2 sm:px-4 lg:px-6">
+      <div className="mx-auto full-width w-full max-w-7xl px-2 sm:px-4 lg:px-6">
         {/* Top Row */}
         <div className={topRowClasses}>
           {/* Left cluster: menu + brand + (mobile pill) */}
@@ -518,7 +518,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             <Link
               href="/"
               prefetch={false}
-              className={clsx(brandLinkClasses, 'flex items-center gap-3')}
+              className={clsx(brandLinkClasses, 'flex items-center gap-2')}
               aria-label="Booka home"
             >
               {(() => {
@@ -528,7 +528,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 return (
                   <span
                     className={clsx(
-                      'inline-flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-md',
+                      'inline-flex items-center justify-center h-8 w-8 sm:h-8 sm:w-8 md:h-8 md:w-8 rounded',
                       logoBgClasses,
                     )}
                   >
@@ -554,7 +554,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   </span>
                 );
               })()}
-              <span className="text-xl sm:text-2xl md:text-3xl">Booka</span>
+              <span className="text-lg sm:text-2xl md:text-3xl">Booka</span>
             </Link>
 
             {/* MOBILE: search pill (light surface → black text) */}
@@ -564,7 +564,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 onClick={() => mobileSearchRef.current?.open?.()}
                 aria-label="Open search"
                 className={clsx(
-                  'ml-2 md:hidden inline-flex items-center gap-2 px-3 py-2 text-xs rounded-full',
+                  'ml-2 md:hidden inline-flex items-center gap-2 px-3 py-2 text-xs rounded-lg',
                   'border border-black/10 bg-white shadow-sm',
                   'flex-1 min-w-0 overflow-hidden',
                   hoverNeutralLink,
@@ -628,7 +628,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       openDesktopSearchFromCompact();
                     }}
                     className={clsx(
-                      'w-full flex items-center justify-between rounded-2xl',
+                      'w-full flex items-center justify-between rounded-lg',
                       'bg-white',
                       // extra right padding is not needed since icon is *outside*
                       'px-4 py-2 text-sm',
@@ -702,7 +702,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   <button
                     onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                     className={clsx(
-                      'px-3 py-2 text-sm rounded-lg border border-white bg-black text-white font-semi-bold hover:bg-white hover:text-black',
+                      'px-2 py-1.5 text-sm rounded-lg border border-white bg-black text-white font-semi-bold hover:bg-white hover:text-black',
                       hoverNeutralLink2
                     )}
                   >
@@ -907,7 +907,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       <button
                         onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                         className={clsx(
-                          'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
+                          'px-1.5 py-1.5 text-sm rounded-lg  border border-white bg-black text-white font-bold hover:bg-gray-100 hover:text-black',
                           hoverNeutralLink2
                         )}
                       >
@@ -927,7 +927,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                           }
                         }}
                         className={clsx(
-                          'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
+                          'px-1.5 py-1.5 text-sm rounded-lg  border border-white bg-black text-white font-bold hover:bg-gray-100 hover:text-black',
                           hoverNeutralLink2
                         )}
                       >
@@ -941,7 +941,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     aria-label="Account"
                     className="p-0 text-white"
                   >
-                    <UserAccountIcon className="h-8 w-8" />
+                    <UserAccountIcon className="h-7 w-7" />
                   </button>
                 </div>
               )
