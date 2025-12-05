@@ -18,7 +18,7 @@ export interface PriceFilterProps {
   initialMinPrice: number;
   initialMaxPrice: number;
   priceDistribution: { count: number }[];
-  onApply: (f: { minPrice: number; maxPrice: number }) => void;
+  onApply: (f: { minPrice: number; maxPrice: number; sort: string }) => void;
   onClear: () => void;
   onClose: () => void;
 
@@ -100,7 +100,11 @@ export default function PriceFilter({
   const maxCount = priceDistribution.reduce((m, b) => Math.max(m, b.count), 0);
 
   const handleApplyClick = useCallback(() => {
-    onApply({ minPrice: localMinPrice, maxPrice: localMaxPrice });
+    onApply({
+      minPrice: localMinPrice,
+      maxPrice: localMaxPrice,
+      sort: localSortValue,
+    });
     onSortChange(localSortValue);
     onClose();
   }, [localMinPrice, localMaxPrice, localSortValue, onApply, onSortChange, onClose]);
