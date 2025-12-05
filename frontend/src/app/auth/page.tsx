@@ -117,7 +117,9 @@ export default function AuthPage() {
   // Intent & routing
   const intent = (params.get('intent') || '').toLowerCase();
   const role = (params.get('role') || '').toLowerCase();
-  const next = params.get('next') || '/dashboard';
+  // Default to home when no explicit next is provided; most entry points
+  // explicitly set ?next to the originating page.
+  const next = params.get('next') || '/';
   const nextPath = useMemo(() => next, [next]);
 
   const { user, login, verifyMfa, register: registerUser, refreshUser } = useAuth();
@@ -265,7 +267,7 @@ export default function AuthPage() {
       } catch {}
       return; // modal will handle redirect post-onboarding
     }
-    router.replace(nextPath || '/dashboard');
+    router.replace(nextPath || '/');
   };
 
   // Actions
