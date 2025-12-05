@@ -1,0 +1,23 @@
+'use client';
+
+import React from 'react';
+
+export type UserAccountIconProps = React.SVGProps<SVGSVGElement>;
+
+export function UserAccountIcon(props: UserAccountIconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0" />
+    </svg>
+  );
+}

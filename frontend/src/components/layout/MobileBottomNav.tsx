@@ -6,8 +6,8 @@ import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
   ChatBubbleLeftRightIcon,
-  UserCircleIcon,
 } from '@heroicons/react/24/outline';
+import { UserAccountIcon } from '../icons/UserAccountIcon';
 import type { User } from '@/types';
 // Import directly from TSX implementation to avoid potential TDZ
 import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
@@ -58,7 +58,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
     {
       name: 'Dashboard',
       href: user.user_type === 'service_provider' ? '/dashboard/artist' : '/dashboard/client',
-      icon: UserCircleIcon,
+      icon: UserAccountIcon,
       auth: true,
     },
   ];
