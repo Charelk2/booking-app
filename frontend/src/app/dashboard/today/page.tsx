@@ -8,8 +8,7 @@ import {
   format, 
   isToday, 
   isWithinInterval, 
-  addDays, 
-  getHours 
+  addDays 
 } from 'date-fns';
 import { 
   MapPin, 
@@ -25,25 +24,33 @@ import type { Booking } from '@/types';
 
 // --- Components ---
 
-const TabButton = ({ active, label, count, onClick }: any) => (
+interface ToggleButtonProps {
+  active: boolean;
+  label: string;
+  count?: number;
+  onClick: () => void;
+}
+
+const ToggleButton = ({ active, label, count = 0, onClick }: ToggleButtonProps) => (
   <button
+    type="button"
     onClick={onClick}
-    className={`flex-1 py-3 text-sm font-semibold transition-all border-b-2 hover:no-underline ${
+    className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-colors ${
       active
-        ? 'border-black text-black'
-        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+        ? 'bg-black text-white shadow-sm'
+        : 'text-gray-700 hover:text-black hover:bg-gray-100'
     }`}
   >
-    <span className="flex items-center justify-center gap-2">
-      {label}
-      {count > 0 && (
-        <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] ${
-          active ? 'bg-black text-white' : 'bg-gray-200 text-gray-600'
-        }`}>
-          {count}
-        </span>
-      )}
-    </span>
+    <span>{label}</span>
+    {count > 0 && (
+      <span
+        className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] ${
+          active ? 'bg-white/15 text-white' : 'bg-gray-200 text-gray-700'
+        }`}
+      >
+        {count}
+      </span>
+    )}
   </button>
 );
 
@@ -116,19 +123,28 @@ export default function TodayPage() {
   const now = new Date();
   const upcomingEnd = addDays(now, 7);
 
-  const todayBookings = useMemo(() => 
-    bookings.filter((b: Booking) => isToday(new Date(b.start_time))), 
-  [bookings]);
+  const todayBookings = useMemo(
+    () => bookings.filter((b: Booking) => isToday(new Date(b.start_time))),
+    [bookings],
+  );
 
-  const upcomingSoon = useMemo(() => 
-    bookings
-      .filter((b: Booking) => isWithinInterval(new Date(b.start_time), { start: now, end: upcomingEnd }))
-      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()),
-  [bookings, now, upcomingEnd]);
+  const upcomingSoon = useMemo(
+    () =>
+      bookings
+        .filter((b: Booking) =>
+          isWithinInterval(new Date(b.start_time), { start: now, end: upcomingEnd }),
+        )
+        .sort(
+          (a, b) =>
+            new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+        ),
+    [bookings, now, upcomingEnd],
+  );
 
-  const activeList = useMemo(() => 
-    (view === 'today' ? todayBookings : upcomingSoon), 
-  [view, todayBookings, upcomingSoon]);
+  const activeList = useMemo(
+    () => (view === 'today' ? todayBookings : upcomingSoon),
+    [view, todayBookings, upcomingSoon],
+  );
 
   if (!user || authLoading || loading) {
     return (
@@ -143,10 +159,9 @@ export default function TodayPage() {
   return (
     <MainLayout>
       <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-xl px-6 py-10">
-          
-          {/* Header */}
-          <header className="mb-8 space-y-1 text-center">
+        <div className="mx-auto flex max-w-2xl flex-col items-center px-6 py-10 text-center">
+          {/* Page label + date */}
+          <header className="mb-10 space-y-1">
             <p className="text-xs uppercase tracking-[0.2em] text-gray-400">
               Today
             </p>
@@ -155,56 +170,62 @@ export default function TodayPage() {
             </h1>
           </header>
 
-          {/* Tabs */}
-          <div className="mb-8 flex border-b border-gray-200">
-            <TabButton 
-              active={view === 'today'} 
-              label="Today" 
+          {/* Today / Upcoming toggle – pill style */}
+          <div className="mb-12 inline-flex rounded-full bg-gray-100 p-1 shadow-inner">
+            <ToggleButton
+              active={view === 'today'}
+              label="Today"
               count={todayBookings.length}
-              onClick={() => setView('today')} 
+              onClick={() => setView('today')}
             />
-            <TabButton 
-              active={view === 'upcoming'} 
-              label="Upcoming" 
+            <ToggleButton
+              active={view === 'upcoming'}
+              label="Upcoming"
               count={upcomingSoon.length}
-              onClick={() => setView('upcoming')} 
+              onClick={() => setView('upcoming')}
             />
           </div>
 
-          {/* Content */}
-          <div>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">
-                {view === 'today' ? "Today's Schedule" : "Next 7 Days"}
-              </h2>
-            </div>
+          {/* Empty state vs schedule list */}
+          {activeList.length === 0 ? (
+            <div className="flex flex-col items-center">
+              <IllustratedEmpty
+                variant="bookings"
+                title={
+                  view === 'today'
+                    ? "You don't have any events today"
+                    : "You don't have upcoming events"
+                }
+                description={
+                  view === 'today'
+                    ? "To start getting bookings on this page, complete and publish your listing."
+                    : "Once clients book you, their events for this period will appear here."
+                }
+                action={
+                  <Link
+                    href="/dashboard/profile/edit?incomplete=1"
+                    className="inline-flex items-center justify-center rounded-full bg-black px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-900 hover:no-underline"
+                  >
+                    Complete your listing
+                  </Link>
+                }
+                className="w-full max-w-sm"
+              />
 
-            {activeList.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 py-16 text-center">
-                <IllustratedEmpty
-                  variant="bookings"
-                  title="No bookings found"
-                  description={view === 'today' 
-                    ? "Your schedule is clear for today."
-                    : "You have no upcoming bookings for the next week."
-                  }
-                  className="mx-auto max-w-xs mb-4"
-                />
-                <Link 
-                  href="/dashboard/artist" 
-                  className="text-sm font-semibold text-black hover:text-gray-700 hover:no-underline"
-                >
-                  Go to Dashboard
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {activeList.map((booking: Booking) => (
-                  <AirbnbCard key={booking.id} booking={booking} />
-                ))}
-              </div>
-            )}
-          </div>
+              <Link
+                href="/dashboard/artist"
+                className="mt-6 text-sm font-semibold text-gray-700 hover:text-black hover:no-underline"
+              >
+                Back to dashboard
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-4 w-full space-y-4 text-left">
+              {activeList.map((booking: Booking) => (
+                <AirbnbCard key={booking.id} booking={booking} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>
