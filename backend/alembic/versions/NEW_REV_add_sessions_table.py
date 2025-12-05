@@ -82,6 +82,19 @@ def downgrade() -> None:
 #   This is manual-only (no Alembic upgrade); also recorded in AGENTS.md.
 #
 # 2026-01-10:
+#   On production appdb at revision ed57deb9c434 (this file), extend calendar
+#   accounts with basic health metadata so Calendar Sync never "disconnects"
+#   implicitly when Google rejects tokens:
+#     ALTER TABLE calendar_accounts
+#       ADD COLUMN status varchar NULL,
+#       ADD COLUMN last_error text NULL,
+#       ADD COLUMN last_error_at timestamp NULL,
+#       ADD COLUMN last_success_sync_at timestamp NULL;
+#   This change is manual-only (no Alembic upgrade step). When recreating
+#   appdb at this revision, re-apply the same DDL before deploying code that
+#   reads or writes these columns.
+#
+# 2026-01-10:
 #   On production appdb at revision ed57deb9c434 (this file), add optional
 #   geocoded coordinates for the provider base location so that artist lists
 #   can be ordered by proximity ("Closest first") without changing the

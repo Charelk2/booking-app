@@ -191,11 +191,13 @@ def test_fetch_events_http_error(monkeypatch):
         calendar_service.settings, "GOOGLE_CLIENT_SECRET", "sec", raising=False
     )
 
-    with pytest.raises(HTTPException) as exc:
-        calendar_service.fetch_events(
-            user.id, datetime.utcnow(), datetime.utcnow() + timedelta(days=1), db
-        )
-    assert exc.value.status_code == 502
+    events = calendar_service.fetch_events(
+        user.id, datetime.utcnow(), datetime.utcnow() + timedelta(days=1), db
+    )
+    # On API error, fetch_events should log and return an empty list,
+    # without deleting the CalendarAccount or raising.
+    assert events == []
+    assert db.query(CalendarAccount).count() == 1
 
 
 def test_fetch_events_refresh_error(monkeypatch):
@@ -235,13 +237,14 @@ def test_fetch_events_refresh_error(monkeypatch):
         calendar_service.settings, "GOOGLE_CLIENT_SECRET", "sec", raising=False
     )
 
-    with pytest.raises(HTTPException) as exc:
-        calendar_service.fetch_events(
-            user.id, datetime.utcnow(), datetime.utcnow() + timedelta(days=1), db
-        )
-    assert exc.value.status_code == 502
-    # account removed on refresh failure
-    assert db.query(CalendarAccount).count() == 0
+    events = calendar_service.fetch_events(
+        user.id, datetime.utcnow(), datetime.utcnow() + timedelta(days=1), db
+    )
+    # On refresh error, fetch_events should not raise or delete the account;
+    # it should return an empty list and mark the account as needing reauth.
+    assert events == []
+    acc_after = db.query(CalendarAccount).one()
+    assert acc_after.status == "needs_reauth"
 
 
 def test_fetch_events_missing_credentials(monkeypatch):

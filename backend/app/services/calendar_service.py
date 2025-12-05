@@ -227,19 +227,35 @@ def exchange_code(user_id: int, code: str, redirect_uri: str, db: Session) -> No
     )
     if account is None:
         account = CalendarAccount(
-            user_id=user_id, provider=CalendarProvider.GOOGLE
+            user_id=user_id,
+            provider=CalendarProvider.GOOGLE,
         )
     account.refresh_token = creds.refresh_token
     account.access_token = creds.token
     account.token_expiry = creds.expiry
     if email:
         account.email = email
+    # Successful exchange: mark calendar as healthy and clear prior errors.
+    try:
+        account.status = "ok"
+        account.last_error = None
+        account.last_error_at = None
+        account.last_success_sync_at = datetime.now(timezone.utc)
+    except Exception:
+        # Best-effort; don't block token persistence on metadata issues.
+        pass
     db.add(account)
     db.commit()
 
 
 def fetch_events(user_id: int, start: datetime, end: datetime, db: Session) -> List[datetime]:
-    """Return start times of events from the user's Google Calendar."""
+    """Return start times of events from the user's Google Calendar.
+
+    This helper is best-effort and never deletes the underlying
+    CalendarAccount or raises HTTP errors for token / API issues. On any
+    problem (missing credentials, refresh failure, Google API error) it
+    logs and returns an empty list so booking flows remain unaffected.
+    """
     if not _HAS_GOOGLE:
         logger.warning("Google Calendar libs missing; skipping fetch")
         return []
@@ -264,8 +280,22 @@ def fetch_events(user_id: int, start: datetime, end: datetime, db: Session) -> L
         client_id=settings.GOOGLE_CLIENT_ID,
         client_secret=settings.GOOGLE_CLIENT_SECRET,
     )
+
+    def _mark_status(new_status: str, error_msg: str | None = None) -> None:
+        try:
+            account.status = new_status
+            if error_msg:
+                account.last_error = error_msg
+                account.last_error_at = datetime.now(timezone.utc)
+            db.add(account)
+            db.commit()
+        except Exception:
+            # Status metadata is best-effort; never fail fetch on metadata issues.
+            db.rollback()
+
+    events: Any = {"items": []}
     try:
-        if creds.expired:
+        if getattr(creds, "expired", False):
             try:
                 creds.refresh(Request())
             except RefreshError as exc:
@@ -275,15 +305,23 @@ def fetch_events(user_id: int, start: datetime, end: datetime, db: Session) -> L
                     exc,
                     exc_info=True,
                 )
-                db.delete(account)
-                db.commit()
-                raise HTTPException(502, "Failed to refresh calendar credentials") from exc
+                _mark_status("needs_reauth", "refresh_failed")
+                return []
 
             account.access_token = creds.token
-            account.token_expiry = creds.expiry
-            db.add(account)
-            db.commit()
+            account.token_expiry = getattr(creds, "expiry", account.token_expiry)
+            try:
+                account.status = "ok"
+                account.last_error = None
+                account.last_error_at = None
+                account.last_success_sync_at = datetime.now(timezone.utc)
+                db.add(account)
+                db.commit()
+            except Exception:
+                db.rollback()
+
         service = build("calendar", "v3", credentials=creds)
+
         def _rfc3339_z(dt: datetime) -> str:
             try:
                 if dt.tzinfo is None or dt.utcoffset() is None:
@@ -305,14 +343,27 @@ def fetch_events(user_id: int, start: datetime, end: datetime, db: Session) -> L
             )
             .execute()
         )
+        try:
+            account.status = "ok"
+            account.last_error = None
+            account.last_error_at = None
+            account.last_success_sync_at = datetime.now(timezone.utc)
+            db.add(account)
+            db.commit()
+        except Exception:
+            db.rollback()
     except HttpError as exc:
         logger.error("Google Calendar API error: %s", exc, exc_info=True)
-        raise HTTPException(502, "Failed to fetch calendar events") from exc
+        _mark_status("error", "api_error")
+        return []
     except RefreshError as exc:
         logger.error("Google token refresh failed for user %s: %s", user_id, exc, exc_info=True)
-        db.delete(account)
-        db.commit()
-        raise HTTPException(502, "Failed to refresh calendar credentials") from exc
+        _mark_status("needs_reauth", "refresh_failed")
+        return []
+    except Exception as exc:  # pragma: no cover - defensive catch-all
+        logger.error("Unexpected Google Calendar error for user %s: %s", user_id, exc, exc_info=True)
+        _mark_status("error", "unexpected_error")
+        return []
 
     results: List[datetime] = []
     for item in events.get("items", []):
