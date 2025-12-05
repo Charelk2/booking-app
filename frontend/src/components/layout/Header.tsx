@@ -528,7 +528,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 return (
                   <span
                     className={clsx(
-                      'inline-flex items-center justify-center h-7 w-7 sm:h-7 sm:w-7 md:h-7 md:w-7 rounded',
+                      'inline-flex items-center justify-center h-8 w-8 sm:h-8 sm:w-8 md:h-8 md:w-8 rounded',
                       logoBgClasses,
                     )}
                   >
@@ -545,7 +545,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       <span
                         className={clsx(
                           logoTextClasses,
-                          'font-black text-xl sm:text-xl md:text-2xl leading-none',
+                          'font-black text-xl sm:text-2xl md:text-3xl leading-none',
                         )}
                       >
                         B
