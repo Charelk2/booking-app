@@ -324,19 +324,10 @@ export default function MainLayout({
       const headerIsLocked = el.dataset.lockCompact === 'true';
       if (headerIsLocked) return;
 
-      const y = window.scrollY;
-      const delta = y - prevScrollY.current;
-      prevScrollY.current = y;
-
-      const DOWN_HIDE_THRESHOLD = 8;
-      const UP_SHOW_THRESHOLD = 4;
-      const TOP_SHOW_Y = 24;
-
-      if (y <= TOP_SHOW_Y || delta < -UP_SHOW_THRESHOLD) {
-        el.removeAttribute('data-hide-on-mobile');
-      } else if (delta > DOWN_HIDE_THRESHOLD) {
-        el.setAttribute('data-hide-on-mobile', 'true');
-      }
+      // Keep mobile header always visible at the top; do not auto-hide
+      // on scroll. `Header` already uses `sticky top-0`, so we just
+      // ensure the hide flag is cleared.
+      el.removeAttribute('data-hide-on-mobile');
       return;
     }
 
