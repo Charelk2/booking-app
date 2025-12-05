@@ -460,7 +460,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Visual style
   const headerClasses = clsx(
-    'z-50 border-b pt-4 pb-4',
+    'z-50 border-b pt-4',
     // Keep header pinned to the top on all viewports
     'fixed top-0 left-0 right-0',
     isAuthVariant
@@ -958,7 +958,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         {!isArtistView && showSearchBar && (
           <div
             className={clsx(
-              'relative mx-auto mt-4',
+              'relative mx-auto pt-4 pb-4',
               'max-w-2xl',
               headerState === 'compacted' ? 'mt-0 mb-0' : 'mb-0'
             )}
