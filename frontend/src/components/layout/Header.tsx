@@ -461,8 +461,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   // Visual style
   const headerClasses = clsx(
     'z-50 border-b',
-    // Mobile: sticky; Desktop: fixed so the header never scrolls away
-    'sticky top-0 md:fixed md:top-0 md:left-0 md:right-0',
+    // Keep header pinned to the top on all viewports
+    'fixed top-0 left-0 right-0',
     isAuthVariant
       ? 'bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm border-slate-200'
       : 'bg-black supports-[backdrop-filter]:backdrop-blur-md border-black/5'

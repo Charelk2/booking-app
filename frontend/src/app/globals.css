@@ -461,21 +461,6 @@ body.no-scroll {
   }
 }
 
-/* Hide-on-scroll header for mobile (narrow viewports) */
-@media (max-width: 639px) {
-  #app-header {
-    transition: transform 200ms ease;
-    will-change: transform;
-  }
-  #app-header[data-hide-on-mobile="true"] {
-    transform: translateY(-100%);
-  }
-  /* Event Prep lock: keep header visible even if attribute toggles */
-  html[data-lock-header="true"] #app-header[data-hide-on-mobile="true"] {
-    transform: none !important;
-  }
-}
-
 /* Event Prep lock: prevent compaction visuals so main nav stays visible */
 html[data-lock-header="true"] #app-header[data-header-state="compacted"] {
   height: auto !important;
