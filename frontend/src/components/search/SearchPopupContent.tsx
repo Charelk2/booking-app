@@ -504,7 +504,7 @@ export default function SearchPopupContent({
                   role="option"
                   aria-selected={selected}
                   className={clsx(
-                    'px-4 py-2 text-sm cursor-pointer transition hover:bg-gray-100 hover:text-gray-900',
+                    'px-4 py-2 text-sm cursor-pointer transition hover:bg-gray-100 rounded-lg hover:text-gray-900',
                     active ? 'bg-gray-200 text-gray-900 hover:bg-gray-200 text-semi-bold' : 'text-gray-700',
                     selected && 'font-semibold',
                   )}
