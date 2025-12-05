@@ -907,7 +907,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       <button
                         onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                         className={clsx(
-                          'px-1.5 py-1.5 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
+                          'px-1.5 py-1.5 text-sm rounded-lg  border border-white bg-black text-white font-bold hover:bg-gray-100 hover:text-black',
                           hoverNeutralLink2
                         )}
                       >
@@ -927,7 +927,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                           }
                         }}
                         className={clsx(
-                          'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
+                          'px-1.5 py-1.5 text-sm rounded-lg  border border-white bg-black text-white font-bold hover:bg-gray-100 hover:text-black',
                           hoverNeutralLink2
                         )}
                       >
