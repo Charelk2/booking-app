@@ -941,7 +941,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     aria-label="Account"
                     className="p-0 text-white"
                   >
-                    <UserAccountIcon className="h-10 w-10" />
+                    <UserAccountIcon className="h-8 w-8" />
                   </button>
                 </div>
               )
