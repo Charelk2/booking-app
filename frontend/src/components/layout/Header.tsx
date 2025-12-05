@@ -460,7 +460,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Visual style
   const headerClasses = clsx(
-    'z-50 border-b pt-4',
+    'z-50 border-b',
     // Keep header pinned to the top on all viewports
     'fixed top-0 left-0 right-0',
     isAuthVariant
@@ -493,18 +493,13 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     <>
     <header
       ref={ref}
-      id="app-headr test"
+      id="app-header"
       className={headerClasses}
       data-header-state={headerState}
       data-lock-compact={mobileSearchOpen ? 'true' : 'false'}
     >
       <HeaderMessagesLink.Definition />
-      <div
-        className={clsx(
-          'mx-auto full-width w-full px-2 sm:px-6 lg:px-8',
-          !pathname.startsWith('/inbox') && 'max-w-7xl',
-        )}
-      >
+      <div className="mx-auto full-width w-full max-w-7xl px-2 sm:px-6 lg:px-8">
         {/* Top Row */}
         <div className={topRowClasses}>
           {/* Left cluster: menu + brand + (mobile pill) */}
@@ -958,7 +953,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         {!isArtistView && showSearchBar && (
           <div
             className={clsx(
-              'relative mx-auto pt-4 pb-4',
+              'relative mx-auto',
               'max-w-2xl',
               headerState === 'compacted' ? 'mt-0 mb-0' : 'mb-0'
             )}
