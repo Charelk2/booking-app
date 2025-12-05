@@ -469,7 +469,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   );
 
   const topRowClasses = clsx(
-    'grid px-2 pb-4 grid-cols-[auto,1fr,auto] items-center gap-2',
+    'grid px-2 grid-cols-[auto,1fr,auto] items-center gap-2',
     isAuthVariant ? 'bg-transparent text-gray-900' : 'bg-black text-white'
   );
 
