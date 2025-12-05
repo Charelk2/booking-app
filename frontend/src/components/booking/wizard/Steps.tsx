@@ -91,7 +91,22 @@ export function DateTimeStep({
                     ref={field.ref}
                     onBlur={field.onBlur}
                     value={currentValue ? format(currentValue, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => field.onChange(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        try {
+                          const selected = startOfDay(new Date(value));
+                          const today = startOfDay(new Date());
+                          if (selected.getTime() === today.getTime()) {
+                            toast.error('You can’t book for today. Please choose a later date.');
+                            return;
+                          }
+                        } catch {
+                          // Fall through to normal handler on parse errors
+                        }
+                      }
+                      field.onChange(value);
+                    }}
                     enterKeyHint="next"
                     inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
                   />
@@ -111,7 +126,17 @@ export function DateTimeStep({
                     locale={enUS}
                     filterDate={filterDate}
                     minDate={startOfDay(new Date())}
-                    onChange={(date: Date | null) => field.onChange(date)}
+                    onChange={(date: Date | null) => {
+                      if (date) {
+                        const selected = startOfDay(date);
+                        const today = startOfDay(new Date());
+                        if (selected.getTime() === today.getTime()) {
+                          toast.error('You can’t book for today. Please choose a later date.');
+                          return;
+                        }
+                      }
+                      field.onChange(date);
+                    }}
                     onClickOutside={() => {}}
                     renderCustomHeader={(hdrProps: any) => {
                       const {

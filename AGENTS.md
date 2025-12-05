@@ -234,6 +234,13 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 - 2026-01-02 (manual, at `ed57deb9c434`): add index to speed provider rating aggregates on reviews
   - SQL: `CREATE INDEX ix_reviews_artist_id ON reviews (artist_id);`
   - Rationale: `read_artist_profile_by_id` / `read_artist_profile_by_slug` aggregate rating/count on `reviews.artist_id`; the index avoids full scans during profile loads.
+- 2026-01-10 (manual, at `ed57deb9c434`): add optional geocoded coordinates for provider base locations
+  - SQL:
+    - `ALTER TABLE service_provider_profiles ADD COLUMN location_lat numeric(9, 6) NULL;`
+    - `ALTER TABLE service_provider_profiles ADD COLUMN location_lng numeric(9, 6) NULL;`
+    - `CREATE INDEX ix_service_provider_profiles_location_lat ON service_provider_profiles (location_lat);`
+    - `CREATE INDEX ix_service_provider_profiles_location_lng ON service_provider_profiles (location_lng);`
+  - Rationale: allows `/api/v1/service-provider-profiles` to implement a true "Closest first" sort using the provider's base location without changing the existing human-readable `location` string. Providers without coordinates remain eligible but are ordered after those with coordinates.
 
 ---
 

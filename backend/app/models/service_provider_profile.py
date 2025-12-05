@@ -34,6 +34,11 @@ class ServiceProviderProfile(BaseModel):
     custom_subtitle = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     location = Column(String, nullable=True)
+    # Optional geocoded coordinates for the provider's base location.
+    # Used for proximity sorting (e.g. "Closest first") while keeping the
+    # original human-readable `location` string as the source of truth.
+    location_lat = Column(Numeric(9, 6), nullable=True, index=True)
+    location_lng = Column(Numeric(9, 6), nullable=True, index=True)
     hourly_rate = Column(Numeric(10, 2), nullable=True)
     portfolio_urls = Column(JSON, nullable=True)
     portfolio_image_urls = Column(JSON, nullable=True)

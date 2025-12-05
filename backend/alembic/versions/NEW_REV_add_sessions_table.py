@@ -80,3 +80,20 @@ def downgrade() -> None:
 #   speed provider rating aggregates on the reviews table:
 #     CREATE INDEX ix_reviews_artist_id ON reviews (artist_id);
 #   This is manual-only (no Alembic upgrade); also recorded in AGENTS.md.
+#
+# 2026-01-10:
+#   On production appdb at revision ed57deb9c434 (this file), add optional
+#   geocoded coordinates for the provider base location so that artist lists
+#   can be ordered by proximity ("Closest first") without changing the
+#   existing human-readable `location` field:
+#     ALTER TABLE service_provider_profiles
+#       ADD COLUMN location_lat numeric(9, 6) NULL;
+#     ALTER TABLE service_provider_profiles
+#       ADD COLUMN location_lng numeric(9, 6) NULL;
+#     CREATE INDEX ix_service_provider_profiles_location_lat
+#       ON service_provider_profiles (location_lat);
+#     CREATE INDEX ix_service_provider_profiles_location_lng
+#       ON service_provider_profiles (location_lng);
+#   This change is manual-only (no Alembic upgrade step). When recreating
+#   appdb at this revision, re-apply the same DDL before deploying any code
+#   that reads or writes these columns.

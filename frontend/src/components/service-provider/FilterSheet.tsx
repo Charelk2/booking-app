@@ -10,9 +10,10 @@ import { createPortal } from "react-dom";
 import type { PriceBucket } from "@/lib/api";
 
 const SORT_OPTIONS = [
-  { value: "", label: "Sort" },
-  { value: "top_rated", label: "Top Rated" },
-  { value: "most_booked", label: "Most Booked" },
+  { value: "", label: "Best match" },
+  { value: "closest", label: "Closest first" },
+  { value: "top_rated", label: "Top rated" },
+  { value: "most_booked", label: "Most booked" },
   { value: "newest", label: "Newest" },
 ];
 
