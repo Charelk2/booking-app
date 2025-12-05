@@ -327,7 +327,7 @@ export default function PriceFilter({
 
   const Progress = ({ style }: { style: React.CSSProperties }) => (
     <div
-      className="absolute bottom-0 h-2 rounded bg-[var(--color-accent)]"
+      className="absolute bottom-0 h-2 rounded bg-black"
       style={style}
     />
   );
@@ -562,7 +562,7 @@ export default function PriceFilter({
           </button>
           <button
             type="button"
-            className="rounded-lg bg-[var(--color-accent)] px-6 py-2 font-semibold text-white shadow-md transition-colors hover:bg-[var(--color-accent)]/90"
+            className="rounded-lg bg-black px-6 py-2 font-semibold text-white shadow-md transition-colors hover:bg-black/90"
             onClick={handleApplyClick}
           >
             Apply
