@@ -499,7 +499,18 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       data-lock-compact={mobileSearchOpen ? 'true' : 'false'}
     >
       <HeaderMessagesLink.Definition />
-      <div className="mx-auto full-width px-2 sm:px-4 lg:px-6">
+      <div className="relative mx-auto full-width px-2 sm:px-4 lg:px-6 overflow-hidden">
+        {/* Bottom accent image */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0">
+          <Image
+            src="/Gemini_Generated_Image_8yiapn8yiapn8yia.png"
+            alt="Header accent"
+            width={1200}
+            height={160}
+            className="w-full h-16 object-cover opacity-70"
+          />
+        </div>
+        <div className="relative z-10">
         {/* Top Row */}
         <div className={topRowClasses}>
           {/* Left cluster: menu + brand + (mobile pill) */}
@@ -1011,6 +1022,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         {extraBar && (headerState === 'initial' || headerState === 'expanded-from-compact') && (
           <div className="mt-3">{extraBar}</div>
         )}
+        </div>
       </div>
 
       {/* Mobile drawer */}
