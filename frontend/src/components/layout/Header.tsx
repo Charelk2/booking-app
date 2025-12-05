@@ -499,7 +499,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       data-lock-compact={mobileSearchOpen ? 'true' : 'false'}
     >
       <HeaderMessagesLink.Definition />
-      <div className="mx-auto full-width w-full max-w-7xl px-2 sm:px-6 lg:px-8">
+      <div
+        className={clsx(
+          'mx-auto full-width w-full px-2 sm:px-6 lg:px-8',
+          !pathname.startsWith('/inbox') && 'max-w-7xl',
+        )}
+      >
         {/* Top Row */}
         <div className={topRowClasses}>
           {/* Left cluster: menu + brand + (mobile pill) */}
