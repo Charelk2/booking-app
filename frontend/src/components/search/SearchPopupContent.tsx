@@ -422,7 +422,7 @@ export default function SearchPopupContent({
                   props.decreaseMonth();
                 }}
                 disabled={props.prevMonthButtonDisabled}
-                className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-40"
+                className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-40"
                 aria-label="Previous month"
               >
                 <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
@@ -438,7 +438,7 @@ export default function SearchPopupContent({
                   props.increaseMonth();
                 }}
                 disabled={props.nextMonthButtonDisabled}
-                className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-40"
+                className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-40"
                 aria-label="Next month"
               >
                 <ChevronRightIcon className="h-5 w-5 text-gray-500" />
@@ -588,7 +588,7 @@ export default function SearchPopupContent({
                     // For now we don't change category here to avoid rehydration complexity.
                     closeAllPopups();
                   }}
-                  className="inline-flex flex-col items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition"
+                  className="inline-flex flex-col items-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition"
                 >
                   <span className="font-medium">{label}</span>
                   {subtitle && (
