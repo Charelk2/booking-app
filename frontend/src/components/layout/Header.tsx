@@ -25,7 +25,7 @@ import { Menu, Transition } from '@headlessui/react';
 import {
   MagnifyingGlassIcon,
   Bars3Icon,
-  UserCircleIcon,
+  UserIcon,
   ArrowRightOnRectangleIcon,
   CalendarIcon,
   SparklesIcon,
@@ -782,7 +782,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   hoverNeutralLink2
                                   )}
                                 >
-                                  <UserCircleIcon className="mr-3 h-5 w-5 text-black" />
+                                  <UserIcon className="mr-3 h-5 w-5 text-black" />
                                   Edit Profile
                                 </Link>
                               )}
@@ -852,7 +852,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   hoverNeutralLink2
                                   )}
                                 >
-                                  <UserCircleIcon className="mr-3 h-5 w-5 text-black" />
+                                  <UserIcon className="mr-3 h-5 w-5 text-black" />
                                   Edit Profile
                                 </Link>
                               )}
@@ -941,7 +941,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     aria-label="Account"
                     className="p-0 text-white"
                   >
-                    <UserCircleIcon className="h-10 w-10" />
+                    <UserIcon className="h-10 w-10" />
                   </button>
                 </div>
               )
