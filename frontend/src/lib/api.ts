@@ -605,8 +605,19 @@ const providersQueue: Array<() => void> = [];
 
 const providersKey = (params: Record<string, unknown>): ProvidersKey => {
   // Only keys that affect list rendering
-  const { category, location, when, sort, minPrice, maxPrice, page = 1, limit = 20, fields } = params as any;
-  const k = { category, location, when, sort, minPrice, maxPrice, page, limit, fields };
+  const {
+    category,
+    location,
+    when,
+    sort,
+    minPrice,
+    maxPrice,
+    page = 1,
+    limit = 20,
+    fields,
+    artist,
+  } = params as any;
+  const k = { category, location, when, sort, minPrice, maxPrice, page, limit, fields, artist };
   return JSON.stringify(k);
 };
 

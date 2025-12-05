@@ -157,7 +157,13 @@ export default function SearchPopupContent({
     }
     const handler = setTimeout(async () => {
       try {
-        const res = await getServiceProviders({ artist: artistQuery, limit: 5 });
+        const res = await getServiceProviders({
+          artist: artistQuery,
+          limit: 5,
+          // Allow quick artist lookup even when the current page is Inbox,
+          // which normally suppresses provider list fetches.
+          allowOnInbox: true,
+        });
         setArtistResults(res.data);
       } catch (err) {
         // eslint-disable-next-line no-console

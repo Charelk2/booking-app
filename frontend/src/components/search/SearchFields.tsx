@@ -157,7 +157,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     const locationTextSizeClass = 'text-xs';
 
   return (
-    <div ref={ref} className="flex flex-1 divide-x divide-gray-50 rounded-2xl">
+    <div ref={ref} className="flex flex-1 divide-gray-50 rounded-2xl">
       {renderField(
         'category',
         'Category',
