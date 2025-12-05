@@ -935,26 +935,14 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       </Link>
                     )
                   )}
-                  <Link
-                    href="/auth?intent=login"
+                  <button
+                    type="button"
                     onClick={goToLogin}
-                    className={clsx(
-                      'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 hover:text-white',
-                      hoverNeutralLink2
-                    )}
+                    aria-label="Account"
+                    className="p-0 text-white"
                   >
-                    Sign in
-                  </Link>
-                  <Link
-                    href="/auth?intent=signup"
-                    onClick={goToRegister}
-                    className={clsx(
-                      'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 hover:text-white',
-                      hoverNeutralLink2
-                    )}
-                  >
-                    Sign up
-                  </Link>
+                    <UserCircleIcon className="h-8 w-8" />
+                  </button>
                 </div>
               )
             )}

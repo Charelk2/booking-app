@@ -77,8 +77,8 @@ export default function FilterSheet({
         sortOptions={SORT_OPTIONS}
         initialSort={localSort}
         onSortChange={setLocalSort}
-        onApply={({ minPrice, maxPrice }) => {
-          parentOnApply({ sort: localSort || undefined, minPrice, maxPrice });
+        onApply={({ minPrice, maxPrice, sort }) => {
+          parentOnApply({ sort: sort || undefined, minPrice, maxPrice });
         }}
         onClear={() => {
           setLocalSort("");

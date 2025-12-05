@@ -18,7 +18,7 @@ export interface PriceFilterProps {
   initialMinPrice: number;
   initialMaxPrice: number;
   priceDistribution: { count: number }[];
-  onApply: (f: { minPrice: number; maxPrice: number }) => void;
+  onApply: (f: { minPrice: number; maxPrice: number; sort: string }) => void;
   onClear: () => void;
   onClose: () => void;
 
@@ -100,7 +100,11 @@ export default function PriceFilter({
   const maxCount = priceDistribution.reduce((m, b) => Math.max(m, b.count), 0);
 
   const handleApplyClick = useCallback(() => {
-    onApply({ minPrice: localMinPrice, maxPrice: localMaxPrice });
+    onApply({
+      minPrice: localMinPrice,
+      maxPrice: localMaxPrice,
+      sort: localSortValue,
+    });
     onSortChange(localSortValue);
     onClose();
   }, [localMinPrice, localMaxPrice, localSortValue, onApply, onSortChange, onClose]);
@@ -323,7 +327,7 @@ export default function PriceFilter({
 
   const Progress = ({ style }: { style: React.CSSProperties }) => (
     <div
-      className="absolute bottom-0 h-2 rounded bg-[var(--color-accent)]"
+      className="absolute bottom-0 h-2 rounded bg-black"
       style={style}
     />
   );
@@ -558,7 +562,7 @@ export default function PriceFilter({
           </button>
           <button
             type="button"
-            className="rounded-lg bg-[var(--color-accent)] px-6 py-2 font-semibold text-white shadow-md transition-colors hover:bg-[var(--color-accent)]/90"
+            className="rounded-lg bg-black px-6 py-2 font-semibold text-white shadow-md transition-colors hover:bg-black/90"
             onClick={handleApplyClick}
           >
             Apply
