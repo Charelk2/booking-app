@@ -958,7 +958,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         {!isArtistView && showSearchBar && (
           <div
             className={clsx(
-              'relative mx-auto',
+              'relative mx-auto mt-4',
               'max-w-2xl',
               headerState === 'compacted' ? 'mt-0 mb-0' : 'mb-0'
             )}
