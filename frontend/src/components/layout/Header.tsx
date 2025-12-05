@@ -564,7 +564,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 onClick={() => mobileSearchRef.current?.open?.()}
                 aria-label="Open search"
                 className={clsx(
-                  'ml-2 md:hidden inline-flex items-center gap-2 px-3 py-2 text-xs rounded-full',
+                  'ml-2 md:hidden inline-flex items-center gap-2 px-3 py-2 text-xs rounded-lg',
                   'border border-black/10 bg-white shadow-sm',
                   'flex-1 min-w-0 overflow-hidden',
                   hoverNeutralLink,
@@ -628,7 +628,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       openDesktopSearchFromCompact();
                     }}
                     className={clsx(
-                      'w-full flex items-center justify-between rounded-2xl',
+                      'w-full flex items-center justify-between rounded-lg',
                       'bg-white',
                       // extra right padding is not needed since icon is *outside*
                       'px-4 py-2 text-sm',
@@ -907,7 +907,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       <button
                         onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                         className={clsx(
-                          'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
+                          'px-1.5 py-1.5 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
                           hoverNeutralLink2
                         )}
                       >
