@@ -188,6 +188,7 @@ export default function ServiceProvidersPage() {
   const [priceDistribution, setPriceDistribution] = useState<PriceBucket[]>([]);
 
   const [filtersReady, setFiltersReady] = useState(false);
+  const [didFallbackToGlobal, setDidFallbackToGlobal] = useState(false);
 
   const debouncedMinPrice = useDebounce(minPrice, 300);
   const debouncedMaxPrice = useDebounce(maxPrice, 300);
@@ -271,6 +272,11 @@ export default function ServiceProvidersPage() {
     }) => {
       setError(null);
 
+      // New query (first page) resets any previous "no local results" fallback flag
+      if (!append && pageNumber === 1) {
+        setDidFallbackToGlobal(false);
+      }
+
       // Derive effective sort:
       // - If user explicitly chose a sort, honor it.
       // - Else, when a location is present, default to closest-first.
@@ -342,7 +348,7 @@ export default function ServiceProvidersPage() {
       try {
         const res = await getServiceProviders(params);
 
-        const filtered = res.data.filter((a: ServiceProviderProfile) => {
+        const primaryFiltered = res.data.filter((a: ServiceProviderProfile) => {
           if (serviceName === 'DJ') {
             const business = a.business_name?.trim().toLowerCase();
             const fullName = `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`
@@ -352,10 +358,63 @@ export default function ServiceProvidersPage() {
           }
           return !!(a.business_name || a.user);
         });
+        let finalFiltered = primaryFiltered;
+        let finalPriceDistribution = res.price_distribution || [];
+        let usedGlobalFallback = false;
 
-        setHasMore(filtered.length === LIMIT);
-        setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
-        setPriceDistribution(res.price_distribution || []);
+        // If there are no matches for the current location + sort on the first
+        // page, fall back to a *global* search with the same sort + price
+        // filters so users still see Top rated / Most booked / Newest results
+        // from outside their area.
+        if (
+          !append &&
+          pageNumber === 1 &&
+          primaryFiltered.length === 0 &&
+          location &&
+          location.trim().length > 0 &&
+          effectiveSort &&
+          effectiveSort !== 'closest'
+        ) {
+          const { location: _loc, ...restParams } = params;
+          const fallbackParams = {
+            ...restParams,
+            location: undefined,
+          };
+
+          try {
+            const fallbackRes = await getServiceProviders(fallbackParams);
+            const fallbackFiltered = fallbackRes.data.filter(
+              (a: ServiceProviderProfile) => {
+                if (serviceName === 'DJ') {
+                  const business = a.business_name?.trim().toLowerCase();
+                  const fullName = `${a.user?.first_name ?? ''} ${
+                    a.user?.last_name ?? ''
+                  }`
+                    .trim()
+                    .toLowerCase();
+                  return !!business && business !== fullName;
+                }
+                return !!(a.business_name || a.user);
+              },
+            );
+
+            if (fallbackFiltered.length > 0) {
+              finalFiltered = fallbackFiltered;
+              finalPriceDistribution =
+                fallbackRes.price_distribution || finalPriceDistribution;
+              usedGlobalFallback = true;
+            }
+          } catch (fallbackErr) {
+            console.error('Global fallback search failed:', fallbackErr);
+          }
+        }
+
+        setHasMore(finalFiltered.length === LIMIT);
+        setArtists((prev) => (append ? [...prev, ...finalFiltered] : finalFiltered));
+        setPriceDistribution(finalPriceDistribution);
+        if (!append && pageNumber === 1) {
+          setDidFallbackToGlobal(usedGlobalFallback);
+        }
 
         // Log search stats only for the first page
         if (!append && pageNumber === 1 && sid) {
@@ -368,7 +427,9 @@ export default function ServiceProvidersPage() {
               location: location || undefined,
               when: whenStr,
               results_count:
-                typeof res.total === 'number' ? res.total : filtered.length,
+                typeof res.total === 'number'
+                  ? res.total
+                  : finalFiltered.length,
               meta: {
                 sort: effectiveSort,
                 minPrice: debouncedMinPrice,
@@ -543,7 +604,10 @@ export default function ServiceProvidersPage() {
         )}
 
         {/* Location hint when no providers match the search city directly */}
-        {!loading && artists.length > 0 && location && !hasLocationMatch && (
+        {!loading &&
+          artists.length > 0 &&
+          location &&
+          (!hasLocationMatch || didFallbackToGlobal) && (
           <p className="text-sm text-gray-700 mb-2">
             {serviceName
               ? `No ${pluralizeServiceLabel(
