@@ -518,7 +518,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             <Link
               href="/"
               prefetch={false}
-              className={clsx(brandLinkClasses, 'flex items-center gap-3')}
+              className={clsx(brandLinkClasses, 'flex items-center gap-2')}
               aria-label="Booka home"
             >
               {(() => {
