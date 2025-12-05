@@ -26,6 +26,7 @@ from app.utils.redis_cache import (
     cache_availability,
 )
 from app.services import calendar_service
+from app.services.geocode import geocode_address
 from app.utils.slug import slugify_name, generate_unique_slug, RESERVED_SLUGS
 
 from app.database import get_db
@@ -247,6 +248,30 @@ def update_current_artist_profile(
         and update_data["profile_picture_url"] is not None
     ):
         update_data["profile_picture_url"] = str(update_data["profile_picture_url"])
+
+    # Normalize and optionally geocode the provider's base location so that
+    # proximity sorts can rely on stored coordinates instead of hitting
+    # Google on every search. When geocoding is unavailable or fails, we
+    # leave any existing coordinates untouched to avoid regressing data.
+    try:
+        if "location" in update_data:
+            raw_loc = update_data.get("location")
+            normalized_loc = (
+                str(raw_loc).strip() or None if isinstance(raw_loc, str) else None
+            )
+            update_data["location"] = normalized_loc
+            if normalized_loc:
+                geo = geocode_address(normalized_loc)
+                if geo is not None:
+                    update_data["location_lat"] = geo.lat
+                    update_data["location_lng"] = geo.lng
+            else:
+                # Location cleared explicitly: also clear stored coordinates.
+                update_data["location_lat"] = None
+                update_data["location_lng"] = None
+    except Exception:
+        # Best-effort; never block profile updates on geocoding failures.
+        pass
 
     # Keep the provider's contact_phone and account phone_number in sync so
     # editing the cell number in the profile updates the number used for
@@ -1092,21 +1117,61 @@ def read_all_service_provider_profiles(
     elif sort == "newest":
         query = query.order_by(desc(Artist.created_at))
     elif sort == "closest" and location:
-        # Lightweight proximity ordering based on textual location match.
-        # Artists whose location string contains the search term rank first;
-        # others follow, preserving overall result set.
+        # Proximity ordering based on the provider's base location:
+        # - When geocoding is available and the provider has coordinates,
+        #   order by squared distance between (location_lat, location_lng)
+        #   and the geocoded search location.
+        # - For providers without coordinates or when geocoding is disabled,
+        #   fall back to a textual "location contains search term" grouping.
         pattern = f"%{location.lower()}%"
-        # SQLAlchemy will compile ilike appropriately for the current dialect.
-        closeness = case(
+        text_closeness = case(
             (func.lower(Artist.location).ilike(pattern), 0),
             else_=1,
         )
-        query = query.order_by(
-            closeness,
-            desc(rating_subq.c.rating),
-            desc(booking_subq.c.book_count),
-            desc(Artist.created_at),
-        )
+        search_geo = geocode_address(location)
+        if search_geo is not None:
+            try:
+                lat = float(search_geo.lat)
+                lng = float(search_geo.lng)
+            except Exception:
+                lat = None
+                lng = None
+        else:
+            lat = None
+            lng = None
+
+        if lat is not None and lng is not None:
+            # Artists with stored coordinates are ordered by distance first;
+            # others follow, preserving the full result set.
+            has_coords = case(
+                (
+                    (Artist.location_lat.isnot(None) & Artist.location_lng.isnot(None)),
+                    0,
+                ),
+                else_=1,
+            )
+            distance_sq = (
+                (Artist.location_lat - lat) * (Artist.location_lat - lat)
+                + (Artist.location_lng - lng) * (Artist.location_lng - lng)
+            )
+            query = query.order_by(
+                has_coords,
+                distance_sq,
+                text_closeness,
+                desc(rating_subq.c.rating),
+                desc(booking_subq.c.book_count),
+                desc(Artist.created_at),
+            )
+        else:
+            # Geocoding not available: keep the lightweight textual proximity
+            # behavior so providers whose location text matches the search
+            # come first.
+            query = query.order_by(
+                text_closeness,
+                desc(rating_subq.c.rating),
+                desc(booking_subq.c.book_count),
+                desc(Artist.created_at),
+            )
 
     total_count = query.count()
 

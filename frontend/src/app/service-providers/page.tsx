@@ -542,13 +542,18 @@ export default function ServiceProvidersPage() {
         {error && <p className="text-red-600">{error}</p>}
 
         {!loading && artists.length === 0 && (
-          <SearchRescuePanel
-            serviceName={serviceName}
-            location={location}
-            when={when}
-            router={router}
-            pathname={pathname}
-          />
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-gray-700">
+              {serviceName
+                ? `No ${pluralizeServiceLabel(serviceName)} near you.`
+                : 'No service providers near you.'}
+            </p>
+            <h2 className="text-base font-semibold text-gray-900">
+              {serviceName
+                ? `${pluralizeServiceLabel(serviceName)} outside your area`
+                : 'Service providers outside your area'}
+            </h2>
+          </div>
         )}
 
         {artists.length > 0 && (
