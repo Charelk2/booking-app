@@ -470,7 +470,7 @@ export default function ServiceProvidersPage() {
         setMinPrice(min);
         setMaxPrice(max);
         updateQueryParams(router, pathname, {
-          category: serviceName,
+          category,
           location,
           when,
           sort: s,
@@ -483,7 +483,7 @@ export default function ServiceProvidersPage() {
         setMinPrice(SLIDER_MIN);
         setMaxPrice(SLIDER_MAX);
         updateQueryParams(router, pathname, {
-          category: serviceName,
+          category,
           location,
           when,
         });

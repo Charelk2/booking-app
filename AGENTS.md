@@ -161,6 +161,28 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 * **Outcome:** Thread list stays clean and actionable, and users are guided inside the chat without over-notifying.
 
 
+### 17. Calendar Sync Agent (Sacred Path)
+
+* **Purpose:** Keep artist availability in sync with their Google Calendar without ever silently disconnecting once linked.
+* **Backend:** `backend/app/api/api_calendar.py` and `backend/app/services/calendar_service.py` handle OAuth, token storage, and event fetches.
+* **Connection lifecycle:**
+  - When a provider connects Google Calendar via the Edit Profile flow, `exchange_code()` persists a `CalendarAccount` row with `refresh_token`, `access_token`, `token_expiry`, and optional `email`. A successful exchange marks `status="ok"` and records `last_success_sync_at`.
+  - `fetch_events(user_id, start, end, db)` is **best-effort**:
+    - If Google libs or credentials are missing, or no `CalendarAccount` exists, it logs and returns `[]`.
+    - If the access token is expired, it attempts a refresh:
+      - On success, it updates `access_token` / `token_expiry`, marks `status="ok"`, clears `last_error`, and updates `last_success_sync_at`.
+      - On `RefreshError` (invalid/expired refresh token), it **never** deletes `CalendarAccount`; instead it sets `status="needs_reauth"`, updates `last_error` / `last_error_at`, logs, and returns `[]`.
+    - On Google API errors (`HttpError`) or unexpected exceptions, it marks `status="error"` with a coarse `last_error` value and returns `[]`.
+  - The only way to fully remove a calendar link is `DELETE /api/v1/google-calendar`, which explicitly deletes the `CalendarAccount`.
+* **Availability integration:**
+  - `read_artist_availability` uses `fetch_events(...)` inside a try/except and treats failures as “no external events” so booking flows never 5xx because of Google.
+  - Calendar events are merged into `unavailable_dates`, but failures simply mean those external blocks are temporarily omitted; app-side bookings still work.
+* **Do not:**
+  - Delete `CalendarAccount` automatically in `fetch_events` or any background job when refresh fails.
+  - Surface HTTP 5xx to clients solely because the calendar refresh or Google API failed.
+  - Flip a connected account back to “disconnected” state without an explicit user-initiated disconnect.
+
+
 
 
 ## How to Add or Modify an Agent
@@ -241,6 +263,13 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
     - `CREATE INDEX ix_service_provider_profiles_location_lat ON service_provider_profiles (location_lat);`
     - `CREATE INDEX ix_service_provider_profiles_location_lng ON service_provider_profiles (location_lng);`
   - Rationale: allows `/api/v1/service-provider-profiles` to implement a true "Closest first" sort using the provider's base location without changing the existing human-readable `location` string. Providers without coordinates remain eligible but are ordered after those with coordinates.
+- 2026-01-10 (manual, at `ed57deb9c434`): add calendar account health metadata so Calendar Sync never implicitly disconnects
+  - SQL:
+    - `ALTER TABLE calendar_accounts ADD COLUMN status varchar NULL;`
+    - `ALTER TABLE calendar_accounts ADD COLUMN last_error text NULL;`
+    - `ALTER TABLE calendar_accounts ADD COLUMN last_error_at timestamp NULL;`
+    - `ALTER TABLE calendar_accounts ADD COLUMN last_success_sync_at timestamp NULL;`
+  - Rationale: allows the app to retain `calendar_accounts` rows even when Google rejects refresh tokens or APIs fail, marking connections as needing attention instead of deleting them. This ensures providers never "lose" their linked calendar unless they explicitly disconnect it from the profile.
 
 ---
 
