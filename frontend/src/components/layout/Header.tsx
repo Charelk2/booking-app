@@ -25,7 +25,6 @@ import { Menu, Transition } from '@headlessui/react';
 import {
   MagnifyingGlassIcon,
   Bars3Icon,
-  UserIcon,
   ArrowRightOnRectangleIcon,
   CalendarIcon,
   SparklesIcon,
@@ -59,6 +58,7 @@ import { FEATURE_EVENT_PREP } from '@/lib/constants';
 import dynamic from 'next/dynamic';
 const ProviderOnboardingModal = dynamic(() => import('@/components/auth/ProviderOnboardingModal'), { ssr: false });
 import useIsMobile from '@/hooks/useIsMobile';
+import { UserAccountIcon } from '../icons/UserAccountIcon';
 
   // (Notifications UI dynamically loaded elsewhere if needed)
 
@@ -782,7 +782,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   hoverNeutralLink2
                                   )}
                                 >
-                                  <UserIcon className="mr-3 h-5 w-5 text-black" />
+                                  <UserAccountIcon className="mr-3 h-5 w-5 text-black" />
                                   Edit Profile
                                 </Link>
                               )}
@@ -852,7 +852,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   hoverNeutralLink2
                                   )}
                                 >
-                                  <UserIcon className="mr-3 h-5 w-5 text-black" />
+                                  <UserAccountIcon className="mr-3 h-5 w-5 text-black" />
                                   Edit Profile
                                 </Link>
                               )}
@@ -941,7 +941,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     aria-label="Account"
                     className="p-0 text-white"
                   >
-                    <UserIcon className="h-10 w-10" />
+                    <UserAccountIcon className="h-10 w-10" />
                   </button>
                 </div>
               )
