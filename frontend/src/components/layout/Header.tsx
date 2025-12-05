@@ -499,7 +499,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       data-lock-compact={mobileSearchOpen ? 'true' : 'false'}
     >
       <HeaderMessagesLink.Definition />
-      <div className="mx-auto full-width px-2 sm:px-4 lg:px-6">
+      <div className="mx-auto full-width w-full max-w-7xl px-2 sm:px-4 lg:px-6">
         {/* Top Row */}
         <div className={topRowClasses}>
           {/* Left cluster: menu + brand + (mobile pill) */}
