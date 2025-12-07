@@ -97,15 +97,8 @@ function ReviewCard({ review }: { review: ClientProfileResponse['reviews'][numbe
 
       {/* Review Content */}
       <div className="flex-grow">
-        {/* Location + date row */}
-        <div className="flex flex-col mb-2 space-y-0.5">
-          {providerLocation && (
-            <p className="text-xs text-gray-500 font-medium">
-              {providerLocation}
-            </p>
-          )}
-          <p className="text-xs text-gray-400">{dateLabel}</p>
-        </div>
+        {/* Date moved above stars */}
+        <p className="text-xs text-gray-500 font-medium mb-1">{dateLabel}</p>
 
         <div className="flex items-center mb-3 space-x-1">
           {[...Array(5)].map((_, i) => (
