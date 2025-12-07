@@ -487,6 +487,7 @@ def _merge_origins(*groups: Iterable[str]) -> list[str]:
 ADDITIONAL_ORIGINS = [
     "https://join.booka.co.za",
     "https://staging.booka.co.za",
+    "https://dev.booka.co.za",
     "https://booka-admin.fly.dev",
 ]
 
