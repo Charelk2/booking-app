@@ -698,7 +698,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 {user.user_type === 'service_provider' && (
                   <button
                     onClick={toggleArtistView}
-                    className="px-3 py-2 text-sm rounded-lg font-bold bg-black text-white border border-white hover:bg-gray-900"
+                    className="px-2 py-1.5 text-sm rounded-lg font-bold bg-black text-white border border-white hover:bg-gray-900"
                   >
                     {artistViewActive ? 'Switch to Booking' : 'Switch to Hosting'}
                   </button>
