@@ -735,10 +735,14 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           firstName ||
                           review.client?.email ||
                           'Client';
-                        const clientLocation =
-                          typeof clientId === 'number'
+                        const rawClientLocation =
+                          (review as any)?.client_location ||
+                          (typeof clientId === 'number'
                             ? clientLocations[clientId] || ''
-                            : '';
+                            : '');
+                        const clientLocation = rawClientLocation
+                          ? formatCityRegion(rawClientLocation) || rawClientLocation
+                          : '';
                         const initials =
                           review.client?.first_name?.[0] ||
                           clientName.trim().charAt(0) ||
@@ -1050,10 +1054,14 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                             firstName ||
                             review.client?.email ||
                             'Client';
-                          const clientLocation =
-                            typeof clientId === 'number'
+                          const rawClientLocation =
+                            (review as any)?.client_location ||
+                            (typeof clientId === 'number'
                               ? clientLocations[clientId] || ''
-                              : '';
+                              : '');
+                          const clientLocation = rawClientLocation
+                            ? formatCityRegion(rawClientLocation) || rawClientLocation
+                            : '';
                           const initials =
                             review.client?.first_name?.[0] ||
                             clientName.trim().charAt(0) ||
