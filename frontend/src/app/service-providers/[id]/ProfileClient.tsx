@@ -670,10 +670,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                           review.client?.email ||
                           'Client';
                         const rawClientLocation =
-                          (review as any)?.client_location ||
-                          (typeof clientId === 'number'
-                            ? clientLocations[clientId] || ''
-                            : '');
+                          (review as any)?.client_location || '';
                         const clientLocation = rawClientLocation
                           ? formatCityRegion(rawClientLocation) || rawClientLocation
                           : '';
@@ -989,10 +986,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                             review.client?.email ||
                             'Client';
                           const rawClientLocation =
-                            (review as any)?.client_location ||
-                            (typeof clientId === 'number'
-                              ? clientLocations[clientId] || ''
-                              : '');
+                            (review as any)?.client_location || '';
                           const clientLocation = rawClientLocation
                             ? formatCityRegion(rawClientLocation) || rawClientLocation
                             : '';
