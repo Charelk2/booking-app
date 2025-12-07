@@ -759,9 +759,16 @@ export default function MessageThreadWrapper({
     const catName = String(svc.service_category?.name || '').toLowerCase();
     const ctx = (raw.travel_breakdown || raw.sound_context || {}) as any;
     const soundMode = String(ctx?.sound_mode || '').toLowerCase();
-    if (slug.includes('sound')) return true;
-    if (catName.includes('sound')) return true;
-    if (soundMode === 'supplier') return true;
+    const isSoundCategory = slug.includes('sound') || catName.includes('sound');
+    if (isSoundCategory) return true;
+
+    // Treat supplier-mode as a sound thread only for child
+    // bookings (sound-provider threads). For the main artist
+    // thread, supplier-mode means "sound will be handled by a
+    // separate provider", but the quote engine must stay live.
+    const parentId = Number(raw.parent_booking_request_id || 0);
+    const isChild = Number.isFinite(parentId) && parentId > 0;
+    if (isChild && soundMode === 'supplier') return true;
     return false;
   }, [effectiveBookingRequest]);
 
