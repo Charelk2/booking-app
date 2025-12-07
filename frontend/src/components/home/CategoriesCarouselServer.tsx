@@ -1,7 +1,18 @@
 // frontend/src/components/home/CategoriesCarouselServer.tsx
+
+// Server-rendered shell of the Categories Carousel for instant first paint.
+// Renders a horizontally scrollable row of category cards using the
+// deterministic UI mapping so there is no white gap while the client bundle
+// hydrates. The client-enhanced version adds prefetching and buttons.
+
 import Link from 'next/link';
+// Assuming 'next/image' is available for enhanced performance
+import Image from 'next/image'; 
+
+// --- Core Data Imports (MUST BE PRESERVED) ---
 import { CATEGORY_IMAGES, UI_CATEGORY_TO_ID } from '@/lib/categoryMap';
 
+// Enhanced Display Labels
 const DISPLAY_LABELS: Record<string, string> = {
   photographer: 'Photography',
   caterer: 'Catering',
@@ -14,66 +25,88 @@ const DISPLAY_LABELS: Record<string, string> = {
   bartender: 'Bartending',
   mc_host: 'MC & Hosts',
 };
+// ---------------------------------------------
 
 export default function CategoriesCarouselServer() {
   const items = Object.entries(UI_CATEGORY_TO_ID).map(([slug]) => ({
     value: slug,
+    // Use the provided mapping logic (no regression)
     display: DISPLAY_LABELS[slug] || slug.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()),
     img: CATEGORY_IMAGES[slug] || '/bartender.png',
   }));
 
+  // Define skeleton card dimensions for CLS prevention
+  const CARD_WIDTH_PX = 130; 
+  const CARD_HEIGHT_PX = 130; 
+  const SKELETON_HEIGHT = 'h-[168px]'; // Card height (130px) + text margin/height (approx 38px)
+
   return (
     <section
-      className="full-width mx-auto w-full max-w-7xl mt-8 px-4 sm:px-6 lg:px-8 overflow-hidden"
+      className={`full-width mx-auto w-full max-w-7xl mt-8 px-4 sm:px-6 lg:px-8 animate-fadeIn ${SKELETON_HEIGHT}`}
       aria-labelledby="categories-heading"
     >
-      <div className="flex items-end justify-between mb-4">
-        <div>
-          <h2 id="categories-heading" className="text-2xl font-bold tracking-tight text-black">
-            Services
-          </h2>
-          <p className="hidden sm:block text-sm text-gray-500 mt-1">
-            Browse our hand-picked categories
-          </p>
-        </div>
-        {/* Optional: Add a 'View All' link here if needed */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 id="categories-heading" className="text-2xl font-bold tracking-tight text-gray-900">
+          Discover Services
+        </h2>
+        <Link href="/explore" className="text-sm font-medium text-indigo-600 hover:text-indigo-500 hidden sm:block">
+          View all →
+        </Link>
       </div>
 
-      <div className="relative group" role="region" aria-label="Service categories">
-        {/* Gradient Overlays for mobile scroll hints */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-white to-transparent opacity-100 sm:w-12" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-white to-transparent opacity-100 sm:w-12" />
-
+      <div 
+        className="relative mt-3" 
+        role="region" 
+        aria-roledescription="carousel" 
+        aria-label="Scrollable list of service categories"
+      >
+        {/* Subtle Edge Gradients (Improved Contrast) */}
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-white/90 to-transparent" />
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-white/90 to-transparent" />
+        
         <div
-          className="flex gap-4 sm:gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x snap-mandatory touch-pan-x"
-          aria-label="Scrollable list"
+          className="flex gap-4 overflow-x-auto pb-4 pr-4 scroll-smooth scrollbar-hide snap-x snap-mandatory"
+          tabIndex={0} // Allows focus/keyboard navigation on the scroll container
+          aria-live="polite" // Announce changes if client-side filtering were added
         >
-          {items.map((cat) => (
+          {items.map((cat, index) => (
             <Link
               key={cat.value}
               href={`/category/${encodeURIComponent(cat.value)}`}
-              className="flex-shrink-0 group/card w-28 sm:w-36 flex flex-col snap-start no-underline outline-none focus-visible:ring-2 focus-visible:ring-black rounded-xl p-1 transition-all"
-              aria-label={cat.display}
+              className="flex-shrink-0 flex flex-col hover:no-underline snap-start group"
+              // Announce current item position for screen readers
+              role="group"
+              aria-label={`${cat.display}, ${index + 1} of ${items.length}`}
             >
-              <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gray-200 shadow-sm ring-1 ring-black/5 transition-transform duration-300 ease-out group-hover/card:scale-105 group-hover/card:shadow-md active:scale-95">
-                <img
+              <div 
+                className={`relative h-[${CARD_HEIGHT_PX}px] w-[${CARD_WIDTH_PX}px] overflow-hidden rounded-xl shadow-lg transition-all duration-300 group-hover:shadow-2xl group-hover:scale-[1.02]`}
+                style={{
+                  height: CARD_HEIGHT_PX,
+                  width: CARD_WIDTH_PX,
+                  aspectRatio: '1/1' // Ensures a perfect square on all devices
+                }}
+              >
+                {/* Enhanced Image Tag for Next.js Optimization
+                  loading="eager" is preserved for instant paint priority 
+                */}
+                <Image
                   src={cat.img}
                   alt={cat.display}
-                  loading="eager"
-                  decoding="async"
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-110"
+                  priority={true} // Use Next.js 'priority' instead of loading='eager' for better optimization
+                  sizes="(max-width: 640px) 130px, 150px"
+                  fill // Use 'fill' to ensure image covers the parent div entirely
+                  className="object-cover transition-transform duration-500 group-hover:scale-[1.08] filter brightness-[.97]"
                 />
-                {/* Subtle scrim for depth */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                
+                {/* Subtle Image Overlay for better text contrast */}
+                <div className="absolute inset-0 bg-black/10 mix-blend-multiply opacity-0 transition-opacity duration-300 group-hover:opacity-50"></div>
               </div>
               
-              <p className="mt-3 text-[13px] sm:text-sm text-center sm:text-left text-gray-900 font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis px-1 transition-colors group-hover/card:text-blue-600">
+              <p className="mt-3 text-sm text-left text-gray-800 font-bold whitespace-nowrap transition-colors duration-200 group-hover:text-indigo-600">
                 {cat.display}
               </p>
             </Link>
           ))}
-          {/* Spacer to ensure the last item aligns correctly on mobile */}
-          <div className="flex-shrink-0 w-4 sm:w-0" aria-hidden="true" />
         </div>
       </div>
     </section>
