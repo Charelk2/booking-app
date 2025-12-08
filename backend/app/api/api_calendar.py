@@ -5,11 +5,12 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from urllib.parse import urlparse
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+from jose import JWTError, jwt
 
 from app.core.config import settings
 from app.database import get_db
 from app.models import User, CalendarAccount, CalendarProvider
-from app.api.dependencies import get_current_user
+from app.api.auth import SECRET_KEY, ALGORITHM, get_user_by_email, get_current_user
 from app.services import calendar_service
 
 logger = logging.getLogger(__name__)
@@ -19,11 +20,36 @@ router = APIRouter(tags=["google-calendar"])
 
 @router.get("/google-calendar/status")
 def google_calendar_status(
+    request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """Return whether the user has a connected Google Calendar."""
     try:
+        # Resolve the current user in a best-effort way:
+        # - Prefer Authorization: Bearer header when present.
+        # - Fall back to the access_token cookie used by the main app.
+        auth_header = request.headers.get("Authorization") or ""
+        token: str | None = None
+        if auth_header.lower().startswith("bearer "):
+            token = auth_header.split(" ", 1)[1].strip() or None
+        if not token:
+            token = request.cookies.get("access_token")
+        if not token:
+            return {"connected": False}
+
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            email: str | None = payload.get("sub")
+            if not email:
+                return {"connected": False}
+        except JWTError:
+            # Invalid/expired token: treat as not connected instead of 500.
+            return {"connected": False}
+
+        current_user = get_user_by_email(db, email)
+        if current_user is None:
+            return {"connected": False}
+
         account = (
             db.query(CalendarAccount)
             .filter(
