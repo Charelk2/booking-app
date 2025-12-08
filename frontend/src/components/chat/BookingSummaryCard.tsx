@@ -673,7 +673,10 @@ function CostBreakdown({
         <span>Base Service Fee</span>
         <span>{formatCurrency(base)}</span>
       </div>
-      {showSound && (
+      {/* Only show Sound row when there is a positive sound fee.
+          This avoids confusing "Sound R0" lines when sound is
+          handled separately or not included in this booking. */}
+      {showSound && sound > 0 && (
         <div className="flex justify-between text-gray-700">
           <span>Sound Equipment</span>
           <span>{formatCurrency(sound)}</span>

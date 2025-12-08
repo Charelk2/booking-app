@@ -10,7 +10,7 @@ from jose import JWTError, jwt
 from app.core.config import settings
 from app.database import get_db
 from app.models import User, CalendarAccount, CalendarProvider
-from app.api.auth import SECRET_KEY, ALGORITHM, get_user_by_email
+from app.api.auth import SECRET_KEY, ALGORITHM, get_user_by_email, get_current_user
 from app.services import calendar_service
 
 logger = logging.getLogger(__name__)

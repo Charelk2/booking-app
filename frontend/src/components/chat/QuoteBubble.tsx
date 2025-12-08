@@ -203,7 +203,11 @@ export default function QuotePeek(props: QuotePeekProps) {
 
   const showPrice    = typeof price === 'number' && !Number.isNaN(price);
   const showTravel   = typeof travelFee === 'number' && !Number.isNaN(travelFee);
-  const showSound    = typeof soundFee === 'number' && !Number.isNaN(soundFee);
+  // Only show a separate "Sound" row when there is a positive
+  // sound amount. This avoids misleading "Sound R0" rows when
+  // sound is handled by third-party suppliers or provided by
+  // the client.
+  const showSound    = typeof soundFee === 'number' && !Number.isNaN(soundFee) && soundFee > 0;
   const showDiscount = typeof discount === 'number' && (discount ?? 0) > 0;
   const showAccom    = (accommodation ?? '').trim().length > 0;
   const lineItems = Array.isArray((props as any).lineItems)
