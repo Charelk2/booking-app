@@ -332,6 +332,8 @@ export default function InboxPage() {
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
     let connecting = false;
+    let attempts = 0;
+    const lastOpenAtRef = { current: 0 };
     const role = user.user_type === 'service_provider' ? 'artist' : 'client';
     // Prefer API origin for SSE to avoid site proxy buffering/closures
     const API_BASE = (() => {
@@ -354,7 +356,11 @@ export default function InboxPage() {
           : `/api/v1/inbox/stream?role=${role}`;
         const nextEs = new EventSource(url, { withCredentials: true });
         es = nextEs;
-        nextEs.onopen = () => { connecting = false; };
+        nextEs.onopen = () => {
+          connecting = false;
+          attempts = 0;
+          lastOpenAtRef.current = Date.now();
+        };
         nextEs.addEventListener('hello', (e: MessageEvent) => {
           // Snapshot token is available if needed; no-op here
           try { JSON.parse(String(e.data || '{}')); } catch {}
@@ -376,15 +382,27 @@ export default function InboxPage() {
           try { nextEs?.close(); } catch {}
           if (es === nextEs) es = null;
           if (!closed) {
+            // Backoff on rapid failures to avoid hammering the server
+            attempts += 1;
+            const sinceOpen = Date.now() - (lastOpenAtRef.current || 0);
+            const baseDelay = Math.min(30000, 2000 * Math.pow(2, Math.max(0, attempts - 1)));
+            const jitter = Math.floor(Math.random() * 500);
+            // If the last open flapped in <3s and we've failed a few times, add extra delay
+            const flapPenalty = sinceOpen < 3000 && attempts >= 2 ? 5000 : 0;
+            const delay = baseDelay + jitter + flapPenalty;
             if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-            reconnectTimer = setTimeout(connect, 2000);
+            reconnectTimer = setTimeout(connect, delay);
           }
         };
       } catch {
         connecting = false;
         if (!closed) {
+          attempts += 1;
+          const baseDelay = Math.min(30000, 2000 * Math.pow(2, Math.max(0, attempts - 1)));
+          const jitter = Math.floor(Math.random() * 500);
+          const delay = baseDelay + jitter;
           if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-          reconnectTimer = setTimeout(connect, 2000);
+          reconnectTimer = setTimeout(connect, delay);
         }
       }
     };

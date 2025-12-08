@@ -1085,6 +1085,7 @@ async def inbox_stream(
     elif role == "artist":
         is_artist = True
 
+    global _STREAM_ACTIVE
     try:
         poll_interval = float(os.getenv("INBOX_STREAM_POLL_INTERVAL", "1.0") or 1.0)
     except Exception:
@@ -1092,6 +1093,35 @@ async def inbox_stream(
     poll_interval = max(0.5, min(poll_interval, 5.0))
 
     user_id = int(current_user.id)
+    try:
+        raw_global_limit = os.getenv("INBOX_STREAM_GLOBAL_LIMIT") or ""
+        global_limit = int(raw_global_limit) if raw_global_limit.strip() else 0
+        if global_limit < 0:
+            global_limit = 0
+    except Exception:
+        global_limit = 0
+
+    # Global backpressure: reject new streams when too many are active to keep healthz responsive.
+    if global_limit and _STREAM_ACTIVE >= global_limit:
+        try:
+            logger.warning(
+                "inbox_stream.reject",
+                extra={
+                    "user_id": user_id,
+                    "role": ("artist" if is_artist else "client"),
+                    "active_streams": _STREAM_ACTIVE,
+                    "global_limit": global_limit,
+                },
+            )
+        except Exception:
+            pass
+        return Response(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            headers={"Retry-After": "5"},
+            content=_json_dumps({"detail": "Too many inbox streams"}),
+            media_type="application/json",
+        )
+
     cancel_event, preempted_streams = _register_stream_slot(user_id)
 
     # Concurrency guard for stream snapshot DB touches
