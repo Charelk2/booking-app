@@ -115,6 +115,9 @@ export default function InboxPage() {
   // Keep the active thread id in a ref so the SSE effect does not re-open on
   // every selection change.
   const activeThreadIdRef = useRef<number | null>(null);
+  // Track which thread ids are valid for this session; drop stale/foreign ids early
+  const allowedThreadIdsRef = useRef<Set<number>>(new Set());
+  const forbiddenThreadIdsRef = useRef<Set<number>>(new Set());
   // Ensure we only attempt to create a Booka thread once per mount
   const ensureTriedRef = useRef(false);
   // Debounce focus/visibility-triggered refreshes
@@ -143,6 +146,18 @@ export default function InboxPage() {
   useEffect(() => {
     activeThreadIdRef.current = selectedThreadId ?? null;
   }, [selectedThreadId]);
+
+  useEffect(() => {
+    try {
+      allowedThreadIdsRef.current = new Set(
+        (threads || [])
+          .map((t) => Number((t as any)?.id))
+          .filter((n) => Number.isFinite(n) && n > 0),
+      );
+    } catch {
+      allowedThreadIdsRef.current = new Set();
+    }
+  }, [threads]);
 
   useEffect(() => {
     setActivePrefetchThread(selectedThreadId ?? null);
@@ -332,6 +347,8 @@ export default function InboxPage() {
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
     let connecting = false;
+    let attempts = 0;
+    const lastOpenAtRef = { current: 0 };
     const role = user.user_type === 'service_provider' ? 'artist' : 'client';
     // Prefer API origin for SSE to avoid site proxy buffering/closures
     const API_BASE = (() => {
@@ -354,7 +371,11 @@ export default function InboxPage() {
           : `/api/v1/inbox/stream?role=${role}`;
         const nextEs = new EventSource(url, { withCredentials: true });
         es = nextEs;
-        nextEs.onopen = () => { connecting = false; };
+        nextEs.onopen = () => {
+          connecting = false;
+          attempts = 0;
+          lastOpenAtRef.current = Date.now();
+        };
         nextEs.addEventListener('hello', (e: MessageEvent) => {
           // Snapshot token is available if needed; no-op here
           try { JSON.parse(String(e.data || '{}')); } catch {}
@@ -376,15 +397,27 @@ export default function InboxPage() {
           try { nextEs?.close(); } catch {}
           if (es === nextEs) es = null;
           if (!closed) {
+            // Backoff on rapid failures to avoid hammering the server
+            attempts += 1;
+            const sinceOpen = Date.now() - (lastOpenAtRef.current || 0);
+            const baseDelay = Math.min(30000, 2000 * Math.pow(2, Math.max(0, attempts - 1)));
+            const jitter = Math.floor(Math.random() * 500);
+            // If the last open flapped in <3s and we've failed a few times, add extra delay
+            const flapPenalty = sinceOpen < 3000 && attempts >= 2 ? 5000 : 0;
+            const delay = baseDelay + jitter + flapPenalty;
             if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-            reconnectTimer = setTimeout(connect, 2000);
+            reconnectTimer = setTimeout(connect, delay);
           }
         };
       } catch {
         connecting = false;
         if (!closed) {
+          attempts += 1;
+          const baseDelay = Math.min(30000, 2000 * Math.pow(2, Math.max(0, attempts - 1)));
+          const jitter = Math.floor(Math.random() * 500);
+          const delay = baseDelay + jitter;
           if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-          reconnectTimer = setTimeout(connect, 2000);
+          reconnectTimer = setTimeout(connect, delay);
         }
       }
     };
@@ -414,6 +447,7 @@ export default function InboxPage() {
           const res = await ensureBookaThread();
           const realId = res.data?.booking_request_id;
           if (realId && realId !== selectedThreadId) {
+            if (!allowedThreadIdsRef.current.has(Number(realId))) return;
             recordThreadSwitchStart(realId, { source: 'system' });
             setSelectedThreadId(realId);
           }
@@ -422,6 +456,10 @@ export default function InboxPage() {
       return;
     }
     if (urlId && urlId !== selectedThreadId) {
+      if (!allowedThreadIdsRef.current.has(Number(urlId))) {
+        try { window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id: urlId } })); } catch {}
+        return;
+      }
       recordThreadSwitchStart(urlId, { source: 'restored' });
       setSelectedThreadId(urlId);
       // Apply local read only when we actually have the summary row (best-effort)
@@ -450,7 +488,8 @@ export default function InboxPage() {
         if (
           selId &&
           selId !== selectedThreadId &&
-          threads.find((r) => r.id === selId)
+          threads.find((r) => r.id === selId) &&
+          allowedThreadIdsRef.current.has(Number(selId))
         ) {
           recordThreadSwitchStart(selId, { source: 'restored' });
           setSelectedThreadId(selId);
@@ -493,6 +532,11 @@ export default function InboxPage() {
 
   const prefetchThreadMessages = useCallback(async (id: number, limit = PREFETCH_DEFAULT_LIMIT) => {
     if (!id) return;
+    const allowed = allowedThreadIdsRef.current;
+    if (!allowed.has(Number(id)) || forbiddenThreadIdsRef.current.has(Number(id))) {
+      try { window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id } })); } catch {}
+      return;
+    }
     // If a fetch is already in-flight for this thread, let it finish to avoid thrash
     const existing = inflightByThreadRef.current.get(id);
     if (existing) return;
@@ -569,7 +613,18 @@ export default function InboxPage() {
           if (ids.length) await prefetchQuotesByIds(ids as number[]);
         }
       } catch {}
-    } catch {}
+    } catch (err: any) {
+      try {
+        const status = Number(err?.response?.status ?? err?.status ?? 0);
+        if (status === 403) {
+          forbiddenThreadIdsRef.current.add(Number(id));
+          try { window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id } })); } catch {}
+          if (selectedIdRef.current === Number(id)) {
+            setSelectedThreadId(null);
+          }
+        }
+      } catch {}
+    }
     finally {
       // Always clear the inflight marker for this thread
       const cur = inflightByThreadRef.current.get(id);
@@ -600,6 +655,10 @@ export default function InboxPage() {
   const handleSelect = useCallback(
     (id: number) => {
       if (!id) return;
+      if (!allowedThreadIdsRef.current.has(Number(id)) || forbiddenThreadIdsRef.current.has(Number(id))) {
+        try { window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id } })); } catch {}
+        return;
+      }
       const isBooka = Boolean(searchParams.get('booka') || searchParams.get('bookasystem'));
       manualSelectAtRef.current = Date.now();
       let selectedNow: any = null;

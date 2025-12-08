@@ -1085,6 +1085,7 @@ async def inbox_stream(
     elif role == "artist":
         is_artist = True
 
+    global _STREAM_ACTIVE
     try:
         poll_interval = float(os.getenv("INBOX_STREAM_POLL_INTERVAL", "1.0") or 1.0)
     except Exception:
@@ -1092,7 +1093,55 @@ async def inbox_stream(
     poll_interval = max(0.5, min(poll_interval, 5.0))
 
     user_id = int(current_user.id)
-    cancel_event, preempted_streams = _register_stream_slot(user_id)
+    try:
+        raw_global_limit = os.getenv("INBOX_STREAM_GLOBAL_LIMIT") or ""
+        global_limit = int(raw_global_limit) if raw_global_limit.strip() else 0
+        if global_limit < 0:
+            global_limit = 0
+    except Exception:
+        global_limit = 0
+
+    # Global backpressure: reject new streams when too many are active to keep healthz responsive.
+    if global_limit and _STREAM_ACTIVE >= global_limit:
+        try:
+            logger.warning(
+                "inbox_stream.reject",
+                extra={
+                    "user_id": user_id,
+                    "role": ("artist" if is_artist else "client"),
+                    "active_streams": _STREAM_ACTIVE,
+                    "global_limit": global_limit,
+                },
+            )
+        except Exception:
+            pass
+        return Response(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            headers={"Retry-After": "5"},
+            content=_json_dumps({"detail": "Too many inbox streams"}),
+            media_type="application/json",
+        )
+
+    cancel_event, preempted_streams, per_user_active = _register_stream_slot(user_id)
+    if cancel_event is None:
+        try:
+            logger.warning(
+                "inbox_stream.reject_user",
+                extra={
+                    "user_id": user_id,
+                    "role": ("artist" if is_artist else "client"),
+                    "per_user_limit": _get_stream_user_limit(),
+                    "per_user_active": per_user_active,
+                },
+            )
+        except Exception:
+            pass
+        return Response(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": "3"},
+            content=_json_dumps({"detail": "Too many inbox streams for user"}),
+            media_type="application/json",
+        )
 
     # Concurrency guard for stream snapshot DB touches
     sem = _get_stream_sem()
@@ -1172,6 +1221,7 @@ async def inbox_stream(
         stream_id = f"{user_id}:{int(stream_start * 1000)}"
         global _STREAM_ACTIVE
         per_user_limit = _get_stream_user_limit()
+        per_user_active_now = len(_STREAM_USER_EVENTS.get(user_id, []))
         try:
             _STREAM_ACTIVE += 1
             logger.info(
@@ -1185,6 +1235,7 @@ async def inbox_stream(
                     "active_streams": _STREAM_ACTIVE,
                     "preempted_streams": preempted_streams,
                     "per_user_limit": per_user_limit,
+                    "per_user_active": per_user_active_now,
                 },
             )
         except Exception:
@@ -1281,25 +1332,22 @@ def _get_stream_user_limit() -> int:
     return _STREAM_PER_USER_LIMIT
 
 
-def _register_stream_slot(user_id: int) -> tuple[asyncio.Event, int]:
-    """Register a stream slot; cancel oldest streams when exceeding the per-user limit."""
+def _register_stream_slot(user_id: int) -> tuple[asyncio.Event | None, int, int]:
+    """Register a stream slot; when limit is exceeded, refuse the new stream.
+
+    Returns: (event or None if refused, cancelled_count, active_count_after)
+    """
     limit = _get_stream_user_limit()
     ev = asyncio.Event()
     cancelled = 0
     active = _STREAM_USER_EVENTS.get(user_id) or []
 
-    # If the user already has too many streams, cancel the oldest first.
-    while len(active) >= limit:
-        old = active.pop(0)
-        try:
-            old.set()
-            cancelled += 1
-        except Exception:
-            pass
+    if len(active) >= limit:
+        return None, 0, len(active)
 
     active.append(ev)
     _STREAM_USER_EVENTS[user_id] = active
-    return ev, cancelled
+    return ev, cancelled, len(active)
 
 
 def _release_stream_slot(user_id: int, ev: asyncio.Event) -> None:
