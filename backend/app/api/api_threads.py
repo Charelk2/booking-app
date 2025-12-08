@@ -1092,6 +1092,7 @@ async def inbox_stream(
     poll_interval = max(0.5, min(poll_interval, 5.0))
 
     user_id = int(current_user.id)
+    cancel_event, preempted_streams = _register_stream_slot(user_id)
 
     # Concurrency guard for stream snapshot DB touches
     sem = _get_stream_sem()
@@ -1139,6 +1140,8 @@ async def inbox_stream(
         yield f"event: hello\ndata: {json.dumps(first_payload)}\n\n"
 
         while True:
+            if cancel_event.is_set():
+                break
             # Heartbeat for proxies (Cloudflare/Fly/Nginx)
             now = time.time()
             if (now - last_emit_ts) >= heartbeat:
@@ -1168,6 +1171,7 @@ async def inbox_stream(
         stream_start = time.time()
         stream_id = f"{user_id}:{int(stream_start * 1000)}"
         global _STREAM_ACTIVE
+        per_user_limit = _get_stream_user_limit()
         try:
             _STREAM_ACTIVE += 1
             logger.info(
@@ -1179,6 +1183,8 @@ async def inbox_stream(
                     "heartbeat": heartbeat,
                     "poll_interval": poll_interval,
                     "active_streams": _STREAM_ACTIVE,
+                    "preempted_streams": preempted_streams,
+                    "per_user_limit": per_user_limit,
                 },
             )
         except Exception:
@@ -1212,6 +1218,7 @@ async def inbox_stream(
         finally:
             try:
                 elapsed_ms = int((time.time() - stream_start) * 1000)
+                _release_stream_slot(user_id, cancel_event)
                 _STREAM_ACTIVE = max(0, _STREAM_ACTIVE - 1)
                 logger.info(
                     "inbox_stream.close",
@@ -1235,6 +1242,8 @@ async def inbox_stream(
 
 _STREAM_SEM: asyncio.BoundedSemaphore | None = None
 _STREAM_ACTIVE: int = 0
+_STREAM_USER_EVENTS: dict[int, list[asyncio.Event]] = {}
+_STREAM_PER_USER_LIMIT: int | None = None
 
 
 def _get_stream_sem() -> asyncio.BoundedSemaphore:
@@ -1255,6 +1264,57 @@ def _get_stream_sem() -> asyncio.BoundedSemaphore:
         except Exception:
             pass
     return _STREAM_SEM
+
+
+def _get_stream_user_limit() -> int:
+    """Max concurrent inbox streams allowed per user (per-process)."""
+    global _STREAM_PER_USER_LIMIT
+    if _STREAM_PER_USER_LIMIT is None:
+        try:
+            raw = os.getenv("INBOX_STREAM_PER_USER_LIMIT") or ""
+            limit = int(raw) if raw.strip() else 2
+            if limit <= 0:
+                limit = 1
+        except Exception:
+            limit = 2
+        _STREAM_PER_USER_LIMIT = limit
+    return _STREAM_PER_USER_LIMIT
+
+
+def _register_stream_slot(user_id: int) -> tuple[asyncio.Event, int]:
+    """Register a stream slot; cancel oldest streams when exceeding the per-user limit."""
+    limit = _get_stream_user_limit()
+    ev = asyncio.Event()
+    cancelled = 0
+    active = _STREAM_USER_EVENTS.get(user_id) or []
+
+    # If the user already has too many streams, cancel the oldest first.
+    while len(active) >= limit:
+        old = active.pop(0)
+        try:
+            old.set()
+            cancelled += 1
+        except Exception:
+            pass
+
+    active.append(ev)
+    _STREAM_USER_EVENTS[user_id] = active
+    return ev, cancelled
+
+
+def _release_stream_slot(user_id: int, ev: asyncio.Event) -> None:
+    active = _STREAM_USER_EVENTS.get(user_id)
+    if not active:
+        return
+    try:
+        active.remove(ev)
+    except ValueError:
+        return
+    if not active:
+        try:
+            _STREAM_USER_EVENTS.pop(user_id, None)
+        except Exception:
+            pass
 _PREVIEW_SEM: BoundedSemaphore | None = None
 
 
