@@ -159,9 +159,6 @@ const ServicesSection: React.FC<Props> = ({ services, onReorder, onAdd, onEdit, 
           </SortableContext>
         </DndContext>
       )}
-      <Button type="button" onClick={onAdd} className="mt-4 sm:w-auto" fullWidth>
-        Add Service
-      </Button>
     </Section>
   );
 };
