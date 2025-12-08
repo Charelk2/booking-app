@@ -203,7 +203,7 @@ interface EventDescriptionProps {
 
 export function EventDescriptionStep({ control, setValue, watch, open = true, onEnterNext, firstInputRef }: EventDescriptionProps) {
   const isMobile = useIsMobile();
-  type ParsedDetails = { eventType?: string; date?: string; location?: string; guests?: number };
+  type ParsedDetails = { eventType?: string; date?: string; location?: string; guests?: number; venueType?: string };
   const [parsed, setParsed] = useState<ParsedDetails | null>(null);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<null | { stop: () => void }>(null);
@@ -233,8 +233,12 @@ export function EventDescriptionStep({ control, setValue, watch, open = true, on
     if (!text.trim()) return;
     try {
       const res = await parseBookingText(text);
-      const { event_type, ...rest } = res.data;
-      setParsed({ ...rest, eventType: event_type } as any);
+      const { event_type, venue_type, ...rest } = res.data as any;
+      setParsed({
+        ...rest,
+        eventType: event_type,
+        venueType: venue_type,
+      } as ParsedDetails);
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -244,6 +248,7 @@ export function EventDescriptionStep({ control, setValue, watch, open = true, on
     if (parsed?.location) setValue('location', parsed.location as any);
     if (parsed?.guests !== undefined) setValue('guests', String(parsed.guests));
     if ((parsed as any)?.eventType) setValue('eventType', (parsed as any).eventType);
+    if (parsed?.venueType) setValue('venueType', parsed.venueType as any);
     setParsed(null);
   };
 
@@ -338,6 +343,7 @@ export function EventDescriptionStep({ control, setValue, watch, open = true, on
             {parsed.date && <li><span className="text-neutral-600">Date:</span> {parsed.date}</li>}
             {parsed.location && <li><span className="text-neutral-600">Location:</span> {parsed.location}</li>}
             {parsed.guests !== undefined && <li><span className="text-neutral-600">Guests:</span> {parsed.guests}</li>}
+            {parsed.venueType && <li><span className="text-neutral-600">Venue Type:</span> {parsed.venueType}</li>}
           </ul>
           <div className="flex gap-2">
             <button
@@ -1578,12 +1584,6 @@ export function ReviewStep(props: {
   return (
     <CollapsibleSection title="Review" open={open} onToggle={onToggle} className="space-y-6">
       {/* No extra wrapper container */}
-      <p className="text-sm text-neutral-600">
-        One checkout: we place an authorization for your booking. The artist must accept to confirm your date.
-        If sound is included, we’ll confirm a firm price with the top supplier (backups auto-tried). Any difference
-        from this estimate will be adjusted automatically.
-      </p>
-
       {isLoadingReviewData && (
         <div className="flex items-center justify-center p-3 bg-black/[0.04] text-black rounded-lg border border-black/10">
           <span className="animate-spin mr-2">⚙️</span> Calculating estimates...

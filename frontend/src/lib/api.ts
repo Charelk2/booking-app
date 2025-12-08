@@ -1825,7 +1825,16 @@ export const parseBookingText = async (text: string) => {
   );
   const payload: any = res.data;
   // If the backend returned parsed details directly, use them.
-  if (payload && (payload.event_type || payload.date || payload.location || payload.guests !== undefined)) {
+   if (
+     payload &&
+     (
+       payload.event_type ||
+       payload.date ||
+       payload.location ||
+       payload.guests !== undefined ||
+       payload.venue_type
+     )
+   ) {
     return { data: payload as ParsedBookingDetails };
   }
   // Fallback to legacy task polling if present (should not normally happen now).
