@@ -85,7 +85,7 @@ export default function SystemMessage({
             <div className="flex gap-2">
               <button
                 type="button"
-                className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50"
+                className="rounded-md border border-gray-200 pl-2 px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50"
                 onClick={() => { try { onOpenDetails?.(); } catch {} }}
               >
                 Review details
@@ -484,7 +484,7 @@ export default function SystemMessage({
             <div className="flex gap-2">
               <button
                 type="button"
-                className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50"
+                className="rounded-md border border-gray-200 pl-2 px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50"
                 onClick={() => { try { onOpenDetails?.(); } catch {} }}
               >
                 Review details
