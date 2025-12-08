@@ -157,7 +157,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     const locationTextSizeClass = 'text-xs';
 
   return (
-    <div ref={ref} className="flex flex-1 divide-x divide-gray-50 rounded-2xl">
+    <div ref={ref} className="flex flex-1 divide-gray-50 rounded-2xl">
       {renderField(
         'category',
         'Category',
@@ -237,7 +237,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           className={clsx(
             'absolute right-3 top-1/2 -translate-y-1/2 h-10 rounded-full flex items-center',
             !!activeField || showExpanded ? 'px-3 gap-2 w-auto justify-center' : 'w-10 justify-center',
-            'bg-white/70 hover:bg-gray-100',
+            'bg-white/70 hover:bg-gray-100 hover:border-black',
             'border border-white/60 ring-1 ring-white/40 backdrop-blur-md',
             'transition-all duration-200',
             submitBusy && 'cursor-not-allowed opacity-80',

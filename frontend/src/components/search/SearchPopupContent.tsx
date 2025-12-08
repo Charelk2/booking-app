@@ -17,6 +17,7 @@ import {
   type SearchHistoryItem,
   type PopularLocationSuggestion,
 } from '@/lib/api';
+import { getFullImageUrl } from '@/lib/utils';
 import type { ServiceProviderProfile } from '@/types';
 import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
 import {
@@ -157,7 +158,13 @@ export default function SearchPopupContent({
     }
     const handler = setTimeout(async () => {
       try {
-        const res = await getServiceProviders({ artist: artistQuery, limit: 5 });
+        const res = await getServiceProviders({
+          artist: artistQuery,
+          limit: 5,
+          // Allow quick artist lookup even when the current page is Inbox,
+          // which normally suppresses provider list fetches.
+          allowOnInbox: true,
+        });
         setArtistResults(res.data);
       } catch (err) {
         // eslint-disable-next-line no-console
@@ -422,7 +429,7 @@ export default function SearchPopupContent({
                   props.decreaseMonth();
                 }}
                 disabled={props.prevMonthButtonDisabled}
-                className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-40"
+                className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-40"
                 aria-label="Previous month"
               >
                 <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
@@ -438,7 +445,7 @@ export default function SearchPopupContent({
                   props.increaseMonth();
                 }}
                 disabled={props.nextMonthButtonDisabled}
-                className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-40"
+                className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-40"
                 aria-label="Next month"
               >
                 <ChevronRightIcon className="h-5 w-5 text-gray-500" />
@@ -458,7 +465,7 @@ export default function SearchPopupContent({
         value={artistQuery}
         onChange={(e) => setArtistQuery(e.target.value)}
         placeholder="Search"
-        className="mb-3 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-0"
+        className="mb-3 w-full rounded-md border border-black px-3 py-2 text-sm focus:outline-none focus:ring-0"
         aria-label="Search"
       />
       {artistResults.length > 0 && (
@@ -467,14 +474,36 @@ export default function SearchPopupContent({
             const name =
               a.business_name ||
               `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`.trim();
+            const avatarUrl =
+              getFullImageUrl(
+                (a as any).profile_picture_url || (a as any).portfolio_urls?.[0],
+              ) || undefined;
+            const initial =
+              (name || '').trim().charAt(0)?.toUpperCase() || '?';
             return (
               <li key={a.user_id}>
                 <button
                   type="button"
                   onClick={() => handleArtistSelect(a)}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 rounded-lg"
                 >
-                  {name}
+                  <span className="flex items-center gap-2">
+                    {avatarUrl ? (
+                      <SafeImage
+                        src={avatarUrl}
+                        alt={name}
+                        width={32}
+                        height={32}
+                        sizes="32px"
+                        className="h-8 w-8 rounded-full object-cover flex-shrink-0 bg-gray-100"
+                      />
+                    ) : (
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-700 flex-shrink-0">
+                        {initial}
+                      </span>
+                    )}
+                    <span className="truncate">{name}</span>
+                  </span>
                 </button>
               </li>
             );
@@ -504,7 +533,7 @@ export default function SearchPopupContent({
                   role="option"
                   aria-selected={selected}
                   className={clsx(
-                    'px-4 py-2 text-sm cursor-pointer transition hover:bg-gray-100 hover:text-gray-900',
+                    'px-4 py-2 text-sm cursor-pointer transition hover:bg-gray-100 rounded-lg hover:text-gray-900',
                     active ? 'bg-gray-200 text-gray-900 hover:bg-gray-200 text-semi-bold' : 'text-gray-700',
                     selected && 'font-semibold',
                   )}
@@ -588,7 +617,7 @@ export default function SearchPopupContent({
                     // For now we don't change category here to avoid rehydration complexity.
                     closeAllPopups();
                   }}
-                  className="inline-flex flex-col items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition"
+                  className="inline-flex flex-col items-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition"
                 >
                   <span className="font-medium">{label}</span>
                   {subtitle && (

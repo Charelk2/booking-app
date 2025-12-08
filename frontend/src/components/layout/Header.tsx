@@ -499,7 +499,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       data-lock-compact={mobileSearchOpen ? 'true' : 'false'}
     >
       <HeaderMessagesLink.Definition />
-      <div className="mx-auto full-width w-full max-w-7xl px-2 sm:px-4 lg:px-6">
+      <div
+        className={clsx(
+          'mx-auto full-width w-full px-2 sm:px-6 lg:px-8',
+          !pathname.startsWith('/inbox') && 'max-w-7xl',
+        )}
+      >
         {/* Top Row */}
         <div className={topRowClasses}>
           {/* Left cluster: menu + brand + (mobile pill) */}
@@ -693,7 +698,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 {user.user_type === 'service_provider' && (
                   <button
                     onClick={toggleArtistView}
-                    className="px-3 py-2 text-sm rounded-lg font-bold bg-black text-white border border-white hover:bg-gray-900"
+                    className="px-2 py-1.5 text-sm rounded-lg font-bold bg-black text-white border border-white hover:bg-gray-900"
                   >
                     {artistViewActive ? 'Switch to Booking' : 'Switch to Hosting'}
                   </button>
