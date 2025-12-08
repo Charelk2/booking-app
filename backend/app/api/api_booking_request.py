@@ -843,6 +843,9 @@ def create_booking_request(
     # The chat thread used to include a generic "Booking request sent" system
     # message immediately after creation. This extra message cluttered the
     # conversation view, so it has been removed.
+    # Initial system line for the new thread so both client and provider see a
+    # non‑empty conversation immediately. SystemMessage renders this as the
+    # compact “Booking request · Review details” card for both roles.
     crud.crud_message.create_message(
         db=db,
         booking_request_id=new_request.id,
@@ -850,7 +853,7 @@ def create_booking_request(
         sender_type=models.SenderType.CLIENT,
         content="New booking request.",
         message_type=models.MessageType.SYSTEM,
-        visible_to=models.VisibleTo.ARTIST,
+        visible_to=models.VisibleTo.BOTH,
     )
     # Optional: also emit a NEW_MESSAGE notification so thread unread counts
     # increment for service providers who rely on message threads as the sole
