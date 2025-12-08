@@ -69,82 +69,15 @@ export default function HomePrefetch() {
     void (async () => {
       try { await refreshThreads(); } catch {}
 
+      // Heavy prefetch disabled to avoid hammering the backend during refresh.
       try {
         const list = cacheGetSummaries() as any[];
         const hasThreads = Array.isArray(list) && list.length > 0;
         const last = Number(sessionStorage.getItem(lastWarmKey) || '0');
         const withinCooldown = Date.now() - last < COOLDOWN_MS;
         if (hasThreads && withinCooldown) {
-          return; // skip heavy warming
+          return;
         }
-      } catch {}
-
-      // Initialize prefetcher (idempotent)
-      initThreadPrefetcher(async (id: number, limit: number) => {
-        try {
-          const res = await getMessagesForBookingRequest(id, { limit, mode: 'full', include_quotes: true });
-          const items = Array.isArray((res as any)?.data?.items) ? (res as any).data.items : [];
-          writeThreadCache(id, items);
-          try {
-            const qmap = (res as any)?.data?.quotes as Record<number, any> | undefined;
-            if (qmap && typeof qmap === 'object') {
-              const values = Object.values(qmap).filter(Boolean) as any[];
-              if (values.length) seedGlobalQuotes(values as any);
-            } else {
-              const qids = Array.from(
-                new Set<number>(
-                  items
-                    .map((m: any) => Number(m?.quote_id))
-                    .filter((n: number) => Number.isFinite(n) && n > 0),
-                ),
-              );
-              if (qids.length) await prefetchQuotesByIds(qids);
-            }
-          } catch {}
-        } catch {}
-      }, { defaultLimit: 50, staleMs: 5 * 60 * 1000 });
-
-      // Identify top threads by recency for a small batch warmup
-      const list = cacheGetSummaries() as any[];
-      if (!Array.isArray(list) || list.length === 0) return;
-      const BATCH = 10;
-      const ids = list.slice(0, BATCH)
-        .map((r: any) => Number(r?.id))
-        .filter((n: number) => Number.isFinite(n) && n > 0);
-      // One-shot batch warmup (best-effort)
-      if (ids.length) {
-        try {
-          const res = await getMessagesBatch(ids, 40, 'full');
-          const map = (res?.data as any)?.threads as Record<string, any[]> | undefined;
-          const quotes = (res?.data as any)?.quotes as Record<number, any> | undefined;
-          if (map && typeof map === 'object') {
-            for (const [key, msgs] of Object.entries(map)) {
-              const tid = Number(key);
-              if (!Number.isFinite(tid) || tid <= 0) continue;
-              writeThreadCache(tid, Array.isArray(msgs) ? msgs : []);
-            }
-          }
-          try {
-            if (quotes && typeof quotes === 'object') {
-              const values = Object.values(quotes).filter(Boolean) as any[];
-              if (values.length) seedGlobalQuotes(values as any);
-            }
-          } catch {}
-        } catch {}
-      }
-
-      // Enqueue broader set for background warming
-      try {
-        const candidates = list
-          .slice(0, 50)
-          .map((r: any, i: number) => ({ id: Number(r.id), priority: 220 - i * 2, reason: 'home' as const }))
-          .filter((c) => Number.isFinite(c.id) && c.id > 0);
-        if (candidates.length) {
-          enqueueThreadPrefetch(candidates as any);
-          kickThreadPrefetcher();
-        }
-        // Record last warm time to throttle subsequent heavy warms.
-        try { sessionStorage.setItem(lastWarmKey, String(Date.now())); } catch {}
       } catch {}
     })();
   }, 1000);
