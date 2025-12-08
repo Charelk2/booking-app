@@ -48,6 +48,7 @@ from contextlib import contextmanager
 router = APIRouter(tags=["messages"])
 
 logger = logging.getLogger(__name__)
+_DENY_LOG_CACHE: dict[tuple[int, int], float] = {}
 
 # ---- Small helpers -----------------------------------------------------------
 
@@ -402,6 +403,23 @@ async def read_messages_async(
             status.HTTP_404_NOT_FOUND,
         )
     if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
+        try:
+            key = (int(current_user.id), int(request_id))
+            now = time.time()
+            last = _DENY_LOG_CACHE.get(key, 0.0)
+            if now - last > 2.0:
+                _DENY_LOG_CACHE[key] = now
+                logger.warning(
+                    "Not authorized to access messages",
+                    extra={
+                        "user_id": int(current_user.id),
+                        "request_id": int(request_id),
+                        "client_id": int(booking_request.client_id),
+                        "artist_id": int(booking_request.artist_id),
+                    },
+                )
+        except Exception:
+            pass
         raise error_response(
             "Not authorized to access messages",
             {},

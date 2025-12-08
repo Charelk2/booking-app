@@ -89,6 +89,9 @@ class Envelope:
 
 # ─── WS DB concurrency limiter ───────────────────────────────────────────────
 _WS_DB_SEM: BoundedSemaphore | None = None
+_WS_USER_CONNS: Dict[int, list["NoiseWS"]] = {}
+_WS_USER_LIMIT: int | None = None
+_WS_USER_LOCK: asyncio.Lock | None = None
 
 
 def _get_ws_db_sem() -> BoundedSemaphore:
@@ -102,6 +105,63 @@ def _get_ws_db_sem() -> BoundedSemaphore:
             cap = 8
         _WS_DB_SEM = BoundedSemaphore(cap)
     return _WS_DB_SEM
+
+
+def _get_ws_user_limit() -> int:
+    """Max concurrent WS connections per user across endpoints."""
+    global _WS_USER_LIMIT
+    if _WS_USER_LIMIT is None:
+        try:
+            raw = os.getenv("WS_PER_USER_LIMIT") or ""
+            limit = int(raw) if raw.strip() else 2
+            if limit <= 0:
+                limit = 2
+        except Exception:
+            limit = 2
+        _WS_USER_LIMIT = limit
+    return _WS_USER_LIMIT
+
+
+def _get_ws_user_lock() -> asyncio.Lock:
+    global _WS_USER_LOCK
+    if _WS_USER_LOCK is None:
+        _WS_USER_LOCK = asyncio.Lock()
+    return _WS_USER_LOCK
+
+
+async def _register_ws_conn(user_id: int, conn: "NoiseWS") -> int:
+    """Register a WS connection for a user; preempt oldest if over the limit."""
+    limit = _get_ws_user_limit()
+    if limit <= 0:
+        return 0
+    preempted = 0
+    lock = _get_ws_user_lock()
+    async with lock:
+        conns = _WS_USER_CONNS.get(user_id, [])
+        while len(conns) >= limit:
+            old = conns.pop(0)
+            preempted += 1
+            try:
+                await old.ws.close(code=4000, reason="replaced")
+            except Exception:
+                pass
+        conns.append(conn)
+        _WS_USER_CONNS[user_id] = conns
+    return preempted
+
+
+async def _release_ws_conn(user_id: int, conn: "NoiseWS") -> None:
+    lock = _get_ws_user_lock()
+    async with lock:
+        conns = _WS_USER_CONNS.get(user_id, [])
+        try:
+            conns.remove(conn)
+        except ValueError:
+            return
+        if conns:
+            _WS_USER_CONNS[user_id] = conns
+        else:
+            _WS_USER_CONNS.pop(user_id, None)
 
 class NoiseWS:
     def __init__(self, websocket: WebSocket) -> None:
@@ -493,6 +553,7 @@ async def booking_request_ws(
     conn = NoiseWS(websocket)
     await conn.handshake()
 
+    _preempted = await _register_ws_conn(int(user.id), conn)
     Presence.mark_online(int(user.id))
     await chat.connect(request_id, conn)
 
@@ -569,6 +630,10 @@ async def booking_request_ws(
     finally:
         Presence.mark_offline(int(user.id))
         chat.disconnect(request_id, conn)
+        try:
+            await _release_ws_conn(int(user.id), conn)
+        except Exception:
+            pass
 
 # -------- /ws (multiplex) --------
 
@@ -605,6 +670,7 @@ async def multiplex_ws(
     conn = NoiseWS(websocket)
     await conn.handshake()
 
+    preempted = await _register_ws_conn(int(user.id), conn)
     Presence.mark_online(int(user.id))
     try:
         logger.info(
@@ -615,6 +681,8 @@ async def multiplex_ws(
                 "heartbeat": heartbeat,
                 "token_source": token_src,
                 "auth_ms": round(auth_ms, 1),
+                "preempted": preempted,
+                "per_user_limit": _get_ws_user_limit(),
             },
         )
         if auth_ms >= WS_AUTH_WARN_MS:
@@ -754,6 +822,10 @@ async def multiplex_ws(
         finally:
             pinger.cancel()
     finally:
+        try:
+            await _release_ws_conn(int(user.id), conn)
+        except Exception:
+            pass
         Presence.mark_offline(int(user.id))
         await mux.disconnect(conn)
         try:
@@ -835,6 +907,7 @@ async def notifications_ws(
     conn = NoiseWS(websocket)
     await conn.handshake()
 
+    preempted = await _register_ws_conn(int(user.id), conn)
     await notify.connect(int(user.id), conn)
     Presence.mark_online(int(user.id))
     try:
@@ -846,6 +919,8 @@ async def notifications_ws(
                 "heartbeat": heartbeat,
                 "token_source": token_src,
                 "auth_ms": round(auth_ms, 1),
+                "preempted": preempted,
+                "per_user_limit": _get_ws_user_limit(),
             },
         )
     except Exception:
@@ -917,6 +992,10 @@ async def notifications_ws(
     finally:
         Presence.mark_offline(int(user.id))
         notify.disconnect(int(user.id), conn)
+        try:
+            await _release_ws_conn(int(user.id), conn)
+        except Exception:
+            pass
         try:
             logger.info(
                 "ws.notifications.closed",
