@@ -1813,7 +1813,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               <button
                 type="button"
                 className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-                onClick={() => { setShowResumeModal(false); setShowAiAssist(true); /* keep current clean state */ }}
+                onClick={() => {
+                  // Start a fresh request without invoking the AI assist overlay
+                  // so the underlying form is immediately interactive.
+                  setShowResumeModal(false);
+                }}
               >
                 Start new
               </button>

@@ -134,9 +134,14 @@ def get_cached_artist_list(
     except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Redis unavailable: %s", exc)
         return None
-    if data:
+    if not data:
+        return None
+    try:
         return json.loads(data)
-    return None
+    except Exception as exc:
+        # Defensive: treat malformed payloads as cache misses instead of 500s.
+        logging.warning("Could not decode artist list cache for key %s: %s", key, exc)
+        return None
 
 
 def cache_artist_list(
@@ -286,9 +291,15 @@ def get_cached_availability(
     except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
         logging.warning("Redis unavailable: %s", exc)
         return None
-    if data:
+    if not data:
+        return None
+    try:
         return json.loads(data)
-    return None
+    except Exception as exc:
+        # Defensive: if the cached value is corrupted or not valid JSON,
+        # fall back to a cache miss so availability lookups never 500.
+        logging.warning("Could not decode availability cache for key %s: %s", key, exc)
+        return None
 
 
 def cache_availability(

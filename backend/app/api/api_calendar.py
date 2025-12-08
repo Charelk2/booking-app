@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from urllib.parse import urlparse
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -23,14 +23,21 @@ def google_calendar_status(
     current_user: User = Depends(get_current_user),
 ):
     """Return whether the user has a connected Google Calendar."""
-    account = (
-        db.query(CalendarAccount)
-        .filter(
-            CalendarAccount.user_id == current_user.id,
-            CalendarAccount.provider == CalendarProvider.GOOGLE,
+    try:
+        account = (
+            db.query(CalendarAccount)
+            .filter(
+                CalendarAccount.user_id == current_user.id,
+                CalendarAccount.provider == CalendarProvider.GOOGLE,
+            )
+            .first()
         )
-        .first()
-    )
+    except HTTPException as exc:
+        # If the user is not authenticated (401/403), treat as "not connected"
+        # so the frontend can still render the profile page and CTA.
+        if exc.status_code in (401, 403):
+            return {"connected": False}
+        raise
     if account is None:
         return {"connected": False}
     return {"connected": True, "email": account.email}
