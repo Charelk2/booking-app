@@ -82,10 +82,10 @@ export default function SystemMessage({
                 <div className="text-xs text-gray-600">Review details</div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex pl-2 gap-2">
               <button
                 type="button"
-                className="rounded-md border border-gray-200 pl-2 px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50"
+                className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50"
                 onClick={() => { try { onOpenDetails?.(); } catch {} }}
               >
                 Review details
@@ -481,7 +481,7 @@ export default function SystemMessage({
                 <div className="text-xs text-gray-600">Expect a quote soon</div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 pl-2">
               <button
                 type="button"
                 className="rounded-md border border-gray-200 pl-2 px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50"
