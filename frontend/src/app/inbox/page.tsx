@@ -112,6 +112,9 @@ export default function InboxPage() {
   const suppressUrlSyncUntilRef = useRef<number>(0);
   // Mirror of currently selected id for validating scheduled callbacks
   const selectedIdRef = useRef<number | null>(null);
+  // Keep the active thread id in a ref so the SSE effect does not re-open on
+  // every selection change.
+  const activeThreadIdRef = useRef<number | null>(null);
   // Ensure we only attempt to create a Booka thread once per mount
   const ensureTriedRef = useRef(false);
   // Debounce focus/visibility-triggered refreshes
@@ -135,6 +138,10 @@ export default function InboxPage() {
       const next = [selectedThreadId, ...prev.filter((id) => id !== selectedThreadId)];
       return next.slice(0, 2);
     });
+  }, [selectedThreadId]);
+
+  useEffect(() => {
+    activeThreadIdRef.current = selectedThreadId ?? null;
   }, [selectedThreadId]);
 
   useEffect(() => {
@@ -322,7 +329,9 @@ export default function InboxPage() {
   useEffect(() => {
     if (!user) return;
     let es: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
+    let connecting = false;
     const role = user.user_type === 'service_provider' ? 'artist' : 'client';
     // Prefer API origin for SSE to avoid site proxy buffering/closures
     const API_BASE = (() => {
@@ -336,41 +345,58 @@ export default function InboxPage() {
       }
     })();
     const connect = () => {
-      if (closed) return;
+      if (closed || connecting || es) return;
+      connecting = true;
       try {
         // Build absolute URL to api.booka.co.za when configured; else same-origin fallback
         const url = API_BASE
           ? `${API_BASE}/api/v1/inbox/stream?role=${role}`
           : `/api/v1/inbox/stream?role=${role}`;
-        es = new EventSource(url, { withCredentials: true });
-        es.addEventListener('hello', (e: MessageEvent) => {
+        const nextEs = new EventSource(url, { withCredentials: true });
+        es = nextEs;
+        nextEs.onopen = () => { connecting = false; };
+        nextEs.addEventListener('hello', (e: MessageEvent) => {
           // Snapshot token is available if needed; no-op here
           try { JSON.parse(String(e.data || '{}')); } catch {}
         });
-        es.addEventListener('update', (e: MessageEvent) => {
-          let snapshot: any = null;
-          try { snapshot = JSON.parse(String(e.data || '{}')); } catch {}
+        nextEs.addEventListener('update', (e: MessageEvent) => {
+          try { JSON.parse(String(e.data || '{}')); } catch {}
           try { emitThreadsUpdated({ source: 'inbox:sse', immediate: true }, { immediate: true, force: true }); } catch {}
           // Best-effort: if a thread is active, poke its delta fetch so the
           // new message appears immediately even if WS is flapping.
           try {
-            if (selectedThreadId && Number.isFinite(selectedThreadId)) {
-              window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId: selectedThreadId } }));
+            const activeId = activeThreadIdRef.current;
+            if (activeId && Number.isFinite(activeId)) {
+              window.dispatchEvent(new CustomEvent('thread:pokedelta', { detail: { threadId: activeId } }));
             }
           } catch {}
         });
-        es.onerror = () => {
-          try { es?.close(); } catch {}
-          es = null;
-          setTimeout(connect, 2000);
+        nextEs.onerror = () => {
+          connecting = false;
+          try { nextEs?.close(); } catch {}
+          if (es === nextEs) es = null;
+          if (!closed) {
+            if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+            reconnectTimer = setTimeout(connect, 2000);
+          }
         };
       } catch {
-        setTimeout(connect, 2000);
+        connecting = false;
+        if (!closed) {
+          if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+          reconnectTimer = setTimeout(connect, 2000);
+        }
       }
     };
     connect();
-    return () => { closed = true; try { es?.close(); } catch {}; };
-  }, [user, selectedThreadId]);
+    return () => {
+      closed = true;
+      connecting = false;
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      try { es?.close(); } catch {}
+      es = null;
+    };
+  }, [user]);
 
   // Select conversation based on URL param; do not require presence in threads to honor deep links
   // If the list hasn't loaded the thread yet, we still select so the chat pane can fetch messages.
