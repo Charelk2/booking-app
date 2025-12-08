@@ -1340,11 +1340,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         if (desc && desc.trim().length >= 5) {
           try {
             const res = await parseBookingText(desc);
-            const { event_type, date, location, guests } = res.data || {};
+            const { event_type, date, location, guests, venue_type } = res.data || {};
             if (date) setValue('date', new Date(date));
             if (location) setValue('location', location);
             if (guests !== undefined && guests !== null) setValue('guests', String(guests));
             if (event_type) setValue('eventType', event_type);
+            if (venue_type) setValue('venueType', venue_type as any);
           } catch (err) {
             // Non-blocking; proceed even if AI parse fails
             console.warn('AI parse failed; continuing without suggestions', err);
@@ -1886,6 +1887,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     if (data?.date) setValue('date', new Date(data.date));
                     if (data?.location) setValue('location', data.location);
                     if (data?.guests != null) setValue('guests', String(data.guests));
+                    if (data?.venue_type) setValue('venueType', data.venue_type as any);
                     setShowAiAssist(false);
                   } catch (e) {
                     console.error(e);

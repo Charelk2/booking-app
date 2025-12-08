@@ -23,5 +23,12 @@ class ParsedBookingDetails(BaseModel):
         None, description="Event type if detected"
     )
 
+    # Optional venue type used by the BookingWizard to pre-fill the
+    # Indoor / Outdoor / Hybrid step. Values are normalized to one of
+    # {"indoor", "outdoor", "hybrid"} when detected.
+    venue_type: Optional[str] = Field(
+        None, description="Venue type (indoor/outdoor/hybrid) if detected"
+    )
+
 
     model_config = {"from_attributes": True}

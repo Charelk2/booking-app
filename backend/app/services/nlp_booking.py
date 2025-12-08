@@ -115,6 +115,7 @@ def extract_booking_details(text: str) -> ParsedBookingDetails:
     nlp = _ensure_model()
     normalized = _normalize_text(cleaned)
     doc = nlp(normalized)
+    low = normalized.lower()
 
     # Dates
     date_texts: List[str] = []
@@ -160,7 +161,6 @@ def extract_booking_details(text: str) -> ParsedBookingDetails:
     # Fallback event type heuristics when matcher did not find anything.
     # This keeps things lightweight but helps common prompts like "a birthday".
     if not getattr(result, "event_type", None):
-        low = normalized.lower()
         # Handle obvious birthday cues
         if "birthday" in low or "bday" in low or "b-day" in low:
             result.event_type = _EVENT_LOOKUP.get("birthday", "Birthday")
@@ -179,5 +179,50 @@ def extract_booking_details(text: str) -> ParsedBookingDetails:
         # Generic celebration
         elif "party" in low or "celebration" in low:
             result.event_type = _EVENT_LOOKUP.get("celebration", "Celebration")
+
+    # Venue type heuristics (indoor / outdoor / hybrid). Keep this lightweight
+    # and driven by obvious cues so we don't overfit to rare phrasing.
+    try:
+        indoor_cues = (
+            "indoor",
+            "indoors",
+            "inside",
+            "in-door",
+            "in door",
+            "hall",
+            "banquet hall",
+            "conference room",
+            "function room",
+            "ballroom",
+        )
+        outdoor_cues = (
+            "outdoor",
+            "outdoors",
+            "outside",
+            "garden",
+            "backyard",
+            "back yard",
+            "field",
+            "farm",
+            "beach",
+            "park",
+            "rooftop",
+            "roof top",
+            "terrace",
+            "balcony",
+            "poolside",
+            "pool side",
+        )
+        has_indoor = any(term in low for term in indoor_cues)
+        has_outdoor = any(term in low for term in outdoor_cues)
+        if "hybrid" in low or (has_indoor and has_outdoor):
+            result.venue_type = "hybrid"
+        elif has_indoor:
+            result.venue_type = "indoor"
+        elif has_outdoor:
+            result.venue_type = "outdoor"
+    except Exception:
+        # Best-effort; never fail parsing just because venue cues misbehaved.
+        pass
 
     return result

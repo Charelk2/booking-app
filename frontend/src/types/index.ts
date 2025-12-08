@@ -282,6 +282,9 @@ export interface ParsedBookingDetails {
   location?: string;
   guests?: number;
   event_type?: string;
+  // Optional venue type (normalized to "indoor" | "outdoor" | "hybrid"
+  // by the backend NLP service when detected).
+  venue_type?: string;
 }
 
 // This is what the backend returns when you GET a booking request:
