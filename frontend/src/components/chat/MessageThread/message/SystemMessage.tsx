@@ -477,8 +477,8 @@ export default function SystemMessage({
             <div className="flex items-center gap-3">
               <span className="grid h-7 w-7 place-items-center rounded-full bg-black text-white text-xs font-semibold">B</span>
               <div>
-                <div className="text-sm font-semibold">New booking request</div>
-                <div className="text-xs text-gray-600">Review details.</div>
+                <div className="text-sm font-semibold">Your request is in!</div>
+                <div className="text-xs text-gray-600">Expect a quote soon</div>
               </div>
             </div>
             <div className="flex gap-2">
