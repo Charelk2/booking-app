@@ -13,6 +13,7 @@ from app.utils.email import send_template_email
 from app.utils.notifications import (
     _create_and_broadcast,
     _send_sms,
+    _send_whatsapp_template,
     format_notification_message,
 )
 
@@ -188,13 +189,16 @@ def send_booking_confirmed_email_for_provider(
             currency = currency or None
 
         total_paid: Optional[str] = None
+        total_paid_numeric: Optional[str] = None
         try:
             amt = getattr(booking, "charged_total_amount", None)
             if amt is not None:
                 cur = currency or getattr(settings, "DEFAULT_CURRENCY", "ZAR") or "ZAR"
                 total_paid = f"{cur} {amt}"
+                total_paid_numeric = str(amt)
         except Exception:
             total_paid = None
+            total_paid_numeric = None
 
         booking_reference = str(getattr(booking, "id", "")) or ""
 
@@ -224,6 +228,46 @@ def send_booking_confirmed_email_for_provider(
             variables=clean_vars,
             subject=email_subject,
         )
+
+        # 2) WhatsApp template notification to provider (best-effort).
+        try:
+            header_image_url = (
+                f"{frontend_base}/booka_logo.jpg" if frontend_base else None
+            )
+
+            # WhatsApp requires non-empty text parameters.
+            def _safe_text(value: Optional[str], default: str) -> str:
+                try:
+                    s = str(value).strip() if value is not None else ""
+                except Exception:
+                    s = ""
+                return s or default
+
+            body_params: list[str] = [
+                _safe_text(provider_name, "Artist"),               # {{1}}
+                _safe_text(client_name, "Client"),                 # {{2}}
+                _safe_text(event_date, "To be confirmed"),         # {{3}}
+                _safe_text(event_location, "To be confirmed"),     # {{4}}
+                _safe_text(total_paid_numeric, "0"),               # {{5}}
+                _safe_text(booking_reference, "—"),                # {{6}}
+            ]
+
+            _send_whatsapp_template(
+                provider.phone_number,
+                template_name="booka_payment_received_service_provider",
+                language_code="en",
+                body_params=body_params,
+                header_image_url=header_image_url,
+                # Template URL uses /dashboard/events/{{1}}; pass booking.id.
+                button_url_param=str(booking.id),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to send provider payment-received WhatsApp for booking %s to %s: %s",
+                getattr(booking, "id", None),
+                getattr(provider, "phone_number", None),
+                exc,
+            )
     except Exception as exc:
         logger.warning(
             "Failed to send provider booking-confirmed email for booking %s to %s: %s",
@@ -301,13 +345,16 @@ def send_booking_confirmed_email_for_client(
             currency = currency or None
 
         total_paid: Optional[str] = None
+        total_paid_numeric: Optional[str] = None
         try:
             amt = getattr(booking, "charged_total_amount", None)
             if amt is not None:
                 cur = currency or getattr(settings, "DEFAULT_CURRENCY", "ZAR") or "ZAR"
                 total_paid = f"{cur} {amt}"
+                total_paid_numeric = str(amt)
         except Exception:
             total_paid = None
+            total_paid_numeric = None
 
         booking_reference = str(getattr(booking, "id", "")) or ""
 
@@ -337,6 +384,47 @@ def send_booking_confirmed_email_for_client(
             variables=clean_vars,
             subject=email_subject,
         )
+
+        # 2) WhatsApp template notification to client (best-effort).
+        try:
+            header_image_url = (
+                f"{frontend_base}/booka_logo.jpg" if frontend_base else None
+            )
+
+            # WhatsApp requires non-empty text parameters.
+            def _safe_text(value: Optional[str], default: str) -> str:
+                try:
+                    s = str(value).strip() if value is not None else ""
+                except Exception:
+                    s = ""
+                return s or default
+
+            body_params: list[str] = [
+                _safe_text(client_name, "Client"),                    # {{1}}
+                _safe_text(service_name or "Booking", "Booking"),      # {{2}}
+                _safe_text(provider_name, "Artist"),                  # {{3}}
+                _safe_text(event_date, "To be confirmed"),            # {{4}}
+                _safe_text(event_location, "To be confirmed"),        # {{5}}
+                _safe_text(total_paid_numeric, "0"),                  # {{6}}
+                _safe_text(booking_reference, "—"),                   # {{7}}
+            ]
+
+            _send_whatsapp_template(
+                client.phone_number,
+                template_name="booka_payment_received_customer",
+                language_code="en",
+                body_params=body_params,
+                header_image_url=header_image_url,
+                # Template URL uses ?requestId={{1}}; pass booking_request.id.
+                button_url_param=str(booking_request.id),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to send client payment-received WhatsApp for booking %s to %s: %s",
+                getattr(booking, "id", None),
+                getattr(client, "phone_number", None),
+                exc,
+            )
     except Exception as exc:
         logger.warning(
             "Failed to send client booking-confirmed email for booking %s to %s: %s",
