@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status, Response, Header
+from fastapi import APIRouter, Depends, Query, status, Response, Header, Request
 from starlette.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func, or_, and_
@@ -1073,6 +1073,7 @@ async def inbox_stream(
     role: Optional[str] = Query(None, regex="^(artist|client)$"),
     heartbeat: float = Query(20.0, ge=5.0, le=120.0, description="Heartbeat seconds to keep proxy connections alive"),
     current_user: models.User = Depends(get_current_user),
+    request: Request = None,
 ):
     """Push minimal change events when the user's inbox state changes.
 
@@ -1122,7 +1123,13 @@ async def inbox_stream(
             media_type="application/json",
         )
 
-    cancel_event, preempted_streams, per_user_active = _register_stream_slot(user_id)
+    client_ip = None
+    try:
+        client_ip = str(request.client.host) if request and request.client else None
+    except Exception:
+        client_ip = None
+
+    cancel_event, preempted_streams, per_user_active = _register_stream_slot(user_id, client_ip)
     if cancel_event is None:
         try:
             logger.warning(
@@ -1269,7 +1276,7 @@ async def inbox_stream(
         finally:
             try:
                 elapsed_ms = int((time.time() - stream_start) * 1000)
-                _release_stream_slot(user_id, cancel_event)
+                _release_stream_slot(user_id, cancel_event, client_ip)
                 _STREAM_ACTIVE = max(0, _STREAM_ACTIVE - 1)
                 logger.info(
                     "inbox_stream.close",
@@ -1294,7 +1301,9 @@ async def inbox_stream(
 _STREAM_SEM: asyncio.BoundedSemaphore | None = None
 _STREAM_ACTIVE: int = 0
 _STREAM_USER_EVENTS: dict[int, list[asyncio.Event]] = {}
+_STREAM_IP_EVENTS: dict[str, list[asyncio.Event]] = {}
 _STREAM_PER_USER_LIMIT: int | None = None
+_STREAM_PER_IP_LIMIT: int | None = None
 
 
 def _get_stream_sem() -> asyncio.BoundedSemaphore:
@@ -1321,36 +1330,52 @@ def _get_stream_user_limit() -> int:
     """Max concurrent inbox streams allowed per user (per-process)."""
     global _STREAM_PER_USER_LIMIT
     if _STREAM_PER_USER_LIMIT is None:
+        # Hard cap to 1 to prevent connection storms from a single user
+        _STREAM_PER_USER_LIMIT = 1
+    return _STREAM_PER_USER_LIMIT
+
+
+def _get_stream_ip_limit() -> int:
+    """Max concurrent inbox streams allowed per IP (per-process)."""
+    global _STREAM_PER_IP_LIMIT
+    if _STREAM_PER_IP_LIMIT is None:
         try:
-            raw = os.getenv("INBOX_STREAM_PER_USER_LIMIT") or ""
+            raw = os.getenv("INBOX_STREAM_PER_IP_LIMIT") or ""
             limit = int(raw) if raw.strip() else 1
             if limit <= 0:
                 limit = 1
         except Exception:
             limit = 1
-        _STREAM_PER_USER_LIMIT = limit
-    return _STREAM_PER_USER_LIMIT
+        _STREAM_PER_IP_LIMIT = limit
+    return _STREAM_PER_IP_LIMIT
 
 
-def _register_stream_slot(user_id: int) -> tuple[asyncio.Event | None, int, int]:
+def _register_stream_slot(user_id: int, ip: str | None = None) -> tuple[asyncio.Event | None, int, int]:
     """Register a stream slot; when limit is exceeded, refuse the new stream.
 
     Returns: (event or None if refused, cancelled_count, active_count_after)
     """
     limit = _get_stream_user_limit()
+    ip_limit = _get_stream_ip_limit()
     ev = asyncio.Event()
     cancelled = 0
     active = _STREAM_USER_EVENTS.get(user_id) or []
+    ip_active = _STREAM_IP_EVENTS.get(ip, []) if ip else []
 
     if len(active) >= limit:
+        return None, 0, len(active)
+    if ip and ip_limit > 0 and len(ip_active) >= ip_limit:
         return None, 0, len(active)
 
     active.append(ev)
     _STREAM_USER_EVENTS[user_id] = active
+    if ip:
+        ip_active.append(ev)
+        _STREAM_IP_EVENTS[ip] = ip_active
     return ev, cancelled, len(active)
 
 
-def _release_stream_slot(user_id: int, ev: asyncio.Event) -> None:
+def _release_stream_slot(user_id: int, ev: asyncio.Event, ip: str | None = None) -> None:
     active = _STREAM_USER_EVENTS.get(user_id)
     if not active:
         return
@@ -1363,6 +1388,17 @@ def _release_stream_slot(user_id: int, ev: asyncio.Event) -> None:
             _STREAM_USER_EVENTS.pop(user_id, None)
         except Exception:
             pass
+    if ip:
+        ip_active = _STREAM_IP_EVENTS.get(ip)
+        if ip_active:
+            try:
+                ip_active.remove(ev)
+            except ValueError:
+                pass
+            if ip_active:
+                _STREAM_IP_EVENTS[ip] = ip_active
+            else:
+                _STREAM_IP_EVENTS.pop(ip, None)
 _PREVIEW_SEM: BoundedSemaphore | None = None
 
 
