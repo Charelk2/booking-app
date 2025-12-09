@@ -1266,28 +1266,6 @@ export function SoundStep({
               />
             </div>
 
-            {/* Backline */}
-            <div className="rounded-xl border border-black/10 p-3">
-              <Controller
-                name={'backlineRequired' as any}
-                control={control}
-                render={({ field }) => (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Backline required?</span>
-                      <input
-                        type="checkbox"
-                        checked={!!field.value}
-                        onChange={(e) => field.onChange(e.target.checked)}
-                      />
-                    </div>
-                    <p className="help-text mt-2">
-                      Instruments/amps on site (e.g., drum kit, piano, guitar/bass amps). Final lineup confirmed after booking.
-                    </p>
-                  </>
-                )}
-              />
-            </div>
           </div>
           )}
 
@@ -1327,14 +1305,14 @@ export function SoundStep({
                           <span className="font-medium text-neutral-900">
                             Recommended · {firstAvailable.publicName}
                           </span>
-                          <span className="text-sm text-neutral-600">
-                            {firstAvailable.estimateMin != null && firstAvailable.estimateMax != null
-                              ? `Est. ${formatCurrency(firstAvailable.estimateMin)} – ${formatCurrency(firstAvailable.estimateMax)}`
-                              : 'Estimation pending'}
-                          </span>
+                          {firstAvailable.estimateMin != null && firstAvailable.estimateMax != null && (
+                            <span className="text-sm text-neutral-600">
+                              {`Est. ${formatCurrency(firstAvailable.estimateMin)} – ${formatCurrency(firstAvailable.estimateMax)}`}
+                            </span>
+                          )}
                           {firstAvailable.distanceKm != null && (
                             <span className="text-xs text-neutral-500">
-                              {firstAvailable.distanceKm!.toFixed(0)} km • rel {firstAvailable.reliability?.toFixed?.(1) ?? '0'}
+                              {firstAvailable.distanceKm!.toFixed(0)} km
                             </span>
                           )}
                         </div>
@@ -1344,7 +1322,7 @@ export function SoundStep({
                         </div>
                       )}
                       <p className="mt-2 text-xs text-neutral-700">
-                        These are the artist’s preferred suppliers. We’ll contact the top match after you book.
+                        These are the artist’s preferred suppliers. We’ll contact the top match after your request is submitted.
                       </p>
                     </div>
                   );
@@ -1359,8 +1337,7 @@ export function SoundStep({
 
           {!artistOnlySound && (
             <p className="text-xs text-neutral-600">
-              Estimates use your guest count and assume drive-only logistics. Final pricing is confirmed after acceptance; if the top pick
-              declines we’ll auto-try backups.
+              Estimates use your guest count and assume drive-only logistics. Final pricing is confirmed after acceptance.
             </p>
           )}
         </div>

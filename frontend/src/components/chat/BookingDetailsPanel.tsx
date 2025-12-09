@@ -131,10 +131,23 @@ export default function BookingDetailsPanel({
   }, [bookingRequest]);
 
   const viewerIsProvider = React.useMemo(() => {
-    return Boolean(user && user.user_type === 'service_provider');
-  }, [user]);
+    const uid = user?.id;
+    const raw: any = bookingRequest;
+    const providerId =
+      Number(raw?.service_provider_id ||
+        raw?.artist_id ||
+        raw?.artist?.id ||
+        raw?.artist_profile?.user_id ||
+        0);
+    return Boolean(uid && providerId && uid === providerId);
+  }, [user, bookingRequest]);
 
-  const viewerIsClient = user?.user_type === 'client';
+  const viewerIsClient = React.useMemo(() => {
+    const uid = user?.id;
+    const raw: any = bookingRequest;
+    const clientId = Number(raw?.client_id || 0);
+    return Boolean(uid && clientId && uid === clientId);
+  }, [user, bookingRequest]);
 
   const [selfProviderIdentity, setSelfProviderIdentity] = React.useState<{
     name: string | null;

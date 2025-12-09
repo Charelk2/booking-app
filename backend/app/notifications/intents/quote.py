@@ -14,6 +14,7 @@ from app.utils.email import send_template_email
 from app.utils.notifications import (
     _create_and_broadcast,
     _send_sms,
+    _send_whatsapp_template,
     format_notification_message,
 )
 
@@ -74,7 +75,7 @@ def send_new_quote_email_to_client(
     booking_request: models.BookingRequest,
     quote: models.QuoteV2,
 ) -> None:
-    """Best-effort Mailjet email to a client when a new quote is sent."""
+    """Best-effort Mailjet email (and WhatsApp template) to a client when a new quote is sent."""
     ctx = _build_quote_context(db, client, artist, booking_request, quote)
     try:
         template_id = getattr(settings, "MAILJET_TEMPLATE_NEW_QUOTE_CLIENT", 0) or 0
@@ -176,6 +177,58 @@ def send_new_quote_email_to_client(
             variables=clean_vars,
             subject=email_subject,
         )
+
+        # 2) WhatsApp template notification to client (best-effort).
+        try:
+            header_image_url = (
+                f"{frontend_base}/booka_logo.jpg" if frontend_base else None
+            )
+
+            # WhatsApp requires every text parameter to have a non-empty value.
+            def _safe_text(value: Optional[str], default: str) -> str:
+                try:
+                    s = str(value).strip() if value is not None else ""
+                except Exception:
+                    s = ""
+                return s or default
+
+            # Numeric total for WhatsApp (body already prefixes 'R ').
+            quote_total_numeric: Optional[str] = None
+            try:
+                total = getattr(ctx.quote, "total", None)
+                if total is not None:
+                    quote_total_numeric = str(total)
+            except Exception:
+                quote_total_numeric = None
+
+            quote_expires_label = quote_expires_at
+
+            body_params: list[str] = [
+                _safe_text(client_name, "Client"),                  # {{1}}
+                _safe_text(provider_name, "Artist"),                # {{2}}
+                _safe_text(service_name or "Booking", "Booking"),   # {{3}}
+                _safe_text(event_date, "To be confirmed"),          # {{4}}
+                _safe_text(event_location, "To be confirmed"),      # {{5}}
+                _safe_text(quote_total_numeric, "0"),               # {{6}}
+                _safe_text(quote_expires_label, "To be confirmed"), # {{7}}
+            ]
+
+            _send_whatsapp_template(
+                ctx.client.phone_number,
+                template_name="booka_new_quote",
+                language_code="en",
+                body_params=body_params,
+                header_image_url=header_image_url,
+                # Template URL uses ?requestId={{1}}; we pass booking_request.id.
+                button_url_param=str(ctx.booking_request.id),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to send quote WhatsApp for quote %s to %s: %s",
+                getattr(quote, "id", None),
+                getattr(ctx.client, "phone_number", None),
+                exc,
+            )
     except Exception as exc:
         logger.warning(
             "Failed to send quote email for quote %s to %s: %s",
@@ -276,4 +329,3 @@ def send_quote_requested_notification(
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
-

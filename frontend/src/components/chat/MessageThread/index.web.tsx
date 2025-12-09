@@ -117,6 +117,8 @@ export type MessageThreadWebProps = {
   onOpenProviderReviewFromSystem?: () => void;
   /** True when this thread represents a dedicated sound provider booking. */
   isSoundThread?: boolean;
+  /** True when the viewer is allowed to create quotes for this thread. */
+  canCreateQuote?: boolean;
   // allow passthrough
   [k: string]: any;
 };
@@ -142,6 +144,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
     onPaymentStatusChange,
     onOpenProviderReviewFromSystem,
     isSoundThread: isSoundThreadProp,
+    canCreateQuote,
   } = props;
 
   // --- Auth / identity
@@ -1340,6 +1343,7 @@ export default function MessageThreadWeb(props: MessageThreadWebProps) {
         galleryItems={galleryItems}
         resolveReplyPreview={resolveReplyPreview}
         threadHasQuote={threadHasQuote}
+        canCreateQuote={canCreateQuote}
         threadClientId={threadClientId}
         onJumpToMessage={jumpToMessage}
         onRetryMessage={(id) => {

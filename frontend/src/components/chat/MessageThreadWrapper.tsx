@@ -772,6 +772,37 @@ export default function MessageThreadWrapper({
     return false;
   }, [effectiveBookingRequest]);
 
+  // Thread-scoped roles: who is the client vs provider for THIS booking request,
+  // regardless of the account's global user_type.
+  const threadClientId = useMemo(() => {
+    try {
+      const raw: any = effectiveBookingRequest;
+      const cid = Number(raw?.client_id || 0);
+      return Number.isFinite(cid) && cid > 0 ? cid : 0;
+    } catch {
+      return 0;
+    }
+  }, [effectiveBookingRequest]);
+
+  const threadProviderId = useMemo(() => {
+    try {
+      const raw: any = effectiveBookingRequest;
+      const aid = Number(
+        raw?.service_provider_id ||
+        raw?.artist_id ||
+        raw?.artist?.id ||
+        raw?.artist_profile?.user_id ||
+        0,
+      );
+      return Number.isFinite(aid) && aid > 0 ? aid : 0;
+    } catch {
+      return 0;
+    }
+  }, [effectiveBookingRequest]);
+
+  const isThreadClient = Boolean(user && threadClientId && user.id === threadClientId);
+  const isThreadProvider = Boolean(user && threadProviderId && user.id === threadProviderId);
+
   return (
     <div className="flex flex-col h-full w-full relative">
       {/* Unified header */}
@@ -783,56 +814,85 @@ export default function MessageThreadWrapper({
               <div className="h-10 w-10 rounded-full bg-black text-white flex items-center justify-center text-base font-medium" aria-label="Booka system">
                 B
               </div>
-            ) : isUserArtist ? (
-              ((effectiveBookingRequest as any)?.client?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) ? (
-                <SafeImage
-                  src={(((effectiveBookingRequest as any)?.client?.profile_picture_url ||
-                    (effectiveBookingRequest as any)?.counterparty_avatar_url) as string)}
-                  alt="Client avatar"
-                  width={40}
-                  height={40}
-                  loading="lazy"
-                  className="h-10 w-10 rounded-full object-cover"
-                  sizes="40px"
-                />
-              ) : (
-                <div className="h-10 w-10 rounded-full bg-black flex items-center justify-center text-base font-medium text-white" aria-hidden>
-                  {(counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'U') || 'U').charAt(0)}
+            ) : (() => {
+              const raw: any = effectiveBookingRequest;
+              const viewer = user ?? undefined;
+              const viewerRole = isThreadProvider ? 'provider' : isThreadClient ? 'client' : undefined;
+
+              // When we are the provider for this thread, show the client avatar.
+              if (isThreadProvider) {
+                const src =
+                  (raw?.client?.profile_picture_url as string | undefined) ||
+                  (raw?.counterparty_avatar_url as string | undefined) ||
+                  null;
+                if (src) {
+                  return (
+                    <SafeImage
+                      src={src}
+                      alt="Client avatar"
+                      width={40}
+                      height={40}
+                      loading="lazy"
+                      className="h-10 w-10 rounded-full object-cover"
+                      sizes="40px"
+                    />
+                  );
+                }
+              }
+
+              // When we are the client for this thread, show the provider avatar (link to profile when possible).
+              if (isThreadClient) {
+                const hrefSlug =
+                  raw?.service_provider_profile?.slug ||
+                  raw?.artist_profile?.slug ||
+                  raw?.service_provider_id ||
+                  raw?.artist_id ||
+                  raw?.artist?.id ||
+                  raw?.artist_profile?.user_id ||
+                  raw?.service?.service_provider_id ||
+                  raw?.service?.artist_id ||
+                  raw?.service?.artist?.user_id ||
+                  '';
+                const src =
+                  (raw?.service_provider_profile?.profile_picture_url as string | undefined) ||
+                  (raw?.artist_profile?.profile_picture_url as string | undefined) ||
+                  (raw?.counterparty_avatar_url as string | undefined) ||
+                  null;
+                if (src) {
+                  const img = (
+                    <SafeImage
+                      src={src}
+                      alt="Service Provider avatar"
+                      width={40}
+                      height={40}
+                      loading="lazy"
+                      className="h-10 w-10 rounded-full object-cover"
+                      sizes="40px"
+                    />
+                  );
+                  return hrefSlug ? (
+                    <Link href={`/${hrefSlug}`} aria-label="Service Provider profile" className="flex-shrink-0">
+                      {img}
+                    </Link>
+                  ) : (
+                    img
+                  );
+                }
+              }
+
+              // Fallback: use counterparty label initial so we avoid empty avatars.
+              const label = counterpartyLabel(
+                raw,
+                viewer,
+                (raw?.counterparty_label as string | undefined) || 'U',
+                viewerRole ? { viewerRole } : undefined,
+              );
+              return (
+                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-base font-medium text-gray-600" aria-hidden>
+                  {(label || 'U').charAt(0)}
                 </div>
-              )
-            ) : ((effectiveBookingRequest as any)?.artist_profile?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) ? (
-              <Link
-                href={`/${
-                  (effectiveBookingRequest as any).service_provider_profile?.slug ||
-                  (effectiveBookingRequest as any).artist_profile?.slug ||
-                  (effectiveBookingRequest as any).service_provider_id ||
-                  (effectiveBookingRequest as any).artist_id ||
-                  (effectiveBookingRequest as any).artist?.id ||
-                  (effectiveBookingRequest as any).artist_profile?.user_id ||
-                  (effectiveBookingRequest as any).service?.service_provider_id ||
-                  (effectiveBookingRequest as any).service?.artist_id ||
-                  (effectiveBookingRequest as any).service?.artist?.user_id ||
-                  ''
-                }`}
-                aria-label="Service Provider profile"
-                className="flex-shrink-0"
-              >
-                <SafeImage
-                  src={(((effectiveBookingRequest as any)?.artist_profile?.profile_picture_url ||
-                    (effectiveBookingRequest as any)?.counterparty_avatar_url) as string)}
-                  alt="Service Provider avatar"
-                  width={40}
-                  height={40}
-                  loading="lazy"
-                  className="h-10 w-10 rounded-full object-cover"
-                  sizes="40px"
-                />
-              </Link>
-            ) : (
-              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-base font-medium text-gray-600" aria-hidden>
-                {(counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'U') || 'U').charAt(0)}
-              </div>
-            )
+              );
+            })()
           ) : (
             <div className="h-10 w-10 rounded-full bg-gray-200" aria-hidden />
           )}
@@ -844,11 +904,17 @@ export default function MessageThreadWrapper({
                 {effectiveBookingRequest
                   ? (isBookaModeration
                       ? 'Booka'
-                      : counterpartyLabel(
-                          effectiveBookingRequest as any,
-                          user ?? undefined,
-                          (effectiveBookingRequest as any)?.counterparty_label || 'User',
-                        ) || 'User')
+                      : (() => {
+                          const roleHint = isThreadProvider ? 'provider' : isThreadClient ? 'client' : undefined;
+                          return (
+                            counterpartyLabel(
+                              effectiveBookingRequest as any,
+                              user ?? undefined,
+                              (effectiveBookingRequest as any)?.counterparty_label || 'User',
+                              roleHint ? { viewerRole: roleHint } : undefined,
+                            ) || 'User'
+                          );
+                        })())
                   : 'Messages'}
               </span>
               {effectiveBookingRequest && !isBookaModeration && (
@@ -867,7 +933,7 @@ export default function MessageThreadWrapper({
 
         {/* Actions */}
         <div className="flex items-center gap-2 px-2 sm:px-4">
-          {isUserArtist && effectiveClientId ? (
+          {isThreadProvider && effectiveClientId ? (
             <button
               type="button"
               onClick={() => {
@@ -879,7 +945,7 @@ export default function MessageThreadWrapper({
               View client profile
             </button>
           ) : null}
-          {!isUserArtist && providerIdForProfile ? (
+          {isThreadClient && providerIdForProfile ? (
             <button
               type="button"
               onClick={() => {
@@ -917,19 +983,94 @@ export default function MessageThreadWrapper({
             initialBookingRequest={effectiveBookingRequest}
             isActive={isActive}
             isSoundThread={isSoundThread}
+            canCreateQuote={isThreadProvider}
             serviceId={effectiveBookingRequest?.service_id ?? undefined}
-            clientName={isUserArtist
-              ? (counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'Client') || 'Client')
-              : (user?.first_name ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` : 'Client')}
-            artistName={!isUserArtist
-              ? (counterpartyLabel(effectiveBookingRequest as any, user ?? undefined, (effectiveBookingRequest as any)?.counterparty_label || 'Service Provider') || 'Service Provider')
-              : (effectiveBookingRequest?.artist_profile?.business_name || (effectiveBookingRequest as any)?.artist?.business_name || (effectiveBookingRequest as any)?.artist?.first_name || 'Service Provider')}
-            artistAvatarUrl={!isUserArtist
-              ? ((effectiveBookingRequest?.artist_profile?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) ?? null)
-              : (effectiveBookingRequest?.artist_profile?.profile_picture_url ?? null)}
-            clientAvatarUrl={isUserArtist
-              ? ((effectiveBookingRequest?.client?.profile_picture_url || (effectiveBookingRequest as any)?.counterparty_avatar_url) ?? null)
-              : (effectiveBookingRequest?.client?.profile_picture_url ?? null)}
+            clientName={(() => {
+              if (isThreadProvider) {
+                return (
+                  counterpartyLabel(
+                    effectiveBookingRequest as any,
+                    user ?? undefined,
+                    (effectiveBookingRequest as any)?.counterparty_label || 'Client',
+                    { viewerRole: 'provider' },
+                  ) || 'Client'
+                );
+              }
+              if (isThreadClient) {
+                const first = user?.first_name || '';
+                const last = user?.last_name || '';
+                const full = `${first} ${last}`.trim();
+                return full || 'Client';
+              }
+              return (
+                counterpartyLabel(
+                  effectiveBookingRequest as any,
+                  user ?? undefined,
+                  (effectiveBookingRequest as any)?.counterparty_label || 'Client',
+                ) || 'Client'
+              );
+            })()}
+            artistName={(() => {
+              const raw: any = effectiveBookingRequest;
+              if (isThreadProvider) {
+                return (
+                  raw?.artist_profile?.business_name ||
+                  raw?.service_provider_profile?.business_name ||
+                  raw?.artist?.business_name ||
+                  raw?.artist?.first_name ||
+                  'Service Provider'
+                );
+              }
+              if (isThreadClient) {
+                return (
+                  counterpartyLabel(
+                    raw,
+                    user ?? undefined,
+                    (raw?.counterparty_label as string | undefined) || 'Service Provider',
+                    { viewerRole: 'client' },
+                  ) || 'Service Provider'
+                );
+              }
+              return (
+                counterpartyLabel(
+                  raw,
+                  user ?? undefined,
+                  (raw?.counterparty_label as string | undefined) || 'Service Provider',
+                ) || 'Service Provider'
+              );
+            })()}
+            artistAvatarUrl={(() => {
+              const raw: any = effectiveBookingRequest;
+              if (!raw) return null;
+              if (isThreadClient) {
+                return (
+                  (raw.artist_profile?.profile_picture_url as string | undefined) ||
+                  (raw.service_provider_profile?.profile_picture_url as string | undefined) ||
+                  (raw.counterparty_avatar_url as string | undefined) ||
+                  null
+                );
+              }
+              if (isThreadProvider) {
+                return (raw.artist_profile?.profile_picture_url as string | undefined) ?? null;
+              }
+              return (
+                (raw.artist_profile?.profile_picture_url as string | undefined) ||
+                (raw.counterparty_avatar_url as string | undefined) ||
+                null
+              );
+            })()}
+            clientAvatarUrl={(() => {
+              const raw: any = effectiveBookingRequest;
+              if (!raw) return null;
+              if (isThreadProvider) {
+                return (
+                  (raw.client?.profile_picture_url as string | undefined) ||
+                  (raw.counterparty_avatar_url as string | undefined) ||
+                  null
+                );
+              }
+              return (raw.client?.profile_picture_url as string | undefined) ?? null;
+            })()}
             clientId={effectiveClientId || undefined}
             serviceName={effectiveBookingRequest?.service?.title}
             initialNotes={effectiveBookingRequest?.message ?? null}

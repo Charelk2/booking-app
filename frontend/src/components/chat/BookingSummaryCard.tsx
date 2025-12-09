@@ -548,8 +548,22 @@ export default function BookingSummaryCard({
 
         {/* Optional brief button (unchanged logic) */}
         {(() => {
-          const isProvider = user?.user_type === 'service_provider';
-          const canShow = !!briefLink && (isClient || (isProvider && briefComplete));
+          const isProviderForThread = (() => {
+            try {
+              const raw: any = bookingRequest;
+              const uid = user?.id;
+              const pid =
+                Number(raw?.service_provider_id ||
+                  raw?.artist_id ||
+                  raw?.artist?.id ||
+                  raw?.artist_profile?.user_id ||
+                  0);
+              return Boolean(uid && pid && uid === pid);
+            } catch {
+              return user?.user_type === 'service_provider';
+            }
+          })();
+          const canShow = !!briefLink && (isClient || (isProviderForThread && briefComplete));
           const label = briefComplete ? 'View Brief' : 'Finish Brief';
           if (!canShow) return null;
           return (

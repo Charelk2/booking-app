@@ -513,7 +513,11 @@ export default function InboxPage() {
     const q = query.trim().toLowerCase();
     if (!q) return threads;
     return threads.filter((r) => {
-      const name = counterpartyLabel(r as any, user ?? undefined, (r as any)?.counterparty_label || '')
+      const label = (r as any)?.counterparty_label as string | undefined;
+      const name = (label && label.trim()
+        ? label
+        : counterpartyLabel(r as any, user ?? undefined, (r as any)?.counterparty_label || '')
+      )
         .toString()
         .toLowerCase();
       const preview = (r.last_message_content || r.service?.title || r.message || '')
