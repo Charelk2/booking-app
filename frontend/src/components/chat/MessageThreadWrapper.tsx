@@ -574,7 +574,12 @@ export default function MessageThreadWrapper({
             .filter((id: number) => Number.isFinite(id) && id > 0);
           if (!payload.has_more || !ids.length) break;
           cursor = Math.min(...ids);
-        } catch {
+        } catch (err: any) {
+          const status = Number(err?.response?.status ?? err?.status ?? 0);
+          if (status === 403) {
+            try { window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id: bookingRequestId } })); } catch {}
+            return;
+          }
           break;
         }
       }
