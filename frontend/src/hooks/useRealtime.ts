@@ -254,7 +254,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       }
       openedAtRef.current = null;
       // Early auth/handshake failures – attempt a single refresh before normal backoff
-      const authishClose = e?.code === 4401 || e?.code === 4403;
+      const authishClose = e?.code === 4401;
       const earlyHandshakeFail = uptimeMs < 2000 && (e?.code === 1006 || e?.code === 403 || !e?.code);
       if (!refreshAttemptedRef.current && (authishClose || earlyHandshakeFail)) {
         setRefreshAttemptedFlag(true);
