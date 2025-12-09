@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useRealtimeContext } from '@/contexts/chat/RealtimeContext';
 import { isAttachmentCandidate, isAttachmentReady } from '@/components/chat/MessageThread/utils/media';
 import { getSummaries as cacheGetSummaries, setSummaries as cacheSetSummaries, setLastRead as cacheSetLastRead, updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
@@ -35,8 +35,8 @@ export function useThreadRealtime({
     try { (window as any).__threadSeenIds = seenIdsRef; } catch {}
   }
   // Debounced delivered ack state
-  const deliveredMaxRef = { current: 0 } as { current: number };
-  const deliveredTimerRef = { current: 0 as any } as { current: any };
+  const deliveredMaxRef = useRef(0);
+  const deliveredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sendTypingPing = useCallback(() => {
     if (!threadId) return;
@@ -314,6 +314,9 @@ export function useThreadRealtime({
 
     return () => {
       try { if (typingTimer != null) window.clearTimeout(typingTimer); } catch {}
+      try { if (deliveredTimerRef.current) clearTimeout(deliveredTimerRef.current); } catch {}
+      deliveredTimerRef.current = null;
+      deliveredMaxRef.current = 0;
       // Best-effort: mark this user offline for this thread when tearing
       // down the subscription so the counterparty does not see a stuck
       // "Online" label indefinitely.
