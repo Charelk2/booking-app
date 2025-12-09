@@ -16,6 +16,8 @@ type SystemMessageProps = {
   onReportProblemFromSystem?: () => void;
   onOpenReviewFromSystem?: () => void;
   onOpenEventPrepFromSystem?: () => void;
+  /** True when the viewer is allowed to create quotes for this thread. */
+  canCreateQuote?: boolean;
 };
 
 const absUrlRegex = /(https?:\/\/[^\s]+)/i;
@@ -34,6 +36,7 @@ export default function SystemMessage({
   onReportProblemFromSystem,
   onOpenReviewFromSystem,
   onOpenEventPrepFromSystem,
+  canCreateQuote = false,
 }: SystemMessageProps) {
   try {
     const { user } = useAuth() || {} as any;
@@ -55,13 +58,15 @@ export default function SystemMessage({
               </div>
             </div>
             <div className="flex gap-2">
-              <button
-                type="button"
-                className="rounded-md bg-black px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-900"
-                onClick={() => { try { onOpenQuote?.(); } catch {} }}
-              >
-                Create quote
-              </button>
+              {canCreateQuote && (
+                <button
+                  type="button"
+                  className="rounded-md bg-black px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-900"
+                  onClick={() => { try { onOpenQuote?.(); } catch {} }}
+                >
+                  Create quote
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -70,7 +75,7 @@ export default function SystemMessage({
 
     // New booking request CTA card
     if (lower.includes('new booking request') || lower.includes('you have a new booking request')) {
-      if (hasAnyQuote) return null;
+      if (hasAnyQuote || !canCreateQuote) return null;
       return (
         <div className="my-2 w-full flex justify-center">
           <div className="mx-auto flex max-w-2xl items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">

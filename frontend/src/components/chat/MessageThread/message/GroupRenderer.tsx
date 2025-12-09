@@ -60,6 +60,8 @@ export type GroupRendererProps = {
   onOpenReviewFromSystem?: () => void;
   /** Optional thread-level client user id so providers booking other artists are treated as the client for this thread. */
   threadClientId?: number;
+  /** True when the current viewer is allowed to create quotes for this thread. */
+  canCreateQuote?: boolean;
 };
 
 export default function GroupRenderer({
@@ -96,6 +98,7 @@ export default function GroupRenderer({
   onReportProblemFromSystem,
   onOpenReviewFromSystem,
   threadClientId,
+  canCreateQuote,
 }: GroupRendererProps) {
   if (!group || !Array.isArray(group.messages) || group.messages.length === 0) return null;
 
@@ -422,6 +425,7 @@ export default function GroupRenderer({
                 onMarkCompletedFromSystem={onMarkCompletedFromSystem}
                 onReportProblemFromSystem={onReportProblemFromSystem}
                 onOpenReviewFromSystem={onOpenReviewFromSystem}
+                canCreateQuote={Boolean(canCreateQuote)}
                 onOpenEventPrepFromSystem={
                   typeof onContinueEventPrep === 'function'
                     ? () => {

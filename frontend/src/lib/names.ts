@@ -12,9 +12,11 @@ export function counterpartyLabel(
   req: Partial<BookingRequest> | null | undefined,
   currentUser?: User | null,
   fallback?: string | null,
+  opts?: { viewerRole?: 'client' | 'provider' } | null,
 ): string {
   if (!req) return fallback || '';
-  const isArtist = currentUser?.user_type === 'service_provider';
+  const roleHint = opts?.viewerRole;
+  const isArtist = roleHint === 'provider' || (!roleHint && currentUser?.user_type === 'service_provider');
 
   // Artist perspective → client full name
   if (isArtist) {
@@ -54,9 +56,11 @@ export function counterpartyAvatar(
   req: Partial<BookingRequest> | null | undefined,
   currentUser?: User | null,
   fallbackUrl?: string | null,
+  opts?: { viewerRole?: 'client' | 'provider' } | null,
 ): string | null {
   if (!req) return fallbackUrl ?? null;
-  const isArtist = currentUser?.user_type === 'service_provider';
+  const roleHint = opts?.viewerRole;
+  const isArtist = roleHint === 'provider' || (!roleHint && currentUser?.user_type === 'service_provider');
   if (isArtist) {
     const url = (req as any)?.client?.profile_picture_url;
     return (url ?? fallbackUrl ?? null) as string | null;
@@ -68,4 +72,3 @@ export function counterpartyAvatar(
     (req as any)?.artist?.profile_picture_url;
   return (url ?? fallbackUrl ?? null) as string | null;
 }
-
