@@ -1770,7 +1770,7 @@ export function ReviewStep(props: {
           {buttonLabel}
         </Button>
         <p className="text-xs text-neutral-600 mt-3">
-          Artist must accept this request. Once accepted, your artist booking is confirmed. Sound is usually confirmed within a few hours; if the top pick declines we auto-try backups. If all decline, you can choose another option or we’ll refund the sound portion immediately.
+          Artist must accept this request. Once accepted, your artist booking is confirmed. Sound is usually confirmed within a few hours; if the top pick declines we auto-try backups. If all decline, you can choose another option.
         </p>
       </div>
     </CollapsibleSection>
