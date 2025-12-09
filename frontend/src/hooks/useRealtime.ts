@@ -58,6 +58,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const [wsToken, setWsToken] = useState<string | null>(token ?? null);
   const [refreshAttempted, setRefreshAttempted] = useState(false);
   const refreshAttemptedRef = useRef(false);
+  const authFailCooldownRef = useRef<number | null>(null);
   const setRefreshAttemptedFlag = useCallback((val: boolean) => {
     refreshAttemptedRef.current = val;
     setRefreshAttempted(val);
@@ -163,6 +164,10 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const openWS = useCallback(() => {
     if (!wsUrl) return;
     if (connectingRef.current || wsRef.current) return;
+    // Throttle reconnects after repeated auth failures
+    if (authFailCooldownRef.current && Date.now() < authFailCooldownRef.current) {
+      return;
+    }
     if (pingTimer.current) { try { clearInterval(pingTimer.current); } catch {} pingTimer.current = null; }
     setStatus(attemptsRef.current > 0 ? 'reconnecting' : 'connecting');
     connectingRef.current = true;
@@ -266,6 +271,12 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
           setStatus('closed');
         })();
         return;
+      }
+      if (authishClose || e?.code === 403) {
+        // Apply a short cooldown after repeated auth failures to avoid hot loops
+        if (attemptsRef.current >= 2) {
+          authFailCooldownRef.current = Date.now() + 15000;
+        }
       }
       // If not already incremented above (stable close), ensure counters reflect a failure
       setFailureCount((c) => c + 1);

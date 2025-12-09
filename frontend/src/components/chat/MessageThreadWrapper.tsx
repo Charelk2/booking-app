@@ -138,7 +138,6 @@ export default function MessageThreadWrapper({
   });
   const [presenceHeader, setPresenceHeader] = useState<string>('');
 
-  const [isUserArtist, setIsUserArtist] = useState(false);
   const { user } = useContextAuth();
   const router = useRouter();
 
@@ -169,7 +168,10 @@ export default function MessageThreadWrapper({
     });
   }, [bookingRequestId]);
 
+  const [isUserArtist, setIsUserArtist] = useState(false);
   useEffect(() => {
+    // Legacy flag retained for backward compatibility; thread-scoped roles
+    // (isThreadProvider / isThreadClient) should be preferred for new logic.
     setIsUserArtist(Boolean(user && user.user_type === 'service_provider'));
   }, [user]);
 
@@ -572,7 +574,12 @@ export default function MessageThreadWrapper({
             .filter((id: number) => Number.isFinite(id) && id > 0);
           if (!payload.has_more || !ids.length) break;
           cursor = Math.min(...ids);
-        } catch {
+        } catch (err: any) {
+          const status = Number(err?.response?.status ?? err?.status ?? 0);
+          if (status === 403) {
+            try { window.dispatchEvent(new CustomEvent('thread:missing', { detail: { id: bookingRequestId } })); } catch {}
+            return;
+          }
           break;
         }
       }
@@ -704,8 +711,8 @@ export default function MessageThreadWrapper({
   }, [effectiveBookingRequest]);
 
   const canProviderReviewClient = useMemo(() => {
-    return Boolean(isUserArtist && effectiveClientId);
-  }, [isUserArtist, effectiveClientId]);
+    return Boolean(isThreadProvider && effectiveClientId);
+  }, [isThreadProvider, effectiveClientId]);
 
   const providerIdForProfile = useMemo(() => {
     try {
@@ -1186,7 +1193,7 @@ export default function MessageThreadWrapper({
         </div>
 
         {/* Client profile panel anchored at wrapper level */}
-        {isUserArtist && effectiveClientId > 0 && (
+        {isThreadProvider && effectiveClientId > 0 && (
           <ClientProfilePanel
             clientId={effectiveClientId}
             clientName={
@@ -1212,7 +1219,7 @@ export default function MessageThreadWrapper({
         )}
 
         {/* Provider profile panel for clients */}
-        {!isUserArtist && providerIdForProfile > 0 && (
+        {isThreadClient && providerIdForProfile > 0 && (
           <ProviderProfilePanel
             providerId={providerIdForProfile}
             providerName={providerBusinessName}

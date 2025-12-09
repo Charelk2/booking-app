@@ -20,8 +20,20 @@ export function counterpartyLabel(
 
   // Artist perspective → client full name
   if (isArtist) {
-    const first = (req as any)?.client?.first_name as string | undefined;
-    const last = (req as any)?.client?.last_name as string | undefined;
+    const client: any = (req as any)?.client || {};
+    // If the client is also a service provider, prefer their business name
+    // when available so booked artists see the requesting provider's brand.
+    if (client?.user_type === 'service_provider') {
+      const businessName: string | undefined =
+        client?.artist_profile?.business_name ||
+        client?.service_provider_profile?.business_name ||
+        client?.business_name;
+      if (businessName && String(businessName).trim()) {
+        return String(businessName).trim();
+      }
+    }
+    const first = client?.first_name as string | undefined;
+    const last = client?.last_name as string | undefined;
     if (first && last) return `${first} ${last}`.trim();
     if (first) return first;
     return (fallback || '').trim();
