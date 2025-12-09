@@ -16,7 +16,7 @@ export function counterpartyLabel(
 ): string {
   if (!req) return fallback || '';
   const roleHint = opts?.viewerRole;
-  const isArtist = roleHint === 'provider' || (!roleHint && currentUser?.user_type === 'service_provider');
+  const isArtist = roleHint === 'provider' || (!roleHint && currentUser?.user_type === 'service_provider'); 
 
   // Artist perspective → client full name
   if (isArtist) {
