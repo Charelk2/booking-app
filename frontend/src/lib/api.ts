@@ -62,6 +62,37 @@ export const apiUrl = (path: string) => {
   return `${API_ORIGIN}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
+// Track forbidden resources to short-circuit repeated 403 loops across tabs.
+const _FORBIDDEN_THREADS_KEY = 'forbidden:threads';
+const _FORBIDDEN_QUOTES_KEY = 'forbidden:quotes';
+const _forbiddenThreads = new Set<number>();
+const _forbiddenQuotes = new Set<number>();
+try {
+  const rawT = typeof window !== 'undefined' ? window.sessionStorage.getItem(_FORBIDDEN_THREADS_KEY) : null;
+  const rawQ = typeof window !== 'undefined' ? window.sessionStorage.getItem(_FORBIDDEN_QUOTES_KEY) : null;
+  if (rawT) {
+    JSON.parse(rawT).forEach((n: any) => {
+      const v = Number(n);
+      if (Number.isFinite(v) && v > 0) _forbiddenThreads.add(v);
+    });
+  }
+  if (rawQ) {
+    JSON.parse(rawQ).forEach((n: any) => {
+      const v = Number(n);
+      if (Number.isFinite(v) && v > 0) _forbiddenQuotes.add(v);
+    });
+  }
+} catch {}
+
+function _persistForbidden() {
+  try {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(_FORBIDDEN_THREADS_KEY, JSON.stringify(Array.from(_forbiddenThreads)));
+      window.sessionStorage.setItem(_FORBIDDEN_QUOTES_KEY, JSON.stringify(Array.from(_forbiddenQuotes)));
+    }
+  } catch {}
+}
+
 // ─── Device Cookie (did) — avoid preflights by not using custom headers ───────
 function _randId(): string {
   // 128-bit random id, base36 for compactness

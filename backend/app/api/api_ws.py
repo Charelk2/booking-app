@@ -113,11 +113,11 @@ def _get_ws_user_limit() -> int:
     if _WS_USER_LIMIT is None:
         try:
             raw = os.getenv("WS_PER_USER_LIMIT") or ""
-            limit = int(raw) if raw.strip() else 2
+            limit = int(raw) if raw.strip() else 1
             if limit <= 0:
-                limit = 2
+                limit = 1
         except Exception:
-            limit = 2
+            limit = 1
         _WS_USER_LIMIT = limit
     return _WS_USER_LIMIT
 
@@ -129,25 +129,20 @@ def _get_ws_user_lock() -> asyncio.Lock:
     return _WS_USER_LOCK
 
 
-async def _register_ws_conn(user_id: int, conn: "NoiseWS") -> int:
-    """Register a WS connection for a user; preempt oldest if over the limit."""
+async def _register_ws_conn(user_id: int, conn: "NoiseWS") -> tuple[int, bool]:
+    """Register a WS connection for a user; reject if over limit."""
     limit = _get_ws_user_limit()
     if limit <= 0:
-        return 0
+        return 0, False
     preempted = 0
     lock = _get_ws_user_lock()
     async with lock:
         conns = _WS_USER_CONNS.get(user_id, [])
-        while len(conns) >= limit:
-            old = conns.pop(0)
-            preempted += 1
-            try:
-                await old.ws.close(code=4000, reason="replaced")
-            except Exception:
-                pass
+        if len(conns) >= limit:
+            return 0, True
         conns.append(conn)
         _WS_USER_CONNS[user_id] = conns
-    return preempted
+    return preempted, False
 
 
 async def _release_ws_conn(user_id: int, conn: "NoiseWS") -> None:
@@ -553,7 +548,9 @@ async def booking_request_ws(
     conn = NoiseWS(websocket)
     await conn.handshake()
 
-    _preempted = await _register_ws_conn(int(user.id), conn)
+    _preempted, _rejected = await _register_ws_conn(int(user.id), conn)
+    if _rejected:
+        raise WebSocketException(code=WS_4403_FORBIDDEN, reason="Too many websocket connections")
     Presence.mark_online(int(user.id))
     await chat.connect(request_id, conn)
 
@@ -907,7 +904,9 @@ async def notifications_ws(
     conn = NoiseWS(websocket)
     await conn.handshake()
 
-    preempted = await _register_ws_conn(int(user.id), conn)
+    preempted, rejected = await _register_ws_conn(int(user.id), conn)
+    if rejected:
+        raise WebSocketException(code=WS_4403_FORBIDDEN, reason="Too many websocket connections")
     await notify.connect(int(user.id), conn)
     Presence.mark_online(int(user.id))
     try:
