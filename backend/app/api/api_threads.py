@@ -1341,11 +1341,11 @@ def _get_stream_ip_limit() -> int:
     if _STREAM_PER_IP_LIMIT is None:
         try:
             raw = os.getenv("INBOX_STREAM_PER_IP_LIMIT") or ""
-            limit = int(raw) if raw.strip() else 1
+            limit = int(raw) if raw.strip() else 5
             if limit <= 0:
                 limit = 1
         except Exception:
-            limit = 1
+            limit = 5
         _STREAM_PER_IP_LIMIT = limit
     return _STREAM_PER_IP_LIMIT
 

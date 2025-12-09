@@ -115,11 +115,11 @@ def _get_ws_user_limit() -> int:
     if _WS_USER_LIMIT is None:
         try:
             raw = os.getenv("WS_PER_USER_LIMIT") or ""
-            limit = int(raw) if raw.strip() else 1
+            limit = int(raw) if raw.strip() else 10
             if limit <= 0:
                 limit = 1
         except Exception:
-            limit = 1
+            limit = 10
         _WS_USER_LIMIT = limit
     return _WS_USER_LIMIT
 
@@ -130,11 +130,11 @@ def _get_ws_ip_limit() -> int:
     if _WS_IP_LIMIT is None:
         try:
             raw = os.getenv("WS_PER_IP_LIMIT") or ""
-            limit = int(raw) if raw.strip() else 1
+            limit = int(raw) if raw.strip() else 10
             if limit <= 0:
                 limit = 1
         except Exception:
-            limit = 1
+            limit = 10
         _WS_IP_LIMIT = limit
     return _WS_IP_LIMIT
 
