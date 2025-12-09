@@ -50,6 +50,32 @@ router = APIRouter(tags=["messages"])
 logger = logging.getLogger(__name__)
 _DENY_LOG_CACHE: dict[tuple[int, int], float] = {}
 
+# In-memory denylist for user/request pairs to short-circuit repeated 403 storms.
+_MESSAGE_DENY_SET: set[tuple[int, int]] | None = None
+
+
+def _get_message_deny_set() -> set[tuple[int, int]]:
+    """Parse MESSAGE_DENY_USER_REQUESTS env: 'user:request,user:request'."""
+    global _MESSAGE_DENY_SET
+    if _MESSAGE_DENY_SET is not None:
+        return _MESSAGE_DENY_SET
+    # Seed with the known noisy pairs to stop immediate storms.
+    deny: set[tuple[int, int]] = {(3, 1784), (3, 1817)}
+    raw = os.getenv("MESSAGE_DENY_USER_REQUESTS") or ""
+    for part in raw.split(","):
+        part = part.strip()
+        if not part or ":" not in part:
+            continue
+        try:
+            uid_s, rid_s = part.split(":", 1)
+            uid = int(uid_s.strip())
+            rid = int(rid_s.strip())
+            deny.add((uid, rid))
+        except Exception:
+            continue
+    _MESSAGE_DENY_SET = deny
+    return _MESSAGE_DENY_SET
+
 # ---- Small helpers -----------------------------------------------------------
 
 def _avatar_for_sender(sender: "models.User | None") -> Optional[str]:
@@ -393,6 +419,22 @@ async def read_messages_async(
     request: Request = None,
     response: Response = None,
 ):
+    # Fast deny-cache to stop repeated unauthorized storms
+    deny_set = _get_message_deny_set()
+    if (int(current_user.id), int(request_id)) in deny_set:
+        try:
+            logger.warning(
+                "messages.forbidden.cached",
+                extra={"user_id": int(current_user.id), "request_id": int(request_id)},
+            )
+        except Exception:
+            pass
+        raise error_response(
+            "Not authorized to access messages",
+            {},
+            status.HTTP_403_FORBIDDEN,
+        )
+
     booking_request = crud.crud_booking_request.get_booking_request(
         db, request_id=request_id
     )

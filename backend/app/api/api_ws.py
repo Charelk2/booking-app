@@ -90,7 +90,9 @@ class Envelope:
 # ─── WS DB concurrency limiter ───────────────────────────────────────────────
 _WS_DB_SEM: BoundedSemaphore | None = None
 _WS_USER_CONNS: Dict[int, list["NoiseWS"]] = {}
+_WS_IP_CONNS: Dict[str, list["NoiseWS"]] = {}
 _WS_USER_LIMIT: int | None = None
+_WS_IP_LIMIT: int | None = None
 _WS_USER_LOCK: asyncio.Lock | None = None
 
 
@@ -122,6 +124,21 @@ def _get_ws_user_limit() -> int:
     return _WS_USER_LIMIT
 
 
+def _get_ws_ip_limit() -> int:
+    """Max concurrent WS connections per IP across endpoints."""
+    global _WS_IP_LIMIT
+    if _WS_IP_LIMIT is None:
+        try:
+            raw = os.getenv("WS_PER_IP_LIMIT") or ""
+            limit = int(raw) if raw.strip() else 1
+            if limit <= 0:
+                limit = 1
+        except Exception:
+            limit = 1
+        _WS_IP_LIMIT = limit
+    return _WS_IP_LIMIT
+
+
 def _get_ws_user_lock() -> asyncio.Lock:
     global _WS_USER_LOCK
     if _WS_USER_LOCK is None:
@@ -129,9 +146,10 @@ def _get_ws_user_lock() -> asyncio.Lock:
     return _WS_USER_LOCK
 
 
-async def _register_ws_conn(user_id: int, conn: "NoiseWS") -> tuple[int, bool]:
-    """Register a WS connection for a user; reject if over limit."""
+async def _register_ws_conn(user_id: int, ip: str | None, conn: "NoiseWS") -> tuple[int, bool]:
+    """Register a WS connection for a user (and IP); reject if over limit."""
     limit = _get_ws_user_limit()
+    ip_limit = _get_ws_ip_limit()
     if limit <= 0:
         return 0, False
     preempted = 0
@@ -140,6 +158,12 @@ async def _register_ws_conn(user_id: int, conn: "NoiseWS") -> tuple[int, bool]:
         conns = _WS_USER_CONNS.get(user_id, [])
         if len(conns) >= limit:
             return 0, True
+        if ip:
+            ip_conns = _WS_IP_CONNS.get(ip, [])
+            if ip_limit > 0 and len(ip_conns) >= ip_limit:
+                return 0, True
+            ip_conns.append(conn)
+            _WS_IP_CONNS[ip] = ip_conns
         conns.append(conn)
         _WS_USER_CONNS[user_id] = conns
     return preempted, False
@@ -157,6 +181,19 @@ async def _release_ws_conn(user_id: int, conn: "NoiseWS") -> None:
             _WS_USER_CONNS[user_id] = conns
         else:
             _WS_USER_CONNS.pop(user_id, None)
+        # also remove from IP lists
+        to_delete: list[str] = []
+        for ip, ip_conns in _WS_IP_CONNS.items():
+            try:
+                ip_conns.remove(conn)
+            except ValueError:
+                continue
+            if ip_conns:
+                _WS_IP_CONNS[ip] = ip_conns
+            else:
+                to_delete.append(ip)
+        for ip in to_delete:
+            _WS_IP_CONNS.pop(ip, None)
 
 class NoiseWS:
     def __init__(self, websocket: WebSocket) -> None:
@@ -548,7 +585,13 @@ async def booking_request_ws(
     conn = NoiseWS(websocket)
     await conn.handshake()
 
-    _preempted, _rejected = await _register_ws_conn(int(user.id), conn)
+    client_ip = None
+    try:
+        client_ip = str(websocket.client.host) if websocket.client else None
+    except Exception:
+        client_ip = None
+
+    _preempted, _rejected = await _register_ws_conn(int(user.id), client_ip, conn)
     if _rejected:
         raise WebSocketException(code=WS_4403_FORBIDDEN, reason="Too many websocket connections")
     Presence.mark_online(int(user.id))
@@ -667,7 +710,13 @@ async def multiplex_ws(
     conn = NoiseWS(websocket)
     await conn.handshake()
 
-    preempted, rejected = await _register_ws_conn(int(user.id), conn)
+    client_ip = None
+    try:
+        client_ip = str(websocket.client.host) if websocket.client else None
+    except Exception:
+        client_ip = None
+
+    preempted, rejected = await _register_ws_conn(int(user.id), client_ip, conn)
     if rejected:
         raise WebSocketException(code=WS_4403_FORBIDDEN, reason="Too many websocket connections")
     Presence.mark_online(int(user.id))
@@ -682,6 +731,7 @@ async def multiplex_ws(
                 "auth_ms": round(auth_ms, 1),
                 "preempted": preempted,
                 "per_user_limit": _get_ws_user_limit(),
+                "per_ip_limit": _get_ws_ip_limit(),
             },
         )
         if auth_ms >= WS_AUTH_WARN_MS:
@@ -906,7 +956,13 @@ async def notifications_ws(
     conn = NoiseWS(websocket)
     await conn.handshake()
 
-    preempted, rejected = await _register_ws_conn(int(user.id), conn)
+    client_ip = None
+    try:
+        client_ip = str(websocket.client.host) if websocket.client else None
+    except Exception:
+        client_ip = None
+
+    preempted, rejected = await _register_ws_conn(int(user.id), client_ip, conn)
     if rejected:
         raise WebSocketException(code=WS_4403_FORBIDDEN, reason="Too many websocket connections")
     await notify.connect(int(user.id), conn)
