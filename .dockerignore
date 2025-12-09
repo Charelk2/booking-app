@@ -1,7 +1,23 @@
 node_modules
-frontend/node_modules
+frontend
 __pycache__
 *.pytest_cache
 *.venv
 .env
 .git
+
+# Next.js / build artifacts
+.next
+dist
+coverage
+
+# Large local assets / logs / HAR captures
+*.har
+*.log
+*.pdf
+*.rtf
+downloaded-logs-*
+Explore-logs-*
+Cloud_SQL_Database_-_Log_entries_*
+Fly Instance-*
+Fly Logs-*
