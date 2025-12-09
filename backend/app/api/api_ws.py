@@ -67,11 +67,22 @@ class Envelope:
     @staticmethod
     def from_raw(raw: Any) -> "Envelope":
         if isinstance(raw, dict):
+            # Prefer explicit payload dict; otherwise, fold extra top-level keys
+            # (excluding envelope metadata) into a synthetic payload so the
+            # server can consume fields like "interval" consistently.
+            payload: Optional[Dict[str, Any]] = raw.get("payload") if isinstance(raw.get("payload"), dict) else None
+            if payload is None:
+                extra: Dict[str, Any] = {}
+                for k, v in raw.items():
+                    if k in {"v", "type", "topic", "payload"}:
+                        continue
+                    extra[k] = v
+                payload = extra or None
             return Envelope(
                 v=int(raw.get("v", 1)),
                 type=str(raw.get("type") or ""),
                 topic=(str(raw["topic"]) if "topic" in raw and raw["topic"] is not None else None),
-                payload=(raw.get("payload") if isinstance(raw.get("payload"), dict) else None),
+                payload=payload,
             )
         return Envelope()
 
@@ -255,21 +266,21 @@ class NoiseWS:
             await self.ws.accept(chosen_subproto)  # type: ignore[arg-type]
 
         # Complete XX handshake: read client hello, send server hello, read client finish.
-        client_hello = await self._recv_bytes_plain()
-        noise.start_handshake()
         try:
+            client_hello = await self._recv_bytes_plain()
+            noise.start_handshake()
             noise.read_message(client_hello)
-        except Exception:
-            pass
-        server_hello = noise.write_message(b"")
-        await self._send_bytes_plain(server_hello)
-        try:
+            server_hello = noise.write_message(b"")
+            await self._send_bytes_plain(server_hello)
             client_finish = await self._recv_bytes_plain()
             noise.read_message(client_finish)
         except Exception:
-            # If the final handshake message fails, fall back to plain WS for this connection.
-            self._noise = None
-            return
+            # Noise was explicitly requested but the handshake failed; close
+            # the socket rather than attempting to interpret encrypted frames
+            # as plaintext WebSocket messages.
+            with suppress(Exception):
+                await self.ws.close(code=1002, reason="noise handshake failed")
+            raise WebSocketDisconnect(code=1006)
         self._noise = noise
 
     async def send_envelope(self, env: Envelope) -> None:
@@ -596,8 +607,11 @@ def _start_pinger(conn: NoiseWS, get_heartbeat, activity_evt: asyncio.Event) -> 
                 interval = float(interval_raw)
             except Exception:
                 interval = PING_INTERVAL_DEFAULT
+            # Clamp heartbeat between sane bounds
             if interval < PING_INTERVAL_DEFAULT:
                 interval = PING_INTERVAL_DEFAULT
+            if interval > 120.0:
+                interval = 120.0
             await asyncio.sleep(interval)
             try:
                 activity_evt.clear()
@@ -699,7 +713,9 @@ async def booking_request_ws(
                 if t == "heartbeat":
                     try:
                         interval = float((env.payload or {}).get("interval", PING_INTERVAL_DEFAULT))
-                        if interval >= PING_INTERVAL_DEFAULT: heartbeat = interval
+                        if interval >= PING_INTERVAL_DEFAULT:
+                            # Clamp to a conservative max to avoid excessively long ping gaps.
+                            heartbeat = min(interval, 120.0)
                     except Exception:
                         pass
                     continue
@@ -724,6 +740,8 @@ async def booking_request_ws(
             pass
         finally:
             pinger.cancel()
+            with suppress(asyncio.CancelledError):
+                await pinger
     finally:
         Presence.mark_offline(int(user.id))
         chat.disconnect(request_id, conn)
@@ -836,7 +854,8 @@ async def multiplex_ws(
                 if t == "heartbeat":
                     try:
                         interval = float((env.payload or {}).get("interval", PING_INTERVAL_DEFAULT))
-                        if interval >= PING_INTERVAL_DEFAULT: heartbeat = interval
+                        if interval >= PING_INTERVAL_DEFAULT:
+                            heartbeat = min(interval, 120.0)
                     except Exception:
                         pass
                     continue
@@ -914,6 +933,8 @@ async def multiplex_ws(
                 pass
         finally:
             pinger.cancel()
+            with suppress(asyncio.CancelledError):
+                await pinger
     finally:
         Presence.mark_offline(int(user.id))
         await mux.disconnect(conn)
@@ -1057,7 +1078,8 @@ async def notifications_ws(
                 if env.type == "heartbeat":
                     try:
                         interval = float((env.payload or {}).get("interval", PING_INTERVAL_DEFAULT))
-                        if interval >= PING_INTERVAL_DEFAULT: heartbeat = interval
+                        if interval >= PING_INTERVAL_DEFAULT:
+                            heartbeat = min(interval, 120.0)
                     except Exception:
                         pass
                     continue
@@ -1077,6 +1099,8 @@ async def notifications_ws(
                 pass
         finally:
             pinger.cancel()
+            with suppress(asyncio.CancelledError):
+                await pinger
     finally:
         Presence.mark_offline(int(user.id))
         notify.disconnect(int(user.id), conn)
