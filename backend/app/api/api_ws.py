@@ -667,7 +667,9 @@ async def multiplex_ws(
     conn = NoiseWS(websocket)
     await conn.handshake()
 
-    preempted = await _register_ws_conn(int(user.id), conn)
+    preempted, rejected = await _register_ws_conn(int(user.id), conn)
+    if rejected:
+        raise WebSocketException(code=WS_4403_FORBIDDEN, reason="Too many websocket connections")
     Presence.mark_online(int(user.id))
     try:
         logger.info(
@@ -819,12 +821,12 @@ async def multiplex_ws(
         finally:
             pinger.cancel()
     finally:
+        Presence.mark_offline(int(user.id))
+        await mux.disconnect(conn)
         try:
             await _release_ws_conn(int(user.id), conn)
         except Exception:
             pass
-        Presence.mark_offline(int(user.id))
-        await mux.disconnect(conn)
         try:
             logger.info(
                 "ws.mux.closed",

@@ -1546,8 +1546,22 @@ export const getQuotesForBookingRequest = (bookingRequestId: number) =>
 export const createQuoteV2 = (data: QuoteV2Create) =>
   api.post<QuoteV2>(`${API_V1}/quotes`, data);
 
-export const getQuoteV2 = (quoteId: number) =>
-  getDeduped<QuoteV2>(`${API_V1}/quotes/${quoteId}`);
+export const getQuoteV2 = (quoteId: number) => {
+  if (_forbiddenQuotes.has(Number(quoteId))) {
+    const err: any = new Error('Forbidden quote (cached)');
+    err.status = 403;
+    err.code = 'FORBIDDEN_QUOTE_CACHED';
+    return Promise.reject(err);
+  }
+  return getDeduped<QuoteV2>(`${API_V1}/quotes/${quoteId}`).catch((err) => {
+    const status = Number(err?.response?.status ?? err?.status ?? 0);
+    if (status === 403) {
+      _forbiddenQuotes.add(Number(quoteId));
+      _persistForbidden();
+    }
+    throw err;
+  });
+};
 
 export const acceptQuoteV2 = (quoteId: number, serviceId?: number) => {
   const url = serviceId
@@ -1612,6 +1626,12 @@ export const getMessagesForBookingRequest = (
   params: MessageListParams = {},
   opts?: { signal?: AbortSignal }
 ) => {
+  if (_forbiddenThreads.has(Number(bookingRequestId))) {
+    const err: any = new Error('Forbidden thread (cached)');
+    err.status = 403;
+    err.code = 'FORBIDDEN_THREAD_CACHED';
+    return Promise.reject(err);
+  }
   const qp: Record<string, unknown> = { ...params };
   const afterCandidate = params.after_id ?? params.after;
   if (afterCandidate != null) {
@@ -1641,9 +1661,25 @@ export const getMessagesForBookingRequest = (
   const url = `${API_V1}/booking-requests/${bookingRequestId}/messages`;
   if (opts && opts.signal) {
     // When an AbortSignal is provided, bypass global dedupe so this request can be aborted.
-    return api.get<MessageListResponseEnvelope>(url, { params: qp as any, signal: opts.signal, headers: _maybeAfterWriteHeaders(undefined) });
+    return api
+      .get<MessageListResponseEnvelope>(url, { params: qp as any, signal: opts.signal, headers: _maybeAfterWriteHeaders(undefined) })
+      .catch((err) => {
+        const status = Number(err?.response?.status ?? err?.status ?? 0);
+        if (status === 403) {
+          _forbiddenThreads.add(Number(bookingRequestId));
+          _persistForbidden();
+        }
+        throw err;
+      });
   }
-  return getDeduped<MessageListResponseEnvelope>(url, qp as any, _maybeAfterWriteHeaders(undefined));
+  return getDeduped<MessageListResponseEnvelope>(url, qp as any, _maybeAfterWriteHeaders(undefined)).catch((err) => {
+    const status = Number(err?.response?.status ?? err?.status ?? 0);
+    if (status === 403) {
+      _forbiddenThreads.add(Number(bookingRequestId));
+      _persistForbidden();
+    }
+    throw err;
+  });
 };
 
 // Batch messages by thread ids (breadth-first warmup)
