@@ -700,6 +700,37 @@ export default function MessageThreadWrapper({
     return synthetic || label === 'Booka' || /^\s*listing\s+(approved|rejected)\s*:/i.test(text);
   })();
 
+  // Thread-scoped roles: who is the client vs provider for THIS booking request,
+  // regardless of the account's global user_type.
+  const threadClientId = useMemo(() => {
+    try {
+      const raw: any = effectiveBookingRequest;
+      const cid = Number(raw?.client_id || 0);
+      return Number.isFinite(cid) && cid > 0 ? cid : 0;
+    } catch {
+      return 0;
+    }
+  }, [effectiveBookingRequest]);
+
+  const threadProviderId = useMemo(() => {
+    try {
+      const raw: any = effectiveBookingRequest;
+      const aid = Number(
+        raw?.service_provider_id ||
+        raw?.artist_id ||
+        raw?.artist?.id ||
+        raw?.artist_profile?.user_id ||
+        0,
+      );
+      return Number.isFinite(aid) && aid > 0 ? aid : 0;
+    } catch {
+      return 0;
+    }
+  }, [effectiveBookingRequest]);
+
+  const isThreadClient = Boolean(user && threadClientId && user.id === threadClientId);
+  const isThreadProvider = Boolean(user && threadProviderId && user.id === threadProviderId);
+
   const effectiveClientId = useMemo(() => {
     try {
       const raw = (effectiveBookingRequest as any) || {};
@@ -778,37 +809,6 @@ export default function MessageThreadWrapper({
     if (isChild && soundMode === 'supplier') return true;
     return false;
   }, [effectiveBookingRequest]);
-
-  // Thread-scoped roles: who is the client vs provider for THIS booking request,
-  // regardless of the account's global user_type.
-  const threadClientId = useMemo(() => {
-    try {
-      const raw: any = effectiveBookingRequest;
-      const cid = Number(raw?.client_id || 0);
-      return Number.isFinite(cid) && cid > 0 ? cid : 0;
-    } catch {
-      return 0;
-    }
-  }, [effectiveBookingRequest]);
-
-  const threadProviderId = useMemo(() => {
-    try {
-      const raw: any = effectiveBookingRequest;
-      const aid = Number(
-        raw?.service_provider_id ||
-        raw?.artist_id ||
-        raw?.artist?.id ||
-        raw?.artist_profile?.user_id ||
-        0,
-      );
-      return Number.isFinite(aid) && aid > 0 ? aid : 0;
-    } catch {
-      return 0;
-    }
-  }, [effectiveBookingRequest]);
-
-  const isThreadClient = Boolean(user && threadClientId && user.id === threadClientId);
-  const isThreadProvider = Boolean(user && threadProviderId && user.id === threadProviderId);
 
   return (
     <div className="flex flex-col h-full w-full relative">
