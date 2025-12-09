@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Set
@@ -23,7 +24,6 @@ from ..database import get_db_session
 from ..models.user import User
 from .. import crud
 from .auth import ALGORITHM, SECRET_KEY, get_user_by_email
-from threading import BoundedSemaphore
 from fastapi.concurrency import run_in_threadpool
 from ..utils.metrics import incr as metrics_incr
 
@@ -88,15 +88,21 @@ class Envelope:
             return b"{}"
 
 # ─── WS DB concurrency limiter ───────────────────────────────────────────────
-_WS_DB_SEM: BoundedSemaphore | None = None
+_WS_DB_SEM: asyncio.BoundedSemaphore | None = None
 _WS_USER_CONNS: Dict[int, list["NoiseWS"]] = {}
 _WS_IP_CONNS: Dict[str, list["NoiseWS"]] = {}
 _WS_USER_LIMIT: int | None = None
 _WS_IP_LIMIT: int | None = None
 _WS_USER_LOCK: asyncio.Lock | None = None
 
+_WS_ALLOWED_ORIGINS = {
+    o.strip().rstrip("/")
+    for o in (os.getenv("WS_ALLOWED_ORIGINS") or "").split(",")
+    if o.strip()
+}
 
-def _get_ws_db_sem() -> BoundedSemaphore:
+
+def _get_ws_db_sem() -> asyncio.BoundedSemaphore:
     global _WS_DB_SEM
     if _WS_DB_SEM is None:
         try:
@@ -105,7 +111,7 @@ def _get_ws_db_sem() -> BoundedSemaphore:
                 cap = 8
         except Exception:
             cap = 8
-        _WS_DB_SEM = BoundedSemaphore(cap)
+        _WS_DB_SEM = asyncio.BoundedSemaphore(cap)
     return _WS_DB_SEM
 
 
@@ -144,6 +150,23 @@ def _get_ws_user_lock() -> asyncio.Lock:
     if _WS_USER_LOCK is None:
         _WS_USER_LOCK = asyncio.Lock()
     return _WS_USER_LOCK
+
+
+def _enforce_ws_origin(websocket: WebSocket) -> None:
+    """Apply a simple Origin allowlist when configured.
+
+    This protects against Cross-Site WebSocket Hijacking when cookies or other
+    ambient credentials can authenticate the socket.
+    """
+    if not _WS_ALLOWED_ORIGINS:
+        return
+    try:
+        origin = (websocket.headers.get("origin") or "").rstrip("/")
+    except Exception:
+        origin = ""
+    if not origin or origin not in _WS_ALLOWED_ORIGINS:
+        _log_ws_auth_failure("origin_not_allowed", websocket, "origin", detail=origin or "missing")
+        raise WebSocketException(code=WS_4403_FORBIDDEN, reason="Forbidden")
 
 
 async def _register_ws_conn(user_id: int, ip: str | None, conn: "NoiseWS") -> tuple[int, bool]:
@@ -223,6 +246,7 @@ class NoiseWS:
         from noise.connection import NoiseConnection, Keypair  # type: ignore
         noise = NoiseConnection.from_name(b"Noise_XX_25519_ChaChaPoly_BLAKE2s")
         noise.set_as_responder()
+        # NOTE: for true static identity, this key should come from configuration.
         noise.set_keypair_from_private_bytes(Keypair.STATIC, os.urandom(32))
 
         try:
@@ -230,6 +254,7 @@ class NoiseWS:
         except TypeError:
             await self.ws.accept(chosen_subproto)  # type: ignore[arg-type]
 
+        # Complete XX handshake: read client hello, send server hello, read client finish.
         client_hello = await self._recv_bytes_plain()
         noise.start_handshake()
         try:
@@ -238,6 +263,13 @@ class NoiseWS:
             pass
         server_hello = noise.write_message(b"")
         await self._send_bytes_plain(server_hello)
+        try:
+            client_finish = await self._recv_bytes_plain()
+            noise.read_message(client_finish)
+        except Exception:
+            # If the final handshake message fails, fall back to plain WS for this connection.
+            self._noise = None
+            return
         self._noise = noise
 
     async def send_envelope(self, env: Envelope) -> None:
@@ -381,14 +413,8 @@ def _call_with_session(fn, *args, **kwargs):
 async def _ws_db_call(fn, *args, **kwargs):
     """Guard DB calls behind the WS semaphore and offload to thread pool."""
     sem = _get_ws_db_sem()
-    sem.acquire()
-    try:
+    async with sem:
         return await run_in_threadpool(_call_with_session, fn, *args, **kwargs)
-    finally:
-        try:
-            sem.release()
-        except Exception:
-            pass
 
 
 async def _current_user_from_token(token: str) -> tuple[Optional[User], Optional[str], Optional[dict]]:
@@ -546,6 +572,49 @@ class ChatRoom:
 
 chat = ChatRoom()
 
+
+def _pong_timeout_for_interval(ping_interval: float) -> float:
+    """Return a conservative pong timeout for a given ping interval."""
+    try:
+        interval = float(ping_interval or PING_INTERVAL_DEFAULT)
+    except Exception:
+        interval = PING_INTERVAL_DEFAULT
+    # Ensure timeout is comfortably above the send interval to avoid false positives.
+    return max(PONG_TIMEOUT, interval + 15.0)
+
+
+def _start_pinger(conn: NoiseWS, get_heartbeat, activity_evt: asyncio.Event) -> asyncio.Task:
+    """Spawn a ping loop that waits for any activity (pong or other frames)."""
+
+    async def _loop() -> None:
+        while True:
+            try:
+                interval_raw = get_heartbeat() or PING_INTERVAL_DEFAULT
+            except Exception:
+                interval_raw = PING_INTERVAL_DEFAULT
+            try:
+                interval = float(interval_raw)
+            except Exception:
+                interval = PING_INTERVAL_DEFAULT
+            if interval < PING_INTERVAL_DEFAULT:
+                interval = PING_INTERVAL_DEFAULT
+            await asyncio.sleep(interval)
+            try:
+                activity_evt.clear()
+                await conn.send_envelope(Envelope(type="ping"))
+                await asyncio.wait_for(activity_evt.wait(), timeout=_pong_timeout_for_interval(interval))
+            except asyncio.TimeoutError:
+                # No activity after ping within timeout window – close with a generic error.
+                with suppress(Exception):
+                    await conn.ws.close(code=1011, reason="pong timeout")
+                break
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                break
+
+    return asyncio.create_task(_loop())
+
 # -------- /ws/booking-requests/{id} --------
 
 @router.websocket("/ws/booking-requests/{request_id}")
@@ -555,6 +624,7 @@ async def booking_request_ws(
     attempt: int = Query(0),
     heartbeat: float = Query(PING_INTERVAL_DEFAULT),
 ):
+    _enforce_ws_origin(websocket)
     token, token_src = _extract_bearer_token(websocket)
     if not token:
         _log_ws_auth_failure("missing_token" if token_src != "protocol_oversize" else "protocol_oversize", websocket, token_src)
@@ -606,28 +676,15 @@ async def booking_request_ws(
             except Exception:
                 return
 
-        last_pong = time.time()
-
-        async def ping_loop() -> None:
-            while True:
-                await asyncio.sleep(max(heartbeat, PING_INTERVAL_DEFAULT))
-                try:
-                    await conn.send_envelope(Envelope(type="ping"))
-                except Exception:
-                    break
-                try:
-                    if (time.time() - last_pong) > PONG_TIMEOUT:
-                        try: await conn.ws.close(code=1006)
-                        except Exception: pass
-                        break
-                except Exception:
-                    pass
-
-        pinger = asyncio.create_task(ping_loop())
+        activity_evt = asyncio.Event()
+        activity_evt.set()
+        pinger = _start_pinger(conn, lambda: heartbeat, activity_evt)
 
         try:
             while True:
                 env = await conn.recv_envelope()
+                # Any inbound frame counts as liveness.
+                activity_evt.set()
                 if env.v != 1:
                     continue
                 t = env.type
@@ -637,7 +694,7 @@ async def booking_request_ws(
                     except Exception: break
                     continue
                 if t == "pong":
-                    last_pong = time.time()
+                    # Liveness already marked via activity_evt
                     continue
                 if t == "heartbeat":
                     try:
@@ -683,6 +740,7 @@ async def multiplex_ws(
     attempt: int = Query(0),
     heartbeat: float = Query(PING_INTERVAL_DEFAULT),
 ):
+    _enforce_ws_origin(websocket)
     session_start = time.time()
     token, token_src = _extract_bearer_token(websocket)
     if not token:
@@ -756,28 +814,14 @@ async def multiplex_ws(
             except Exception:
                 return
 
-        last_pong = time.time()
-
-        async def ping_loop() -> None:
-            while True:
-                await asyncio.sleep(max(heartbeat, PING_INTERVAL_DEFAULT))
-                try:
-                    await conn.send_envelope(Envelope(type="ping"))
-                except Exception:
-                    break
-                try:
-                    if (time.time() - last_pong) > PONG_TIMEOUT:
-                        try: await conn.ws.close(code=1006)
-                        except Exception: pass
-                        break
-                except Exception:
-                    pass
-
-        pinger = asyncio.create_task(ping_loop())
+        activity_evt = asyncio.Event()
+        activity_evt.set()
+        pinger = _start_pinger(conn, lambda: heartbeat, activity_evt)
 
         try:
             while True:
                 env = await conn.recv_envelope()
+                activity_evt.set()
                 if env.v != 1:
                     continue
                 t = env.type
@@ -787,7 +831,7 @@ async def multiplex_ws(
                     except Exception: break
                     continue
                 if t == "pong":
-                    last_pong = time.time()
+                    # activity_evt already set
                     continue
                 if t == "heartbeat":
                     try:
@@ -929,6 +973,7 @@ async def notifications_ws(
     attempt: int = Query(0),
     heartbeat: float = Query(PING_INTERVAL_DEFAULT),
 ):
+    _enforce_ws_origin(websocket)
     session_start = time.time()
     token, token_src = _extract_bearer_token(websocket)
     if not token:
@@ -992,28 +1037,14 @@ async def notifications_ws(
             except Exception:
                 return
 
-        last_pong = time.time()
-
-        async def ping_loop() -> None:
-            while True:
-                await asyncio.sleep(max(heartbeat, PING_INTERVAL_DEFAULT))
-                try:
-                    await conn.send_envelope(Envelope(type="ping"))
-                except Exception:
-                    break
-                try:
-                    if (time.time() - last_pong) > PONG_TIMEOUT:
-                        try: await conn.ws.close(code=1006)
-                        except Exception: pass
-                        break
-                except Exception:
-                    pass
-
-        pinger = asyncio.create_task(ping_loop())
+        activity_evt = asyncio.Event()
+        activity_evt.set()
+        pinger = _start_pinger(conn, lambda: heartbeat, activity_evt)
 
         try:
             while True:
                 env = await conn.recv_envelope()
+                activity_evt.set()
                 if env.v != 1:
                     continue
                 if env.type == "ping":
@@ -1021,7 +1052,7 @@ async def notifications_ws(
                     except Exception: break
                     continue
                 if env.type == "pong":
-                    last_pong = time.time()
+                    # activity_evt already set
                     continue
                 if env.type == "heartbeat":
                     try:

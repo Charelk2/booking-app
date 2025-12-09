@@ -255,7 +255,8 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       openedAtRef.current = null;
       // Early auth/handshake failures – attempt a single refresh before normal backoff
       const authishClose = e?.code === 4401;
-      const earlyHandshakeFail = uptimeMs < 2000 && (e?.code === 1006 || e?.code === 403 || !e?.code);
+      const forbiddenClose = e?.code === 4403;
+      const earlyHandshakeFail = uptimeMs < 2000 && (e?.code === 1006 || forbiddenClose || !e?.code);
       if (!refreshAttemptedRef.current && (authishClose || earlyHandshakeFail)) {
         setRefreshAttemptedFlag(true);
         (async () => {
@@ -272,7 +273,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
         })();
         return;
       }
-      if (authishClose || e?.code === 403) {
+      if (authishClose || forbiddenClose) {
         // Apply a short cooldown after repeated auth failures to avoid hot loops
         if (attemptsRef.current >= 2) {
           authFailCooldownRef.current = Date.now() + 15000;
@@ -347,11 +348,15 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   }, [mode, openSSE]);
 
   const subscribe = useCallback((topic: string, handler: RealtimeHandler) => {
-    const set = subs.current.get(topic) || new Set<RealtimeHandler>();
+    const existing = subs.current.get(topic);
+    const isFirst = !existing || existing.size === 0;
+
+    const set = existing ?? new Set<RealtimeHandler>();
     set.add(handler);
     subs.current.set(topic, set);
-    // Notify server if WS is open
-    if (mode === 'ws' && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+
+    // Notify server only when the first handler subscribes for this topic.
+    if (isFirst && mode === 'ws' && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       try { wsRef.current.send(JSON.stringify({ v: 1, type: 'subscribe', topic })); } catch {}
     }
     // SSE disabled; no refresh when topics change
@@ -370,11 +375,21 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     if (DEBUG) try { console.info('[rt] subscribe', topic); } catch {}
     return () => {
       const set2 = subs.current.get(topic);
-      if (set2) {
-        set2.delete(handler);
-        if (set2.size === 0) subs.current.delete(topic);
+      if (!set2) {
+        if (DEBUG) try { console.info('[rt] unsubscribe (no set)', topic); } catch {}
+        return;
       }
-      if (mode === 'ws' && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+
+      set2.delete(handler);
+      const isLast = set2.size === 0;
+      if (isLast) {
+        subs.current.delete(topic);
+      } else {
+        subs.current.set(topic, set2);
+      }
+
+      // Only send unsubscribe when the last handler for this topic is gone.
+      if (isLast && mode === 'ws' && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         try { wsRef.current.send(JSON.stringify({ v: 1, type: 'unsubscribe', topic })); } catch {}
       }
       // SSE disabled; do nothing here
