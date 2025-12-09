@@ -172,10 +172,10 @@ const nextConfig = {
     const csp = [
       // Default policy
       "default-src 'self'",
-      // Scripts: app + Google Identity/Maps + Paystack + Cloudflare Insights
-      `${scriptSrcBase} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com https://va.vercel-scripts.com`,
+      // Scripts: app + Google Identity/Maps + Paystack + Cloudflare Insights + Vercel Live
+      `${scriptSrcBase} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com https://va.vercel-scripts.com https://vercel.live`,
       // Cover script elements explicitly (older browsers fallback to script-src, but be explicit)
-      `${scriptSrcElemBase} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com https://va.vercel-scripts.com`,
+      `${scriptSrcElemBase} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com https://va.vercel-scripts.com https://vercel.live`,
       // XHR/fetch and WebSocket: backend API, R2, Google Identity/Maps, Paystack, and Cloudflare Insights collection
       `connect-src 'self' ${connectApi} ${wsApi}${wsExtra} ${R2_S3_ORIGIN} ${R2_PUBLIC_BASE} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co https://cloudflareinsights.com`,
       // Frames for Google Identity widgets and Paystack's checkout iframe
