@@ -38,6 +38,7 @@ try {
 SSE_BASE_ENV = SSE_BASE_ENV.replace(/\/+$/, '');
 
 export default function useRealtime(token?: string | null): UseRealtimeReturn {
+  const OUTBOX_LIMIT = 200;
   const DEBUG = typeof window !== 'undefined' && (localStorage.getItem('CHAT_DEBUG') === '1');
   const [mode, setMode] = useState<Mode>('ws');
   const [status, setStatus] = useState<Status>('closed');
@@ -404,10 +405,16 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       return;
     }
     // Otherwise, queue and attempt to open WS so the event eventually goes out.
-    try { outboxRef.current.push({ topic, payload }); } catch {}
+    try {
+      outboxRef.current.push({ topic, payload });
+      if (outboxRef.current.length > OUTBOX_LIMIT) {
+        // Drop oldest entries to cap memory usage
+        outboxRef.current.splice(0, outboxRef.current.length - OUTBOX_LIMIT);
+      }
+    } catch {}
     // Try to open WS if possible; else SSE will keep receiving while we retry
     if (wsUrl) openWS();
-  }, [mode, openWS, wsUrl]);
+  }, [mode, openWS, wsUrl, OUTBOX_LIMIT]);
 
   const forceReconnect = useCallback(() => {
     if (mode === 'ws') {

@@ -236,18 +236,23 @@ class NoiseWS:
 
     async def handshake(self) -> None:
         chosen_subproto: Optional[str] = None
+        noise_requested = False
         try:
             proto_hdr = self.ws.headers.get("sec-websocket-protocol", "") or ""
             if proto_hdr:
                 parts = [p.strip() for p in proto_hdr.split(",") if p and p.strip()]
+                # Detect bearer protocol and optional explicit "noise" protocol.
                 for p in parts:
-                    if p.lower() == "bearer":
+                    pl = p.lower()
+                    if pl == "bearer" and chosen_subproto is None:
                         chosen_subproto = p
-                        break
+                    if pl == "noise":
+                        noise_requested = True
         except Exception:
             chosen_subproto = None
 
-        if not _HAS_NOISE:
+        # Only engage Noise when supported and explicitly requested via subprotocol.
+        if not (_HAS_NOISE and noise_requested):
             try:
                 await self.ws.accept(subprotocol=chosen_subproto)
             except TypeError:
@@ -401,7 +406,9 @@ def _log_ws_auth_failure(reason: str, websocket: WebSocket, source: str, detail:
             pass
         path = ""
         try:
-            path = str(getattr(websocket, "url", "") or "")
+            url = getattr(websocket, "url", None)
+            # Avoid logging full URLs with query params (tokens); keep path only.
+            path = getattr(url, "path", "") if url is not None else ""
         except Exception:
             path = ""
         logger.warning(

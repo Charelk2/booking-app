@@ -234,6 +234,29 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 - Preview/auth paths were validated against Postgres:
   - The inbox preview query (`/api/v1/message-threads/preview`) and auth refresh (`/api/v1/auth/refresh`) were profiled with `EXPLAIN (ANALYZE, BUFFERS)` on `appdb` and are fast (single-digit millisecond execution). Historical 30–40s latencies seen in HAR captures were traced to pool/concurrency and migration issues, not slow SQL.
 
+### Realtime Transport Note (WS + SSE hardening, 2025-12-09)
+
+- WebSocket DB concurrency:
+  - `backend/app/api/api_ws.py:_ws_db_call` now uses an `asyncio.BoundedSemaphore` (`WS_DB_CONCURRENCY`) and `run_in_threadpool` so WS auth/room checks never block the event loop while waiting for a DB slot.
+  - Recommended env: `WS_DB_CONCURRENCY≈2` per process when `DB_POOL_SIZE=6`, so WS cannot starve the main pool.
+- WebSocket heartbeat and timeouts:
+  - All WS endpoints (`/api/v1/ws`, `/api/v1/ws/booking-requests/{id}`, `/api/v1/ws/notifications`) share a pinger driven by the client’s requested heartbeat interval (desktop ~30s, mobile ~60s).
+  - The server clamps heartbeat between 30s and 120s and computes a pong timeout as `max(PONG_TIMEOUT, interval+15s)` so mobile heartbeats do not self‑timeout.
+  - On repeated heartbeat failures the server closes with `1011` (“internal error / pong timeout”); it no longer sends `1006` in a close frame.
+- WebSocket auth and Origin:
+  - `_log_ws_auth_failure` now logs only the URL path (no querystring) to avoid leaking `?token=` values into logs.
+  - `_enforce_ws_origin` reads `WS_ALLOWED_ORIGINS` (comma‑separated, scheme+host+optional port) and rejects cross‑origin WS opens with `4403` when cookies can authenticate the socket; this protects against Cross‑Site WebSocket Hijacking.
+- Noise encryption:
+  - `ENABLE_NOISE` remains opt‑in and is now gated by an explicit `Sec-WebSocket-Protocol: noise` subprotocol; without that, `NoiseWS.handshake()` accepts a plain TLS‑wrapped WS even when Noise libs are present.
+  - The XX responder handshake is completed (client_hello → server_hello → client_finish). On failure the server closes with `1002` (`noise handshake failed`) rather than falling back to treating ciphertext as JSON.
+- Frontend realtime client:
+  - `frontend/src/hooks/useRealtime.ts` continues to manage a single global WS per tab; it now:
+    - Sends one `subscribe` per topic when the first handler attaches and one `unsubscribe` when the last handler detaches, so multiple consumers can safely share a topic.
+    - Caps the offline outbox at ~200 pending envelopes; when WS is down, older publishes are dropped to bound memory.
+  - `frontend/src/components/chat/MessageThread/hooks/useThreadRealtime.ts`:
+    - Uses real `useRef` state for debounced delivered acks and clears its timer on unmount, so no “stray” PUTs fire after a thread is destroyed.
+    - Still dedupes realtime messages by `id` via a per‑thread `__threadSeenIds` map and uses small delayed `pokeDelta` triggers (`thread:pokedelta`) to maintain tail correctness.
+
 ### Migration Note (Booking Requests parent linkage)
 
 - On the production `appdb` database, the Alembic logical head remains `ed57deb9c434` (file: `backend/alembic/versions/NEW_REV_add_sessions_table.py`). This revision is our **canonical baseline** for the current system; treat it as the main version going forward.
