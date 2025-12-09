@@ -200,9 +200,9 @@ def send_booking_confirmed_email_for_provider(
 
         frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
         booking_url = (
-            f"{frontend_base}/dashboard/client/bookings/{booking.id}"
+            f"{frontend_base}/inbox?requestId={booking_request.id}"
             if frontend_base
-            else f"/dashboard/client/bookings/{booking.id}"
+            else f"/inbox?requestId={booking_request.id}"
         )
 
         variables = {
@@ -313,9 +313,9 @@ def send_booking_confirmed_email_for_client(
 
         frontend_base = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
         booking_url = (
-            f"{frontend_base}/dashboard/client/bookings/{booking.id}"
+            f"{frontend_base}/inbox?requestId={booking_request.id}"
             if frontend_base
-            else f"/dashboard/client/bookings/{booking.id}"
+            else f"/inbox?requestId={booking_request.id}"
         )
 
         variables = {
@@ -373,4 +373,3 @@ def send_review_request_notification(
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
-
