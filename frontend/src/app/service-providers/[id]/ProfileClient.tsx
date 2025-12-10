@@ -513,7 +513,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   return (
     <>
       <MainLayout hideFooter>
-        <div className="bg-white fade-in">
+        <div className="bg-gray-50 fade-in">
           {/* ======================== MOBILE ======================== */}
           <section className="md:hidden">
             {/* Hero */}
