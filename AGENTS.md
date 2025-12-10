@@ -236,6 +236,9 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 
 ### Realtime Transport Note (WS + SSE hardening, 2025-12-09)
 
+- Envelope compatibility and heartbeat payloads:
+  - `backend/app/api/api_ws.py:Envelope.from_raw` now lifts any unknown top-level keys (`interval`, etc.) into `payload` when an explicit `payload` object is missing so older/newer clients remain compatible.
+  - Heartbeat frames sent from the frontend (`{ v:1, type:'heartbeat', interval }`) are now parsed via this path and clamped server-side to a safe interval window.
 - WebSocket DB concurrency:
   - `backend/app/api/api_ws.py:_ws_db_call` now uses an `asyncio.BoundedSemaphore` (`WS_DB_CONCURRENCY`) and `run_in_threadpool` so WS auth/room checks never block the event loop while waiting for a DB slot.
   - Recommended env: `WS_DB_CONCURRENCY≈2` per process when `DB_POOL_SIZE=6`, so WS cannot starve the main pool.
