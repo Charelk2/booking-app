@@ -524,7 +524,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       <HeaderMessagesLink.Definition />
       <div
         className={clsx(
-          'mx-auto full-width w-full px-2 sm:px-6 lg:px-8',
+          'mx-auto full-width w-full px-3 sm:px-6 lg:px-8 border-b border-black/5',
           !pathname.startsWith('/inbox') && 'max-w-7xl',
         )}
       >
@@ -656,7 +656,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       openDesktopSearchFromCompact();
                     }}
                     className={clsx(
-                      'w-full flex items-center justify-between rounded-lg',
+                      'w-full flex items-center border justify-between rounded-lg',
                       'bg-white',
                       // extra right padding is not needed since icon is *outside*
                       'px-4 py-2 text-sm',

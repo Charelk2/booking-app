@@ -24,7 +24,6 @@ Key Files
   - `src/app/service-providers/page.tsx`: uses cache-first render, limits fields for faster payloads.
   - `src/app/service-providers/[id]/page.tsx`: LCP hero, blur placeholders, fade-in.
   - `src/app/service-providers/[id]/loading.tsx`: skeletons aligned to desktop/mobile layout.
-  - `src/components/layout/RouteProgress.tsx` + `app/layout.tsx`: subtle top progress bar on route changes.
 - Backend
   - `backend/app/api/api_uploads.py`: `POST /api/v1/uploads/images` for generic image uploads, returns `/static/portfolio_images/...` URLs.
   - `backend/app/api/api_ops.py`:

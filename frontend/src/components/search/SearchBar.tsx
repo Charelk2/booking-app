@@ -167,7 +167,7 @@ export default function SearchBar({
       role="search"
       aria-label="Service Provider booking search"
       className={clsx(
-        'relative flex items-stretch rounded-lg transition-all duration-200 ease-out min-h-[48px]',
+        'relative flex items-stretch mb-3 rounded-lg transition-all duration-200 ease-out min-h-[48px]',
         'bg-white border',
         compact ? 'text-sm' : 'text-base',
       )}

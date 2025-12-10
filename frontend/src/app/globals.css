@@ -28,7 +28,7 @@ html, body {
   --color-secondary:#fff;
   --color-accent: #ff7a85;
   --color-border:rgba(0,0,0,.10);
-  --color-background: #fff;
+  --color-background: #f9fafb; /* tailwind gray-50 */
   --color-foreground: #111827;
   --color-black-button: #111827;
   --brand-color: var(--color-primary);
@@ -279,26 +279,21 @@ html, body {
 /* === Header Core Styles & Transitions === */
 #app-header {
   transition: all 0.5s ease-in-out; /* Smooth transitions for height and shadow */
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05); /* Default shadow-sm */
-  /* Default: initial-expanded state styles (slightly tighter) */
-  padding-top: 0.75rem; /* py-3 */
-  padding-bottom: 0.75rem; /* py-3 */
+  padding-top: 0.25rem; /* pt-1 */
 }
 
 /* State: Compacted */
 #app-header[data-header-state="compacted"] {
   height: 4rem; /* keep consistent visual height */
-  padding-top: 0.5rem; /* py-2 */
-  padding-bottom: 0.5rem; /* py-2 */
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05); /* shadow-md */
+  padding-top: 0.25rem; /* py-1 */
+  padding-bottom: 0.25rem; /* py-1 */
 }
 
 /* State: Expanded from Compact (when pill is clicked) */
 #app-header[data-header-state="expanded-from-compact"] {
   /* Same rhythm as initial with a touch more presence */
-  padding-top: 0.875rem; /* py-3.5 */
-  padding-bottom: 0.875rem; /* py-3.5 */
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* shadow-xl for prominent pop-up */
+  padding-top: 0.25rem; /* py-1 */
+  padding-bottom: 0.25rem; /* py-1 */
 }
 
 /* Content Visibility & Transitions within Header */

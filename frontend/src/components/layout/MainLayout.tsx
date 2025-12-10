@@ -463,7 +463,7 @@ export default function MainLayout({
     };
   }, [adjustScrollAfterHeaderChange]);
 
-  const contentWrapperClasses = fullWidthContent ? 'w-full' : 'w-full';
+  const contentWrapperClasses = fullWidthContent ? 'w-full bg-gray-50' : 'w-full bg-gray-50';
 
   const showSearchBar =
     !isArtistDetail &&
