@@ -250,4 +250,92 @@ describe('MobileMenuDrawer', () => {
     const signInLink = document.querySelector('a[href="/login"]');
     expect(signInLink?.getAttribute('aria-current')).toBe('page');
   });
+
+  it('renders artist view toggle for service providers and calls toggleArtistView on click', async () => {
+    const toggleArtistView = jest.fn();
+    const onClose = jest.fn();
+
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose,
+          navigation: nav,
+          user: { user_type: 'service_provider', first_name: 'Artist', email: 'artist@example.com' } as User,
+          logout: () => {},
+          pathname: '/',
+          artistViewActive: false,
+          toggleArtistView,
+        }),
+      );
+    });
+    await flushPromises();
+
+    const toggleButton = Array.from(document.querySelectorAll('button')).find(
+      (btn) => btn.textContent === 'Switch to Hosting' || btn.textContent === 'Switch to Booking',
+    );
+    expect(toggleButton).toBeTruthy();
+
+    await act(async () => {
+      toggleButton && (toggleButton as HTMLButtonElement).click();
+    });
+
+    expect(toggleArtistView).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows "List your service" CTA for clients and links to provider signup', async () => {
+    const onClose = jest.fn();
+
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose,
+          navigation: nav,
+          user: { user_type: 'client', first_name: 'Client', email: 'client@example.com' } as User,
+          logout: () => {},
+          pathname: '/',
+        }),
+      );
+    });
+    await flushPromises();
+
+    const listLink = Array.from(document.querySelectorAll('a')).find(
+      (a) => a.textContent === 'List your service',
+    ) as HTMLAnchorElement | undefined;
+
+    expect(listLink).toBeTruthy();
+    expect(listLink?.getAttribute('href')).toBe(
+      '/auth?intent=signup&role=service_provider&next=/onboarding/provider',
+    );
+  });
+
+  it('shows "List your service" CTA for signed-out users when auth links are visible', async () => {
+    const onClose = jest.fn();
+
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose,
+          navigation: nav,
+          user: null,
+          logout: () => {},
+          pathname: '/',
+          hideAuthLinks: false,
+        }),
+      );
+    });
+    await flushPromises();
+
+    const listLink = Array.from(document.querySelectorAll('a')).find(
+      (a) => a.textContent === 'List your service',
+    ) as HTMLAnchorElement | undefined;
+
+    expect(listLink).toBeTruthy();
+    expect(listLink?.getAttribute('href')).toBe(
+      '/auth?intent=signup&role=service_provider&next=/onboarding/provider',
+    );
+  });
 });
