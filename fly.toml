@@ -1,65 +1,98 @@
 # Fly.io config for the backend API (FastAPI/Uvicorn)
-# Deploy with: flyctl deploy -c fly.toml
+# Single Machine + Google Cloud SQL Postgres (via Fly OIDC + Cloud SQL Auth Proxy)
+#
+# Deploy with:
+#   fly deploy -c fly.toml -a booka-api-charel
 
-app = "booka-api-charel"  # globally unique app name
-primary_region = "jnb"  # Johannesburg (fallback to ams if not available)
+app = "booka-api-charel"
+primary_region = "jnb"
+
+# Graceful shutdown behavior (recommended for web servers)
+kill_signal = "SIGTERM"
+kill_timeout = 30
+
+# Optional: add a little swap to reduce OOM risk on brief spikes
+# swap_size_mb = 512
 
 [build]
   dockerfile = "backend/Dockerfile.fly"
-  # Limit build context to backend/ to avoid uploading the entire repo (speeds up deploys)
   context = "backend"
 
 [env]
   PORT = "8000"
-  UVICORN_WORKERS = "4"
-  # Keep DB connections modest when running behind PgBouncer/Cloud SQL
+
+  # One Machine: keep a single Uvicorn worker to avoid duplicate startup/background loops
+  # and reduce DB connection pressure.
+  UVICORN_WORKERS = "1"
+
+  # In production, migrations run via release_command and app startup must not attempt schema DDL.
+  SKIP_DB_BOOTSTRAP = "1"
+
+  # --- Cloud SQL (GCP) via Workload Identity Federation + Cloud SQL Auth Proxy ---
+  # backend/entrypoint.sh requires these two vars.
+  CLOUDSQL_INSTANCE = "genial-venture-474508-v3:africa-south1:booking-app-dev"
+  WIF_AUDIENCE = "//iam.googleapis.com/projects/227610941821/locations/global/workloadIdentityPools/flyio-apps-pool/providers/flyio-provider"
+
+  # Proxy listens on 127.0.0.1:$PROXY_PORT (default 5432 in entrypoint.sh)
+  PROXY_PORT = "5432"
+
+  # --- SQLAlchemy pool sizing (applies to non-SQLite only) ---
+  # With UVICORN_WORKERS=1 these are per-machine totals (not multiplied per worker).
   DB_POOL_SIZE = "6"
   DB_MAX_OVERFLOW = "6"
   DB_POOL_TIMEOUT = "5"
-  # Persist DB and uploads on the mounted volume
-  SQLALCHEMY_DATABASE_URL = "sqlite:////data/booking.db"
+  DB_POOL_RECYCLE = "1800"
+
+  # Files stored on the mounted volume (single-machine only; for multi-machine use object storage)
   ATTACHMENTS_DIR = "/data/attachments"
   UPLOADS_DIR = "/data/uploads"
-  # Cloud SQL via Workload Identity Federation + Auth Proxy
-  # The entrypoint will start the Cloud SQL Auth Proxy using these.
-  # IMPORTANT: Set DB_URL/SQLALCHEMY_DATABASE_URL secrets to the proxy DSN
-  # (e.g., postgresql+psycopg2://appuser:<ENCODED_PASS>@127.0.0.1:5432/appdb)
-  CLOUDSQL_INSTANCE = "genial-venture-474508-v3:africa-south1:booking-app-dev"
-  WIF_AUDIENCE = "//iam.googleapis.com/projects/227610941821/locations/global/workloadIdentityPools/flyio-apps-pool/providers/flyio-provider"
-  # Redis is optional. Do NOT set a localhost default in production.
-  # If you use Redis (Upstash/Fly Redis), set these as secrets instead:
-  #   flyctl secrets set REDIS_URL=redis://... WEBSOCKET_REDIS_URL=redis://... -a booka-api-charel
-  # Leaving them unset disables cache warmers and SSE pub/sub.
+
+  # IMPORTANT (do this via secrets, not here):
+  #   fly secrets set SQLALCHEMY_DATABASE_URL='postgresql+psycopg2://appuser:PASS@127.0.0.1:5432/appdb' -a booka-api-charel
+  #
+  # Optional duplicate for Alembic tooling:
+  #   fly secrets set DB_URL='postgresql+psycopg2://appuser:PASS@127.0.0.1:5432/appdb' -a booka-api-charel
+
+  # Redis (optional):
+  #   fly secrets set REDIS_URL='redis://...' WEBSOCKET_REDIS_URL='redis://...' -a booka-api-charel
 
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = false
-  auto_start_machines = true
-  min_machines_running = 3
   processes = ["app"]
-  # WebSockets are supported automatically over the same service
+
+  # Single Machine: allow idle shutdown to save cost
+  auto_start_machines = true
+  auto_stop_machines = "stop"
+  min_machines_running = 1
 
   [http_service.concurrency]
-    # Count HTTP requests only (keep long WS/SSE sockets from burning slots)
+    # Count HTTP requests only (keeps long WS/SSE sockets from burning slots)
     type = "requests"
-    soft_limit = 80
-    hard_limit = 100
+    soft_limit = 50
+    hard_limit = 60
 
-  # Health check against FastAPI health endpoint
+# Health check against FastAPI health endpoint
 [[http_service.checks]]
-  grace_period = "120s"
-  interval = "10s"
-  method = "get"
-  timeout = "20s"
+  grace_period = "30s"
+  interval = "15s"
+  method = "GET"
+  timeout = "5s"
   path = "/healthz"
+  # If your app redirects http->https based on scheme, uncomment:
+  # headers = { "X-Forwarded-Proto" = "https" }
 
-# Persist SQLite DB and attachments on a volume named "data".
-[mounts]
+# Optional: Fly metrics scraping (enable after you expose /metrics)
+# [metrics]
+#   port = 8000
+#   path = "/metrics"
+
+# Persistent volume for uploads/attachments
+[[mounts]]
   source = "data"
   destination = "/data"
+  processes = ["app"]
 
 [deploy]
   # Run migrations using the same entrypoint so the Cloud SQL proxy is started first.
-  # APP_CMD tells the entrypoint to run Alembic instead of the web server.
   release_command = "bash -lc 'APP_CMD=\"alembic upgrade head\" /app/entrypoint.sh'"

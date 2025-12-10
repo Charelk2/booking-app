@@ -34,6 +34,50 @@ import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
 import { resolveQuoteTotalsPreview } from '@/lib/quoteTotals';
 
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(v: unknown): v is UnknownRecord {
+  return typeof v === 'object' && v !== null;
+}
+
+function getPath(obj: unknown, path: Array<string | number>): unknown {
+  let cur: unknown = obj;
+  for (const key of path) {
+    if (!isRecord(cur)) return undefined;
+    cur = (cur as UnknownRecord)[String(key)];
+  }
+  return cur;
+}
+
+function firstNonEmptyString(...candidates: unknown[]): string | null {
+  for (const c of candidates) {
+    if (typeof c !== 'string') continue;
+    const t = c.trim();
+    if (t) return t;
+  }
+  return null;
+}
+
+function firstFiniteNumber(...candidates: unknown[]): number | null {
+  for (const c of candidates) {
+    const n = typeof c === 'string' && c.trim() === '' ? NaN : Number(c);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+const safeStorage = {
+  get(storage: Storage, key: string) {
+    try { return storage.getItem(key); } catch { return null; }
+  },
+  set(storage: Storage, key: string, value: string) {
+    try { storage.setItem(key, value); } catch {}
+  },
+  remove(storage: Storage, key: string) {
+    try { storage.removeItem(key); } catch {}
+  },
+};
+
 interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
@@ -107,6 +151,34 @@ function detailsEqual(a: ParsedBookingDetails | null, b: ParsedBookingDetails | 
   return detailKeys.every((key) => (a ?? {})[key] === (b ?? {})[key]);
 }
 
+function useRestoreFocusWhenClosed(open: boolean) {
+  const lastFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    if (open) {
+      lastFocusRef.current = document.activeElement as HTMLElement | null;
+      return;
+    }
+
+    const el = lastFocusRef.current;
+    lastFocusRef.current = null;
+    try { el?.focus?.(); } catch {}
+  }, [open]);
+}
+
+function useEscToClose(open: boolean, onClose: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
+}
+
 interface MessageThreadWrapperProps {
   bookingRequestId: number | null;
   bookingRequest: BookingRequest | null;
@@ -177,96 +249,67 @@ export default function MessageThreadWrapper({
 
   useEffect(() => {
     if (!bookingRequestId || typeof window === 'undefined') return;
-    try {
-      if (!receiptUrl) {
-        const cachedUrl = window.localStorage.getItem(`receipt_url:br:${bookingRequestId}`);
-        if (cachedUrl) setReceiptUrl(cachedUrl);
-      }
-      if (!paymentReference) {
-        const cachedRef = window.localStorage.getItem(`receipt_ref:br:${bookingRequestId}`);
-        if (cachedRef) setPaymentReference(cachedRef);
-      }
-    } catch {}
+    if (!receiptUrl) {
+      const cachedUrl = safeStorage.get(window.localStorage, `receipt_url:br:${bookingRequestId}`);
+      if (cachedUrl) setReceiptUrl(cachedUrl);
+    }
+    if (!paymentReference) {
+      const cachedRef = safeStorage.get(window.localStorage, `receipt_ref:br:${bookingRequestId}`);
+      if (cachedRef) setPaymentReference(cachedRef);
+    }
   }, [bookingRequestId, receiptUrl, paymentReference]);
 
   useEffect(() => {
     if (!bookingRequest) return;
+    const br: unknown = bookingRequest;
+
     if (!paymentStatus) {
-      const candidates = [
-        (bookingRequest as any)?.payment_status,
-        (bookingRequest as any)?.latest_payment_status,
-        (bookingRequest as any)?.booking?.payment_status,
-      ];
-      for (const candidate of candidates) {
-        if (!candidate) continue;
-        const str = String(candidate).trim();
-        if (!str) continue;
-        setPaymentStatus(str);
-        break;
-      }
+      const status = firstNonEmptyString(
+        getPath(br, ['payment_status']),
+        getPath(br, ['latest_payment_status']),
+        getPath(br, ['booking', 'payment_status']),
+      );
+      if (status) setPaymentStatus(status);
     }
+
     if (paymentAmount == null) {
-      const amountCandidates = [
-        (bookingRequest as any)?.payment_amount,
-        (bookingRequest as any)?.latest_payment_amount,
-        (bookingRequest as any)?.booking?.payment_amount,
-      ];
-      for (const candidate of amountCandidates) {
-        if (candidate == null) continue;
-        const num = Number(candidate);
-        if (Number.isFinite(num)) {
-          setPaymentAmount(num);
-          break;
+      const amount = firstFiniteNumber(
+        getPath(br, ['payment_amount']),
+        getPath(br, ['latest_payment_amount']),
+        getPath(br, ['booking', 'payment_amount']),
+      );
+      if (amount != null) setPaymentAmount(amount);
+    }
+
+    if (!receiptUrl) {
+      const raw = firstNonEmptyString(
+        getPath(br, ['receipt_url']),
+        getPath(br, ['payment_receipt_url']),
+        getPath(br, ['latest_receipt_url']),
+        getPath(br, ['booking', 'receipt_url']),
+      );
+      if (raw) {
+        const absolute = /^https?:\/\//i.test(raw) ? raw : api.apiUrl(raw);
+        setReceiptUrl(absolute);
+        if (bookingRequestId && typeof window !== 'undefined') {
+          safeStorage.set(window.localStorage, `receipt_url:br:${bookingRequestId}`, absolute);
         }
       }
     }
-    if (!receiptUrl || !paymentReference) {
-      const receiptCandidates = [
-        (bookingRequest as any)?.receipt_url,
-        (bookingRequest as any)?.payment_receipt_url,
-        (bookingRequest as any)?.latest_receipt_url,
-        (bookingRequest as any)?.booking?.receipt_url,
-      ];
-      for (const candidate of receiptCandidates) {
-        if (!candidate) continue;
-        const str = String(candidate).trim();
-        if (!str) continue;
-        const absolute = /^https?:\/\//i.test(str) ? str : api.apiUrl(str);
-        if (!receiptUrl) {
-          setReceiptUrl(absolute);
-          try {
-            if (typeof window !== 'undefined' && bookingRequestId) {
-              window.localStorage.setItem(`receipt_url:br:${bookingRequestId}`, absolute);
-            }
-          } catch {}
-        }
-        break;
-      }
-    }
+
     if (!paymentReference) {
-      const referenceCandidates = [
-        (bookingRequest as any)?.payment_reference,
-        (bookingRequest as any)?.latest_payment_reference,
-        (bookingRequest as any)?.payment_id,
-        (bookingRequest as any)?.booking?.payment_reference,
-        (bookingRequest as any)?.booking?.payment_id,
-      ];
-      for (const candidate of referenceCandidates) {
-        if (!candidate) continue;
-        const str = String(candidate).trim();
-        if (!str) continue;
-        setPaymentReference((prev) => {
-          if (!prev) {
-            try {
-              if (typeof window !== 'undefined' && bookingRequestId) {
-                window.localStorage.setItem(`receipt_ref:br:${bookingRequestId}`, str);
-              }
-            } catch {}
-            return str;
-          }
-          return prev;
-        });
-        break;
+      const ref = firstNonEmptyString(
+        getPath(br, ['payment_reference']),
+        getPath(br, ['latest_payment_reference']),
+        getPath(br, ['payment_id']),
+        getPath(br, ['booking', 'payment_reference']),
+        getPath(br, ['booking', 'payment_id']),
+      );
+      if (ref) {
+        setPaymentReference(ref);
+        if (bookingRequestId && typeof window !== 'undefined') {
+          safeStorage.set(window.localStorage, `receipt_ref:br:${bookingRequestId}`, ref);
+        }
       }
     }
   }, [bookingRequest, paymentStatus, paymentAmount, receiptUrl, paymentReference, bookingRequestId]);
@@ -279,6 +322,18 @@ export default function MessageThreadWrapper({
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [bookingRequestFull, setBookingRequestFull] = useState<BookingRequest | null>(null);
+
+  useRestoreFocusWhenClosed(showQuoteModal);
+  useRestoreFocusWhenClosed(showDetailsModal);
+  useRestoreFocusWhenClosed(showClientProfile);
+  useRestoreFocusWhenClosed(showProviderProfile);
+  useRestoreFocusWhenClosed(showSidePanel);
+
+  useEscToClose(showQuoteModal, () => setShowQuoteModal(false));
+  useEscToClose(showDetailsModal, () => setShowDetailsModal(false));
+  useEscToClose(showClientProfile, () => setShowClientProfile(false));
+  useEscToClose(showProviderProfile, () => setShowProviderProfile(false));
+  useEscToClose(showSidePanel, () => setShowSidePanel(false));
 
   useEffect(() => {
     let cancelled = false;
@@ -636,23 +691,33 @@ export default function MessageThreadWrapper({
     useCallback(() => {}, []),
   );
 
-  /** Close on ESC (mobile) */
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowSidePanel(false);
-    };
-    if (showSidePanel) window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showSidePanel]);
-
   /** Back button closes the sheet first (mobile) */
+  const pushedSheetStateRef = useRef(false);
+
   useEffect(() => {
     const handlePopState = () => {
-      if (showSidePanel) setShowSidePanel(false);
-      else router.back();
+      if (showSidePanel) {
+        setShowSidePanel(false);
+        return;
+      }
+      router.back();
     };
+
     window.addEventListener('popstate', handlePopState);
-    if (showSidePanel) window.history.pushState(null, '');
+
+    if (showSidePanel && !pushedSheetStateRef.current) {
+      try {
+        window.history.pushState({ inboxSheet: true }, '');
+        pushedSheetStateRef.current = true;
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!showSidePanel) {
+      pushedSheetStateRef.current = false;
+    }
+
     return () => window.removeEventListener('popstate', handlePopState);
   }, [showSidePanel, router]);
 
