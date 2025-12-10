@@ -284,18 +284,44 @@ def read_artist_bookings(
     *,
     db: Session = Depends(get_db),
     current_artist: User = Depends(get_current_service_provider),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
+    status_filter: str | None = Query(
+        None,
+        alias="status",
+        description="Filter by status or 'upcoming'/'past'",
+        examples={
+            "upcoming": {"summary": "Upcoming", "value": "upcoming"},
+            "past": {"summary": "Past", "value": "past"},
+        },
+    ),
+    if_none_match: str | None = Header(
+        default=None, convert_underscores=False, alias="If-None-Match"
+    ),
+    response: Response,
 ) -> Any:
     """
-    Return all bookings for the currently authenticated artist.
+    Return bookings for the authenticated artist, optionally filtered.
     """
     inv_subq = (
-        db.query(models.Invoice.booking_id.label("bs_id"), func.max(models.Invoice.id).label("invoice_id"))
+        db.query(
+            models.Invoice.booking_id.label("bs_id"),
+            func.max(models.Invoice.id).label("invoice_id"),
+        )
         .group_by(models.Invoice.booking_id)
         .subquery()
     )
-    rows = (
-        db.query(Booking, inv_subq.c.invoice_id, BookingSimple.id.label("bs_id"))
+
+    query = (
+        db.query(
+            Booking,
+            BookingSimple.payment_status,
+            QuoteV2.booking_request_id,
+            inv_subq.c.invoice_id,
+            BookingSimple.id.label("bs_id"),
+        )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
+        .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
         .outerjoin(inv_subq, inv_subq.c.bs_id == BookingSimple.id)
         .options(
             selectinload(Booking.client),
@@ -303,13 +329,55 @@ def read_artist_bookings(
             selectinload(Booking.source_quote),
         )
         .filter(Booking.artist_id == current_artist.id)
-        .order_by(Booking.start_time.desc())
+    )
+
+    if status_filter:
+        try:
+            if status_filter == "upcoming":
+                query = query.filter(
+                    Booking.status.in_(
+                        [BookingStatus.PENDING, BookingStatus.CONFIRMED]
+                    )
+                )
+            elif status_filter == "past":
+                query = query.filter(
+                    Booking.status.in_(
+                        [BookingStatus.COMPLETED, BookingStatus.CANCELLED]
+                    )
+                )
+            else:
+                enum_status = BookingStatus(status_filter)
+                query = query.filter(Booking.status == enum_status)
+        except ValueError as exc:
+            logger.warning("Invalid status filter: %s", status_filter)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid status filter",
+            ) from exc
+
+    rows = (
+        query.order_by(Booking.start_time.desc())
+        .offset(skip)
+        .limit(limit)
         .all()
     )
     bookings: List[Booking] = []
-    for booking, invoice_id, bs_id in rows:
+    for (
+        booking,
+        payment_status,
+        booking_request_id,
+        invoice_id,
+        bs_id,
+    ) in rows:
+        booking.payment_status = payment_status
+        if booking_request_id is not None:
+            booking.booking_request_id = booking_request_id
         try:
-            setattr(booking, "invoice_id", int(invoice_id) if invoice_id is not None else None)
+            setattr(
+                booking,
+                "invoice_id",
+                int(invoice_id) if invoice_id is not None else None,
+            )
         except Exception:
             setattr(booking, "invoice_id", None)
         # Populate visible_invoices best-effort
@@ -323,24 +391,58 @@ def read_artist_bookings(
                     .all()
                 )
                 for iv in invs:
-                    vis.append({
-                        "type": (getattr(iv, "invoice_type", None) or "").lower() or "unknown",
-                        "id": int(iv.id),
-                        "pdf_url": getattr(iv, "pdf_url", None),
-                        "created_at": getattr(iv, "created_at", getattr(iv, "updated_at", booking.created_at)),
-                    })
+                    vis.append(
+                        {
+                            "type": (getattr(iv, "invoice_type", None) or "")
+                            .lower()
+                            or "unknown",
+                            "id": int(iv.id),
+                            "pdf_url": getattr(iv, "pdf_url", None),
+                            "created_at": getattr(
+                                iv,
+                                "created_at",
+                                getattr(iv, "updated_at", booking.created_at),
+                            ),
+                        }
+                    )
             setattr(booking, "visible_invoices", vis)
         except Exception:
             setattr(booking, "visible_invoices", None)
         bookings.append(booking)
+
+    # Defensive: ensure timestamps present on legacy rows
     try:
         from datetime import datetime as _dt
+
         for b in bookings:
             if not getattr(b, "created_at", None):
                 b.created_at = getattr(b, "updated_at", None) or _dt.utcnow()
             if not getattr(b, "updated_at", None):
                 b.updated_at = b.created_at
         db.commit()
+    except Exception:
+        pass
+
+    # ETag based on max booking id + count + status filter for this artist
+    try:
+        max_id = (
+            max((getattr(b, "id", 0) or 0) for b in bookings)
+            if bookings
+            else 0
+        )
+    except Exception:
+        max_id = 0
+    etag = f'W/"ab:{int(current_artist.id)}:{int(max_id)}:{len(bookings)}:{status_filter or ""}:{int(skip)}:{int(limit)}"'
+    if if_none_match and if_none_match.strip() == etag:
+        return Response(
+            status_code=status.HTTP_304_NOT_MODIFIED,
+            headers={"ETag": etag, "Vary": "If-None-Match"},
+        )
+    try:
+        if response is not None:
+            response.headers["ETag"] = etag
+            response.headers["Cache-Control"] = "no-cache, private"
+            response.headers["Vary"] = "If-None-Match"
     except Exception:
         pass
     return bookings
