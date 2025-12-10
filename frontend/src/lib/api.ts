@@ -1253,7 +1253,9 @@ export const getMyBookingRequests = (params?: { lite?: boolean }) =>
 
 // If the artist needs to fetch requests addressed to them:
 export const getBookingRequestsForArtist = () =>
-  api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/artist`);
+  api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/artist`, {
+    params: { lite: false },
+  });
 
 export const getDashboardStats = () =>
   api.get<{
@@ -1404,6 +1406,7 @@ export const getBookingRequestsForArtistCached = (ttlMs = 60_000) =>
     DASH_CACHE_KEYS.artistRequests,
     (etag?: string) =>
       api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/artist`, {
+        params: { lite: true, limit: 100 },
         headers: etag ? { 'If-None-Match': etag } : undefined,
         validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
       }),

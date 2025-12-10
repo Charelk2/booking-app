@@ -484,6 +484,14 @@ def _to_lite_booking_request_response(
         except Exception:
             service_model = None
 
+    client_model: schemas.UserResponse | None = None
+    try:
+        cli = getattr(br, "client", None)
+        if cli is not None:
+            client_model = schemas.UserResponse.model_validate(cli)
+    except Exception:
+        client_model = None
+
     created_at = getattr(br, "created_at", None) or datetime.utcnow()
     updated_at = getattr(br, "updated_at", None) or created_at
 
@@ -503,7 +511,7 @@ def _to_lite_booking_request_response(
         travel_mode=getattr(br, "travel_mode", None),
         travel_cost=getattr(br, "travel_cost", None),
         travel_breakdown=getattr(br, "travel_breakdown", None),
-        client=None,
+        client=client_model,
         artist=None,
         artist_profile=provider_profile,
         service_provider_profile=provider_profile,
@@ -1009,8 +1017,16 @@ def read_my_client_booking_requests(
     response_model_exclude_none=True,
 )
 def read_my_artist_booking_requests(
-    skip: int = 0,
-    limit: int = 100,
+    response: Response = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
+    lite: bool = Query(
+        False,
+        description="Return a lighter shape for list views (artist dashboard, booking requests overview)",
+    ),
+    if_none_match: Optional[str] = Header(
+        default=None, convert_underscores=False, alias="If-None-Match"
+    ),
     db: Session = Depends(get_db),
     current_artist: models.User = Depends(
         get_current_service_provider
@@ -1018,22 +1034,83 @@ def read_my_artist_booking_requests(
 ):
     """
     Retrieve booking requests made to the current artist.
+
+    When ``lite`` is true (recommended for dashboards and list views), this
+    endpoint returns a trimmed payload that avoids heavy nested relations and
+    limits per‑request message history while still providing enough data for
+    list UIs (client name, provider profile, service summary, status, preview).
     """
+    if response is None:
+        response = Response()
+    if hasattr(skip, "default"):
+        try:
+            skip = int(getattr(skip, "default", 0) or 0)
+        except Exception:
+            skip = 0
+    if hasattr(limit, "default"):
+        try:
+            limit = int(getattr(limit, "default", 20) or 20)
+        except Exception:
+            limit = 20
+    if hasattr(lite, "default"):
+        lite = bool(getattr(lite, "default", False))
+    if not isinstance(if_none_match, str):
+        if_none_match = None
+
+    # Cheap snapshot for ETag: max ids + count for this artist.
+    try:
+        max_br = (
+            db.query(func.coalesce(func.max(models.BookingRequest.id), 0))
+            .filter(models.BookingRequest.artist_id == current_artist.id)
+            .scalar()
+        ) or 0
+    except Exception:
+        max_br = 0
+    try:
+        total_count = (
+            db.query(func.count(models.BookingRequest.id))
+            .filter(models.BookingRequest.artist_id == current_artist.id)
+            .scalar()
+        ) or 0
+    except Exception:
+        total_count = 0
+    etag = f'W/"bra:{int(current_artist.id)}:{int(max_br)}:{int(total_count)}:{int(skip)}:{int(limit)}:{int(bool(lite))}"'
+    if if_none_match and if_none_match.strip() == etag:
+        return Response(
+            status_code=status.HTTP_304_NOT_MODIFIED,
+            headers={"ETag": etag, "Vary": "If-None-Match"},
+        )
+
     try:
         requests = crud.crud_booking_request.get_booking_requests_with_last_message(
             db=db,
             artist_id=current_artist.id,
             skip=skip,
             limit=limit,
+            include_relationships=not lite,
             viewer=models.VisibleTo.ARTIST,
+            per_request_messages=0 if lite else 3,
         )
-        responses: list[schemas.BookingRequestResponse] = []
         for req in requests:
             if getattr(req, "created_at", None) is None:
                 req.created_at = datetime.utcnow()
             if getattr(req, "updated_at", None) is None:
                 req.updated_at = req.created_at
-            quotes_data = _prepare_quotes_for_response(list(getattr(req, "quotes", []) or []))
+        try:
+            response.headers["ETag"] = etag
+            response.headers["Cache-Control"] = "no-cache, private"
+            response.headers["Vary"] = "If-None-Match"
+        except Exception:
+            pass
+
+        if lite:
+            return [_to_lite_booking_request_response(req) for req in requests]
+
+        responses: list[schemas.BookingRequestResponse] = []
+        for req in requests:
+            quotes_data = _prepare_quotes_for_response(
+                list(getattr(req, "quotes", []) or [])
+            )
             try:
                 base = schemas.BookingRequestResponse.model_validate(req)
             except Exception:
@@ -1048,14 +1125,12 @@ def read_my_artist_booking_requests(
             responses.append(base)
         return responses
     except Exception:
-        # Log full traceback with context so production errors are debuggable.
         logger.exception(
             "Failed to load artist booking requests: artist_id=%s skip=%s limit=%s",
             getattr(current_artist, "id", None),
             skip,
             limit,
         )
-        # Preserve 500 semantics but return a explicit error payload.
         raise error_response(
             "Failed to load booking requests",
             {"non_field_error": "internal_error"},
