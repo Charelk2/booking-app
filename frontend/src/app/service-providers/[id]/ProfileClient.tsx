@@ -513,6 +513,9 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   return (
     <>
       <MainLayout hideFooter>
+        {/* NOTE: Wrapper background intentionally left white for now so the profile hero + rails
+           match current production styling. When global bg-gray-50 is finalized for all pages,
+           this can be revisited to align with the rest of the app shell. */}
         <div className="bg-white fade-in">
           {/* ======================== MOBILE ======================== */}
           <section className="md:hidden">

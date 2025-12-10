@@ -524,7 +524,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       <HeaderMessagesLink.Definition />
       <div
         className={clsx(
-          'mx-auto full-width w-full px-3 sm:px-6 lg:px-8 border-b border-black/5',
+          'mx-auto full-width w-full px-3 sm:px-6 lg:px-8',
           !pathname.startsWith('/inbox') && 'max-w-7xl',
         )}
       >
