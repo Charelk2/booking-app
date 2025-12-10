@@ -29,11 +29,11 @@ const LOCAL_READ_EPOCH_MAX = 500;
 
 function pruneLocalReadEpochs(now: number) {
   // Drop expired entries
-  for (const [threadId, ts] of localReadEpochByThread) {
+  localReadEpochByThread.forEach((ts, threadId) => {
     if (!Number.isFinite(ts) || now - ts > LOCAL_READ_EPOCH_TTL_MS) {
       localReadEpochByThread.delete(threadId);
     }
-  }
+  });
 
   // Enforce max size by deleting oldest entries
   if (localReadEpochByThread.size <= LOCAL_READ_EPOCH_MAX) return;
@@ -250,8 +250,10 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       try {
         switch (evt.type) {
           case 'message_finalized': {
-            const threadId = toFiniteNumber(evt.payload?.booking_request_id) ?? 0;
-            const messageId = toFiniteNumber(evt.payload?.message_id) ?? 0;
+            const p: UnknownRecord =
+              evt.payload && isRecord(evt.payload) ? (evt.payload as UnknownRecord) : {};
+            const threadId = toFiniteNumber(p.booking_request_id) ?? 0;
+            const messageId = toFiniteNumber(p.message_id) ?? 0;
 
             if (threadId > 0) {
               dispatchWindowEvent('thread:pokedelta', { threadId, source: 'message_finalized' });
@@ -261,8 +263,10 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
           }
 
           case 'unread_total': {
+            const p: UnknownRecord =
+              evt.payload && isRecord(evt.payload) ? (evt.payload as UnknownRecord) : {};
             const totalRaw =
-              (evt.payload && (evt.payload.total ?? evt.payload.count)) ??
+              (p.total ?? p.count) ??
               evt.total ??
               evt.count;
 
