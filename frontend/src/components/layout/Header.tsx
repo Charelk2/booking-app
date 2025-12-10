@@ -193,7 +193,7 @@ function HeaderMessagesLink({ unread, isLightHeader }: { unread: number; isLight
     <Link
       href="/inbox"
       className={clsx(
-        'relative inline-flex items-center justify-center px-3 py-2 rounded-lg hover:no-underline',
+        'relative inline-flex items-center justify-center px-2 py-2 rounded-lg hover:no-underline',
         isLightHeader
           ? 'text-black hover:bg-black hover:text-white'
           : 'text-white hover:bg-gray-900 hover:text-white'
@@ -774,7 +774,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     leaveFrom="opacity-100 scale-100"
                     leaveTo="opacity-0 scale-95"
                   >
-                    <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right bg-white rounded-xl shadow-xl ring-1 ring-black/5 focus:outline-none">
+                    <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right bg-white rounded-xl shadow-xl ring-1 ring-black/5 focus:outline-none z-50">
                       {/* Profile summary */}
                       <div className="px-4 py-3 flex items-center gap-3">
                         <Avatar
