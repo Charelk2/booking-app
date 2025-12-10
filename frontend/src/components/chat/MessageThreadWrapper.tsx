@@ -1197,14 +1197,24 @@ export default function MessageThreadWrapper({
           <ClientProfilePanel
             clientId={effectiveClientId}
             clientName={
-              effectiveBookingRequest?.client
-                ? `${effectiveBookingRequest.client.first_name ?? ''} ${effectiveBookingRequest.client.last_name ?? ''}`.trim() || undefined
+              effectiveBookingRequest
+                ? counterpartyLabel(
+                    effectiveBookingRequest as any,
+                    user ?? undefined,
+                    (effectiveBookingRequest as any)?.counterparty_label || undefined,
+                    { viewerRole: 'provider' },
+                  ) || undefined
                 : undefined
             }
             clientAvatarUrl={
-              (effectiveBookingRequest?.client?.profile_picture_url ||
-                (effectiveBookingRequest as any)?.counterparty_avatar_url ||
-                null) as string | null
+              effectiveBookingRequest
+                ? (counterpartyAvatar(
+                    effectiveBookingRequest as any,
+                    user ?? undefined,
+                    (effectiveBookingRequest as any)?.counterparty_avatar_url || null,
+                    { viewerRole: 'provider' },
+                  ) as string | null)
+                : null
             }
             providerName={providerBusinessName}
             bookingRequestId={Number(bookingRequestId)}
