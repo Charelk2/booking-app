@@ -280,7 +280,6 @@ html, body {
 #app-header {
   transition: all 0.5s ease-in-out; /* Smooth transitions for height and shadow */
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05); /* Default shadow-sm */
-  padding-bottom: 0.75rem; /* py-3 */
 }
 
 /* State: Compacted */
