@@ -725,7 +725,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <button
                       onClick={toggleArtistView}
                       className={clsx(
-                        'px-2 py-1.5 text-sm rounded-lg font-bold',
+                        'px-2 py-1.5 text-sm rounded-lg font-semibold',
                         isLightHeader
                           ? 'bg-white text-black hover:bg-gray-100'
                           : 'bg-black text-white hover:bg-gray-900'
@@ -738,7 +738,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <button
                       onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                       className={clsx(
-                        'px-2 py-1.5 text-sm rounded-lg font-bold',
+                        'px-2 py-1.5 text-sm rounded-lg font-semibold',
                         isLightHeader
                           ? 'bg-white text-black hover:bg-black hover:text-white'
                           : 'bg-black text-white hover:bg-white hover:text-black',
@@ -946,7 +946,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       <button
                         onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                         className={clsx(
-                          'px-1.5 py-1.5 text-sm rounded-lg bg-black text-white font-bold hover:bg-gray-100 hover:text-black',
+                          'px-1.5 py-1.5 text-sm rounded-lg bg-black text-white font-semibold hover:bg-gray-100 hover:text-black',
                           hoverNeutralLink2
                         )}
                       >
@@ -966,7 +966,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                           }
                           }}
                           className={clsx(
-                            'px-2 py-1.5 text-sm rounded-lg font-bold',
+                            'px-2 py-1.5 text-sm rounded-lg font-semibold',
                             isLightHeader
                               ? 'bg-white text-black hover:bg-black hover:text-white'
                               : 'bg-black text-white hover:bg-gray-100 hover:text-black',
