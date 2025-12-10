@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import useRealtime from '@/hooks/useRealtime';
 import { useAuth } from '@/contexts/AuthContext';
 // Thread list mutations are owned by chat WS events; notifications should not
@@ -23,6 +23,10 @@ export function noteLocalReadEpoch(threadId: number) {
 
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuth();
+  const soundAudioRef = useRef<HTMLAudioElement | null>(null);
+  const soundEnabledRef = useRef(true);
+  const hasInteractedRef = useRef(false);
+  const lastUnreadTotalRef = useRef<number | null>(null);
   // Single hook instance provides one WS/SSE connection for the entire app
   const rt = useRealtime(token || null);
   // Expose a value object that updates when either transport state OR
@@ -47,6 +51,30 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const hasSession = !!token || !!user;
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = window.localStorage.getItem('BOOKA_MESSAGE_SOUND');
+      if (stored === '0') soundEnabledRef.current = false;
+    } catch {}
+    try {
+      const audio = new Audio('/sounds/new-message.mp3');
+      audio.volume = 0.7;
+      soundAudioRef.current = audio;
+    } catch {}
+    const markInteraction = () => {
+      hasInteractedRef.current = true;
+    };
+    window.addEventListener('click', markInteraction);
+    window.addEventListener('keydown', markInteraction);
+    return () => {
+      try {
+        window.removeEventListener('click', markInteraction);
+        window.removeEventListener('keydown', markInteraction);
+      } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
     if (!hasSession) return;
     const userId = Number(user?.id || 0);
     // Subscribe to a user-scoped notifications topic so messages from
@@ -67,16 +95,39 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         }
         // Aggregate unread_total snapshot for header badge (do not touch per-thread unread).
         if (payload && payload.type === 'unread_total') {
-          const totalRaw = (payload?.payload && (payload.payload.total ?? payload.payload.count)) ?? payload.total ?? payload.count;
+          const totalRaw =
+            (payload?.payload && (payload.payload.total ?? payload.payload.count)) ??
+            payload.total ??
+            payload.count;
           const totalNum = Number(totalRaw);
           if (Number.isFinite(totalNum) && typeof window !== 'undefined') {
+            const total = Math.max(0, totalNum);
             try {
               window.dispatchEvent(
                 new CustomEvent('inbox:unread_total', {
-                  detail: { total: Math.max(0, totalNum) },
+                  detail: { total },
                 }),
               );
             } catch {}
+            try {
+              const prev = lastUnreadTotalRef.current;
+              lastUnreadTotalRef.current = total;
+              const shouldPlay =
+                prev !== null &&
+                total > prev &&
+                soundEnabledRef.current &&
+                hasInteractedRef.current &&
+                soundAudioRef.current;
+              if (shouldPlay) {
+                try {
+                  void soundAudioRef.current!.play().catch(() => {});
+                } catch {
+                  // ignore playback failures
+                }
+              }
+            } catch {
+              // best-effort only
+            }
           }
           return;
         }
