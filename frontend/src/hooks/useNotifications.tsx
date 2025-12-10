@@ -68,6 +68,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const soundAudioRef = useRef<HTMLAudioElement | null>(null);
+  const soundEnabledRef = useRef(true);
+  const hasInteractedRef = useRef(false);
   const { user } = useAuth();
 
   // Cache ETag + throttle to avoid flooding the API while navigating
@@ -127,6 +130,30 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => { clearTimeout(t); clearInterval(id); };
   }, [fetchNotifications, user]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = window.localStorage.getItem('BOOKA_MESSAGE_SOUND');
+      if (stored === '0') soundEnabledRef.current = false;
+    } catch {}
+    try {
+      const audio = new Audio('/new-message.mp3');
+      audio.volume = 0.7;
+      soundAudioRef.current = audio;
+    } catch {}
+    const markInteraction = () => {
+      hasInteractedRef.current = true;
+    };
+    window.addEventListener('click', markInteraction);
+    window.addEventListener('keydown', markInteraction);
+    return () => {
+      try {
+        window.removeEventListener('click', markInteraction);
+        window.removeEventListener('keydown', markInteraction);
+      } catch {}
+    };
+  }, []);
+
   const { subscribe } = useRealtimeContext();
 
   useEffect(() => {
@@ -143,6 +170,20 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           const isActive =
             typeof window !== 'undefined' &&
             Number((window as any).__inboxActiveThreadId || 0) === Number(threadId);
+          const docVisible =
+            typeof document !== 'undefined' &&
+            document.visibilityState === 'visible';
+          const shouldPlaySound =
+            newNotif.type === 'new_message' &&
+            soundEnabledRef.current &&
+            hasInteractedRef.current &&
+            soundAudioRef.current &&
+            !(docVisible && isActive);
+          if (shouldPlaySound) {
+            try {
+              void soundAudioRef.current!.play().catch(() => {});
+            } catch {}
+          }
           // If the notification looks like a pending attachment (filename-only or placeholder) and we don't yet have a durable URL,
           // skip preview/unread updates here; fetch the finalized message shortly instead.
           try {
