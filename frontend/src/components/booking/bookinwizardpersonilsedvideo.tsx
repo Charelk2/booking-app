@@ -11,9 +11,17 @@ import {
   CreditCardIcon,
   ChatBubbleBottomCenterTextIcon,
   ShieldCheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { Button, TextInput, TextArea, Spinner, Toast } from "@/components/ui";
-import api from "@/lib/api";
+import api, { getServiceProviderAvailability } from "@/lib/api";
+import dynamic from "next/dynamic";
+import { format, startOfDay, isBefore } from "date-fns";
+import { enZA } from "date-fns/locale";
+import { isUnavailableDate } from "@/lib/shared/validation/booking";
+
+const ReactDatePicker: any = dynamic(() => import("react-datepicker"), { ssr: false });
 
 // =============================================================================
 // CONFIG
@@ -266,6 +274,7 @@ function useVideoBookingLogic({
   const [checking, setChecking] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [creating, setCreating] = useState(false);
+   const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
 
   // Derived
   const lengthSec = useMemo(() => (lengthChoice === "30_45" ? 40 : 75), [lengthChoice]);
@@ -292,7 +301,26 @@ function useVideoBookingLogic({
 
   const canContinue = disabledReason == null;
 
-  // Availability check (permissive default if API fails)
+  // Load full availability calendar once (for disabled dates UX)
+  useEffect(() => {
+    let cancelled = false;
+    const loadAvailability = async () => {
+      try {
+        const res = await getServiceProviderAvailability(artistId);
+        if (!cancelled && res?.data && Array.isArray(res.data.unavailable_dates)) {
+          setUnavailableDates(res.data.unavailable_dates);
+        }
+      } catch {
+        // Non-fatal: we'll fall back to per-date checks
+      }
+    };
+    void loadAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, [artistId]);
+
+  // Availability check (per-day, with permissive default if API fails)
   useEffect(() => {
     let cancelled = false;
 
@@ -306,21 +334,29 @@ function useVideoBookingLogic({
       setChecking(true);
       let ok: boolean | null = null;
 
-      // New endpoint
-      try {
-        const res = await safeGet<{ unavailable_dates: string[] }>(
-          `/api/v1/service-provider-profiles/${artistId}/availability`,
-          { when: deliveryBy },
-        );
-        if (res && Array.isArray(res.unavailable_dates)) {
-          ok = !res.unavailable_dates.includes(deliveryBy);
-        }
-      } catch {}
+      // Prefer preloaded calendar if we have it
+      if (unavailableDates.length) {
+        ok = !unavailableDates.includes(deliveryBy);
+      } else {
+        // Fallback: per-day checks (new endpoint)
+        try {
+          const res = await safeGet<{ unavailable_dates: string[] }>(
+            `/api/v1/service-provider-profiles/${artistId}/availability`,
+            { when: deliveryBy },
+          );
+          if (res && Array.isArray(res.unavailable_dates)) {
+            ok = !res.unavailable_dates.includes(deliveryBy);
+          }
+        } catch {}
 
-      // Legacy endpoint fallback
-      if (ok == null) {
-        const legacy = await safeGet<{ capacity_ok: boolean; blackout?: boolean }>(`/api/v1/artists/${artistId}/availability`, { by: deliveryBy });
-        if (legacy) ok = Boolean(legacy.capacity_ok) && !legacy.blackout;
+        // Legacy endpoint fallback
+        if (ok == null) {
+          const legacy = await safeGet<{ capacity_ok: boolean; blackout?: boolean }>(
+            `/api/v1/artists/${artistId}/availability`,
+            { by: deliveryBy },
+          );
+          if (legacy) ok = Boolean(legacy.capacity_ok) && !legacy.blackout;
+        }
       }
 
       if (cancelled) return;
@@ -328,11 +364,11 @@ function useVideoBookingLogic({
       setChecking(false);
     };
 
-    run();
+    void run();
     return () => {
       cancelled = true;
     };
-  }, [artistId, deliveryBy]);
+  }, [artistId, deliveryBy, unavailableDates]);
 
   const createDraft = useCallback(async () => {
     if (!canContinue) return;
@@ -786,8 +822,6 @@ export default function BookinWizardPersonilsedVideo({
 }: WizardProps) {
   const router = useRouter();
 
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
-
   const { form, pricing, status, actions } = useVideoBookingLogic({
     artistId,
     basePriceZar,
@@ -812,7 +846,7 @@ export default function BookinWizardPersonilsedVideo({
 
   return (
     <Transition show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose} initialFocus={dateInputRef}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
         {/* Backdrop */}
         <Transition.Child
           as={Fragment}
@@ -877,14 +911,76 @@ export default function BookinWizardPersonilsedVideo({
                         <div className="text-xs text-gray-500">Min: {minDate}</div>
                       </div>
 
-                      <input
-                        ref={dateInputRef}
-                        type="date"
-                        min={minDate}
-                        className="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-black focus:ring-black"
-                        value={form.deliveryBy}
-                        onChange={(e) => form.setDeliveryBy(e.target.value)}
-                      />
+                      <div className="mt-2 mx-auto w-fit booking-wizard-datepicker">
+                        <ReactDatePicker
+                          selected={
+                            form.deliveryBy ? startOfDay(new Date(`${form.deliveryBy}T00:00:00`)) : null
+                          }
+                          inline
+                          locale={enZA}
+                          minDate={startOfDay(new Date(minDate))}
+                          filterDate={(date: Date) => {
+                            const day = startOfDay(date);
+                            const min = startOfDay(new Date(minDate));
+                            if (isBefore(day, min)) return false;
+                            return !isUnavailableDate({ date }, unavailableDates);
+                          }}
+                          onChange={(date: Date | null) => {
+                            if (!date) {
+                              form.setDeliveryBy("");
+                              return;
+                            }
+                            const day = startOfDay(date);
+                            const min = startOfDay(new Date(minDate));
+                            if (isBefore(day, min)) {
+                              Toast.error("Please choose a later delivery date.");
+                              return;
+                            }
+                            const iso = format(day, "yyyy-MM-dd");
+                            form.setDeliveryBy(iso);
+                          }}
+                          renderCustomHeader={(hdrProps: any) => {
+                            const {
+                              date,
+                              decreaseMonth,
+                              increaseMonth,
+                              prevMonthButtonDisabled,
+                              nextMonthButtonDisabled,
+                            } = hdrProps;
+                            return (
+                              <div className="flex justify-between items-center px-3 pt-2 pb-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    decreaseMonth();
+                                  }}
+                                  disabled={prevMonthButtonDisabled}
+                                  aria-label="Previous month"
+                                  className="p-2.5 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                                >
+                                  <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
+                                </button>
+                                <span className="text-base font-semibold text-gray-900">
+                                  {date.toLocaleString("default", { month: "long", year: "numeric" })}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    increaseMonth();
+                                  }}
+                                  disabled={nextMonthButtonDisabled}
+                                  aria-label="Next month"
+                                  className="p-2.5 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                                >
+                                  <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+                                </button>
+                              </div>
+                            );
+                          }}
+                        />
+                      </div>
 
                       <div className="mt-2 min-h-[1.25rem] text-xs">
                         {availabilityUi.tone === "loading" && (
