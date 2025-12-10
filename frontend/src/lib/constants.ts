@@ -15,6 +15,12 @@ export const FEATURE_EVENT_PREP: boolean = !!(
   process.env.NEXT_PUBLIC_FEATURE_EVENT_PREP !== 'false'
 );
 
+export const FEATURE_HEADER_LIGHT: boolean = !!(
+  process.env.NEXT_PUBLIC_FEATURE_HEADER_LIGHT &&
+  process.env.NEXT_PUBLIC_FEATURE_HEADER_LIGHT !== '0' &&
+  process.env.NEXT_PUBLIC_FEATURE_HEADER_LIGHT !== 'false'
+);
+
 /**
  * Fetch the default currency from `/api/v1/settings` when not provided via
  * environment variables. The resolved value updates `DEFAULT_CURRENCY` so

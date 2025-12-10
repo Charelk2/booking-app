@@ -312,6 +312,8 @@ If you add new features (like analytics, webhook agents, etc.), just append new 
 The latest message must always appear instantly at the bottom of the open thread. The following code paths and behaviors are sacred — do not revert or remove them without reading `docs/CHAT_REALTIME_TAIL_RUNBOOK.md` and updating it.
 
 - Files (keep behaviors intact):
+  - `backend/app/api/api_threads.py`
+    - `get_threads_preview()` / `get_threads_index()` compute counterparty labels and avatars for inbox previews and thread payloads, including BSP/client branding rules described in the Inbox Guide Agent (providers see the BSP/business name + logo when the “client” has an `artist_profile.business_name`).
   - `frontend/src/components/chat/MessageThread/hooks/useThreadData.ts`
     - Monotonic tail placement: newest id forced to tail if timestamp drifts.
     - Timestamp fallback to `now` when missing/invalid.
@@ -324,6 +326,8 @@ The latest message must always appear instantly at the bottom of the open thread
     - Wire `fetchDelta` from `useThreadData` into `useThreadRealtime` via `pokeDelta`.
   - `frontend/src/components/chat/MessageThread/message/SystemMessage.tsx`
     - Do not hide booking‑details summaries (render compact CTA instead).
+  - `frontend/src/components/chat/MessageThread/ConversationList.tsx` / `frontend/src/components/chat/MessageThreadWrapper.tsx`
+    - Respect the counterparty name/avatar computed by the Inbox Guide + threads APIs so BSP/business branding stays consistent between inbox list, thread header, and booking summary.
   - `frontend/src/hooks/useNotifications.tsx`
     - On active thread NEW_MESSAGE, add ephemeral stub and dispatch `thread:pokedelta`.
   - `frontend/src/hooks/useRealtime.ts`
@@ -502,6 +506,20 @@ See `backend/app/api/THREADS_PREVIEW_OPTIMIZATION.md` for details.
 - Inbox behavior:
   - Clients (`user_type = client`) use `role=client`.
   - Service providers (`user_type = service_provider`) use `role=auto` so providers who previously booked as clients see both legacy client threads and new provider threads in one list.
+
+## Artist Dashboard Performance (Services + Bookings, Jan 2026)
+
+- Artist booking‑requests:
+  - `backend/app/api/api_booking_request.py:read_my_artist_booking_requests` now mirrors the client path with:
+    - `lite` mode, paging (`skip/limit`), and weak ETag support keyed by artist id + max id + count + paging + lite flag.
+    - Lite responses built via `_to_lite_booking_request_response`, which keep enough data for list views (client, provider profile, service summary, status, preview) while omitting heavy nested relations and full quote payloads.
+  - `frontend/src/lib/api.ts:getBookingRequestsForArtistCached` calls `/api/v1/booking-requests/me/artist?lite=true&limit=100` with `If-None-Match`, so artist dashboards and booking‑requests lists reuse cached bodies or 304s instead of pulling multi‑MB payloads on every visit.
+- Artist bookings:
+  - `backend/app/api/api_booking.py:read_artist_bookings` now supports `skip`, `limit`, optional `status` filter (`upcoming`/`past` or specific status), and ETag, using the same invoice + payment join pattern as `read_my_bookings`.
+  - The cached helper `getMyArtistBookingsCached` in `frontend/src/lib/api.ts` now passes `limit=100` and ETags, so the dashboard only fetches a bounded window of recent bookings.
+- Services tab (provider dashboard):
+  - `frontend/src/hooks/useArtistDashboardData.ts` now fetches services (`/api/v1/services/mine`) in parallel with the heavier dashboard calls and tracks a separate `servicesLoading` flag.
+  - `frontend/src/app/dashboard/artist/page.tsx` passes `servicesLoading` into `ServicesSection`, so the Services tab can render the provider’s service list as soon as `/services/mine` returns instead of waiting on slower booking/booking‑request queries.
 
 ## UI Tokens (Jan 2026)
 
