@@ -6,7 +6,7 @@ type ThreadViewProps = {
   header?: React.ReactNode;
   list: React.ReactNode; // virtualized list adapter instance
   composer: React.ReactNode;
-  indicators?: React.ReactNode; // scroll-to-bottom, typing, etc.
+  indicators?: React.ReactNode; // scroll-2-bottom, typing, etc.
 };
 
 export default function ThreadView({ header, list, composer, indicators }: ThreadViewProps) {
