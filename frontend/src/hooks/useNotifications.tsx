@@ -158,7 +158,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    const unsub = subscribe('notifications', (data) => {
+    const userId = Number(user?.id || 0);
+    const topic =
+      Number.isFinite(userId) && userId > 0 ? `notifications:${userId}` : 'notifications';
+    const unsub = subscribe(topic, (data) => {
       try {
         if (data.type === 'reconnect' || data.type === 'ping') return;
         if (!data.id || !data.timestamp) return;
