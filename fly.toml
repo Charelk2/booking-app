@@ -78,7 +78,7 @@ kill_timeout = 30
   interval = "15s"
   method = "GET"
   timeout = "5s"
-  path = "/healthz"
+  path = "/healthz/ready"
   # If your app redirects http->https based on scheme, uncomment:
   # headers = { "X-Forwarded-Proto" = "https" }
 

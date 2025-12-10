@@ -893,7 +893,10 @@ export default function MessageThreadWrapper({
 
               // When we are the provider for this thread, show the client avatar.
               if (isThreadProvider) {
+                const preview: any = bookingRequest;
+                const previewSrc = (preview?.counterparty_avatar_url as string | undefined) || undefined;
                 const src =
+                  previewSrc ||
                   (raw?.client?.profile_picture_url as string | undefined) ||
                   (raw?.counterparty_avatar_url as string | undefined) ||
                   null;
@@ -970,14 +973,24 @@ export default function MessageThreadWrapper({
           )}
 
           {/* Name + presence */}
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
               <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
                 {effectiveBookingRequest
                   ? (isBookaModeration
                       ? 'Booka'
                       : (() => {
                           const roleHint = isThreadProvider ? 'provider' : isThreadClient ? 'client' : undefined;
+                          if (isThreadProvider) {
+                            // For providers, prefer the preview-supplied
+                            // counterparty_label (brand/BSP name) so the
+                            // header matches the thread list and does not
+                            // revert to a personal name after hydration.
+                            const preview: any = bookingRequest;
+                            const previewLabel = (preview?.counterparty_label as string | undefined) || '';
+                            const trimmed = previewLabel.trim();
+                            if (trimmed) return trimmed;
+                          }
                           return (
                             counterpartyLabel(
                               effectiveBookingRequest as any,

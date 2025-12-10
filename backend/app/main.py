@@ -3,8 +3,10 @@
 import asyncio
 import logging
 import os
+import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Iterable
+from typing import Dict, Iterable, Optional
 
 from fastapi import FastAPI, Request, status
 from sqlalchemy.exc import TimeoutError as SA_TimeoutError
@@ -168,6 +170,115 @@ from .api import api_search_analytics, api_ai
 # Configure logging before creating any loggers
 setup_logging()
 logger = logging.getLogger(__name__)
+
+health_logger = logging.getLogger("app.health")
+
+FLY_META: Dict[str, str] = {
+    "fly_app": os.getenv("FLY_APP_NAME", ""),
+    "fly_region": os.getenv("FLY_REGION", ""),
+    "fly_machine_id": os.getenv("FLY_MACHINE_ID", ""),
+    "fly_process_group": os.getenv("FLY_PROCESS_GROUP", ""),
+}
+
+_BOOT_TS = time.time()
+
+
+@dataclass
+class ReadyState:
+    ready: bool = False
+    reason: str = "starting"
+    since_ts: float = time.time()
+    last_ok_ts: float = 0.0
+    last_err: Optional[str] = None
+    db_ping_ms: Optional[float] = None
+    loop_lag_ms: float = 0.0
+
+
+READY = ReadyState()
+
+
+def _set_ready(
+    ready: bool,
+    reason: str,
+    err: Optional[str] = None,
+    db_ping_ms: Optional[float] = None,
+) -> None:
+    changed = (ready != READY.ready) or (reason != READY.reason)
+    READY.ready = ready
+    READY.reason = reason
+    READY.last_err = err
+    READY.db_ping_ms = db_ping_ms
+    if changed:
+        READY.since_ts = time.time()
+        lvl = health_logger.info if ready else health_logger.warning
+        try:
+            lvl(
+                "health.ready.state_change",
+                extra={
+                    **FLY_META,
+                    "ready": ready,
+                    "reason": reason,
+                    "error": err,
+                    "db_ping_ms": db_ping_ms,
+                    "pid": os.getpid(),
+                },
+            )
+        except Exception:
+            pass
+    if ready:
+        READY.last_ok_ts = time.time()
+
+
+def _db_ping_sync() -> float:
+    """Synchronous DB ping; must not run on the event loop."""
+    t0 = time.perf_counter()
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+    return (time.perf_counter() - t0) * 1000.0
+
+
+async def _readiness_poller() -> None:
+    """Periodic readiness probe that caches DB/loop state for health checks."""
+    await asyncio.sleep(0.2)
+    while True:
+        try:
+            ping_ms = await asyncio.wait_for(
+                asyncio.to_thread(_db_ping_sync),
+                timeout=1.0,
+            )
+            _set_ready(True, "ok", db_ping_ms=round(ping_ms, 2))
+        except asyncio.TimeoutError:
+            _set_ready(False, "db_timeout", err="db ping exceeded 1.0s")
+        except SA_TimeoutError as exc:
+            # SQLAlchemy pool timeout (very relevant to DB pressure symptoms)
+            _set_ready(False, "db_pool_timeout", err=str(exc))
+        except Exception as exc:  # pragma: no cover - defensive guard
+            _set_ready(False, "db_error", err=repr(exc))
+        await asyncio.sleep(1.0)
+
+
+async def _event_loop_lag_monitor(
+    interval_s: float = 0.5,
+    warn_ms: float = 1000.0,
+) -> None:
+    """Track event loop lag so we can detect stalls even when health routes fail."""
+    loop = asyncio.get_running_loop()
+    next_t = loop.time() + interval_s
+    while True:
+        await asyncio.sleep(interval_s)
+        now = loop.time()
+        lag_s = max(0.0, now - next_t)
+        lag_ms = lag_s * 1000.0
+        READY.loop_lag_ms = lag_ms
+        if lag_ms >= warn_ms:
+            try:
+                health_logger.warning(
+                    "health.loop_lag",
+                    extra={**FLY_META, "lag_ms": round(lag_ms, 1), "pid": os.getpid()},
+                )
+            except Exception:
+                pass
+        next_t = now + interval_s
 
 # Record bootstrap start so we can see how long schema/DDL work takes per
 # process (useful when debugging health‑check flaps on restarts).
@@ -568,19 +679,50 @@ async def catch_exceptions(request: Request, call_next):
     return response
 
 
+@app.get("/healthz/live", tags=["health"])
+async def health_live():
+    """Liveness probe: process can respond; does not touch the DB."""
+    return {
+        "status": "ok",
+        "kind": "live",
+        "uptime_s": round(time.time() - _BOOT_TS, 1),
+        "pid": os.getpid(),
+        **FLY_META,
+    }
+
+
+@app.get("/healthz/ready", tags=["health"])
+async def health_ready():
+    """Readiness probe: cached DB ping state + loop lag."""
+    # Optional guard: if the event loop is badly stalled, consider not-ready.
+    if READY.loop_lag_ms >= 5000:
+        _set_ready(False, "loop_lag", err=f"loop_lag_ms={READY.loop_lag_ms:.1f}")
+
+    code = 200 if READY.ready else 503
+    return ORJSONResponse(
+        status_code=code,
+        content={
+            "status": "ok" if READY.ready else "error",
+            "kind": "ready",
+            "ready": READY.ready,
+            "reason": READY.reason,
+            "error": READY.last_err,
+            "db_ping_ms": READY.db_ping_ms,
+            "loop_lag_ms": round(READY.loop_lag_ms, 1),
+            "since_ts": READY.since_ts,
+            "last_ok_ts": READY.last_ok_ts,
+            "uptime_s": round(time.time() - _BOOT_TS, 1),
+            "pid": os.getpid(),
+            **FLY_META,
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.get("/healthz", tags=["health"])
 async def healthz():
-    """Lightweight unauthenticated health check for load balancers.
-
-    Logs a small timing line so we can correlate health‑check behaviour with
-    Fly's sidecar logs when debugging unhealthy events.
-    """
-    started = datetime.utcnow()
-    payload = {"status": "ok", "time": started.isoformat()}
-    finished = datetime.utcnow()
-    duration_ms = int((finished - started).total_seconds() * 1000)
-    logger.info("healthz.ok duration_ms=%s pid=%s", duration_ms, os.getpid())
-    return payload
+    """Backwards-compatible alias; keep Fly pointed here until config is updated."""
+    return await health_ready()
 
 
 @app.exception_handler(RequestValidationError)
@@ -916,10 +1058,14 @@ async def expire_quotes_loop() -> None:
         # Retry with backoff on transient DB failures
         delay = 5
         max_retries = 5
+
+        def _expire_once() -> None:
+            with SessionLocal() as db:
+                process_quote_expiration(db)
+
         for attempt in range(max_retries):
             try:
-                with SessionLocal() as db:
-                    process_quote_expiration(db)
+                await asyncio.to_thread(_expire_once)
                 break
             except OperationalError as exc:  # pragma: no cover - transient DB outage
                 alert_scheduler_failure(exc)
@@ -944,7 +1090,7 @@ async def ops_maintenance_loop() -> None:
         max_retries = 5
         for attempt in range(max_retries):
             try:
-                summary = run_maintenance()
+                summary = await asyncio.to_thread(run_maintenance)
                 logger.info("Maintenance summary: %s", summary)
                 break
             except OperationalError as exc:  # pragma: no cover - transient DB outage
@@ -970,13 +1116,23 @@ async def _wait_for_db_ready(max_wait_seconds: int = 30, interval_seconds: float
     elapsed = 0.0
     while elapsed < max_wait_seconds:
         try:
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
+            await asyncio.wait_for(
+                asyncio.to_thread(_db_ping_sync),
+                timeout=1.0,
+            )
             return
         except Exception:
             await asyncio.sleep(interval_seconds)
             elapsed += interval_seconds
     logger.warning("DB readiness check timed out; starting tasks with backoff enabled")
+
+
+@app.on_event("startup")
+async def start_health_monitors() -> None:
+    """Start background health monitors for readiness and loop lag."""
+    asyncio.create_task(_event_loop_lag_monitor())
+    asyncio.create_task(_readiness_poller())
+
 
 @app.on_event("startup")
 async def start_background_tasks() -> None:

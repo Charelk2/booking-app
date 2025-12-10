@@ -387,23 +387,29 @@ def _maybe_create_linked_sound_booking_request(
         return
 
 
-def _prepare_quotes_for_response(quotes: list[Any] | None) -> list[dict]:
+def _prepare_quotes_for_response(quotes: list[Any] | None) -> list[schemas.QuoteV2Read]:
     """
-    Normalize QuoteV2 rows into JSON-friendly dicts with preview fields.
+    Normalize QuoteV2 rows into QuoteV2Read models with preview fields.
+
+    Returning Pydantic models keeps FastAPI's response serialization happy
+    and avoids Pydantic v2 "UnexpectedValue" warnings that occur when plain
+    dicts are injected into a ``List[QuoteRead]`` field.
     """
     if not quotes:
         return []
-    out: list[dict] = []
+    out: list[schemas.QuoteV2Read] = []
     for q in quotes:
         try:
-          # Detach heavy relationships to avoid circular refs
+            # Detach heavy relationships to avoid circular refs
             try:
                 setattr(q, "booking_request", None)
             except Exception:
                 pass
-            payload = schemas.QuoteV2Read.model_validate(q).model_dump()
-            payload.update(quote_preview_fields(q))
-            out.append(payload)
+            base = schemas.QuoteV2Read.model_validate(q)
+            preview = quote_preview_fields(q)
+            if preview:
+                base = base.model_copy(update=preview)
+            out.append(base)
         except Exception:
             continue
     return out
