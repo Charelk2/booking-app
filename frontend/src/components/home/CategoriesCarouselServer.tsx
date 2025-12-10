@@ -59,7 +59,13 @@ export default function CategoriesCarouselServer() {
                   decoding="async"
                   width={144}
                   height={144}
-                  style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                  style={{
+                    objectFit: 'cover',
+                    width: '100%',
+                    height: '100%',
+                    transition: 'transform 180ms ease-out',
+                  }}
+                  className="hover:scale-105"
                 />
               </div>
               <p className="mt-2 text-xs text-left text-black font-semibold whitespace-nowrap">
