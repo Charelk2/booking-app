@@ -158,7 +158,8 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
   - `crud_booking_request.get_booking_requests_with_last_message()` rewrites `last_message_content` to “New Booking Request” when the latest message is a details summary.
   - `api_booking_request.create_booking_request()` creates the initial system line to the artist and, when flagged, also emits a `new_message` notification so thread unread counts update.
   - `utils/messages.py` owns the `BOOKING_DETAILS_PREFIX` and parsing helpers.
-* **Outcome:** Thread list stays clean and actionable, and users are guided inside the chat without over-notifying.
+  - `api_threads.get_threads_preview()` and `api_threads.get_threads_index()` ensure that when the “client” in a conversation is a BSP/service provider (has an `artist_profile.business_name`), provider-facing thread previews and payloads use the BSP business name and avatar instead of the personal name; the inbox list (`frontend/src/components/chat/MessageThread/ConversationList.tsx`) and thread header (`frontend/src/components/chat/MessageThreadWrapper.tsx`) consume these fields so branding is consistent.
+* **Outcome:** Thread list and thread headers stay clean, consistently branded (business name when available), and actionable, and users are guided inside the chat without over-notifying.
 
 
 ### 17. Calendar Sync Agent (Sacred Path)

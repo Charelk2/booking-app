@@ -14,6 +14,7 @@ import type { Booking, BookingRequest, Service, ServiceProviderProfile } from "@
 
 export function useArtistDashboardData(userId?: number) {
   const [loading, setLoading] = useState(true);
+  const [servicesLoading, setServicesLoading] = useState(true);
   const [error, setError] = useState<string>("");
 
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -29,6 +30,7 @@ export function useArtistDashboardData(userId?: number) {
   const fetchAll = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
+    setServicesLoading(true);
     setError("");
     // Hydrate from cache first for instant paint
     try {
@@ -40,23 +42,36 @@ export function useArtistDashboardData(userId?: number) {
     } catch {}
 
     try {
-      const [bookingsRes, servicesRes, profileRes, requestsRes, statsRes] = await Promise.all([
+      // Fetch core dashboard data (bookings, profile, requests, stats)
+      const corePromise = Promise.all([
         getMyArtistBookingsCached(),
-        getMyServices(),
         getServiceProviderProfileMe(),
         getBookingRequestsForArtistCached(),
         getDashboardStatsCached(),
       ]);
 
+      // Fetch services in parallel so the Services tab can render as soon as
+      // /services/mine completes, without waiting on heavier endpoints.
+      (async () => {
+        try {
+          const servicesRes = await getMyServices();
+          const processedServices = (servicesRes.data as Service[])
+            .map((s) => normalizeService(s))
+            .sort((a, b) => a.display_order - b.display_order);
+          setServices(processedServices);
+        } catch (svcErr) {
+          console.error("useArtistDashboardData services error:", svcErr);
+        } finally {
+          setServicesLoading(false);
+        }
+      })();
+
+      const [bookingsRes, profileRes, requestsRes, statsRes] = await corePromise;
+
       setBookings(bookingsRes);
       setBookingRequests(requestsRes);
       setArtistProfile(profileRes.data);
       setDashboardStats(statsRes);
-
-      const processedServices = (servicesRes.data as Service[])
-        .map((s) => normalizeService(s))
-        .sort((a, b) => a.display_order - b.display_order);
-      setServices(processedServices);
     } catch (err) {
       console.error("useArtistDashboardData error:", err);
       const anyErr = err as any;
@@ -102,6 +117,7 @@ export function useArtistDashboardData(userId?: number) {
 
   return {
     loading,
+    servicesLoading,
     error,
     fetchAll,
     bookings,

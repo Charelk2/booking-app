@@ -157,6 +157,7 @@ export default function DashboardPage() {
   // Data Fetching
   const { 
     loading, 
+    servicesLoading,
     error, 
     fetchAll, 
     bookings, 
@@ -547,7 +548,7 @@ export default function DashboardPage() {
                   <React.Suspense fallback={<LoadingSkeleton lines={6} />}>
                     <ServicesSection
                       services={services}
-                      loading={loading}
+                      loading={servicesLoading}
                       error={error || undefined}
                       onRetry={fetchAll}
                       onReorder={reorderServices}
