@@ -195,8 +195,8 @@ function HeaderMessagesLink({ unread, isLightHeader }: { unread: number; isLight
       className={clsx(
         'relative inline-flex items-center justify-center px-2 py-2 rounded-lg hover:no-underline',
         isLightHeader
-          ? 'text-black hover:bg-black hover:text-white'
-          : 'text-white hover:bg-gray-900 hover:text-white'
+          ? 'text-black hover:bg-gray-200'
+          : 'text-white hover:bg-gray-200'
       )}
       aria-label={unread > 0 ? `Messages (${unread} unread)` : 'Messages'}
       onMouseEnter={() => router.prefetch?.('/inbox')}
