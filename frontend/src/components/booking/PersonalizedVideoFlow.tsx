@@ -6,6 +6,11 @@ import { getMessagesForBookingRequest, postMessageToBookingRequest } from '@/lib
 import { getVideoFlowState, READY_MESSAGE, videoQuestions } from '@/lib/videoFlow';
 import { useAuth } from '@/contexts/AuthContext';
 
+// --- Configuration ---
+const POLL_INTERVAL_MS = 4000;
+const SYSTEM_TYPING_DELAY_MS = 900;
+const PENDING_DEDUPE_TTL_MS = 15_000;
+
 interface Props {
   bookingRequestId: number;
   clientName?: string;
@@ -13,55 +18,50 @@ interface Props {
   artistAvatarUrl?: string | null;
 }
 
-const POLL_INTERVAL_MS = 4000;
-const SYSTEM_TYPING_DELAY_MS = 900;
-
-// Prevent accidental duplicates if the backend is eventually consistent
-// (e.g. we post a SYSTEM message, but the next fetch doesn’t show it yet).
-const PENDING_DEDUPE_TTL_MS = 15_000;
+// --- Utilities ---
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * Polling helper that:
- * - avoids overlapping async calls
- * - schedules the next tick only after the previous finishes
- * - doesn't restart the timer when `callback` changes
+ * Robust polling hook. 
+ * Ensures the previous tick completes before the next begins.
  */
 function usePolling(callback: () => void | Promise<void>, intervalMs: number) {
-  const callbackRef = useRef(callback);
+  const savedCallback = useRef(callback);
 
   useEffect(() => {
-    callbackRef.current = callback;
+    savedCallback.current = callback;
   }, [callback]);
 
   useEffect(() => {
     if (intervalMs <= 0) return;
 
-    let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let isCancelled = false;
 
     const tick = async () => {
-      if (cancelled) return;
-
+      if (isCancelled) return;
       try {
-        await callbackRef.current();
+        await savedCallback.current();
       } finally {
-        if (!cancelled) timeoutId = setTimeout(tick, intervalMs);
+        if (!isCancelled) {
+          timeoutId = setTimeout(tick, intervalMs);
+        }
       }
     };
 
-    // Run immediately once on mount
     tick();
 
     return () => {
-      cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
+      isCancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [intervalMs]);
 }
+
+// --- Logic Layer (React Native Portable) ---
 
 type PendingSystemMessage = {
   text: string;
@@ -69,88 +69,66 @@ type PendingSystemMessage = {
 };
 
 /**
- * Wrapper for MessageThread that runs the personalized video Q&A sequence.
+ * Custom hook that manages the "Brain" of the flow.
+ * Copy this file exactly for React Native.
  */
-export default function PersonalizedVideoFlow({
-  bookingRequestId,
-  clientName,
-  artistName,
-  artistAvatarUrl,
-}: Props) {
+function useVideoFlowAutomation(bookingRequestId: number) {
   const { user } = useAuth();
   const userType = user?.user_type;
 
+  // State
   const [progress, setProgress] = useState(0);
-  const [systemTyping, _setSystemTyping] = useState(false);
-
-  // Safe state updates after unmount
+  const [systemTyping, setSystemTyping] = useState(false);
   const isMountedRef = useRef(true);
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  // Keep "typing" available synchronously (no effect lag)
-  const systemTypingRef = useRef(false);
-  const setSystemTyping = useCallback((value: boolean) => {
-    systemTypingRef.current = value;
-    if (isMountedRef.current) _setSystemTyping(value);
-  }, []);
-
-  // Dedupe "we just sent this" across refresh cycles.
+  
+  // Logic Refs
   const pendingSystemMessageRef = useRef<PendingSystemMessage | null>(null);
-
-  // Avoid overlapping refreshes
   const refreshInFlightRef = useRef(false);
 
-  const sendSystemMessage = useCallback(
-    async (text: string) => {
-      const trimmed = (text ?? '').trim();
-      if (!trimmed) return;
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
-      const pending = pendingSystemMessageRef.current;
-      const isStillPending =
-        pending?.text === trimmed && Date.now() - pending.sentAt < PENDING_DEDUPE_TTL_MS;
+  // 1. Send Message Logic
+  const sendSystemMessage = useCallback(async (text: string) => {
+    const trimmed = (text ?? '').trim();
+    if (!trimmed) return;
 
-      if (isStillPending) return;
+    // Dedupe check
+    const pending = pendingSystemMessageRef.current;
+    if (pending && pending.text === trimmed && Date.now() - pending.sentAt < PENDING_DEDUPE_TTL_MS) {
+      return;
+    }
 
-      pendingSystemMessageRef.current = { text: trimmed, sentAt: Date.now() };
+    pendingSystemMessageRef.current = { text: trimmed, sentAt: Date.now() };
 
-      setSystemTyping(true);
-      try {
-        // brief delay so the typing indicator is visible
-        await sleep(SYSTEM_TYPING_DELAY_MS);
+    // UI Feedback
+    if (isMountedRef.current) setSystemTyping(true);
+    
+    try {
+      await sleep(SYSTEM_TYPING_DELAY_MS);
+      if (!isMountedRef.current) return;
 
-        // If we unmounted during the delay, don't post.
-        if (!isMountedRef.current) return;
+      const clientRequestId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
 
-        const clientRequestId =
-          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-            ? crypto.randomUUID()
-            : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
+      await postMessageToBookingRequest(
+        bookingRequestId,
+        { content: trimmed, message_type: 'SYSTEM' },
+        { clientRequestId },
+      );
+    } catch (err) {
+      // Allow retry
+      pendingSystemMessageRef.current = null;
+      console.error('Failed to post system message', err);
+    } finally {
+      if (isMountedRef.current) setSystemTyping(false);
+    }
+  }, [bookingRequestId]);
 
-        await postMessageToBookingRequest(
-          bookingRequestId,
-          {
-            content: trimmed,
-            // Align with backend's uppercase message types.
-            message_type: 'SYSTEM',
-          },
-          { clientRequestId },
-        );
-      } catch (err) {
-        // Allow retry on next refresh if the post failed
-        pendingSystemMessageRef.current = null;
-        throw err;
-      } finally {
-        setSystemTyping(false);
-      }
-    },
-    [bookingRequestId, setSystemTyping],
-  );
-
+  // 2. Refresh & Calculation Logic
   const refreshFlow = useCallback(async () => {
     if (refreshInFlightRef.current) return;
     refreshInFlightRef.current = true;
@@ -159,41 +137,32 @@ export default function PersonalizedVideoFlow({
       const res = await getMessagesForBookingRequest(bookingRequestId, { mode: 'full', limit: 500 });
       const msgs = res?.data?.items ?? [];
 
-      // Clear stale pending dedupe after TTL
+      // Clean up stale pending messages
       const pending = pendingSystemMessageRef.current;
-      if (pending && Date.now() - pending.sentAt >= PENDING_DEDUPE_TTL_MS) {
-        pendingSystemMessageRef.current = null;
-      }
-
-      // If our pending system message is now visible in the fetched list, clear it.
-      if (pendingSystemMessageRef.current) {
-        const pendingText = pendingSystemMessageRef.current.text;
-        const seen = msgs.some(
-          (m) =>
-            (m?.message_type ?? '').toUpperCase() === 'SYSTEM' &&
-            (m?.content ?? '').trim() === pendingText,
+      if (pending) {
+        // If TTL expired OR we see the message in the backend response, clear the pending lock
+        const isExpired = Date.now() - pending.sentAt >= PENDING_DEDUPE_TTL_MS;
+        const isVisible = msgs.some(m => 
+          (m?.message_type ?? '').toUpperCase() === 'SYSTEM' && 
+          (m?.content ?? '').trim() === pending.text
         );
-        if (seen) pendingSystemMessageRef.current = null;
-      }
-
-      const flow = getVideoFlowState(msgs);
-      setProgress(flow.answeredCount);
-
-      // Only auto-drive the flow for clients
-      if (userType !== 'client') return;
-
-      // Never send new system messages while we're already "typing"/sending one
-      if (systemTypingRef.current) return;
-
-      if (flow.isComplete) {
-        if (!flow.hasReadyMessage) {
-          await sendSystemMessage(READY_MESSAGE);
+        
+        if (isExpired || isVisible) {
+          pendingSystemMessageRef.current = null;
         }
-        return;
       }
 
-      if (flow.shouldAskNextQuestion && flow.nextQuestion) {
-        await sendSystemMessage(flow.nextQuestion);
+      // Calculate State
+      const flow = getVideoFlowState(msgs);
+      if (isMountedRef.current) setProgress(flow.answeredCount);
+
+      // Auto-Drive Logic (Only for Clients)
+      if (userType === 'client' && !pendingSystemMessageRef.current) {
+        if (flow.isComplete && !flow.hasReadyMessage) {
+          await sendSystemMessage(READY_MESSAGE);
+        } else if (!flow.isComplete && flow.shouldAskNextQuestion && flow.nextQuestion) {
+          await sendSystemMessage(flow.nextQuestion);
+        }
       }
     } catch (err) {
       console.error('Video flow check failed', err);
@@ -202,62 +171,110 @@ export default function PersonalizedVideoFlow({
     }
   }, [bookingRequestId, sendSystemMessage, userType]);
 
+  // 3. Start Polling
   usePolling(refreshFlow, POLL_INTERVAL_MS);
 
+  // 4. Derived UI Data
   const totalQuestions = videoQuestions.length;
-
-  const ui = useMemo(() => {
+  const uiStats = useMemo(() => {
     const answered = Math.min(progress, totalQuestions);
     const isComplete = totalQuestions > 0 && answered >= totalQuestions;
     const percent = totalQuestions > 0 ? Math.round((answered / totalQuestions) * 100) : 0;
     const nextQuestion = !isComplete ? videoQuestions[answered] : null;
 
-    return { answered, isComplete, percent, nextQuestion };
+    return { answered, isComplete, percent, nextQuestion, totalQuestions };
   }, [progress, totalQuestions]);
 
+  return {
+    stats: uiStats,
+    isSystemTyping: systemTyping
+  };
+}
+
+// --- Presentation Components (Replace with Views for RN) ---
+
+const ProgressWidget = ({ stats }: { stats: ReturnType<typeof useVideoFlowAutomation>['stats'] }) => {
+  const { isComplete, percent, nextQuestion, answered, totalQuestions } = stats;
+
+  if (isComplete) {
+    return (
+      <div className="flex w-full items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 shadow-sm backdrop-blur-sm transition-all duration-500">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-emerald-900">Request Complete</p>
+          <p className="text-xs text-emerald-700/80">The artist has all the details they need.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3">
-      {ui.isComplete ? (
-        <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
-          ✅ All details collected. The artist has been notified.
-        </div>
-      ) : (
-        <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-gray-900">Personalized video details</div>
-            <div className="text-sm text-gray-600">
-              {ui.answered}/{totalQuestions} answered
-            </div>
+    <div className="w-full overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all duration-300">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-gray-50 bg-gray-50/50 px-4 py-2.5">
+        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+          Video Details
+        </span>
+        <span className="text-xs font-medium text-gray-400">
+          {answered} of {totalQuestions}
+        </span>
+      </div>
+
+      {/* Body */}
+      <div className="p-4">
+        {nextQuestion && (
+          <div className="mb-3">
+            <p className="text-xs text-gray-400 mb-0.5">Next Question:</p>
+            <p className="text-sm font-medium text-gray-800 line-clamp-1">
+              {nextQuestion}
+            </p>
           </div>
+        )}
 
-          <div
-            className="mt-2"
-            role="progressbar"
-            aria-label="Personalized video questions progress"
-            aria-valuemin={0}
-            aria-valuemax={totalQuestions}
-            aria-valuenow={ui.answered}
-          >
-            <div className="w-full rounded bg-gray-200 h-2" aria-hidden="true">
-              <div className="bg-brand h-2 rounded" style={{ width: `${ui.percent}%` }} />
-            </div>
-          </div>
-
-          {ui.nextQuestion && (
-            <div className="mt-2 text-xs text-gray-600">
-              Next: <span className="font-medium text-gray-900">{ui.nextQuestion}</span>
-            </div>
-          )}
+        {/* Progress Bar */}
+        <div 
+          className="relative h-2 w-full overflow-hidden rounded-full bg-gray-100"
+          role="progressbar"
+          aria-valuenow={percent}
+        >
+          <div 
+            className="absolute left-0 top-0 h-full bg-gray-900 transition-all duration-700 ease-out" 
+            style={{ width: `${percent}%` }} 
+          />
         </div>
-      )}
+      </div>
+    </div>
+  );
+};
 
-      <MessageThread
-        bookingRequestId={bookingRequestId}
-        clientName={clientName}
-        artistName={artistName}
-        artistAvatarUrl={artistAvatarUrl}
-        isSystemTyping={systemTyping}
-      />
+// --- Main Container ---
+
+export default function PersonalizedVideoFlow({
+  bookingRequestId,
+  clientName,
+  artistName,
+  artistAvatarUrl,
+}: Props) {
+  // Logic is now completely decoupled from UI
+  const { stats, isSystemTyping } = useVideoFlowAutomation(bookingRequestId);
+
+  return (
+    <div className="flex flex-col gap-4 w-full">
+      <ProgressWidget stats={stats} />
+
+      <div className="flex-1 min-h-[400px]">
+        <MessageThread
+          bookingRequestId={bookingRequestId}
+          clientName={clientName}
+          artistName={artistName}
+          artistAvatarUrl={artistAvatarUrl}
+          isSystemTyping={isSystemTyping}
+        />
+      </div>
     </div>
   );
 }

@@ -193,7 +193,7 @@ function HeaderMessagesLink({ unread, isLightHeader }: { unread: number; isLight
     <Link
       href="/inbox"
       className={clsx(
-        'relative inline-flex items-center justify-center px-3 py-2 rounded-lg hover:no-underline',
+        'relative inline-flex items-center justify-center px-2 py-2 rounded-lg hover:no-underline',
         isLightHeader
           ? 'text-black hover:bg-black hover:text-white'
           : 'text-white hover:bg-gray-900 hover:text-white'
@@ -725,10 +725,10 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <button
                       onClick={toggleArtistView}
                       className={clsx(
-                        'px-2 py-1.5 text-sm rounded-lg font-bold border',
+                        'px-2 py-1.5 text-sm rounded-lg font-semibold',
                         isLightHeader
-                          ? 'bg-white text-black border-black hover:bg-gray-100'
-                          : 'bg-black text-white border-white hover:bg-gray-900'
+                          ? 'bg-white text-black hover:bg-gray-100'
+                          : 'bg-black text-white hover:bg-gray-900'
                       )}
                     >
                     {artistViewActive ? 'Switch to Booking' : 'Switch to Hosting'}
@@ -738,11 +738,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <button
                       onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                       className={clsx(
-                      'px-2 py-1.5 text-sm rounded-lg border font-bold',
-                      isLightHeader
-                        ? 'border-black bg-white text-black hover:bg-black hover:text-white'
-                        : 'border-white bg-black text-white hover:bg-white hover:text-black',
-                      hoverNeutralLink2
+                        'px-2 py-1.5 text-sm rounded-lg font-semibold',
+                        isLightHeader
+                          ? 'bg-white text-black hover:bg-black hover:text-white'
+                          : 'bg-black text-white hover:bg-white hover:text-black',
+                        hoverNeutralLink2
                       )}
                     >
                       List your service
@@ -762,7 +762,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <Avatar
                       src={user.profile_picture_url || null}
                       initials={user.first_name?.[0] || user.email[0]}
-                      size={40}
+                      size={34}
                     />
                   </Menu.Button>
                   <Transition
@@ -774,7 +774,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     leaveFrom="opacity-100 scale-100"
                     leaveTo="opacity-0 scale-95"
                   >
-                    <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right bg-white rounded-xl shadow-xl ring-1 ring-black/5 focus:outline-none">
+                    <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right bg-white rounded-xl shadow-xl ring-1 ring-black/5 focus:outline-none z-50">
                       {/* Profile summary */}
                       <div className="px-4 py-3 flex items-center gap-3">
                         <Avatar
@@ -946,15 +946,15 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       <button
                         onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
                         className={clsx(
-                          'px-1.5 py-1.5 text-sm rounded-lg  border border-white bg-black text-white font-bold hover:bg-gray-100 hover:text-black',
+                          'px-1.5 py-1.5 text-sm rounded-lg bg-black text-white font-semibold hover:bg-gray-100 hover:text-black',
                           hoverNeutralLink2
                         )}
                       >
                         List your service
                       </button>
-                    ) : (
-                      <Link
-                        href="/auth?intent=signup&role=service_provider&next=/onboarding/provider"
+                      ) : (
+                        <Link
+                          href="/auth?intent=signup&role=service_provider&next=/onboarding/provider"
                         onClick={(e) => {
                           e.preventDefault();
                           // If signed in (client), open modal directly
@@ -964,14 +964,14 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                           } else {
                             router.push(`/auth?intent=signup&role=service_provider&next=${encodeURIComponent('/onboarding/provider')}`);
                           }
-                        }}
-                        className={clsx(
-                          'px-2 py-1.5 text-sm rounded-lg border font-bold',
-                          isLightHeader
-                            ? 'border-black bg-white text-black hover:bg-black hover:text-white'
-                            : 'border-white bg-black text-white hover:bg-gray-100 hover:text-black',
-                          hoverNeutralLink2
-                        )}
+                          }}
+                          className={clsx(
+                            'px-2 py-1.5 text-sm rounded-lg font-semibold',
+                            isLightHeader
+                              ? 'bg-white text-black hover:bg-black hover:text-white'
+                              : 'bg-black text-white hover:bg-gray-100 hover:text-black',
+                            hoverNeutralLink2
+                          )}
                       >
                         List your service
                       </Link>

@@ -285,8 +285,6 @@ html, body {
 /* State: Compacted */
 #app-header[data-header-state="compacted"] {
   height: 4rem; /* keep consistent visual height */
-  padding-top: 0.25rem; /* py-1 */
-  padding-bottom: 0.25rem; /* py-1 */
 }
 
 /* State: Expanded from Compact (when pill is clicked) */
