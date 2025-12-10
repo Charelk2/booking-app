@@ -13,7 +13,8 @@ import {
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 import { Button, TextInput, TextArea, Spinner, Toast } from "@/components/ui";
-import api from "@/lib/api";
+import api, { getServiceProviderAvailability } from "@/lib/api";
+import { PersonalizedVideoDatePicker } from "./PersonalizedVideoDatePicker";
 
 // =============================================================================
 // CONFIG
@@ -266,6 +267,7 @@ function useVideoBookingLogic({
   const [checking, setChecking] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [creating, setCreating] = useState(false);
+   const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
 
   // Derived
   const lengthSec = useMemo(() => (lengthChoice === "30_45" ? 40 : 75), [lengthChoice]);
@@ -292,7 +294,26 @@ function useVideoBookingLogic({
 
   const canContinue = disabledReason == null;
 
-  // Availability check (permissive default if API fails)
+  // Load full availability calendar once (for disabled dates UX)
+  useEffect(() => {
+    let cancelled = false;
+    const loadAvailability = async () => {
+      try {
+        const res = await getServiceProviderAvailability(artistId);
+        if (!cancelled && res?.data && Array.isArray(res.data.unavailable_dates)) {
+          setUnavailableDates(res.data.unavailable_dates);
+        }
+      } catch {
+        // Non-fatal: we'll fall back to per-date checks
+      }
+    };
+    void loadAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, [artistId]);
+
+  // Availability check (per-day, with permissive default if API fails)
   useEffect(() => {
     let cancelled = false;
 
@@ -306,21 +327,29 @@ function useVideoBookingLogic({
       setChecking(true);
       let ok: boolean | null = null;
 
-      // New endpoint
-      try {
-        const res = await safeGet<{ unavailable_dates: string[] }>(
-          `/api/v1/service-provider-profiles/${artistId}/availability`,
-          { when: deliveryBy },
-        );
-        if (res && Array.isArray(res.unavailable_dates)) {
-          ok = !res.unavailable_dates.includes(deliveryBy);
-        }
-      } catch {}
+      // Prefer preloaded calendar if we have it
+      if (unavailableDates.length) {
+        ok = !unavailableDates.includes(deliveryBy);
+      } else {
+        // Fallback: per-day checks (new endpoint)
+        try {
+          const res = await safeGet<{ unavailable_dates: string[] }>(
+            `/api/v1/service-provider-profiles/${artistId}/availability`,
+            { when: deliveryBy },
+          );
+          if (res && Array.isArray(res.unavailable_dates)) {
+            ok = !res.unavailable_dates.includes(deliveryBy);
+          }
+        } catch {}
 
-      // Legacy endpoint fallback
-      if (ok == null) {
-        const legacy = await safeGet<{ capacity_ok: boolean; blackout?: boolean }>(`/api/v1/artists/${artistId}/availability`, { by: deliveryBy });
-        if (legacy) ok = Boolean(legacy.capacity_ok) && !legacy.blackout;
+        // Legacy endpoint fallback
+        if (ok == null) {
+          const legacy = await safeGet<{ capacity_ok: boolean; blackout?: boolean }>(
+            `/api/v1/artists/${artistId}/availability`,
+            { by: deliveryBy },
+          );
+          if (legacy) ok = Boolean(legacy.capacity_ok) && !legacy.blackout;
+        }
       }
 
       if (cancelled) return;
@@ -328,11 +357,11 @@ function useVideoBookingLogic({
       setChecking(false);
     };
 
-    run();
+    void run();
     return () => {
       cancelled = true;
     };
-  }, [artistId, deliveryBy]);
+  }, [artistId, deliveryBy, unavailableDates]);
 
   const createDraft = useCallback(async () => {
     if (!canContinue) return;
@@ -490,6 +519,7 @@ function useVideoBookingLogic({
       canContinue,
       disabledReason,
     },
+    unavailableDates,
     actions: {
       createDraft,
     },
@@ -786,9 +816,7 @@ export default function BookinWizardPersonilsedVideo({
 }: WizardProps) {
   const router = useRouter();
 
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
-
-  const { form, pricing, status, actions } = useVideoBookingLogic({
+  const { form, pricing, status, unavailableDates, actions } = useVideoBookingLogic({
     artistId,
     basePriceZar,
     addOnLongZar,
@@ -812,7 +840,7 @@ export default function BookinWizardPersonilsedVideo({
 
   return (
     <Transition show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose} initialFocus={dateInputRef}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
         {/* Backdrop */}
         <Transition.Child
           as={Fragment}
@@ -877,14 +905,14 @@ export default function BookinWizardPersonilsedVideo({
                         <div className="text-xs text-gray-500">Min: {minDate}</div>
                       </div>
 
-                      <input
-                        ref={dateInputRef}
-                        type="date"
-                        min={minDate}
-                        className="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-black focus:ring-black"
-                        value={form.deliveryBy}
-                        onChange={(e) => form.setDeliveryBy(e.target.value)}
-                      />
+                      <div className="mt-2">
+                        <PersonalizedVideoDatePicker
+                          value={form.deliveryBy}
+                          minDateIso={minDate}
+                          unavailableDates={unavailableDates}
+                          onChange={form.setDeliveryBy}
+                        />
+                      </div>
 
                       <div className="mt-2 min-h-[1.25rem] text-xs">
                         {availabilityUi.tone === "loading" && (
