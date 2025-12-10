@@ -190,10 +190,6 @@ export function PersonalizedVideoDatePicker({
             <div className="w-2 h-2 rounded-full bg-black"></div>
             <span>Selected</span>
           </div>
-          <div className="flex items-center gap-1.5">
-             <div className="w-2 h-2 rounded-full bg-gray-200"></div>
-             <span>Unavailable</span>
-          </div>
         </div>
       </div>
     </div>
