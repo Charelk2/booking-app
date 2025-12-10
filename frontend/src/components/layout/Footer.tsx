@@ -112,7 +112,7 @@ const social = [
 
 export default function Footer() {
   return (
-    <footer className="bg-white text-gray-900 font-sans">
+    <footer className="bg-gray-50 text-gray-900 font-sans">
       <div className="full-width mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* TOP BORDER LINE */}
         <div className="border-t-2 border-black" />
