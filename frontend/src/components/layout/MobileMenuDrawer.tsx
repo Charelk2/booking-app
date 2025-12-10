@@ -26,6 +26,8 @@ interface MobileMenuDrawerProps {
   logout: () => void;
   pathname: string;
   hideAuthLinks?: boolean;
+  artistViewActive?: boolean;
+  toggleArtistView?: () => void;
 }
 
 const useMobileNavItems = (user: User | null, hideAuthLinks: boolean): NavItem[] => {
@@ -96,6 +98,8 @@ export default function MobileMenuDrawer({
   logout,
   pathname,
   hideAuthLinks = false,
+  artistViewActive,
+  toggleArtistView,
 }: MobileMenuDrawerProps) {
   const accountLinks = useMobileNavItems(user, hideAuthLinks);
   const extraNavigation = secondaryNavigation.filter(
@@ -120,15 +124,15 @@ export default function MobileMenuDrawer({
         >
           <div className="fixed inset-0 bg-gray-900/80 transition-opacity" />
         </Transition.Child>
-        <div className="fixed inset-0 flex">
+        <div className="fixed inset-0 flex justify-end">
           <Transition.Child
             as={Fragment}
             enter="transform transition ease-in-out duration-300"
-            enterFrom="-translate-x-full"
+            enterFrom="translate-x-full"
             enterTo="translate-x-0"
             leave="transform transition ease-in-out duration-300"
             leaveFrom="translate-x-0"
-            leaveTo="-translate-x-full"
+            leaveTo="translate-x-full"
           >
             <Dialog.Panel
               className="relative flex w-full max-w-xs flex-1 flex-col bg-white overflow-y-auto pt-safe pb-safe shadow-xl"
