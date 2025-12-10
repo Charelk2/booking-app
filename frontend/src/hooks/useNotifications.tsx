@@ -69,6 +69,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const soundAudioRef = useRef<HTMLAudioElement | null>(null);
+  const bootstrappedRef = useRef(false);
   const soundEnabledRef = useRef(true);
   const hasInteractedRef = useRef(false);
   const { user } = useAuth();
@@ -77,6 +78,40 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const lastEtagRef = useRef<string | null>(null);
   const lastFetchAtRef = useRef<number>(0);
   const inflightRef = useRef<Promise<void> | null>(null);
+  const maybePlaySoundForNotification = useCallback(
+    (notif: Notification) => {
+      try {
+        const threadId = extractThreadId(notif);
+        if (!threadId) return;
+        const isActive =
+          typeof window !== 'undefined' &&
+          Number((window as any).__inboxActiveThreadId || 0) === Number(threadId);
+        const docVisible =
+          typeof document !== 'undefined' &&
+          document.visibilityState === 'visible';
+        const isMessageType =
+          notif.type === 'new_message' ||
+          notif.type === 'message_thread_notification';
+        const shouldPlaySound =
+          isMessageType &&
+          soundEnabledRef.current &&
+          hasInteractedRef.current &&
+          soundAudioRef.current &&
+          !(docVisible && isActive);
+        if (shouldPlaySound) {
+          try {
+            void soundAudioRef.current!.play().catch(() => {});
+          } catch {
+            // ignore playback failures
+          }
+        }
+      } catch {
+        // best-effort only
+      }
+    },
+    [],
+  );
+
   const fetchNotifications = useCallback(async () => {
     const now = Date.now();
     if (now - lastFetchAtRef.current < 5000) return; // 5s throttle
@@ -100,9 +135,23 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           setError(null);
           return;
         }
-        try { lastEtagRef.current = String((res as any)?.headers?.etag || '') || lastEtagRef.current; } catch {}
+        try {
+          lastEtagRef.current = String((res as any)?.headers?.etag || '') || lastEtagRef.current;
+        } catch {}
         const items = (res.data as any) as Notification[];
-        setNotifications(items);
+        setNotifications((prev) => {
+          if (!bootstrappedRef.current) {
+            bootstrappedRef.current = true;
+            return items;
+          }
+          const prevIds = new Set(prev.map((n) => n.id));
+          for (const n of items) {
+            if (!prevIds.has(n.id)) {
+              maybePlaySoundForNotification(n);
+            }
+          }
+          return items;
+        });
         setUnreadCount(items.filter((n) => !n.is_read).length);
         setHasMore(items.length === 20);
         setError(null);
@@ -170,26 +219,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         setUnreadCount((c) => c + 1);
         const threadId = extractThreadId(newNotif);
         if (threadId) {
-          const isActive =
-            typeof window !== 'undefined' &&
-            Number((window as any).__inboxActiveThreadId || 0) === Number(threadId);
-          const docVisible =
-            typeof document !== 'undefined' &&
-            document.visibilityState === 'visible';
-          const isMessageType =
-            newNotif.type === 'new_message' ||
-            newNotif.type === 'message_thread_notification';
-          const shouldPlaySound =
-            isMessageType &&
-            soundEnabledRef.current &&
-            hasInteractedRef.current &&
-            soundAudioRef.current &&
-            !(docVisible && isActive);
-          if (shouldPlaySound) {
-            try {
-              void soundAudioRef.current!.play().catch(() => {});
-            } catch {}
-          }
+          maybePlaySoundForNotification(newNotif);
           // If the notification looks like a pending attachment (filename-only or placeholder) and we don't yet have a durable URL,
           // skip preview/unread updates here; fetch the finalized message shortly instead.
           try {
