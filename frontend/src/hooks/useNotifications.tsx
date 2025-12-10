@@ -137,7 +137,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       if (stored === '0') soundEnabledRef.current = false;
     } catch {}
     try {
-      const audio = new Audio('/new-message.mp3');
+      const audio = new Audio('/sounds/new-message.mp3');
       audio.volume = 0.7;
       soundAudioRef.current = audio;
     } catch {}
