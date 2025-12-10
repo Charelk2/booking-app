@@ -2,8 +2,7 @@
 
 import { Fragment, type ComponentType, type SVGProps, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, QuestionMarkCircleIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import type { User } from '@/types';
 import NavLink from './NavLink';
@@ -205,10 +204,11 @@ export default function MobileMenuDrawer({
                         onClick={onClose}
                         className={clsx(
                           navItemClasses,
-                          'w-full justify-center rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-gray-100 hover:text-black'
+                          'w-full justify-start gap-2 rounded-md px-2 py-2 text-base font-semibold hover:bg-gray-100 transition-colors'
                         )}
                       >
-                        List your service
+                        <SparklesIcon className="h-5 w-5 text-black" aria-hidden="true" />
+                        <span>List your service</span>
                       </Link>
                     </div>
                   )}
