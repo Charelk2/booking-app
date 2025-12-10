@@ -526,6 +526,7 @@ function useVideoBookingLogic({
       canContinue,
       disabledReason,
     },
+    unavailableDates,
     actions: {
       createDraft,
     },
