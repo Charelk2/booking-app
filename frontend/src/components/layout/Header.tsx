@@ -488,7 +488,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     'fixed top-0 left-0 right-0',
     isLightHeader
       ? 'bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm'
-      : 'border-b bg-black supports-[backdrop-filter]:backdrop-blur-md border-black/5'
+      : 'bg-black supports-[backdrop-filter]:backdrop-blur-md'
   );
 
   const topRowClasses = clsx(
