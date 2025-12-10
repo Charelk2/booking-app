@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, BackgroundTasks
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 import os
@@ -7,7 +7,7 @@ import logging
 from .. import models, schemas, crud
 from ..core.config import settings
 from ..crud import crud_invoice as inv
-from ..database import get_db
+from ..database import get_db, SessionLocal
 from .dependencies import get_current_user
 from ..utils import error_response
 from ..utils import r2 as r2utils
@@ -17,6 +17,99 @@ logger = logging.getLogger(__name__)
 
 INVOICE_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "invoices")
 os.makedirs(INVOICE_DIR, exist_ok=True)
+
+
+def ensure_invoice_pdf_stored(db: Session, invoice: models.Invoice) -> str | None:
+    """Ensure a PDF for this invoice is generated, uploaded to R2, and pdf_url persisted.
+
+    Returns the public URL (not presigned) when available; None on failure.
+    Safe to call multiple times; it will no-op when pdf_url already exists.
+    """
+    try:
+        public = getattr(invoice, "pdf_url", None)
+    except Exception:
+        public = None
+    if public:
+        return str(public)
+
+    # Lazy import to avoid heavy deps during OpenAPI generation.
+    # Select renderer based on invoice_type when available.
+    try:
+        inv_type = getattr(invoice, "invoice_type", None)
+    except Exception:
+        inv_type = None
+    pdf_bytes = None
+    if inv_type and str(inv_type).lower() in {"provider_tax", "provider_invoice"}:
+        try:
+            from ..services import provider_invoice_pdf as _prov_pdf  # type: ignore
+            pdf_bytes = _prov_pdf.generate_pdf(invoice)
+        except Exception:
+            pdf_bytes = None
+    elif inv_type and str(inv_type).lower() == "commission_tax":
+        try:
+            from ..services import commission_invoice_pdf as _com_pdf  # type: ignore
+            pdf_bytes = _com_pdf.generate_pdf(invoice)
+        except Exception:
+            pdf_bytes = None
+    elif inv_type and str(inv_type).lower() == "client_fee_tax":
+        try:
+            from ..services import client_fee_invoice_pdf as _fee_pdf  # type: ignore
+            pdf_bytes = _fee_pdf.generate_pdf(invoice)
+        except Exception:
+            pdf_bytes = None
+    if pdf_bytes is None:
+        from ..services import invoice_pdf  # type: ignore
+        pdf_bytes = invoice_pdf.generate_pdf(invoice)
+
+    filename = f"invoice_{invoice.id}.pdf"
+    path = os.path.join(INVOICE_DIR, filename)
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(pdf_bytes)
+    except Exception:
+        # If local write fails, we still attempt R2 upload below if possible.
+        pass
+
+    try:
+        key = r2utils.build_receipt_key(f"invoice-{invoice.id}")  # reuse receipts prefix for simplicity
+        r2utils.put_bytes(key, pdf_bytes, content_type="application/pdf")
+        public_url = (
+            f"{r2utils.R2Config().public_base_url}/{key}"
+            if r2utils.R2Config().public_base_url
+            else None
+        )
+        if public_url:
+            try:
+                invoice.pdf_url = public_url
+                db.add(invoice)
+                db.commit()
+                db.refresh(invoice)
+            except Exception:
+                db.rollback()
+            return public_url
+    except Exception:
+        pass
+
+    return None
+
+
+def _background_generate_invoice_pdf(invoice_id: int) -> None:
+    """Background entrypoint: open a session and generate the invoice PDF best-effort."""
+    try:
+        with SessionLocal() as session:  # type: ignore
+            try:
+                inv_row = crud.crud_invoice.get_invoice(session, int(invoice_id))
+            except Exception:
+                inv_row = None
+            if not inv_row:
+                return
+            try:
+                ensure_invoice_pdf_stored(session, inv_row)
+            except Exception:
+                logger.debug("ensure_invoice_pdf_stored failed (background)", exc_info=True)
+    except Exception:
+        logger.debug("SessionLocal for invoice pdf generation failed", exc_info=True)
 
 
 @router.get("/{invoice_id}", response_model=schemas.InvoiceRead)
@@ -122,66 +215,18 @@ def get_invoice_pdf(
         if signed:
             return RedirectResponse(url=signed, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
-    # Lazy import to avoid heavy deps during OpenAPI generation
-    # Select renderer based on invoice_type when available
-    try:
-        inv_type = getattr(invoice, "invoice_type", None)
-    except Exception:
-        inv_type = None
-    pdf_bytes = None
-    if inv_type and str(inv_type).lower() in {"provider_tax", "provider_invoice"}:
+    public_url = ensure_invoice_pdf_stored(db, invoice)
+    if public_url:
         try:
-            from ..services import provider_invoice_pdf as _prov_pdf  # type: ignore
-            pdf_bytes = _prov_pdf.generate_pdf(invoice)
+            signed = r2utils.presign_get_for_public_url(str(public_url))
         except Exception:
-            pdf_bytes = None
-    elif inv_type and str(inv_type).lower() == "commission_tax":
-        try:
-            from ..services import commission_invoice_pdf as _com_pdf  # type: ignore
-            pdf_bytes = _com_pdf.generate_pdf(invoice)
-        except Exception:
-            pdf_bytes = None
-    elif inv_type and str(inv_type).lower() == "client_fee_tax":
-        try:
-            from ..services import client_fee_invoice_pdf as _fee_pdf  # type: ignore
-            pdf_bytes = _fee_pdf.generate_pdf(invoice)
-        except Exception:
-            pdf_bytes = None
-    if pdf_bytes is None:
-        from ..services import invoice_pdf  # type: ignore
-        pdf_bytes = invoice_pdf.generate_pdf(invoice)
+            signed = None
+        if signed:
+            return RedirectResponse(url=signed, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
     filename = f"invoice_{invoice.id}.pdf"
     path = os.path.join(INVOICE_DIR, filename)
-    try:
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        with open(path, "wb") as f:
-            f.write(pdf_bytes)
-    except Exception:
-        # If we cannot write locally, still try serving from memory
-        pass
-
-    # Prefer R2: upload and return a presigned URL (inline)
-    try:
-        key = r2utils.build_receipt_key(f"invoice-{invoice.id}")  # reuse receipts prefix for simplicity
-        r2utils.put_bytes(key, pdf_bytes, content_type="application/pdf")
-        signed = r2utils.presign_get_by_key(key, filename=filename, content_type="application/pdf", inline=True)
-        # Best-effort: persist public URL to invoice.pdf_url
-        try:
-            public_url = f"{r2utils.R2Config().public_base_url}/{key}" if r2utils.R2Config().public_base_url else None
-            if public_url:
-                try:
-                    invoice.pdf_url = public_url
-                    db.add(invoice)
-                    db.commit()
-                    db.refresh(invoice)
-                except Exception:
-                    db.rollback()
-        except Exception:
-            pass
-        return RedirectResponse(url=signed, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
-    except Exception:
-        # Fall back to local file response
-        return FileResponse(path, media_type="application/pdf", filename=filename)
+    return FileResponse(path, media_type="application/pdf", filename=filename)
 @router.get("/by-booking/{booking_id}", response_model=schemas.InvoiceByBooking)
 def get_invoice_by_booking(
     booking_id: int,

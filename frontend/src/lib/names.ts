@@ -18,19 +18,17 @@ export function counterpartyLabel(
   const roleHint = opts?.viewerRole;
   const isArtist = roleHint === 'provider' || (!roleHint && currentUser?.user_type === 'service_provider'); 
 
-  // Artist perspective → client full name
+  // Artist perspective → client identity
   if (isArtist) {
     const client: any = (req as any)?.client || {};
-    // If the client is also a service provider, prefer their business name
-    // when available so booked artists see the requesting provider's brand.
-    if (client?.user_type === 'service_provider') {
-      const businessName: string | undefined =
-        client?.artist_profile?.business_name ||
-        client?.service_provider_profile?.business_name ||
-        client?.business_name;
-      if (businessName && String(businessName).trim()) {
-        return String(businessName).trim();
-      }
+    // Prefer a business/brand name whenever available so providers see
+    // the BSP or company brand instead of a person name.
+    const businessName: string | undefined =
+      client?.artist_profile?.business_name ||
+      client?.service_provider_profile?.business_name ||
+      client?.business_name;
+    if (businessName && String(businessName).trim()) {
+      return String(businessName).trim();
     }
     const first = client?.first_name as string | undefined;
     const last = client?.last_name as string | undefined;
@@ -74,7 +72,11 @@ export function counterpartyAvatar(
   const roleHint = opts?.viewerRole;
   const isArtist = roleHint === 'provider' || (!roleHint && currentUser?.user_type === 'service_provider');
   if (isArtist) {
-    const url = (req as any)?.client?.profile_picture_url;
+    const client: any = (req as any)?.client || {};
+    const url: string | undefined =
+      client?.artist_profile?.profile_picture_url ||
+      client?.service_provider_profile?.profile_picture_url ||
+      client?.profile_picture_url;
     return (url ?? fallbackUrl ?? null) as string | null;
   }
   const url =

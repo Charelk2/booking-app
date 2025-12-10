@@ -426,6 +426,7 @@ export default function GroupRenderer({
                 onReportProblemFromSystem={onReportProblemFromSystem}
                 onOpenReviewFromSystem={onOpenReviewFromSystem}
                 canCreateQuote={Boolean(canCreateQuote)}
+                viewerIsThreadClient={viewerIsThreadClient}
                 onOpenEventPrepFromSystem={
                   typeof onContinueEventPrep === 'function'
                     ? () => {

@@ -18,6 +18,8 @@ type SystemMessageProps = {
   onOpenEventPrepFromSystem?: () => void;
   /** True when the viewer is allowed to create quotes for this thread. */
   canCreateQuote?: boolean;
+  /** True when the current viewer is the client for this thread, even if their global user_type is service_provider. */
+  viewerIsThreadClient?: boolean;
 };
 
 const absUrlRegex = /(https?:\/\/[^\s]+)/i;
@@ -37,12 +39,16 @@ export default function SystemMessage({
   onOpenReviewFromSystem,
   onOpenEventPrepFromSystem,
   canCreateQuote = false,
+  viewerIsThreadClient = false,
 }: SystemMessageProps) {
   try {
     const { user } = useAuth() || {} as any;
     const key = String((msg?.system_key || msg?.action || '')).toLowerCase();
     const content = String(msg?.content || '');
     const lower = content.toLowerCase();
+    const userType = (user?.user_type || '').toLowerCase();
+    const isThreadClient = Boolean(viewerIsThreadClient);
+    const isThreadProvider = !isThreadClient && userType === 'service_provider';
 
     // New quote requested CTA (client asks for a fresh quote)
     // Place this early so it doesn't fall through to the generic system line.
@@ -114,7 +120,7 @@ export default function SystemMessage({
     // Prefer explicit system_key, but also fall back to content matching for
     // legacy rows that predate system_key or when keys are missing.
     if (key.startsWith('event_finished_v1') || lower.startsWith('event finished:')) {
-      const isProvider = (user?.user_type || '').toLowerCase() === 'service_provider';
+      const isProvider = isThreadProvider;
       const title = t('system.eventFinishedTitle', 'Event finished');
       const subtitleClient = t(
         'system.eventFinishedClient',
@@ -376,7 +382,7 @@ export default function SystemMessage({
     // Review invite for provider (review the client)
     // Match either the structured key or the canonical invite copy.
     if (key === 'review_invite_provider_v1' || lower.startsWith('how was your experience with')) {
-      const isProvider = (user?.user_type || '').toLowerCase() === 'service_provider';
+      const isProvider = isThreadProvider;
       if (!isProvider) return null;
       return (
         <SystemCard
@@ -411,20 +417,20 @@ export default function SystemMessage({
       const abs = content.match(absUrlRegex)?.[1] || null;
       const rel = abs ? null : (content.match(relUrlRegex)?.[1] || null);
       const receiptUrl = abs || (rel ? apiUrl(rel) : null);
-      const isProvider = (user?.user_type || '').toLowerCase() === 'service_provider';
+      const showReceipt = !isThreadProvider && !!receiptUrl;
       return (
         <div className="my-2 w-full flex justify-center">
           <div className="text-[12px] text-gray-700 bg-green-50 border border-green-200 px-2 py-1 rounded">
             {t('system.paymentReceived', 'Payment received. Your booking is confirmed.')}
-            {!isProvider && receiptUrl ? (
+            {showReceipt ? (
               <>
                 {' '}
-                <a href={receiptUrl} target="_blank" rel="noreferrer" className="underline text-green-700">
+                <a href={receiptUrl as string} target="_blank" rel="noreferrer" className="underline text-green-700">
                   {t('system.viewReceipt', 'View receipt')}
                 </a>
               </>
             ) : null}
-            {isProvider ? (
+            {isThreadProvider ? (
               <>
                 {' '}
                 <a href={'/dashboard/provider/payouts'} className="underline text-green-700">
@@ -444,6 +450,7 @@ export default function SystemMessage({
       const receiptUrl = abs || (rel ? apiUrl(rel) : null);
       // Only render a link if we have a URL
       if (!receiptUrl) return null;
+      if (!isThreadClient) return null;
       return (
         <div className="my-2 w-full flex justify-center">
           <div className="text-[12px] text-gray-700 bg-green-50 border border-green-200 px-2 py-1 rounded">
@@ -458,7 +465,7 @@ export default function SystemMessage({
     // Provider-only payout notice (server emits with system_key payment_provider_notice:*)
     if (key.includes('payment_provider_notice')) {
       // Only providers should see this line; clients ignore it to avoid flicker
-      const isProvider = (user?.user_type || '').toLowerCase() === 'service_provider';
+      const isProvider = isThreadProvider;
       if (!isProvider) return null;
       return (
         <div className="my-2 w-full flex justify-center">
