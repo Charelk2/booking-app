@@ -11,7 +11,6 @@ import {
 import clsx from 'clsx';
 import LocationInput, { PlaceResult } from '../ui/LocationInput';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { FEATURE_HEADER_LIGHT } from '@/lib/constants';
 
 // Import types for consistency
 import type { ActivePopup, Category, SearchFieldId } from './types';
@@ -91,7 +90,6 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         !['Search', 'Add service', 'Add dates', 'Add location'].includes(currentValue);
 
       const textSizeClass = 'text-xs';
-      const shapeBaseClass = FEATURE_HEADER_LIGHT ? 'rounded-lg' : 'rounded-full';
 
       return (
         <div className="relative flex-1 min-w-0">
@@ -101,12 +99,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             type="button"
             onClick={() => onFieldClick(id, buttonRef.current!)} // Pass the ID and the button element
             className={clsx(
-              'group relative text-sm z-10 w-full flex flex-col rounded-full justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0',
+              'group relative text-sm z-10 w-full flex flex-col rounded-lg justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0',
               compact ? 'px-4 py-2' : 'px-6 py-2',
               isActive
                 ? 'bg-gray-100'
                 : 'hover:bg-gray-100 focus:bg-gray-50',
-              shapeBaseClass,
               additionalClasses // Apply any additional classes passed in
             )}
             aria-expanded={isActive}
@@ -143,7 +140,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
                   buttonRef.current.focus(); // Return focus to the button
                 }
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none rounded-full p-1 z-20 transition-transform active:scale-90"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none rounded-lg p-1 z-20 transition-transform active:scale-90"
               aria-label={`Clear ${label}`}
               title={`Clear ${label}`}
             >
@@ -167,7 +164,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         category ? category.label : 'Add service',
         categoryButtonRef,
         () => setCategory(null),
-        FEATURE_HEADER_LIGHT ? 'hover:rounded-lg' : 'hover:rounded-full'
+        'hover:rounded-lg'
       )}
 
       <div className="border-l border-gray-100" />
@@ -180,7 +177,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         () => setWhen(null)
       )}
 
-      <div className="border-l rounded-full border-white-200" />
+      <div className="border-l rounded-lg border-white-200" />
 
       {/* Location field now uses a direct input instead of a button */}
       <div
@@ -193,7 +190,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           activeField === 'location'
             ? 'bg-gray-100'
             : 'hover:bg-gray-100 focus:bg-gray-50',
-          FEATURE_HEADER_LIGHT ? 'rounded-lg' : 'rounded-full',
+          'rounded-lg',
         )}
         onFocus={() => onFieldClick('location', locationContainerRef.current!)}
         onClick={() => locationInputRef.current?.focus()}
@@ -239,12 +236,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           aria-label="Search now"
           aria-expanded={!!activeField}
           className={clsx(
-            'absolute right-3 top-1/2 -translate-y-1/2 h-10 flex items-center',
+            'absolute right-3 top-1/2 -translate-y-1/2 h-10 flex items-center rounded-lg',
             !!activeField || showExpanded ? 'px-3 gap-2 w-auto justify-center' : 'w-10 justify-center',
             'bg-white/70 hover:bg-gray-100 hover:border-black',
             'border border-white/60 ring-1 ring-white/40 backdrop-blur-md',
             'transition-all duration-200',
-            FEATURE_HEADER_LIGHT ? 'rounded-lg' : 'rounded-full',
             submitBusy && 'cursor-not-allowed opacity-80',
           )}
           disabled={submitBusy}
