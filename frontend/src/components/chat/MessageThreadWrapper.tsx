@@ -28,7 +28,7 @@ import {
 import BookingSummarySkeleton from '@/components/chat/BookingSummarySkeleton';
 
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { counterpartyLabel } from '@/lib/names';
+import { counterpartyAvatar, counterpartyLabel } from '@/lib/names';
 import { useQuotes, prefetchQuotesByIds } from '@/hooks/useQuotes';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
