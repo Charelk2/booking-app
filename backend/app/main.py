@@ -188,6 +188,7 @@ class ReadyState:
     ready: bool = False
     reason: str = "starting"
     since_ts: float = time.time()
+    last_probe_ts: float = 0.0
     last_ok_ts: float = 0.0
     last_err: Optional[str] = None
     db_ping_ms: Optional[float] = None
@@ -242,6 +243,7 @@ async def _readiness_poller() -> None:
     await asyncio.sleep(0.2)
     while True:
         try:
+            started = time.time()
             ping_ms = await asyncio.wait_for(
                 asyncio.to_thread(_db_ping_sync),
                 timeout=1.0,
@@ -254,6 +256,10 @@ async def _readiness_poller() -> None:
             _set_ready(False, "db_pool_timeout", err=str(exc))
         except Exception as exc:  # pragma: no cover - defensive guard
             _set_ready(False, "db_error", err=repr(exc))
+        try:
+            READY.last_probe_ts = time.time()
+        except Exception:
+            pass
         await asyncio.sleep(1.0)
 
 
@@ -694,23 +700,55 @@ async def health_live():
 @app.get("/healthz/ready", tags=["health"])
 async def health_ready():
     """Readiness probe: cached DB ping state + loop lag."""
-    # Optional guard: if the event loop is badly stalled, consider not-ready.
-    if READY.loop_lag_ms >= 5000:
-        _set_ready(False, "loop_lag", err=f"loop_lag_ms={READY.loop_lag_ms:.1f}")
+    now = time.time()
+    # Treat stale probes as not-ready without mutating the cached READY state.
+    last_probe = getattr(READY, "last_probe_ts", 0.0) or 0.0
+    probe_age_s = now - last_probe if last_probe > 0 else None
+    stale = probe_age_s is not None and probe_age_s > 5.0
 
-    code = 200 if READY.ready else 503
+    # Compute effective readiness combining cached DB probe + loop lag + staleness.
+    effective_ready = bool(READY.ready)
+    reasons: list[str] = []
+    base_reason = READY.reason or "unknown"
+    if not READY.ready:
+        reasons.append(base_reason)
+    if stale:
+        effective_ready = False
+        reasons.append("stale_probe")
+    if READY.loop_lag_ms >= 5000:
+        effective_ready = False
+        reasons.append("loop_lag")
+
+    if not reasons and effective_ready:
+        reason = "ok"
+    else:
+        # Preserve primary cached reason first, then additional signals.
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for r in ([base_reason] + reasons):
+            if not r or r in seen:
+                continue
+            seen.add(r)
+            ordered.append(r)
+        reason = ",".join(ordered) if ordered else "unknown"
+
+    code = 200 if effective_ready else 503
     return ORJSONResponse(
         status_code=code,
         content={
-            "status": "ok" if READY.ready else "error",
+            "status": "ok" if effective_ready else "error",
             "kind": "ready",
-            "ready": READY.ready,
-            "reason": READY.reason,
+            "ready": effective_ready,
+            "reason": reason,
+            "ready_cached": READY.ready,
+            "cached_reason": READY.reason,
             "error": READY.last_err,
             "db_ping_ms": READY.db_ping_ms,
             "loop_lag_ms": round(READY.loop_lag_ms, 1),
             "since_ts": READY.since_ts,
             "last_ok_ts": READY.last_ok_ts,
+            "last_probe_ts": last_probe,
+            "probe_age_s": round(probe_age_s, 2) if probe_age_s is not None else None,
             "uptime_s": round(time.time() - _BOOT_TS, 1),
             "pid": os.getpid(),
             **FLY_META,

@@ -54,7 +54,7 @@ import { getStreetFromAddress } from '@/lib/utils';
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid';
 import { ChatBubbleLeftRightIcon as ChatOutline } from '@heroicons/react/24/outline';
 import React from 'react';
-import { FEATURE_EVENT_PREP } from '@/lib/constants';
+import { FEATURE_EVENT_PREP, FEATURE_HEADER_LIGHT } from '@/lib/constants';
 import dynamic from 'next/dynamic';
 const ProviderOnboardingModal = dynamic(() => import('@/components/auth/ProviderOnboardingModal'), { ssr: false });
 import useIsMobile from '@/hooks/useIsMobile';
@@ -93,20 +93,25 @@ const hoverNeutralLink =
 const hoverNeutralLink2 =
   'no-underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
 
-// Filter icon overlay: forces white icon/text and supports placing it *outside* on the right
+// Filter icon overlay: theme-aware icon/text; supports placing it *outside* on the right
 function FilterSlot({
   children,
   className = '',
+  isLightHeader,
 }: {
   children: React.ReactNode;
   className?: string;
+  isLightHeader: boolean;
 }) {
+  const themeClasses = isLightHeader
+    ? 'text-black [&_svg]:!text-black [&_svg]:!stroke-black [&_*]:!text-black'
+    : 'text-white [&_svg]:!text-white [&_svg]:!stroke-white [&_*]:!text-white';
+
   return (
     <div
       className={clsx(
         'pointer-events-none absolute top-1/2 -translate-y-1/2 z-20',
-        // force white for icon/text regardless of nested component defaults
-        'text-white [&_svg]:!text-white [&_svg]:!stroke-white [&_*]:!text-white',
+        themeClasses,
         className
       )}
       aria-hidden="false"
@@ -116,7 +121,7 @@ function FilterSlot({
   );
 }
 
-function ClientNav({ pathname }: { pathname: string }) {
+function ClientNav({ pathname, isLightHeader }: { pathname: string; isLightHeader: boolean }) {
   return (
     <>
       {clientNav.map((item) => {
@@ -127,9 +132,11 @@ function ClientNav({ pathname }: { pathname: string }) {
             href={item.href}
             className={clsx(
               'px-2 py-1 text-sm transition',
-              'text-white/90 hover:text-white',
+              isLightHeader
+                ? 'text-gray-900 hover:text-black'
+                : 'text-white/90 hover:text-white',
               hoverNeutralLink,
-              isActive && 'font-semibold text-white'
+              isActive && (isLightHeader ? 'font-semibold text-black' : 'font-semibold text-white')
             )}
           >
             {item.name}
@@ -140,7 +147,15 @@ function ClientNav({ pathname }: { pathname: string }) {
   );
 }
 
-function ArtistNav({ user, pathname }: { user: { id: number; artist_slug?: string | null }; pathname: string }) {
+function ArtistNav({
+  user,
+  pathname,
+  isLightHeader,
+}: {
+  user: { id: number; artist_slug?: string | null };
+  pathname: string;
+  isLightHeader: boolean;
+}) {
   const items = [
     { name: 'Today', href: '/dashboard/today' },
     { name: 'View Profile', href: `/${user.artist_slug || user.id}` },
@@ -156,9 +171,11 @@ function ArtistNav({ user, pathname }: { user: { id: number; artist_slug?: strin
             href={item.href}
             className={clsx(
               'px-2 py-1 text-sm transition',
-              'text-white/90 hover:text-white',
+              isLightHeader
+                ? 'text-gray-900 hover:text-black'
+                : 'text-white/90 hover:text-white',
               hoverNeutralLink,
-              isActive && 'font-semibold text-white'
+              isActive && (isLightHeader ? 'font-semibold text-black' : 'font-semibold text-white')
             )}
           >
             {item.name}
@@ -170,12 +187,17 @@ function ArtistNav({ user, pathname }: { user: { id: number; artist_slug?: strin
 }
 
 // Lightweight messages link with unread badge, defined once, used in header.
-function HeaderMessagesLink({ unread }: { unread: number }) {
+function HeaderMessagesLink({ unread, isLightHeader }: { unread: number; isLightHeader: boolean }) {
   const router = useRouter();
   return (
     <Link
       href="/inbox"
-      className="relative inline-flex items-center justify-center px-3 py-2 rounded-lg text-white hover:bg-gray-900 hover:text-white hover:no-underline"
+      className={clsx(
+        'relative inline-flex items-center justify-center px-3 py-2 rounded-lg hover:no-underline',
+        isLightHeader
+          ? 'text-black hover:bg-black hover:text-white'
+          : 'text-white hover:bg-gray-900 hover:text-white'
+      )}
       aria-label={unread > 0 ? `Messages (${unread} unread)` : 'Messages'}
       onMouseEnter={() => router.prefetch?.('/inbox')}
       onFocus={() => router.prefetch?.('/inbox')}
@@ -275,6 +297,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const isClientUser = user?.user_type === 'client';
   const headerVariant = variant;
   const isAuthVariant = headerVariant === 'auth';
+  const isLightHeader = isAuthVariant || FEATURE_HEADER_LIGHT;
   const suppressAccountActions = hideAccountActions;
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -463,30 +486,30 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     'z-50 border-b',
     // Keep header pinned to the top on all viewports
     'fixed top-0 left-0 right-0',
-    isAuthVariant
+    isLightHeader
       ? 'bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm border-slate-200'
       : 'bg-black supports-[backdrop-filter]:backdrop-blur-md border-black/5'
   );
 
   const topRowClasses = clsx(
     'grid px-2 grid-cols-[auto,1fr,auto] items-center gap-2',
-    isAuthVariant ? 'bg-transparent text-gray-900' : 'bg-black text-white'
+    isLightHeader ? 'bg-transparent text-gray-900' : 'bg-black text-white'
   );
 
   const menuButtonClasses = clsx(
     'md:hidden p-2 rounded-xl transition',
-    isAuthVariant
+    isLightHeader
       ? 'text-gray-900 hover:bg-gray-100 active:bg-gray-200'
       : 'hover:bg-white/10 active:bg-white/15 text-white'
   );
 
   const brandLinkClasses = clsx(
     'font-bold tracking-tight no-underline hover:no-underline transition-transform duration-200 hover:scale-110',
-    isAuthVariant
+    isLightHeader
       ? 'text-gray-900 hover:text-gray-900 focus-visible:ring-black/20'
       : 'text-white hover:text-white focus-visible:ring-white/50',
     'rounded-md px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-    isAuthVariant ? 'focus-visible:ring-offset-white' : 'focus-visible:ring-offset-black'
+    isLightHeader ? 'focus-visible:ring-offset-white' : 'focus-visible:ring-offset-black'
   );
 
   return (
@@ -515,7 +538,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               aria-label="Open menu"
               className={clsx(menuButtonClasses, hoverNeutralLink)}
             >
-              <Bars3Icon className={clsx('h-6 w-6', isAuthVariant ? 'text-gray-900' : 'text-white')} />
+              <Bars3Icon className={clsx('h-6 w-6', isLightHeader ? 'text-gray-900' : 'text-white')} />
             </button>
 
             {/* MOBILE: messages shortcut removed to avoid duplicate entry; use bottom nav */}
@@ -528,8 +551,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             >
               {(() => {
                 const src = process.env.NEXT_PUBLIC_BRAND_LOGO_URL || '';
-                const logoBgClasses = isAuthVariant ? 'bg-black' : 'bg-white';
-                const logoTextClasses = isAuthVariant ? 'text-white' : 'text-black';
+                const logoBgClasses = isLightHeader ? 'bg-black' : 'bg-white';
+                const logoTextClasses = isLightHeader ? 'text-white' : 'text-black';
                 return (
                   <span
                     className={clsx(
@@ -586,7 +609,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               <div
                 className={clsx(
                   'md:hidden ml-2 shrink-0 [&_svg]:!stroke-inherit [&_*]:!text-inherit',
-                  isAuthVariant
+                  isLightHeader
                     ? 'text-gray-900 [&_svg]:!text-gray-900'
                     : 'text-white [&_svg]:!text-white'
                 )}
@@ -605,9 +628,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               })}
             >
               {user?.user_type === 'service_provider' && artistViewActive ? (
-                <ArtistNav user={user} pathname={pathname} />
+                <ArtistNav user={user} pathname={pathname} isLightHeader={isLightHeader} />
               ) : SHOW_CLIENT_TOP_NAV ? (
-                <ClientNav pathname={pathname} />
+                <ClientNav pathname={pathname} isLightHeader={isLightHeader} />
               ) : null}
             </nav>
 
@@ -681,7 +704,10 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
                   {/* Outside-right white filter icon */}
                   {filterControl && (
-                    <FilterSlot className="hidden md:block right-[-44px]">
+                    <FilterSlot
+                      className="hidden md:block right-[-44px]"
+                      isLightHeader={isLightHeader}
+                    >
                       {filterControl}
                     </FilterSlot>
                   )}
@@ -690,39 +716,47 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             )}
           </div>
 
-          {/* Right actions */}
-          <div className="hidden sm:flex items-center justify-end gap-2">
-            {!suppressAccountActions && (
-              user ? (
-                <>
-                {user.user_type === 'service_provider' && (
-                  <button
-                    onClick={toggleArtistView}
-                    className="px-2 py-1.5 text-sm rounded-lg font-bold bg-black text-white border border-white hover:bg-gray-900"
-                  >
+            {/* Right actions */}
+            <div className="hidden sm:flex items-center justify-end gap-2">
+              {!suppressAccountActions && (
+                user ? (
+                  <>
+                  {user.user_type === 'service_provider' && (
+                    <button
+                      onClick={toggleArtistView}
+                      className={clsx(
+                        'px-2 py-1.5 text-sm rounded-lg font-bold border',
+                        isLightHeader
+                          ? 'bg-white text-black border-black hover:bg-gray-100'
+                          : 'bg-black text-white border-white hover:bg-gray-900'
+                      )}
+                    >
                     {artistViewActive ? 'Switch to Booking' : 'Switch to Hosting'}
                   </button>
                 )}
-                {user.user_type === 'client' && (
-                  <button
-                    onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
-                    className={clsx(
-                      'px-2 py-1.5 text-sm rounded-lg border border-white bg-black text-white font-bold hover:bg-white hover:text-black',
+                  {user.user_type === 'client' && (
+                    <button
+                      onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
+                      className={clsx(
+                      'px-2 py-1.5 text-sm rounded-lg border font-bold',
+                      isLightHeader
+                        ? 'border-black bg-white text-black hover:bg-black hover:text-white'
+                        : 'border-white bg-black text-white hover:bg-white hover:text-black',
                       hoverNeutralLink2
-                    )}
-                  >
-                    List your service
-                  </button>
-                )}
-                {/* Messages link with unread badge (no flicker) */}
-                <HeaderMessagesLink unread={unreadThreadsCount} />
+                      )}
+                    >
+                      List your service
+                    </button>
+                  )}
+                  {/* Messages link with unread badge (no flicker) */}
+                  <HeaderMessagesLink unread={unreadThreadsCount} isLightHeader={isLightHeader} />
 
                 <Menu as="div" className="relative">
-                  <Menu.Button
-                    aria-label="Account menu"
-                    className={clsx(
-                      'rounded-full bg-white/90 hover:bg-white p-1 transition',
-                      hoverNeutralLink
+                    <Menu.Button
+                      aria-label="Account menu"
+                      className={clsx(
+                        'rounded-full bg-white/90 hover:bg-white p-1 transition',
+                        hoverNeutralLink
                     )}
                   >
                     <Avatar
@@ -932,7 +966,10 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                           }
                         }}
                         className={clsx(
-                          'px-2 py-1.5 text-sm rounded-lg  border border-white bg-black text-white font-bold hover:bg-gray-100 hover:text-black',
+                          'px-2 py-1.5 text-sm rounded-lg border font-bold',
+                          isLightHeader
+                            ? 'border-black bg-white text-black hover:bg-black hover:text-white'
+                            : 'border-white bg-black text-white hover:bg-gray-100 hover:text-black',
                           hoverNeutralLink2
                         )}
                       >
@@ -944,7 +981,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     type="button"
                     onClick={goToLogin}
                     aria-label="Account"
-                    className="p-0 text-white"
+                    className={clsx('p-0', isLightHeader ? 'text-black' : 'text-white')}
                   >
                     <UserAccountIcon className="h-7 w-7" />
                   </button>
@@ -1003,11 +1040,14 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               />
 
               {/* Outside-right white filter icon */}
-              {filterControl && (
-                <FilterSlot className="hidden md:block right-[-44px]">
-                  {filterControl}
-                </FilterSlot>
-              )}
+                  {filterControl && (
+                    <FilterSlot
+                      className="hidden md:block right-[-44px]"
+                      isLightHeader={isLightHeader}
+                    >
+                      {filterControl}
+                    </FilterSlot>
+                  )}
             </div>
           </div>
         )}
