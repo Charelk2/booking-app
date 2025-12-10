@@ -978,6 +978,25 @@ export default function MessageThreadWrapper({
                       ? 'Booka'
                       : (() => {
                           const roleHint = isThreadProvider ? 'provider' : isThreadClient ? 'client' : undefined;
+                          // When we are the provider for this thread and the
+                          // client is a BSP/service provider, prefer their
+                          // business name so providers see the brand (e.g.,
+                          // Sound Solutions) instead of a personal name.
+                          if (isThreadProvider) {
+                            try {
+                              const raw: any = effectiveBookingRequest;
+                              const client: any = raw?.client || {};
+                              const business =
+                                client?.artist_profile?.business_name ||
+                                client?.service_provider_profile?.business_name ||
+                                client?.business_name;
+                              if (business && String(business).trim()) {
+                                return String(business).trim();
+                              }
+                            } catch {
+                              // fall through to generic counterpartyLabel
+                            }
+                          }
                           return (
                             counterpartyLabel(
                               effectiveBookingRequest as any,
