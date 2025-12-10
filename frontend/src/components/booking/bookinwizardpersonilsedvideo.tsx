@@ -823,7 +823,7 @@ export default function BookinWizardPersonilsedVideo({
 }: WizardProps) {
   const router = useRouter();
 
-  const { form, pricing, status, actions } = useVideoBookingLogic({
+  const { form, pricing, status, unavailableDates, actions } = useVideoBookingLogic({
     artistId,
     basePriceZar,
     addOnLongZar,
