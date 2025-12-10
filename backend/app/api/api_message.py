@@ -2177,7 +2177,28 @@ def finalize_attachment_message(
                     "timestamp": data.get("timestamp"),
                 },
             }
-            enqueue_outbox(db, topic="notifications", payload=notif_env)
+            # Immediate WS fanout to both participants via the notifications channel.
+            participant_ids = {
+                int(booking_request.client_id) if getattr(booking_request, "client_id", None) is not None else None,
+                int(booking_request.artist_id) if getattr(booking_request, "artist_id", None) is not None else None,
+            }
+            for uid in participant_ids:
+                if not uid:
+                    continue
+                try:
+                    background_tasks.add_task(notifications_manager.broadcast, int(uid), notif_env)
+                except Exception:
+                    logger.exception("attachment_finalize: notifications broadcast failed", extra={"user_id": uid})
+
+            # Reliable outbox fanout on per-user topics so the Redis bus can
+            # deliver to multiplex subscribers and /ws/notifications consumers.
+            try:
+                for uid in participant_ids:
+                    if not uid:
+                        continue
+                    enqueue_outbox(db, topic=f"notifications:{int(uid)}", payload=notif_env)
+            except Exception:
+                logger.exception("attachment_finalize: notifications outbox enqueue failed")
         except Exception:
             logger.exception("attachment_finalize: notifications fanout failed")
     except Exception:
