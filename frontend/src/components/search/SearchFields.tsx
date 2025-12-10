@@ -237,7 +237,9 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           aria-expanded={!!activeField}
           className={clsx(
             'absolute right-3 top-1/2 -translate-y-1/2 h-10 flex items-center rounded-lg',
-            !!activeField || showExpanded ? 'px-3 gap-2 w-auto justify-center' : 'w-10 justify-center',
+            (!!activeField || showExpanded || category || location || when)
+              ? 'px-3 gap-2 w-auto justify-center'
+              : 'w-10 justify-center',
             'bg-white/70 hover:bg-gray-100 hover:border-black',
             'border border-white/60 ring-1 ring-white/40 backdrop-blur-md',
             'transition-all duration-200',
@@ -253,7 +255,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           ) : (
             <>
               <MagnifyingGlassIcon className="h-5 w-5 text-slate-900/80" />
-              {(!!activeField || showExpanded) && (
+              {(!!activeField || showExpanded || category || location || when) && (
                 <span className="text-xs font-semibold text-slate-900/90">Search</span>
               )}
             </>
