@@ -173,8 +173,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           const docVisible =
             typeof document !== 'undefined' &&
             document.visibilityState === 'visible';
+          const isMessageType =
+            newNotif.type === 'new_message' ||
+            newNotif.type === 'message_thread_notification';
           const shouldPlaySound =
-            newNotif.type === 'new_message' &&
+            isMessageType &&
             soundEnabledRef.current &&
             hasInteractedRef.current &&
             soundAudioRef.current &&
