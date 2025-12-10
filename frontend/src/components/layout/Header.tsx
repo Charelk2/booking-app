@@ -530,93 +530,94 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       >
         {/* Top Row */}
         <div className={topRowClasses}>
-          {/* Left cluster: menu + brand + (mobile pill) */}
-          <div className="col-span-3 md:col-span-1 flex items-center gap-2 w-full min-w-0">
-            <button
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              aria-label="Open menu"
-              className={clsx(menuButtonClasses, hoverNeutralLink)}
-            >
-              <Bars3Icon className={clsx('h-6 w-6', isLightHeader ? 'text-gray-900' : 'text-white')} />
-            </button>
+          {/* Left: brand + (mobile pill) */}
+          <div className="col-span-3 md:col-span-1 flex items-center w-full min-w-0 justify-between">
+            <div className="flex items-center gap-2 w-full min-w-0">
+              <Link
+                href="/"
+                prefetch={false}
+                className={clsx(brandLinkClasses, 'flex items-center gap-2')}
+                aria-label="Booka home"
+              >
+                {(() => {
+                  const src = process.env.NEXT_PUBLIC_BRAND_LOGO_URL || '';
+                  const logoBgClasses = isLightHeader ? 'bg-black' : 'bg-white';
+                  const logoTextClasses = isLightHeader ? 'text-white' : 'text-black';
+                  return (
+                    <span
+                      className={clsx(
+                        'inline-flex items-center justify-center h-8 w-8 sm:h-8 sm:w-8 md:h-8 md:w-8 rounded',
+                        logoBgClasses,
+                      )}
+                    >
+                      {src ? (
+                        <Image
+                          src={src}
+                          alt="Brand logo"
+                          width={30}
+                          height={30}
+                          priority
+                          className="h-5 w-auto sm:h-6 md:h-7"
+                        />
+                      ) : (
+                        <span
+                          className={clsx(
+                            logoTextClasses,
+                            'font-black text-xl sm:text-2xl md:text-3xl leading-none',
+                          )}
+                        >
+                          B
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
+                <span className="text-lg sm:text-2xl md:text-3xl">Booka</span>
+              </Link>
 
-            {/* MOBILE: messages shortcut removed to avoid duplicate entry; use bottom nav */}
+              {/* MOBILE: search pill (light surface → black text) */}
+              {!isArtistView && showSearchBar && (
+                <button
+                  type="button"
+                  onClick={() => mobileSearchRef.current?.open?.()}
+                  aria-label="Open search"
+                  className={clsx(
+                    'ml-2 md:hidden inline-flex items-center gap-2 px-3 py-2 text-xs rounded-lg',
+                    'border border-black/10 bg-white shadow-sm',
+                    'flex-1 min-w-0 overflow-hidden',
+                    hoverNeutralLink,
+                    'text-black'
+                  )}
+                >
+                  <MagnifyingGlassIcon className="h-4 w-4 text-black shrink-0" />
+                  <span className="font-medium truncate">Start your search</span>
+                </button>
+              )}
+            </div>
 
-            <Link
-              href="/"
-              prefetch={false}
-              className={clsx(brandLinkClasses, 'flex items-center gap-2')}
-              aria-label="Booka home"
-            >
-              {(() => {
-                const src = process.env.NEXT_PUBLIC_BRAND_LOGO_URL || '';
-                const logoBgClasses = isLightHeader ? 'bg-black' : 'bg-white';
-                const logoTextClasses = isLightHeader ? 'text-white' : 'text-black';
-                return (
-                  <span
-                    className={clsx(
-                      'inline-flex items-center justify-center h-8 w-8 sm:h-8 sm:w-8 md:h-8 md:w-8 rounded',
-                      logoBgClasses,
-                    )}
-                  >
-                    {src ? (
-                      <Image
-                        src={src}
-                        alt="Brand logo"
-                        width={30}
-                        height={30}
-                        priority
-                        className="h-5 w-auto sm:h-6 md:h-7"
-                      />
-                    ) : (
-                      <span
-                        className={clsx(
-                          logoTextClasses,
-                          'font-black text-xl sm:text-2xl md:text-3xl leading-none',
-                        )}
-                      >
-                        B
-                      </span>
-                    )}
-                  </span>
-                );
-              })()}
-              <span className="text-lg sm:text-2xl md:text-3xl">Booka</span>
-            </Link>
-
-            {/* MOBILE: search pill (light surface → black text) */}
-            {!isArtistView && showSearchBar && (
+            {/* MOBILE: filter icon + hamburger on the right */}
+            <div className="flex items-center gap-2 md:hidden ml-2 shrink-0">
+              {filterControl && (
+                <div
+                  className={clsx(
+                    'shrink-0 [&_svg]:!stroke-inherit [&_*]:!text-inherit',
+                    isLightHeader
+                      ? 'text-gray-900 [&_svg]:!text-gray-900'
+                      : 'text-white [&_svg]:!text-white'
+                  )}
+                >
+                  {filterControl}
+                </div>
+              )}
               <button
                 type="button"
-                onClick={() => mobileSearchRef.current?.open?.()}
-                aria-label="Open search"
-                className={clsx(
-                  'ml-2 md:hidden inline-flex items-center gap-2 px-3 py-2 text-xs rounded-lg',
-                  'border border-black/10 bg-white shadow-sm',
-                  'flex-1 min-w-0 overflow-hidden',
-                  hoverNeutralLink,
-                  'text-black'
-                )}
+                onClick={() => setMenuOpen(true)}
+                aria-label="Open menu"
+                className={clsx(menuButtonClasses, hoverNeutralLink)}
               >
-                <MagnifyingGlassIcon className="h-4 w-4 text-black shrink-0" />
-                <span className="font-medium truncate">Start your search</span>
+                <Bars3Icon className={clsx('h-6 w-6', isLightHeader ? 'text-gray-900' : 'text-white')} />
               </button>
-            )}
-
-            {/* MOBILE: filter icon (inline, forced white) */}
-            {filterControl && (
-              <div
-                className={clsx(
-                  'md:hidden ml-2 shrink-0 [&_svg]:!stroke-inherit [&_*]:!text-inherit',
-                  isLightHeader
-                    ? 'text-gray-900 [&_svg]:!text-gray-900'
-                    : 'text-white [&_svg]:!text-white'
-                )}
-              >
-                {filterControl}
-              </div>
-            )}
+            </div>
           </div>
 
           {/* Center: nav + compact pill (desktop) */}
