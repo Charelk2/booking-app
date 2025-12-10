@@ -209,7 +209,7 @@ function HeaderMessagesLink({ unread, isLightHeader }: { unread: number; isLight
       )}
       {unread > 0 && (
         <span
-          className="absolute -top-1 -right-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 text-[10px] font-semibold leading-none px-1"
+          className="absolute -top-1 -right-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-semibold leading-none px-1"
           aria-label={`${unread} unread messages`}
         >
           {unread > 99 ? '99+' : unread}
@@ -255,7 +255,7 @@ function HeaderMessagesLinkMobile({
       )}
       {unread > 0 && (
         <span
-          className="absolute -top-1 -right-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 text-[10px] font-semibold leading-none px-1"
+          className="absolute -top-1 -right-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-semibold leading-none px-1"
           aria-label={`${unread} unread messages`}
         >
           {unread > 99 ? '99+' : unread}
@@ -483,12 +483,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Visual style
   const headerClasses = clsx(
-    'z-50 border-b',
+    'z-50',
     // Keep header pinned to the top on all viewports
     'fixed top-0 left-0 right-0',
     isLightHeader
-      ? 'bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm border-slate-200'
-      : 'bg-black supports-[backdrop-filter]:backdrop-blur-md border-black/5'
+      ? 'bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm'
+      : 'border-b bg-black supports-[backdrop-filter]:backdrop-blur-md border-black/5'
   );
 
   const topRowClasses = clsx(
