@@ -762,7 +762,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <Avatar
                       src={user.profile_picture_url || null}
                       initials={user.first_name?.[0] || user.email[0]}
-                      size={40}
+                      size={34}
                     />
                   </Menu.Button>
                   <Transition
