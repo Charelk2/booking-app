@@ -6,7 +6,6 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { NotificationsProvider } from '@/hooks/useNotifications.tsx';
 import { RealtimeProvider } from '@/contexts/chat/RealtimeContext';
 import MobileTelemetry from '@/components/analytics/MobileTelemetry';
-import RouteProgress from '@/components/layout/RouteProgress';
 import './globals.css';
 // Base styles for react-phone-number-input components (import once globally)
 import 'react-phone-number-input/style.css';
@@ -47,7 +46,6 @@ export default function RootLayout({
           <RealtimeProvider>
           <NotificationsProvider>
             <Suspense fallback={null}>
-              <RouteProgress />
               {children}
             </Suspense>
             <Toaster position="top-right" />
