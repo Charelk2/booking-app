@@ -1065,6 +1065,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         onClose={() => setMenuOpen(false)}
         navigation={SHOW_CLIENT_TOP_NAV ? clientNav : []}
         user={user}
+        artistViewActive={artistViewActive}
+        toggleArtistView={toggleArtistView}
         logout={logout}
         pathname={pathname}
         hideAuthLinks={suppressAccountActions}

@@ -179,6 +179,40 @@ export default function MobileMenuDrawer({
                     </div>
                   )}
 
+                  {/* Artist/client mode toggle & provider CTA */}
+                  {user?.user_type === 'service_provider' && toggleArtistView && (
+                    <div className="mt-1 px-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toggleArtistView();
+                          onClose();
+                        }}
+                        className={clsx(
+                          navItemClasses,
+                          'w-full justify-center rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-gray-900'
+                        )}
+                      >
+                        {artistViewActive ? 'Switch to Booking' : 'Switch to Hosting'}
+                      </button>
+                    </div>
+                  )}
+
+                  {(!user || user.user_type === 'client') && !hideAuthLinks && (
+                    <div className="mt-3 px-2">
+                      <Link
+                        href="/auth?intent=signup&role=service_provider&next=/onboarding/provider"
+                        onClick={onClose}
+                        className={clsx(
+                          navItemClasses,
+                          'w-full justify-center rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-gray-100 hover:text-black'
+                        )}
+                      >
+                        List your service
+                      </Link>
+                    </div>
+                  )}
+
                   <ul className="space-y-1">
                     {accountLinks.map((item) => (
                       <li key={item.name}>
