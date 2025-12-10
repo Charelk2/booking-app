@@ -499,10 +499,21 @@ def get_threads_preview(
 
         # Counterparty (per-thread role: viewer may be client or artist)
         if int(getattr(br, "artist_id", 0) or 0) == int(current_user.id):
+            # Viewer is the artist/provider → counterparty is the client.
             other = br.client
             display = f"{other.first_name} {other.last_name}" if other else "Client"
             avatar_url = other.profile_picture_url if other else None
+            # If the client is also a service provider/BSP, prefer their business
+            # name and profile avatar so providers see the brand (e.g., Sound Solutions)
+            # instead of a personal name.
+            if other:
+                profile = getattr(other, "artist_profile", None)
+                if profile and getattr(profile, "business_name", None):
+                    display = profile.business_name  # type: ignore[assignment]
+                if profile and getattr(profile, "profile_picture_url", None):
+                    avatar_url = profile.profile_picture_url  # type: ignore[assignment]
         else:
+            # Viewer is the client → counterparty is the artist/provider.
             other = br.artist
             display = f"{other.first_name} {other.last_name}" if other else "Artist"
             avatar_url = None
@@ -710,10 +721,21 @@ def get_threads_index(
         preview_args = getattr(br, "_preview_args", None) or {}
 
         if is_artist:
+            # Viewer is the artist/provider → counterparty is the client.
             other = br.client
             name = f"{other.first_name} {other.last_name}" if other else "Client"
             avatar_url = other.profile_picture_url if other else None
+            # If the client is also a service provider/BSP, prefer their business
+            # name and profile avatar so providers see the brand instead of a
+            # personal name.
+            if other:
+                profile = getattr(other, "artist_profile", None)
+                if profile and getattr(profile, "business_name", None):
+                    name = profile.business_name  # type: ignore[assignment]
+                if profile and getattr(profile, "profile_picture_url", None):
+                    avatar_url = profile.profile_picture_url  # type: ignore[assignment]
         else:
+            # Viewer is the client → counterparty is the artist/provider.
             other = br.artist
             name = f"{other.first_name} {other.last_name}" if other else "Artist"
             avatar_url = None
