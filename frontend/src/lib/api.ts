@@ -1395,6 +1395,7 @@ export const getMyArtistBookingsCached = (ttlMs = 60_000) =>
     DASH_CACHE_KEYS.artistBookings,
     (etag?: string) =>
       api.get<Booking[]>(`${API_V1}/bookings/artist-bookings`, {
+        params: { limit: 100 },
         headers: etag ? { 'If-None-Match': etag } : undefined,
         validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
       }),
