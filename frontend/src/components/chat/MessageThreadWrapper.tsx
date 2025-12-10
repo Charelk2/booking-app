@@ -28,7 +28,7 @@ import {
 import BookingSummarySkeleton from '@/components/chat/BookingSummarySkeleton';
 
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { counterpartyLabel } from '@/lib/names';
+import { counterpartyAvatar, counterpartyLabel } from '@/lib/names';
 import { useQuotes, prefetchQuotesByIds } from '@/hooks/useQuotes';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
@@ -1113,35 +1113,35 @@ export default function MessageThreadWrapper({
             })()}
             artistAvatarUrl={(() => {
               const raw: any = effectiveBookingRequest;
-              if (!raw) return null;
+              if (!raw) return undefined;
               if (isThreadClient) {
                 return (
                   (raw.artist_profile?.profile_picture_url as string | undefined) ||
                   (raw.service_provider_profile?.profile_picture_url as string | undefined) ||
                   (raw.counterparty_avatar_url as string | undefined) ||
-                  null
+                  undefined
                 );
               }
               if (isThreadProvider) {
-                return (raw.artist_profile?.profile_picture_url as string | undefined) ?? null;
+                return (raw.artist_profile?.profile_picture_url as string | undefined) || undefined;
               }
               return (
                 (raw.artist_profile?.profile_picture_url as string | undefined) ||
                 (raw.counterparty_avatar_url as string | undefined) ||
-                null
+                undefined
               );
             })()}
             clientAvatarUrl={(() => {
               const raw: any = effectiveBookingRequest;
-              if (!raw) return null;
+              if (!raw) return undefined;
               if (isThreadProvider) {
                 return (
                   (raw.client?.profile_picture_url as string | undefined) ||
                   (raw.counterparty_avatar_url as string | undefined) ||
-                  null
+                  undefined
                 );
               }
-              return (raw.client?.profile_picture_url as string | undefined) ?? null;
+              return (raw.client?.profile_picture_url as string | undefined) || undefined;
             })()}
             clientId={effectiveClientId || undefined}
             serviceName={effectiveBookingRequest?.service?.title}
