@@ -30,4 +30,3 @@ export function computeVideoProgress(messages: Message[]): number {
   }
   return index;
 }
-
