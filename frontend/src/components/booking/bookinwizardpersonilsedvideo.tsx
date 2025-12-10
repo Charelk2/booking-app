@@ -98,8 +98,6 @@ const LANGS = [
   { v: "Bilingual", l: "Bilingual" },
 ] as const;
 
-const TONES = ["Cheerful", "Heartfelt", "Funny", "Sincere", "Formal", "Casual", "Inspirational", "Romantic"] as const;
-
 const BRIEF_QUESTIONS: BriefQuestion[] = [
   {
     key: "recipient_name",
@@ -129,12 +127,6 @@ const BRIEF_QUESTIONS: BriefQuestion[] = [
   { key: "inside_jokes", label: "Inside jokes / special details", type: "text", placeholder: "Anything that makes it feel personal?" },
   { key: "avoid", label: "Anything to avoid?", type: "text", placeholder: "Sensitive topics, names, jokes, etc." },
   {
-    key: "tone",
-    label: "Tone & style",
-    type: "chips",
-    options: [...TONES],
-  },
-  {
     key: "language",
     label: "Language",
     type: "chips",
@@ -145,12 +137,6 @@ const BRIEF_QUESTIONS: BriefQuestion[] = [
     label: "Preferred length",
     type: "chips",
     options: ["Short", "Medium (30–45s)", "Long (60s+)"],
-  },
-  {
-    key: "delivery_contact",
-    label: "Delivery email / WhatsApp",
-    type: "text",
-    placeholder: "Where should we deliver the video link?",
   },
   {
     key: "reference_assets",
@@ -300,10 +286,9 @@ function useVideoBookingLogic({
     if (creating) return "Creating your order…";
     if (!deliveryBy) return "Choose a delivery date";
     if (available === false) return "Not available for that date";
-    if (!contactEmail) return "Enter an email for delivery";
     if (total <= 0) return "Total must be greater than 0";
     return null;
-  }, [creating, deliveryBy, available, contactEmail, total]);
+  }, [creating, deliveryBy, available, total]);
 
   const canContinue = disabledReason == null;
 
@@ -984,29 +969,6 @@ export default function BookinWizardPersonilsedVideo({
                       </div>
                     </section>
 
-                    {/* Tone */}
-                    <section>
-                      <label className="block text-sm font-medium text-gray-800">Tone</label>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {TONES.map((t) => {
-                          const active = form.tone === t;
-                          return (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => form.setTone(t)}
-                              className={[
-                                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                                active ? "border-black bg-black text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-                              ].join(" ")}
-                              aria-pressed={active}
-                            >
-                              {t}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </section>
                   </div>
 
                   {/* Right column */}
@@ -1016,21 +978,6 @@ export default function BookinWizardPersonilsedVideo({
                       value={form.recipient}
                       onChange={(e: any) => form.setRecipient(e.target.value)}
                       placeholder="e.g. My mom, Sarah"
-                    />
-
-                    <TextInput
-                      label="Delivery email"
-                      type="email"
-                      value={form.contactEmail}
-                      onChange={(e: any) => form.setContactEmail(e.target.value)}
-                      placeholder="you@example.com"
-                    />
-
-                    <TextInput
-                      label="WhatsApp (optional)"
-                      value={form.contactWhatsapp}
-                      onChange={(e: any) => form.setContactWhatsapp(e.target.value)}
-                      placeholder="+27…"
                     />
 
                     <TextInput

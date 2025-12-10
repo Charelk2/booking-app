@@ -285,8 +285,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       .filter((n): n is number => typeof n === 'number' && Number.isFinite(n));
     if (!prices.length) return null;
     const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    return min === max ? formatZAR(min) : `${formatZAR(min)} – ${formatZAR(max)}`;
+    return formatZAR(min);
   }, [services]);
 
   const highlights: string[] = useMemo(() => {
@@ -1162,36 +1161,20 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               </div>
             </div>
             <div className="px-4 py-3">
-              {selectedServiceObj && (() => {
-                const d = getServiceDisplay(selectedServiceObj);
-                return (
-                  <div className="mb-4 overflow-hidden rounded-xl border border-gray-100">
-                    <div className="relative h-40 w-full bg-gray-100">
-                      {d.mediaUrl ? (
-                        <SafeImage src={d.mediaUrl} alt="" fill className="object-cover" sizes="100vw" />
-                      ) : (
-                        <div className="h-full w-full bg-gray-100" />
-                      )}
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-                        <div className="flex items-end justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-white text-sm font-medium truncate">{d.title}</p>
-                            <p className="text-white/80 text-xs">{[d.type, d.durationLabel].filter(Boolean).join(' • ')}</p>
-                          </div>
-                          <div className="shrink-0 text-white text-sm font-semibold">{d.priceText}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
               <ul className="space-y-3">
                 {services.map((s) => {
                   const selected = selectedServiceId === s.id;
                   const d = getServiceDisplay(s);
                   return (
                     <li key={`svc-pick-${s.id}`}>
-                      <button onClick={() => setSelectedServiceId(s.id)} className={`w-full rounded-xl border p-3 shadow-sm text-left ${selected ? 'border-gray-900' : 'border-gray-100 hover:border-gray-200'}`}>
+                      <button
+                        onClick={() => {
+                          setSelectedServiceId(s.id);
+                          setIsServicePickerOpen(false);
+                          void handleBookService(s);
+                        }}
+                        className={`w-full rounded-xl border p-3 shadow-sm text-left ${selected ? 'border-gray-900' : 'border-gray-100 hover:border-gray-200'}`}
+                      >
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate">{d.title}</p>
@@ -1206,7 +1189,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
               </ul>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button onClick={() => setIsServicePickerOpen(false)} className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Close</button>
-                <button onClick={() => { const svc = selectedServiceId ? services.find((x) => x.id === selectedServiceId) : null; if (svc) handleBookService(svc); }} className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800">Continue</button>
+                <button onClick={() => { const svc = selectedServiceId ? services.find((x) => x.id === selectedServiceId) : null; if (svc) { setIsServicePickerOpen(false); void handleBookService(svc); } }} className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800">Continue</button>
               </div>
             </div>
           </div>
