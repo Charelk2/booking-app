@@ -116,12 +116,7 @@ function FilterSlot({
       )}
       aria-hidden="false"
     >
-      <div className="pointer-events-auto flex flex-col items-center gap-0.5">
-        {children}
-        <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide">
-          Filters
-        </span>
-      </div>
+      <div className="pointer-events-auto">{children}</div>
     </div>
   );
 }
@@ -619,12 +614,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     : 'text-white [&_svg]:!text-white'
                 )}
               >
-                <div className="flex flex-col items-center gap-0.5">
-                  {filterControl}
-                  <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide">
-                    Filters
-                  </span>
-                </div>
+                {filterControl}
               </div>
             )}
           </div>
