@@ -124,9 +124,9 @@ export default function SummarySidebar() {
       <div className="flex justify-center w-full mt-[var(--space-px)]">
         <button
           onClick={() => setIsVisible(false)}
-          className="text-gray-400 hover:text-gray-800 font-medium py-2 text-sm flex items-center justify-center space-x-1 cursor-pointer"
+          className="hidden sm:inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
         >
-          <span className="text-xs">Hide Details</span>
+          Hide details
         </button>
       </div>
     </motion.div>
