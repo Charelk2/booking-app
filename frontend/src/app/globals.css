@@ -28,7 +28,7 @@ html, body {
   --color-secondary:#fff;
   --color-accent: #ff7a85;
   --color-border:rgba(0,0,0,.10);
-  --color-background: #fff;
+  --color-background: #f9fafb; /* tailwind gray-50 */
   --color-foreground: #111827;
   --color-black-button: #111827;
   --brand-color: var(--color-primary);
