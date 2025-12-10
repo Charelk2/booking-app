@@ -68,49 +68,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const soundAudioRef = useRef<HTMLAudioElement | null>(null);
-  const bootstrappedRef = useRef(false);
-  const soundEnabledRef = useRef(true);
-  const hasInteractedRef = useRef(false);
   const { user } = useAuth();
 
   // Cache ETag + throttle to avoid flooding the API while navigating
   const lastEtagRef = useRef<string | null>(null);
   const lastFetchAtRef = useRef<number>(0);
   const inflightRef = useRef<Promise<void> | null>(null);
-  const maybePlaySoundForNotification = useCallback(
-    (notif: Notification) => {
-      try {
-        const threadId = extractThreadId(notif);
-        if (!threadId) return;
-        const isActive =
-          typeof window !== 'undefined' &&
-          Number((window as any).__inboxActiveThreadId || 0) === Number(threadId);
-        const docVisible =
-          typeof document !== 'undefined' &&
-          document.visibilityState === 'visible';
-        const isMessageType =
-          notif.type === 'new_message' ||
-          notif.type === 'message_thread_notification';
-        const shouldPlaySound =
-          isMessageType &&
-          soundEnabledRef.current &&
-          hasInteractedRef.current &&
-          soundAudioRef.current &&
-          !(docVisible && isActive);
-        if (shouldPlaySound) {
-          try {
-            void soundAudioRef.current!.play().catch(() => {});
-          } catch {
-            // ignore playback failures
-          }
-        }
-      } catch {
-        // best-effort only
-      }
-    },
-    [],
-  );
 
   const fetchNotifications = useCallback(async () => {
     const now = Date.now();
@@ -130,28 +93,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         lastFetchAtRef.current = Date.now();
         const status = Number((res as any)?.status ?? 200);
         if (status === 304) {
-          // Keep existing notifications; only bump ETag if server sent one.
           try { lastEtagRef.current = String((res as any)?.headers?.etag || '') || lastEtagRef.current; } catch {}
           setError(null);
           return;
         }
-        try {
-          lastEtagRef.current = String((res as any)?.headers?.etag || '') || lastEtagRef.current;
-        } catch {}
+        try { lastEtagRef.current = String((res as any)?.headers?.etag || '') || lastEtagRef.current; } catch {}
         const items = (res.data as any) as Notification[];
-        setNotifications((prev) => {
-          if (!bootstrappedRef.current) {
-            bootstrappedRef.current = true;
-            return items;
-          }
-          const prevIds = new Set(prev.map((n) => n.id));
-          for (const n of items) {
-            if (!prevIds.has(n.id)) {
-              maybePlaySoundForNotification(n);
-            }
-          }
-          return items;
-        });
+        setNotifications(items);
         setUnreadCount(items.filter((n) => !n.is_read).length);
         setHasMore(items.length === 20);
         setError(null);
@@ -179,30 +127,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => { clearTimeout(t); clearInterval(id); };
   }, [fetchNotifications, user]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const stored = window.localStorage.getItem('BOOKA_MESSAGE_SOUND');
-      if (stored === '0') soundEnabledRef.current = false;
-    } catch {}
-    try {
-      const audio = new Audio('/sounds/new-message.mp3');
-      audio.volume = 0.7;
-      soundAudioRef.current = audio;
-    } catch {}
-    const markInteraction = () => {
-      hasInteractedRef.current = true;
-    };
-    window.addEventListener('click', markInteraction);
-    window.addEventListener('keydown', markInteraction);
-    return () => {
-      try {
-        window.removeEventListener('click', markInteraction);
-        window.removeEventListener('keydown', markInteraction);
-      } catch {}
-    };
-  }, []);
-
   const { subscribe } = useRealtimeContext();
 
   useEffect(() => {
@@ -219,7 +143,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         setUnreadCount((c) => c + 1);
         const threadId = extractThreadId(newNotif);
         if (threadId) {
-          maybePlaySoundForNotification(newNotif);
           // If the notification looks like a pending attachment (filename-only or placeholder) and we don't yet have a durable URL,
           // skip preview/unread updates here; fetch the finalized message shortly instead.
           try {
