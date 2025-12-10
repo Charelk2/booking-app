@@ -501,13 +501,15 @@ export default function BookingSummaryCard({
                   }
                 }
 
-                if (!receiptUrl && !providerHref && !bookaHref) return null;
+                const showReceipt = Boolean(isClient && receiptUrl);
+
+                if (!showReceipt && !providerHref && !bookaHref) return null;
 
                 return (
                   <div className="pt-2 border-t border-gray-100 text-right space-y-1">
-                    {receiptUrl && (
+                    {showReceipt && (
                       <a
-                        href={receiptUrl}
+                        href={receiptUrl as string}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"

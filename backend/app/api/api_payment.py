@@ -838,6 +838,11 @@ def paystack_verify(
                 is_paid = False
             if not is_paid:
                 crud_invoice.mark_paid(db, inv, payment_method="paystack", notes=f"ref {reference}")
+            # Best-effort: schedule invoice PDF generation so /invoices/{id} is fast.
+            try:
+                background_tasks.add_task(_background_generate_invoice_pdf, int(inv.id))
+            except Exception:
+                logger.debug("schedule invoice pdf failed (verify)", exc_info=True)
     except Exception:
         # Do not block verify path on invoice sync failures
         pass
@@ -1094,13 +1099,21 @@ def paystack_verify(
         if not rows:
             prof = db.query(models.ServiceProviderProfile).filter(models.ServiceProviderProfile.user_id == int(simple.artist_id)).first()
             is_vendor = bool(getattr(prof, 'vat_registered', False))
-            crud_invoice.create_provider_invoice(db, simple, vendor=is_vendor)
+            created = crud_invoice.create_provider_invoice(db, simple, vendor=is_vendor)
+            try:
+                background_tasks.add_task(_background_generate_invoice_pdf, int(created.id))
+            except Exception:
+                logger.debug("schedule provider invoice pdf failed (verify)", exc_info=True)
     except Exception:
         pass
     # Best-effort: generate Booka client-fee tax invoice when split invoicing is enabled
     try:
         if settings.ENABLE_SPLIT_INVOICING:
-            crud_invoice.create_client_fee_invoice(db, simple)
+            fee_inv = crud_invoice.create_client_fee_invoice(db, simple)
+            try:
+                background_tasks.add_task(_background_generate_invoice_pdf, int(fee_inv.id))
+            except Exception:
+                logger.debug("schedule client-fee invoice pdf failed (verify)", exc_info=True)
     except Exception:
         pass
     try:
@@ -1474,13 +1487,21 @@ async def paystack_webhook(
         if not row:
             prof = db.query(models.ServiceProviderProfile).filter(models.ServiceProviderProfile.user_id == int(simple.artist_id)).first()
             is_vendor = bool(getattr(prof, 'vat_registered', False))
-            crud_invoice.create_provider_invoice(db, simple, vendor=is_vendor)
+            created = crud_invoice.create_provider_invoice(db, simple, vendor=is_vendor)
+            try:
+                background_tasks.add_task(_background_generate_invoice_pdf, int(created.id))
+            except Exception:
+                logger.debug("schedule provider invoice pdf failed (webhook)", exc_info=True)
     except Exception:
         pass
     # Best-effort: generate Booka client-fee tax invoice when split invoicing is enabled
     try:
         if settings.ENABLE_SPLIT_INVOICING:
-            crud_invoice.create_client_fee_invoice(db, simple)
+            fee_inv = crud_invoice.create_client_fee_invoice(db, simple)
+            try:
+                background_tasks.add_task(_background_generate_invoice_pdf, int(fee_inv.id))
+            except Exception:
+                logger.debug("schedule client-fee invoice pdf failed (webhook)", exc_info=True)
     except Exception:
         pass
     # Metrics (best-effort)
