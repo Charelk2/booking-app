@@ -874,6 +874,19 @@ export default function MessageThreadWrapper({
     if (isChild && soundMode === 'supplier') return true;
     return false;
   }, [effectiveBookingRequest]);
+  const isPersonalizedVideoThread = useMemo(() => {
+    const raw: any = effectiveBookingRequest;
+    if (!raw) return false;
+    const svc = raw.service || {};
+    const slug = String(svc.service_category_slug || '').toLowerCase();
+    const catName = String(svc.service_category?.name || '').toLowerCase();
+    const svcType = String(svc.service_type || '').toLowerCase();
+    return (
+      slug.includes('personalized') ||
+      catName.includes('personalized') ||
+      svcType.includes('personalized video')
+    );
+  }, [effectiveBookingRequest]);
 
   return (
     <div className="flex flex-col h-full w-full relative">
@@ -1488,6 +1501,10 @@ export default function MessageThreadWrapper({
                     providerVatRegistered={providerVatRegistered}
                     providerVatRate={providerVatRate ?? undefined}
                   />
+                ) : isPersonalizedVideoThread ? (
+                  <div className="text-sm text-gray-700">
+                    Quotes are handled via the Personalized Video flow for this request. You can continue the brief or delivery in the thread.
+                  </div>
                 ) : (
                   <LivePerformanceInlineQuote
                   onSubmit={async (payload) => {

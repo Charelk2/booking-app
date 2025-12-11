@@ -614,6 +614,40 @@ export default function BookingDetailsPanel({
       ''
   ).toLowerCase();
   const isPersonalized = serviceTypeText.includes('personalized video');
+  const [pvBriefLink, setPvBriefLink] = React.useState<string | null>(null);
+  const [pvBriefComplete, setPvBriefComplete] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isPersonalized || typeof window === 'undefined') {
+      setPvBriefLink(null);
+      setPvBriefComplete(false);
+      return;
+    }
+    const tid = Number(bookingRequest?.id || 0);
+    if (!tid) return;
+    const update = () => {
+      try {
+        const oid = localStorage.getItem(`vo-order-for-thread-${tid}`);
+        if (oid) {
+          setPvBriefLink(`/video-orders/${oid}/brief`);
+          setPvBriefComplete(!!localStorage.getItem(`vo-brief-complete-${oid}`));
+        } else {
+          setPvBriefLink(null);
+          setPvBriefComplete(false);
+        }
+      } catch {
+        setPvBriefLink(null);
+        setPvBriefComplete(false);
+      }
+    };
+    update();
+    window.addEventListener('storage', update);
+    window.addEventListener('focus', update);
+    return () => {
+      window.removeEventListener('storage', update);
+      window.removeEventListener('focus', update);
+    };
+  }, [bookingRequest?.id, isPersonalized]);
   const effectiveBooking = (confirmedBookingDetails || hydratedBooking) as (Booking & { review?: Review }) | null;
 
   const [reviewedByClient, setReviewedByClient] = React.useState(false);
@@ -975,11 +1009,12 @@ export default function BookingDetailsPanel({
             return values.some((q: any) => Number(q?.booking_request_id) === threadId && String(q?.status || '').toLowerCase().includes('accept'));
           } catch { return false; }
         })();
-        const showPrep = isPaid || accepted;
+        const showPrep = !isPersonalized && (isPaid || accepted);
 
         return (
           <>
             <BookingSummaryCard
+              variant={isPersonalized ? 'personalizedVideo' : 'default'}
               parsedBookingDetails={parsedBookingDetails ?? undefined}
               imageUrl={imageUrl}
               serviceName={bookingRequest.service?.title}
@@ -1010,15 +1045,36 @@ export default function BookingDetailsPanel({
               }
               artistCancellationPolicy={cancellationPolicy}
               currentArtistId={Number(currentArtistId) || 0}
-              // Always render all sections for clarity
-              showTravel={true}
-              showSound={true}
-              showPolicy={true}
-              showEventDetails={true}
+              // Hide event-specific rows for Personalized Video
+              showTravel={!isPersonalized}
+              showSound={!isPersonalized}
+              showPolicy={!isPersonalized}
+              showEventDetails={!isPersonalized}
               showReceiptBelowTotal={isPersonalized}
               clientReviewCta={clientReviewCta}
               belowHeader={
-                showPrep ? (
+                isPersonalized ? (
+                  <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm">
+                    <div className="font-semibold text-indigo-900">Personalized Video</div>
+                    <div className="text-indigo-800 mt-1">
+                      Complete the brief so production can start right away.
+                    </div>
+                    {pvBriefLink ? (
+                      <div className="mt-3">
+                        <a
+                          href={pvBriefLink}
+                          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 transition"
+                        >
+                          {pvBriefComplete ? 'View Brief' : 'Complete Brief'}
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-xs text-indigo-700">
+                        We’ll drop your brief link here as soon as the order finishes syncing.
+                      </div>
+                    )}
+                  </div>
+                ) : showPrep ? (
                   <EventPrepCard
                     bookingId={Number(confirmedBookingDetails?.id || 0) || 0}
                     bookingRequestId={Number(bookingRequest.id)}
@@ -1031,57 +1087,57 @@ export default function BookingDetailsPanel({
                         if (Number.isFinite(bidFromProp) && bidFromProp > 0) {
                           try { window.location.href = `/dashboard/events/${bidFromProp}`; } catch {}
                           return;
-                    }
-                    const threadId = Number(bookingRequest.id) || 0;
-                    if (!threadId) return;
-                    // 1) Cached mapping
-                    try {
-                      const cached = sessionStorage.getItem(`bookingId:br:${threadId}`);
-                      const bid = cached ? Number(cached) : 0;
-                      if (Number.isFinite(bid) && bid > 0) {
-                        try { window.location.href = `/dashboard/events/${bid}`; } catch {}
-                        return;
-                      }
-                    } catch {}
-                    // 2) Direct resolver
-                    try {
-                      const res = await getBookingIdForRequest(threadId);
-                      const bid = Number((res as any)?.data?.booking_id || 0);
-                      if (Number.isFinite(bid) && bid > 0) {
-                        try { sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid)); } catch {}
-                        try { window.location.href = `/dashboard/events/${bid}`; } catch {}
-                        return;
-                      }
-                    } catch {}
-                    // 3) Look for accepted quote locally or via cached request
-                    try {
-                      const values = Object.values(quotes || {}) as any[];
-                      let acceptedId = 0;
-                      for (const q of values) {
-                        const s = String(q?.status || '').toLowerCase();
-                        if (Number(q?.booking_request_id) === threadId && s.includes('accept')) {
-                          acceptedId = Number(q?.id || 0);
-                          break;
                         }
-                      }
-                      if (!acceptedId) {
+                        const threadId = Number(bookingRequest.id) || 0;
+                        if (!threadId) return;
+                        // 1) Cached mapping
                         try {
-                          const br = await getBookingRequestCached(threadId);
-                          acceptedId = Number((br as any)?.accepted_quote_id || 0);
+                          const cached = sessionStorage.getItem(`bookingId:br:${threadId}`);
+                          const bid = cached ? Number(cached) : 0;
+                          if (Number.isFinite(bid) && bid > 0) {
+                            try { window.location.href = `/dashboard/events/${bid}`; } catch {}
+                            return;
+                          }
                         } catch {}
-                      }
-                      if (acceptedId > 0) {
-                        const v2 = await getQuoteV2(acceptedId);
-                        const bid = Number((v2 as any)?.data?.booking_id || 0);
-                        if (Number.isFinite(bid) && bid > 0) {
-                          try { sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid)); } catch {}
-                          try { window.location.href = `/dashboard/events/${bid}`; } catch {}
-                          return;
-                        }
-                      }
-                    } catch {}
-                  } catch {}
-                }}
+                        // 2) Direct resolver
+                        try {
+                          const res = await getBookingIdForRequest(threadId);
+                          const bid = Number((res as any)?.data?.booking_id || 0);
+                          if (Number.isFinite(bid) && bid > 0) {
+                            try { sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid)); } catch {}
+                            try { window.location.href = `/dashboard/events/${bid}`; } catch {}
+                            return;
+                          }
+                        } catch {}
+                        // 3) Look for accepted quote locally or via cached request
+                        try {
+                          const values = Object.values(quotes || {}) as any[];
+                          let acceptedId = 0;
+                          for (const q of values) {
+                            const s = String(q?.status || '').toLowerCase();
+                            if (Number(q?.booking_request_id) === threadId && s.includes('accept')) {
+                              acceptedId = Number(q?.id || 0);
+                              break;
+                            }
+                          }
+                          if (!acceptedId) {
+                            try {
+                              const br = await getBookingRequestCached(threadId);
+                              acceptedId = Number((br as any)?.accepted_quote_id || 0);
+                            } catch {}
+                          }
+                          if (acceptedId > 0) {
+                            const v2 = await getQuoteV2(acceptedId);
+                            const bid = Number((v2 as any)?.data?.booking_id || 0);
+                            if (Number.isFinite(bid) && bid > 0) {
+                              try { sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid)); } catch {}
+                              try { window.location.href = `/dashboard/events/${bid}`; } catch {}
+                              return;
+                            }
+                          }
+                        } catch {}
+                      } catch {}
+                    }}
                   />
                 ) : null
               }

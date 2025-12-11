@@ -32,6 +32,7 @@ type PaymentInitArgs = {
 };
 
 interface BookingSummaryCardProps {
+  variant?: 'default' | 'personalizedVideo';
   hideHeader?: boolean;
   hideHeaderText?: boolean;
   parsedBookingDetails?: ParsedBookingDetails;
@@ -158,6 +159,7 @@ const AvatarHeader: React.FC<
 export default function BookingSummaryCard({
   hideHeader = false,
   hideHeaderText = false,
+  variant = 'default',
   parsedBookingDetails,
   imageUrl,
   serviceName,
@@ -187,6 +189,7 @@ export default function BookingSummaryCard({
   const { user } = useAuth();
   const [briefLink, setBriefLink] = React.useState<string | null>(null);
   const [briefComplete, setBriefComplete] = React.useState<boolean>(false);
+  const isPersonalizedVideo = variant === 'personalizedVideo';
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -289,7 +292,7 @@ export default function BookingSummaryCard({
         <>
           <AvatarHeader
             imageUrl={imageUrl}
-            serviceName={serviceName}
+            serviceName={isPersonalizedVideo ? 'Personalized Video' : serviceName}
             artistName={artistName}
             bookingConfirmed={(() => {
               const paid = String(paymentInfo?.status || '').toLowerCase() === 'paid';
@@ -319,129 +322,133 @@ export default function BookingSummaryCard({
         style={stickyPresent ? ({ ['--sticky-h' as any]: `${stickyH}px` } as React.CSSProperties) : undefined}
       >
         {/* Event Details */}
-        <section id="event-details" className="scroll-mt-20" aria-labelledby="event-details-h">
-          <h2 id="event-details-h" className="text-xl font-bold text-gray-900 mb-3">
-            Event Details
-          </h2>
+        {!isPersonalizedVideo && (
+          <section id="event-details" className="scroll-mt-20" aria-labelledby="event-details-h">
+            <h2 id="event-details-h" className="text-xl font-bold text-gray-900 mb-3">
+              Event Details
+            </h2>
 
-          <ul className="rounded-lg bg-white border border-gray-200 p-3 space-y-2 shadow-sm overflow-x-hidden">
-            {showEventDetails && parsedBookingDetails?.eventType && (
-              <li className="flex items-start">
-                <span className="font-semibold w-28 text-gray-600 shrink-0">Event Type:</span>
-                <span className="text-gray-800 break-words">{parsedBookingDetails.eventType}</span>
-              </li>
-            )}
-            {showEventDetails && parsedBookingDetails?.date && (
-              <li className="flex items-start">
-                <span className="font-semibold w-28 text-gray-600 shrink-0">Date &amp; Time:</span>
-                <span className="text-gray-800 break-words">
-                  {isValid(new Date(parsedBookingDetails.date))
-                    ? format(new Date(parsedBookingDetails.date), 'EEE, d MMMM, yyyy h:mm a')
-                    : parsedBookingDetails.date}
-                </span>
-              </li>
-            )}
-            {showEventDetails && getLocationLabel() && (
-              <li className="flex items-start">
-                <span className="font-semibold w-28 text-gray-600 shrink-0">Location:</span>
-                {(() => {
-                  const raw = String(parsedBookingDetails?.location || '').trim();
-                  const url = raw
-                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`
-                    : '';
-                  const label = getLocationLabel();
-                  return url ? (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-800 visited:text-gray-800 no-underline hover:no-underline hover:cursor-pointer break-words"
-                      title={raw}
-                    >
-                      {label}
-                    </a>
-                  ) : (
-                    <span className="text-gray-800 break-words">{label}</span>
-                  );
-                })()}
-              </li>
-            )}
-            {showEventDetails && parsedBookingDetails?.guests && (
-              <li className="flex items-start">
-                <span className="font-semibold w-28 text-gray-600 shrink-0">Guests:</span>
-                <span className="text-gray-800 break-words">{parsedBookingDetails.guests}</span>
-              </li>
-            )}
-            {showEventDetails && parsedBookingDetails?.venueType && (
-              <li className="flex items-start">
-                <span className="font-semibold w-28 text-gray-600 shrink-0">Venue Type:</span>
-                <span className="text-gray-800 break-words">{parsedBookingDetails.venueType}</span>
-              </li>
-            )}
-            {showSound && showEventDetails && parsedBookingDetails?.soundNeeded && (
-              <li className="flex items-start">
-                <span className="font-semibold w-28 text-gray-600 shrink-0">Sound:</span>
-                <span className="text-gray-800 break-words">{parsedBookingDetails.soundNeeded}</span>
-              </li>
-            )}
-            {showEventDetails && parsedBookingDetails?.notes && (
-              <li className="flex items-start">
-                <span className="font-semibold w-28 text-gray-600 shrink-0">Notes:</span>
-                <span className="text-gray-800 italic break-words">{parsedBookingDetails.notes}</span>
-              </li>
-            )}
-          </ul>
+            <ul className="rounded-lg bg-white border border-gray-200 p-3 space-y-2 shadow-sm overflow-x-hidden">
+              {showEventDetails && parsedBookingDetails?.eventType && (
+                <li className="flex items-start">
+                  <span className="font-semibold w-28 text-gray-600 shrink-0">Event Type:</span>
+                  <span className="text-gray-800 break-words">{parsedBookingDetails.eventType}</span>
+                </li>
+              )}
+              {showEventDetails && parsedBookingDetails?.date && (
+                <li className="flex items-start">
+                  <span className="font-semibold w-28 text-gray-600 shrink-0">Date &amp; Time:</span>
+                  <span className="text-gray-800 break-words">
+                    {isValid(new Date(parsedBookingDetails.date))
+                      ? format(new Date(parsedBookingDetails.date), 'EEE, d MMMM, yyyy h:mm a')
+                      : parsedBookingDetails.date}
+                  </span>
+                </li>
+              )}
+              {showEventDetails && getLocationLabel() && (
+                <li className="flex items-start">
+                  <span className="font-semibold w-28 text-gray-600 shrink-0">Location:</span>
+                  {(() => {
+                    const raw = String(parsedBookingDetails?.location || '').trim();
+                    const url = raw
+                      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`
+                      : '';
+                    const label = getLocationLabel();
+                    return url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-800 visited:text-gray-800 no-underline hover:no-underline hover:cursor-pointer break-words"
+                        title={raw}
+                      >
+                        {label}
+                      </a>
+                    ) : (
+                      <span className="text-gray-800 break-words">{label}</span>
+                    );
+                  })()}
+                </li>
+              )}
+              {showEventDetails && parsedBookingDetails?.guests && (
+                <li className="flex items-start">
+                  <span className="font-semibold w-28 text-gray-600 shrink-0">Guests:</span>
+                  <span className="text-gray-800 break-words">{parsedBookingDetails.guests}</span>
+                </li>
+              )}
+              {showEventDetails && parsedBookingDetails?.venueType && (
+                <li className="flex items-start">
+                  <span className="font-semibold w-28 text-gray-600 shrink-0">Venue Type:</span>
+                  <span className="text-gray-800 break-words">{parsedBookingDetails.venueType}</span>
+                </li>
+              )}
+              {showSound && showEventDetails && parsedBookingDetails?.soundNeeded && (
+                <li className="flex items-start">
+                  <span className="font-semibold w-28 text-gray-600 shrink-0">Sound:</span>
+                  <span className="text-gray-800 break-words">{parsedBookingDetails.soundNeeded}</span>
+                </li>
+              )}
+              {showEventDetails && parsedBookingDetails?.notes && (
+                <li className="flex items-start">
+                  <span className="font-semibold w-28 text-gray-600 shrink-0">Notes:</span>
+                  <span className="text-gray-800 italic break-words">{parsedBookingDetails.notes}</span>
+                </li>
+              )}
+            </ul>
 
-          {/* Small, not-full-width prep button under Event Details */}
+            {/* Small, not-full-width prep button under Event Details */}
 
-        </section>
+          </section>
+        )}
 
         {/* COST SUMMARY — NOW IMMEDIATELY BELOW EVENT DETAILS */}
-        <section
-          id="cost-summary"
-          className="mt-8 scroll-mt-20"
-          aria-labelledby="cost-summary-h"
-        >
-          <h2 id="cost-summary-h" className="text-xl font-bold text-gray-900 mb-3">
-            {bestState.accepted ? 'Final Total' : 'Cost Summary'}
-          </h2>
+        {!isPersonalizedVideo && (
+          <section
+            id="cost-summary"
+            className="mt-8 scroll-mt-20"
+            aria-labelledby="cost-summary-h"
+          >
+            <h2 id="cost-summary-h" className="text-xl font-bold text-gray-900 mb-3">
+              {bestState.accepted ? 'Final Total' : 'Cost Summary'}
+            </h2>
 
-          {quotesLoading && (bestState.list?.length ?? 0) === 0 && (
-            <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 space-y-2 animate-pulse">
-              <div className="h-4 w-1/2 rounded bg-gray-200" />
-              <div className="h-4 w-1/3 rounded bg-gray-200" />
-              <div className="h-4 w-5/12 rounded bg-gray-200" />
-              <div className="h-4 w-1/2 rounded bg-gray-200" />
-            </div>
-          )}
+            {quotesLoading && (bestState.list?.length ?? 0) === 0 && (
+              <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 space-y-2 animate-pulse">
+                <div className="h-4 w-1/2 rounded bg-gray-200" />
+                <div className="h-4 w-1/3 rounded bg-gray-200" />
+                <div className="h-4 w-5/12 rounded bg-gray-200" />
+                <div className="h-4 w-1/2 rounded bg-gray-200" />
+              </div>
+            )}
 
-          {bestState.best && !quotesLoading && (
-            <CostBreakdown
-              quote={bestState.best as any}
-              isClient={isClient}
-              showSound={showSound}
-              showTravel={showTravel}
-              allowInstantBooking={!!allowInstantBooking && !bestState.accepted}
-              onReserve={() =>
-                openPaymentModal({
-                  bookingRequestId,
-                  amount: (() => {
-                    const preview = resolveQuoteTotalsPreview(bestState.best as any);
-                    return typeof preview.clientTotalInclVat === 'number' ? preview.clientTotalInclVat : 0;
-                  })(),
-                  customerEmail: (user as any)?.email || undefined,
-                })
-              }
-              showReceiptBelowTotal={showReceiptBelowTotal}
-            />
-          )}
+            {bestState.best && !quotesLoading && (
+              <CostBreakdown
+                quote={bestState.best as any}
+                isClient={isClient}
+                showSound={showSound}
+                showTravel={showTravel}
+                allowInstantBooking={!!allowInstantBooking && !bestState.accepted}
+                onReserve={() =>
+                  openPaymentModal({
+                    bookingRequestId,
+                    amount: (() => {
+                      const preview = resolveQuoteTotalsPreview(bestState.best as any);
+                      return typeof preview.clientTotalInclVat === 'number' ? preview.clientTotalInclVat : 0;
+                    })(),
+                    customerEmail: (user as any)?.email || undefined,
+                  })
+                }
+                showReceiptBelowTotal={showReceiptBelowTotal}
+              />
+            )}
 
-          {!bestState.best && !quotesLoading && (
-            <div className="rounded-lg border border-dashed border-gray-400 bg-gray-50 p-4 text-sm text-gray-600 text-center italic">
-              No quote is available yet for this request. Awaiting provider response.
-            </div>
-          )}
-        </section>
+            {!bestState.best && !quotesLoading && (
+              <div className="rounded-lg border border-dashed border-gray-400 bg-gray-50 p-4 text-sm text-gray-600 text-center italic">
+                No quote is available yet for this request. Awaiting provider response.
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Order Info */}
         {bookingDetails && (
@@ -567,7 +574,11 @@ export default function BookingSummaryCard({
             }
           })();
           const canShow = !!briefLink && (isClient || (isProviderForThread && briefComplete));
-          const label = briefComplete ? 'View Brief' : 'Finish Brief';
+          const label = briefComplete
+            ? 'View Brief'
+            : isPersonalizedVideo
+              ? 'Complete Brief'
+              : 'Finish Brief';
           if (!canShow) return null;
           return (
             <div className="pt-4">

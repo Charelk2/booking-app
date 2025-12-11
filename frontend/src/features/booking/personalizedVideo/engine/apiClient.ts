@@ -47,6 +47,7 @@ export interface VideoOrderApiClient {
     payload: VideoOrderDraftPayload,
     idempotencyKey: string,
   ): Promise<VideoOrder | null>;
+  listOrders(): Promise<VideoOrder[]>;
   getOrder(orderId: number): Promise<VideoOrder | null>;
   updateStatus(orderId: number, status: VideoOrder["status"] | string): Promise<void>;
   postAnswer(orderId: number, key: string, value: any): Promise<boolean>;
@@ -87,6 +88,10 @@ export const videoOrderApiClient: VideoOrderApiClient = {
       "Idempotency-Key": idempotencyKey,
     });
   },
+  async listOrders() {
+    const res = await safeGet<VideoOrder[]>("/api/v1/video-orders");
+    return Array.isArray(res) ? res : [];
+  },
   async getOrder(orderId) {
     return safeGet<VideoOrder>(`/api/v1/video-orders/${orderId}`);
   },
@@ -118,4 +123,3 @@ export const videoOrderApiClient: VideoOrderApiClient = {
 };
 
 export { safeGet, safePost };
-

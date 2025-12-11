@@ -495,29 +495,24 @@ export function createPersonalizedVideoEngineCore(
       });
     },
 
-    markPaid: async (reference) => {
+    markPaid: async (_reference) => {
       const id = getState().orderId;
       if (!id) return;
 
       await env.api.updateStatus(id, "paid");
 
+      env.storage.clearSimulatedOrder(id);
+      env.ui.toastSuccess("Payment received!");
       try {
         const tid = env.storage.getThreadIdForOrder(id);
         if (tid) {
-          await env.api.postThreadMessage(
-            tid,
-            reference
-              ? `Payment received — reference ${reference}`
-              : `Payment received — order #${id}`,
-          );
+          env.ui.navigateToInbox(tid);
+          return;
         }
       } catch {
-        // best-effort
+        // ignore
       }
-
-      env.storage.clearSimulatedOrder(id);
-      env.ui.toastSuccess("Payment received!");
-      env.ui.navigateToBrief(id);
+      env.ui.navigateToInbox();
     },
 
     updateAnswer: (key, value, _opts) => {
