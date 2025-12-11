@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Calendar, ClipboardList, Send, Wallet, Film, FileText } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Booking, BookingRequest } from "@/types";
@@ -20,8 +21,34 @@ import { format } from "date-fns";
 import { formatCurrency, formatStatus } from "@/lib/utils";
 import { statusChipStyles } from "@/components/ui/status";
 import Link from "next/link";
+import { videoOrderApiClient, type VideoOrder } from "@/features/booking/personalizedVideo/engine/apiClient";
 
 type TabId = "requests" | "bookings";
+
+function StatCard({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-black text-white">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+        <div className="text-xl font-bold text-gray-900">{value}</div>
+        {hint ? <p className="text-xs text-gray-500 mt-0.5">{hint}</p> : null}
+      </div>
+    </div>
+  );
+}
 
 export default function ClientDashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -43,6 +70,9 @@ export default function ClientDashboardPage() {
 
   const [fetchedBookings, setFetchedBookings] = useState(false);
   const [fetchedRequests, setFetchedRequests] = useState(false);
+  const [videoOrders, setVideoOrders] = useState<VideoOrder[]>([]);
+  const [loadingVideoOrders, setLoadingVideoOrders] = useState(false);
+  const [fetchedVideoOrders, setFetchedVideoOrders] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +126,19 @@ export default function ClientDashboardPage() {
     if (!user || user.user_type !== "client") return;
 
     const fetchActiveTab = async () => {
+      if (!fetchedVideoOrders) {
+        setLoadingVideoOrders(true);
+        try {
+          const orders = await videoOrderApiClient.listOrders();
+          setVideoOrders(Array.isArray(orders) ? orders : []);
+          setFetchedVideoOrders(true);
+        } catch {
+          setVideoOrders([]);
+        } finally {
+          setLoadingVideoOrders(false);
+        }
+      }
+
       // BOOKINGS
       if (
         activeTab === "bookings" &&
@@ -156,6 +199,7 @@ export default function ClientDashboardPage() {
     activeTab,
     fetchedBookings,
     fetchedRequests,
+    fetchedVideoOrders,
   ]);
 
   // Background preload of the opposite tab (best-effort)
@@ -194,6 +238,20 @@ export default function ClientDashboardPage() {
           requestsInflightRef.current = null;
         });
     }
+
+    // Preload video orders
+    if (!fetchedVideoOrders && !loadingVideoOrders) {
+      setLoadingVideoOrders(true);
+      videoOrderApiClient
+        .listOrders()
+        .then((orders) => {
+          setVideoOrders(Array.isArray(orders) ? orders : []);
+          setFetchedVideoOrders(true);
+          return orders;
+        })
+        .catch(() => null)
+        .finally(() => setLoadingVideoOrders(false));
+    }
   }, [
     authLoading,
     user,
@@ -201,6 +259,8 @@ export default function ClientDashboardPage() {
     fetchedRequests,
     bookings.length,
     bookingRequests.length,
+    fetchedVideoOrders,
+    loadingVideoOrders,
   ]);
 
   const upcomingBookings = useMemo(() => {
@@ -213,6 +273,35 @@ export default function ClientDashboardPage() {
       )
       .slice(0, 5);
   }, [bookings]);
+
+  const pendingRequestsCount = useMemo(
+    () =>
+      bookingRequests.filter(
+        (r) =>
+          !["cancelled", "declined", "completed"].includes(
+            String((r as any)?.status || "").toLowerCase(),
+          ),
+      ).length,
+    [bookingRequests],
+  );
+
+  const totalSpend = useMemo(
+    () =>
+      bookings.reduce(
+        (sum, b) => sum + (Number((b as any)?.total_price) || 0),
+        0,
+      ),
+    [bookings],
+  );
+
+  const nextBooking = useMemo(
+    () =>
+      [...upcomingBookings].sort(
+        (a, b) =>
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+      )[0],
+    [upcomingBookings],
+  );
 
   const getInvoiceHref = (booking: Booking): string | null => {
     const anyBooking: any = booking as any;
@@ -253,7 +342,59 @@ export default function ClientDashboardPage() {
 
   return (
     <MainLayout>
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-500">Welcome back</p>
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+              {user?.first_name
+                ? `${user.first_name}${user.last_name ? ` ${user.last_name}` : ""}`
+                : user?.email || "Your dashboard"}
+            </h1>
+          </div>
+          <div className="flex gap-2">
+            <Link
+              href="/dashboard/client/bookings"
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+            >
+              <Calendar size={16} /> All bookings
+            </Link>
+            <Link
+              href="/dashboard/client/quotes"
+              className="inline-flex items-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+            >
+              <Send size={16} /> Quotes & Requests
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            icon={<Calendar size={18} />}
+            label="Upcoming bookings"
+            value={upcomingBookings.length}
+            hint={nextBooking ? format(new Date(nextBooking.start_time), "MMM d, h:mm a") : "No upcoming dates"}
+          />
+          <StatCard
+            icon={<ClipboardList size={18} />}
+            label="Active requests"
+            value={pendingRequestsCount}
+            hint={`${bookingRequests.length} total`}
+          />
+          <StatCard
+            icon={<Wallet size={18} />}
+            label="Total spend"
+            value={formatCurrency(totalSpend)}
+            hint={bookings.length ? `${bookings.length} bookings` : "No spend yet"}
+          />
+          <StatCard
+            icon={<Send size={18} />}
+            label="Drafts & quotes"
+            value={bookingRequests.length}
+            hint="Includes submitted requests"
+          />
+        </div>
+
         <DashboardTabs
           tabs={[
             { id: "requests", label: "Requests" },
@@ -266,9 +407,100 @@ export default function ClientDashboardPage() {
           variant="segmented"
         />
 
-        <div className="mt-6">
+        <div className="mt-4 space-y-6">
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Personalized Video</h2>
+                <p className="text-sm text-gray-500">Finish briefs, payments, and view deliveries.</p>
+              </div>
+              <Link
+                href="/personalized-video"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+              >
+                <Film size={16} /> Start a new video
+              </Link>
+            </div>
+            {loadingVideoOrders ? (
+              <div className="py-6 flex justify-center">
+                <Spinner />
+              </div>
+            ) : videoOrders.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-sm text-gray-600">
+                No personalized video orders yet.
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {videoOrders.map((order) => {
+                  const status = String(order.status || "").toLowerCase();
+                  const needsPayment = status === "awaiting_payment";
+                  const needsBrief = status === "info_pending";
+                  const delivered = status === "delivered" || status === "closed";
+                  const inProd = status === "in_production";
+                  let actionHref = `/video-orders/${order.id}`;
+                  let actionLabel = "View order";
+                  if (needsPayment) {
+                    actionHref = `/video-orders/${order.id}/pay`;
+                    actionLabel = "Complete payment";
+                  } else if (needsBrief) {
+                    actionHref = `/video-orders/${order.id}/brief`;
+                    actionLabel = "Finish brief";
+                  } else if (delivered) {
+                    actionHref = `/video-orders/${order.id}`;
+                    actionLabel = "View delivery";
+                  } else if (inProd) {
+                    actionLabel = "Track progress";
+                  }
+                  return (
+                    <div key={order.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Order #{order.id}</p>
+                          <p className="text-xs text-gray-500">
+                            Delivery by {order.delivery_by_utc ? format(new Date(order.delivery_by_utc), "MMM d, yyyy") : "—"}
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100 text-gray-700 capitalize">
+                          {status.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm text-gray-700 flex items-center gap-2">
+                        <FileText size={14} />
+                        <span>
+                          {needsPayment
+                            ? "Payment pending"
+                            : needsBrief
+                            ? "Brief incomplete"
+                            : delivered
+                            ? "Delivered"
+                            : inProd
+                            ? "In production"
+                            : "In progress"}
+                        </span>
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <Link
+                          href={actionHref}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+                        >
+                          {actionLabel}
+                        </Link>
+                        <Link
+                          href={`/video-orders/${order.id}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                        >
+                          View details
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
           {activeTab === "requests" && (
-            <section>
+            <section className="space-y-3">
               <SectionList
                 title="Booking Requests"
                 data={bookingRequests}
@@ -287,7 +519,7 @@ export default function ClientDashboardPage() {
           )}
 
           {activeTab === "bookings" && (
-            <section>
+            <section className="space-y-4">
               <SectionList
                 title="Upcoming Bookings"
                 data={upcomingBookings}
@@ -336,7 +568,10 @@ export default function ClientDashboardPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="mt-2">
+                    <div className="mt-2 flex items-center justify-between text-sm text-gray-600">
+                      <span className="truncate">
+                        Booking ID #{booking.id}
+                      </span>
                       {(() => {
                         const href = getInvoiceHref(booking);
                         if (!href) return null;
