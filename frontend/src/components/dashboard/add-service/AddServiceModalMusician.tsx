@@ -165,6 +165,7 @@ interface AddServiceModalProps {
   onClose: () => void;
   onServiceSaved: (newService: Service) => void;
   service?: Service;
+  initialServiceType?: Service["service_type"];
 }
 
 type SoundMode = "artist_provides_variable" | "external_providers";
@@ -293,6 +294,12 @@ export default function AddServiceModalMusician({
     };
   }, [service]);
 
+  const defaultValues = useMemo<ServiceFormData>(() => {
+    if (service) return editingDefaults;
+    const base = { ...emptyDefaults };
+    return base;
+  }, [service, editingDefaults]);
+
   const {
     register,
     handleSubmit,
@@ -307,7 +314,7 @@ export default function AddServiceModalMusician({
     reValidateMode: "onChange",
     criteriaMode: "all",
     shouldUnregister: false,
-    defaultValues: service ? editingDefaults : emptyDefaults,
+    defaultValues,
   });
 
   // Channels
@@ -351,7 +358,7 @@ export default function AddServiceModalMusician({
   // Reset on open + ensure arrays exist
   useEffect(() => {
     if (!isOpen) return;
-    const dv = service ? editingDefaults : emptyDefaults;
+    const dv = defaultValues;
     reset(dv);
     replaceChannels(dv.tech.channels || []);
     replaceBL(dv.tech.backline.required_keys || []);
@@ -367,7 +374,7 @@ export default function AddServiceModalMusician({
     setFohOpen(false);
     setBacklineOpen(false);
     setProvidersOpen(true);
-  }, [isOpen, service, reset, editingDefaults, replaceChannels, replaceBL, replaceCustomBL]);
+  }, [isOpen, service, reset, editingDefaults, replaceChannels, replaceBL, replaceCustomBL, defaultValues]);
 
   // Watches
   const watchTitle = watch("title");
@@ -594,7 +601,7 @@ export default function AddServiceModalMusician({
   };
 
   const handleCancel = () => {
-    const dv = service ? editingDefaults : emptyDefaults;
+    const dv = defaultValues;
     reset(dv);
     replaceChannels(dv.tech.channels || []);
     replaceBL(dv.tech.backline.required_keys || []);

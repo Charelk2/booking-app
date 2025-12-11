@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import type { EventDetails } from "@/components/booking/BookingWizard";
+import type { EventDetails } from "@/contexts/BookingContext";
 
 // Fields required per step index (mirrors BookingWizard)
 export const bookingWizardStepFields: (keyof EventDetails)[][] = [

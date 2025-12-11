@@ -430,8 +430,6 @@ export interface BookingAgentState {
   chosen_provider_name?: string | null;
   service_id?: number | null;
   service_name?: string | null;
-  service_id?: number | null;
-  service_name?: string | null;
 
   event_type?: string | null;
   city?: string | null;

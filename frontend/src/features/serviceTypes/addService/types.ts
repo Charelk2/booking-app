@@ -1,6 +1,12 @@
 import type { Service } from "@/types";
 
-export type ServiceTypeSlug = "live_performance" | "personalized_video";
+export type ServiceTypeSlug =
+  | "live_performance"
+  | "personalized_video"
+  | "custom_song"
+  | "other"
+  | "sound_service_live"
+  | "live_performance_musician";
 
 export interface AddServiceCommonFields {
   title: string;
@@ -34,11 +40,10 @@ export interface AddServiceEngineActions {
   ): void;
   setTypeField(key: string, value: any): void;
   reset(): void;
-  submit(): Promise<void>;
+  submit(extra?: Partial<Service>): Promise<void>;
 }
 
 export interface AddServiceEngine {
   state: AddServiceEngineState;
   actions: AddServiceEngineActions;
 }
-

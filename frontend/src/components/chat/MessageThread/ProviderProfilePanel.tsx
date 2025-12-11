@@ -331,13 +331,13 @@ export default function ProviderProfilePanel({
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-900">
-                {profile?.completed_events ?? 0}
+                {(profile as any)?.completed_events ?? 0}
               </p>
               <p className="mt-0.5 text-[11px] text-gray-500">completed events</p>
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-900">
-                {profile?.profile_complete ? "Yes" : "—"}
+                {(profile as any)?.profile_complete ? "Yes" : "—"}
               </p>
               <p className="mt-0.5 text-[11px] text-gray-500">profile complete</p>
             </div>

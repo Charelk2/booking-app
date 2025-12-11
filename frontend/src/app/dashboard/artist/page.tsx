@@ -173,10 +173,10 @@ export default function DashboardPage() {
 
   // --- Wizards ---
   const wizardLoaders: Record<string, () => Promise<{ default: ComponentType<WizardProps> }>> = {
-    musician: () => import("@/components/dashboard/add-service/AddServiceModalMusician"),
+    musician: () => import("@/components/dashboard/add-service/musician/MusicianAddServiceRouter"),
     photographer: () => import("@/components/dashboard/add-service/AddServiceModalPhotographer"),
     dj: () => import("@/components/dashboard/add-service/AddServiceModalDJ"),
-    sound_service: () => import("@/components/dashboard/add-service/AddServiceModalSoundService"),
+    sound_service: () => import("@/components/dashboard/add-service/sound/SoundServiceFlow"),
     videographer: () => import("@/components/dashboard/add-service/AddServiceModalVideographer"),
     speaker: () => import("@/components/dashboard/add-service/AddServiceModalSpeaker"),
     wedding_venue: () => import("@/components/dashboard/add-service/AddServiceModalWeddingVenue"),

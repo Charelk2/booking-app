@@ -241,8 +241,9 @@ function mergeMessages(prev: ThreadMessage[], incoming: ThreadMessage[]): Thread
         (mergedBase as any).my_reactions = (prior as any).my_reactions;
       }
       const finalMerged = mergedBase;
-      byId.set(Number(finalMerged.id) || existingId, finalMerged);
-      if (cid) byClient.set(cid, Number(merged.id) || existingId);
+      const finalId = Number(finalMerged.id) || existingId;
+      byId.set(finalId, finalMerged);
+      if (cid) byClient.set(cid, finalId);
     } else if (Number.isFinite(m.id)) {
       byId.set(Number(m.id), m);
       if (cid) byClient.set(cid, Number(m.id));

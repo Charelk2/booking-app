@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback, startTransition } from 'react';
+import React, { useEffect, useState, useRef, useCallback, startTransition, useMemo } from 'react';
 import { Dialog } from '@headlessui/react';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
@@ -29,6 +29,7 @@ import { trackEvent } from '@/lib/analytics';
 import { format } from 'date-fns';
 import { computeSoundServicePrice, type LineItem } from '@/lib/soundPricing';
 import { bookingWizardStepFields, isUnavailableDate, normalizeEventType, normalizeGuestCount } from '@/lib/shared/validation/booking';
+import { fromServiceToLiveBookingConfig, useLiveBookingEngineWeb } from "@/features/booking/livePerformance";
 
 import { BookingRequestCreate } from '@/types';
 import './wizard/wizard.css';
@@ -180,7 +181,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [reviewDataError, setReviewDataError] = useState<string | null>(null);
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
-  const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
+  const [baseServicePrice, setBaseServicePrice] = useState<number>(liveDetails ? 0 : 0); // New state for base service price
   const [servicePriceItems, setServicePriceItems] = useState<LineItem[] | null>(null);
   const [serviceCategorySlug, setServiceCategorySlug] = useState<string | undefined>(undefined);
   const [soundCost, setSoundCost] = useState(0);
@@ -197,6 +198,27 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [clientCompanyName, setClientCompanyName] = useState('');
   const [clientVatNumber, setClientVatNumber] = useState('');
   const [clientBillingAddress, setClientBillingAddress] = useState('');
+
+  const [serviceData, setServiceData] = useState<any>(null);
+  const liveConfig = useMemo(
+    () => fromServiceToLiveBookingConfig(serviceData as any),
+    [serviceData],
+  );
+  const liveEngine = useLiveBookingEngineWeb({
+    artistId,
+    serviceId: serviceId || 0,
+    config: liveConfig,
+  });
+  const liveDetails = liveEngine.state.details;
+  const setDetailsSynced = useCallback(
+    (d: EventDetails) => {
+      setDetails(d);
+      try {
+        liveEngine.actions.updateMany(d);
+      } catch {}
+    },
+    [setDetails, liveEngine.actions],
+  );
   const billingDebounce = useRef<any>(null);
 
   const persistBillingSnapshot = useCallback((brId: number) => {
@@ -291,7 +313,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     watch,
     errors, // Directly destructure errors, assuming useBookingForm returns it at top level
     reset,
-  } = useBookingForm(schema as any, details as any, setDetails as any);
+  } = useBookingForm(schema as any, liveDetails as any, setDetailsSynced as any);
 
   const watchedValues = watch();
   const debouncedValues = useDebounce(watchedValues, 300);
@@ -303,7 +325,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   useEffect(() => {
     void trigger();
-  }, [debouncedValues, trigger]);
+    try {
+      liveEngine.actions.updateMany(watchedValues as any);
+    } catch {}
+  }, [debouncedValues, trigger, watchedValues, liveEngine.actions]);
 
   // --- Effects ---
 
@@ -381,6 +406,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             r.ok ? r.json() : null,
           )
           : null;
+        setServiceData(svcRes);
       } catch (err) {
         console.error('Failed to fetch service data for booking wizard:', err);
       }
@@ -463,34 +489,32 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   // with drafts from other artists/services.
   useEffect(() => {
     if (!isOpen || hasLoaded.current) return;
-    // Peek for saved progress; show modal if meaningful, else offer AI assist
     try {
       const peek = peekSavedProgress?.();
       if (peek) {
         const savedServiceId = typeof peek.serviceId === 'number' ? peek.serviceId : null;
         if (serviceId != null) {
-          // When booking a specific service, ignore drafts for other services.
-          if (savedServiceId !== serviceId) {
-            // No matching draft for this service → behave as if no saved progress.
-          } else {
+          if (savedServiceId === serviceId) {
             savedRef.current = peek;
             setShowResumeModal(true);
           }
         } else {
-          // Generic flow (no serviceId prop): keep previous behavior.
           savedRef.current = peek;
           setShowResumeModal(true);
         }
-      } else {
-        // Do not auto-open AI overlay to avoid blocking typing on the first step.
-        // Users can still open AI assist manually from UI affordances elsewhere.
       }
     } catch {
-      // fallback: previous behavior
       loadSavedProgress();
     }
     hasLoaded.current = true;
   }, [isOpen, loadSavedProgress, peekSavedProgress, serviceId]);
+
+  // Keep engine details in sync with context when they change (read-only binding for now)
+  useEffect(() => {
+    if (liveDetails) {
+      setDetailsSynced(liveDetails as any);
+    }
+  }, [liveDetails, setDetailsSynced]);
 
   // Effect to set serviceId in the booking context if provided as a prop
   useEffect(() => {
@@ -598,8 +622,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const svcCategorySlug: string | undefined = (svcRes?.service_category_slug || svcRes?.service_category?.slug || svcRes?.service_category?.name || '') as string;
       setServiceCategorySlug(svcCategorySlug);
 
-      // If this is a Sound Service with audience packages, compute audience base + add-ons
-      let basePrice = parseNumber(svcRes.price);
+      // Map live/performance services via the helper; preserve sound-service audience logic
+      const liveConfig = fromServiceToLiveBookingConfig(svcRes as any);
+      const soundProvisioning = liveConfig.soundProvisioning || {};
+
+      let basePrice = liveConfig.basePriceZar;
       let priceItems: LineItem[] | null = null;
       const isSoundService = typeof svcCategorySlug === 'string' && svcCategorySlug.toLowerCase().includes('sound');
       const hasAudiencePkgs = Array.isArray(svcRes?.details?.audience_packages) && svcRes.details.audience_packages.length > 0;
@@ -626,10 +653,14 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       setBaseServicePrice(basePrice);
       setServicePriceItems(priceItems);
 
-      const travelRate = parseNumber(svcRes.travel_rate, 2.5) || 2.5;
-      const numTravelMembers = parseNumber(svcRes.travel_members, 1) || 1;
-      const carRentalPrice = parseOptionalNumber(svcRes.car_rental_price);
-      const flightPrice = parseOptionalNumber(svcRes.flight_price);
+      const travelRate =
+        liveConfig.travelRate ??
+        (parseNumber((svcRes as any)?.travel_rate, 2.5) || 2.5);
+      const numTravelMembers =
+        liveConfig.travelMembers ??
+        (parseNumber((svcRes as any)?.travel_members, 1) || 1);
+      const carRentalPrice = parseOptionalNumber((svcRes as any)?.car_rental_price);
+      const flightPrice = parseOptionalNumber((svcRes as any)?.flight_price);
 
       let quote: Awaited<ReturnType<typeof calculateQuote>> | null = null;
       const isSoundServiceCategory = (svcCategorySlug || '').toLowerCase().includes('sound');
@@ -639,7 +670,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         let selectedIdForCalc: number | undefined = (details as any).soundSupplierServiceId as number | undefined;
         try {
           if (!selectedIdForCalc && details.location) {
-            const sp = svcRes?.details?.sound_provisioning || {};
+            const sp = soundProvisioning;
             let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
             if (!prefs.length) {
               try { const pr = await fetch(apiUrl(`/api/v1/services/${serviceId}/sound-preferences`), { cache: 'no-store' }).then((r) => r.json()); if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences; } catch {}
@@ -749,7 +780,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         // Local fallback: supplier audience-tier pricing if supplier mode is selected or musician config is external providers
         let scFromAudience = 0;
         try {
-          const spConf = svcRes?.details?.sound_provisioning || {};
+          const spConf = soundProvisioning || {};
           const confExternal = (spConf.mode === 'external_providers' || spConf.mode === 'external' || spConf.mode_default === 'external_providers');
           if (soundModePref === 'supplier' || confExternal) {
             // Determine selected supplier or pick a preferred candidate
@@ -844,8 +875,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 }
               }
             } else if (details.location) {
-              const sp = svcRes?.details?.sound_provisioning || {};
-              let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
+            const sp = soundProvisioning;
+            let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
               if (!prefs.length) {
                 try {
                   const pr = await fetch(apiUrl(`/api/v1/services/${serviceId}/sound-preferences`), { cache: 'no-store' }).then((r) => r.json());
@@ -893,7 +924,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           // Last resort fallback: estimate via pricebook ranking midpoint if available
           try {
             if (soundModePref === 'supplier' && details.location) {
-              const sp = svcRes?.details?.sound_provisioning || {};
+              const sp = soundProvisioning;
               let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
               if (!prefs.length) {
                 try {
@@ -967,7 +998,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         // If the artist uses variable own-sound pricing, allow the preview
         // sound fee to follow the chosen travel mode (drive vs fly) using
         // the configured driving/flying sound prices.
-        const spSound: any = svcRes?.details?.sound_provisioning || {};
+        const spSound: any = soundProvisioning || {};
         const isArtistVariableSound = spSound?.mode === 'artist_provides_variable';
         const applyArtistVariableSoundForMode = (modeStr: 'drive' | 'fly') => {
           if (!isArtistVariableSound || details.sound !== 'yes') return;

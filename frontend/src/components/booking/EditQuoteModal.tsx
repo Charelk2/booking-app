@@ -7,7 +7,8 @@ interface EditQuoteModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: { quote_details: string; price: number }) => Promise<void> | void;
-  quote: Pick<QuoteV2, 'quote_details' | 'services' | 'total' | 'id' | 'booking_request_id'> & {
+  quote: Pick<QuoteV2, 'services' | 'total' | 'id' | 'booking_request_id'> & {
+    quote_details?: string;
     price?: number;
   };
 }

@@ -3,7 +3,7 @@ import { format, addHours } from 'date-fns';
 import { ServiceItem, QuoteV2Create, QuoteCalculationResponse } from '@/types';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
-import type { EventDetails } from './QuoteBubble';
+import type { EventDetails } from '@/components/chat/inlinequote/QuoteBubble';
 import { livePerformanceEstimate, getBookingRequestById, getService, getBookingRequestCached } from '@/lib/api';
 import { getDrivingMetricsCached } from '@/lib/travel';
 import { useSoundQuotePrefill } from '@/components/chat/inlinequote/useSoundQuotePrefill';

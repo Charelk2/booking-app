@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Fragment, useMemo } from "react";
+import React, { Fragment, useMemo, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { useRouter } from "next/navigation";
 import {
@@ -18,16 +18,17 @@ import {
   usePersonalizedVideoOrderEngine as usePvEngine,
   BRIEF_QUESTIONS,
 } from "@/features/booking/personalizedVideo/engine/engine";
+import type { PvLengthChoice } from "@/features/booking/personalizedVideo/serviceMapping";
 type LengthChoice = "30_45" | "60_90";
 
 // =============================================================================
 // OPTIONS
 // =============================================================================
 
-const LANGS = [
-  { v: "EN", l: "English" },
-  { v: "AF", l: "Afrikaans" },
-] as const;
+const LANG_LABELS: Record<string, string> = {
+  EN: "English",
+  AF: "Afrikaans",
+};
 
 // =============================================================================
 // UTILITIES
@@ -55,6 +56,9 @@ interface WizardProps {
   basePriceZar?: number;
   addOnLongZar?: number;
   serviceId?: number;
+  defaultLengthChoice?: PvLengthChoice;
+  supportedLanguages?: string[];
+  defaultLanguage?: string;
 }
 
 export default function BookinWizardPersonilsedVideo({
@@ -64,6 +68,9 @@ export default function BookinWizardPersonilsedVideo({
   basePriceZar = 850,
   addOnLongZar = 250,
   serviceId,
+  defaultLengthChoice,
+  supportedLanguages,
+  defaultLanguage,
 }: WizardProps) {
   const router = useRouter();
 
@@ -81,6 +88,16 @@ export default function BookinWizardPersonilsedVideo({
 
   const { draft, pricing, status, unavailableDates } = state;
 
+  // Apply defaults from service config when provided
+  useEffect(() => {
+    if (defaultLengthChoice) {
+      actions.updateDraftField("lengthChoice", defaultLengthChoice as LengthChoice);
+    }
+    if (defaultLanguage) {
+      actions.updateDraftField("language", defaultLanguage as any);
+    }
+  }, [defaultLengthChoice, defaultLanguage, actions]);
+
   const form = {
     deliveryBy: draft.deliveryBy,
     setDeliveryBy: (value: string) => actions.updateDraftField("deliveryBy", value),
@@ -95,6 +112,14 @@ export default function BookinWizardPersonilsedVideo({
   };
 
   const minDate = useMemo(() => new Date(Date.now() + 24 * 3600000).toISOString().slice(0, 10), []);
+
+  const languageOptions = useMemo(() => {
+    const codes = supportedLanguages && supportedLanguages.length > 0 ? supportedLanguages : ["EN", "AF"];
+    return codes.map((code) => ({
+      v: code,
+      l: LANG_LABELS[code] || code,
+    }));
+  }, [supportedLanguages]);
 
   const availabilityUi = useMemo(() => {
     if (!form.deliveryBy) return { tone: "muted" as const, label: "Select a date to check availability" };
@@ -260,7 +285,7 @@ export default function BookinWizardPersonilsedVideo({
                     <section>
                       <label className="block text-sm font-medium text-gray-800">Language</label>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {LANGS.map((l) => {
+                        {languageOptions.map((l) => {
                           const active = form.language === l.v;
                           return (
                             <button

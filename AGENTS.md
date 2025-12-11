@@ -144,6 +144,7 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
       - `env.ui` to Next.js router + Toasts.
       - `env.payments` to the Paystack inline script (or demo mode when not configured).
   - The Personalized Video flow is now the reference implementation for “engine‑driven” booking flows on the frontend.
+  - Personalized Video service config (details.base_length_sec, long_addon_price, languages) is authored via the add-service engine (see serviceTypeRegistry) and read into booking via `fromServiceToPvBookingConfig(...)`.
 
 
 ### 12. Availability Agent
@@ -201,11 +202,22 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
   - The only way to fully remove a calendar link is `DELETE /api/v1/google-calendar`, which explicitly deletes the `CalendarAccount`.
 * **Availability integration:**
   - `read_artist_availability` uses `fetch_events(...)` inside a try/except and treats failures as “no external events” so booking flows never 5xx because of Google.
-  - Calendar events are merged into `unavailable_dates`, but failures simply mean those external blocks are temporarily omitted; app-side bookings still work.
+- Calendar events are merged into `unavailable_dates`, but failures simply mean those external blocks are temporarily omitted; app-side bookings still work.
 * **Do not:**
   - Delete `CalendarAccount` automatically in `fetch_events` or any background job when refresh fails.
   - Surface HTTP 5xx to clients solely because the calendar refresh or Google API failed.
   - Flip a connected account back to “disconnected” state without an explicit user-initiated disconnect.
+
+### Calendar Slot Duration (Musician Services – Future Tuning)
+
+- For musician Personalized Video and Custom Song services, `services.duration_minutes` is currently set using simple heuristics derived from `details.base_length_sec` (e.g., short vs long content mapped to 40/75/60/120 minutes).
+- These values are good enough for pricing and rough availability, but they are **not yet a precise calendar slot model**:
+  - PV: `base_length_sec ≈ 40/75` maps to a single “slot” length for now.
+  - Custom Song: `base_length_sec` (≈60/120 seconds of audio) is mapped to a longer booking duration (60/120 minutes) to reflect production time, not finished track length.
+- When we do a calendar/slot revamp, revisit:
+  - Whether `duration_minutes` should represent **calendar block length**, **content length**, or both via separate fields.
+  - How PV/Custom Song durations interact with `read_artist_availability` and any future per-service slot templates (e.g., “max N PV orders per day”).
+  - Keeping Booking + Add Service engines as the only place that derive these values so web/RN stay in sync.
 
 
 ## Engine Pattern for Future Booking Services
@@ -233,6 +245,22 @@ New booking‑style services (e.g. “book a slippery slide”) should follow th
 * **UI components** for new services should be thin shells:
   - Live under `frontend/src/components/booking/...` or `frontend/src/features/booking/<serviceSlug>/ui/`.
   - Read only from `engine.state` and call `engine.actions.*` (no direct API/localStorage/Paystack usage).
+
+## Add Service Engine (current coverage)
+
+* **Canonical engine + registry**: `frontend/src/features/serviceTypes/addService/{types,serviceTypeRegistry,apiClient,core,engine}.ts` is the single source of truth for service types, fields, and payload mapping.
+* **Musician category (router + flows)**:
+  - Router: `frontend/src/components/dashboard/add-service/musician/MusicianAddServiceRouter.tsx` (4 options).
+  - Flows: Live (`MusicianLivePerformanceFlow` → `serviceType: "live_performance_musician"`), PV (`MusicianPersonalizedVideoFlow`), Custom Song, Other (all use `useAddServiceEngine`).
+  - Registry entries: `live_performance_musician`, `personalized_video`, `custom_song`, `other`.
+* **Sound category**:
+  - Flow: `frontend/src/components/dashboard/add-service/sound/SoundServiceFlow.tsx` (engine-driven).
+  - Registry entry: `sound_service_live`.
+* **Booking mappers**:
+  - PV: `fromServiceToPvBookingConfig(...)` (feeds PV booking engine).
+  - Live: `fromServiceToLiveBookingConfig(...)` (used in BookingWizard).
+  - Custom Song: `fromServiceToCustomSongBookingConfig(...)` (ready for future booking flow).
+
 
 This pattern keeps booking behaviour centralized, makes React Native and other clients easier to support (by swapping only the `env` layer), and avoids duplicating complex business rules in components.
 

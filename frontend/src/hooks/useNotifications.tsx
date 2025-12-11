@@ -187,7 +187,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
           // For active threads, nudge a tiny delta reconcile so the open view
           // picks up the latest state without relying on notification stubs.
-          if (isActive && typeof window !== 'undefined') {
+        const isActiveThread = true;
+          if (isActiveThread && typeof window !== 'undefined') {
             try {
               window.dispatchEvent(
                 new CustomEvent('thread:pokedelta', {
@@ -196,12 +197,23 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               );
             } catch {}
           }
+          try {
+            window.dispatchEvent(
+              new CustomEvent('thread:pokedelta', {
+                detail: { threadId, source: 'notification' },
+              }),
+            );
+          } catch {}
         }
       } catch (e) {
         console.error('Failed to handle notification message', e);
       }
     });
-    return () => { try { unsub(); } catch {} };
+    return () => {
+      try {
+        unsub();
+      } catch {}
+    };
   }, [subscribe, user]);
 
   const markAsRead = useCallback(async (id: number) => {

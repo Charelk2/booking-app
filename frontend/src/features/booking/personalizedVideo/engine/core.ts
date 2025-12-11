@@ -434,7 +434,7 @@ export function createPersonalizedVideoEngineCore(
       const payment = getState().payment;
 
       setState({
-        orderSummary: hasOrder
+        orderSummary: hasOrder && order
           ? {
               id: order.id,
               artistId: order.artist_id,

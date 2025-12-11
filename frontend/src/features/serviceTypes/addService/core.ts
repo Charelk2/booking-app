@@ -5,6 +5,7 @@ import type {
   AddServiceEngineState,
   AddServiceCommonFields,
 } from "./types";
+import type { Service } from "@/types";
 import type { AddServiceApiClient } from "./apiClient";
 import { SERVICE_TYPE_REGISTRY } from "./serviceTypeRegistry";
 import type { ServiceTypeSlug } from "./types";
@@ -93,7 +94,7 @@ export function createAddServiceEngineCore(
         resultService: null,
       });
     },
-    async submit() {
+    async submit(extra?: Partial<Service>) {
       const current = getState();
       const cfg = SERVICE_TYPE_REGISTRY[
         current.serviceType as ServiceTypeSlug
@@ -115,8 +116,8 @@ export function createAddServiceEngineCore(
         );
 
         const service = params.service
-          ? await env.api.update(params.service.id, payload)
-          : await env.api.create(payload);
+          ? await env.api.update(params.service.id, { ...payload, ...(extra || {}) })
+          : await env.api.create({ ...payload, ...(extra || {}) });
 
         setState({
           status: { saving: false, error: null, success: true },
@@ -144,4 +145,3 @@ export function createAddServiceEngineCore(
     actions,
   };
 }
-
