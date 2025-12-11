@@ -504,7 +504,20 @@ export function createPersonalizedVideoEngineCore(
       env.storage.clearSimulatedOrder(id);
       env.ui.toastSuccess("Payment received!");
       try {
-        const tid = env.storage.getThreadIdForOrder(id);
+        let tid = env.storage.getThreadIdForOrder(id);
+        if (!tid && params.serviceId) {
+          const created = await env.api.createThreadForOrder(
+            params.artistId,
+            params.serviceId,
+            id,
+            `vo-thread-${id}`,
+          );
+          if (created) {
+            tid = created;
+            env.storage.saveThreadIdForOrder(id, created);
+            env.storage.saveOrderIdForThread(created, id);
+          }
+        }
         if (tid) {
           env.ui.navigateToInbox(tid);
           return;
