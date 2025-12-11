@@ -37,9 +37,15 @@ try {
 }
 SSE_BASE_ENV = SSE_BASE_ENV.replace(/\/+$/, '');
 
-export default function useRealtime(token?: string | null): UseRealtimeReturn {
+type UseRealtimeOptions = {
+  /** Allow opening a socket without any auth. Defaults to true for backward compatibility. */
+  allowAnonymous?: boolean;
+};
+
+export default function useRealtime(token?: string | null, opts: UseRealtimeOptions = {}): UseRealtimeReturn {
   const OUTBOX_LIMIT = 200;
   const DEBUG = typeof window !== 'undefined' && (localStorage.getItem('CHAT_DEBUG') === '1');
+  const allowAnonymous = opts.allowAnonymous ?? true;
   const [mode, setMode] = useState<Mode>('ws');
   const [status, setStatus] = useState<Status>('closed');
   const [failureCount, setFailureCount] = useState(0);
@@ -60,6 +66,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const [refreshAttempted, setRefreshAttempted] = useState(false);
   const refreshAttemptedRef = useRef(false);
   const authFailCooldownRef = useRef<number | null>(null);
+  const lastBearerRef = useRef<string | null>(null);
   const setRefreshAttemptedFlag = useCallback((val: boolean) => {
     refreshAttemptedRef.current = val;
     setRefreshAttempted(val);
@@ -317,6 +324,23 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   useEffect(() => {
     const hasTopics = subs.current.size > 0;
     if (!hasTopics || !wsUrl) { setStatus('closed'); return; }
+    const bearerToken = (wsToken || lastTokenRef.current || '').trim();
+    const bearerChanged = lastBearerRef.current !== bearerToken;
+    lastBearerRef.current = bearerToken;
+    if (!allowAnonymous && !bearerToken) {
+      // Don't open anonymous sockets when auth is required
+      if (wsRef.current) {
+        try { wsRef.current.close(); } catch {}
+        wsRef.current = null;
+      }
+      setStatus('closed');
+      return;
+    }
+    // If the bearer just appeared/changed, restart the socket to attach the protocol
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && bearerChanged) {
+      try { wsRef.current.close(); } catch {}
+      wsRef.current = null;
+    }
     const state = wsRef.current?.readyState;
     const openOrConnecting = state === WebSocket.OPEN || state === WebSocket.CONNECTING;
     if ((openOrConnecting || connectingRef.current) && lastUrlRef.current === wsUrl) {
@@ -332,7 +356,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     const id = setTimeout(() => { openWS(); }, 500);
     return () => { try { clearTimeout(id); } catch {} };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wsUrl]);
+  }, [wsUrl, wsToken, allowAnonymous]);
 
   // Close transports on unmount
   useEffect(() => () => {
