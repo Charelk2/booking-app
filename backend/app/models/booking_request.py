@@ -50,6 +50,8 @@ class BookingRequest(Base):
     travel_mode = Column(String, nullable=True)
     travel_cost = Column(Numeric(10, 2), nullable=True)
     travel_breakdown = Column(JSON, nullable=True)
+    # service-specific extras (e.g., personalized video order payload)
+    service_extras = Column(JSON, nullable=True)
 
     status = Column(
         CaseInsensitiveEnum(BookingStatus, name="bookingstatus"),
