@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback, startTransition } from 'react';
+import React, { useEffect, useState, useRef, useCallback, startTransition, useMemo } from 'react';
 import { Dialog } from '@headlessui/react';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
@@ -11,30 +11,19 @@ import type { EventDetails } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useIsMobile from '@/hooks/useIsMobile';
 import useBookingForm from '@/hooks/useBookingForm';
-import useOfflineQueue from '@/hooks/useOfflineQueue';
 import useTransportState from '@/hooks/useTransportState';
 import { useDebounce } from '@/hooks/useDebounce';
 import { parseBookingText } from '@/lib/api';
-import {
-  getServiceProviderAvailability,
-  createBookingRequest,
-  updateBookingRequest,
-  postMessageToBookingRequest,
-  calculateQuote,
-  estimatePriceSafe,
-  calculateSoundServiceEstimate,
-} from '@/lib/api';
 import { calculateTravelMode, getDrivingMetricsCached, geocodeCached, findNearestAirport, getMockCoordinates, type TravelResult } from '@/lib/travel';
 import { trackEvent } from '@/lib/analytics';
 import { format } from 'date-fns';
 import { computeSoundServicePrice, type LineItem } from '@/lib/soundPricing';
 import { bookingWizardStepFields, isUnavailableDate, normalizeEventType, normalizeGuestCount } from '@/lib/shared/validation/booking';
+import { fromServiceToLiveBookingConfig, useLiveBookingEngineWeb } from "@/features/booking/livePerformance";
 
-import { BookingRequestCreate } from '@/types';
 import './wizard/wizard.css';
 import toast from '../ui/Toast';
 import { apiUrl, setClientBillingByBookingRequest } from '@/lib/api';
-import { updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
 // 404-aware service cache (tombstones)
 const svcCache = new Map<number, any | null>();
 type ServiceJson = any | null; // null = tombstone (missing)
@@ -171,19 +160,15 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   }
 
   // --- Component States ---
-  const [unavailable, setUnavailable] = useState<string[]>([]);
   const [artistLocation, setArtistLocation] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [maxStepCompleted, setMaxStepCompleted] = useState(0);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [reviewDataError, setReviewDataError] = useState<string | null>(null);
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
-  const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
   const [servicePriceItems, setServicePriceItems] = useState<LineItem[] | null>(null);
   const [serviceCategorySlug, setServiceCategorySlug] = useState<string | undefined>(undefined);
-  const [soundCost, setSoundCost] = useState(0);
   const [soundMode, setSoundMode] = useState<string | null>(null);
   const [soundModeOverridden, setSoundModeOverridden] = useState(false);
   const [selectedSupplierName, setSelectedSupplierName] = useState<string | undefined>(undefined);
@@ -197,6 +182,45 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [clientCompanyName, setClientCompanyName] = useState('');
   const [clientVatNumber, setClientVatNumber] = useState('');
   const [clientBillingAddress, setClientBillingAddress] = useState('');
+
+  const [serviceData, setServiceData] = useState<any>(null);
+  const liveConfig = useMemo(
+    () =>
+      serviceData
+        ? fromServiceToLiveBookingConfig(serviceData as any)
+        : {
+            basePriceZar: 0,
+            durationMinutes: 60,
+            soundProvisioning: {},
+            travelRate: undefined,
+            travelMembers: undefined,
+          },
+    [serviceData],
+  );
+  const liveEngine = useLiveBookingEngineWeb({
+    artistId,
+    serviceId: serviceId || 0,
+    config: liveConfig,
+  });
+  const liveDetails = liveEngine.state.details;
+  const setDetailsSynced = useCallback(
+    (d: EventDetails) => {
+      setDetails(d);
+      try {
+        liveEngine.actions.updateMany(d);
+      } catch {}
+    },
+    [setDetails, liveEngine.actions],
+  );
+  const setTravelResultSynced = useCallback(
+    (tr: TravelResult | null) => {
+      setTravelResult(tr);
+      try {
+        liveEngine.actions.setTravelResult(tr);
+      } catch {}
+    },
+    [setTravelResult, liveEngine.actions],
+  );
   const billingDebounce = useRef<any>(null);
 
   const persistBillingSnapshot = useCallback((brId: number) => {
@@ -215,8 +239,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const lastTravelSigRef = useRef<string | null>(null);
   const travelResultCache = useRef<Map<string, TravelResult>>(new Map());
   const isLoadingRef = useRef(false);
-  const missingPricebookRef = useRef<Set<number>>(new Set());
-  const missingServiceRef = useRef<Set<number>>(new Set());
 
   const buildCalcSig = () => {
     const d: any = details || {};
@@ -238,43 +260,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     });
   };
 
-  const { enqueue: enqueueBooking } = useOfflineQueue<{
-    action: 'draft' | 'submit';
-    payload: BookingRequestCreate;
-    requestId?: number;
-    message?: string;
-  }>('offlineBookingQueue', async ({ action, payload, requestId: rid, message }) => {
-    let id = rid;
-    try {
-      if (id) {
-        await updateBookingRequest(id, payload);
-      } else {
-        const res = await createBookingRequest(payload);
-        id = res.data.id;
-        setRequestId(id);
-      }
-      if (action === 'submit' && id && message) {
-        const cid = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
-          ? (crypto as any).randomUUID()
-          : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
-        await postMessageToBookingRequest(id, {
-          content: message,
-          message_type: 'SYSTEM',
-        }, { clientRequestId: cid });
-        toast.success('Queued booking request submitted.');
-      } else if (action === 'draft') {
-        toast.success('Queued draft saved.');
-      }
-    } catch (err) {
-      console.error('Queued booking request failed:', err);
-      throw err;
-    }
-  });
-
   const isMobile = useIsMobile();
   // Convert zero-based step index to progress percentage for the mobile progress bar.
   const progressValue = ((step + 1) / steps.length) * 100;
   const hasLoaded = useRef(false);
+  const hasHydratedFromDraft = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const firstInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const isCurrentlyOnline = useCallback(
@@ -291,7 +281,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     watch,
     errors, // Directly destructure errors, assuming useBookingForm returns it at top level
     reset,
-  } = useBookingForm(schema as any, details as any, setDetails as any);
+  } = useBookingForm(schema as any, liveDetails as any, setDetailsSynced as any);
 
   const watchedValues = watch();
   const debouncedValues = useDebounce(watchedValues, 300);
@@ -365,15 +355,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   useEffect(() => {
     if (!artistId) return;
     const fetchArtistData = async () => {
-      let availabilityRes: any = null;
       let svcRes: any = null;
-
-      // Availability should never block provider/service lookups or travel.
-      try {
-        availabilityRes = await getServiceProviderAvailability(artistId);
-      } catch (err) {
-        console.error('Failed to fetch artist availability:', err);
-      }
 
       try {
         svcRes = serviceId
@@ -381,12 +363,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             r.ok ? r.json() : null,
           )
           : null;
+        setServiceData(svcRes);
       } catch (err) {
         console.error('Failed to fetch service data for booking wizard:', err);
-      }
-
-      if (availabilityRes && availabilityRes.data && Array.isArray(availabilityRes.data.unavailable_dates)) {
-        setUnavailable(availabilityRes.data.unavailable_dates);
       }
 
       // Derive location, VAT, and provider name from the service's nested provider profile.
@@ -463,34 +442,45 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   // with drafts from other artists/services.
   useEffect(() => {
     if (!isOpen || hasLoaded.current) return;
-    // Peek for saved progress; show modal if meaningful, else offer AI assist
     try {
       const peek = peekSavedProgress?.();
       if (peek) {
         const savedServiceId = typeof peek.serviceId === 'number' ? peek.serviceId : null;
         if (serviceId != null) {
-          // When booking a specific service, ignore drafts for other services.
-          if (savedServiceId !== serviceId) {
-            // No matching draft for this service → behave as if no saved progress.
-          } else {
+          if (savedServiceId === serviceId) {
             savedRef.current = peek;
             setShowResumeModal(true);
           }
         } else {
-          // Generic flow (no serviceId prop): keep previous behavior.
           savedRef.current = peek;
           setShowResumeModal(true);
         }
-      } else {
-        // Do not auto-open AI overlay to avoid blocking typing on the first step.
-        // Users can still open AI assist manually from UI affordances elsewhere.
       }
     } catch {
-      // fallback: previous behavior
       loadSavedProgress();
     }
     hasLoaded.current = true;
   }, [isOpen, loadSavedProgress, peekSavedProgress, serviceId]);
+
+  useEffect(() => {
+    if (!hasHydratedFromDraft.current && liveEngine.state.booking.requestId && liveDetails) {
+      setDetails(liveDetails as any);
+      reset(liveDetails as any);
+      hasHydratedFromDraft.current = true;
+    }
+  }, [liveDetails, liveEngine.state.booking.requestId, setDetails, reset]);
+
+  useEffect(() => {
+    if (liveEngine.state.booking.requestId) {
+      setRequestId(liveEngine.state.booking.requestId as number | undefined);
+    }
+  }, [liveEngine.state.booking.requestId, setRequestId]);
+
+  useEffect(() => {
+    if (liveEngine.state.validation.globalError) {
+      setValidationError(liveEngine.state.validation.globalError);
+    }
+  }, [liveEngine.state.validation.globalError]);
 
   // Effect to set serviceId in the booking context if provided as a prop
   useEffect(() => {
@@ -545,8 +535,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       if (activeCalcRef.current === calcId) setIsLoadingReviewData(false);
       setReviewDataError('Missing booking details (Service ID or Event Location) to calculate estimates.');
       if (activeCalcRef.current === calcId) {
-        setCalculatedPrice(null);
-        setTravelResult(null);
+        setTravelResultSynced(null);
       }
       return;
     }
@@ -564,9 +553,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         // Tombstone: remember and bail quietly without spamming the console
         if (activeCalcRef.current === calcId) setIsLoadingReviewData(false);
         setReviewDataError('Selected service is unavailable.');
-        setCalculatedPrice(null);
         setServicePriceItems(null);
-        setTravelResult(null);
+        setTravelResultSynced(null);
         return;
       }
 
@@ -598,8 +586,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const svcCategorySlug: string | undefined = (svcRes?.service_category_slug || svcRes?.service_category?.slug || svcRes?.service_category?.name || '') as string;
       setServiceCategorySlug(svcCategorySlug);
 
-      // If this is a Sound Service with audience packages, compute audience base + add-ons
-      let basePrice = parseNumber(svcRes.price);
+      // Map live/performance services via the helper; preserve sound-service audience logic
+      const liveConfig = fromServiceToLiveBookingConfig(svcRes as any);
+      const soundProvisioning = liveConfig.soundProvisioning || {};
+
+      let basePrice = liveConfig.basePriceZar;
       let priceItems: LineItem[] | null = null;
       const isSoundService = typeof svcCategorySlug === 'string' && svcCategorySlug.toLowerCase().includes('sound');
       const hasAudiencePkgs = Array.isArray(svcRes?.details?.audience_packages) && svcRes.details.audience_packages.length > 0;
@@ -626,372 +617,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       setBaseServicePrice(basePrice);
       setServicePriceItems(priceItems);
 
-      const travelRate = parseNumber(svcRes.travel_rate, 2.5) || 2.5;
-      const numTravelMembers = parseNumber(svcRes.travel_members, 1) || 1;
-      const carRentalPrice = parseOptionalNumber(svcRes.car_rental_price);
-      const flightPrice = parseOptionalNumber(svcRes.flight_price);
+      const travelRate =
+        liveConfig.travelRate ??
+        (parseNumber((svcRes as any)?.travel_rate, 2.5) || 2.5);
+      const numTravelMembers =
+        liveConfig.travelMembers ??
+        (parseNumber((svcRes as any)?.travel_members, 1) || 1);
+      const carRentalPrice = parseOptionalNumber((svcRes as any)?.car_rental_price);
+      const flightPrice = parseOptionalNumber((svcRes as any)?.flight_price);
 
-      let quote: Awaited<ReturnType<typeof calculateQuote>> | null = null;
+      let quote: any = null;
       const isSoundServiceCategory = (svcCategorySlug || '').toLowerCase().includes('sound');
+      // Travel: when sound is required for a non-sound service, trust the engine/back-end; fallback to client travel only for display/cache
       if (!isSoundServiceCategory && details.sound === 'yes') {
-        // Base calculation (travel + etc.)
-        // Resolve a supplier candidate if none selected (consider availability)
-        let selectedIdForCalc: number | undefined = (details as any).soundSupplierServiceId as number | undefined;
-        try {
-          if (!selectedIdForCalc && details.location) {
-            const sp = svcRes?.details?.sound_provisioning || {};
-            let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
-            if (!prefs.length) {
-              try { const pr = await fetch(apiUrl(`/api/v1/services/${serviceId}/sound-preferences`), { cache: 'no-store' }).then((r) => r.json()); if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences; } catch {}
-            }
-            const locLower = String(details.location || '').toLowerCase();
-            const locCityLower = locLower.split(',')[0]?.trim() || locLower;
-            const findIds = (p: any): number[] => (Array.isArray(p?.provider_ids) ? p.provider_ids : p?.providerIds || []).map((x: any) => Number(x)).filter((n: number) => Number.isFinite(n));
-            const match = prefs.find((p: any) => (p.city || '').toLowerCase() === locLower)
-              || prefs.find((p: any) => (p.city || '').toLowerCase() === locCityLower)
-              || prefs.find((p: any) => locLower.includes((p.city || '').toLowerCase()))
-              || prefs.find((p: any) => locCityLower.includes((p.city || '').toLowerCase()));
-            let preferredIds: number[] = match ? findIds(match) : [];
-            if (!preferredIds.length && prefs.length) preferredIds = Array.from(new Set(prefs.flatMap(findIds)));
-            preferredIds = preferredIds.slice(0, 3);
-            const candidates: { service_id: number; provider_id?: number; distance_km: number; available: boolean }[] = [];
-            const eventDateStr = (() => { const dd = (details as any)?.date; if (!dd) return null; try { const dt = typeof dd === 'string' ? new Date(dd) : dd; return dt.toISOString().slice(0,10); } catch { return null; } })();
-            for (const pid of preferredIds) {
-              try {
-                const s = await fetchServiceCached(pid);
-                if (!s) continue;
-                if (s?.has_pricebook === false) continue;
-                const baseLocation = s?.details?.base_location as string | undefined;
-                let distance_km = 0;
-                if (baseLocation && details.location) { try { const m = await getDrivingMetricsCached(baseLocation, details.location); distance_km = m.distanceKm || 0; } catch {} }
-                let available = true;
-                try { const providerId = Number(s?.artist?.id || s?.service_provider?.id || s?.service_provider_id); if (providerId && eventDateStr) { const av = await getServiceProviderAvailability(providerId); const unavailable = (av?.data?.unavailable_dates || []) as string[]; available = !unavailable.includes(eventDateStr); } } catch {}
-                candidates.push({ service_id: pid, provider_id: Number(s?.artist?.id || s?.service_provider?.id || s?.service_provider_id) || undefined, distance_km, available });
-              } catch {}
-            }
-            if (candidates.length) {
-              const ranked: any[] = await fetch(apiUrl(`/api/v1/pricebook/batch-estimate-rank`), {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  rider_spec: {
-                    guest_count: normalizeGuestCount((details as any).guests),
-                    venue_type: (details as any).venueType,
-                    stage_required: !!(details as any).stageRequired,
-                    stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
-                    lighting_evening: !!(details as any).lightingEvening,
-                    backline_required: !!(details as any).backlineRequired,
-                  },
-                  candidates: candidates.map(c => ({ service_id: c.service_id, distance_km: c.distance_km })),
-                  preferred_ids: candidates.map(c => c.service_id),
-                  managed_by_artist: false,
-                  artist_managed_markup_percent: 0,
-                  outdoor: (details as any).venueType === 'outdoor',
-                }),
-              }).then(r => r.ok ? r.json() : []);
-              const orderedIds: number[] = Array.isArray(ranked) && ranked.length ? ranked.map((r:any)=>Number(r.service_id)).filter((x:number)=>Number.isFinite(x)) : candidates.map(c=>c.service_id);
-              const firstAvailable = orderedIds.find(id => candidates.find(c => c.service_id===id && c.available !== false));
-              selectedIdForCalc = firstAvailable ?? orderedIds[0];
-            }
-          }
-        } catch {}
-
-        // Pre-compute supplier distance if a supplier is selected (for backend pricebook travel)
-        let supplierDistanceKm: number | undefined = undefined;
-        // Normalize rider units/backline from the artist's rider to pass server-side
-        let riderUnitsForServer: { vocal_mics?: number; speech_mics?: number; monitor_mixes?: number; iem_packs?: number; di_boxes?: number } | undefined;
-        let backlineRequestedForServer: Record<string, number> | undefined;
-        try {
-          const selId = ((details as any).soundSupplierServiceId as number | undefined) || selectedIdForCalc;
-          if (selId && details.location) {
-            const svcSel = await fetchServiceCached(selId);
-            const baseLoc = (svcSel?.details?.base_location) as string | undefined;
-            if (baseLoc) {
-              try {
-                const m = await getDrivingMetricsCached(baseLoc, details.location);
-                supplierDistanceKm = (m?.distanceKm || 0) * 2; // round-trip
-              } catch {}
-            }
-          }
-          // Fetch and normalize the musician's rider once to provide unit/backline context
-          try {
-            const rider = await fetch(apiUrl(`/api/v1/services/${serviceId}/rider`), { cache: 'no-store' }).then(r => r.ok ? r.json() : null);
-            const norm = normalizeRiderForPricing(rider?.spec);
-            riderUnitsForServer = norm.units;
-            backlineRequestedForServer = (details as any).backlineRequired ? norm.backline : {};
-          } catch {}
-        } catch {}
-
-        quote = await calculateQuote({
-          base_fee: basePrice,
-          // distance_km omitted: backend computes it from artist base → event city
-          service_id: serviceId,
-          event_city: details.location,
-          guest_count: normalizeGuestCount((details as any).guests),
-          venue_type: (details as any).venueType,
-          stage_required: !!(details as any).stageRequired,
-          stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-          lighting_evening: !!(details as any).lightingEvening,
-          backline_required: !!(details as any).backlineRequired,
-          upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
-          selected_sound_service_id: (details as any).soundSupplierServiceId || selectedIdForCalc,
-          supplier_distance_km: supplierDistanceKm,
-          rider_units: riderUnitsForServer,
-          backline_requested: backlineRequestedForServer,
-        } as any);
-        setCalculatedPrice(Number(quote.total));
-
-        // Prefer server-computed sound_cost; fallback to local audience/pricebook estimate if missing
-        const soundModePref = (details as any).soundMode;
-        let sc = Number(quote.sound_cost);
-        const guestCount = parseInt((details as any).guests || '0', 10) || undefined;
-        const venueType = (details as any).venueType;
-
-        // Local fallback: supplier audience-tier pricing if supplier mode is selected or musician config is external providers
-        let scFromAudience = 0;
-        try {
-          const spConf = svcRes?.details?.sound_provisioning || {};
-          const confExternal = (spConf.mode === 'external_providers' || spConf.mode === 'external' || spConf.mode_default === 'external_providers');
-          if (soundModePref === 'supplier' || confExternal) {
-            // Determine selected supplier or pick a preferred candidate
-            const selectedId = (details as any).soundSupplierServiceId as number | undefined;
-            let normalizedRider: { units: Record<string, number>; backline: Record<string, number> } = { units: { vocal_mics: 0, speech_mics: 0, monitor_mixes: 0, iem_packs: 0, di_boxes: 0 }, backline: {} as Record<string, number> };
-            try {
-              const rider = await fetch(apiUrl(`/api/v1/services/${serviceId}/rider`), { cache: 'no-store' }).then(r => r.ok ? r.json() : null);
-              normalizedRider = normalizeRiderForPricing(rider?.spec);
-            } catch {}
-            if (selectedId) {
-              // Preferred: pricebook estimate first (includes travel); then fallback to sound estimate or local compute
-              let estimatedViaPB = false;
-              try {
-                const svcSel = await fetchServiceCached(selectedId);
-                const baseLoc = (svcSel?.details?.base_location) as string | undefined;
-                let distanceKm = 0;
-                if (baseLoc && details.location) {
-                  try {
-                    const m = await getDrivingMetricsCached(baseLoc, details.location);
-                    distanceKm = (m?.distanceKm || 0) * 2; // round-trip
-                  } catch {}
-                }
-                const rider_spec = {
-                  monitors: Number(normalizedRider.units.monitor_mixes || 0),
-                  wireless: Number(normalizedRider.units.speech_mics || 0),
-                  di: Number(normalizedRider.units.di_boxes || 0),
-                };
-                if (svcSel?.has_pricebook) {
-                const estPB = await estimatePriceSafe(selectedId, {
-                  rider_spec,
-                  distance_km: distanceKm,
-                  managed_by_artist: false,
-                  artist_managed_markup_percent: 0,
-                  guest_count: guestCount,
-                  backline_required: !!(details as any).backlineRequired,
-                  lighting_evening: !!(details as any).lightingEvening,
-                  outdoor: venueType === 'outdoor',
-                  stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
-                });
-                if (estPB && estPB.estimate_min != null && estPB.estimate_max != null) {
-                  const min = Number(estPB.estimate_min);
-                  const max = Number(estPB.estimate_max);
-                  if (Number.isFinite(min) && Number.isFinite(max)) {
-                    scFromAudience = (min + max) / 2;
-                    estimatedViaPB = true;
-                  }
-                } else if ((estPB as any)?.pricebook_missing) {
-                  missingPricebookRef.current.add(selectedId);
-                }
-                }
-              } catch {}
-
-              if (!Number.isFinite(scFromAudience) || scFromAudience <= 0) {
-                try {
-                  if (!missingServiceRef.current.has(selectedId)) {
-                    const resp = await calculateSoundServiceEstimate(selectedId, {
-                      guest_count: Number.isFinite(guestCount) ? Number(guestCount) : 0,
-                      venue_type: (venueType as any) || 'indoor',
-                      stage_required: !!(details as any).stageRequired,
-                      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
-                      lighting_evening: !!(details as any).lightingEvening,
-                      upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
-                      rider_units: normalizedRider.units,
-                      backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
-                    });
-                    const est = resp?.data;
-                    const t = Number(est?.total);
-                    if (Number.isFinite(t) && t > 0) scFromAudience = t;
-                  }
-                } catch (err: any) {
-                  const status = (err?.response?.status || err?.status) as number | undefined;
-                  if (status === 404) {
-                    missingServiceRef.current.add(selectedId);
-                  } else {
-                    // Final fallback: compute locally from supplier details
-                    try {
-                      const psvc = await fetchServiceCached(selectedId);
-                      const comp = computeSoundServicePrice({
-                        details: psvc?.details,
-                        guestCount,
-                        venueType,
-                        stageRequired: !!(details as any).stageRequired,
-                        stageSize: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-                        lightingEvening: !!(details as any).lightingEvening,
-                        upgradeLightingAdvanced: !!(details as any).lightingUpgradeAdvanced,
-                        riderUnits: normalizedRider.units,
-                        backlineRequested: (details as any).backlineRequired ? normalizedRider.backline : {},
-                      });
-                      scFromAudience = Number(comp.total) || 0;
-                    } catch {}
-                  }
-                }
-              }
-            } else if (details.location) {
-              const sp = svcRes?.details?.sound_provisioning || {};
-              let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
-              if (!prefs.length) {
-                try {
-                  const pr = await fetch(apiUrl(`/api/v1/services/${serviceId}/sound-preferences`), { cache: 'no-store' }).then((r) => r.json());
-                  if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences;
-                } catch {}
-              }
-              const locLower = String(details.location || '').toLowerCase();
-              const locCityLower = locLower.split(',')[0]?.trim() || locLower;
-              const findIds = (p: any): number[] => (Array.isArray(p?.provider_ids) ? p.provider_ids : p?.providerIds || [])
-                .map((x: any) => Number(x)).filter((n: number) => Number.isFinite(n));
-              const match = prefs.find((p: any) => (p.city || '').toLowerCase() === locLower)
-                || prefs.find((p: any) => (p.city || '').toLowerCase() === locCityLower)
-                || prefs.find((p: any) => locLower.includes((p.city || '').toLowerCase()))
-                || prefs.find((p: any) => locCityLower.includes((p.city || '').toLowerCase()));
-              let preferredIds: number[] = match ? findIds(match) : [];
-              if (!preferredIds.length && prefs.length) preferredIds = Array.from(new Set(prefs.flatMap(findIds)));
-              const tryIds = preferredIds.slice(0, 3);
-              for (const pid of tryIds) {
-                try {
-                  if (missingServiceRef.current.has(pid)) continue;
-                  const resp = await calculateSoundServiceEstimate(pid, {
-                    guest_count: Number.isFinite(guestCount) ? Number(guestCount) : 0,
-                    venue_type: (venueType as any) || 'indoor',
-                    stage_required: !!(details as any).stageRequired,
-                    stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
-                    lighting_evening: !!(details as any).lightingEvening,
-                    upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
-                    rider_units: normalizedRider.units,
-                    backline_requested: (details as any).backlineRequired ? normalizedRider.backline : {},
-                  });
-                  const est = resp?.data;
-                  const t = Number(est?.total);
-                  if (Number.isFinite(t) && t > 0) { scFromAudience = t; break; }
-                } catch {}
-              }
-
-              // Avoid catalog-wide scan to reduce network churn and 404 noise
-            }
-          }
-        } catch {}
-
-        if (Number.isFinite(scFromAudience) && scFromAudience > 0) {
-          sc = scFromAudience;
-        } else if (!Number.isFinite(sc) || sc <= 0) {
-          // Last resort fallback: estimate via pricebook ranking midpoint if available
-          try {
-            if (soundModePref === 'supplier' && details.location) {
-              const sp = svcRes?.details?.sound_provisioning || {};
-              let prefs: any[] = Array.isArray(sp.city_preferences) ? sp.city_preferences : [];
-              if (!prefs.length) {
-                try {
-                  const pr = await fetch(apiUrl(`/api/v1/services/${serviceId}/sound-preferences`), { cache: 'no-store' }).then((r) => r.json());
-                  if (Array.isArray(pr?.city_preferences)) prefs = pr.city_preferences;
-                } catch {}
-              }
-              const locLower = String(details.location || '').toLowerCase();
-              const locCityLower = locLower.split(',')[0]?.trim() || locLower;
-              const findIds = (p: any): number[] => (Array.isArray(p?.provider_ids) ? p.provider_ids : p?.providerIds || [])
-                .map((x: any) => Number(x)).filter((n: number) => Number.isFinite(n));
-              const match = prefs.find((p: any) => (p.city || '').toLowerCase() === locLower)
-                || prefs.find((p: any) => (p.city || '').toLowerCase() === locCityLower)
-                || prefs.find((p: any) => locLower.includes((p.city || '').toLowerCase()))
-                || prefs.find((p: any) => locCityLower.includes((p.city || '').toLowerCase()));
-              let preferredIds: number[] = match ? findIds(match) : [];
-              if (!preferredIds.length && prefs.length) preferredIds = Array.from(new Set(prefs.flatMap(findIds)));
-              preferredIds = preferredIds.slice(0, 3);
-              const candidates: { service_id: number; distance_km: number }[] = [];
-              for (const pid of preferredIds) {
-                let distance_km = 0;
-                try {
-                  const s = await fetchServiceCached(pid);
-                  if (!s || s?.has_pricebook === false) { continue; }
-                  const baseLoc = s?.details?.base_location as string | undefined;
-                  if (baseLoc) {
-                    const m = await getDrivingMetricsCached(baseLoc, details.location);
-                    distance_km = m.distanceKm || 0;
-                  }
-                } catch {}
-                candidates.push({ service_id: pid, distance_km });
-              }
-              if (candidates.length) {
-                const ranked: any[] = await fetch(apiUrl(`/api/v1/pricebook/batch-estimate-rank`), {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    rider_spec: {
-                      guest_count: guestCount,
-                      venue_type: venueType,
-                      stage_required: !!(details as any).stageRequired,
-                      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : null,
-                      lighting_evening: !!(details as any).lightingEvening,
-                      backline_required: !!(details as any).backlineRequired,
-                    },
-                    candidates,
-                    preferred_ids: candidates.map((c) => c.service_id),
-                    managed_by_artist: false,
-                    artist_managed_markup_percent: 0,
-                    outdoor: venueType === 'outdoor',
-                  }),
-                }).then((r) => r.json());
-                if (Array.isArray(ranked) && ranked[0]) {
-                  const min = Number(ranked[0].estimate_min);
-                  const max = Number(ranked[0].estimate_max);
-                  if (Number.isFinite(min) && Number.isFinite(max)) sc = (min + max) / 2;
-                  else if (Number.isFinite(min)) sc = min;
-                }
-              }
-            }
-          } catch {}
-        }
-        // Fallback to audience/pricebook-derived estimate when server did not provide a value
-        if ((!Number.isFinite(sc) || sc <= 0) && Number.isFinite(scFromAudience) && scFromAudience > 0) {
-          sc = scFromAudience;
-        }
-        setSoundCost(Number(sc) || 0);
-        setSoundMode(quote.sound_mode);
-        setSoundModeOverridden(quote.sound_mode_overridden);
-
-        // If the artist uses variable own-sound pricing, allow the preview
-        // sound fee to follow the chosen travel mode (drive vs fly) using
-        // the configured driving/flying sound prices.
-        const spSound: any = svcRes?.details?.sound_provisioning || {};
-        const isArtistVariableSound = spSound?.mode === 'artist_provides_variable';
-        const applyArtistVariableSoundForMode = (modeStr: 'drive' | 'fly') => {
-          if (!isArtistVariableSound || details.sound !== 'yes') return;
-          const drivePrice = parseNumber(
-            spSound.price_driving_sound_zar ?? spSound.price_driving_sound ?? 0,
-            0,
-          );
-          const flyPrice = parseNumber(
-            spSound.price_flying_sound_zar ?? spSound.price_flying_sound ?? 0,
-            0,
-          );
-          const chosen = modeStr === 'fly' ? flyPrice : drivePrice;
-          if (!Number.isFinite(chosen) || chosen <= 0) return;
-          setSoundCost(chosen);
-          setSoundMode('provided_by_artist');
-          setSoundModeOverridden(false);
-        };
-
-        // Travel: when sound is required for a non-sound service, trust the
-        // backend's travel_cost/travel_mode first. If the backend did not
-        // compute travel (travel_cost <= 0), fall back to the client travel
-        // engine once to derive a meaningful estimate. Cache travel by a
-        // narrow signature so we don't recompute heavy routing when only
-        // sound/venue details change.
         try {
           const dt = (() => {
             const dd = (details as any)?.date;
@@ -1012,8 +650,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               const cachedTravel = travelResultCache.current.get(travelSig);
               if (cachedTravel) {
                 lastTravelSigRef.current = travelSig;
-                setTravelResult(cachedTravel);
-                applyArtistVariableSoundForMode(cachedTravel.mode === 'fly' ? 'fly' : 'drive');
+                setTravelResultSynced(cachedTravel);
               } else {
               const airportFn = async (city: string) => {
                 const mock = getMockCoordinates(city);
@@ -1071,8 +708,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               if (finalTravel && typeof finalTravel.totalCost === 'number' && Number.isFinite(finalTravel.totalCost) && finalTravel.totalCost > 0) {
                 lastTravelSigRef.current = travelSig;
                 travelResultCache.current.set(travelSig, finalTravel);
-                setTravelResult(finalTravel);
-                applyArtistVariableSoundForMode(finalTravel.mode === 'fly' ? 'fly' : 'drive');
+                setTravelResultSynced(finalTravel);
               }
             }
           }
@@ -1082,18 +718,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       } else {
         // Still compute totals (including travel) on the server even if no external sound.
         try {
-          const quote2 = await calculateQuote({
-            base_fee: basePrice,
-            // Omit distance_km; backend resolves from artist base → event city
-            service_id: serviceId,
-            event_city: details.location,
-          } as any);
-          setCalculatedPrice(Number(quote2.total));
-          setSoundCost(0);
+          // Quote handled by engine; keep travel fallback only
           setSoundMode(null);
           setSoundModeOverridden(false);
 
-          const tm2 = (quote2?.travel_mode || '').toLowerCase();
           try {
             const dt = (() => {
               const dd = (details as any)?.date;
@@ -1114,7 +742,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               const cachedTravel = travelResultCache.current.get(travelSig);
               if (cachedTravel) {
                 lastTravelSigRef.current = travelSig;
-                setTravelResult(cachedTravel);
+                setTravelResultSynced(cachedTravel);
               } else {
                 const airportFn = async (city: string) => {
                   const mock = getMockCoordinates(city);
@@ -1170,7 +798,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   if (finalTravel && typeof finalTravel.totalCost === 'number' && Number.isFinite(finalTravel.totalCost) && finalTravel.totalCost > 0) {
                     lastTravelSigRef.current = travelSig;
                     travelResultCache.current.set(travelSig, finalTravel);
-                    setTravelResult(finalTravel);
+                setTravelResultSynced(finalTravel);
                   }
               }
             }
@@ -1178,8 +806,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             // On failure, leave travelResult unchanged instead of falling back to backend travel.
           }
         } catch {
-          setCalculatedPrice(basePrice);
-          setSoundCost(0);
           setSoundMode(null);
           setSoundModeOverridden(false);
         }
@@ -1188,8 +814,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     } catch (err) {
       console.error('Failed to calculate booking estimates:', err);
       setReviewDataError('Failed to calculate booking estimates. Please ensure location details are accurate and try again.');
-      setCalculatedPrice(null);
-      setTravelResult(null);
+      setTravelResultSynced(null);
     } finally {
       if (activeCalcRef.current === calcId) {
         lastSigRef.current = sig;
@@ -1205,19 +830,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     details.date,
     // Sound flags and selections
     details.sound,
-                (details as any).soundMode,
-                (details as any).soundSupplierServiceId,
-                // Context that changes sound sizing and pricing
-                (details as any).guests,
-                (details as any).venueType,
-                (details as any).stageRequired,
-                (details as any).stageSize,
-                (details as any).lightingEvening,
-                (details as any).lightingUpgradeAdvanced,
-                (details as any).backlineRequired,
-                // Setter from context (stable but included for correctness)
-                setTravelResult,
-                reviewDataError,
+    (details as any).soundMode,
+    (details as any).soundSupplierServiceId,
+    // Context that changes sound sizing and pricing
+    (details as any).guests,
+    (details as any).venueType,
+    (details as any).stageRequired,
+    (details as any).stageSize,
+    (details as any).lightingEvening,
+    (details as any).lightingUpgradeAdvanced,
+    (details as any).backlineRequired,
+    // Setter from context (stable but included for correctness)
+    setTravelResultSynced,
+    reviewDataError,
   ]);
 
   // Trigger the calculation when approaching the Review step to prefetch data
@@ -1303,6 +928,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   ]);
 
   // --- Navigation & Submission Handlers ---
+  useEffect(() => {
+    if (step === steps.length - 1 && liveEngine.state.quote.isDirty && details.location) {
+      void liveEngine.actions.recalculateQuote();
+    }
+  }, [step, liveEngine.state.quote.isDirty, liveEngine.actions, details.location]);
 
   // Handles 'Enter' key press for navigation/submission
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
@@ -1325,7 +955,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     }
     // Guard for step 2 (Date): prevent selecting unavailable dates (especially on mobile native pickers)
     if (step === 2) {
-      if (isUnavailableDate(details as any, unavailable)) {
+      if (isUnavailableDate(details as any, liveEngine.state.availability.unavailableDates)) {
         setShowUnavailableModal(true);
         return;
       }
@@ -1378,65 +1008,17 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   };
 
   // Handles saving the booking request as a draft
-  const saveDraft = handleSubmit(async (vals: EventDetails) => {
-    const payload: BookingRequestCreate = {
-      artist_id: artistId,
-      service_id: serviceId,
-      proposed_datetime_1: vals.date?.toISOString(),
-      message: vals.notes,
-      attachment_url: vals.attachment_url,
-      status: 'draft',
-      travel_mode: travelResult?.mode,
-      travel_cost: travelResult?.totalCost,
-      travel_breakdown: {
-        ...(travelResult?.breakdown || {}),
-        distance_km: travelResult?.distanceKm,
-        // Include a normalized mode for downstream consumers that expect it here
-        mode: travelResult?.mode,
-        venue_name: vals.locationName,
-        venue_type: (vals as any).venueType || (details as any)?.venueType || undefined,
-        event_type: normalizeEventType((vals as any).eventType ?? (details as any)?.eventType),
-        guests_count: normalizeGuestCount((vals as any).guests ?? (details as any)?.guests),
-        sound_required: vals.sound === 'yes',
-        sound_mode: (details as any).soundMode,
-        selected_sound_service_id: (details as any).soundSupplierServiceId,
-        event_city: details.location,
-        // For supplier/external sound, prefer the computed soundCost from the
-        // review calculator; fall back to any existing providedSoundEstimate
-        // snapshot for legacy flows like artist_provides tiers.
-        provided_sound_estimate: (() => {
-          const sc = Number(soundCost || 0);
-          if (Number.isFinite(sc) && sc > 0) return sc;
-          return (details as any).providedSoundEstimate;
-        })(),
-        managed_by_artist_markup_percent: undefined,
-      },
-      service_provider_id: 0
-    } as BookingRequestCreate;
-    // Attach normalized sound context (cast to avoid excess property checks during transition)
-    (payload as any).sound_context = {
-      sound_required: vals.sound === 'yes',
-      mode: (details as any).soundMode || 'none',
-      guest_count: normalizeGuestCount((details as any).guests),
-      venue_type: (details as any).venueType,
-      stage_required: !!(details as any).stageRequired,
-      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-      lighting_evening: !!(details as any).lightingEvening,
-      backline_required: !!(details as any).backlineRequired,
-      selected_sound_service_id: (details as any).soundSupplierServiceId,
-    };
-    if (!isCurrentlyOnline()) {
-      enqueueBooking({ action: 'draft', payload, requestId });
-      toast.success("Queued draft saved. We'll sync it when you're back online.");
-      return;
-    }
+  const saveDraft = handleSubmit(async () => {
     try {
-      if (requestId) {
-        await updateBookingRequest(requestId, payload);
-      } else {
-        const res = await createBookingRequest(payload);
-        setRequestId(res.data.id);
+      await liveEngine.actions.saveDraft();
+      if (liveEngine.state.validation.globalError) {
+        setValidationError(liveEngine.state.validation.globalError);
+        return;
       }
+      if (liveEngine.state.booking.requestId) {
+        setRequestId(liveEngine.state.booking.requestId);
+      }
+      setValidationError(null);
       toast.success('Draft saved successfully!');
     } catch (e) {
       console.error('Save Draft Error:', e);
@@ -1453,7 +1035,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       router.push(wantsLogin ? '/auth?intent=login' : '/auth?intent=signup');
       return;
     }
-    if (isLoadingReviewData || reviewDataError || calculatedPrice === null || travelResult === null) {
+    if (isLoadingReviewData || reviewDataError || reviewQuote.total === null || reviewTravelResult === null) {
       setValidationError('Review data is not ready. Please wait or check for errors before submitting.');
       return;
     }
@@ -1463,54 +1045,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       return;
     }
 
-    setSubmitting(true);
-    const payload: BookingRequestCreate = {
-      artist_id: artistId,
-      service_id: serviceId,
-      proposed_datetime_1: vals.date?.toISOString(),
-      message: vals.notes,
-      attachment_url: vals.attachment_url,
-      status: 'pending_quote',
-      travel_mode: travelResult.mode,
-      travel_cost: travelResult.totalCost,
-      travel_breakdown: {
-        ...travelResult.breakdown,
-        distance_km: travelResult.distanceKm,
-        // Include a normalized mode for downstream consumers that expect it here
-        mode: travelResult.mode,
-        venue_name: vals.locationName,
-        venue_type: (vals as any).venueType || (details as any)?.venueType || undefined,
-        event_type: normalizeEventType((vals as any).eventType ?? (details as any)?.eventType),
-        guests_count: normalizeGuestCount((vals as any).guests ?? (details as any)?.guests),
-        sound_required: vals.sound === 'yes',
-        sound_mode: (details as any).soundMode,
-        selected_sound_service_id: (details as any).soundSupplierServiceId,
-        event_city: details.location,
-        provided_sound_estimate: (() => {
-          const sc = Number(soundCost || 0);
-          if (Number.isFinite(sc) && sc > 0) return sc;
-          return (details as any).providedSoundEstimate;
-        })(),
-        stage_required: !!(details as any).stageRequired,
-        stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-        lighting_evening: !!(details as any).lightingEvening,
-        upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
-        backline_required: !!(details as any).backlineRequired,
-      },
-      service_provider_id: 0
-    } as BookingRequestCreate;
-    // Attach normalized sound context (cast to avoid excess property checks during transition)
-    (payload as any).sound_context = {
-      sound_required: vals.sound === 'yes',
-      mode: (details as any).soundMode || 'none',
-      guest_count: normalizeGuestCount((details as any).guests),
-      venue_type: (details as any).venueType,
-      stage_required: !!(details as any).stageRequired,
-      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-      lighting_evening: !!(details as any).lightingEvening,
-      backline_required: !!(details as any).backlineRequired,
-      selected_sound_service_id: (details as any).soundSupplierServiceId,
-    };
     const message = `Booking details:\nEvent Type: ${
       vals.eventType || 'N/A'
     }\nDescription: ${vals.eventDescription || 'N/A'}\nDate: ${
@@ -1521,101 +1055,37 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       vals.sound || 'N/A'
     }\nNotes: ${vals.notes || 'N/A'}`;
 
-    if (!isCurrentlyOnline()) {
-      enqueueBooking({ action: 'submit', payload, requestId, message });
-      toast.success("Booking request queued. We'll submit it when you're back online.");
-      setSubmitting(false);
-      return;
-    }
-
     try {
-      const res = requestId
-        ? await updateBookingRequest(requestId, payload)
-        : await createBookingRequest(payload);
-
-      const id = requestId || res?.data?.id;
-      if (!id) throw new Error('Missing booking request ID after creation/update.');
-
-      // Fast-thread hydration for Thandi: seed Inbox preview and a local
-      // booking-details stub so the new thread is fully visible immediately.
-      if (!requestId) {
-        try {
-          const created: any = res?.data || {};
-          const nowIso = new Date().toISOString();
-          const createdAt: string | undefined = created.created_at || created.createdAt;
-          const updatedAt: string | undefined = created.updated_at || created.updatedAt;
-          const ts = (created.last_message_timestamp as string | undefined) || updatedAt || createdAt || nowIso;
-          const counterpartyLabel = providerName || (created.service?.title as string | undefined) || 'Service Provider';
-          const counterpartyAvatar = providerAvatarUrl || (created as any)?.counterparty_avatar_url || null;
-
-          // 0) Persist selection so /inbox (without ?requestId) opens this thread.
-          try {
-            if (typeof window !== 'undefined' && user?.id) {
-              const role = user.user_type === 'service_provider' ? 'artist' : 'client';
-              const uid = String(user.id);
-              const cacheKey = `inbox:threadsCache:v2:${role}:${uid}`;
-              const selKey = `${cacheKey}:selected`;
-              try { sessionStorage.setItem(selKey, String(id)); } catch {}
-              try { localStorage.setItem(selKey, JSON.stringify({ id: Number(id), ts: Date.now() })); } catch {}
-            }
-          } catch {
-            // Selection persistence is best-effort.
-          }
-
-          // 1) Update unified thread summaries so ConversationList renders
-          // a non-empty, correctly labeled preview immediately.
-          try {
-            cacheUpdateSummary(Number(id), {
-              id: Number(id),
-              last_message_timestamp: ts,
-              last_message_content: 'New Booking Request',
-              unread_count: 0,
-              counterparty_label: counterpartyLabel,
-              counterparty_avatar_url: counterpartyAvatar,
-            } as any);
-          } catch {
-            // Best-effort only; do not block submit on cache issues.
-          }
-
-          // 2) Ephemeral booking-details system stub removed:
-          // threadCache + backend echo keep the timeline populated.
-        } catch {
-          // Hydration is best-effort; never block submit.
-        }
+      const wasOffline = !isCurrentlyOnline();
+      await liveEngine.actions.submitBooking(message);
+      if (liveEngine.state.validation.globalError) {
+        setValidationError(liveEngine.state.validation.globalError);
+        return;
       }
-
-      // Redirect immediately to inbox for a snappy UX; post the details line in the background.
-      // Include the requestId in the URL so the Inbox opens with this new thread
-      // active, avoiding confusion where another thread appears selected.
-      const inboxUrl = `/inbox?requestId=${id}`;
-      try { router.prefetch(inboxUrl); } catch {}
-      toast.success('Your booking request has been submitted successfully!');
-      router.push(inboxUrl);
-
-      // Fire-and-forget posting of the details system line; do not block navigation
-      (async () => {
-        try {
-          const cid = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
-            ? (crypto as any).randomUUID()
-            : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
-          await postMessageToBookingRequest(id, {
-            content: message,
-            // Backend expects uppercase message types.
-            message_type: 'SYSTEM',
-          }, { clientRequestId: cid });
-        } catch (err) {
-          console.warn('Failed to post details message for request', id, err);
-        }
-      })();
-
-      // No resetBooking() or onClose() here; navigation handles teardown
+      setValidationError(null);
+      if (liveEngine.state.booking.requestId) {
+        setRequestId(liveEngine.state.booking.requestId);
+      }
+      if (wasOffline || liveEngine.state.flags.offline) {
+        toast.success("Booking request queued. We'll submit it when you're back online.");
+      } else {
+        toast.success('Your booking request has been submitted successfully!');
+      }
     } catch (e) {
       console.error('Submit Request Error:', e);
       setValidationError('Failed to submit booking request. Please try again.');
-    } finally {
-      setSubmitting(false);
     }
   });
+
+  const reviewQuote = liveEngine.state.quote;
+  const reviewTravelResult = liveEngine.state.travelResult ?? travelResult;
+  const reviewSoundCost =
+    typeof reviewQuote.soundCost === 'number' ? reviewQuote.soundCost : 0;
+  const reviewServicePriceItems =
+    (Array.isArray(reviewQuote.items) && reviewQuote.items.length > 0)
+      ? reviewQuote.items
+      : servicePriceItems;
+  const reviewLoading = liveEngine.state.flags.quoteLoading || isLoadingReviewData;
 
   // --- Render Step Logic ---
   const renderStep = () => {
@@ -1640,7 +1110,14 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           />
         );
       case 2:
-        return <DateTimeStep control={control} unavailable={unavailable} />;
+        return (
+          <DateTimeStep
+            control={control}
+            unavailable={liveEngine.state.availability.unavailableDates}
+            loading={liveEngine.state.availability.status === 'checking'}
+            status={liveEngine.state.availability.status}
+          />
+        );
       case 3:
         return <EventTypeStep control={control} />;
       case 4:
@@ -1667,18 +1144,17 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             onBack={prev}
             onSaveDraft={saveDraft}
             onNext={submitRequest}
-            submitting={submitting}
-            isLoadingReviewData={isLoadingReviewData}
+            submitting={liveEngine.state.flags.submitting}
+            isLoadingReviewData={reviewLoading}
             reviewDataError={reviewDataError}
-            calculatedPrice={calculatedPrice}
-            travelResult={travelResult}
+            travelResult={reviewTravelResult}
             submitLabel="Submit Request"
             baseServicePrice={baseServicePrice}
-            soundCost={soundCost}
+            soundCost={reviewSoundCost}
             soundMode={soundMode}
             soundModeOverridden={soundModeOverridden}
             selectedSupplierName={selectedSupplierName}
-            servicePriceItems={servicePriceItems}
+            servicePriceItems={reviewServicePriceItems}
             serviceCategorySlug={serviceCategorySlug}
             providerVatRegistered={artistVatRegistered === true}
             providerVatRate={artistVatRate}

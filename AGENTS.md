@@ -27,7 +27,7 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 | **Notification** | Sends emails, chat alerts, and booking status updates | `backend/app/api/api_notification.py`<br>`backend/app/utils/notifications.py`<br>`frontend/hooks/useNotifications.ts` | On status changes, messages, actions |
 | **Chat** | Manages client–artist chat and WebSocket updates; queues offline messages and retries with exponential backoff, batches typing indicators, lengthens heartbeats on mobile or hidden tabs, coalesces presence updates, and defers image previews until opened | `backend/app/api/api_message.py`<br>`backend/app/api/api_ws.py`<br>`frontend/src/components/chat/MessageThread.tsx` | Always on for active bookings |
 | **Caching** | Caches artist lists using Redis | `backend/app/utils/redis_cache.py`<br>`backend/app/api/v1/api_service_provider.py` | On artist list requests |
-| **Personalized Video** | Automates Q&A for custom video requests | `frontend/src/components/booking/PersonalizedVideoFlow.tsx`<br>`frontend/src/lib/videoFlow.ts` | When `service_type` is Personalized Video |
+| **Personalized Video** | Automates Q&A for custom video requests | `frontend/src/components/booking/bookinwizardpersonilsedvideo.tsx`<br>`frontend/src/features/booking/personalizedVideo/engine/` | When `service_type` is Personalized Video |
 | **Availability** | Checks artist/service availability in real time | `backend/app/api/v1/api_service_provider.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | On date selection and booking start |
 | **Form State** | Maintains booking progress across steps | `frontend/src/components/booking/BookingWizard.tsx`<br>`frontend/src/components/booking/wizard/Steps.tsx`<br>`frontend/src/contexts/BookingContext.tsx` | Throughout the user session |
 | **Validation** | Validates user input and business logic | `frontend/src/components/booking/BookingWizard.tsx`<br>`backend/app/schemas/` | At every form step and backend endpoint |
@@ -119,7 +119,32 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
 ### 11. Personalized Video Agent
 
 * **Purpose:** Automates question prompts for personalized video requests.
-* **Frontend:** `PersonalizedVideoFlow.tsx` orchestrates Q&A using `videoFlow.ts`.
+* **Frontend (current flow):**
+  - UI surfaces live in `frontend/src/components/booking/bookinwizardpersonilsedvideo.tsx`:
+    - Booking sheet (`BookinWizardPersonilsedVideo`) for date/length/language/recipient/promo.
+    - Payment page (`VideoPaymentPage`) for Paystack/demo payments.
+    - Brief page (`VideoChatBrief`) for Q&A/autosave and “ready for production”.
+  - All three surfaces are thin and share a single headless engine:
+    - `usePersonalizedVideoOrderEngine` in `frontend/src/features/booking/personalizedVideo/engine/engine.ts`.
+* **Frontend engine (headless “brain”):**
+  - Engine contracts live in `frontend/src/features/booking/personalizedVideo/engine/types.ts` (`PersonalizedVideoEngineState`, actions, params).
+  - HTTP integration and storage are encapsulated behind:
+    - `apiClient.ts` — `VideoOrderApiClient` (`/video-orders` CRUD, brief answers, thread linkage, SYSTEM messages).
+    - `storage.ts` — `PersonalizedVideoStorage` (`vo-sim-*`, `vo-thread-*`, `vo-order-for-thread-*`, `vo-brief-seed-*`, `vo-ans-*`, `vo-brief-complete-*` keys).
+  - Core domain logic is platform‑agnostic:
+    - `core.ts` exports `createPersonalizedVideoEngineCore(env, params)` which owns:
+      - Draft → order creation (real or simulated) + initial thread + brief seed.
+      - Availability checks (via a small `availability` env).
+      - Payment lifecycle (reload order, Paystack/demo via `payments` env, mark paid, SYSTEM “Payment received”).
+      - Brief lifecycle (autosave, posting answers, status → `in_production`, SYSTEM “Brief complete” + navigation).
+    - `engine.ts` is a React Web wrapper that wires:
+      - `env.api` to `videoOrderApiClient`.
+      - `env.storage` to `pvStorage`.
+      - `env.availability` to `getServiceProviderAvailability(...)`.
+      - `env.ui` to Next.js router + Toasts.
+      - `env.payments` to the Paystack inline script (or demo mode when not configured).
+  - The Personalized Video flow is now the reference implementation for “engine‑driven” booking flows on the frontend.
+  - Personalized Video service config (details.base_length_sec, long_addon_price, languages) is authored via the add-service engine (see serviceTypeRegistry) and read into booking via `fromServiceToPvBookingConfig(...)`.
 
 
 ### 12. Availability Agent
@@ -177,11 +202,67 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
   - The only way to fully remove a calendar link is `DELETE /api/v1/google-calendar`, which explicitly deletes the `CalendarAccount`.
 * **Availability integration:**
   - `read_artist_availability` uses `fetch_events(...)` inside a try/except and treats failures as “no external events” so booking flows never 5xx because of Google.
-  - Calendar events are merged into `unavailable_dates`, but failures simply mean those external blocks are temporarily omitted; app-side bookings still work.
+- Calendar events are merged into `unavailable_dates`, but failures simply mean those external blocks are temporarily omitted; app-side bookings still work.
 * **Do not:**
   - Delete `CalendarAccount` automatically in `fetch_events` or any background job when refresh fails.
   - Surface HTTP 5xx to clients solely because the calendar refresh or Google API failed.
   - Flip a connected account back to “disconnected” state without an explicit user-initiated disconnect.
+
+### Calendar Slot Duration (Musician Services – Future Tuning)
+
+- For musician Personalized Video and Custom Song services, `services.duration_minutes` is currently set using simple heuristics derived from `details.base_length_sec` (e.g., short vs long content mapped to 40/75/60/120 minutes).
+- These values are good enough for pricing and rough availability, but they are **not yet a precise calendar slot model**:
+  - PV: `base_length_sec ≈ 40/75` maps to a single “slot” length for now.
+  - Custom Song: `base_length_sec` (≈60/120 seconds of audio) is mapped to a longer booking duration (60/120 minutes) to reflect production time, not finished track length.
+- When we do a calendar/slot revamp, revisit:
+  - Whether `duration_minutes` should represent **calendar block length**, **content length**, or both via separate fields.
+  - How PV/Custom Song durations interact with `read_artist_availability` and any future per-service slot templates (e.g., “max N PV orders per day”).
+  - Keeping Booking + Add Service engines as the only place that derive these values so web/RN stay in sync.
+
+
+## Engine Pattern for Future Booking Services
+
+New booking‑style services (e.g. “book a slippery slide”) should follow the same engine structure as Personalized Video so that web, mobile, and future clients can all share one headless “brain”:
+
+* **Feature folder layout (frontend):**
+  - `frontend/src/features/booking/<serviceSlug>/engine/`
+    - `types.ts` — domain types and engine contracts (`<Service>EngineState`, actions, params).
+    - `apiClient.ts` — service‑specific API calls (e.g. `/slippery-slide-orders`, `/quotes`, `/availability`).
+    - `storage.ts` — service‑specific persistence keys (localStorage/AsyncStorage for drafts, seeds, answers).
+    - `core.ts` — pure TypeScript core (`create<CapitalizedService>EngineCore(env, params)`) with:
+      - Draft state machine, validation, availability integration.
+      - Quote/pricing and order/booking creation logic.
+      - Payment and brief/additional‑info flows (if applicable).
+    - `engine.ts` — React Web hook (`use<CapitalizedService>Engine`) that:
+      - Instantiates the core with a Web `env` (API client, storage, router, toasts, Paystack/Stripe, etc.).
+      - Exposes `{ state, actions }` to UI components.
+* **Example for a future “Booked Slippery Slide” service:**
+  - `frontend/src/features/booking/slipperySlide/engine/types.ts`
+  - `frontend/src/features/booking/slipperySlide/engine/apiClient.ts`
+  - `frontend/src/features/booking/slipperySlide/engine/storage.ts`
+  - `frontend/src/features/booking/slipperySlide/engine/core.ts` (exports `createSlipperySlideEngineCore(env, params)`).
+  - `frontend/src/features/booking/slipperySlide/engine/engine.ts` (exports `useSlipperySlideEngine`).
+* **UI components** for new services should be thin shells:
+  - Live under `frontend/src/components/booking/...` or `frontend/src/features/booking/<serviceSlug>/ui/`.
+  - Read only from `engine.state` and call `engine.actions.*` (no direct API/localStorage/Paystack usage).
+
+## Add Service Engine (current coverage)
+
+* **Canonical engine + registry**: `frontend/src/features/serviceTypes/addService/{types,serviceTypeRegistry,apiClient,core,engine}.ts` is the single source of truth for service types, fields, and payload mapping.
+* **Musician category (router + flows)**:
+  - Router: `frontend/src/components/dashboard/add-service/musician/MusicianAddServiceRouter.tsx` (4 options).
+  - Flows: Live (`MusicianLivePerformanceFlow` → `serviceType: "live_performance_musician"`), PV (`MusicianPersonalizedVideoFlow`), Custom Song, Other (all use `useAddServiceEngine`).
+  - Registry entries: `live_performance_musician`, `personalized_video`, `custom_song`, `other`.
+* **Sound category**:
+  - Flow: `frontend/src/components/dashboard/add-service/sound/SoundServiceFlow.tsx` (engine-driven).
+  - Registry entry: `sound_service_live`.
+* **Booking mappers**:
+  - PV: `fromServiceToPvBookingConfig(...)` (feeds PV booking engine).
+  - Live: `fromServiceToLiveBookingConfig(...)` (used in BookingWizard).
+  - Custom Song: `fromServiceToCustomSongBookingConfig(...)` (ready for future booking flow).
+
+
+This pattern keeps booking behaviour centralized, makes React Native and other clients easier to support (by swapping only the `env` layer), and avoids duplicating complex business rules in components.
 
 
 

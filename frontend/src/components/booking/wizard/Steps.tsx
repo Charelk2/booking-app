@@ -39,6 +39,7 @@ interface DateTimeProps {
   control: Control<EventDetails>;
   unavailable: string[];
   loading?: boolean;
+  status?: "idle" | "checking" | "available" | "unavailable" | "unknown";
   open?: boolean;
   onToggle?: () => void;
 }
@@ -47,6 +48,7 @@ export function DateTimeStep({
   control,
   unavailable,
   loading = false,
+  status = "idle",
   open = true,
 }: DateTimeProps) {
   const isMobile = useIsMobile();
@@ -68,6 +70,15 @@ export function DateTimeStep({
       <div>
         <h3 className="step-title">Date & Time</h3>
         <p className="step-subtitle">When should we perform?</p>
+        {status === 'checking' && (
+          <p className="text-xs text-neutral-500 mt-1">Checking availability…</p>
+        )}
+        {status === 'unknown' && (
+          <p className="text-xs text-amber-600 mt-1">Availability is currently unknown; please pick a date to proceed.</p>
+        )}
+        {status === 'unavailable' && (
+          <p className="text-xs text-red-600 mt-1">This artist may be unavailable for some dates.</p>
+        )}
       </div>
 
       <div className="mt-4">
@@ -1415,7 +1426,6 @@ export function ReviewStep(props: {
   artistLocation?: string | null;
   isLoadingReviewData: boolean;
   reviewDataError: string | null;
-  calculatedPrice: number | null;
   travelResult: TravelResult | null;
   baseServicePrice: number;
   soundCost: number;
@@ -1477,9 +1487,6 @@ export function ReviewStep(props: {
     let cancelled = false;
     (async () => {
       try {
-        // Use the best available subtotal snapshot for preview.
-        // Prefer calculatedPrice when provided (includes async travel/discounts),
-        // otherwise fall back to the basic subtotal we have locally.
         const subtotal = Number(subtotalForPreview);
         let total = Number(subtotalForPreview);
         const vatRate = (props.providerVatRegistered && typeof props.providerVatRate === 'number' && props.providerVatRate > 0)

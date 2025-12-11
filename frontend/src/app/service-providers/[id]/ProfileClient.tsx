@@ -44,6 +44,7 @@ import { getServiceDisplay } from '@/lib/display';
 import Chip from '@/components/ui/Chip';
 import { useScrollSync } from '@/hooks/useScrollSync';
 import { formatCityRegion } from '@/lib/shared/mappers/location';
+import { fromServiceToPvBookingConfig } from "@/features/booking/personalizedVideo/serviceMapping";
 
 const BookingWizard = dynamic(() => import('@/components/booking/BookingWizard'), {
   ssr: false,
@@ -193,6 +194,11 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [detailedService, setDetailedService] = useState<Service | null>(null);
+
+  const pvConfig = useMemo(
+    () => (selectedVideoService ? fromServiceToPvBookingConfig(selectedVideoService) : null),
+    [selectedVideoService],
+  );
 
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [messageBody, setMessageBody] = useState('');
@@ -1142,7 +1148,11 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
           artistId={serviceProviderId}
           isOpen={isVideoOpen}
           onClose={() => setIsVideoOpen(false)}
-          basePriceZar={(selectedVideoService ? (getServiceDisplay(selectedVideoService).priceNumber || 0) : 0)}
+          basePriceZar={pvConfig?.basePriceZar ?? 0}
+          addOnLongZar={pvConfig?.addOnLongZar ?? 250}
+          defaultLengthChoice={pvConfig?.defaultLengthChoice ?? "30_45"}
+          supportedLanguages={pvConfig?.supportedLanguages}
+          defaultLanguage={pvConfig?.defaultLanguage}
           serviceId={selectedVideoService?.id}
         />
       )}

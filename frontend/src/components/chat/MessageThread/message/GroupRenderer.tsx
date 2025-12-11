@@ -427,21 +427,6 @@ export default function GroupRenderer({
                 onOpenReviewFromSystem={onOpenReviewFromSystem}
                 canCreateQuote={Boolean(canCreateQuote)}
                 viewerIsThreadClient={viewerIsThreadClient}
-                onOpenEventPrepFromSystem={
-                  typeof onContinueEventPrep === 'function'
-                    ? () => {
-                        try {
-                          const tid = Number(
-                            (m as any)?.booking_request_id || bookingRequestId || 0,
-                          );
-                          if (Number.isFinite(tid) && tid > 0)
-                            onContinueEventPrep?.(tid);
-                        } catch {
-                          // no-op
-                        }
-                      }
-                    : undefined
-                }
               />
             );
           }
