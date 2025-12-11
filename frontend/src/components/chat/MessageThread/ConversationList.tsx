@@ -539,8 +539,10 @@ function ConversationRowItem({ index, style, data }: RowProps) {
                       "border-indigo-200 bg-indigo-100 text-indigo-700",
                     chip === "SUPPLIER" &&
                       "border-purple-200 bg-purple-100 text-purple-700",
-                    (chip === "EVENT" || chip === "VIDEO") &&
+                    chip === "EVENT" &&
                       "border-emerald-200 bg-emerald-50 text-emerald-700",
+                    chip === "VIDEO" &&
+                      "border-indigo-200 bg-indigo-50 text-indigo-700",
                     chip === "QUOTE" &&
                       "border-amber-200 bg-amber-50 text-amber-700",
                     chip === "INQUIRY" &&
@@ -549,7 +551,9 @@ function ConversationRowItem({ index, style, data }: RowProps) {
                 >
                   {chip === "SUPPLIER" && row.supplierProgram
                     ? `${chip} · ${row.supplierProgram}`
-                    : chip}
+                    : chip === "VIDEO"
+                      ? "Video"
+                      : chip}
                 </span>
               ))}
             </span>
