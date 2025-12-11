@@ -127,7 +127,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const lastUnreadTotalRef = useRef<number | null>(null);
 
   // Single hook instance provides one WS/SSE connection for the entire app
-  const rt = useRealtime(token || null);
+  const rt = useRealtime(token || null, { allowAnonymous: false });
 
   // Expose a stable value object; updates when transport state or method identities change.
   const value = useMemo<RealtimeContextValue>(
