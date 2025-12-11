@@ -110,3 +110,13 @@ def downgrade() -> None:
 #   This change is manual-only (no Alembic upgrade step). When recreating
 #   appdb at this revision, re-apply the same DDL before deploying any code
 #   that reads or writes these columns.
+#
+# 2026-01-15:
+#   On production appdb at revision ed57deb9c434 (this file), add a generic
+#   JSON extras payload for service-specific booking data (e.g. Personalized
+#   Video orders) on booking_requests:
+#     ALTER TABLE booking_requests
+#       ADD COLUMN service_extras JSON;
+#   This change is manual-only (no Alembic upgrade step). When recreating
+#   appdb at this revision, re-apply the same DDL before deploying code that
+#   reads or writes booking_requests.service_extras.

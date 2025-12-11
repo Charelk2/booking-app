@@ -1427,17 +1427,6 @@ def ensure_booking_request_service_extras_column(engine: Engine) -> None:
     )
 
 
-def ensure_booking_request_service_extras_column(engine: Engine) -> None:
-    """Add service_extras JSON column to ``booking_requests`` if missing."""
-
-    add_column_if_missing(
-        engine,
-        "booking_requests",
-        "service_extras",
-        "service_extras JSON",
-    )
-
-
 def ensure_sound_outreach_columns(engine: Engine) -> None:
     """Add link columns to ``sound_outreach_requests`` if missing."""
 

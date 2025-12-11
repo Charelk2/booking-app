@@ -378,6 +378,10 @@ This pattern keeps booking behaviour centralized, makes React Native and other c
     - `ALTER TABLE calendar_accounts ADD COLUMN last_error_at timestamp NULL;`
     - `ALTER TABLE calendar_accounts ADD COLUMN last_success_sync_at timestamp NULL;`
   - Rationale: allows the app to retain `calendar_accounts` rows even when Google rejects refresh tokens or APIs fail, marking connections as needing attention instead of deleting them. This ensures providers never "lose" their linked calendar unless they explicitly disconnect it from the profile.
+- 2026-01-15 (manual, at `ed57deb9c434`): add generic service_extras JSON payload for booking-specific engines (e.g. Personalized Video orders)
+  - SQL:
+    - `ALTER TABLE booking_requests ADD COLUMN service_extras JSON;`
+  - Rationale: provides a namespaced JSON envelope (`booking_requests.service_extras`) where engine-driven services like Personalized Video can persist order payloads (`service_extras->'pv'`) without overloading travel-specific fields. This keeps booking_requests as the chat/thread spine while allowing each service engine to attach its own structured data.
 
 ---
 
