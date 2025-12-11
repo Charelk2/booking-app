@@ -166,7 +166,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [validationError, setValidationError] = useState<string | null>(null);
   const [reviewDataError, setReviewDataError] = useState<string | null>(null);
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
-  const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
   const [servicePriceItems, setServicePriceItems] = useState<LineItem[] | null>(null);
   const [serviceCategorySlug, setServiceCategorySlug] = useState<string | undefined>(undefined);
@@ -536,7 +535,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       if (activeCalcRef.current === calcId) setIsLoadingReviewData(false);
       setReviewDataError('Missing booking details (Service ID or Event Location) to calculate estimates.');
       if (activeCalcRef.current === calcId) {
-        setCalculatedPrice(null);
         setTravelResultSynced(null);
       }
       return;
@@ -555,7 +553,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         // Tombstone: remember and bail quietly without spamming the console
         if (activeCalcRef.current === calcId) setIsLoadingReviewData(false);
         setReviewDataError('Selected service is unavailable.');
-        setCalculatedPrice(null);
         setServicePriceItems(null);
         setTravelResultSynced(null);
         return;
@@ -722,7 +719,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         // Still compute totals (including travel) on the server even if no external sound.
         try {
           // Quote handled by engine; keep travel fallback only
-          setCalculatedPrice(null);
           setSoundMode(null);
           setSoundModeOverridden(false);
 
@@ -810,7 +806,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             // On failure, leave travelResult unchanged instead of falling back to backend travel.
           }
         } catch {
-          setCalculatedPrice(basePrice);
           setSoundMode(null);
           setSoundModeOverridden(false);
         }
@@ -819,7 +814,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     } catch (err) {
       console.error('Failed to calculate booking estimates:', err);
       setReviewDataError('Failed to calculate booking estimates. Please ensure location details are accurate and try again.');
-      setCalculatedPrice(null);
       setTravelResultSynced(null);
     } finally {
       if (activeCalcRef.current === calcId) {
@@ -1041,7 +1035,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       router.push(wantsLogin ? '/auth?intent=login' : '/auth?intent=signup');
       return;
     }
-    if (isLoadingReviewData || reviewDataError || reviewCalculatedPrice === null || reviewTravelResult === null) {
+    if (isLoadingReviewData || reviewDataError || reviewQuote.total === null || reviewTravelResult === null) {
       setValidationError('Review data is not ready. Please wait or check for errors before submitting.');
       return;
     }
@@ -1085,7 +1079,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   const reviewQuote = liveEngine.state.quote;
   const reviewTravelResult = liveEngine.state.travelResult ?? travelResult;
-  const reviewCalculatedPrice = reviewQuote.total ?? calculatedPrice;
   const reviewSoundCost =
     typeof reviewQuote.soundCost === 'number' ? reviewQuote.soundCost : 0;
   const reviewServicePriceItems =
@@ -1154,7 +1147,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             submitting={liveEngine.state.flags.submitting}
             isLoadingReviewData={reviewLoading}
             reviewDataError={reviewDataError}
-            calculatedPrice={reviewCalculatedPrice}
             travelResult={reviewTravelResult}
             submitLabel="Submit Request"
             baseServicePrice={baseServicePrice}

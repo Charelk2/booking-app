@@ -1426,7 +1426,6 @@ export function ReviewStep(props: {
   artistLocation?: string | null;
   isLoadingReviewData: boolean;
   reviewDataError: string | null;
-  calculatedPrice: number | null;
   travelResult: TravelResult | null;
   baseServicePrice: number;
   soundCost: number;
@@ -1488,9 +1487,6 @@ export function ReviewStep(props: {
     let cancelled = false;
     (async () => {
       try {
-        // Use the best available subtotal snapshot for preview.
-        // Prefer calculatedPrice when provided (includes async travel/discounts),
-        // otherwise fall back to the basic subtotal we have locally.
         const subtotal = Number(subtotalForPreview);
         let total = Number(subtotalForPreview);
         const vatRate = (props.providerVatRegistered && typeof props.providerVatRate === 'number' && props.providerVatRate > 0)
