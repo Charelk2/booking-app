@@ -61,7 +61,6 @@ This playbook captures what made the UI feel “payment‑fast” across chat, a
 - Other senders wired to the same fast path
   - `frontend/src/components/chat/ChatComposer.tsx`
   - `frontend/src/app/service-providers/[id]/ProfileClient.tsx`
-  - `frontend/src/components/booking/PersonalizedVideoFlow.tsx`
   - `frontend/src/components/booking/BookingWizard.tsx`
   - `frontend/src/components/dashboard/index.tsx`
 
@@ -101,4 +100,3 @@ Frontend
 ---
 
 This playbook is modular by design. Copy the checklist for any new wizard/flow that needs “unbreakable speed + resilience,” and point new contributors to the files above for examples.
-

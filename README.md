@@ -1135,7 +1135,7 @@ The dashboard brings common actions to the surface with a tidy layout:
 * New **service\_type** field:
   `"Live Performance"`, `"Virtual Appearance"`, `"Personalized Video"`, `"Custom Song"`, `"Other"`.
 * Non–Live/Virtual services go directly to chat instead of the wizard.
-* Personalized Video flow handled via `PersonalizedVideoFlow` wrapper and automated questions.
+* Personalized Video flow is handled via a dedicated booking wizard (`BookinWizardPersonilsedVideo`) and headless engine under `frontend/src/features/booking/personalizedVideo/engine`.
 
 ### Reviews
 
