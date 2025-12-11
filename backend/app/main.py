@@ -59,7 +59,6 @@ from .api import (
     api_ws,
     auth,
     api_video_orders,
-    api_video_orders,
     api_magic,
     api_admin,
     api_webhooks_events,
@@ -986,20 +985,6 @@ app.include_router(
     api_payment.router,
     prefix=f"{api_prefix}/payments",
     tags=["payments"],
-)
-
-# ─── PERSONALIZED VIDEO ORDERS (under /api/v1/video-orders) ───────────────
-app.include_router(
-    api_video_orders.router,
-    prefix=f"{api_prefix}",
-    tags=["video-orders"],
-)
-
-# ─── PERSONALIZED VIDEO ORDERS (under /api/v1/video-orders) ───────────────
-app.include_router(
-    api_video_orders.router,
-    prefix=f"{api_prefix}",
-    tags=["video-orders"],
 )
 
 # ─── PERSONALIZED VIDEO ORDERS (under /api/v1/video-orders) ───────────────

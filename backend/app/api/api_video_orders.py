@@ -1,6 +1,6 @@
 """Personalized Video orders API backed by booking_requests + service_extras.pv."""
 
-from typing import Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -58,6 +58,11 @@ class VideoOrderStatusUpdate(BaseModel):
     status: str
 
 
+class VideoOrderAnswerPayload(BaseModel):
+    question_key: str
+    value: Any
+
+
 def _find_pv_service(db: Session, artist_id: int, service_id: Optional[int]) -> Service:
     """Find the personalized video service for the artist or the provided service_id."""
     if service_id:
@@ -94,7 +99,7 @@ def _map_status_to_booking(status_raw: str) -> BookingStatus:
     return BookingStatus.PENDING
 
 
-def _pv_state_from_extras(br: BookingRequest):
+def _pv_state_from_extras(br: BookingRequest) -> dict:
     extras = br.service_extras or {}
     pv = extras.get("pv") or {}
     return {
@@ -112,6 +117,7 @@ def _pv_state_from_extras(br: BookingRequest):
         "price_addons": pv.get("price_addons", 0),
         "discount": pv.get("discount", 0),
         "total": pv.get("total", float(br.travel_cost or 0) if br.travel_cost is not None else 0),
+        "answers": pv.get("answers") or {},
     }
 
 
@@ -174,12 +180,47 @@ def create_video_order(
             "price_addons": payload.price_addons,
             "discount": payload.discount,
             "total": payload.total,
+            "answers": {},
         },
     )
     db.add(br)
     db.commit()
     db.refresh(br)
     return _to_video_order_response(br)
+
+
+@router.get("/video-orders", response_model=List[VideoOrderResponse])
+def list_video_orders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    List Personalized Video orders belonging to the current user.
+
+    Returns orders where the user is either the buyer (client) or artist.
+    """
+    rows: List[BookingRequest] = (
+        db.query(BookingRequest)
+        .filter(
+            (BookingRequest.client_id == current_user.id)
+            | (BookingRequest.artist_id == current_user.id)
+        )
+        .order_by(BookingRequest.id.desc())
+        .all()
+    )
+    out: List[VideoOrderResponse] = []
+    for br in rows:
+        extras = getattr(br, "service_extras", None)
+        if not isinstance(extras, dict):
+            continue
+        if "pv" not in extras:
+            continue
+        try:
+            out.append(_to_video_order_response(br))
+        except Exception:
+            # Be defensive; a single malformed row should not break the list.
+            continue
+    return out
 
 
 @router.get("/video-orders/{order_id}", response_model=VideoOrderResponse)
@@ -218,3 +259,33 @@ def update_video_order_status(
     db.refresh(br)
     return _to_video_order_response(br)
 
+
+@router.post("/video-orders/{order_id}/answers")
+def upsert_video_order_answer(
+    order_id: int,
+    payload: VideoOrderAnswerPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Store or update a single brief answer for a Personalized Video order.
+
+    Answers are kept under service_extras.pv["answers"] keyed by question_key.
+    """
+    br = db.query(BookingRequest).filter(BookingRequest.id == order_id).first()
+    if not br:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    if br.client_id != current_user.id and br.artist_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    pv = _pv_state_from_extras(br)
+    answers: dict[str, Any] = {}
+    raw_answers = pv.get("answers")
+    if isinstance(raw_answers, dict):
+        answers.update(raw_answers)
+    answers[payload.question_key] = payload.value
+    pv["answers"] = answers
+    _write_pv_extras(br, pv)
+    db.add(br)
+    db.commit()
+    return {"ok": True}
