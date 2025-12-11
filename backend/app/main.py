@@ -58,6 +58,8 @@ from .api import (
     api_weather,
     api_ws,
     auth,
+    api_video_orders,
+    api_video_orders,
     api_magic,
     api_admin,
     api_webhooks_events,
@@ -80,6 +82,7 @@ from .db_utils import (
     ensure_attachment_meta_column,
     ensure_booking_event_city_column,
     ensure_booking_request_travel_columns,
+    ensure_booking_request_service_extras_column,
     ensure_booking_simple_columns,
     remove_deposit_columns_from_booking_simple,
     ensure_booking_artist_deadline_column,
@@ -367,6 +370,7 @@ ensure_timestamp_defaults(engine, "quotes_v2")
 ensure_timestamp_defaults(engine, "invoices")
 ensure_user_profile_picture_column(engine)
 ensure_booking_request_travel_columns(engine)
+ensure_booking_request_service_extras_column(engine)
 ensure_sound_outreach_columns(engine)
 ensure_booking_event_city_column(engine)
 ensure_booking_artist_deadline_column(engine)
@@ -982,6 +986,27 @@ app.include_router(
     api_payment.router,
     prefix=f"{api_prefix}/payments",
     tags=["payments"],
+)
+
+# ─── PERSONALIZED VIDEO ORDERS (under /api/v1/video-orders) ───────────────
+app.include_router(
+    api_video_orders.router,
+    prefix=f"{api_prefix}",
+    tags=["video-orders"],
+)
+
+# ─── PERSONALIZED VIDEO ORDERS (under /api/v1/video-orders) ───────────────
+app.include_router(
+    api_video_orders.router,
+    prefix=f"{api_prefix}",
+    tags=["video-orders"],
+)
+
+# ─── PERSONALIZED VIDEO ORDERS (under /api/v1/video-orders) ───────────────
+app.include_router(
+    api_video_orders.router,
+    prefix=f"{api_prefix}",
+    tags=["video-orders"],
 )
 
 # ─── PAYOUT ROUTES (under /api/v1/payouts) ─────────────────────────────
