@@ -44,7 +44,7 @@ export default function CategoriesCarouselServer() {
           className="flex gap-3 overflow-x-auto pb-2 pr-2 scroll-smooth scrollbar-hide snap-x snap-mandatory min-h-[180px]"
           aria-label="Scrollable list"
         >
-          {items.map((cat, idx) => (
+          {items.map((cat) => (
             <Link
               key={cat.value}
               href={`/category/${encodeURIComponent(cat.value)}`}
@@ -56,7 +56,7 @@ export default function CategoriesCarouselServer() {
                   src={cat.img}
                   alt={cat.display}
                   loading="eager"
-                  fetchPriority={idx < 6 ? "high" : "auto"}
+                  fetchPriority="high"
                   decoding="async"
                   width={144}
                   height={144}
