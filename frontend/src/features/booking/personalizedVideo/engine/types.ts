@@ -67,7 +67,7 @@ export interface PersonalizedVideoEngineState {
   payment: {
     loading: boolean;
     error: string | null;
-    canPayWithPaystack: boolean;
+    canPay: boolean;
   };
 
   // Brief step

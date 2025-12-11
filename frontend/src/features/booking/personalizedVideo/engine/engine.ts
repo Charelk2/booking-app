@@ -132,7 +132,7 @@ export function usePersonalizedVideoOrderEngine(
 ): PersonalizedVideoEngine {
   const router = useRouter();
   const coreRef = useRef<PvEngineCore | null>(null);
-  const canPayWithPaystack = USE_PAYSTACK && Boolean(PAYSTACK_PK);
+  const canPay = USE_PAYSTACK && Boolean(PAYSTACK_PK);
 
   if (!coreRef.current) {
     const env: PvEngineEnv = {
@@ -225,6 +225,7 @@ export function usePersonalizedVideoOrderEngine(
         },
       },
       briefTotalQuestions: BRIEF_QUESTIONS.length,
+      canPay,
     };
 
     coreRef.current = createPersonalizedVideoEngineCore(env, params);
@@ -232,29 +233,15 @@ export function usePersonalizedVideoOrderEngine(
 
   const core = coreRef.current!;
 
-  const [state, setState] = useState<PersonalizedVideoEngine["state"]>(() => {
-    const initial = core.getState();
-    return {
-      ...initial,
-      payment: {
-        ...initial.payment,
-        canPayWithPaystack,
-      },
-    };
-  });
+  const [state, setState] =
+    useState<PersonalizedVideoEngine["state"]>(() => core.getState());
 
   useEffect(() => {
     const unsubscribe = core.subscribe((next) => {
-      setState({
-        ...next,
-        payment: {
-          ...next.payment,
-          canPayWithPaystack,
-        },
-      });
+      setState(next);
     });
     return unsubscribe;
-  }, [core, canPayWithPaystack]);
+  }, [core]);
 
   // Auto-load order summary when an orderId is provided (payment/brief pages).
   useEffect(() => {
@@ -272,4 +259,3 @@ export function usePersonalizedVideoOrderEngine(
 
   return { state, actions: core.actions };
 }
-

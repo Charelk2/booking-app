@@ -391,7 +391,7 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
     );
   }
 
-  const canPaystack = payment.canPayWithPaystack;
+  const canPaystack = payment.canPay;
 
   return (
     <div className="min-h-[100dvh] px-4 py-8 sm:py-12">

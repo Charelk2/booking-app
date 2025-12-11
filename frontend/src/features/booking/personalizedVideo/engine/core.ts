@@ -37,6 +37,7 @@ export interface PvEngineEnv {
   ui: PvUiEnv;
   payments: PvPaymentsEnv;
   briefTotalQuestions: number;
+   canPay: boolean;
 }
 
 export interface PvEngineCore {
@@ -97,7 +98,7 @@ export function createPersonalizedVideoEngineCore(
     payment: {
       loading: false,
       error: null,
-      canPayWithPaystack: true,
+      canPay: env.canPay,
     },
     brief: {
       answers: {},
@@ -429,8 +430,11 @@ export function createPersonalizedVideoEngineCore(
 
       currentOrder = order;
 
+      const hasOrder = !!order;
+      const payment = getState().payment;
+
       setState({
-        orderSummary: order
+        orderSummary: hasOrder
           ? {
               id: order.id,
               artistId: order.artist_id,
@@ -446,7 +450,13 @@ export function createPersonalizedVideoEngineCore(
               discount: order.discount,
             }
           : null,
-        payment: { ...getState().payment, loading: false },
+        payment: {
+          ...payment,
+          loading: false,
+          error: hasOrder
+            ? null
+            : "Please check your connection and try again.",
+        },
       });
     },
 
@@ -513,12 +523,12 @@ export function createPersonalizedVideoEngineCore(
     updateAnswer: (key, value, _opts) => {
       const s = getState();
       const answers = { ...s.brief.answers, [key]: value };
-      env.storage.saveBriefAnswers(s.orderId ?? 0, answers);
-      state = {
-        ...state,
+      if (s.orderId) {
+        env.storage.saveBriefAnswers(s.orderId, answers);
+      }
+      setState({
         brief: { ...s.brief, answers, saveState: "saving" },
-      };
-      notify();
+      });
       recomputeBriefProgress();
     },
 
