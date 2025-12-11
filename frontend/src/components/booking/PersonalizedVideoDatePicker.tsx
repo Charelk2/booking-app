@@ -185,7 +185,6 @@ export function PersonalizedVideoDatePicker({
              <span>Unavailable</span>
           </div>
         </div>
-
       </div>
     </div>
   );
