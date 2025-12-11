@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { User } from '@/types';
@@ -63,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const logoutInProgressRef = useRef(false);
   const [artistViewActive, setArtistViewActive] = useState(() => {
     if (typeof window === 'undefined') return true;
     const stored = localStorage.getItem('artistViewActive');
@@ -241,6 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Global handler for session expiration broadcasts from the API layer
   useEffect(() => {
     const onExpired = () => {
+      if (logoutInProgressRef.current) return;
       try { toast.dismiss(); } catch {}
       try { toast.error('Session expired — please sign in again.'); } catch {}
       try { void import('@/lib/api').then(m => m.logout()); } catch {}
@@ -468,6 +470,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    logoutInProgressRef.current = true;
     // Also invalidate server-side session
     try { void import('@/lib/api').then(m => m.logout()); } catch {}
     // Clear inbox selection and preview caches for the current user

@@ -140,4 +140,41 @@ describe('useRealtime subscribe/unsubscribe and outbox behaviour', () => {
     expect(Math.min(...indices)).toBe(50);
     expect(Math.max(...indices)).toBe(249);
   });
+
+  function NoAnonymousTest() {
+    // Start with no token; hook should not open WS when allowAnonymous is false
+    const { subscribe } = useRealtime(null, { allowAnonymous: false });
+    useEffect(() => {
+      subscribe('topic-auth', () => {});
+    }, [subscribe]);
+    return null;
+  }
+
+  it('does not open WS when allowAnonymous=false and no token is provided', () => {
+    render(<NoAnonymousTest />);
+    jest.advanceTimersByTime(600);
+    expect(MockWebSocket.instances.length).toBe(0);
+  });
+
+  function TokenAppearTest() {
+    const [tok, setTok] = React.useState<string | null>(null);
+    const { subscribe } = useRealtime(tok, { allowAnonymous: false });
+    useEffect(() => {
+      subscribe('topic-auth', () => {});
+    }, [subscribe]);
+    useEffect(() => {
+      setTok('test-token');
+    }, []);
+    return null;
+  }
+
+  it('restarts WS with bearer protocol when token becomes available', () => {
+    render(<TokenAppearTest />);
+    // allow state effect to run and openWS delay (500ms)
+    jest.advanceTimersByTime(600);
+    // Socket should be created with bearer subprotocol
+    expect(MockWebSocket.instances.length).toBe(1);
+    const socket = MockWebSocket.instances[0];
+    expect(socket.protocols).toEqual(['bearer', 'test-token']);
+  });
 });

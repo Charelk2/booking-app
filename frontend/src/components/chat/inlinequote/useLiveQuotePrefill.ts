@@ -113,12 +113,17 @@ export function useLiveQuotePrefill({
         if (!active) return;
         const tb: any = br.travel_breakdown || {};
         const soundModeRaw = tb.sound_mode || (br as any)?.sound_mode;
+        const provisioning = (br?.service as any)?.details?.sound_provisioning || {};
+        const provisioningMode = String(provisioning?.mode || '').toLowerCase();
         const parentId = Number(br.parent_booking_request_id || 0);
+        const supplierMode =
+          typeof soundModeRaw === 'string' &&
+          String(soundModeRaw).toLowerCase() === 'supplier';
         const supplierParent =
           !Number.isNaN(parentId) &&
           parentId <= 0 &&
-          typeof soundModeRaw === 'string' &&
-          String(soundModeRaw).toLowerCase() === 'supplier';
+          supplierMode &&
+          provisioningMode !== 'artist_provides_variable';
         setIsSupplierParent(supplierParent);
 
         const svcId = Number(br.service_id || 0);
@@ -143,10 +148,9 @@ export function useLiveQuotePrefill({
           if (Number.isFinite(travelRaw)) setTravelFee(travelRaw);
         }
 
-        if (!dirtySound && !supplierParent) {
+        if (!dirtySound && (!supplierParent || provisioningMode === 'artist_provides_variable')) {
           try {
             const soundRequired = Boolean(tb.sound_required);
-            const provisioning = (br?.service as any)?.details?.sound_provisioning;
             const rawMode = String((br as any)?.travel_mode || tb.travel_mode || tb.mode || '').toLowerCase();
             const mode = rawMode === 'flight' ? 'fly' : rawMode === 'driving' ? 'drive' : rawMode;
             let soundCost: number | undefined = undefined;

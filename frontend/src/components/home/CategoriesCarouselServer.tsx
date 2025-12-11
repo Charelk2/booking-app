@@ -5,6 +5,7 @@
 // hydrates. The client-enhanced version adds prefetching and buttons.
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { CATEGORY_IMAGES, UI_CATEGORY_TO_ID } from '@/lib/categoryMap';
 
 const DISPLAY_LABELS: Record<string, string> = {
@@ -52,10 +53,12 @@ export default function CategoriesCarouselServer() {
               aria-label={cat.display}
             >
               <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
-                <img
+                <Image
                   src={cat.img}
                   alt={cat.display}
                   loading="eager"
+                  priority
+                  fetchPriority="high"
                   decoding="async"
                   width={144}
                   height={144}
