@@ -14,7 +14,6 @@ import useBookingForm from '@/hooks/useBookingForm';
 import useTransportState from '@/hooks/useTransportState';
 import { useDebounce } from '@/hooks/useDebounce';
 import { parseBookingText } from '@/lib/api';
-} from '@/lib/api';
 import { calculateTravelMode, getDrivingMetricsCached, geocodeCached, findNearestAirport, getMockCoordinates, type TravelResult } from '@/lib/travel';
 import { trackEvent } from '@/lib/analytics';
 import { format } from 'date-fns';
@@ -168,10 +167,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [reviewDataError, setReviewDataError] = useState<string | null>(null);
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
-  const [baseServicePrice, setBaseServicePrice] = useState<number>(liveDetails ? 0 : 0); // New state for base service price
+  const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
   const [servicePriceItems, setServicePriceItems] = useState<LineItem[] | null>(null);
   const [serviceCategorySlug, setServiceCategorySlug] = useState<string | undefined>(undefined);
-  const [soundCost, setSoundCost] = useState(0);
   const [soundMode, setSoundMode] = useState<string | null>(null);
   const [soundModeOverridden, setSoundModeOverridden] = useState(false);
   const [selectedSupplierName, setSelectedSupplierName] = useState<string | undefined>(undefined);
@@ -242,8 +240,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const lastTravelSigRef = useRef<string | null>(null);
   const travelResultCache = useRef<Map<string, TravelResult>>(new Map());
   const isLoadingRef = useRef(false);
-  const missingPricebookRef = useRef<Set<number>>(new Set());
-  const missingServiceRef = useRef<Set<number>>(new Set());
 
   const buildCalcSig = () => {
     const d: any = details || {};
@@ -727,7 +723,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         try {
           // Quote handled by engine; keep travel fallback only
           setCalculatedPrice(null);
-          setSoundCost(0);
           setSoundMode(null);
           setSoundModeOverridden(false);
 
@@ -816,7 +811,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           }
         } catch {
           setCalculatedPrice(basePrice);
-          setSoundCost(0);
           setSoundMode(null);
           setSoundModeOverridden(false);
         }
@@ -842,19 +836,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     details.date,
     // Sound flags and selections
     details.sound,
-                (details as any).soundMode,
-                (details as any).soundSupplierServiceId,
-                // Context that changes sound sizing and pricing
-                (details as any).guests,
-                (details as any).venueType,
-                (details as any).stageRequired,
-                (details as any).stageSize,
-                (details as any).lightingEvening,
-                (details as any).lightingUpgradeAdvanced,
-                (details as any).backlineRequired,
-                // Setter from context (stable but included for correctness)
-                setTravelResult: setTravelResultSynced,
-                reviewDataError,
+    (details as any).soundMode,
+    (details as any).soundSupplierServiceId,
+    // Context that changes sound sizing and pricing
+    (details as any).guests,
+    (details as any).venueType,
+    (details as any).stageRequired,
+    (details as any).stageSize,
+    (details as any).lightingEvening,
+    (details as any).lightingUpgradeAdvanced,
+    (details as any).backlineRequired,
+    // Setter from context (stable but included for correctness)
+    setTravelResultSynced,
+    reviewDataError,
   ]);
 
   // Trigger the calculation when approaching the Review step to prefetch data
@@ -1092,7 +1086,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const reviewQuote = liveEngine.state.quote;
   const reviewTravelResult = liveEngine.state.travelResult ?? travelResult;
   const reviewCalculatedPrice = reviewQuote.total ?? calculatedPrice;
-  const reviewSoundCost = reviewQuote.soundCost ?? soundCost;
+  const reviewSoundCost =
+    typeof reviewQuote.soundCost === 'number' ? reviewQuote.soundCost : 0;
   const reviewServicePriceItems =
     (Array.isArray(reviewQuote.items) && reviewQuote.items.length > 0)
       ? reviewQuote.items

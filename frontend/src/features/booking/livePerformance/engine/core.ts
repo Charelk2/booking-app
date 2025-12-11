@@ -9,6 +9,7 @@ import {
   type LiveBookingStepId,
 } from "./types";
 import { bookingWizardStepFields } from "@/lib/shared/validation/booking";
+import { computeFallbackSoundCost } from "./soundFallback";
 
 export interface LiveEnv {
   now(): Date;
@@ -461,7 +462,7 @@ export function createLiveBookingEngineCore(
         let supplierDistanceKm: number | undefined;
         let riderUnits: Record<string, number> | undefined;
         let backlineRequested: Record<string, number> | undefined;
-        let fallbackSoundCost: number | undefined;
+        let supplierService: any | null = null;
 
         try {
           const riderSpec = await env.service.getRiderSpec(params.serviceId);
@@ -478,6 +479,7 @@ export function createLiveBookingEngineCore(
           const supplierId = d?.soundSupplierServiceId as number | undefined;
           if (supplierId && d?.location) {
             const svc = await env.service.getService(supplierId);
+            supplierService = svc;
             const baseLoc = svc?.details?.base_location as string | undefined;
             if (baseLoc) {
               const dist = await env.travel.getDistanceKm(baseLoc, d.location);
@@ -512,48 +514,58 @@ export function createLiveBookingEngineCore(
           travel_members: params.config.travelMembers,
         };
         const res = await env.quoteApi.estimateQuote(payload);
+        const resSoundCost = Number((res as any)?.sound_cost);
+        const hasServerSoundCost =
+          Number.isFinite(resSoundCost) && resSoundCost > 0;
+        let soundCost: number | null = hasServerSoundCost ? resSoundCost : null;
 
         try {
-          const needsFallback =
-            (res as any)?.sound_cost == null ||
-            Number((res as any)?.sound_cost) <= 0;
+          const soundModePref = String(d?.soundMode || "").toLowerCase();
+          const provisioningMode = String(
+            (params.config?.soundProvisioning as any)?.mode || "",
+          ).toLowerCase();
           const supplierId = d?.soundSupplierServiceId as number | undefined;
-          if (needsFallback && supplierId) {
-            const pb = await env.sound.pricebookEstimate(supplierId, {
-              rider_spec: {
-                monitors: riderUnits?.monitor_mixes || 0,
-                wireless: riderUnits?.speech_mics || 0,
-                di: riderUnits?.di_boxes || 0,
+          const shouldUseSupplier =
+            soundModePref === "supplier" ||
+            soundModePref === "external_providers" ||
+            provisioningMode === "external_providers";
+          const needsFallback =
+            (!soundCost || soundCost <= 0) &&
+            d?.sound === "yes" &&
+            supplierId &&
+            shouldUseSupplier;
+
+          if (needsFallback) {
+            const fallback = await computeFallbackSoundCost(
+              {
+                serviceId: params.serviceId,
+                supplierServiceId: supplierId,
+                supplierService,
+                eventCity: d?.location,
+                guestCount: normalizeGuests(),
+                venueType: d?.venueType,
+                stageRequired: !!d?.stageRequired,
+                stageSize: d?.stageRequired ? d?.stageSize || "S" : undefined,
+                lightingEvening: !!d?.lightingEvening,
+                lightingUpgradeAdvanced: !!d?.lightingUpgradeAdvanced,
+                backlineRequired: !!d?.backlineRequired,
+                riderUnits,
+                backlineRequested,
+                distanceKm: supplierDistanceKm,
               },
-              distance_km: supplierDistanceKm,
-              managed_by_artist: false,
-              artist_managed_markup_percent: 0,
-              guest_count: normalizeGuests(),
-              backline_required: !!d?.backlineRequired,
-              lighting_evening: !!d?.lightingEvening,
-              outdoor: (d?.venueType || "").toLowerCase() === "outdoor",
-              stage_size: d?.stageRequired ? d?.stageSize || "S" : null,
-            });
-            const min = Number(pb?.estimate_min);
-            const max = Number(pb?.estimate_max);
-            if (Number.isFinite(min) && Number.isFinite(max) && max > 0) {
-              fallbackSoundCost = (min + max) / 2;
-            } else {
-              const svcEstimate = await env.sound.calculateEstimate(
-                supplierId,
-                {
-                  guest_count: normalizeGuests() || 0,
-                  venue_type: d?.venueType || "indoor",
-                  stage_required: !!d?.stageRequired,
-                  stage_size: d?.stageRequired ? d?.stageSize || "S" : null,
-                  lighting_evening: !!d?.lightingEvening,
-                  upgrade_lighting_advanced: !!d?.lightingUpgradeAdvanced,
-                  rider_units: riderUnits,
-                  backline_requested: backlineRequested,
-                },
-              );
-              const t = Number(svcEstimate?.total);
-              if (Number.isFinite(t) && t > 0) fallbackSoundCost = t;
+              {
+                loadService: env.service.getService,
+                pricebookEstimate: env.sound?.pricebookEstimate,
+                calculateEstimate: env.sound?.calculateEstimate,
+                log: env.log,
+              },
+            );
+            if (
+              typeof fallback === "number" &&
+              Number.isFinite(fallback) &&
+              fallback > 0
+            ) {
+              soundCost = fallback;
             }
           }
         } catch (e) {
@@ -564,9 +576,7 @@ export function createLiveBookingEngineCore(
             items: (res as any)?.items ?? [],
             total: (res as any)?.total ?? null,
             travel: (res as any)?.travel_estimates ?? null,
-            soundCost:
-              (res as any)?.sound_cost ??
-              (fallbackSoundCost != null ? fallbackSoundCost : null),
+            soundCost: soundCost ?? null,
             supplierDistanceKm: supplierDistanceKm ?? null,
             riderUnits,
             backlineRequested,
