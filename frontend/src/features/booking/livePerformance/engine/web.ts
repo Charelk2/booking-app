@@ -6,11 +6,13 @@ import {
   createBookingRequest,
   updateBookingRequest,
   postMessageToBookingRequest,
+  estimatePriceSafe,
+  calculateSoundServiceEstimate,
 } from "@/lib/api";
 import type { EventDetails } from "@/contexts/BookingContext";
 import type { TravelResult } from "@/lib/travel";
 import { getDrivingMetricsCached } from "@/lib/travel";
-import { useOfflineQueue } from "@/hooks/useOfflineQueue";
+import useOfflineQueue from "@/hooks/useOfflineQueue";
 import type { LiveBookingEngine, LiveBookingEngineParams } from "./types";
 import { createLiveBookingEngineCore, type LiveEnv } from "./core";
 import { useLiveBookingEngine } from "./engine";
@@ -49,7 +51,12 @@ export function useLiveBookingEngineWeb(
   params: LiveBookingEngineParams,
 ): LiveBookingEngine {
   const router = useRouter();
-  const offline = useOfflineQueue();
+  const offlineQueue = useOfflineQueue<() => Promise<void>>(
+    "liveBookingEngineQueue",
+    async (fn) => {
+      await fn();
+    },
+  );
   const envRef = useRef<LiveEnv | null>(null);
 
   if (!envRef.current) {
@@ -104,6 +111,19 @@ export function useLiveBookingEngineWeb(
           }
         },
       },
+      sound: {
+        async pricebookEstimate(serviceId: number, payload: any) {
+          return estimatePriceSafe(serviceId, payload);
+        },
+        async calculateEstimate(serviceId: number, payload: any) {
+          try {
+            const resp = await calculateSoundServiceEstimate(serviceId, payload);
+            return resp?.data || null;
+          } catch {
+            return null;
+          }
+        },
+      },
       quoteApi: {
         estimateQuote: async (payload: any) => calculateQuote(payload),
       },
@@ -127,8 +147,11 @@ export function useLiveBookingEngineWeb(
       },
       storage,
       offline: {
-        isOffline: () => offline.isOffline,
-        enqueue: (fn) => offline.enqueue(fn),
+        isOffline: () =>
+          typeof navigator !== "undefined"
+            ? navigator.onLine === false
+            : false,
+        enqueue: (fn) => offlineQueue.enqueue(fn),
       },
       log: (evt, data) => {
         if (process.env.NODE_ENV !== "production") {
