@@ -96,7 +96,6 @@ type BriefQuestion =
 const LANGS = [
   { v: "EN", l: "English" },
   { v: "AF", l: "Afrikaans" },
-  { v: "Bilingual", l: "Bilingual" },
 ] as const;
 
 const BRIEF_QUESTIONS: BriefQuestion[] = [
@@ -131,7 +130,7 @@ const BRIEF_QUESTIONS: BriefQuestion[] = [
     key: "language",
     label: "Language",
     type: "chips",
-    options: ["English", "Afrikaans", "Bilingual"],
+    options: ["English", "Afrikaans"],
   },
   {
     key: "desired_length",
@@ -876,10 +875,10 @@ export default function BookinWizardPersonilsedVideo({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Dialog.Title className="text-base sm:text-lg font-semibold text-gray-900">
-                      Book a personalized video
+                      Book a personalised video
                     </Dialog.Title>
                     <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                      Choose delivery, style, and where we should send it.
+                      Set a delivery date and personalise your video details.
                     </p>
                   </div>
                   <button
@@ -940,8 +939,25 @@ export default function BookinWizardPersonilsedVideo({
                         Rush pricing can apply inside <span className="font-medium">24–48 hours</span>.
                       </p>
                     </section>
+                  </div>
 
-                    {/* Length */}
+                  {/* Right column */}
+                  <div className="space-y-4">
+                    <TextInput
+                      label="Recipient (optional)"
+                      value={form.recipient}
+                      onChange={(e: any) => form.setRecipient(e.target.value)}
+                      placeholder="e.g. My mom, Sarah"
+                    />
+
+                    <TextInput
+                      label="Promo code (optional)"
+                      value={form.promo}
+                      onChange={(e: any) => form.setPromo(e.target.value)}
+                      placeholder="SAVE10"
+                    />
+
+                    {/* Video length */}
                     <section>
                       <label className="block text-sm font-medium text-gray-800">Video length</label>
                       <div className="mt-2 grid grid-cols-2 gap-2">
@@ -996,24 +1012,6 @@ export default function BookinWizardPersonilsedVideo({
                         })}
                       </div>
                     </section>
-
-                  </div>
-
-                  {/* Right column */}
-                  <div className="space-y-4">
-                    <TextInput
-                      label="Recipient (optional)"
-                      value={form.recipient}
-                      onChange={(e: any) => form.setRecipient(e.target.value)}
-                      placeholder="e.g. My mom, Sarah"
-                    />
-
-                    <TextInput
-                      label="Promo code (optional)"
-                      value={form.promo}
-                      onChange={(e: any) => form.setPromo(e.target.value)}
-                      placeholder="SAVE10"
-                    />
 
                     <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs text-emerald-900 flex gap-2">
                       <ShieldCheckIcon className="h-4 w-4 shrink-0 mt-0.5" />
