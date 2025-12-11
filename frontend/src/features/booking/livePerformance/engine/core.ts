@@ -1,5 +1,6 @@
 import { initialDetails } from "@/contexts/BookingContext";
 import type { EventDetails } from "@/contexts/BookingContext";
+import type { TravelResult } from "@/lib/travel";
 import {
   type LiveBookingEngine,
   type LiveBookingEngineActions,
@@ -13,6 +14,13 @@ export interface LiveEnv {
   now(): Date;
   availability: {
     getUnavailableDates(artistId: number): Promise<string[]>;
+  };
+  service: {
+    getService(serviceId: number): Promise<any | null>;
+    getRiderSpec(serviceId: number): Promise<any | null>;
+  };
+  travel: {
+    getDistanceKm(origin: string, destination: string): Promise<number | null>;
   };
   quoteApi: {
     estimateQuote(payload: any): Promise<any>;
@@ -29,10 +37,10 @@ export interface LiveEnv {
   storage: {
     loadDraft(
       key: string,
-    ): Promise<{ details: EventDetails; requestId: number | null } | null>;
+    ): Promise<{ details: EventDetails; requestId: number | null; travelResult?: TravelResult | null } | null>;
     saveDraft(
       key: string,
-      snapshot: { details: EventDetails; requestId: number | null },
+      snapshot: { details: EventDetails; requestId: number | null; travelResult?: TravelResult | null },
     ): Promise<void>;
     clearDraft(key: string): Promise<void>;
   };
@@ -67,6 +75,67 @@ export function createLiveBookingEngineCore(
   env: LiveEnv,
   params: LiveBookingEngineParams,
 ): LiveBookingEngineCore {
+  const normalizeRiderForPricing = (spec: any): {
+    units: Record<string, number>;
+    backline: Record<string, number>;
+  } => {
+    const units = {
+      vocal_mics: 0,
+      speech_mics: 0,
+      monitor_mixes: 0,
+      iem_packs: 0,
+      di_boxes: 0,
+    } as Record<string, number>;
+    const backline: Record<string, number> = {};
+    if (!spec || typeof spec !== "object") return { units, backline };
+    try {
+      if (spec.monitors != null) units.monitor_mixes = Number(spec.monitors) || 0;
+      if (spec.di != null) units.di_boxes = Number(spec.di) || 0;
+      if (spec.wireless != null) units.speech_mics = Number(spec.wireless) || 0;
+      if (spec.mics && typeof spec.mics === "object") {
+        const dyn = Number(spec.mics.dynamic || 0);
+        const cond = Number(spec.mics.condenser || 0);
+        units.vocal_mics = Math.max(units.vocal_mics, dyn + cond);
+      }
+      if (spec.iem_packs != null) units.iem_packs = Number(spec.iem_packs) || 0;
+      if (
+        spec.monitoring &&
+        typeof spec.monitoring === "object" &&
+        spec.monitoring.iem_packs != null
+      ) {
+        units.iem_packs = Math.max(
+          units.iem_packs,
+          Number(spec.monitoring.iem_packs) || 0,
+        );
+      }
+      const arr: any[] = Array.isArray(spec.backline) ? spec.backline : [];
+      const mapKey = (name: string): string | null => {
+        const n = String(name || "").toLowerCase();
+        if (n.includes("drum") && n.includes("full")) return "drums_full";
+        if (n.includes("drum")) return "drum_shells";
+        if (n.includes("guitar") && n.includes("amp")) return "guitar_amp";
+        if (n.includes("bass") && n.includes("amp")) return "bass_amp";
+        if (n.includes("keyboard") && n.includes("amp")) return "keyboard_amp";
+        if (n.includes("keyboard") && n.includes("stand")) return "keyboard_stand";
+        if (n.includes("digital") && n.includes("piano")) return "piano_digital_88";
+        if (n.includes("upright") && n.includes("piano")) return "piano_acoustic_upright";
+        if (n.includes("grand") && n.includes("piano")) return "piano_acoustic_grand";
+        if (n.includes("dj") && (n.includes("booth") || n.includes("table")))
+          return "dj_booth";
+        return null;
+      };
+      for (const item of arr) {
+        const src = typeof item === "string" ? item : item?.name || "";
+        const k = mapKey(src);
+        if (!k) continue;
+        backline[k] = (backline[k] || 0) + 1;
+      }
+    } catch {
+      // noop
+    }
+    return { units, backline };
+  };
+
   let state: LiveBookingEngineState = {
     stepId: defaultSteps[0]!,
     stepIndex: 0,
@@ -76,6 +145,7 @@ export function createLiveBookingEngineCore(
       unavailableDates: [],
       status: "idle",
     },
+    travelResult: null,
     quote: {
       items: [],
       total: null,
@@ -92,6 +162,7 @@ export function createLiveBookingEngineCore(
       savingDraft: false,
       submitting: false,
       offline: false,
+      quoteLoading: false,
     },
     validation: {
       currentStepErrors: [],
@@ -107,6 +178,64 @@ export function createLiveBookingEngineCore(
   const setState = (partial: Partial<LiveBookingEngineState>) => {
     state = { ...state, ...partial };
     notify();
+  };
+
+  const buildPayload = (status: "draft" | "pending_quote") => {
+    const d = state.details as any;
+    const toIso = (value: any) => (value ? new Date(value).toISOString() : undefined);
+    const toNumber = (value: any) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : undefined;
+    };
+    const travel = state.travelResult as TravelResult | null;
+    const travelBreakdown = {
+      ...(travel?.breakdown || {}),
+      distance_km: toNumber((travel as any)?.distanceKm),
+      mode: (travel as any)?.mode,
+      supplier_distance_km: toNumber((state.quote as any)?.supplierDistanceKm),
+      venue_name: d?.locationName,
+      venue_type: d?.venueType,
+      event_type: d?.eventType,
+      guests_count: toNumber(d?.guests),
+      sound_required: d?.sound === "yes",
+      sound_mode: d?.soundMode,
+      selected_sound_service_id: d?.soundSupplierServiceId,
+      event_city: d?.location,
+      stage_required: !!d?.stageRequired,
+      stage_size: d?.stageRequired ? d?.stageSize || "S" : undefined,
+      lighting_evening: !!d?.lightingEvening,
+      upgrade_lighting_advanced: !!d?.lightingUpgradeAdvanced,
+      backline_required: !!d?.backlineRequired,
+      provided_sound_estimate: toNumber(d?.providedSoundEstimate),
+    };
+    const soundContext = {
+      sound_required: d?.sound === "yes",
+      mode: d?.soundMode || "none",
+      guest_count: toNumber(d?.guests),
+      venue_type: d?.venueType,
+      stage_required: !!d?.stageRequired,
+      stage_size: d?.stageRequired ? d?.stageSize || "S" : undefined,
+      lighting_evening: !!d?.lightingEvening,
+      backline_required: !!d?.backlineRequired,
+      selected_sound_service_id: d?.soundSupplierServiceId,
+    };
+    return {
+      artist_id: params.artistId,
+      service_id: params.serviceId,
+      status,
+      proposed_datetime_1: toIso(d?.date),
+      message: d?.notes,
+      attachment_url: d?.attachment_url,
+      details: state.details,
+      config: params.config,
+      travel_breakdown: travelBreakdown,
+      sound_context: soundContext,
+      rider_units: (state.quote as any)?.riderUnits,
+      backline_requested: (state.quote as any)?.backlineRequested,
+      service_provider_id: 0,
+      travel_mode: travel?.mode,
+      travel_cost: toNumber((travel as any)?.totalCost),
+    };
   };
 
   const getDraftKey = () =>
@@ -185,6 +314,7 @@ export function createLiveBookingEngineCore(
             ...state,
             details: { ...state.details, ...(snap.details as any) },
             booking: { ...state.booking, requestId: snap.requestId },
+            travelResult: snap.travelResult ?? state.travelResult,
           };
         }
       } catch (e) {
@@ -201,12 +331,7 @@ export function createLiveBookingEngineCore(
         flags: { ...state.flags, savingDraft: true },
       });
       try {
-        const payload = {
-          artist_id: params.artistId,
-          service_id: params.serviceId,
-          details: state.details,
-          config: params.config,
-        };
+        const payload = buildPayload("draft");
         let reqId = state.booking.requestId;
         if (!reqId) {
           const created = await env.bookingApi.createDraft(payload);
@@ -218,9 +343,19 @@ export function createLiveBookingEngineCore(
         await env.storage.saveDraft(getDraftKey(), {
           details: state.details,
           requestId: reqId ?? null,
+          travelResult: state.travelResult,
+        });
+        setState({
+          validation: { ...state.validation, globalError: null },
         });
       } catch (e) {
         env.log?.("saveDraft.error", e);
+        setState({
+          validation: {
+            ...state.validation,
+            globalError: "Failed to save draft. Please try again.",
+          },
+        });
       } finally {
         setState({
           flags: { ...state.flags, savingDraft: false },
@@ -250,10 +385,8 @@ export function createLiveBookingEngineCore(
           flags: { ...state.flags, submitting: true },
         });
         try {
-          await env.bookingApi.submit(rid, {
-            details: state.details,
-            config: params.config,
-          });
+          const payload = buildPayload("pending_quote");
+          await env.bookingApi.submit(rid, payload);
           if (initialMessage) {
             await env.bookingApi.postSystemMessage(rid, initialMessage);
           }
@@ -261,6 +394,7 @@ export function createLiveBookingEngineCore(
           setState({
             booking: { requestId: rid, status: "submitted" },
             flags: { ...state.flags, submitting: false },
+            validation: { ...state.validation, globalError: null },
           });
         } catch (e) {
           env.log?.("submit.error", e);
@@ -284,6 +418,110 @@ export function createLiveBookingEngineCore(
       setState({
         flags: { ...state.flags, offline: isOffline },
       });
+    },
+    setTravelResult: (travel) => {
+      setState({
+        travelResult: travel,
+        quote: { ...state.quote, isDirty: true },
+      });
+    },
+    recalculateQuote: async () => {
+      if (!state.quote.isDirty || state.flags.quoteLoading) return;
+      setState({
+        flags: { ...state.flags, quoteLoading: true },
+      });
+      try {
+        const d = state.details as any;
+        const travel = state.travelResult as any;
+        const normalizeGuests = () => {
+          const n = Number(d?.guests);
+          return Number.isFinite(n) ? n : undefined;
+        };
+        if (!params.serviceId || !d?.location) {
+          setState({
+            flags: { ...state.flags, quoteLoading: false },
+          });
+          return;
+        }
+
+        let supplierDistanceKm: number | undefined;
+        let riderUnits: Record<string, number> | undefined;
+        let backlineRequested: Record<string, number> | undefined;
+
+        try {
+          const riderSpec = await env.service.getRiderSpec(params.serviceId);
+          if (riderSpec) {
+            const norm = normalizeRiderForPricing(riderSpec);
+            riderUnits = norm.units;
+            backlineRequested = d?.backlineRequired ? norm.backline : undefined;
+          }
+        } catch (e) {
+          env.log?.("rider.error", e);
+        }
+
+        try {
+          const supplierId = d?.soundSupplierServiceId as number | undefined;
+          if (supplierId && d?.location) {
+            const svc = await env.service.getService(supplierId);
+            const baseLoc = svc?.details?.base_location as string | undefined;
+            if (baseLoc) {
+              const dist = await env.travel.getDistanceKm(baseLoc, d.location);
+              if (typeof dist === "number" && Number.isFinite(dist)) {
+                supplierDistanceKm = dist * 2; // round-trip
+              }
+            }
+          }
+        } catch (e) {
+          env.log?.("supplier.distance.error", e);
+        }
+
+        const payload: any = {
+          base_fee: params.config.basePriceZar || 0,
+          distance_km: Number(travel?.distanceKm || 0),
+          service_id: params.serviceId,
+          event_city: d?.location,
+          sound_required: d?.sound === "yes",
+          sound_mode: d?.soundMode,
+          guest_count: normalizeGuests(),
+          venue_type: d?.venueType,
+          stage_required: !!d?.stageRequired,
+          stage_size: d?.stageRequired ? d?.stageSize || "S" : undefined,
+          lighting_evening: !!d?.lightingEvening,
+          backline_required: !!d?.backlineRequired,
+          upgrade_lighting_advanced: !!d?.lightingUpgradeAdvanced,
+          selected_sound_service_id: d?.soundSupplierServiceId,
+          supplier_distance_km: supplierDistanceKm,
+          rider_units: riderUnits,
+          backline_requested: backlineRequested,
+          travel_rate: params.config.travelRate,
+          travel_members: params.config.travelMembers,
+        };
+        const res = await env.quoteApi.estimateQuote(payload);
+        setState({
+          quote: {
+            items: (res as any)?.items ?? [],
+            total: (res as any)?.total ?? null,
+            travel: (res as any)?.travel_estimates ?? null,
+            soundCost: (res as any)?.sound_cost ?? null,
+            supplierDistanceKm: supplierDistanceKm ?? null,
+            riderUnits,
+            backlineRequested,
+            isDirty: false,
+          },
+          flags: { ...state.flags, quoteLoading: false },
+          validation: { ...state.validation, globalError: null },
+        });
+      } catch (e) {
+        env.log?.("quote.error", e);
+        setState({
+          flags: { ...state.flags, quoteLoading: false },
+          validation: {
+            ...state.validation,
+            globalError:
+              "Failed to refresh quote. Please check your details and try again.",
+          },
+        });
+      }
     },
   };
 

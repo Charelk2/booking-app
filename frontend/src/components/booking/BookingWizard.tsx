@@ -11,16 +11,10 @@ import type { EventDetails } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useIsMobile from '@/hooks/useIsMobile';
 import useBookingForm from '@/hooks/useBookingForm';
-import useOfflineQueue from '@/hooks/useOfflineQueue';
 import useTransportState from '@/hooks/useTransportState';
 import { useDebounce } from '@/hooks/useDebounce';
 import { parseBookingText } from '@/lib/api';
 import {
-  getServiceProviderAvailability,
-  createBookingRequest,
-  updateBookingRequest,
-  postMessageToBookingRequest,
-  calculateQuote,
   estimatePriceSafe,
   calculateSoundServiceEstimate,
 } from '@/lib/api';
@@ -31,11 +25,9 @@ import { computeSoundServicePrice, type LineItem } from '@/lib/soundPricing';
 import { bookingWizardStepFields, isUnavailableDate, normalizeEventType, normalizeGuestCount } from '@/lib/shared/validation/booking';
 import { fromServiceToLiveBookingConfig, useLiveBookingEngineWeb } from "@/features/booking/livePerformance";
 
-import { BookingRequestCreate } from '@/types';
 import './wizard/wizard.css';
 import toast from '../ui/Toast';
 import { apiUrl, setClientBillingByBookingRequest } from '@/lib/api';
-import { updateSummary as cacheUpdateSummary } from '@/lib/chat/threadCache';
 // 404-aware service cache (tombstones)
 const svcCache = new Map<number, any | null>();
 type ServiceJson = any | null; // null = tombstone (missing)
@@ -172,10 +164,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   }
 
   // --- Component States ---
-  const [unavailable, setUnavailable] = useState<string[]>([]);
   const [artistLocation, setArtistLocation] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [maxStepCompleted, setMaxStepCompleted] = useState(0);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [reviewDataError, setReviewDataError] = useState<string | null>(null);
@@ -201,7 +191,16 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   const [serviceData, setServiceData] = useState<any>(null);
   const liveConfig = useMemo(
-    () => fromServiceToLiveBookingConfig(serviceData as any),
+    () =>
+      serviceData
+        ? fromServiceToLiveBookingConfig(serviceData as any)
+        : {
+            basePriceZar: 0,
+            durationMinutes: 60,
+            soundProvisioning: {},
+            travelRate: undefined,
+            travelMembers: undefined,
+          },
     [serviceData],
   );
   const liveEngine = useLiveBookingEngineWeb({
@@ -218,6 +217,15 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       } catch {}
     },
     [setDetails, liveEngine.actions],
+  );
+  const setTravelResultSynced = useCallback(
+    (tr: TravelResult | null) => {
+      setTravelResult(tr);
+      try {
+        liveEngine.actions.setTravelResult(tr);
+      } catch {}
+    },
+    [setTravelResult, liveEngine.actions],
   );
   const billingDebounce = useRef<any>(null);
 
@@ -260,43 +268,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     });
   };
 
-  const { enqueue: enqueueBooking } = useOfflineQueue<{
-    action: 'draft' | 'submit';
-    payload: BookingRequestCreate;
-    requestId?: number;
-    message?: string;
-  }>('offlineBookingQueue', async ({ action, payload, requestId: rid, message }) => {
-    let id = rid;
-    try {
-      if (id) {
-        await updateBookingRequest(id, payload);
-      } else {
-        const res = await createBookingRequest(payload);
-        id = res.data.id;
-        setRequestId(id);
-      }
-      if (action === 'submit' && id && message) {
-        const cid = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
-          ? (crypto as any).randomUUID()
-          : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
-        await postMessageToBookingRequest(id, {
-          content: message,
-          message_type: 'SYSTEM',
-        }, { clientRequestId: cid });
-        toast.success('Queued booking request submitted.');
-      } else if (action === 'draft') {
-        toast.success('Queued draft saved.');
-      }
-    } catch (err) {
-      console.error('Queued booking request failed:', err);
-      throw err;
-    }
-  });
-
   const isMobile = useIsMobile();
   // Convert zero-based step index to progress percentage for the mobile progress bar.
   const progressValue = ((step + 1) / steps.length) * 100;
   const hasLoaded = useRef(false);
+  const hasHydratedFromDraft = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const firstInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const isCurrentlyOnline = useCallback(
@@ -325,10 +301,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   useEffect(() => {
     void trigger();
-    try {
-      liveEngine.actions.updateMany(watchedValues as any);
-    } catch {}
-  }, [debouncedValues, trigger, watchedValues, liveEngine.actions]);
+  }, [debouncedValues, trigger]);
 
   // --- Effects ---
 
@@ -390,15 +363,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   useEffect(() => {
     if (!artistId) return;
     const fetchArtistData = async () => {
-      let availabilityRes: any = null;
       let svcRes: any = null;
-
-      // Availability should never block provider/service lookups or travel.
-      try {
-        availabilityRes = await getServiceProviderAvailability(artistId);
-      } catch (err) {
-        console.error('Failed to fetch artist availability:', err);
-      }
 
       try {
         svcRes = serviceId
@@ -409,10 +374,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         setServiceData(svcRes);
       } catch (err) {
         console.error('Failed to fetch service data for booking wizard:', err);
-      }
-
-      if (availabilityRes && availabilityRes.data && Array.isArray(availabilityRes.data.unavailable_dates)) {
-        setUnavailable(availabilityRes.data.unavailable_dates);
       }
 
       // Derive location, VAT, and provider name from the service's nested provider profile.
@@ -509,12 +470,25 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     hasLoaded.current = true;
   }, [isOpen, loadSavedProgress, peekSavedProgress, serviceId]);
 
-  // Keep engine details in sync with context when they change (read-only binding for now)
   useEffect(() => {
-    if (liveDetails) {
-      setDetailsSynced(liveDetails as any);
+    if (!hasHydratedFromDraft.current && liveEngine.state.booking.requestId && liveDetails) {
+      setDetails(liveDetails as any);
+      reset(liveDetails as any);
+      hasHydratedFromDraft.current = true;
     }
-  }, [liveDetails, setDetailsSynced]);
+  }, [liveDetails, liveEngine.state.booking.requestId, setDetails, reset]);
+
+  useEffect(() => {
+    if (liveEngine.state.booking.requestId) {
+      setRequestId(liveEngine.state.booking.requestId as number | undefined);
+    }
+  }, [liveEngine.state.booking.requestId, setRequestId]);
+
+  useEffect(() => {
+    if (liveEngine.state.validation.globalError) {
+      setValidationError(liveEngine.state.validation.globalError);
+    }
+  }, [liveEngine.state.validation.globalError]);
 
   // Effect to set serviceId in the booking context if provided as a prop
   useEffect(() => {
@@ -570,7 +544,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       setReviewDataError('Missing booking details (Service ID or Event Location) to calculate estimates.');
       if (activeCalcRef.current === calcId) {
         setCalculatedPrice(null);
-        setTravelResult(null);
+        setTravelResultSynced(null);
       }
       return;
     }
@@ -590,7 +564,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         setReviewDataError('Selected service is unavailable.');
         setCalculatedPrice(null);
         setServicePriceItems(null);
-        setTravelResult(null);
+        setTravelResultSynced(null);
         return;
       }
 
@@ -662,7 +636,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const carRentalPrice = parseOptionalNumber((svcRes as any)?.car_rental_price);
       const flightPrice = parseOptionalNumber((svcRes as any)?.flight_price);
 
-      let quote: Awaited<ReturnType<typeof calculateQuote>> | null = null;
+      let quote: any = null;
       const isSoundServiceCategory = (svcCategorySlug || '').toLowerCase().includes('sound');
       if (!isSoundServiceCategory && details.sound === 'yes') {
         // Base calculation (travel + etc.)
@@ -686,7 +660,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             if (!preferredIds.length && prefs.length) preferredIds = Array.from(new Set(prefs.flatMap(findIds)));
             preferredIds = preferredIds.slice(0, 3);
             const candidates: { service_id: number; provider_id?: number; distance_km: number; available: boolean }[] = [];
-            const eventDateStr = (() => { const dd = (details as any)?.date; if (!dd) return null; try { const dt = typeof dd === 'string' ? new Date(dd) : dd; return dt.toISOString().slice(0,10); } catch { return null; } })();
             for (const pid of preferredIds) {
               try {
                 const s = await fetchServiceCached(pid);
@@ -695,8 +668,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 const baseLocation = s?.details?.base_location as string | undefined;
                 let distance_km = 0;
                 if (baseLocation && details.location) { try { const m = await getDrivingMetricsCached(baseLocation, details.location); distance_km = m.distanceKm || 0; } catch {} }
-                let available = true;
-                try { const providerId = Number(s?.artist?.id || s?.service_provider?.id || s?.service_provider_id); if (providerId && eventDateStr) { const av = await getServiceProviderAvailability(providerId); const unavailable = (av?.data?.unavailable_dates || []) as string[]; available = !unavailable.includes(eventDateStr); } } catch {}
+                const available = true;
                 candidates.push({ service_id: pid, provider_id: Number(s?.artist?.id || s?.service_provider?.id || s?.service_provider_id) || undefined, distance_km, available });
               } catch {}
             }
@@ -752,23 +724,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           } catch {}
         } catch {}
 
-        quote = await calculateQuote({
-          base_fee: basePrice,
-          // distance_km omitted: backend computes it from artist base → event city
-          service_id: serviceId,
-          event_city: details.location,
-          guest_count: normalizeGuestCount((details as any).guests),
-          venue_type: (details as any).venueType,
-          stage_required: !!(details as any).stageRequired,
-          stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-          lighting_evening: !!(details as any).lightingEvening,
-          backline_required: !!(details as any).backlineRequired,
-          upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
-          selected_sound_service_id: (details as any).soundSupplierServiceId || selectedIdForCalc,
-          supplier_distance_km: supplierDistanceKm,
-          rider_units: riderUnitsForServer,
-          backline_requested: backlineRequestedForServer,
-        } as any);
+        quote = null; // Engine now owns quote calculation
         setCalculatedPrice(Number(quote.total));
 
         // Prefer server-computed sound_cost; fallback to local audience/pricebook estimate if missing
@@ -1043,7 +999,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               const cachedTravel = travelResultCache.current.get(travelSig);
               if (cachedTravel) {
                 lastTravelSigRef.current = travelSig;
-                setTravelResult(cachedTravel);
+                setTravelResultSynced(cachedTravel);
                 applyArtistVariableSoundForMode(cachedTravel.mode === 'fly' ? 'fly' : 'drive');
               } else {
               const airportFn = async (city: string) => {
@@ -1102,7 +1058,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               if (finalTravel && typeof finalTravel.totalCost === 'number' && Number.isFinite(finalTravel.totalCost) && finalTravel.totalCost > 0) {
                 lastTravelSigRef.current = travelSig;
                 travelResultCache.current.set(travelSig, finalTravel);
-                setTravelResult(finalTravel);
+                setTravelResultSynced(finalTravel);
                 applyArtistVariableSoundForMode(finalTravel.mode === 'fly' ? 'fly' : 'drive');
               }
             }
@@ -1113,18 +1069,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       } else {
         // Still compute totals (including travel) on the server even if no external sound.
         try {
-          const quote2 = await calculateQuote({
-            base_fee: basePrice,
-            // Omit distance_km; backend resolves from artist base → event city
-            service_id: serviceId,
-            event_city: details.location,
-          } as any);
-          setCalculatedPrice(Number(quote2.total));
+          // Quote handled by engine; keep travel fallback only
+          setCalculatedPrice(null);
           setSoundCost(0);
           setSoundMode(null);
           setSoundModeOverridden(false);
 
-          const tm2 = (quote2?.travel_mode || '').toLowerCase();
           try {
             const dt = (() => {
               const dd = (details as any)?.date;
@@ -1145,7 +1095,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               const cachedTravel = travelResultCache.current.get(travelSig);
               if (cachedTravel) {
                 lastTravelSigRef.current = travelSig;
-                setTravelResult(cachedTravel);
+                setTravelResultSynced(cachedTravel);
               } else {
                 const airportFn = async (city: string) => {
                   const mock = getMockCoordinates(city);
@@ -1201,7 +1151,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   if (finalTravel && typeof finalTravel.totalCost === 'number' && Number.isFinite(finalTravel.totalCost) && finalTravel.totalCost > 0) {
                     lastTravelSigRef.current = travelSig;
                     travelResultCache.current.set(travelSig, finalTravel);
-                    setTravelResult(finalTravel);
+                setTravelResultSynced(finalTravel);
                   }
               }
             }
@@ -1220,7 +1170,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       console.error('Failed to calculate booking estimates:', err);
       setReviewDataError('Failed to calculate booking estimates. Please ensure location details are accurate and try again.');
       setCalculatedPrice(null);
-      setTravelResult(null);
+      setTravelResultSynced(null);
     } finally {
       if (activeCalcRef.current === calcId) {
         lastSigRef.current = sig;
@@ -1247,7 +1197,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 (details as any).lightingUpgradeAdvanced,
                 (details as any).backlineRequired,
                 // Setter from context (stable but included for correctness)
-                setTravelResult,
+                setTravelResult: setTravelResultSynced,
                 reviewDataError,
   ]);
 
@@ -1334,6 +1284,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   ]);
 
   // --- Navigation & Submission Handlers ---
+  useEffect(() => {
+    if (step === steps.length - 1 && liveEngine.state.quote.isDirty && details.location) {
+      void liveEngine.actions.recalculateQuote();
+    }
+  }, [step, liveEngine.state.quote.isDirty, liveEngine.actions, details.location]);
 
   // Handles 'Enter' key press for navigation/submission
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
@@ -1356,7 +1311,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     }
     // Guard for step 2 (Date): prevent selecting unavailable dates (especially on mobile native pickers)
     if (step === 2) {
-      if (isUnavailableDate(details as any, unavailable)) {
+      if (isUnavailableDate(details as any, liveEngine.state.availability.unavailableDates)) {
         setShowUnavailableModal(true);
         return;
       }
@@ -1409,65 +1364,17 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   };
 
   // Handles saving the booking request as a draft
-  const saveDraft = handleSubmit(async (vals: EventDetails) => {
-    const payload: BookingRequestCreate = {
-      artist_id: artistId,
-      service_id: serviceId,
-      proposed_datetime_1: vals.date?.toISOString(),
-      message: vals.notes,
-      attachment_url: vals.attachment_url,
-      status: 'draft',
-      travel_mode: travelResult?.mode,
-      travel_cost: travelResult?.totalCost,
-      travel_breakdown: {
-        ...(travelResult?.breakdown || {}),
-        distance_km: travelResult?.distanceKm,
-        // Include a normalized mode for downstream consumers that expect it here
-        mode: travelResult?.mode,
-        venue_name: vals.locationName,
-        venue_type: (vals as any).venueType || (details as any)?.venueType || undefined,
-        event_type: normalizeEventType((vals as any).eventType ?? (details as any)?.eventType),
-        guests_count: normalizeGuestCount((vals as any).guests ?? (details as any)?.guests),
-        sound_required: vals.sound === 'yes',
-        sound_mode: (details as any).soundMode,
-        selected_sound_service_id: (details as any).soundSupplierServiceId,
-        event_city: details.location,
-        // For supplier/external sound, prefer the computed soundCost from the
-        // review calculator; fall back to any existing providedSoundEstimate
-        // snapshot for legacy flows like artist_provides tiers.
-        provided_sound_estimate: (() => {
-          const sc = Number(soundCost || 0);
-          if (Number.isFinite(sc) && sc > 0) return sc;
-          return (details as any).providedSoundEstimate;
-        })(),
-        managed_by_artist_markup_percent: undefined,
-      },
-      service_provider_id: 0
-    } as BookingRequestCreate;
-    // Attach normalized sound context (cast to avoid excess property checks during transition)
-    (payload as any).sound_context = {
-      sound_required: vals.sound === 'yes',
-      mode: (details as any).soundMode || 'none',
-      guest_count: normalizeGuestCount((details as any).guests),
-      venue_type: (details as any).venueType,
-      stage_required: !!(details as any).stageRequired,
-      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-      lighting_evening: !!(details as any).lightingEvening,
-      backline_required: !!(details as any).backlineRequired,
-      selected_sound_service_id: (details as any).soundSupplierServiceId,
-    };
-    if (!isCurrentlyOnline()) {
-      enqueueBooking({ action: 'draft', payload, requestId });
-      toast.success("Queued draft saved. We'll sync it when you're back online.");
-      return;
-    }
+  const saveDraft = handleSubmit(async () => {
     try {
-      if (requestId) {
-        await updateBookingRequest(requestId, payload);
-      } else {
-        const res = await createBookingRequest(payload);
-        setRequestId(res.data.id);
+      await liveEngine.actions.saveDraft();
+      if (liveEngine.state.validation.globalError) {
+        setValidationError(liveEngine.state.validation.globalError);
+        return;
       }
+      if (liveEngine.state.booking.requestId) {
+        setRequestId(liveEngine.state.booking.requestId);
+      }
+      setValidationError(null);
       toast.success('Draft saved successfully!');
     } catch (e) {
       console.error('Save Draft Error:', e);
@@ -1494,54 +1401,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       return;
     }
 
-    setSubmitting(true);
-    const payload: BookingRequestCreate = {
-      artist_id: artistId,
-      service_id: serviceId,
-      proposed_datetime_1: vals.date?.toISOString(),
-      message: vals.notes,
-      attachment_url: vals.attachment_url,
-      status: 'pending_quote',
-      travel_mode: travelResult.mode,
-      travel_cost: travelResult.totalCost,
-      travel_breakdown: {
-        ...travelResult.breakdown,
-        distance_km: travelResult.distanceKm,
-        // Include a normalized mode for downstream consumers that expect it here
-        mode: travelResult.mode,
-        venue_name: vals.locationName,
-        venue_type: (vals as any).venueType || (details as any)?.venueType || undefined,
-        event_type: normalizeEventType((vals as any).eventType ?? (details as any)?.eventType),
-        guests_count: normalizeGuestCount((vals as any).guests ?? (details as any)?.guests),
-        sound_required: vals.sound === 'yes',
-        sound_mode: (details as any).soundMode,
-        selected_sound_service_id: (details as any).soundSupplierServiceId,
-        event_city: details.location,
-        provided_sound_estimate: (() => {
-          const sc = Number(soundCost || 0);
-          if (Number.isFinite(sc) && sc > 0) return sc;
-          return (details as any).providedSoundEstimate;
-        })(),
-        stage_required: !!(details as any).stageRequired,
-        stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-        lighting_evening: !!(details as any).lightingEvening,
-        upgrade_lighting_advanced: !!(details as any).lightingUpgradeAdvanced,
-        backline_required: !!(details as any).backlineRequired,
-      },
-      service_provider_id: 0
-    } as BookingRequestCreate;
-    // Attach normalized sound context (cast to avoid excess property checks during transition)
-    (payload as any).sound_context = {
-      sound_required: vals.sound === 'yes',
-      mode: (details as any).soundMode || 'none',
-      guest_count: normalizeGuestCount((details as any).guests),
-      venue_type: (details as any).venueType,
-      stage_required: !!(details as any).stageRequired,
-      stage_size: (details as any).stageRequired ? ((details as any).stageSize || 'S') : undefined,
-      lighting_evening: !!(details as any).lightingEvening,
-      backline_required: !!(details as any).backlineRequired,
-      selected_sound_service_id: (details as any).soundSupplierServiceId,
-    };
     const message = `Booking details:\nEvent Type: ${
       vals.eventType || 'N/A'
     }\nDescription: ${vals.eventDescription || 'N/A'}\nDate: ${
@@ -1552,101 +1411,37 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       vals.sound || 'N/A'
     }\nNotes: ${vals.notes || 'N/A'}`;
 
-    if (!isCurrentlyOnline()) {
-      enqueueBooking({ action: 'submit', payload, requestId, message });
-      toast.success("Booking request queued. We'll submit it when you're back online.");
-      setSubmitting(false);
-      return;
-    }
-
     try {
-      const res = requestId
-        ? await updateBookingRequest(requestId, payload)
-        : await createBookingRequest(payload);
-
-      const id = requestId || res?.data?.id;
-      if (!id) throw new Error('Missing booking request ID after creation/update.');
-
-      // Fast-thread hydration for Thandi: seed Inbox preview and a local
-      // booking-details stub so the new thread is fully visible immediately.
-      if (!requestId) {
-        try {
-          const created: any = res?.data || {};
-          const nowIso = new Date().toISOString();
-          const createdAt: string | undefined = created.created_at || created.createdAt;
-          const updatedAt: string | undefined = created.updated_at || created.updatedAt;
-          const ts = (created.last_message_timestamp as string | undefined) || updatedAt || createdAt || nowIso;
-          const counterpartyLabel = providerName || (created.service?.title as string | undefined) || 'Service Provider';
-          const counterpartyAvatar = providerAvatarUrl || (created as any)?.counterparty_avatar_url || null;
-
-          // 0) Persist selection so /inbox (without ?requestId) opens this thread.
-          try {
-            if (typeof window !== 'undefined' && user?.id) {
-              const role = user.user_type === 'service_provider' ? 'artist' : 'client';
-              const uid = String(user.id);
-              const cacheKey = `inbox:threadsCache:v2:${role}:${uid}`;
-              const selKey = `${cacheKey}:selected`;
-              try { sessionStorage.setItem(selKey, String(id)); } catch {}
-              try { localStorage.setItem(selKey, JSON.stringify({ id: Number(id), ts: Date.now() })); } catch {}
-            }
-          } catch {
-            // Selection persistence is best-effort.
-          }
-
-          // 1) Update unified thread summaries so ConversationList renders
-          // a non-empty, correctly labeled preview immediately.
-          try {
-            cacheUpdateSummary(Number(id), {
-              id: Number(id),
-              last_message_timestamp: ts,
-              last_message_content: 'New Booking Request',
-              unread_count: 0,
-              counterparty_label: counterpartyLabel,
-              counterparty_avatar_url: counterpartyAvatar,
-            } as any);
-          } catch {
-            // Best-effort only; do not block submit on cache issues.
-          }
-
-          // 2) Ephemeral booking-details system stub removed:
-          // threadCache + backend echo keep the timeline populated.
-        } catch {
-          // Hydration is best-effort; never block submit.
-        }
+      const wasOffline = !isCurrentlyOnline();
+      await liveEngine.actions.submitBooking(message);
+      if (liveEngine.state.validation.globalError) {
+        setValidationError(liveEngine.state.validation.globalError);
+        return;
       }
-
-      // Redirect immediately to inbox for a snappy UX; post the details line in the background.
-      // Include the requestId in the URL so the Inbox opens with this new thread
-      // active, avoiding confusion where another thread appears selected.
-      const inboxUrl = `/inbox?requestId=${id}`;
-      try { router.prefetch(inboxUrl); } catch {}
-      toast.success('Your booking request has been submitted successfully!');
-      router.push(inboxUrl);
-
-      // Fire-and-forget posting of the details system line; do not block navigation
-      (async () => {
-        try {
-          const cid = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
-            ? (crypto as any).randomUUID()
-            : `cid:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
-          await postMessageToBookingRequest(id, {
-            content: message,
-            // Backend expects uppercase message types.
-            message_type: 'SYSTEM',
-          }, { clientRequestId: cid });
-        } catch (err) {
-          console.warn('Failed to post details message for request', id, err);
-        }
-      })();
-
-      // No resetBooking() or onClose() here; navigation handles teardown
+      setValidationError(null);
+      if (liveEngine.state.booking.requestId) {
+        setRequestId(liveEngine.state.booking.requestId);
+      }
+      if (wasOffline || liveEngine.state.flags.offline) {
+        toast.success("Booking request queued. We'll submit it when you're back online.");
+      } else {
+        toast.success('Your booking request has been submitted successfully!');
+      }
     } catch (e) {
       console.error('Submit Request Error:', e);
       setValidationError('Failed to submit booking request. Please try again.');
-    } finally {
-      setSubmitting(false);
     }
   });
+
+  const reviewQuote = liveEngine.state.quote;
+  const reviewTravelResult = liveEngine.state.travelResult ?? travelResult;
+  const reviewCalculatedPrice = reviewQuote.total ?? calculatedPrice;
+  const reviewSoundCost = reviewQuote.soundCost ?? soundCost;
+  const reviewServicePriceItems =
+    (Array.isArray(reviewQuote.items) && reviewQuote.items.length > 0)
+      ? reviewQuote.items
+      : servicePriceItems;
+  const reviewLoading = liveEngine.state.flags.quoteLoading || isLoadingReviewData;
 
   // --- Render Step Logic ---
   const renderStep = () => {
@@ -1671,7 +1466,14 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           />
         );
       case 2:
-        return <DateTimeStep control={control} unavailable={unavailable} />;
+        return (
+          <DateTimeStep
+            control={control}
+            unavailable={liveEngine.state.availability.unavailableDates}
+            loading={liveEngine.state.availability.status === 'checking'}
+            status={liveEngine.state.availability.status}
+          />
+        );
       case 3:
         return <EventTypeStep control={control} />;
       case 4:
@@ -1698,18 +1500,18 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             onBack={prev}
             onSaveDraft={saveDraft}
             onNext={submitRequest}
-            submitting={submitting}
-            isLoadingReviewData={isLoadingReviewData}
+            submitting={liveEngine.state.flags.submitting}
+            isLoadingReviewData={reviewLoading}
             reviewDataError={reviewDataError}
-            calculatedPrice={calculatedPrice}
-            travelResult={travelResult}
+            calculatedPrice={reviewCalculatedPrice}
+            travelResult={reviewTravelResult}
             submitLabel="Submit Request"
             baseServicePrice={baseServicePrice}
-            soundCost={soundCost}
+            soundCost={reviewSoundCost}
             soundMode={soundMode}
             soundModeOverridden={soundModeOverridden}
             selectedSupplierName={selectedSupplierName}
-            servicePriceItems={servicePriceItems}
+            servicePriceItems={reviewServicePriceItems}
             serviceCategorySlug={serviceCategorySlug}
             providerVatRegistered={artistVatRegistered === true}
             providerVatRate={artistVatRate}

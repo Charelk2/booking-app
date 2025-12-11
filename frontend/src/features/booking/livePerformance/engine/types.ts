@@ -1,4 +1,5 @@
 import type { EventDetails } from "@/contexts/BookingContext";
+import type { TravelResult } from "@/lib/travel";
 
 export type LiveBookingStepId =
   | "description"
@@ -17,6 +18,7 @@ export interface LiveBookingEngineState {
   steps: LiveBookingStepId[];
 
   details: EventDetails;
+  travelResult: TravelResult | null;
 
   availability: {
     unavailableDates: string[];
@@ -28,6 +30,9 @@ export interface LiveBookingEngineState {
     total: number | null;
     travel: any | null;
     soundCost: number | null;
+    supplierDistanceKm?: number | null;
+    riderUnits?: Record<string, number> | undefined;
+    backlineRequested?: Record<string, number> | undefined;
     isDirty: boolean;
   };
 
@@ -41,6 +46,7 @@ export interface LiveBookingEngineState {
     savingDraft: boolean;
     submitting: boolean;
     offline: boolean;
+    quoteLoading: boolean;
   };
 
   validation: {
@@ -63,6 +69,8 @@ export interface LiveBookingEngineActions {
   discardDraft: () => Promise<void>;
   submitBooking: (initialMessage?: string) => Promise<void>;
   setOffline: (isOffline: boolean) => void;
+  setTravelResult: (travel: TravelResult | null) => void;
+  recalculateQuote: () => Promise<void>;
 }
 
 export interface LiveServiceConfig {

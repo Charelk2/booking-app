@@ -8,6 +8,8 @@ import {
   postMessageToBookingRequest,
 } from "@/lib/api";
 import type { EventDetails } from "@/contexts/BookingContext";
+import type { TravelResult } from "@/lib/travel";
+import { getDrivingMetricsCached } from "@/lib/travel";
 import { useOfflineQueue } from "@/hooks/useOfflineQueue";
 import type { LiveBookingEngine, LiveBookingEngineParams } from "./types";
 import { createLiveBookingEngineCore, type LiveEnv } from "./core";
@@ -16,6 +18,7 @@ import { useLiveBookingEngine } from "./engine";
 type StoredSnapshot = {
   details: EventDetails;
   requestId: number | null;
+  travelResult?: TravelResult | null;
 };
 
 function makeStorage(key: string): LiveEnv["storage"] {
@@ -51,12 +54,54 @@ export function useLiveBookingEngineWeb(
 
   if (!envRef.current) {
     const storage = makeStorage(`live:${params.artistId}:${params.serviceId}`);
+    const serviceCache = new Map<number, any | null>();
+    const riderCache = new Map<number, any | null>();
     envRef.current = {
       now: () => new Date(),
       availability: {
         async getUnavailableDates(artistId: number) {
           const res = await getServiceProviderAvailability(artistId);
           return (res?.data?.unavailable_dates || []) as string[];
+        },
+      },
+      service: {
+        async getService(serviceId: number) {
+          if (serviceCache.has(serviceId)) return serviceCache.get(serviceId) || null;
+          try {
+            const res = await fetch(`/api/v1/services/${serviceId}`, { cache: "force-cache" });
+            if (!res.ok) throw new Error(`svc ${serviceId} ${res.status}`);
+            const json = await res.json();
+            serviceCache.set(serviceId, json);
+            return json;
+          } catch {
+            serviceCache.set(serviceId, null);
+            return null;
+          }
+        },
+        async getRiderSpec(serviceId: number) {
+          if (riderCache.has(serviceId)) return riderCache.get(serviceId) || null;
+          try {
+            const res = await fetch(`/api/v1/services/${serviceId}/rider`, { cache: "force-cache" });
+            if (!res.ok) throw new Error(`rider ${serviceId} ${res.status}`);
+            const json = await res.json();
+            const spec = json?.spec ?? null;
+            riderCache.set(serviceId, spec);
+            return spec;
+          } catch {
+            riderCache.set(serviceId, null);
+            return null;
+          }
+        },
+      },
+      travel: {
+        async getDistanceKm(origin: string, destination: string) {
+          try {
+            const metrics = await getDrivingMetricsCached(origin, destination);
+            const dist = metrics?.distanceKm;
+            return typeof dist === "number" && Number.isFinite(dist) ? dist : null;
+          } catch {
+            return null;
+          }
         },
       },
       quoteApi: {
@@ -74,7 +119,10 @@ export function useLiveBookingEngineWeb(
           await updateBookingRequest(id, payload as any);
         },
         async postSystemMessage(bookingRequestId: number, content: string) {
-          await postMessageToBookingRequest(bookingRequestId, content);
+          await postMessageToBookingRequest(bookingRequestId, {
+            content,
+            message_type: "SYSTEM",
+          } as any);
         },
       },
       storage,
