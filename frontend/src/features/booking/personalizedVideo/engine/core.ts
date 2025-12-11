@@ -320,49 +320,10 @@ export function createPersonalizedVideoEngineCore(
         };
 
         if (!res) {
-          const fakeId = env.now().getTime();
-          env.storage.saveSimulatedOrder(fakeId, {
-            id: fakeId,
-            artist_id: artistId,
-            buyer_id: 0,
-            status: "awaiting_payment",
-            delivery_by_utc: payload.delivery_by_utc,
-            length_sec: payload.length_sec,
-            language: payload.language,
-            tone: "Cheerful",
-            price_base: payload.price_base,
-            price_rush: payload.price_rush,
-            price_addons: payload.price_addons,
-            discount: payload.discount,
-            total: payload.total,
-            contact_email: payload.contact_email,
-            contact_whatsapp: payload.contact_whatsapp,
-          } as VideoOrder);
-          env.storage.saveBriefSeed(fakeId, seed);
-
-          const serviceId = params.serviceId;
-          if (serviceId) {
-            const threadId = await env.api.createThreadForOrder(
-              artistId,
-              serviceId,
-              fakeId,
-              `vo-thread-${fakeId}`,
-            );
-            if (threadId) {
-              env.storage.saveThreadIdForOrder(fakeId, threadId);
-              env.storage.saveOrderIdForThread(threadId, fakeId);
-            }
-          }
-
-          env.ui.toastSuccess(
-            "Order created (demo). Continue to payment.",
-          );
           setState({
-            orderId: fakeId,
-            stepId: "payment",
             flags: { ...getState().flags, creatingDraft: false },
+            payment: { ...getState().payment, error: "Could not create order. Please try again." },
           });
-          env.ui.navigateToPayment(fakeId, true);
           return;
         }
 
@@ -382,9 +343,7 @@ export function createPersonalizedVideoEngineCore(
           }
         }
 
-        env.ui.toastSuccess(
-          "Order created — continue to payment",
-        );
+        env.ui.toastSuccess("Order created — continue to payment");
         setState({
           orderId: res.id,
           stepId: "payment",
@@ -422,10 +381,6 @@ export function createPersonalizedVideoEngineCore(
         order = await env.api.getOrder(id);
       } catch {
         order = null;
-      }
-
-      if (!order) {
-        order = env.storage.loadSimulatedOrder(id) as VideoOrder | null;
       }
 
       currentOrder = order;
@@ -469,7 +424,12 @@ export function createPersonalizedVideoEngineCore(
       }
 
       const order = currentOrder;
-      if (!order) return;
+      if (!order) {
+        setState({
+          payment: { ...getState().payment, loading: false, error: "Order not found. Please retry." },
+        });
+        return;
+      }
 
       setState({
         payment: { ...getState().payment, loading: true, error: null },
@@ -499,9 +459,15 @@ export function createPersonalizedVideoEngineCore(
       const id = getState().orderId;
       if (!id) return;
 
-      await env.api.updateStatus(id, "paid");
+      try {
+        await env.api.updateStatus(id, "paid");
+      } catch (e) {
+        setState({
+          payment: { ...getState().payment, error: "Failed to update payment status. Please refresh." },
+        });
+        return;
+      }
 
-      env.storage.clearSimulatedOrder(id);
       env.ui.toastSuccess("Payment received!");
       try {
         let tid = env.storage.getThreadIdForOrder(id);
