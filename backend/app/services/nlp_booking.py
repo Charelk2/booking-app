@@ -44,9 +44,10 @@ def _resolve_event_types_path() -> Path:
     app_root = Path(__file__).resolve().parents[1]  # backend/app or /app/app
     backend_path = app_root / "data" / "eventTypes.json"
     # Project root is two levels above backend/app in the monorepo layout.
-    # In minimal runtime images this may be "/", in which case the frontend
-    # copy won't exist and we'll rely on backend_path.
-    frontend_root = app_root.parents[2]
+    # In minimal runtime images `app_root` may already be `/app/app`, so
+    # `parents[2]` would be out of range. Fall back to the direct parent.
+    parents = list(app_root.parents)
+    frontend_root = parents[2] if len(parents) >= 3 else app_root.parent
     frontend_path = frontend_root / "frontend" / "src" / "data" / "eventTypes.json"
     for candidate in (backend_path, frontend_path):
         try:

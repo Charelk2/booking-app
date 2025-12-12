@@ -1353,6 +1353,12 @@ def update_booking_request_by_client(
     )
     db.commit()
     db.refresh(updated)
+    # Best-effort: if supplier-mode sound was selected after the draft was
+    # created, ensure the linked sound thread exists now.
+    try:
+        _maybe_create_linked_sound_booking_request(db, updated)
+    except Exception:
+        pass
     invalidate_availability_cache(db_request.artist_id)
 
     if request_update.status and request_update.status != prev_status:
