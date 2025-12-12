@@ -211,25 +211,25 @@ export default function MusicianPersonalizedVideoFlow({
               </button>
 
               <div className="flex w-full flex-none flex-col justify-between overflow-y-auto bg-gray-50 p-6 md:w-1/5">
-                <Stepper
-                  steps={steps}
-                  currentStep={step}
-                  maxStepCompleted={step}
-                  onStepClick={setStep}
-                  ariaLabel="Add personalized video progress"
-                  className="space-y-4"
-                  orientation="vertical"
-                  noCircles
-                />
+	                <Stepper
+	                  steps={steps}
+	                  currentStep={step}
+	                  maxStepCompleted={step}
+	                  onStepClick={setStep}
+	                  ariaLabel="Add personalised video progress"
+	                  className="space-y-4"
+	                  orientation="vertical"
+	                  noCircles
+	                />
               </div>
 
               <div className="flex w-full flex-1 flex-col overflow-hidden md:w-4/5">
                 <div className="flex-1 space-y-4 overflow-y-scroll p-6">
-                  {step === 0 && (
-                    <div className="space-y-4">
-                      <h2 className="text-xl font-semibold">
-                        Personalized Video details
-                      </h2>
+	                  {step === 0 && (
+	                    <div className="space-y-4">
+	                      <h2 className="text-xl font-semibold">
+	                        Personalised Video details
+	                      </h2>
 
                       <TextInput
                         label="Service Title"

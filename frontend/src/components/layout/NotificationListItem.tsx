@@ -58,7 +58,11 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
   if (n.type === 'new_booking_request') {
     const sender = n.sender_name || n.name || 'New booking request';
     const b = (n.booking_type || '').replace(/_/g, ' ');
-    const bookingType = b.replace(/\b\w/g, c => c.toUpperCase());
+    const bookingTypeRaw = b.replace(/\b\w/g, c => c.toUpperCase());
+    const bookingType =
+      bookingTypeRaw.trim().toLowerCase() === 'personalized video'
+        ? 'Personalised Video'
+        : bookingTypeRaw;
     const icon = /video/i.test(b) ? '🎥' : /song/i.test(b) ? '🎵' : '📅';
 
     const loc = content.match(/Location:\s*(.+)/i)?.[1].split('\n')[0].trim();

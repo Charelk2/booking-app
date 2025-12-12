@@ -616,7 +616,7 @@ export default function AddServiceModalMusician({
 
   const types: { value: Service["service_type"]; label: string }[] = [
     { value: "Live Performance", label: "Live Performance" },
-    { value: "Personalized Video", label: "Personalized Video" },
+    { value: "Personalized Video", label: "Personalised Video" },
     { value: "Custom Song", label: "Custom Song" },
     { value: "Other", label: "Other" },
   ];
@@ -1170,7 +1170,11 @@ export default function AddServiceModalMusician({
                           <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                             <div className="rounded-md border p-2">
                               <h3 className="font-medium">Type</h3>
-                              <p>{watch("service_type")}</p>
+                              <p>
+                                {watchServiceType === "Personalized Video"
+                                  ? "Personalised Video"
+                                  : watchServiceType}
+                              </p>
                             </div>
                             <div className="rounded-md border p-2">
                               <h3 className="font-medium">Title</h3>

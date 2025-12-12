@@ -64,7 +64,7 @@ const personalizedVideoFields: ServiceTypeField[] = [
     key: "base_length_sec",
     kind: "select",
     label: "Default video length",
-    helper: "Typical length for this personalized video.",
+    helper: "Typical length for this personalised video.",
     required: true,
     options: [
       { value: "40", label: "~40 seconds" },
@@ -313,7 +313,7 @@ const livePerformanceConfig: ServiceTypeConfig = {
 
 const personalizedVideoConfig: ServiceTypeConfig = {
   slug: "personalized_video",
-  label: "Personalized Video",
+  label: "Personalised Video",
   description:
     "Short custom shout-outs, birthday messages, pep talks, and more.",
   serviceTypeLabel: "Personalized Video",

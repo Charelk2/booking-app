@@ -295,7 +295,7 @@ export default function BookingSummaryCard({
         <>
           <AvatarHeader
             imageUrl={imageUrl}
-            serviceName={isPersonalizedVideo ? 'Personalized Video' : serviceName}
+            serviceName={isPersonalizedVideo ? 'Personalised Video' : serviceName}
             artistName={artistName}
             bookingConfirmed={(() => {
               const paid = String(paymentInfo?.status || '').toLowerCase() === 'paid';
@@ -587,7 +587,7 @@ export default function BookingSummaryCard({
             <div className="pt-4">
               <a
                 href={briefLink}
-                className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-indigo-600 text-white font-semibold rounded-lg px-5 py-3 shadow-lg hover:bg-indigo-700 transition"
+                className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-indigo-600 text-white font-semibold rounded-lg px-5 py-3 shadow-lg hover:bg-indigo-700 transition no-underline hover:no-underline hover:text-white visited:text-white"
               >
                 {label}
               </a>

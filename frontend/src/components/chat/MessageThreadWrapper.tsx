@@ -1503,7 +1503,7 @@ export default function MessageThreadWrapper({
                   />
                 ) : isPersonalizedVideoThread ? (
                   <div className="text-sm text-gray-700">
-                    Quotes are handled via the Personalized Video flow for this request. You can continue the brief or delivery in the thread.
+                    Quotes are handled via the Personalised Video flow for this request. You can continue the brief or delivery in the thread.
                   </div>
                 ) : (
                   <LivePerformanceInlineQuote

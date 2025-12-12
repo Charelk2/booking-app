@@ -92,7 +92,7 @@ export default function MusicianAddServiceRouter({
 
   const typeOptions: { value: Service["service_type"]; label: string }[] = [
     { value: "Live Performance", label: "Live Performance" },
-    { value: "Personalized Video", label: "Personalized Video" },
+    { value: "Personalized Video", label: "Personalised Video" },
     { value: "Custom Song", label: "Custom Song" },
     { value: "Other", label: "Other" },
   ];

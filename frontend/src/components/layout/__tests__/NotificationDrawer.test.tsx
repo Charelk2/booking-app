@@ -25,7 +25,7 @@ describe('parseItem', () => {
     expect(parsed.bookingType).toBe('Performance');
   });
 
-  it('parses booking request for personalized video', () => {
+  it('parses booking request for personalised video', () => {
     const n: UnifiedNotification = {
       type: 'new_booking_request',
       timestamp: new Date().toISOString(),
@@ -38,8 +38,8 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('Personalized Video');
-    expect(parsed.bookingType).toBe('Personalized Video');
+    expect(parsed.subtitle).toBe('Personalised Video');
+    expect(parsed.bookingType).toBe('Personalised Video');
   });
 
   it('extracts metadata from details text', () => {
