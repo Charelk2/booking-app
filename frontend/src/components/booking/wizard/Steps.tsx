@@ -978,8 +978,26 @@ export function SoundStep({
             const found = cards.find((c: any) => Number(c.serviceId) === cur);
             const firstAvailable = cards.find((c: any) => c.available !== false);
             if (!cur || !found || found.available === false) {
-              if (firstAvailable?.serviceId) set({ soundSupplierServiceId: Number(firstAvailable.serviceId) as any });
-              else set({ soundSupplierServiceId: undefined as any });
+              if (firstAvailable?.serviceId) {
+                const nextId = Number(firstAvailable.serviceId);
+                set({ soundSupplierServiceId: nextId as any });
+                try {
+                  (setValue as any)(
+                    'soundSupplierServiceId',
+                    nextId as any,
+                    { shouldDirty: false },
+                  );
+                } catch {}
+              } else {
+                set({ soundSupplierServiceId: undefined as any });
+                try {
+                  (setValue as any)(
+                    'soundSupplierServiceId',
+                    undefined as any,
+                    { shouldDirty: false },
+                  );
+                } catch {}
+              }
             }
           }
         } catch {}
@@ -1076,6 +1094,7 @@ export function SoundStep({
                                 setValue('stageSize' as any, undefined as any, { shouldDirty: true });
                                 setValue('lightingEvening' as any, false as any, { shouldDirty: true });
                                 setValue('backlineRequired' as any, false as any, { shouldDirty: true });
+                                setValue('soundSupplierServiceId' as any, undefined as any, { shouldDirty: true });
                                 set({
                                   soundMode: 'none',
                                   stageRequired: false,
@@ -1116,6 +1135,7 @@ export function SoundStep({
                             setValue('stageSize' as any, undefined as any, { shouldDirty: true });
                             setValue('lightingEvening' as any, false as any, { shouldDirty: true });
                             setValue('backlineRequired' as any, false as any, { shouldDirty: true });
+                            setValue('soundSupplierServiceId' as any, undefined as any, { shouldDirty: true });
                             set({
                               soundMode: 'none',
                               stageRequired: false,
