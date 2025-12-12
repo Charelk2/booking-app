@@ -391,20 +391,31 @@ export function createLiveBookingEngineCore(
     submitBooking: async (initialMessage) => {
       const offline = env.offline.isOffline();
       const submitFn = async () => {
-        if (!state.booking.requestId) {
-          await actions.saveDraft();
-        }
-        const rid = state.booking.requestId;
-        if (!rid) return;
+        // Show instant submit UX before any network awaits.
         setState({
           flags: { ...state.flags, submitting: true },
+          validation: { ...state.validation, globalError: null },
         });
         try {
+          let rid = state.booking.requestId;
           const payload = buildPayload("pending_quote");
-          await env.bookingApi.submit(rid, payload);
+          if (!rid) {
+            // First-time submit: create directly as pending_quote to avoid a
+            // draft+submit double round-trip.
+            const created = await env.bookingApi.createDraft(payload);
+            rid = created?.id;
+            if (!rid) {
+              throw new Error("createBookingRequest returned no id");
+            }
+            state.booking.requestId = rid;
+          } else {
+            await env.bookingApi.submit(rid, payload);
+          }
+
           if (initialMessage) {
             await env.bookingApi.postSystemMessage(rid, initialMessage);
           }
+
           await env.storage.clearDraft(getDraftKey());
           setState({
             booking: { requestId: rid, status: "submitted" },
