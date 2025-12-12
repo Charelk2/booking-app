@@ -51,6 +51,7 @@ export interface VideoOrder {
   totals_preview?: QuoteTotalsPreview | null;
   contact_email?: string;
   contact_whatsapp?: string;
+  answers?: Record<string, any>;
 }
 
 export interface VideoOrderApiClient {

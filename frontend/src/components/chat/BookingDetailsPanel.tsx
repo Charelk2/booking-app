@@ -21,6 +21,7 @@ import { getBookingDetails } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { parseBookingDetailsFromMessage } from '@/lib/chat/bookingDetails';
 import EventPrepCard from '@/components/booking/EventPrepCard';
+import { videoOrderApiClient } from '@/features/booking/personalizedVideo/engine/apiClient';
 
 const BACKLINE_LABELS: Record<string, string> = {
   drums_full: 'Drum kit (full)',
@@ -618,11 +619,15 @@ export default function BookingDetailsPanel({
   const isPersonalized = serviceTypeText.includes('personalized video');
   const [pvBriefLink, setPvBriefLink] = React.useState<string | null>(null);
   const [pvBriefComplete, setPvBriefComplete] = React.useState(false);
+  const [pvOrderId, setPvOrderId] = React.useState<number | null>(null);
+  const [pvDeliveryByUtc, setPvDeliveryByUtc] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!isPersonalized || typeof window === 'undefined') {
       setPvBriefLink(null);
       setPvBriefComplete(false);
+      setPvOrderId(null);
+      setPvDeliveryByUtc(null);
       return;
     }
     const tid = Number(bookingRequest?.id || 0);
@@ -632,15 +637,19 @@ export default function BookingDetailsPanel({
         const oid = localStorage.getItem(`vo-order-for-thread-${tid}`);
         const resolved = oid || (ENABLE_PV_ORDERS ? String(tid) : null);
         if (resolved) {
+          const resolvedId = Number(resolved);
+          setPvOrderId(Number.isFinite(resolvedId) && resolvedId > 0 ? resolvedId : null);
           setPvBriefLink(`/video-orders/${resolved}/brief`);
           setPvBriefComplete(!!localStorage.getItem(`vo-brief-complete-${resolved}`));
         } else {
           setPvBriefLink(null);
           setPvBriefComplete(false);
+          setPvOrderId(null);
         }
       } catch {
         setPvBriefLink(null);
         setPvBriefComplete(false);
+        setPvOrderId(null);
       }
     };
     update();
@@ -651,6 +660,37 @@ export default function BookingDetailsPanel({
       window.removeEventListener('focus', update);
     };
   }, [bookingRequest?.id, isPersonalized]);
+
+  React.useEffect(() => {
+    if (!isPersonalized || !pvOrderId) {
+      setPvDeliveryByUtc(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const order = await videoOrderApiClient.getOrder(pvOrderId);
+        if (cancelled) return;
+        setPvDeliveryByUtc(order?.delivery_by_utc || null);
+      } catch {
+        if (!cancelled) setPvDeliveryByUtc(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isPersonalized, pvOrderId]);
+
+  const pvDeliveryLabel = React.useMemo(() => {
+    if (!pvDeliveryByUtc) return null;
+    try {
+      const d = parseISO(String(pvDeliveryByUtc));
+      if (!isValid(d)) return null;
+      return format(d, 'EEE, d MMM yyyy');
+    } catch {
+      return null;
+    }
+  }, [pvDeliveryByUtc]);
   const effectiveBooking = (confirmedBookingDetails || hydratedBooking) as (Booking & { review?: Review }) | null;
 
   const [reviewedByClient, setReviewedByClient] = React.useState(false);
@@ -1057,23 +1097,28 @@ export default function BookingDetailsPanel({
               clientReviewCta={clientReviewCta}
 	              belowHeader={
 	                isPersonalized ? (
-	                  <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm">
-	                    <div className="font-semibold text-indigo-900">Personalized Video</div>
-	                    <div className="text-indigo-800 mt-1">
-	                      {viewerIsProvider
-	                        ? 'Review the brief and deliver the video here when it’s ready.'
-	                        : 'Complete the brief so production can start right away.'}
-	                    </div>
-	                    {pvBriefLink ? (
-	                      <div className="mt-3">
-	                        <a
-	                          href={pvBriefLink}
-	                          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 transition"
-	                        >
-	                          {pvBriefComplete ? 'View Brief' : viewerIsProvider ? 'View Brief' : 'Complete Brief'}
-	                        </a>
-	                      </div>
-	                    ) : (
+	                    <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm">
+	                      <div className="font-semibold text-indigo-900">Personalised Video</div>
+		                      <div className="text-indigo-800 mt-1">
+		                        {viewerIsProvider
+		                          ? 'Review the brief and deliver the video here when it’s ready.'
+		                          : 'Complete the brief so production can start right away.'}
+		                      </div>
+                          {pvDeliveryLabel ? (
+                            <div className="mt-2 text-xs text-indigo-700">
+                              Delivery by <span className="font-semibold">{pvDeliveryLabel}</span>
+                            </div>
+                          ) : null}
+		                      {pvBriefLink ? (
+		                        <div className="mt-3">
+		                          <a
+		                            href={pvBriefLink}
+	                            className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 transition no-underline hover:no-underline hover:text-white visited:text-white"
+	                          >
+	                            {pvBriefComplete ? 'View Brief' : viewerIsProvider ? 'View Brief' : 'Complete Brief'}
+	                          </a>
+	                        </div>
+	                      ) : (
 	                      <div className="mt-2 text-xs text-indigo-700">
 	                        We’ll drop your brief link here as soon as the order finishes syncing.
 	                      </div>

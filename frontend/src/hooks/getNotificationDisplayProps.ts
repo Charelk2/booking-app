@@ -41,9 +41,15 @@ export default function getNotificationDisplayProps(
     subtitle = snippet ? `${prefix}: ${snippet}` : prefix;
   } else if (unified.type === 'new_booking_request') {
     status = 'reminder';
-    const b = (unified.booking_type || '').replace(/_/g, ' ');
+    const bRaw = (unified.booking_type || '').replace(/_/g, ' ').trim();
+    const bookingType = (() => {
+      const normalized = bRaw.toLowerCase();
+      if (!normalized) return '';
+      if (normalized === 'personalized video') return 'Personalised Video';
+      return bRaw.replace(/\b\w/g, (c) => c.toUpperCase());
+    })();
     title = title || 'New booking request';
-    subtitle = b || 'New booking request';
+    subtitle = bookingType || 'New booking request';
     const loc = content.match(/Location:\s*(.+)/i)?.[1]?.split('\n')[0]?.trim();
     const dateStr = content.match(/Date:\s*(\d{4}-\d{2}-\d{2})/)?.[1];
     const parts: string[] = [];

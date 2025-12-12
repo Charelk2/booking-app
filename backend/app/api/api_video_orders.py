@@ -96,6 +96,7 @@ class VideoOrderResponse(BaseModel):
     totals_preview: Optional[VideoOrderTotalsPreview] = None
     contact_email: Optional[str] = None
     contact_whatsapp: Optional[str] = None
+    answers: dict[str, Any] = Field(default_factory=dict)
 
 
 class VideoOrderStatusUpdate(BaseModel):
@@ -257,6 +258,7 @@ def _to_video_order_response(
         totals_preview=(VideoOrderTotalsPreview(**totals_preview) if totals_preview else None),
         contact_email=pv.contact_email,
         contact_whatsapp=pv.contact_whatsapp,
+        answers=dict(pv.answers or {}),
     )
 
 

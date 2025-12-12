@@ -14,8 +14,14 @@ export type ServiceDisplay = {
 export function getServiceDisplay(service: Service, currency: string = 'ZAR'): ServiceDisplay {
   const any = service as any;
 
-  const title: string = service.title || any.service_type || 'Service';
-  const type: string = (any.service_type as string) || 'Service';
+  const typeRaw: string = (any.service_type as string) || 'Service';
+  const type: string = typeRaw.trim().toLowerCase() === 'personalized video'
+    ? 'Personalised Video'
+    : typeRaw;
+  const titleRaw: string = service.title || any.service_type || 'Service';
+  const title: string = titleRaw.trim().toLowerCase() === 'personalized video'
+    ? 'Personalised Video'
+    : titleRaw;
 
   const rawMedia = any.media_url || any.image_url || any.cover_image_url || any.photo_url || any.image || null;
   const mediaUrl = rawMedia ? getFullImageUrl(rawMedia) : null;

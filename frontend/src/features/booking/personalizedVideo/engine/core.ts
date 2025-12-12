@@ -68,6 +68,14 @@ export function createPersonalizedVideoEngineCore(
   env: PvEngineEnv,
   params: PersonalizedVideoEngineParams,
 ): PvEngineCore {
+  const computeBriefAnsweredCount = (answers: Record<string, any>): number => {
+    return Object.keys(answers).filter((k) => {
+      const v = (answers as any)[k];
+      if (typeof v === "string") return v.trim().length > 0;
+      return v != null;
+    }).length;
+  };
+
   let state: PersonalizedVideoEngine["state"] = {
     stepId: "draft",
     draft: {
@@ -114,6 +122,7 @@ export function createPersonalizedVideoEngineCore(
   };
 
   let currentOrder: VideoOrder | null = null;
+  let saveSeq = 0;
 
   const listeners = new Set<(s: typeof state) => void>();
 
@@ -383,6 +392,12 @@ export function createPersonalizedVideoEngineCore(
         payment: { ...getState().payment, loading: true, error: null },
       });
 
+      const storedAnswersRaw = env.storage.loadBriefAnswers(id);
+      const storedAnswers =
+        storedAnswersRaw && typeof storedAnswersRaw === "object"
+          ? storedAnswersRaw
+          : {};
+
       let order: VideoOrder | null = null;
       try {
         order = await env.api.getOrder(id);
@@ -395,36 +410,60 @@ export function createPersonalizedVideoEngineCore(
       const hasOrder = !!order;
       const payment = getState().payment;
 
-	      setState({
-	        orderSummary: hasOrder && order
-	          ? {
-	              id: order.id,
-	              artistId: order.artist_id,
-	              buyerId: order.buyer_id,
-	              status: order.status,
-	              deliveryByUtc: order.delivery_by_utc,
-	              lengthSec: order.length_sec,
-	              language: order.language,
-	              total: order.total,
-	              priceBase: order.price_base,
-	              priceRush: order.price_rush,
-	              priceAddons: order.price_addons,
-	              discount: order.discount,
-	              clientTotalInclVat: (() => {
-	                const raw = (order as any)?.totals_preview?.client_total_incl_vat;
-	                const n = typeof raw === "number" ? raw : Number(raw);
-	                return Number.isFinite(n) ? n : null;
-	              })(),
-	            }
-	          : null,
-	        payment: {
-	          ...payment,
-	          loading: false,
-	          error: hasOrder
-            ? null
-            : "Please check your connection and try again.",
-        },
-      });
+      const serverAnswersRaw = (order as any)?.answers;
+      const serverAnswers =
+        serverAnswersRaw && typeof serverAnswersRaw === "object"
+          ? (serverAnswersRaw as Record<string, any>)
+          : {};
+      const currentAnswers = getState().brief.answers || {};
+      const mergedAnswers = {
+        ...serverAnswers,
+        ...storedAnswers,
+        ...currentAnswers,
+      };
+      const answered = computeBriefAnsweredCount(mergedAnswers);
+      try {
+        if (Object.keys(mergedAnswers).length) {
+          env.storage.saveBriefAnswers(id, mergedAnswers);
+        }
+      } catch {}
+
+		      setState({
+		        orderSummary: hasOrder && order
+		          ? {
+		              id: order.id,
+		              artistId: order.artist_id,
+		              buyerId: order.buyer_id,
+		              status: order.status,
+		              deliveryByUtc: order.delivery_by_utc,
+		              lengthSec: order.length_sec,
+		              language: order.language,
+		              total: order.total,
+		              priceBase: order.price_base,
+		              priceRush: order.price_rush,
+		              priceAddons: order.price_addons,
+		              discount: order.discount,
+		              clientTotalInclVat: (() => {
+		                const raw = (order as any)?.totals_preview?.client_total_incl_vat;
+		                const n = typeof raw === "number" ? raw : Number(raw);
+		                return Number.isFinite(n) ? n : null;
+		              })(),
+		            }
+		          : null,
+            brief: {
+              ...getState().brief,
+              answers: mergedAnswers,
+              progress: { answered, total: env.briefTotalQuestions },
+              saveState: Object.keys(mergedAnswers).length ? "saved" : getState().brief.saveState,
+            },
+		        payment: {
+		          ...payment,
+		          loading: false,
+		          error: hasOrder
+	            ? null
+	            : "Please check your connection and try again.",
+	        },
+	      });
     },
 
     startPayment: async () => {
@@ -534,16 +573,32 @@ export function createPersonalizedVideoEngineCore(
       env.ui.navigateToInbox();
     },
 
-    updateAnswer: (key, value, _opts) => {
+    updateAnswer: (key, value, opts) => {
       const s = getState();
       const answers = { ...s.brief.answers, [key]: value };
       if (s.orderId) {
         env.storage.saveBriefAnswers(s.orderId, answers);
       }
       setState({
-        brief: { ...s.brief, answers, saveState: "saving" },
+        brief: { ...s.brief, answers, saveState: opts?.immediate ? "saving" : "saved" },
       });
-      recomputeBriefProgress();
+      setState({
+        brief: {
+          ...getState().brief,
+          progress: { answered: computeBriefAnsweredCount(answers), total: env.briefTotalQuestions },
+        },
+      });
+
+      if (opts?.immediate && s.orderId) {
+        const mySeq = ++saveSeq;
+        void (async () => {
+          const ok = await env.api.postAnswer(s.orderId as number, key, value);
+          if (mySeq !== saveSeq) return;
+          setState({
+            brief: { ...getState().brief, saveState: ok ? "saved" : "error" },
+          });
+        })();
+      }
     },
 
     flushAnswers: async () => {

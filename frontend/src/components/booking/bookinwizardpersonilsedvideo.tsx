@@ -553,13 +553,28 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
     threadId,
   });
 
-  const { brief } = state;
+  const { brief, orderSummary } = state;
   const { updateAnswer, submitBrief } = actions;
 
   const answers = brief.answers;
   const saveState = brief.saveState;
   const progress = brief.progress;
   const questions = BRIEF_QUESTIONS;
+  const deliveryLabel = useMemo(() => {
+    const raw = orderSummary?.deliveryByUtc;
+    if (!raw) return null;
+    try {
+      const d = new Date(String(raw));
+      if (Number.isNaN(d.getTime())) return null;
+      return new Intl.DateTimeFormat("en-ZA", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }).format(d);
+    } catch {
+      return null;
+    }
+  }, [orderSummary?.deliveryByUtc]);
 
   const saveLabel = useMemo(() => {
     if (saveState === "saving") return "Saving…";
@@ -578,6 +593,14 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
           <h1 className="text-2xl font-bold text-gray-900">Video brief</h1>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
             <span>Order #{orderId}</span>
+            {deliveryLabel ? (
+              <>
+                <span aria-hidden className="text-gray-300">•</span>
+                <span>
+                  Delivery by <span className="font-medium text-gray-800">{deliveryLabel}</span>
+                </span>
+              </>
+            ) : null}
             <span aria-hidden className="text-gray-300">•</span>
             <span className="font-medium text-emerald-700">
               {progress.answered}/{progress.total} completed
