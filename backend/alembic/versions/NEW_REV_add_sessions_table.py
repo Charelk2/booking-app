@@ -75,6 +75,48 @@ def downgrade() -> None:
 #   here and in AGENTS.md so future manual DB changes at this baseline can
 #   follow the same pattern.
 #
+# 2025-12-12:
+#   On production appdb at revision ed57deb9c434 (this file), prepare PV v2
+#   schema with:
+#     ALTER TABLE bookings_simple
+#       ADD COLUMN booking_request_id integer NULL
+#       REFERENCES booking_requests(id) ON DELETE SET NULL;
+#     ALTER TABLE bookings_simple
+#       ADD COLUMN booking_type varchar NOT NULL DEFAULT 'standard';
+#     CREATE INDEX ix_bookings_simple_booking_request_id
+#       ON bookings_simple (booking_request_id);
+#     CREATE INDEX ix_bookings_simple_booking_type
+#       ON bookings_simple (booking_type);
+#     UPDATE bookings_simple bs
+#     SET booking_request_id = q.booking_request_id,
+#         booking_type = COALESCE(bs.booking_type, 'standard')
+#     FROM quotes_v2 q
+#     WHERE bs.quote_id = q.id
+#       AND bs.booking_request_id IS NULL;
+#     UPDATE bookings_simple
+#     SET booking_type='standard'
+#     WHERE booking_type IS NULL OR booking_type='';
+#     ALTER TABLE quotes_v2
+#       ADD COLUMN is_internal boolean NOT NULL DEFAULT false;
+#     CREATE INDEX ix_quotes_v2_is_internal
+#       ON quotes_v2 (is_internal);
+#     ALTER TABLE disputes
+#       ALTER COLUMN booking_id DROP NOT NULL;
+#     ALTER TABLE disputes
+#       ADD COLUMN booking_simple_id integer NULL
+#       REFERENCES bookings_simple(id) ON DELETE SET NULL;
+#     CREATE INDEX ix_disputes_booking_simple_id
+#       ON disputes (booking_simple_id);
+#     ALTER TABLE disputes
+#       ADD CONSTRAINT ck_disputes_exactly_one_booking_ref
+#       CHECK (num_nonnulls(booking_id, booking_simple_id) = 1);
+#     -- Run outside a txn if using CONCURRENTLY
+#     CREATE INDEX CONCURRENTLY ix_booking_requests_service_extras_pv
+#       ON booking_requests
+#       USING GIN ((service_extras::jsonb))
+#       WHERE service_extras::jsonb ? 'pv';
+#   This change is manual-only (no Alembic upgrade); also recorded in AGENTS.md.
+#
 # 2026-01-02:
 #   On production appdb at revision ed57deb9c434 (this file), add an index to
 #   speed provider rating aggregates on the reviews table:

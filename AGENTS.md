@@ -361,6 +361,9 @@ This pattern keeps booking behaviour centralized, makes React Native and other c
   - Record the same SQL and rationale here in AGENTS.md.
   - Keep Alembic’s head pinned to `ed57deb9c434` unless there is a strong reason to introduce a new migration chain.
   - If you restore from a dump or recreate the DB at this revision, remember to re‑apply the same DDL before deploying this branch.
+- 2025-12-12 (manual, at `ed57deb9c434`): **PV v2 Phase A schema prep — MUST be applied in prod before enabling PV orders**
+  - Tables: `bookings_simple`, `quotes_v2`, `disputes`, and a Postgres-only partial GIN index on `booking_requests.service_extras`.
+  - Full DDL + backfill SQL is recorded in `backend/alembic/versions/NEW_REV_add_sessions_table.py` under “Manual schema notes”.
 - 2026-01-02 (manual, at `ed57deb9c434`): add index to speed provider rating aggregates on reviews
   - SQL: `CREATE INDEX ix_reviews_artist_id ON reviews (artist_id);`
   - Rationale: `read_artist_profile_by_id` / `read_artist_profile_by_slug` aggregate rating/count on `reviews.artist_id`; the index avoids full scans during profile loads.

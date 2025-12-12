@@ -58,6 +58,8 @@ class QuoteRead(QuoteCreate):
 class BookingSimpleRead(BaseModel):
     id: int
     quote_id: int
+    booking_request_id: Optional[int] = None
+    booking_type: str = "standard"
     artist_id: int
     client_id: int
     confirmed: bool
