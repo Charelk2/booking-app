@@ -179,7 +179,13 @@ export function useThreads(user: User | null | undefined) {
       proposed_datetime_2: null,
       attachment_url: null,
       service_id: undefined,
-      service: undefined,
+      service:
+        it?.service_type || it?.service_title
+          ? ({
+              service_type: it?.service_type ?? undefined,
+              title: it?.service_title ?? undefined,
+            } as any)
+          : undefined,
       artist: undefined as any,
       counterparty_label: (it as any).counterparty?.name,
       counterparty_avatar_url: (it as any).counterparty?.avatar_url ?? null,

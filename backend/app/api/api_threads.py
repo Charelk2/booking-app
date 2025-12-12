@@ -567,6 +567,19 @@ def get_threads_preview(
         if getattr(br, "proposed_datetime_1", None):
             meta["event_date"] = br.proposed_datetime_1
 
+        # Service info (minimal): lets the inbox render correct chips (e.g. VIDEO vs EVENT)
+        # without requiring a second fetch for each thread.
+        service_type = None
+        service_title = None
+        try:
+            svc = getattr(br, "service", None)
+            if svc is not None:
+                service_type = getattr(svc, "service_type", None)
+                service_title = getattr(svc, "title", None)
+        except Exception:
+            service_type = None
+            service_title = None
+
         items.append({
             "thread_id": int(br.id),
             "counterparty": {"name": display, "avatar_url": avatar_url},
@@ -579,6 +592,8 @@ def get_threads_preview(
             "pinned": False,
             "preview_key": preview_key,
             "preview_args": (preview_args or None),
+            "service_type": service_type,
+            "service_title": service_title,
         })
 
     items.sort(key=lambda i: i["last_ts"], reverse=True)
