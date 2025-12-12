@@ -20,6 +20,7 @@ from ..utils.notifications import (
     notify_booking_status_update,
     notify_user_new_message,
 )
+from ..utils.sound_modes import is_supplier_sound_mode
 from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..utils import error_response
 from ..utils.redis_cache import invalidate_availability_cache
@@ -67,14 +68,14 @@ def _maybe_create_linked_sound_booking_request(
         tb = dict(tb_src)
 
         sound_required = bool(tb.get("sound_required"))
-        sound_mode = str(tb.get("sound_mode") or "").lower()
+        sound_mode = tb.get("sound_mode")
         selected_sid = tb.get("selected_sound_service_id")
         try:
             selected_service_id = int(selected_sid or 0)
         except Exception:
             selected_service_id = 0
 
-        if not (sound_required and sound_mode == "supplier" and selected_service_id > 0):
+        if not (sound_required and is_supplier_sound_mode(sound_mode) and selected_service_id > 0):
             return
 
         # Load the supplier service; bail if missing.

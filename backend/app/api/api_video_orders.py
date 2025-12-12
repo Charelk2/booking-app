@@ -1,21 +1,20 @@
 """Personalized Video orders API backed by booking_requests + service_extras.pv."""
 
+import logging
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
-from ..dependencies import get_db
+from .dependencies import get_current_user, get_db
 from ..models.booking_request import BookingRequest
 from ..models.booking_status import BookingStatus
 from ..models.service import Service
 from ..models.user import User
-from ..lib.logger import get_logger
 
 router = APIRouter()
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class VideoOrderCreate(BaseModel):

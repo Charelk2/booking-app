@@ -16,6 +16,7 @@ from .. import crud
 from ..models.sound_outreach import OutreachStatus
 from ..models.service import Service, ServiceType
 from ..utils import error_response
+from ..utils.sound_modes import is_supplier_sound_mode
 from ..utils.notifications import (
     notify_service_request,
     notify_service_nudge,
@@ -291,7 +292,7 @@ def kickoff_sound_outreach(
         # Determine whether this outreach run represents supplier‑mode sound.
         supplier_mode = False
         try:
-            if isinstance(sound_mode, str) and sound_mode.lower() == "supplier":
+            if is_supplier_sound_mode(sound_mode):
                 supplier_mode = True
             else:
                 # Fallback: if a specific supplier was selected in the wizard
@@ -300,7 +301,9 @@ def kickoff_sound_outreach(
                 # the client-facing sound thread creation resilient even when
                 # sound_mode is missing or legacy.
                 sel_from_tb = tb.get("selected_sound_service_id")
-                if (sel_from_tb and int(sel_from_tb or 0) > 0) or (selected_service_id and selected_service_id > 0):
+                if (sel_from_tb and int(sel_from_tb or 0) > 0) or (
+                    selected_service_id and selected_service_id > 0
+                ):
                     supplier_mode = True
         except Exception:
             supplier_mode = bool(selected_service_id and selected_service_id > 0)
@@ -651,7 +654,7 @@ def supplier_respond(
                 sound_mode = tb.get("sound_mode")
             except Exception:
                 sound_mode = None
-            supplier_mode = isinstance(sound_mode, str) and sound_mode.lower() == "supplier"
+            supplier_mode = is_supplier_sound_mode(sound_mode)
 
             supplier_service = (
                 db.query(models.Service)

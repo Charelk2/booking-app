@@ -33,6 +33,30 @@ class NLPModelError(RuntimeError):
     """Raised when the NLP model cannot be loaded or used."""
 
 
+def _resolve_event_types_path() -> Path:
+    """Resolve eventTypes.json from backend-first, then frontend path.
+
+    In production, the runtime image only ships the backend, so we keep a
+    copy of eventTypes.json under backend/app/data. In local dev/test, the
+    frontend copy under frontend/src/data is also available; treat that as a
+    fallback so both environments stay compatible.
+    """
+    app_root = Path(__file__).resolve().parents[1]  # backend/app or /app/app
+    backend_path = app_root / "data" / "eventTypes.json"
+    # Project root is two levels above backend/app in the monorepo layout.
+    # In minimal runtime images this may be "/", in which case the frontend
+    # copy won't exist and we'll rely on backend_path.
+    frontend_root = app_root.parents[2]
+    frontend_path = frontend_root / "frontend" / "src" / "data" / "eventTypes.json"
+    for candidate in (backend_path, frontend_path):
+        try:
+            if candidate.is_file():
+                return candidate
+        except Exception:
+            continue
+    return backend_path
+
+
 # Attempt to load a spaCy model once at import time. Any failure is logged and
 # will raise :class:`NLPModelError` when parsing is attempted.
 try:  # pragma: no cover - exercised indirectly
@@ -41,9 +65,7 @@ except Exception as exc:  # pragma: no cover - model load is environment specifi
     logger.error("Unable to load spaCy model: %s", exc)
     _NLP = None
 
-_EVENT_TYPES_PATH = (
-    Path(__file__).resolve().parents[3] / "frontend" / "src" / "data" / "eventTypes.json"
-)
+_EVENT_TYPES_PATH = _resolve_event_types_path()
 try:
     _EVENT_TYPES = json.loads(_EVENT_TYPES_PATH.read_text())
 except FileNotFoundError:  # pragma: no cover - defensive
