@@ -197,6 +197,7 @@ def list_quotes_for_artist(
     return (
         db.query(models.QuoteV2)
         .filter(models.QuoteV2.artist_id == artist_id)
+        .filter(models.QuoteV2.is_internal.is_(False))
         .order_by(models.QuoteV2.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -215,6 +216,7 @@ def list_quotes_for_client(
     q = (
         db.query(models.QuoteV2)
         .filter(models.QuoteV2.client_id == client_id)
+        .filter(models.QuoteV2.is_internal.is_(False))
         .order_by(models.QuoteV2.created_at.desc())
     )
     if status:

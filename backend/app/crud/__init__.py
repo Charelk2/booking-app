@@ -22,6 +22,7 @@ from . import crud_event_prep
 from . import crud_sound
 from . import crud_service_category
 from . import crud_booking_request
+from . import crud_video_orders
 
 # For a cleaner import, you could define __all__ or group them
 # For now, direct import is fine for usage like `crud.user.get` 
