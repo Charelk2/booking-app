@@ -1,7 +1,12 @@
 import api from "@/lib/api";
+import type { QuoteTotalsPreview } from "@/types";
+
+const ENABLE_PV_ORDERS =
+  (process.env.NEXT_PUBLIC_ENABLE_PV_ORDERS ?? "") === "1";
 
 export interface VideoOrderDraftPayload {
   artist_id: number;
+  service_id?: number;
   delivery_by_utc: string;
   length_sec: number;
   language: string;
@@ -25,9 +30,14 @@ export interface VideoOrder {
     | "draft"
     | "awaiting_payment"
     | "paid"
-    | "info_pending"
     | "in_production"
     | "delivered"
+    | "completed"
+    | "in_dispute"
+    | "refunded"
+    | "cancelled"
+    // legacy aliases (normalized on read where possible)
+    | "info_pending"
     | "closed";
   delivery_by_utc: string;
   length_sec: number;
@@ -38,6 +48,7 @@ export interface VideoOrder {
   price_addons: number;
   discount: number;
   total: number;
+  totals_preview?: QuoteTotalsPreview | null;
   contact_email?: string;
   contact_whatsapp?: string;
 }
@@ -50,6 +61,11 @@ export interface VideoOrderApiClient {
   listOrders(): Promise<VideoOrder[]>;
   getOrder(orderId: number): Promise<VideoOrder | null>;
   updateStatus(orderId: number, status: VideoOrder["status"] | string): Promise<void>;
+  verifyPaystack(orderId: number, reference: string): Promise<VideoOrder | null>;
+  deliverOrder(
+    orderId: number,
+    payload: { delivery_url?: string; note?: string; auto_complete_hours?: number },
+  ): Promise<VideoOrder | null>;
   postAnswer(orderId: number, key: string, value: any): Promise<boolean>;
   createThreadForOrder(
     artistId: number,
@@ -98,6 +114,14 @@ export const videoOrderApiClient: VideoOrderApiClient = {
   async updateStatus(orderId, status) {
     await safePost(`/api/v1/video-orders/${orderId}/status`, { status });
   },
+  async verifyPaystack(orderId, reference) {
+    return safePost<VideoOrder>(`/api/v1/video-orders/${orderId}/paystack/verify`, {
+      reference,
+    });
+  },
+  async deliverOrder(orderId, payload) {
+    return safePost<VideoOrder>(`/api/v1/video-orders/${orderId}/deliver`, payload);
+  },
   async postAnswer(orderId, key, value) {
     const ok = await safePost(`/api/v1/video-orders/${orderId}/answers`, {
       question_key: key,
@@ -106,6 +130,7 @@ export const videoOrderApiClient: VideoOrderApiClient = {
     return Boolean(ok);
   },
   async createThreadForOrder(artistId, serviceId, orderId, idempotencyKey) {
+    if (ENABLE_PV_ORDERS) return orderId;
     if (!serviceId) return null;
     const res = await safePost<{ id: number }>(
       `/api/v1/booking-requests/`,

@@ -423,6 +423,8 @@ def set_client_billing_snapshot_by_request(booking_request_id: int, payload: dic
         # Create a lightweight shell if missing (best-effort)
         bs = models.BookingSimple(
             quote_id=qv2.id,
+            booking_request_id=qv2.booking_request_id,
+            booking_type="standard",
             artist_id=qv2.artist_id,
             client_id=qv2.client_id,
             confirmed=False,

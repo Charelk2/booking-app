@@ -18,6 +18,13 @@ class BookingSimple(BaseModel):
 
     id = Column(Integer, primary_key=True, index=True)
     quote_id = Column(Integer, ForeignKey("quotes_v2.id"), nullable=False)
+    booking_request_id = Column(
+        Integer,
+        ForeignKey("booking_requests.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    booking_type = Column(String, nullable=False, default="standard", index=True)
     artist_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     client_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     confirmed = Column(Boolean, default=True, nullable=False)
@@ -43,5 +50,6 @@ class BookingSimple(BaseModel):
     supply_date = Column(DateTime, nullable=True)
 
     quote = relationship("QuoteV2")
+    booking_request = relationship("BookingRequest")
     artist = relationship("User", foreign_keys=[artist_id])
     client = relationship("User", foreign_keys=[client_id])

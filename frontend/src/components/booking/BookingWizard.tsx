@@ -1420,3 +1420,4 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     </Dialog>
   );
 }
+ 

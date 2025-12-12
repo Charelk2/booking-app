@@ -434,8 +434,9 @@ export default function ClientDashboardPage() {
                 {videoOrders.map((order) => {
                   const status = String(order.status || "").toLowerCase();
                   const needsPayment = status === "awaiting_payment";
-                  const needsBrief = status === "info_pending";
-                  const delivered = status === "delivered" || status === "closed";
+                  const needsBrief = status === "paid" || status === "info_pending";
+                  const delivered =
+                    status === "delivered" || status === "completed" || status === "closed";
                   const inProd = status === "in_production";
                   let actionHref = `/video-orders/${order.id}`;
                   let actionLabel = "View order";

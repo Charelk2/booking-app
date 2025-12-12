@@ -159,6 +159,8 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
         if existing is None:
             bs = models.BookingSimple(
                 quote_id=db_quote.id,
+                booking_request_id=db_quote.booking_request_id,
+                booking_type="standard",
                 artist_id=db_quote.artist_id,
                 client_id=db_quote.client_id,
                 confirmed=False,
@@ -197,6 +199,7 @@ def list_quotes_for_artist(
     return (
         db.query(models.QuoteV2)
         .filter(models.QuoteV2.artist_id == artist_id)
+        .filter(models.QuoteV2.is_internal.is_(False))
         .order_by(models.QuoteV2.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -215,6 +218,7 @@ def list_quotes_for_client(
     q = (
         db.query(models.QuoteV2)
         .filter(models.QuoteV2.client_id == client_id)
+        .filter(models.QuoteV2.is_internal.is_(False))
         .order_by(models.QuoteV2.created_at.desc())
     )
     if status:
@@ -380,6 +384,8 @@ def accept_quote(
     if booking is None:
         booking = models.BookingSimple(
             quote_id=db_quote.id,
+            booking_request_id=db_quote.booking_request_id,
+            booking_type="standard",
             artist_id=db_quote.artist_id,
             client_id=db_quote.client_id,
             confirmed=True,

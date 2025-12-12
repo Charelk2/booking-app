@@ -354,7 +354,8 @@ def ensure_dispute_table(engine: Engine) -> None:
             sql = """
                 CREATE TABLE IF NOT EXISTS disputes (
                   id INTEGER PRIMARY KEY,
-                  booking_id INTEGER NOT NULL,
+                  booking_id INTEGER,
+                  booking_simple_id INTEGER,
                   status VARCHAR NOT NULL DEFAULT 'open',
                   reason VARCHAR,
                   assigned_admin_id INTEGER,
@@ -369,6 +370,21 @@ def ensure_dispute_table(engine: Engine) -> None:
             conn.execute(text(sql))
             conn.commit()
     ensure_identity_pk(engine, "disputes", "id")
+    # Ensure new linkage column exists for PV disputes.
+    add_column_if_missing(
+        engine,
+        "disputes",
+        "booking_simple_id",
+        "booking_simple_id INTEGER",
+    )
+    # booking_id is now nullable; best-effort relax NOT NULL on Postgres.
+    try:
+        if engine.dialect.name == "postgresql":
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE disputes ALTER COLUMN booking_id DROP NOT NULL"))
+                conn.commit()
+    except Exception:
+        pass
 
 
 def ensure_email_sms_event_tables(engine: Engine) -> None:
@@ -1221,6 +1237,18 @@ def ensure_booking_simple_columns(engine: Engine) -> None:
     add_column_if_missing(
         engine,
         "bookings_simple",
+        "booking_request_id",
+        "booking_request_id INTEGER",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "booking_type",
+        "booking_type VARCHAR NOT NULL DEFAULT 'standard'",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
         "artist_id",
         "artist_id INTEGER",
     )
@@ -1471,6 +1499,12 @@ def ensure_quote_v2_sound_firm_column(engine: Engine) -> None:
         "quotes_v2",
         "sound_firm",
         "sound_firm VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "quotes_v2",
+        "is_internal",
+        "is_internal BOOLEAN NOT NULL DEFAULT FALSE",
     )
 
 
@@ -1785,4 +1819,10 @@ def ensure_quote_v2_sound_firm_column(engine: Engine) -> None:
         "quotes_v2",
         "sound_firm",
         "sound_firm VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "quotes_v2",
+        "is_internal",
+        "is_internal BOOLEAN NOT NULL DEFAULT FALSE",
     )

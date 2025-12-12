@@ -36,8 +36,9 @@ export interface PvEngineEnv {
   availability: PvAvailabilityEnv;
   ui: PvUiEnv;
   payments: PvPaymentsEnv;
+  enablePvOrders: boolean;
   briefTotalQuestions: number;
-   canPay: boolean;
+  canPay: boolean;
 }
 
 export interface PvEngineCore {
@@ -290,6 +291,7 @@ export function createPersonalizedVideoEngineCore(
           draft.lengthChoice === "30_45" ? 40 : 75;
         const payload: VideoOrderDraftPayload = {
           artist_id: artistId,
+          service_id: params.serviceId,
           delivery_by_utc: toIsoDateUtc(draft.deliveryBy),
           length_sec: lengthSec,
           language: draft.language,
@@ -305,7 +307,7 @@ export function createPersonalizedVideoEngineCore(
           total: pricing.total,
         };
 
-        const idempotency = `vo-${artistId}-${draft.deliveryBy}-${lengthSec}-${pricing.total}`;
+        const idempotency = `vo-${artistId}-${params.serviceId || 0}-${draft.deliveryBy}-${lengthSec}-${pricing.total}`;
         const res = await env.api.createOrder(payload, idempotency);
 
         const seed = {
@@ -329,17 +331,22 @@ export function createPersonalizedVideoEngineCore(
 
         env.storage.saveBriefSeed(res.id, seed);
 
-        const serviceId = params.serviceId;
-        if (serviceId) {
-          const threadId = await env.api.createThreadForOrder(
-            artistId,
-            serviceId,
-            res.id,
-            `vo-thread-${res.id}`,
-          );
-          if (threadId) {
-            env.storage.saveThreadIdForOrder(res.id, threadId);
-            env.storage.saveOrderIdForThread(threadId, res.id);
+        if (env.enablePvOrders) {
+          env.storage.saveThreadIdForOrder(res.id, res.id);
+          env.storage.saveOrderIdForThread(res.id, res.id);
+        } else {
+          const serviceId = params.serviceId;
+          if (serviceId) {
+            const threadId = await env.api.createThreadForOrder(
+              artistId,
+              serviceId,
+              res.id,
+              `vo-thread-${res.id}`,
+            );
+            if (threadId) {
+              env.storage.saveThreadIdForOrder(res.id, threadId);
+              env.storage.saveOrderIdForThread(threadId, res.id);
+            }
           }
         }
 
@@ -388,27 +395,32 @@ export function createPersonalizedVideoEngineCore(
       const hasOrder = !!order;
       const payment = getState().payment;
 
-      setState({
-        orderSummary: hasOrder && order
-          ? {
-              id: order.id,
-              artistId: order.artist_id,
-              buyerId: order.buyer_id,
-              status: order.status,
-              deliveryByUtc: order.delivery_by_utc,
-              lengthSec: order.length_sec,
-              language: order.language,
-              total: order.total,
-              priceBase: order.price_base,
-              priceRush: order.price_rush,
-              priceAddons: order.price_addons,
-              discount: order.discount,
-            }
-          : null,
-        payment: {
-          ...payment,
-          loading: false,
-          error: hasOrder
+	      setState({
+	        orderSummary: hasOrder && order
+	          ? {
+	              id: order.id,
+	              artistId: order.artist_id,
+	              buyerId: order.buyer_id,
+	              status: order.status,
+	              deliveryByUtc: order.delivery_by_utc,
+	              lengthSec: order.length_sec,
+	              language: order.language,
+	              total: order.total,
+	              priceBase: order.price_base,
+	              priceRush: order.price_rush,
+	              priceAddons: order.price_addons,
+	              discount: order.discount,
+	              clientTotalInclVat:
+	                typeof (order as any)?.totals_preview?.client_total_incl_vat ===
+	                "number"
+	                  ? (order as any).totals_preview.client_total_incl_vat
+	                  : null,
+	            }
+	          : null,
+	        payment: {
+	          ...payment,
+	          loading: false,
+	          error: hasOrder
             ? null
             : "Please check your connection and try again.",
         },
@@ -460,7 +472,31 @@ export function createPersonalizedVideoEngineCore(
       if (!id) return;
 
       try {
-        await env.api.updateStatus(id, "paid");
+        if (env.enablePvOrders) {
+          const ref = String(_reference || "").trim();
+          if (!ref) {
+            setState({
+              payment: {
+                ...getState().payment,
+                error: "Payment reference missing. Please try again.",
+              },
+            });
+            return;
+          }
+          const verified = await env.api.verifyPaystack(id, ref);
+          if (!verified) {
+            setState({
+              payment: {
+                ...getState().payment,
+                error: "Payment verification failed. Please try again.",
+              },
+            });
+            return;
+          }
+          currentOrder = verified;
+        } else {
+          await env.api.updateStatus(id, "paid");
+        }
       } catch (e) {
         setState({
           payment: { ...getState().payment, error: "Failed to update payment status. Please refresh." },
@@ -470,8 +506,12 @@ export function createPersonalizedVideoEngineCore(
 
       env.ui.toastSuccess("Payment received!");
       try {
-        let tid = env.storage.getThreadIdForOrder(id);
-        if (!tid && params.serviceId) {
+        let tid: string | number | null = env.storage.getThreadIdForOrder(id);
+        if (!tid && env.enablePvOrders) {
+          tid = String(id);
+          env.storage.saveThreadIdForOrder(id, id);
+          env.storage.saveOrderIdForThread(id, id);
+        } else if (!tid && params.serviceId) {
           const created = await env.api.createThreadForOrder(
             params.artistId,
             params.serviceId,
@@ -539,7 +579,8 @@ export function createPersonalizedVideoEngineCore(
       await env.api.updateStatus(id, "in_production");
 
       try {
-        const tid = env.storage.getThreadIdForOrder(id);
+        const tid =
+          env.storage.getThreadIdForOrder(id) || (env.enablePvOrders ? String(id) : null);
         if (tid) {
           const briefUrl = `/video-orders/${id}/brief`;
           await env.api.postThreadMessage(

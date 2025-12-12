@@ -487,6 +487,19 @@ def create_payment(
                 status.HTTP_404_NOT_FOUND,
             )
 
+    # Guard: standard payments only apply to standard bookings.
+    try:
+        btype = str(getattr(booking, "booking_type", "standard") or "standard").lower()
+        if btype != "standard":
+            raise error_response(
+                "Unsupported booking type for standard payments",
+                {"booking_type": btype},
+                status.HTTP_400_BAD_REQUEST,
+            )
+    except Exception as _exc:
+        if hasattr(_exc, "status_code"):
+            raise
+
     if booking.client_id != current_user.id:
         logger.warning(
             "User %s attempted payment for booking %s",
@@ -785,6 +798,19 @@ def paystack_verify(
                 simple = cand
         if not simple:
             raise error_response("Payment reference not recognized", {}, status.HTTP_404_NOT_FOUND)
+
+    # Guard: PV and other non-standard bookings must not use standard verify.
+    try:
+        btype = str(getattr(simple, "booking_type", "standard") or "standard").lower()
+        if btype != "standard":
+            raise error_response(
+                "Unsupported booking type for standard payments",
+                {"booking_type": btype},
+                status.HTTP_400_BAD_REQUEST,
+            )
+    except Exception as _exc:
+        if hasattr(_exc, "status_code"):
+            raise
     if simple.client_id != current_user.id:
         raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
 
@@ -1259,6 +1285,21 @@ async def paystack_webhook(
         except Exception:
             pass
         return resp
+
+    # Guard: ignore non-standard bookings for standard webhook path.
+    try:
+        btype = str(getattr(simple, "booking_type", "standard") or "standard").lower()
+        if btype != "standard":
+            resp = Response(status_code=status.HTTP_400_BAD_REQUEST)
+            try:
+                hdr = timer.header()
+                if hdr:
+                    resp.headers['Server-Timing'] = hdr
+            except Exception:
+                pass
+            return resp
+    except Exception:
+        pass
 
     # Idempotency
     if (str(simple.payment_status or "").lower() == "paid") or (getattr(simple, "charged_total_amount", 0) or 0) > 0:

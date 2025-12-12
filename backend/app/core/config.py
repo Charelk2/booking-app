@@ -106,6 +106,10 @@ class Settings(BaseSettings):
     FEATURE_EVENT_PREP: bool = False
     # Frontend env passthrough to avoid validation errors when extra is forbid
     NEXT_PUBLIC_FEATURE_EVENT_PREP: str = ""
+    # Personalized Video v2 orders (backend awareness only)
+    ENABLE_PV_ORDERS: bool = False
+    # Frontend env passthrough so shared .env doesn't break backend settings
+    NEXT_PUBLIC_ENABLE_PV_ORDERS: str = ""
     # Accept Paystack-related frontend toggles so shared .env does not break backend settings
     NEXT_PUBLIC_USE_PAYSTACK: str = ""
     NEXT_PUBLIC_FAKE_PAYMENTS: str = ""

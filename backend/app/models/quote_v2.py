@@ -3,6 +3,7 @@ from sqlalchemy import (
     Column,
     Integer,
     ForeignKey,
+    Boolean,
     Numeric,
     String,
     DateTime,
@@ -28,6 +29,7 @@ class QuoteV2(BaseModel):
     booking_request_id = Column(Integer, ForeignKey("booking_requests.id"), nullable=False)
     artist_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     client_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    is_internal = Column(Boolean, nullable=False, default=False, index=True)
     services = Column(JSON, nullable=False)
     sound_fee = Column(Numeric(10, 2), nullable=False, default=0)
     # When true (stored as 'true' string for compatibility), the sound line is firm

@@ -190,15 +190,18 @@ export default function BookingSummaryCard({
   const [briefLink, setBriefLink] = React.useState<string | null>(null);
   const [briefComplete, setBriefComplete] = React.useState<boolean>(false);
   const isPersonalizedVideo = variant === 'personalizedVideo';
+  const enablePvOrders =
+    (process.env.NEXT_PUBLIC_ENABLE_PV_ORDERS ?? '') === '1';
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
     const update = () => {
       try {
         const oid = localStorage.getItem(`vo-order-for-thread-${bookingRequestId}`);
-        if (oid) {
-          setBriefLink(`/video-orders/${oid}/brief`);
-          setBriefComplete(!!localStorage.getItem(`vo-brief-complete-${oid}`));
+        const resolved = oid || (enablePvOrders && isPersonalizedVideo ? String(bookingRequestId) : null);
+        if (resolved) {
+          setBriefLink(`/video-orders/${resolved}/brief`);
+          setBriefComplete(!!localStorage.getItem(`vo-brief-complete-${resolved}`));
         } else {
           setBriefLink(null);
           setBriefComplete(false);
@@ -212,7 +215,7 @@ export default function BookingSummaryCard({
       window.removeEventListener('storage', update);
       window.removeEventListener('focus', update);
     };
-  }, [bookingRequestId]);
+  }, [bookingRequestId, enablePvOrders, isPersonalizedVideo]);
 
   const getLocationLabel = () => {
     const locName = (parsedBookingDetails as any)?.location_name as string | undefined;
