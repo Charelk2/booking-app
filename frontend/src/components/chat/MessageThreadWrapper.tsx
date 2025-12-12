@@ -1348,9 +1348,9 @@ export default function MessageThreadWrapper({
               : 'md:w-0 md:p-0 md:overflow-hidden'
           }`}
         >
-          {bookingRequest ? (
+          {effectiveBookingRequest ? (
             <BookingDetailsPanel
-              bookingRequest={bookingRequest}
+              bookingRequest={effectiveBookingRequest}
               parsedBookingDetails={parsedDetails}
               bookingConfirmed={bookingConfirmed}
               confirmedBookingDetails={confirmedBookingDetails}
@@ -1367,12 +1367,12 @@ export default function MessageThreadWrapper({
               onHydratedBookingRequest={handleHydratedBookingRequest}
               openPaymentModal={(args) => {
                 const provider =
-                  (bookingRequest as any)?.service_provider_profile?.business_name ||
-                  (bookingRequest as any)?.service_provider?.business_name ||
-                  bookingRequest?.artist_profile?.business_name ||
-                  (bookingRequest as any)?.artist?.first_name ||
+                  (effectiveBookingRequest as any)?.service_provider_profile?.business_name ||
+                  (effectiveBookingRequest as any)?.service_provider?.business_name ||
+                  effectiveBookingRequest?.artist_profile?.business_name ||
+                  (effectiveBookingRequest as any)?.artist?.first_name ||
                   'Service Provider';
-                const serviceName = bookingRequest?.service?.title || undefined;
+                const serviceName = effectiveBookingRequest?.service?.title || undefined;
                 openPaymentModal({
                   bookingRequestId: args.bookingRequestId,
                   amount: args.amount,
@@ -1422,9 +1422,9 @@ export default function MessageThreadWrapper({
             </button>
           </div>
           <div className="p-4">
-            {bookingRequest ? (
+            {effectiveBookingRequest ? (
               <BookingDetailsPanel
-                bookingRequest={bookingRequest}
+                bookingRequest={effectiveBookingRequest}
                 parsedBookingDetails={parsedDetails}
                 bookingConfirmed={bookingConfirmed}
                 confirmedBookingDetails={confirmedBookingDetails}
