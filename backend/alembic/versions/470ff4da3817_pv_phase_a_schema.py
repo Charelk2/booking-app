@@ -61,39 +61,87 @@ def _columns_exist(bind, table: str, cols: list[str]) -> bool:
         return False
 
 
+def _has_column(bind, table: str, col: str) -> bool:
+    try:
+        insp = sa.inspect(bind)
+        existing = {c.get("name") for c in insp.get_columns(table)}
+        return col in existing
+    except Exception:
+        return False
+
+
+def _has_index(bind, table: str, index_name: str) -> bool:
+    try:
+        if _is_pg(bind):
+            row = bind.execute(
+                text(
+                    """
+                    SELECT 1
+                    FROM pg_indexes
+                    WHERE schemaname = current_schema()
+                      AND tablename = :t
+                      AND indexname = :i
+                    """
+                ),
+                {"t": table, "i": index_name},
+            ).scalar()
+            return bool(row)
+        insp = sa.inspect(bind)
+        return any(ix.get("name") == index_name for ix in insp.get_indexes(table))
+    except Exception:
+        return False
+
+
+def _has_constraint(bind, name: str) -> bool:
+    if not _is_pg(bind):
+        return False
+    try:
+        row = bind.execute(
+            text("SELECT 1 FROM pg_constraint WHERE conname = :n"),
+            {"n": name},
+        ).scalar()
+        return bool(row)
+    except Exception:
+        return False
+
+
 def upgrade() -> None:
     bind = op.get_bind()
 
     # 1) bookings_simple: add booking_request_id + booking_type + indexes
     if _table_exists(bind, "bookings_simple"):
-        op.add_column(
-            "bookings_simple",
-            sa.Column(
-                "booking_request_id",
-                sa.Integer(),
-                sa.ForeignKey("booking_requests.id", ondelete="SET NULL"),
-                nullable=True,
-            ),
-        )
-        op.add_column(
-            "bookings_simple",
-            sa.Column(
-                "booking_type",
-                sa.String(length=64),
-                nullable=False,
-                server_default=sa.text("'standard'"),
-            ),
-        )
-        op.create_index(
-            "ix_bookings_simple_booking_request_id",
-            "bookings_simple",
-            ["booking_request_id"],
-        )
-        op.create_index(
-            "ix_bookings_simple_booking_type",
-            "bookings_simple",
-            ["booking_type"],
-        )
+        if not _has_column(bind, "bookings_simple", "booking_request_id"):
+            op.add_column(
+                "bookings_simple",
+                sa.Column(
+                    "booking_request_id",
+                    sa.Integer(),
+                    sa.ForeignKey("booking_requests.id", ondelete="SET NULL"),
+                    nullable=True,
+                ),
+            )
+        if not _has_column(bind, "bookings_simple", "booking_type"):
+            op.add_column(
+                "bookings_simple",
+                sa.Column(
+                    "booking_type",
+                    sa.String(length=64),
+                    nullable=False,
+                    server_default=sa.text("'standard'"),
+                ),
+            )
+        if not _has_index(bind, "bookings_simple", "ix_bookings_simple_booking_request_id"):
+            op.create_index(
+                "ix_bookings_simple_booking_request_id",
+                "bookings_simple",
+                ["booking_request_id"],
+            )
+        if not _has_index(bind, "bookings_simple", "ix_bookings_simple_booking_type"):
+            op.create_index(
+                "ix_bookings_simple_booking_type",
+                "bookings_simple",
+                ["booking_type"],
+            )
 
         # Backfill linkage + normalize booking_type
         if _is_pg(bind):
@@ -130,20 +178,22 @@ def upgrade() -> None:
 
     # 2) quotes_v2: add is_internal
     if _table_exists(bind, "quotes_v2"):
-        op.add_column(
-            "quotes_v2",
-            sa.Column(
-                "is_internal",
-                sa.Boolean(),
-                nullable=False,
-                server_default=sa.text("false"),
-            ),
-        )
-        op.create_index(
-            "ix_quotes_v2_is_internal",
-            "quotes_v2",
-            ["is_internal"],
-        )
+        if not _has_column(bind, "quotes_v2", "is_internal"):
+            op.add_column(
+                "quotes_v2",
+                sa.Column(
+                    "is_internal",
+                    sa.Boolean(),
+                    nullable=False,
+                    server_default=sa.text("false"),
+                ),
+            )
+        if not _has_index(bind, "quotes_v2", "ix_quotes_v2_is_internal"):
+            op.create_index(
+                "ix_quotes_v2_is_internal",
+                "quotes_v2",
+                ["is_internal"],
+            )
 
     # 3) disputes: booking_id nullable + booking_simple_id + index + PG check
     if _table_exists(bind, "disputes"):
@@ -153,19 +203,21 @@ def upgrade() -> None:
                 existing_type=sa.Integer(),
                 nullable=True,
             )
-            batch_op.add_column(
-                sa.Column(
-                    "booking_simple_id",
-                    sa.Integer(),
-                    sa.ForeignKey("bookings_simple.id", ondelete="SET NULL"),
-                    nullable=True,
+            if not _has_column(bind, "disputes", "booking_simple_id"):
+                batch_op.add_column(
+                    sa.Column(
+                        "booking_simple_id",
+                        sa.Integer(),
+                        sa.ForeignKey("bookings_simple.id", ondelete="SET NULL"),
+                        nullable=True,
+                    )
                 )
-            )
-            batch_op.create_index(
-                "ix_disputes_booking_simple_id",
-                ["booking_simple_id"],
-            )
-        if _is_pg(bind):
+            if not _has_index(bind, "disputes", "ix_disputes_booking_simple_id"):
+                batch_op.create_index(
+                    "ix_disputes_booking_simple_id",
+                    ["booking_simple_id"],
+                )
+        if _is_pg(bind) and not _has_constraint(bind, "ck_disputes_exactly_one_booking_ref"):
             op.create_check_constraint(
                 "ck_disputes_exactly_one_booking_ref",
                 "disputes",

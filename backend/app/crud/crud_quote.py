@@ -159,6 +159,8 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
         if existing is None:
             bs = models.BookingSimple(
                 quote_id=db_quote.id,
+                booking_request_id=db_quote.booking_request_id,
+                booking_type="standard",
                 artist_id=db_quote.artist_id,
                 client_id=db_quote.client_id,
                 confirmed=False,
@@ -382,6 +384,8 @@ def accept_quote(
     if booking is None:
         booking = models.BookingSimple(
             quote_id=db_quote.id,
+            booking_request_id=db_quote.booking_request_id,
+            booking_type="standard",
             artist_id=db_quote.artist_id,
             client_id=db_quote.client_id,
             confirmed=True,

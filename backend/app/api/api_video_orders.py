@@ -9,15 +9,26 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+import httpx
+import json
 
-from .dependencies import get_current_user, get_db
+from .dependencies import get_current_active_client, get_current_user, get_db
 from ..core.config import settings
 from ..crud import crud_video_orders
-from ..models import BookingSimple, QuoteStatusV2, QuoteV2
+from ..crud import crud_invoice, crud_message
+from .. import models
+from ..models import (
+    BookingSimple,
+    MessageType,
+    SenderType,
+    VisibleTo,
+    QuoteStatusV2,
+    QuoteV2,
+)
 from ..models.booking_request import BookingRequest
 from ..models.booking_status import BookingStatus
 from ..models.service import Service
@@ -29,6 +40,10 @@ from ..services.quote_totals import compute_quote_totals_snapshot, quote_totals_
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+class PaystackVerifyPayload(BaseModel):
+    reference: str
 
 
 class VideoOrderCreate(BaseModel):
@@ -518,3 +533,267 @@ def upsert_video_order_answer(
     db.add(br)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/video-orders/{order_id}/paystack/verify", response_model=VideoOrderResponse)
+def verify_video_order_paystack(
+    order_id: int,
+    body: PaystackVerifyPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_client),
+):
+    """Verify a Paystack charge for PV v2 orders (feature-flagged)."""
+    if not settings.ENABLE_PV_ORDERS:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    if not settings.PAYSTACK_SECRET_KEY:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Paystack not configured")
+
+    br = db.query(BookingRequest).filter(BookingRequest.id == order_id).first()
+    if not br or br.client_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    pv = load_pv_payload(br)
+    # Ensure this request is PV-backed
+    if pv is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    # Resolve internal quote + booking_simple spine
+    quote = (
+        db.query(QuoteV2)
+        .filter(QuoteV2.booking_request_id == br.id)
+        .filter(QuoteV2.is_internal.is_(True))
+        .order_by(QuoteV2.id.desc())
+        .first()
+    )
+    if not quote:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quote not found")
+    simple = (
+        db.query(BookingSimple)
+        .filter(BookingSimple.booking_request_id == br.id)
+        .filter(BookingSimple.booking_type == "personalized_video")
+        .first()
+    )
+    if not simple:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    # Call Paystack verify
+    headers = {
+        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+        "Content-Type": "application/json",
+    }
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            r = client.get(
+                f"https://api.paystack.co/transaction/verify/{body.reference}",
+                headers=headers,
+            )
+            r.raise_for_status()
+            data = r.json().get("data", {})
+        status_str = str(data.get("status", "")).lower()
+        amount_kobo = int(data.get("amount", 0) or 0)
+    except Exception as exc:
+        logger.error("PV Paystack verify error: %s", exc, exc_info=True)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Verification failed")
+
+    if status_str != "success":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment not successful")
+
+    snap = compute_quote_totals_snapshot(quote)
+    if not snap:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid quote total")
+    expected_kobo = int((snap.client_total_incl_vat * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    if amount_kobo != expected_kobo:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Amount mismatch (expected {expected_kobo}, got {amount_kobo})",
+        )
+
+    # Idempotency: if already paid, return current order
+    if str(getattr(simple, "payment_status", "")).lower() == "paid":
+        return _to_video_order_response(br)
+
+    amount = (snap.client_total_incl_vat or Decimal("0")).quantize(Decimal("0.01"))
+    simple.payment_status = "paid"
+    simple.payment_id = body.reference
+    simple.charged_total_amount = amount
+    simple.confirmed = True
+    db.add(simple)
+    db.commit()
+    db.refresh(simple)
+
+    # Ledger entries (mirror standard verify, skip payouts)
+    try:
+        existing_rows = db.execute(
+            text(
+                "SELECT type, meta FROM ledger_entries WHERE booking_id = :bid ORDER BY id DESC LIMIT 200"
+            ),
+            {"bid": simple.id},
+        ).fetchall()
+
+        def _meta_has(type_: str, split: str | None = None) -> bool:
+            for row in existing_rows:
+                try:
+                    if str(row[0]) != type_:
+                        continue
+                    m = row[1] or {}
+                    if isinstance(m, str):
+                        m = json.loads(m)
+                    if m.get("reference") == body.reference and (
+                        split is None or m.get("split") == split
+                    ):
+                        return True
+                except Exception:
+                    continue
+            return False
+
+        if not _meta_has("charge"):
+            db.execute(
+                text(
+                    "INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) "
+                    "VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"
+                ),
+                {
+                    "bid": simple.id,
+                    "amt": float(amount),
+                    "meta": json.dumps(
+                        {
+                            "gateway": "paystack",
+                            "reference": body.reference,
+                            "phase": "verify_pv",
+                        }
+                    ),
+                },
+            )
+
+        # Provider net split (reuse same math as standard verify)
+        services_total = 0.0
+        try:
+            if quote and isinstance(quote.services, list):
+                for s in quote.services:
+                    services_total += float(s.get("price") or 0)
+        except Exception:
+            services_total = 0.0
+        pass_through = float(getattr(quote, "travel_fee", 0) or 0) + float(
+            getattr(quote, "sound_fee", 0) or 0
+        )
+        discount_ex = float(getattr(quote, "discount", 0) or 0)
+        # Env rates
+        COMMISSION_RATE = float(getattr(settings, "COMMISSION_RATE", None) or 0.075)
+        VAT_RATE = float(getattr(settings, "VAT_RATE", None) or 0.15)
+        commissionable_base = round(max(0.0, (services_total + pass_through) - discount_ex), 2)
+        commission = round(commissionable_base * COMMISSION_RATE, 2)
+        vat_on_commission = round(commission * VAT_RATE, 2)
+        supplier_vat_rate = 0.0
+        try:
+            prof = (
+                db.query(models.ServiceProviderProfile)
+                .filter(models.ServiceProviderProfile.user_id == int(simple.artist_id))
+                .first()
+            )
+            if settings.ENABLE_AGENT_PAYOUT_VAT and prof and bool(getattr(prof, "vat_registered", False)):
+                raw_rate = getattr(prof, "vat_rate", None)
+                try:
+                    r = float(raw_rate) if raw_rate is not None else VAT_RATE
+                    supplier_vat_rate = r / 100.0 if r > 1.0 else r
+                except Exception:
+                    supplier_vat_rate = VAT_RATE
+        except Exception:
+            supplier_vat_rate = 0.0
+        supplier_vat_amount = round(commissionable_base * supplier_vat_rate, 2)
+        provider_net_total = round(
+            (commissionable_base + supplier_vat_amount) - commission - vat_on_commission,
+            2,
+        )
+        first_stage_amt = round(provider_net_total / 2.0, 2)
+        final_stage_amt = round(provider_net_total - first_stage_amt, 2)
+
+        if not _meta_has("provider_escrow_in", split="first50"):
+            db.execute(
+                text(
+                    "INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) "
+                    "VALUES (:bid, 'provider_escrow_in', :amt, 'ZAR', :meta)"
+                ),
+                {
+                    "bid": simple.id,
+                    "amt": float(first_stage_amt),
+                    "meta": json.dumps(
+                        {
+                            "gateway": "paystack",
+                            "reference": body.reference,
+                            "phase": "verify_pv",
+                            "split": "first50",
+                        }
+                    ),
+                },
+            )
+        if not _meta_has("provider_escrow_hold", split="held50"):
+            db.execute(
+                text(
+                    "INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) "
+                    "VALUES (:bid, 'provider_escrow_hold', :amt, 'ZAR', :meta)"
+                ),
+                {
+                    "bid": simple.id,
+                    "amt": float(final_stage_amt),
+                    "meta": json.dumps(
+                        {
+                            "gateway": "paystack",
+                            "reference": body.reference,
+                            "phase": "verify_pv",
+                            "split": "held50",
+                        }
+                    ),
+                },
+            )
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    # Invoices (best-effort)
+    try:
+        inv = crud_invoice.ensure_invoice_for_booking(db, quote, simple)
+        if inv is not None:
+            status_val = getattr(inv, "status", None)
+            is_paid = str(getattr(status_val, "value", status_val) or "").lower() == "paid"
+            if not is_paid:
+                crud_invoice.mark_paid(db, inv, payment_method="paystack", notes=f"ref {body.reference}")
+    except Exception:
+        pass
+
+    # Update PV payload + BR status
+    pv.status = PvStatus.PAID
+    pv.paid_at_utc = pv.paid_at_utc or datetime.utcnow()
+    pv.paystack_reference = body.reference
+    pv.payout_state = pv.payout_state or "reserved"
+    save_pv_payload(br, pv)
+    br.status = BookingStatus.REQUEST_CONFIRMED
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    # Emit payment received system message
+    try:
+        receipt_url = f"{settings.FRONTEND_URL}/receipts/{body.reference}"
+    except Exception:
+        receipt_url = None
+    content = (
+        f"Payment received. Booking confirmed. Receipt: {receipt_url}"
+        if receipt_url
+        else "Payment received. Booking confirmed."
+    )
+    try:
+        crud_message.create_message(
+            db=db,
+            booking_request_id=br.id,
+            sender_id=br.artist_id,
+            sender_type=SenderType.ARTIST,
+            content=content,
+            message_type=MessageType.SYSTEM,
+            visible_to=VisibleTo.BOTH,
+            system_key="payment_received_v1",
+        )
+    except Exception:
+        pass
+
+    preview = quote_totals_preview_payload(snap) if snap else None
+    return _to_video_order_response(br, totals_preview=preview)
