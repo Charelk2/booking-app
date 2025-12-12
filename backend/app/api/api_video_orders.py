@@ -409,6 +409,28 @@ def list_video_orders(
         pass
     rows: List[BookingRequest] = q.all()
     out: List[VideoOrderResponse] = []
+    preview_by_br_id: dict[int, dict[str, float] | None] = {}
+    if settings.ENABLE_PV_ORDERS and rows:
+        try:
+            br_ids = [int(r.id) for r in rows if getattr(r, "id", None)]
+            if br_ids:
+                quotes = (
+                    db.query(QuoteV2)
+                    .filter(QuoteV2.booking_request_id.in_(br_ids))
+                    .filter(QuoteV2.is_internal.is_(True))
+                    .order_by(QuoteV2.booking_request_id.asc(), QuoteV2.id.desc())
+                    .all()
+                )
+                seen: set[int] = set()
+                for qv2 in quotes:
+                    bid = int(getattr(qv2, "booking_request_id", 0) or 0)
+                    if not bid or bid in seen:
+                        continue
+                    seen.add(bid)
+                    snap = compute_quote_totals_snapshot(qv2)
+                    preview_by_br_id[bid] = quote_totals_preview_payload(snap) if snap else None
+        except Exception:
+            preview_by_br_id = {}
     for br in rows:
         extras = getattr(br, "service_extras", None)
         if not isinstance(extras, dict):
@@ -416,7 +438,7 @@ def list_video_orders(
         if "pv" not in extras:
             continue
         try:
-            out.append(_to_video_order_response(br))
+            out.append(_to_video_order_response(br, totals_preview=preview_by_br_id.get(int(br.id))))
         except Exception:
             # Be defensive; a single malformed row should not break the list.
             continue
@@ -437,6 +459,17 @@ def get_video_order(
     extras = getattr(br, "service_extras", None)
     if not isinstance(extras, dict) or "pv" not in extras:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    if settings.ENABLE_PV_ORDERS:
+        quote = (
+            db.query(QuoteV2)
+            .filter(QuoteV2.booking_request_id == br.id)
+            .filter(QuoteV2.is_internal.is_(True))
+            .order_by(QuoteV2.id.desc())
+            .first()
+        )
+        snap = compute_quote_totals_snapshot(quote) if quote else None
+        preview = quote_totals_preview_payload(snap) if snap else None
+        return _to_video_order_response(br, totals_preview=preview)
     return _to_video_order_response(br)
 
 

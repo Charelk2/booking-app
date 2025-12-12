@@ -102,8 +102,11 @@ def can_transition(old: PvStatus | str, role: str, new: PvStatus | str) -> bool:
     if r == "client":
         if old_s == PvStatus.AWAITING_PAYMENT and new_s == PvStatus.CANCELLED:
             return True
-        return new_s in {PvStatus.IN_DISPUTE, PvStatus.COMPLETED}
+        # Client transitions:
+        # - paid -> in_production (brief submitted)
+        # - in_production/delivered -> in_dispute
+        # - delivered -> completed (manual completion)
+        return new_s in {PvStatus.IN_PRODUCTION, PvStatus.IN_DISPUTE, PvStatus.COMPLETED}
     if r == "artist":
         return new_s in {PvStatus.IN_PRODUCTION, PvStatus.DELIVERED}
     return False
-
