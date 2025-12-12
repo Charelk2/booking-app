@@ -410,11 +410,11 @@ export function createPersonalizedVideoEngineCore(
 	              priceRush: order.price_rush,
 	              priceAddons: order.price_addons,
 	              discount: order.discount,
-	              clientTotalInclVat:
-	                typeof (order as any)?.totals_preview?.client_total_incl_vat ===
-	                "number"
-	                  ? (order as any).totals_preview.client_total_incl_vat
-	                  : null,
+	              clientTotalInclVat: (() => {
+	                const raw = (order as any)?.totals_preview?.client_total_incl_vat;
+	                const n = typeof raw === "number" ? raw : Number(raw);
+	                return Number.isFinite(n) ? n : null;
+	              })(),
 	            }
 	          : null,
 	        payment: {

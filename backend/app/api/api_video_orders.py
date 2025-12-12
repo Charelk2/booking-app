@@ -33,7 +33,6 @@ from ..models.booking_request import BookingRequest
 from ..models.booking_status import BookingStatus
 from ..models.service import Service
 from ..models.user import User
-from ..schemas.quote_v2 import QuoteTotalsPreview
 from ..schemas.pv import PvPayload, PvStatus
 from ..services.pv_orders import can_transition, load_pv_payload, save_pv_payload
 from ..services.quote_totals import compute_quote_totals_snapshot, quote_totals_preview_payload
@@ -71,6 +70,15 @@ class VideoOrderCreate(BaseModel):
     total: float = Field(default=0)
 
 
+class VideoOrderTotalsPreview(BaseModel):
+    # Keep these as floats (not Decimals) so JSON responses are numbers. The frontend
+    # Paystack amount logic relies on this being numeric.
+    provider_subtotal: Optional[float] = None
+    platform_fee_ex_vat: Optional[float] = None
+    platform_fee_vat: Optional[float] = None
+    client_total_incl_vat: Optional[float] = None
+
+
 class VideoOrderResponse(BaseModel):
     id: int
     artist_id: int
@@ -85,7 +93,7 @@ class VideoOrderResponse(BaseModel):
     price_addons: float
     discount: float
     total: float
-    totals_preview: Optional[QuoteTotalsPreview] = None
+    totals_preview: Optional[VideoOrderTotalsPreview] = None
     contact_email: Optional[str] = None
     contact_whatsapp: Optional[str] = None
 
@@ -246,7 +254,7 @@ def _to_video_order_response(
         price_addons=float(pv.price_addons or 0),
         discount=float(pv.discount or 0),
         total=float(pv.total or 0),
-        totals_preview=(QuoteTotalsPreview(**totals_preview) if totals_preview else None),
+        totals_preview=(VideoOrderTotalsPreview(**totals_preview) if totals_preview else None),
         contact_email=pv.contact_email,
         contact_whatsapp=pv.contact_whatsapp,
     )

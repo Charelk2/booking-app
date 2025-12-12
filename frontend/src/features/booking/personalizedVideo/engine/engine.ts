@@ -206,7 +206,8 @@ export function usePersonalizedVideoOrderEngine(
             const amountZar = (() => {
               if (ENABLE_PV_ORDERS) {
                 const v = (order as any)?.totals_preview?.client_total_incl_vat;
-                if (typeof v === "number" && Number.isFinite(v) && v > 0) return v;
+                const n = typeof v === "number" ? v : Number(v);
+                if (Number.isFinite(n) && n > 0) return n;
               }
               const fallback = Number((order as any)?.total || 0);
               return Number.isFinite(fallback) ? fallback : 0;
