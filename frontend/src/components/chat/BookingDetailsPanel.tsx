@@ -40,6 +40,8 @@ const formatBacklineLabel = (key: string): string => {
 };
 
 const providerIdentityCache = new Map<number, { name: string | null; avatar: string | null }>();
+const ENABLE_PV_ORDERS =
+  (process.env.NEXT_PUBLIC_ENABLE_PV_ORDERS ?? '') === '1';
 
 const normalizeIdentityString = (value: unknown): string | null => {
   if (value == null) return null;
@@ -628,9 +630,10 @@ export default function BookingDetailsPanel({
     const update = () => {
       try {
         const oid = localStorage.getItem(`vo-order-for-thread-${tid}`);
-        if (oid) {
-          setPvBriefLink(`/video-orders/${oid}/brief`);
-          setPvBriefComplete(!!localStorage.getItem(`vo-brief-complete-${oid}`));
+        const resolved = oid || (ENABLE_PV_ORDERS ? String(tid) : null);
+        if (resolved) {
+          setPvBriefLink(`/video-orders/${resolved}/brief`);
+          setPvBriefComplete(!!localStorage.getItem(`vo-brief-complete-${resolved}`));
         } else {
           setPvBriefLink(null);
           setPvBriefComplete(false);
@@ -1052,31 +1055,43 @@ export default function BookingDetailsPanel({
               showEventDetails={!isPersonalized}
               showReceiptBelowTotal={isPersonalized}
               clientReviewCta={clientReviewCta}
-              belowHeader={
-                isPersonalized ? (
-                  <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm">
-                    <div className="font-semibold text-indigo-900">Personalized Video</div>
-                    <div className="text-indigo-800 mt-1">
-                      Complete the brief so production can start right away.
-                    </div>
-                    {pvBriefLink ? (
-                      <div className="mt-3">
-                        <a
-                          href={pvBriefLink}
-                          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 transition"
-                        >
-                          {pvBriefComplete ? 'View Brief' : 'Complete Brief'}
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="mt-2 text-xs text-indigo-700">
-                        We’ll drop your brief link here as soon as the order finishes syncing.
-                      </div>
-                    )}
-                  </div>
-                ) : showPrep ? (
-                  <EventPrepCard
-                    bookingId={Number(confirmedBookingDetails?.id || 0) || 0}
+	              belowHeader={
+	                isPersonalized ? (
+	                  <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm">
+	                    <div className="font-semibold text-indigo-900">Personalized Video</div>
+	                    <div className="text-indigo-800 mt-1">
+	                      {viewerIsProvider
+	                        ? 'Review the brief and deliver the video here when it’s ready.'
+	                        : 'Complete the brief so production can start right away.'}
+	                    </div>
+	                    {pvBriefLink ? (
+	                      <div className="mt-3">
+	                        <a
+	                          href={pvBriefLink}
+	                          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 transition"
+	                        >
+	                          {pvBriefComplete ? 'View Brief' : viewerIsProvider ? 'View Brief' : 'Complete Brief'}
+	                        </a>
+	                      </div>
+	                    ) : (
+	                      <div className="mt-2 text-xs text-indigo-700">
+	                        We’ll drop your brief link here as soon as the order finishes syncing.
+	                      </div>
+	                    )}
+	                    {ENABLE_PV_ORDERS && viewerIsProvider && (
+	                      <div className="mt-3">
+	                        <a
+	                          href={`/video-orders/${Number(bookingRequest.id)}/deliver`}
+	                          className="inline-flex items-center gap-2 rounded-md border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-900 shadow-sm hover:bg-indigo-100 transition"
+	                        >
+	                          Deliver video
+	                        </a>
+	                      </div>
+	                    )}
+	                  </div>
+	                ) : showPrep ? (
+	                  <EventPrepCard
+	                    bookingId={Number(confirmedBookingDetails?.id || 0) || 0}
                     bookingRequestId={Number(bookingRequest.id)}
                     canEdit={true}
                     summaryOnly

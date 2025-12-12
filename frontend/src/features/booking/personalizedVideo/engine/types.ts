@@ -22,14 +22,20 @@ export interface VideoOrderSummary {
     | 'draft'
     | 'awaiting_payment'
     | 'paid'
-    | 'info_pending'
     | 'in_production'
     | 'delivered'
+    | 'completed'
+    | 'in_dispute'
+    | 'refunded'
+    | 'cancelled'
+    // legacy aliases (normalized on read where possible)
+    | 'info_pending'
     | 'closed';
   deliveryByUtc: string;
   lengthSec: number;
   language: string;
   total: number;
+  clientTotalInclVat?: number | null;
   priceBase: number;
   priceRush: number;
   priceAddons: number;

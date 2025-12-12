@@ -2196,28 +2196,39 @@ def mark_payout_paid(
 @router.get("/disputes")
 def list_disputes(request: Request, _: Tuple[User, AdminUser] = Depends(require_roles("trust", "admin", "superadmin")), db: Session = Depends(get_db)):
     offset, limit, start, end = _get_offset_limit(request.query_params)
-    rows = db.execute(text("SELECT id, booking_id, status, reason, created_at FROM disputes ORDER BY created_at DESC LIMIT :lim OFFSET :off"), {"lim": limit, "off": offset}).fetchall()
+    rows = db.execute(text("SELECT id, booking_id, booking_simple_id, status, reason, created_at FROM disputes ORDER BY created_at DESC LIMIT :lim OFFSET :off"), {"lim": limit, "off": offset}).fetchall()
     total = db.execute(text("SELECT COUNT(*) FROM disputes")).scalar() or 0
-    items = [{"id": str(r[0]), "booking_id": str(r[1]), "status": r[2], "reason": r[3], "created_at": r[4]} for r in rows]
+    items = [
+        {
+            "id": str(r[0]),
+            "booking_id": (str(r[1]) if r[1] is not None else None),
+            "booking_simple_id": (str(r[2]) if r[2] is not None else None),
+            "status": r[3],
+            "reason": r[4],
+            "created_at": r[5],
+        }
+        for r in rows
+    ]
     return _with_total(items, int(total), "disputes", start, start + len(items) - 1)
 
 
 @router.get("/disputes/{dispute_id}")
 def get_dispute(dispute_id: int, _: Tuple[User, AdminUser] = Depends(require_roles("trust", "admin", "superadmin")), db: Session = Depends(get_db)):
     row = db.execute(
-        text("SELECT id, booking_id, status, reason, created_at, notes, assigned_admin_id FROM disputes WHERE id=:id"),
+        text("SELECT id, booking_id, booking_simple_id, status, reason, created_at, notes, assigned_admin_id FROM disputes WHERE id=:id"),
         {"id": dispute_id},
     ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Not Found")
     return {
         "id": str(row[0]),
-        "booking_id": str(row[1]),
-        "status": row[2],
-        "reason": row[3],
-        "created_at": row[4],
-        "notes": row[5],
-        "assigned_admin_id": (str(row[6]) if row[6] is not None else None),
+        "booking_id": (str(row[1]) if row[1] is not None else None),
+        "booking_simple_id": (str(row[2]) if row[2] is not None else None),
+        "status": row[3],
+        "reason": row[4],
+        "created_at": row[5],
+        "notes": row[6],
+        "assigned_admin_id": (str(row[7]) if row[7] is not None else None),
     }
 
 

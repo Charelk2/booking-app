@@ -8,6 +8,7 @@ from sqlalchemy import text
 from ..database import SessionLocal
 
 from .. import models
+from ..core.config import settings
 from ..crud import crud_message
 from ..utils.notifications import (
     notify_user_new_message,
@@ -38,6 +39,20 @@ def _has_open_dispute(db: Session, booking_id: int) -> bool:
                 "SELECT 1 FROM disputes WHERE booking_id=:bid AND status IN ('open', 'needs_info') LIMIT 1"
             ),
             {"bid": int(booking_id)},
+        ).fetchone()
+        return row is not None
+    except Exception:
+        return False
+
+
+def _has_open_simple_dispute(db: Session, booking_simple_id: int) -> bool:
+    """Return True if there is an open/active dispute row for this BookingSimple."""
+    try:
+        row = db.execute(
+            text(
+                "SELECT 1 FROM disputes WHERE booking_simple_id=:sid AND status IN ('open', 'needs_info') LIMIT 1"
+            ),
+            {"sid": int(booking_simple_id)},
         ).fetchone()
         return row is not None
     except Exception:
@@ -584,6 +599,114 @@ def handle_auto_completion(db: Session) -> dict:
     return results
 
 
+def handle_pv_auto_completion(db: Session) -> dict:
+    """Auto-complete delivered Personalized Video orders once auto_complete_at_utc passes.
+
+    PV orders are stored as BookingRequest rows with service_extras['pv'].
+    We gate this behind ENABLE_PV_ORDERS so legacy PV threads remain unchanged
+    until the v2 rollout is enabled.
+    """
+    if not settings.ENABLE_PV_ORDERS:
+        return {"pv_auto_completed": 0, "pv_skipped_due_to_dispute": 0}
+
+    from decimal import Decimal
+
+    from ..schemas.pv import PvStatus
+    from ..services.pv_orders import load_pv_payload, save_pv_payload
+
+    now = datetime.utcnow()
+    results = {"pv_auto_completed": 0, "pv_skipped_due_to_dispute": 0}
+
+    q = db.query(models.BookingRequest).order_by(models.BookingRequest.id.asc())
+    try:
+        if db.bind and db.bind.dialect.name == "postgresql":
+            q = q.filter(text("service_extras::jsonb ? 'pv'"))
+    except Exception:
+        pass
+
+    rows = q.all()
+    for br in rows:
+        extras = getattr(br, "service_extras", None)
+        if not isinstance(extras, dict) or "pv" not in extras:
+            continue
+
+        try:
+            pv = load_pv_payload(br)
+        except Exception:
+            continue
+
+        if pv.status != PvStatus.DELIVERED:
+            continue
+        if pv.auto_complete_at_utc is None or pv.auto_complete_at_utc > now:
+            continue
+        if not pv.booking_simple_id:
+            continue
+
+        simple_id = int(pv.booking_simple_id)
+        if _has_open_simple_dispute(db, simple_id):
+            results["pv_skipped_due_to_dispute"] += 1
+            continue
+
+        simple = (
+            db.query(models.BookingSimple)
+            .filter(models.BookingSimple.id == simple_id)
+            .first()
+        )
+        if not simple:
+            continue
+        if (getattr(simple, "booking_type", "") or "").lower() != "personalized_video":
+            continue
+        if (getattr(simple, "payment_status", "") or "").lower() != "paid":
+            continue
+
+        pv.status = PvStatus.COMPLETED
+        pv.completed_at_utc = pv.completed_at_utc or now
+        pv.payout_state = "payable"
+        save_pv_payload(br, pv)
+        br.status = models.BookingStatus.REQUEST_COMPLETED
+        db.add(br)
+        db.commit()
+
+        # Create queued payout rows if missing (idempotent).
+        try:
+            from ..api.api_payment import _ensure_payout_rows  # noqa: WPS433
+
+            ref = (
+                str(pv.paystack_reference or "").strip()
+                or str(getattr(simple, "payment_id", "") or "").strip()
+                or f"pv_auto_complete:{br.id}"
+            )
+            _ensure_payout_rows(
+                db,
+                simple=simple,
+                total_amount=Decimal(str(pv.total or 0)),
+                reference=ref,
+                phase="pv_auto_complete",
+            )
+        except Exception:
+            pass
+
+        # Emit a system line for both parties.
+        try:
+            _post_system(
+                db,
+                br.id,
+                actor_id=int(br.artist_id),
+                content=(
+                    "This personalized video order has been automatically marked as completed. "
+                    "If you still need help, you can contact support from this conversation."
+                ),
+                visible_to=models.VisibleTo.BOTH,
+                system_key="pv_auto_completed_v1",
+            )
+        except Exception:
+            pass
+
+        results["pv_auto_completed"] += 1
+
+    return results
+
+
 def run_maintenance() -> dict:
     """Run all operational maintenance tasks once and return a summary.
 
@@ -607,11 +730,15 @@ def run_maintenance() -> dict:
     with SessionLocal() as db:
         auto = handle_auto_completion(db)
 
+    # PV auto-completion
+    with SessionLocal() as db:
+        pv_auto = handle_pv_auto_completion(db)
+
     # Artist accept timeouts
     with SessionLocal() as db:
         artist_timeouts = handle_artist_accept_timeouts(db)
 
-    return {**so, "pre_event_messages": pre, **post, **auto, **artist_timeouts}
+    return {**so, "pre_event_messages": pre, **post, **auto, **pv_auto, **artist_timeouts}
 
 
 def handle_artist_accept_timeouts(db: Session) -> dict:

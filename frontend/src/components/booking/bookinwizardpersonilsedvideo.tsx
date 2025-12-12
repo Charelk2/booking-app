@@ -20,6 +20,8 @@ import {
 } from "@/features/booking/personalizedVideo/engine/engine";
 import type { PvLengthChoice } from "@/features/booking/personalizedVideo/serviceMapping";
 type LengthChoice = "30_45" | "60_90";
+const ENABLE_PV_ORDERS =
+  (process.env.NEXT_PUBLIC_ENABLE_PV_ORDERS ?? "") === "1";
 
 // =============================================================================
 // OPTIONS
@@ -417,6 +419,15 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
   }
 
   const canPaystack = payment.canPay;
+  const clientTotal =
+    typeof orderSummary.clientTotalInclVat === "number" &&
+    Number.isFinite(orderSummary.clientTotalInclVat) &&
+    orderSummary.clientTotalInclVat > 0
+      ? orderSummary.clientTotalInclVat
+      : null;
+  const totalToPay =
+    ENABLE_PV_ORDERS && clientTotal !== null ? clientTotal : orderSummary.total;
+  const canStartPayment = canPaystack || !ENABLE_PV_ORDERS;
 
   return (
     <div className="min-h-[100dvh] px-4 py-8 sm:py-12">
@@ -477,28 +488,51 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
               )}
 
               <div className="mt-3 flex justify-between text-base">
-                <span className="font-semibold text-gray-900">Total</span>
+                <span className="font-semibold text-gray-900">
+                  {ENABLE_PV_ORDERS && clientTotal !== null ? "Provider total" : "Total"}
+                </span>
                 <span className="font-bold text-gray-900">
                   {formatCurrency(orderSummary.total)}
                 </span>
               </div>
+              {ENABLE_PV_ORDERS && clientTotal !== null && (
+                <div className="mt-2 flex justify-between text-base">
+                  <span className="font-semibold text-gray-900">
+                    Total to pay (incl fees + VAT)
+                  </span>
+                  <span className="font-bold text-gray-900">
+                    {formatCurrency(clientTotal)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="mt-6">
             <Button
               onClick={startPayment}
-              variant={canPaystack ? "primary" : "secondary"}
+              variant={canStartPayment ? "primary" : "secondary"}
+              disabled={!canStartPayment}
               className="w-full h-11 text-base"
             >
-              {canPaystack ? "Pay" : "Simulate payment (demo)"}{" "}
-              {formatCurrency(orderSummary.total)}
+              {canPaystack
+                ? "Pay"
+                : ENABLE_PV_ORDERS
+                ? "Paystack not configured"
+                : "Simulate payment (demo)"}{" "}
+              {formatCurrency(totalToPay)}
             </Button>
           </div>
 
           <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
             <ShieldCheckIcon className="h-4 w-4" />
-            <span>{canPaystack ? "Payments processed securely." : "Payment provider not configured (demo mode)."}</span>
+            <span>
+              {canPaystack
+                ? "Payments processed securely."
+                : ENABLE_PV_ORDERS
+                ? "Payments are unavailable until Paystack is configured."
+                : "Payment provider not configured (demo mode)."}
+            </span>
           </div>
         </div>
       </div>

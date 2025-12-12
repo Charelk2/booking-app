@@ -654,41 +654,86 @@ def report_problem_for_request(
 
     resolved = get_booking_id_for_request(request_id=request_id, db=db)
     booking_id = resolved.get("booking_id") if isinstance(resolved, dict) else None
+
+    booking_simple: models.BookingSimple | None = None
+    is_pv = False
     if not booking_id:
-        raise error_response(
-            "Cannot report a problem for this request because no booking was created.",
-            {"booking_id": "missing"},
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-        )
+        # Personalized Video orders (v2) use BookingSimple instead of Booking.
+        extras = getattr(db_request, "service_extras", None)
+        if isinstance(extras, dict) and "pv" in extras:
+            is_pv = True
+        else:
+            try:
+                svc = None
+                if getattr(db_request, "service_id", None):
+                    svc = (
+                        db.query(models.Service)
+                        .filter(models.Service.id == db_request.service_id)
+                        .first()
+                    )
+                st = (getattr(svc, "service_type", "") or "").lower() if svc else ""
+                if "personalized video" in st:
+                    is_pv = True
+            except Exception:
+                is_pv = False
 
-    booking = db.query(models.Booking).filter(models.Booking.id == int(booking_id)).first()
-    if booking is None:
-        raise error_response(
-            "Booking not found for this request.",
-            {"booking_id": "not_found"},
-            status.HTTP_404_NOT_FOUND,
-        )
+        if is_pv:
+            booking_simple = (
+                db.query(models.BookingSimple)
+                .filter(
+                    models.BookingSimple.booking_request_id == int(request_id),
+                    models.BookingSimple.booking_type == "personalized_video",
+                )
+                .order_by(models.BookingSimple.id.desc())
+                .first()
+            )
+            if booking_simple is None:
+                booking_simple = (
+                    db.query(models.BookingSimple)
+                    .filter(models.BookingSimple.booking_request_id == int(request_id))
+                    .order_by(models.BookingSimple.id.desc())
+                    .first()
+                )
+            if booking_simple is None:
+                raise error_response(
+                    "Cannot report a problem for this order because no booking record was created.",
+                    {"booking_simple_id": "missing"},
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+        else:
+            raise error_response(
+                "Cannot report a problem for this request because no booking was created.",
+                {"booking_id": "missing"},
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
 
-    # For now, restrict to confirmed/completed events.
-    if booking.status not in [
-        models.BookingStatus.CONFIRMED,
-        models.BookingStatus.COMPLETED,
-    ]:
-        raise error_response(
-            "You can only report a problem for confirmed or completed bookings.",
-            {"status": booking.status.value},
-            status.HTTP_400_BAD_REQUEST,
-        )
+    if booking_id:
+        booking = db.query(models.Booking).filter(models.Booking.id == int(booking_id)).first()
+        if booking is None:
+            raise error_response(
+                "Booking not found for this request.",
+                {"booking_id": "not_found"},
+                status.HTTP_404_NOT_FOUND,
+            )
+
+        # For now, restrict to confirmed/completed events.
+        if booking.status not in [
+            models.BookingStatus.CONFIRMED,
+            models.BookingStatus.COMPLETED,
+        ]:
+            raise error_response(
+                "You can only report a problem for confirmed or completed bookings.",
+                {"status": booking.status.value},
+                status.HTTP_400_BAD_REQUEST,
+            )
 
     Dispute = models.Dispute  # noqa: N806
-    dispute = (
-        db.query(Dispute)
-        .filter(
-            Dispute.booking_id == int(booking_id),
-            Dispute.status.in_(["open", "needs_info"]),
-        )
-        .first()
-    )
+    q = db.query(Dispute).filter(Dispute.status.in_(["open", "needs_info"]))
+    if booking_id:
+        q = q.filter(Dispute.booking_id == int(booking_id))
+    else:
+        q = q.filter(Dispute.booking_simple_id == int(booking_simple.id))  # type: ignore[union-attr]
+    dispute = q.first()
 
     notes = {}
     if dispute and dispute.notes and isinstance(dispute.notes, dict):
@@ -708,7 +753,8 @@ def report_problem_for_request(
 
     if not dispute:
         dispute = Dispute(
-            booking_id=int(booking_id),
+            booking_id=(int(booking_id) if booking_id else None),
+            booking_simple_id=(int(booking_simple.id) if booking_simple else None),
             status="open",
             reason=body.category,
             notes=notes,
@@ -738,9 +784,13 @@ def report_problem_for_request(
         sender_id=current_user.id,
         sender_type=sender_type,
         content=(
-            "A problem has been reported for this event. Our team will review the "
-            "details. Messages in this chat are still visible to both parties, "
-            "but we may step in if needed."
+            (
+                "A problem has been reported for this personalized video order. "
+                "Our team will review the details."
+                if booking_simple
+                else "A problem has been reported for this event. Our team will review the details."
+            )
+            + " Messages in this chat are still visible to both parties, but we may step in if needed."
         ),
         message_type=models.MessageType.SYSTEM,
         visible_to=visible_to,
@@ -763,7 +813,8 @@ def report_problem_for_request(
     return {
         "status": dispute.status,
         "dispute_id": int(dispute.id),
-        "booking_id": int(booking_id),
+        "booking_id": (int(booking_id) if booking_id else None),
+        "booking_simple_id": (int(booking_simple.id) if booking_simple else None),
     }
 
 

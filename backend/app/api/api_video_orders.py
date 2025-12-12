@@ -5,7 +5,7 @@ BookingSimple spine and computes pricing server-side.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, List, Optional
 
@@ -44,6 +44,12 @@ logger = logging.getLogger(__name__)
 
 class PaystackVerifyPayload(BaseModel):
     reference: str
+
+
+class VideoOrderDeliverPayload(BaseModel):
+    delivery_url: Optional[str] = None
+    note: Optional[str] = None
+    auto_complete_hours: Optional[int] = None
 
 
 class VideoOrderCreate(BaseModel):
@@ -533,6 +539,74 @@ def upsert_video_order_answer(
     db.add(br)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/video-orders/{order_id}/deliver", response_model=VideoOrderResponse)
+def deliver_video_order(
+    order_id: int,
+    body: VideoOrderDeliverPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Mark a PV v2 order as delivered (artist-only) and set auto-complete horizon."""
+    if not settings.ENABLE_PV_ORDERS:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    br = db.query(BookingRequest).filter(BookingRequest.id == order_id).first()
+    if not br:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    if br.artist_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    pv = load_pv_payload(br)
+    if not can_transition(pv.status, "artist", PvStatus.DELIVERED):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status transition")
+
+    now = datetime.utcnow()
+    if pv.status != PvStatus.DELIVERED:
+        pv.status = PvStatus.DELIVERED
+    pv.delivered_at_utc = pv.delivered_at_utc or now
+
+    hours = int(body.auto_complete_hours or 72)
+    if hours < 1:
+        hours = 1
+    if hours > 168:
+        hours = 168
+    pv.auto_complete_at_utc = pv.auto_complete_at_utc or (now + timedelta(hours=hours))
+
+    data = pv.model_dump(mode="json", exclude_none=True)
+    if body.delivery_url:
+        data["delivery_url"] = str(body.delivery_url).strip()
+    if body.note:
+        data["delivery_note"] = str(body.note).strip()
+    save_pv_payload(br, data)
+    br.status = _map_status_to_booking(PvStatus.DELIVERED.value)
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    # Emit a system line so both parties see delivery in the thread.
+    try:
+        parts: list[str] = ["Your personalized video has been delivered."]
+        if body.delivery_url:
+            parts.append(f"Link: {str(body.delivery_url).strip()}")
+        if body.note:
+            parts.append(str(body.note).strip())
+        content = " ".join([p for p in parts if p])
+        crud_message.create_message(
+            db=db,
+            booking_request_id=br.id,
+            sender_id=current_user.id,
+            sender_type=SenderType.ARTIST,
+            content=content,
+            message_type=MessageType.SYSTEM,
+            visible_to=VisibleTo.BOTH,
+            system_key="pv_delivered_v1",
+        )
+    except Exception:
+        pass
+
+    return _to_video_order_response(br)
 
 
 @router.post("/video-orders/{order_id}/paystack/verify", response_model=VideoOrderResponse)

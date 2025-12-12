@@ -17,6 +17,8 @@ import {
 const PAYSTACK_CURRENCY =
   process.env.NEXT_PUBLIC_PAYSTACK_CURRENCY || "ZAR";
 const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === "1";
+const ENABLE_PV_ORDERS =
+  (process.env.NEXT_PUBLIC_ENABLE_PV_ORDERS ?? "") === "1";
 const PAYSTACK_PK =
   process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ||
   process.env.NEXT_PUBLIC_PAYSTACK_PK;
@@ -185,6 +187,10 @@ export function usePersonalizedVideoOrderEngine(
 
           // Demo mode when Paystack is not configured.
           if (!USE_PAYSTACK || !PAYSTACK_PK) {
+            if (ENABLE_PV_ORDERS) {
+              onError("Paystack is not configured.");
+              return;
+            }
             try {
               await onSuccess();
             } catch {
@@ -197,18 +203,28 @@ export function usePersonalizedVideoOrderEngine(
             await loadPaystackScript();
             const PaystackPop = (window as any).PaystackPop;
 
+            const amountZar = (() => {
+              if (ENABLE_PV_ORDERS) {
+                const v = (order as any)?.totals_preview?.client_total_incl_vat;
+                if (typeof v === "number" && Number.isFinite(v) && v > 0) return v;
+              }
+              const fallback = Number((order as any)?.total || 0);
+              return Number.isFinite(fallback) ? fallback : 0;
+            })();
+
             const handler = PaystackPop.setup({
               key: PAYSTACK_PK,
               email:
                 order.contact_email ||
                 `pv-buyer-${order.id}@example.com`,
               amount: Math.round(
-                Math.max(0, Number(order.total || 0)) * 100,
+                Math.max(0, amountZar) * 100,
               ),
               currency: PAYSTACK_CURRENCY,
               metadata: {
                 order_id: order.id,
                 purpose: "personalized_video",
+                amount_zar: amountZar,
               },
               callback: (res: { reference: string }) => {
                 onSuccess(res?.reference);
@@ -224,6 +240,7 @@ export function usePersonalizedVideoOrderEngine(
           }
         },
       },
+      enablePvOrders: ENABLE_PV_ORDERS,
       briefTotalQuestions: BRIEF_QUESTIONS.length,
       canPay,
     };
