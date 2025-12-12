@@ -16,6 +16,7 @@ from ..utils.notifications import (
     notify_new_booking,
 )
 from ..utils import error_response
+from ..utils.sound_modes import is_supplier_sound_mode
 from .crud_booking import create_booking_from_quote_v2
 from . import crud_invoice, crud_message
 from ..api.api_sound_outreach import kickoff_sound_outreach
@@ -114,7 +115,7 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
         sound_mode = (tb.get("sound_mode") if isinstance(tb, dict) else None) or None
         parent_id = getattr(booking_request, "parent_booking_request_id", None)
         is_main_artist_booking = not bool(parent_id)
-        if is_main_artist_booking and isinstance(sound_mode, str) and sound_mode.lower() == "supplier":
+        if is_main_artist_booking and is_supplier_sound_mode(sound_mode):
             try:
                 quote_for_calc = quote_in.copy(update={"sound_fee": Decimal("0")})
             except Exception:
