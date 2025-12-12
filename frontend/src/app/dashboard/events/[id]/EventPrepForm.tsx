@@ -11,19 +11,16 @@ import {
   ReceiptText,
   CheckCircle2,
   Loader2,
-  Music4,
   UploadCloud,
   Trash2,
-  AlertTriangle,
-  Users,
   Mail,
   Phone,
-  Globe,
   FileText,
 } from "lucide-react";
 
 // Removed MUI components in favor of Tailwind classes
 
+import { TextArea, TextInput } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import SavedPill from "@/components/ui/SavedPill";
 import useSavedHint from "@/hooks/useSavedHint";
@@ -57,14 +54,10 @@ const MapPinIcon = wrapIcon(MapPin);
 const ReceiptTextIcon = wrapIcon(ReceiptText);
 const CheckCircle2Icon = wrapIcon(CheckCircle2);
 const Loader2Icon = wrapIcon(Loader2);
-const Music4Icon = wrapIcon(Music4);
 const UploadCloudIcon = wrapIcon(UploadCloud);
 const Trash2Icon = wrapIcon(Trash2);
-const AlertTriangleIcon = wrapIcon(AlertTriangle);
-const UsersIcon = wrapIcon(Users);
 const MailIcon = wrapIcon(Mail);
 const PhoneIcon = wrapIcon(Phone);
-const GlobeIcon = wrapIcon(Globe);
 const FileTextIcon = wrapIcon(FileText);
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -76,12 +69,6 @@ type EventPrepAttachment = { id: number; file_url: string };
    Utilities
    ────────────────────────────────────────────────────────────────────────── */
 const toHHMM = (v?: string | null) => (v ? String(v).slice(0, 5) : "");
-const ZAR = (value: number | string | null | undefined) =>
-  new Intl.NumberFormat("en-ZA", {
-    style: "currency",
-    currency: "ZAR",
-    maximumFractionDigits: 0,
-  }).format(Number(value ?? 0));
 
 const timeToMinutes = (val?: string | null): number => {
   if (!val) return NaN;
@@ -391,18 +378,8 @@ function useEventPrep(bookingId: number) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
-   Timeline (MUI, always visible & editable)
+   Timeline helpers
    ────────────────────────────────────────────────────────────────────────── */
-function RoleTitle({ text, role }: { text: string; role: string }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="text-sm font-semibold text-gray-900">{text}</div>
-      <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-600">
-        {role}
-      </span>
-    </div>
-  );
-}
 
 function TimeField({
   value,
@@ -425,7 +402,7 @@ function TimeField({
       onChange={(e) => onChange(e.target.value)}
       className={
         className ||
-        "w-24 rounded-md bg-white border border-gray-300 text-gray-900 placeholder-gray-400 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
+        "w-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[var(--brand-color)] focus:ring-2 focus:ring-[var(--brand-color)]"
       }
     />
   );
@@ -487,85 +464,89 @@ function EventTimeline({
 }) {
   return (
     <section aria-label="Event timeline">
-      <h3 className="text-base font-semibold text-gray-900 ">Event Timeline</h3>
-      <p className="mt-1 text-xs text-gray-500">All times are local.</p>
+      <div>
+        <h3 className="text-lg font-bold text-gray-900">Timeline</h3>
+        <p className="mt-1 text-sm text-gray-600">
+          All times are local. Rough times are fine.
+        </p>
+      </div>
 
-      <div className="relative mt-4 pl-8">
-        <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-200" aria-hidden />
-
-        <div className="space-y-5">
-          {/* Arrival & Setup */}
-          <div className="relative flex items-start gap-3">
-            <div className="absolute left-4 -top-4 h-4 w-px bg-gray-200" aria-hidden />
-            <div className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 ring-1 ring-gray-200 text-gray-600">
-              <CalendarDaysIcon width={14} height={14} />
-            </div>
-            <div className="flex-1">
-              <RoleTitle text="Arrival & Setup" role={roleNotes.loadin} />
-              <div className="mt-2">
-                <StartEndRow
-                  start={ep.loadin_start || null}
-                  end={ep.loadin_end || null}
-                  onStart={(v) => patch({ loadin_start: v })}
-                  onEnd={(v) => patch({ loadin_end: v })}
-                />
+      <div className="mt-5 overflow-hidden rounded-xl border border-gray-100 divide-y divide-gray-100">
+        <div className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-sm font-semibold text-gray-900">Arrival &amp; setup</div>
+                <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-600">
+                  {roleNotes.loadin}
+                </span>
               </div>
+              <p className="mt-1 text-xs text-gray-500">When to arrive for load-in and setup.</p>
             </div>
+            <StartEndRow
+              start={ep.loadin_start || null}
+              end={ep.loadin_end || null}
+              onStart={(v) => patch({ loadin_start: v })}
+              onEnd={(v) => patch({ loadin_end: v })}
+            />
           </div>
+        </div>
 
-          {/* Soundcheck */}
-          <div className="relative flex items-start gap-3">
-            <div className="absolute left-4 -top-4 h-4 w-px bg-gray-200" aria-hidden />
-            <div className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 ring-1 ring-gray-200 text-gray-600">
-              <Music4Icon width={14} height={14} />
-            </div>
-            <div className="flex-1">
-              <RoleTitle text="Soundcheck" role={roleNotes.soundcheck} />
-              <div className="mt-2">
-                <StartEndRow
-                  start={ep.soundcheck_time || null}
-                  end={soundcheckEnd || null}
-                  onStart={(v) => patch({ soundcheck_time: v })}
-                  onEnd={(v) => {
-                    setSoundcheckEnd(v);
-                    writeLocalTimes(bookingId, { soundcheck_end_time: v });
-                  }}
-                />
+        <div className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-sm font-semibold text-gray-900">Soundcheck</div>
+                <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-600">
+                  {roleNotes.soundcheck}
+                </span>
               </div>
+              <p className="mt-1 text-xs text-gray-500">Start and end time (end time saves on this device).</p>
             </div>
+            <StartEndRow
+              start={ep.soundcheck_time || null}
+              end={soundcheckEnd || null}
+              onStart={(v) => patch({ soundcheck_time: v })}
+              onEnd={(v) => {
+                setSoundcheckEnd(v);
+                writeLocalTimes(bookingId, { soundcheck_end_time: v });
+              }}
+            />
           </div>
+        </div>
 
-          {/* Guests Arrive (single time) */}
-          <div className="relative flex items-start gap-3">
-            <div className="absolute left-4 -top-4 h-4 w-px bg-gray-200" aria-hidden />
-            <div className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 ring-1 ring-gray-200 text-gray-600">
-              <UsersIcon width={14} height={14} />
-            </div>
-            <div className="flex-1">
-              <RoleTitle text="Guests Arrive" role={roleNotes.guests} />
-              <div className="mt-2">
-                <SingleTimeRow time={ep.guests_arrival_time || null} onTime={(v) => patch({ guests_arrival_time: v })} />
+        <div className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-sm font-semibold text-gray-900">Guests arrive</div>
+                <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-600">
+                  {roleNotes.guests}
+                </span>
               </div>
+              <p className="mt-1 text-xs text-gray-500">A single “doors open” time helps everyone plan.</p>
             </div>
+            <SingleTimeRow
+              time={ep.guests_arrival_time || null}
+              onTime={(v) => patch({ guests_arrival_time: v })}
+            />
           </div>
+        </div>
 
-          {/* Performance (notes only) */}
-          <div className="relative flex items-start gap-3">
-            <div className="absolute left-4 -top-4 h-4 w-px bg-gray-200" aria-hidden />
-            <div className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 ring-1 ring-gray-200 text-gray-600">
-              <ReceiptTextIcon width={14} height={14} />
-            </div>
-            <div className="flex-1">
-              <RoleTitle text="Performance" role={roleNotes.performance} />
-              <div className="mt-2">
-                <textarea
-                  className="min-h-[96px] w-full rounded-md bg-white border border-gray-300 text-gray-900 placeholder-gray-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
-                  placeholder="e.g., Two 45-min sets with a 15-min break. Speeches around 20:30."
-                  value={ep.schedule_notes || ""}
-                  onChange={(e) => patch({ schedule_notes: e.target.value })}
-                />
-              </div>
-            </div>
+        <div className="p-4 sm:p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-sm font-semibold text-gray-900">Performance</div>
+            <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-600">
+              {roleNotes.performance}
+            </span>
+          </div>
+          <div className="mt-3">
+            <TextArea
+              placeholder="e.g., Two 45‑min sets with a 15‑min break. Speeches around 20:30."
+              value={ep.schedule_notes || ""}
+              onChange={(e: any) => patch({ schedule_notes: e.target.value })}
+              rows={4}
+            />
           </div>
         </div>
       </div>
@@ -674,7 +655,7 @@ function AttachmentUploader({
 
   return (
     <div
-      className={`rounded-xl border border-gray-200 ${isDragging ? 'bg-gray-50' : 'bg-white'} p-3 transition-colors`}
+      className={`rounded-xl border border-gray-100 ${isDragging ? 'bg-gray-100' : 'bg-gray-50'} p-4 transition-colors`}
       onDrop={onDrop}
       onDragOver={onDragOver}
       onDragEnter={onDragEnter}
@@ -695,20 +676,27 @@ function AttachmentUploader({
           )}
         </div>
       )}
-      <div className="flex flex-col items-center gap-2 text-gray-700">
+      <div className="flex flex-col items-center gap-3 text-center text-gray-700">
         <UploadCloudIcon className="opacity-75" width={28} height={28} />
         <div className="text-sm text-gray-600">
-          <button type="button" onClick={onPick} disabled={uploading} className={`font-semibold underline decoration-gray-400 underline-offset-2 ${uploading ? 'opacity-60 cursor-not-allowed' : ''}`}>
-            Click to upload
-          </button>
-          <span className="ml-1">or drag & drop</span>
+          Upload PDFs or images for the event.
         </div>
-        <div className="text-xs text-gray-500">PDFs or Images</div>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={onPick}
+            disabled={uploading}
+            className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            Choose file
+          </button>
+          <span className="text-xs text-gray-500">or drag &amp; drop</span>
+        </div>
         <input ref={inputRef} type="file" hidden onChange={onChange} accept="application/pdf,image/*" />
       </div>
 
       {(attachments.length > 0 || uploading) && (
-        <div className="mt-3 border-t border-gray-200 pt-2">
+        <div className="mt-4 border-t border-gray-100 pt-3">
           <ul className="divide-y divide-gray-100">
             {uploading && (
               <li className="flex items-center justify-between py-2 text-sm opacity-80">
@@ -761,10 +749,14 @@ function AttachmentUploader({
    Button helper for safe external links (fixes TS on href/target/rel)
    ────────────────────────────────────────────────────────────────────────── */
 function LinkButton({ children, href, icon, disabledWhenEmpty = true, className }: { children: React.ReactNode; href?: string; icon?: React.ReactNode; disabledWhenEmpty?: boolean; className?: string }) {
-  const disabled = disabledWhenEmpty && !href;
   if (!href) {
+    if (!disabledWhenEmpty) return null;
     return (
-      <button type="button" disabled className={`inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-500 opacity-60 ${className || ''}`}>
+      <button
+        type="button"
+        disabled
+        className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-400 opacity-60 ${className || ''}`}
+      >
         {icon}
         {children}
       </button>
@@ -775,7 +767,7 @@ function LinkButton({ children, href, icon, disabledWhenEmpty = true, className 
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 ${className || ''}`}
+      className={`inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition ${className || ''}`}
     >
       {icon}
       {children}
@@ -880,7 +872,7 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
 
   if (!ep || !booking) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center gap-2 text-white/70">
+      <div className="flex min-h-[60vh] items-center justify-center gap-2 text-gray-600">
         <Loader2Icon width={20} height={20} /> Loading…
       </div>
     );
@@ -889,7 +881,6 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
   // Derived content
   const eventDate = booking.start_time ? new Date(booking.start_time) : null;
   const soundNeeded = Boolean((ep as any)?.is_sound_required ?? (booking as any)?.requires_sound ?? false);
-  const techOwner = ep.tech_owner === "artist" ? "Artist brings PA" : "Venue system";
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
   // Build receipt URL: prefer friendly site URL when payment_id exists; fallback to cached API URL for mocks
   let receiptUrl: string | undefined = booking.payment_id ? `/receipts/${booking.payment_id}` : undefined;
@@ -944,25 +935,33 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
     <div className="mx-auto max-w-[1180px] px-4 py-6 text-gray-900">
       {/* Sticky Header */}
       <div
-        className="sticky top-0 z-40 mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 inset-x-0"
+        className="sticky top-0 z-40 mb-6 rounded-2xl border border-gray-100 bg-white px-6 py-4 shadow-sm inset-x-0"
         style={{ top: 'var(--app-header-height, 64px)' }}
       >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-base font-bold">{booking.service?.title || "Event Preparation"} - {eventDate ? format(eventDate, "EEE, d MMM yyyy") : "Date TBA"}</div>
-            <div className="mt-2 flex items-center gap-3">
-              <div className="h-1.5 w-44 rounded-full bg-gray-200">
-                <div className="h-full rounded-full bg-gray-900" style={{ width: `${progress.pct}%` }} />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-lg font-bold text-gray-900">
+              {booking.service?.title || "Event Prep"}
+            </div>
+            <div className="mt-1 text-sm text-gray-600">
+              {eventDate ? format(eventDate, "EEE, d MMM yyyy") : "Date TBA"} • Event Prep
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="h-2 w-56 max-w-full rounded-full bg-gray-100">
+                <div className="h-2 rounded-full bg-gray-900" style={{ width: `${progress.pct}%` }} />
               </div>
-              <span className="text-xs text-gray-500">{progress.done}/{progress.total} complete</span>
+              <span className="text-xs text-gray-500">
+                {progress.done}/{progress.total} complete
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-2 self-start">
             <SavedPill saving={saving} saved={saved} />
             {booking.booking_request_id && (
               <Link
                 href={`/inbox?requestId=${booking.booking_request_id}`}
-                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition"
               >
                 Open chat
               </Link>
@@ -972,11 +971,11 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
       </div>
 
       {/* Responsive 2-column grid via CSS Grid (no MUI Grid types) */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr,360px]">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr,360px]">
         {/* Main column */}
-        <div>
+        <div className="space-y-6">
           {/* Event Timeline */}
-          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
+          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
             <EventTimeline
               ep={ep}
               patch={patch}
@@ -988,11 +987,13 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
           </div>
 
           {/* People & Place (client-owned) */}
-          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
-            <div className="flex items-start justify-between">
+          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-base font-semibold">People & Place</h3>
-                <p className="mt-1 text-xs text-white/60">On-the-day contacts and location details</p>
+                <h3 className="text-lg font-bold text-gray-900">People &amp; place</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  On-the-day contacts and venue details.
+                </p>
               </div>
               <span className="ml-3 inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-600" title="Owner">
                 {rolePill}
@@ -1000,159 +1001,253 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
             </div>
 
             {/* Event meta confirmation */}
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-600">Type of event</label>
-                <input
-                  type="text"
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <TextInput
+                  label="Event type"
                   value={eventTypeExtra}
-                  onChange={(e) => { const val = e.target.value; setEventTypeExtra(val); writeExtras({ event_type: val }); try { patch({ event_type: val } as any); } catch {} }}
+                  onChange={(e: any) => {
+                    const val = e.target.value;
+                    setEventTypeExtra(val);
+                    writeExtras({ event_type: val });
+                    try {
+                      patch({ event_type: val } as any);
+                    } catch {}
+                  }}
                   placeholder="e.g. Wedding, Corporate, Birthday"
-                  className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
                 />
-                <p className="text-[11px] text-gray-500">Confirm type of event.</p>
+                <p className="mt-1 text-xs text-gray-500">Confirm the type of event.</p>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-600">Number of guests</label>
-                <input
-                  type="text"
+              <div>
+                <TextInput
+                  label="Number of guests"
                   inputMode="numeric"
                   value={guestsExtra}
-                  onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setGuestsExtra(v); writeExtras({ guests: v }); try { const n = v ? Number(v) : null; patch({ guests_count: (n as any) } as any); } catch {} }}
+                  onChange={(e: any) => {
+                    const v = e.target.value.replace(/[^0-9]/g, "");
+                    setGuestsExtra(v);
+                    writeExtras({ guests: v });
+                    try {
+                      const n = v ? Number(v) : null;
+                      patch({ guests_count: (n as any) } as any);
+                    } catch {}
+                  }}
                   placeholder="e.g. 120"
-                  className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
                 />
-                <p className="text-[11px] text-gray-500">An estimated count is fine.</p>
+                <p className="mt-1 text-xs text-gray-500">An estimate is fine.</p>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-              {/* On-the-day contact name */}
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-600">On-the-day contact name</label>
-                <input type="text" placeholder="Full name" value={ep.day_of_contact_name || ""} onChange={(e) => patch({ day_of_contact_name: e.target.value })} className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
-              </div>
-              {/* On-the-day contact number */}
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-600">On-the-day contact number</label>
-                <input type="tel" placeholder="+27 82 123 4567" value={ep.day_of_contact_phone || ""} onChange={(e) => patch({ day_of_contact_phone: e.target.value })} className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
-              </div>
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <TextInput
+                label="On-the-day contact name"
+                placeholder="Full name"
+                value={ep.day_of_contact_name || ""}
+                onChange={(e: any) => patch({ day_of_contact_name: e.target.value })}
+              />
+              <TextInput
+                label="On-the-day contact number"
+                type="tel"
+                placeholder="+27 82 123 4567"
+                value={ep.day_of_contact_phone || ""}
+                onChange={(e: any) => patch({ day_of_contact_phone: e.target.value })}
+              />
 
-              {/* Secondary contact name */}
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-600">Secondary contact name (optional)</label>
-                <input type="text" placeholder="Full name" value={(ep as any).additional_contact_name || ""} onChange={(e) => patch(({ additional_contact_name: e.target.value } as unknown) as Partial<EventPrep>)} className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
-              </div>
-              {/* Secondary contact number */}
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-600">Secondary contact number (optional)</label>
-                <input type="tel" placeholder="+27 82 987 6543" value={(ep as any).additional_contact_phone || ""} onChange={(e) => patch(({ additional_contact_phone: e.target.value } as unknown) as Partial<EventPrep>)} className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
-              </div>
+              <TextInput
+                label="Secondary contact name (optional)"
+                placeholder="Full name"
+                value={(ep as any).additional_contact_name || ""}
+                onChange={(e: any) =>
+                  patch(({ additional_contact_name: e.target.value } as unknown) as Partial<EventPrep>)
+                }
+              />
+              <TextInput
+                label="Secondary contact number (optional)"
+                type="tel"
+                placeholder="+27 82 987 6543"
+                value={(ep as any).additional_contact_phone || ""}
+                onChange={(e: any) =>
+                  patch(({ additional_contact_phone: e.target.value } as unknown) as Partial<EventPrep>)
+                }
+              />
 
-              {/* Venue name */}
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="text-xs text-gray-600">Venue name (optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Sea Point Pavilion"
+              <div className="md:col-span-2">
+                <TextInput
+                  label="Venue name (optional)"
+                  placeholder="e.g. Sea Point Pavilion"
                   value={(ep as any).venue_name || ""}
-                  onChange={(e) => patch(({ venue_name: e.target.value } as unknown) as Partial<EventPrep>)}
-                  className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  onChange={(e: any) =>
+                    patch(({ venue_name: e.target.value } as unknown) as Partial<EventPrep>)
+                  }
                 />
               </div>
 
-              {/* Location */}
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="text-xs text-gray-600">Confirm Location</label>
-                <input placeholder="Venue / Address" value={ep.venue_address || ""} onChange={(e) => patch({ venue_address: e.target.value })} className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              <div className="md:col-span-2">
+                <TextInput
+                  label="Venue address"
+                  placeholder="Venue / Address"
+                  value={ep.venue_address || ""}
+                  onChange={(e: any) => patch({ venue_address: e.target.value })}
+                />
               </div>
 
-              {/* Location quick actions */}
-              <div className="md:col-span-2 flex gap-2">
-                <LinkButton href={venueAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueAddress)}` : undefined} icon={<MapPinIcon width={16} height={16} />}>Open in Maps</LinkButton>
-                <LinkButton href={`${apiBase}/api/v1/bookings/${bookingId}/calendar.ics`} icon={<CalendarDaysIcon width={16} height={16} />}>Add to Calendar</LinkButton>
+              <div className="md:col-span-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <LinkButton
+                  href={mapsUrl}
+                  icon={<MapPinIcon width={16} height={16} />}
+                  className="w-full justify-center"
+                >
+                  Open in Maps
+                </LinkButton>
+                <LinkButton
+                  href={icsUrl}
+                  icon={<CalendarDaysIcon width={16} height={16} />}
+                  className="w-full justify-center"
+                >
+                  Add to Calendar
+                </LinkButton>
               </div>
 
-              {/* Notes — full width (span 2) */}
-              <div className="md:col-span-2 space-y-1.5">
-                <label className="text-xs text-gray-600">Notes</label>
-                <textarea placeholder="Access instructions, gate codes, parking info, etc." value={ep.parking_access_notes || ""} onChange={(e) => patch({ parking_access_notes: e.target.value })} className="min-h-[96px] w-full rounded-md bg-white border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              <div className="md:col-span-2">
+                <TextArea
+                  label="Access notes (optional)"
+                  placeholder="Access instructions, gate codes, parking info, etc."
+                  value={ep.parking_access_notes || ""}
+                  onChange={(e: any) => patch({ parking_access_notes: e.target.value })}
+                  rows={3}
+                />
               </div>
             </div>
           </div>
 
           {/* Files & Notes */}
-          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
-            <h3 className="text-base font-semibold">Files & Notes</h3>
-            <p className="mt-1 text-xs text-gray-500">Share programs or add final details</p>
-            <div className="mt-3 space-y-3">
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-600">General notes</label>
-                <textarea placeholder="Stage plots, guest lists, special announcements…" value={ep.notes || ""} onChange={(e) => patch({ notes: e.target.value })} className="min-h-[96px] w-full rounded-md bg-white border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
-              </div>
+          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-gray-900">Files &amp; notes</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Share programs or add final details.
+            </p>
+
+            <div className="mt-6 space-y-6">
+              <TextArea
+                label="General notes"
+                placeholder="Stage plots, guest lists, special announcements…"
+                value={ep.notes || ""}
+                onChange={(e: any) => patch({ notes: e.target.value })}
+                rows={4}
+              />
+
               <div>
-                <div className="mb-1 text-sm font-medium text-white/90">Attachments</div>
-                <AttachmentUploader bookingId={bookingId} isProvider={!!isProvider} onUpload={uploadAttachment} attachments={attachments} onDelete={deleteAttachment} />
+                <div className="mb-2 text-sm font-semibold text-gray-900">Attachments</div>
+                <AttachmentUploader
+                  bookingId={bookingId}
+                  isProvider={!!isProvider}
+                  onUpload={uploadAttachment}
+                  attachments={attachments}
+                  onDelete={deleteAttachment}
+                />
               </div>
             </div>
           </div>
         </div>
 
         {/* Sidebar */}
-        <aside>
+        <aside className="space-y-6">
           {heroImage && (
-            <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+            <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
               <div className="relative aspect-[16/9] bg-gray-100">
                 <SafeImage src={heroImage} alt={booking.service?.title || 'Event'} fill sizes="(max-width: 768px) 100vw, 360px" className="h-full w-full object-cover" priority placeholder="blur" blurDataURL={BLUR_PLACEHOLDER} />
               </div>
             </div>
           )}
-          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
-            <h3 className="mb-2 text-base font-semibold">Quick Links</h3>
-            <div className="space-y-2">
+          <div
+            className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm md:sticky md:z-20"
+            style={{ top: 'calc(var(--app-header-height, 64px) + 12px)' }}
+          >
+            <h3 className="text-lg font-bold text-gray-900">Quick links</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Shortcuts for maps, calendar, receipts, and contact.
+            </p>
+
+            <div className="mt-4 space-y-2">
               {(
                 // Show rider to providers always; for clients, only when they should provide sound
                 (isProvider && !!riderUrl) || (!isProvider && !soundNeeded && !!riderUrl)
               ) && (
                 <LinkButton href={riderUrl || undefined} icon={<FileTextIcon width={16} height={16} />} className="w-full justify-center">Open Rider (PDF)</LinkButton>
               )}
-              <LinkButton href={receiptUrl} icon={<ReceiptTextIcon width={16} height={16} />} className="w-full justify-center">View Receipt</LinkButton>
-              <LinkButton href={icsUrl} icon={<CalendarDaysIcon width={16} height={16} />} className="w-full justify-center">Add to Calendar (.ics)</LinkButton>
-              <div className="h-px bg-gray-200 my-2" />
-              <h4 className="text-xs font-semibold text-gray-600">Contact</h4>
-              <div className="grid grid-cols-1 gap-2">
-                <LinkButton href={mailHref} icon={<MailIcon width={16} height={16} />} className="w-full justify-center" disabledWhenEmpty>
-                  {contactEmail || 'No email set'}
+
+              <LinkButton
+                href={mapsUrl}
+                icon={<MapPinIcon width={16} height={16} />}
+                className="w-full justify-center"
+              >
+                Open in Maps
+              </LinkButton>
+              <LinkButton
+                href={icsUrl}
+                icon={<CalendarDaysIcon width={16} height={16} />}
+                className="w-full justify-center"
+              >
+                Add to Calendar (.ics)
+              </LinkButton>
+              {receiptUrl ? (
+                <LinkButton
+                  href={receiptUrl}
+                  icon={<ReceiptTextIcon width={16} height={16} />}
+                  className="w-full justify-center"
+                >
+                  View receipt
                 </LinkButton>
-                <LinkButton href={telHref} icon={<PhoneIcon width={16} height={16} />} className="w-full justify-center" disabledWhenEmpty>
-                  {contactPhone || 'No phone set'}
+              ) : null}
+            </div>
+
+            <div className="my-5 h-px bg-gray-100" />
+
+            <h4 className="text-sm font-semibold text-gray-900">Contact</h4>
+            <div className="mt-3 space-y-2">
+              <LinkButton href={mailHref} icon={<MailIcon width={16} height={16} />} className="w-full justify-center" disabledWhenEmpty>
+                {contactEmail || 'No email set'}
+              </LinkButton>
+              <LinkButton href={telHref} icon={<PhoneIcon width={16} height={16} />} className="w-full justify-center" disabledWhenEmpty>
+                {contactPhone || 'No phone set'}
+              </LinkButton>
+              {webHref && (
+                <LinkButton
+                  href={webHref}
+                  icon={<span aria-hidden="true" className="text-base leading-none">🌐</span>}
+                  className="w-full justify-center"
+                >
+                  {contactWebsite}
                 </LinkButton>
-                {webHref && (
-                  <LinkButton
-                    href={webHref}
-                    icon={<span aria-hidden="true" className="text-base leading-none">🌐</span>}
-                    className="w-full justify-center"
-                  >
-                    {contactWebsite}
-                  </LinkButton>
-                )}
+              )}
+            </div>
+
+            <div className="my-5 h-px bg-gray-100" />
+
+            <h4 className="text-sm font-semibold text-gray-900">Event</h4>
+            <div className="mt-2 space-y-1">
+              <div className="text-sm text-gray-700">
+                {eventDate ? format(eventDate, "EEE, d MMM yyyy") : "Date TBA"}
+              </div>
+              <div className="text-sm font-medium text-gray-900">
+                {booking.service?.title || "Untitled"}
+              </div>
+              <div className="text-xs text-gray-500">
+                {venueAddress || "Address TBA"}
               </div>
             </div>
-          </div>
-          <div className="rounded-2xl border border-gray-200 bg-white p-4">
-            <h3 className="mb-2 text-base font-semibold">Event</h3>
-            <div className="space-y-1">
-              <div className="text-sm text-gray-900">{eventDate ? format(eventDate, "EEE, d MMM yyyy") : "Date TBA"}</div>
-              <div className="text-sm text-gray-900">{booking.service?.title || "Untitled"}</div>
-              <div className="text-xs text-gray-500">{venueAddress || "Address TBA"}</div>
+
+            <div className="mt-4 text-xs text-gray-600">
+              {progress.total > 0 && progress.done >= progress.total ? (
+                <div className="rounded-lg border border-emerald-600/20 bg-emerald-50 px-3 py-2 text-emerald-800">
+                  Ready to go — all sections complete. Changes auto-save.
+                </div>
+              ) : (
+                <div className="rounded-lg border border-amber-600/20 bg-amber-50 px-3 py-2 text-amber-800">
+                  Still missing a few details — keep going and we’ll auto-save.
+                </div>
+              )}
             </div>
-          </div>
-          <div className="mt-4 text-xs text-gray-600">
-            {progress.total > 0 && progress.done >= progress.total ? (
-              <div className="rounded-md border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-emerald-700">Ready to go! All details filled in. Changes auto-save.</div>
-            ) : (
-              <div className="rounded-md border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-amber-700">Awaiting details. Please complete the remaining sections.</div>
-            )}
           </div>
         </aside>
       </div>

@@ -31,16 +31,21 @@ export default function EventPrepPage() {
   return (
     <MainLayout>
       <BookingProvider>
-        <div className="mx-auto full-width px-3 sm:px-4 lg:px-6 py-6">
-          <h1 className="text-2xl font-bold mb-4">Event Prep</h1>
-          {exists === null ? (
-            <div className="text-sm text-gray-600">Loading…</div>
-          ) : exists ? (
-            <EventPrepForm bookingId={id} />
-          ) : (
-            <div className="text-sm text-gray-600">Not found or you do not have access.</div>
-          )}
-        </div>
+        {exists === null ? (
+          <div className="mx-auto max-w-lg p-6">
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm text-sm text-gray-700">
+              Loading…
+            </div>
+          </div>
+        ) : exists ? (
+          <EventPrepForm bookingId={id} />
+        ) : (
+          <div className="mx-auto max-w-lg p-6">
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm text-sm text-gray-700">
+              Not found or you do not have access.
+            </div>
+          </div>
+        )}
       </BookingProvider>
     </MainLayout>
   );
