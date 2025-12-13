@@ -620,11 +620,13 @@ def deliver_video_order(
     prev_delivery_url = pv.delivery_url
     prev_attachment_url = pv.delivery_attachment_url
     now = datetime.utcnow()
-    if pv.status == PvStatus.PAID:
+    status_raw = str(getattr(pv.status, "value", pv.status) or "").strip().lower()
+    if status_raw == PvStatus.PAID.value:
         # Allow artists to deliver from PAID by implicitly moving the order into production.
         pv.in_production_at_utc = pv.in_production_at_utc or now
         pv.status = PvStatus.IN_PRODUCTION
-    if pv.status == PvStatus.AWAITING_PAYMENT:
+        status_raw = PvStatus.IN_PRODUCTION.value
+    if status_raw == PvStatus.AWAITING_PAYMENT.value:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment required before delivery")
     if not can_transition(pv.status, "artist", PvStatus.DELIVERED):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status transition")

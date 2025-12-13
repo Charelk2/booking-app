@@ -32,13 +32,15 @@ describe('Service deletion confirmation', () => {
   };
 
   beforeEach(async () => {
-    useRouter.mockReturnValue({ push: jest.fn() });
+    useRouter.mockReturnValue({ push: jest.fn(), replace: jest.fn() });
     usePathname.mockReturnValue('/dashboard/artist');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider', email: 'a@example.com' } });
-    (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
-    (api.getServiceProviderServices as jest.Mock).mockResolvedValue({ data: [service] });
+    (api.getMyArtistBookingsCached as jest.Mock).mockResolvedValue([]);
+    (api.getMyServices as jest.Mock).mockResolvedValue({ data: [service] });
     (api.getServiceProviderProfileMe as jest.Mock).mockResolvedValue({ data: {} });
-    (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getBookingRequestsForArtistCached as jest.Mock).mockResolvedValue([]);
+    (api.getDashboardStatsCached as jest.Mock).mockResolvedValue({ monthly_new_inquiries: 0, profile_views: 0, response_rate: 0 });
+    (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({ data: { connected: false } });
     (api.deleteService as jest.Mock).mockResolvedValue({});
 
     container = document.createElement('div');
@@ -56,6 +58,9 @@ describe('Service deletion confirmation', () => {
         tabBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       });
     }
+    await act(async () => {
+      await flushPromises();
+    });
   });
 
   afterEach(() => {

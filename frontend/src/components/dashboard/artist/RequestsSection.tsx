@@ -11,12 +11,25 @@ type Props = {
   loading?: boolean;
   error?: string;
   onRetry?: () => void;
+  title?: string;
+  subtitle?: string;
+  hideHeader?: boolean;
+  headerAction?: React.ReactNode;
 };
 
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import ErrorState from "@/components/ui/ErrorState";
 
-const RequestsSection: React.FC<Props> = ({ requests, loading, error, onRetry }) => {
+const RequestsSection: React.FC<Props> = ({
+  requests,
+  loading,
+  error,
+  onRetry,
+  title,
+  subtitle,
+  hideHeader = false,
+  headerAction,
+}) => {
   const [status, setStatus] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
   const [search, setSearch] = useState("");
@@ -43,16 +56,25 @@ const RequestsSection: React.FC<Props> = ({ requests, loading, error, onRetry })
 
   const hasMore = filtered.length > visible;
 
-  if (loading) return <Section title="Booking Requests" subtitle="Latest inquiries from clients" className="mb-10"><LoadingSkeleton lines={6} /></Section>;
+  const sectionTitle = hideHeader ? undefined : (title ?? "Requests");
+  const sectionSubtitle = hideHeader ? undefined : (subtitle ?? "Latest inquiries from clients");
 
-  if (error) return <Section title="Booking Requests" subtitle="Latest inquiries from clients" className="mb-10"><ErrorState message={error} onRetry={onRetry} /></Section>;
+  if (loading) return <Section title={sectionTitle} subtitle={sectionSubtitle} action={headerAction} className="mb-10"><LoadingSkeleton lines={6} /></Section>;
+
+  if (error) return <Section title={sectionTitle} subtitle={sectionSubtitle} action={headerAction} className="mb-10"><ErrorState message={error} onRetry={onRetry} /></Section>;
 
   return (
-    <Section title="Booking Requests" subtitle="Latest inquiries from clients" className="mb-10">
+    <Section title={sectionTitle} subtitle={sectionSubtitle} action={headerAction} className="mb-10">
       <div className="flex flex-col md:flex-row gap-3 mb-5">
-        <TextInput placeholder="Search by client name" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <TextInput
+          aria-label="Search by client name"
+          placeholder="Search by client name"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <select
           aria-label="Sort requests"
+          data-testid="request-sort"
           className="h-[44px] rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-[var(--brand-color)] focus:ring-[var(--brand-color)]"
           value={sort}
           onChange={(e) => setSort(e.target.value as "newest" | "oldest")}
@@ -62,6 +84,7 @@ const RequestsSection: React.FC<Props> = ({ requests, loading, error, onRetry })
         </select>
         <select
           aria-label="Filter requests"
+          data-testid="request-status"
           className="h-[44px] rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-[var(--brand-color)] focus:ring-[var(--brand-color)]"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
