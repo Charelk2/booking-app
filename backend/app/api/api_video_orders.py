@@ -602,10 +602,15 @@ def deliver_video_order(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
     pv = load_pv_payload(br)
+    now = datetime.utcnow()
+    if pv.status == PvStatus.PAID:
+        # Allow artists to deliver from PAID by implicitly moving the order into production.
+        pv.in_production_at_utc = pv.in_production_at_utc or now
+        pv.status = PvStatus.IN_PRODUCTION
+    if pv.status == PvStatus.AWAITING_PAYMENT:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment required before delivery")
     if not can_transition(pv.status, "artist", PvStatus.DELIVERED):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status transition")
-
-    now = datetime.utcnow()
     if pv.status != PvStatus.DELIVERED:
         pv.status = PvStatus.DELIVERED
     pv.delivered_at_utc = pv.delivered_at_utc or now
