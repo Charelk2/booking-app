@@ -81,12 +81,27 @@ _ALLOWED_TRANSITIONS: dict[PvStatus, set[PvStatus]] = {
 
 def can_transition(old: PvStatus | str, role: str, new: PvStatus | str) -> bool:
     """Return True if a role can transition PV status old -> new."""
+    def _coerce_status(value: PvStatus | str, *, default: PvStatus | None) -> PvStatus | None:
+        raw = getattr(value, "value", value)
+        s = str(raw or "").strip()
+        if not s:
+            return default
+        try:
+            return PvStatus(s)
+        except Exception:
+            try:
+                return PvStatus(s.lower())
+            except Exception:
+                return default
+
     try:
-        old_s = PvStatus(str(old))
+        old_s = _coerce_status(old, default=PvStatus.AWAITING_PAYMENT) or PvStatus.AWAITING_PAYMENT
     except Exception:
         old_s = PvStatus.AWAITING_PAYMENT
     try:
-        new_s = PvStatus(str(new))
+        new_s = _coerce_status(new, default=None)
+        if new_s is None:
+            return False
     except Exception:
         return False
 
