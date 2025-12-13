@@ -3,6 +3,7 @@
 import React, { Fragment, useMemo, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   XMarkIcon,
   BoltIcon,
@@ -545,6 +546,7 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
 // =============================================================================
 
 export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadId?: number }) {
+  const { user } = useAuth();
   const { state, actions } = usePvEngine({
     artistId: 0,
     basePriceZar: 0,
@@ -555,6 +557,14 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
 
   const { brief, orderSummary } = state;
   const { updateAnswer, submitBrief } = actions;
+
+  const viewerId = Number(user?.id ?? 0) || 0;
+  const buyerId = Number(orderSummary?.buyerId ?? 0) || 0;
+  const viewerType = String(user?.user_type || "").toLowerCase();
+  const assumeReadOnly = viewerType === "service_provider";
+  const canEditBrief = Boolean(
+    orderSummary ? viewerId > 0 && buyerId > 0 && viewerId === buyerId : !assumeReadOnly,
+  );
 
   const answers = brief.answers;
   const saveState = brief.saveState;
@@ -577,11 +587,12 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
   }, [orderSummary?.deliveryByUtc]);
 
   const saveLabel = useMemo(() => {
+    if (!canEditBrief) return "Read-only";
     if (saveState === "saving") return "Saving…";
     if (saveState === "saved") return "Saved";
     if (saveState === "error") return "Offline — will retry";
     return "Autosave on";
-  }, [saveState]);
+  }, [saveState, canEditBrief]);
 
   const percent = progress.total > 0 ? Math.round((progress.answered / progress.total) * 100) : 0;
 
@@ -627,14 +638,23 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
       </div>
 
       {/* Guidance */}
-      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
-        Tip: Keep it simple — the artist can improvise if you give a few strong personal details.
-      </div>
+      {canEditBrief ? (
+        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
+          Tip: Keep it simple — the artist can improvise if you give a few strong personal details.
+        </div>
+      ) : (
+        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
+          This brief is read-only for the artist.
+        </div>
+      )}
 
       {/* Questions */}
       <div className="space-y-4">
         {questions.map((q) => (
-          <div key={q.key} className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 shadow-sm">
+          <div
+            key={q.key}
+            className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 shadow-sm"
+          >
             <div className="flex items-start justify-between gap-3">
               <label className="block text-sm font-semibold text-gray-900">{q.label}</label>
               {answers[q.key] != null && String(answers[q.key]).trim?.() ? (
@@ -644,20 +664,28 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
               )}
             </div>
 
-            {"helper" in q && q.helper ? <p className="mt-1 text-xs text-gray-500">{q.helper}</p> : null}
+            {"helper" in q && q.helper ? (
+              <p className="mt-1 text-xs text-gray-500">{q.helper}</p>
+            ) : null}
 
             {q.type === "text" ? (
-              <div className="mt-3">
-                <TextArea
-                  rows={q.rows ?? 3}
-                  className="w-full resize-none rounded-xl border-gray-200 text-sm focus:border-black focus:ring-black"
-                  placeholder={q.placeholder || "Type here…"}
-                  value={answers[q.key] || ""}
-                  onChange={(e: any) => updateAnswer(q.key, e.target.value)}
-                  onBlur={() => updateAnswer(q.key, answers[q.key] || "", { immediate: true })}
-                />
-              </div>
-            ) : (
+              canEditBrief ? (
+                <div className="mt-3">
+                  <TextArea
+                    rows={q.rows ?? 3}
+                    className="w-full resize-none rounded-xl border-gray-200 text-sm focus:border-black focus:ring-black"
+                    placeholder={q.placeholder || "Type here…"}
+                    value={answers[q.key] || ""}
+                    onChange={(e: any) => updateAnswer(q.key, e.target.value)}
+                    onBlur={() => updateAnswer(q.key, answers[q.key] || "", { immediate: true })}
+                  />
+                </div>
+              ) : (
+                <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-wrap">
+                  {String(answers[q.key] || "").trim() ? String(answers[q.key]) : "—"}
+                </div>
+              )
+            ) : canEditBrief ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 {q.options.map((opt) => {
                   const active = answers[q.key] === opt;
@@ -679,30 +707,42 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
                   );
                 })}
               </div>
+            ) : (
+              <div className="mt-3 text-sm text-gray-800">
+                {String(answers[q.key] || "").trim() ? (
+                  <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-800">
+                    {String(answers[q.key])}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">—</span>
+                )}
+              </div>
             )}
           </div>
         ))}
       </div>
 
       {/* Sticky action bar */}
-      <div className="no-print sticky bottom-0 z-10">
-        <div
-          className="mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white/90 backdrop-blur px-3 py-2 shadow-xl flex items-center gap-3"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.5rem)" }}
-        >
-          <div className="min-w-0 flex-1">
-            <div className="text-xs text-gray-500">Autosave on • You can come back anytime</div>
-            <div className="text-sm font-medium text-gray-900">
-              Progress: {progress.answered}/{progress.total}
+      {canEditBrief ? (
+        <div className="no-print sticky bottom-0 z-10">
+          <div
+            className="mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white/90 backdrop-blur px-3 py-2 shadow-xl flex items-center gap-3"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.5rem)" }}
+          >
+            <div className="min-w-0 flex-1">
+              <div className="text-xs text-gray-500">Autosave on • You can come back anytime</div>
+              <div className="text-sm font-medium text-gray-900">
+                Progress: {progress.answered}/{progress.total}
+              </div>
             </div>
-          </div>
 
-          <Button onClick={submitBrief} className="shrink-0">
-            <ChatBubbleBottomCenterTextIcon className="h-4 w-4 mr-2" />
-            Mark complete
-          </Button>
+            <Button onClick={submitBrief} className="shrink-0">
+              <ChatBubbleBottomCenterTextIcon className="h-4 w-4 mr-2" />
+              Mark complete
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {/* Print styles */}
       <style jsx global>{`

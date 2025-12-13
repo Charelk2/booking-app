@@ -621,6 +621,7 @@ export default function BookingDetailsPanel({
   const [pvBriefComplete, setPvBriefComplete] = React.useState(false);
   const [pvOrderId, setPvOrderId] = React.useState<number | null>(null);
   const [pvDeliveryByUtc, setPvDeliveryByUtc] = React.useState<string | null>(null);
+  const [pvOrderStatus, setPvOrderStatus] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!isPersonalized || typeof window === 'undefined') {
@@ -628,6 +629,7 @@ export default function BookingDetailsPanel({
       setPvBriefComplete(false);
       setPvOrderId(null);
       setPvDeliveryByUtc(null);
+      setPvOrderStatus(null);
       return;
     }
     const tid = Number(bookingRequest?.id || 0);
@@ -664,6 +666,7 @@ export default function BookingDetailsPanel({
   React.useEffect(() => {
     if (!isPersonalized || !pvOrderId) {
       setPvDeliveryByUtc(null);
+      setPvOrderStatus(null);
       return;
     }
     let cancelled = false;
@@ -672,8 +675,10 @@ export default function BookingDetailsPanel({
         const order = await videoOrderApiClient.getOrder(pvOrderId);
         if (cancelled) return;
         setPvDeliveryByUtc(order?.delivery_by_utc || null);
+        setPvOrderStatus(String(order?.status || '').toLowerCase() || null);
       } catch {
         if (!cancelled) setPvDeliveryByUtc(null);
+        if (!cancelled) setPvOrderStatus(null);
       }
     })();
     return () => {
@@ -1095,48 +1100,68 @@ export default function BookingDetailsPanel({
               showEventDetails={!isPersonalized}
               showReceiptBelowTotal={isPersonalized}
               clientReviewCta={clientReviewCta}
-	              belowHeader={
-	                isPersonalized ? (
-	                    <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm">
-	                      <div className="font-semibold text-indigo-900">Personalised Video</div>
-		                      <div className="text-indigo-800 mt-1">
-		                        {viewerIsProvider
-		                          ? 'Review the brief and deliver the video here when it’s ready.'
-		                          : 'Complete the brief so production can start right away.'}
-		                      </div>
-                          {pvDeliveryLabel ? (
-                            <div className="mt-2 text-xs text-indigo-700">
-                              Delivery by <span className="font-semibold">{pvDeliveryLabel}</span>
-                            </div>
-                          ) : null}
-		                      {pvBriefLink ? (
-		                        <div className="mt-3">
-		                          <a
-		                            href={pvBriefLink}
-	                            className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 transition no-underline hover:no-underline hover:text-white visited:text-white"
-	                          >
-	                            {pvBriefComplete ? 'View Brief' : viewerIsProvider ? 'View Brief' : 'Complete Brief'}
-	                          </a>
-	                        </div>
-	                      ) : (
-	                      <div className="mt-2 text-xs text-indigo-700">
-	                        We’ll drop your brief link here as soon as the order finishes syncing.
-	                      </div>
-	                    )}
-	                    {ENABLE_PV_ORDERS && viewerIsProvider && (
-	                      <div className="mt-3">
-	                        <a
-	                          href={`/video-orders/${Number(bookingRequest.id)}/deliver`}
-	                          className="inline-flex items-center gap-2 rounded-md border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-900 shadow-sm hover:bg-indigo-100 transition"
-	                        >
-	                          Deliver video
-	                        </a>
-	                      </div>
-	                    )}
-	                  </div>
-	                ) : showPrep ? (
-	                  <EventPrepCard
-	                    bookingId={Number(confirmedBookingDetails?.id || 0) || 0}
+              belowHeader={
+                isPersonalized ? (
+                  <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm">
+                    <div className="font-semibold text-indigo-900">Personalised Video</div>
+                    <div className="mt-1 text-indigo-800">
+                      {viewerIsProvider
+                        ? 'Review the brief and deliver the video here when it’s ready.'
+                        : 'Complete the brief so production can start right away.'}
+                    </div>
+                    {pvDeliveryLabel ? (
+                      <div className="mt-2 text-xs text-indigo-700">
+                        Delivery by <span className="font-semibold">{pvDeliveryLabel}</span>
+                      </div>
+                    ) : null}
+                    {pvBriefLink ? (
+                      <div className="mt-3">
+                        <a
+                          href={pvBriefLink}
+                          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow transition no-underline hover:bg-indigo-700 hover:no-underline hover:text-white visited:text-white"
+                        >
+                          {pvBriefComplete ? 'View Brief' : viewerIsProvider ? 'View Brief' : 'Complete Brief'}
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-xs text-indigo-700">
+                        We’ll drop your brief link here as soon as the order finishes syncing.
+                      </div>
+                    )}
+                    {ENABLE_PV_ORDERS && viewerIsProvider && pvOrderId ? (
+                      <div className="mt-3">
+                        {(() => {
+                          const st = String(pvOrderStatus || '').toLowerCase();
+                          const isDelivered = st === 'delivered' || st === 'completed' || st === 'closed';
+                          const canDeliver = st === 'in_production';
+                          if (isDelivered) {
+                            return (
+                              <a
+                                href={`/video-orders/${Number(pvOrderId)}/deliver`}
+                                className="inline-flex items-center gap-2 rounded-md border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-100"
+                              >
+                                View video
+                              </a>
+                            );
+                          }
+                          if (canDeliver) {
+                            return (
+                              <a
+                                href={`/video-orders/${Number(pvOrderId)}/deliver`}
+                                className="inline-flex items-center gap-2 rounded-md border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-100"
+                              >
+                                Deliver video
+                              </a>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : showPrep ? (
+                  <EventPrepCard
+                    bookingId={Number(confirmedBookingDetails?.id || 0) || 0}
                     bookingRequestId={Number(bookingRequest.id)}
                     canEdit={true}
                     summaryOnly
@@ -1145,7 +1170,9 @@ export default function BookingDetailsPanel({
                     onContinuePrep={async (bidFromProp: number) => {
                       try {
                         if (Number.isFinite(bidFromProp) && bidFromProp > 0) {
-                          try { window.location.href = `/dashboard/events/${bidFromProp}`; } catch {}
+                          try {
+                            window.location.href = `/dashboard/events/${bidFromProp}`;
+                          } catch {}
                           return;
                         }
                         const threadId = Number(bookingRequest.id) || 0;
@@ -1155,7 +1182,9 @@ export default function BookingDetailsPanel({
                           const cached = sessionStorage.getItem(`bookingId:br:${threadId}`);
                           const bid = cached ? Number(cached) : 0;
                           if (Number.isFinite(bid) && bid > 0) {
-                            try { window.location.href = `/dashboard/events/${bid}`; } catch {}
+                            try {
+                              window.location.href = `/dashboard/events/${bid}`;
+                            } catch {}
                             return;
                           }
                         } catch {}
@@ -1164,8 +1193,12 @@ export default function BookingDetailsPanel({
                           const res = await getBookingIdForRequest(threadId);
                           const bid = Number((res as any)?.data?.booking_id || 0);
                           if (Number.isFinite(bid) && bid > 0) {
-                            try { sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid)); } catch {}
-                            try { window.location.href = `/dashboard/events/${bid}`; } catch {}
+                            try {
+                              sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid));
+                            } catch {}
+                            try {
+                              window.location.href = `/dashboard/events/${bid}`;
+                            } catch {}
                             return;
                           }
                         } catch {}
@@ -1190,8 +1223,12 @@ export default function BookingDetailsPanel({
                             const v2 = await getQuoteV2(acceptedId);
                             const bid = Number((v2 as any)?.data?.booking_id || 0);
                             if (Number.isFinite(bid) && bid > 0) {
-                              try { sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid)); } catch {}
-                              try { window.location.href = `/dashboard/events/${bid}`; } catch {}
+                              try {
+                                sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid));
+                              } catch {}
+                              try {
+                                window.location.href = `/dashboard/events/${bid}`;
+                              } catch {}
                               return;
                             }
                           }

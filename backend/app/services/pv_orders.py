@@ -123,5 +123,7 @@ def can_transition(old: PvStatus | str, role: str, new: PvStatus | str) -> bool:
         # - delivered -> completed (manual completion)
         return new_s in {PvStatus.IN_PRODUCTION, PvStatus.IN_DISPUTE, PvStatus.COMPLETED}
     if r == "artist":
-        return new_s in {PvStatus.IN_PRODUCTION, PvStatus.DELIVERED}
+        # Providers should not be able to mark briefs complete (paid -> in_production);
+        # only allow delivery (in_production -> delivered) via the delivery flow.
+        return new_s in {PvStatus.DELIVERED}
     return False

@@ -28,6 +28,11 @@ class PvPayload(BaseModel):
     status: PvStatus = Field(default=PvStatus.AWAITING_PAYMENT)
 
     delivery_by_utc: Optional[str] = None
+    # Delivery payload (set by artist when the order is delivered)
+    delivery_url: Optional[str] = None
+    delivery_note: Optional[str] = None
+    delivery_attachment_url: Optional[str] = None
+    delivery_attachment_meta: Optional[dict[str, Any]] = None
     length_sec: Optional[int] = None
     language: Optional[str] = None
     tone: Optional[str] = None
@@ -61,4 +66,3 @@ class PvPayload(BaseModel):
 
     # Be permissive for legacy fields we haven't modeled yet.
     model_config = {"extra": "allow"}
-
