@@ -76,4 +76,34 @@ describe('useUnreadThreadsCount', () => {
     // 2 + 5 = 7 total unread from cache
     expect(result.current.count).toBe(7);
   });
+
+  it('keeps last known total on 304 across remounts', async () => {
+    mockGetSummaries.mockReturnValue([]);
+    mockGetInboxUnread
+      .mockResolvedValueOnce({
+        status: 200,
+        data: { total: 3 },
+        headers: { etag: '"abc"' },
+      } as any)
+      .mockResolvedValueOnce({
+        status: 304,
+        data: null,
+        headers: { etag: '"abc"' },
+      } as any);
+
+    const first = renderHook(() => useUnreadThreadsCount());
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+    expect(first.result.current.count).toBe(3);
+    first.unmount();
+
+    const second = renderHook(() => useUnreadThreadsCount());
+    await act(async () => {
+      jest.runAllTimers();
+      await Promise.resolve();
+    });
+    expect(second.result.current.count).toBe(3);
+  });
 });

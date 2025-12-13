@@ -10,16 +10,35 @@ type InboxUnreadDetail = {
 };
 
 // Lightweight client-side cache for /inbox/unread
+let _unreadOwnerUserId: number | null = null;
 let _unreadInflight: Promise<number> | null = null;
 let _unreadLastFetchAt = 0;
 let _unreadLastEtag: string | null = null;
+let _unreadLastTotal = 0;
 
-async function fetchAggregateUnread(prev: number): Promise<number> {
+function _resetUnreadCacheForUser(userId: number | null) {
+  _unreadOwnerUserId = userId;
+  _unreadInflight = null;
+  _unreadLastFetchAt = 0;
+  _unreadLastEtag = null;
+  _unreadLastTotal = 0;
+}
+
+async function fetchAggregateUnread(
+  prev: number,
+  userId: number,
+  opts?: { force?: boolean },
+): Promise<number> {
+  if (_unreadOwnerUserId !== userId) {
+    _resetUnreadCacheForUser(userId);
+  }
+
   const now = Date.now();
   if (_unreadInflight) return _unreadInflight;
   // Throttle to at most once every 5 seconds unless prev is clearly wrong
-  if (now - _unreadLastFetchAt < 5000 && Number.isFinite(prev)) {
-    return prev;
+  const baseline = Math.max(0, Number(prev) || 0, _unreadLastTotal || 0);
+  if (!opts?.force && now - _unreadLastFetchAt < 5000 && Number.isFinite(prev)) {
+    return baseline;
   }
   _unreadLastFetchAt = now;
   _unreadInflight = (async () => {
@@ -29,11 +48,13 @@ async function fetchAggregateUnread(prev: number): Promise<number> {
         headers: _unreadLastEtag ? { 'If-None-Match': _unreadLastEtag } : undefined,
       });
       try { _unreadLastEtag = String((resp.headers as any)?.etag || '') || _unreadLastEtag; } catch {}
-      if (resp.status === 304) return prev;
-      const total = Number(resp.data?.total ?? resp.data?.count ?? prev ?? 0) || 0;
-      return Math.max(0, total);
+      if (resp.status === 304) return baseline;
+      const total = Number(resp.data?.total ?? resp.data?.count ?? baseline ?? 0) || 0;
+      const next = Math.max(0, total);
+      _unreadLastTotal = next;
+      return next;
     } catch {
-      return prev;
+      return baseline;
     } finally {
       _unreadInflight = null;
     }
@@ -62,7 +83,11 @@ function sumFromCache(): number {
 
 export default function useUnreadThreadsCount() {
   const { user } = useAuth();
-  const [count, setCount] = useState(0);
+  const [count, setCount] = useState(() => {
+    const uid = Number(user?.id ?? 0) || 0;
+    if (uid > 0 && _unreadOwnerUserId === uid) return _unreadLastTotal || 0;
+    return 0;
+  });
   const countRef = useRef(0);
   countRef.current = count;
 
@@ -83,16 +108,20 @@ export default function useUnreadThreadsCount() {
 
   const syncFromServer = useCallback(
     async (opts?: { force?: boolean }) => {
-      if (!user) {
+      const userId = Number(user?.id ?? 0) || 0;
+      if (!user || userId <= 0) {
         if (countRef.current !== 0) setCount(0);
+        // If we lost auth, clear the shared cache so ETag/304 can't "pin" a zero.
+        // Next logged-in session will repopulate on demand.
+        _resetUnreadCacheForUser(null);
         return;
       }
       // Always treat the last known count as the baseline when talking to the
       // server so 304/ETag paths can reuse it. `/inbox/unread` is the primary
       // source of truth; the cache is used to refine it but should never
       // under-report compared to the server snapshot.
-      const base = countRef.current || 0;
-      const serverTotal = await fetchAggregateUnread(base);
+      const base = Math.max(0, countRef.current || 0, _unreadLastTotal || 0);
+      const serverTotal = await fetchAggregateUnread(base, userId, opts);
       const local = sumFromCache();
       let next = serverTotal;
       try {
