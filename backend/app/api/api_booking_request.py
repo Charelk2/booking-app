@@ -785,7 +785,7 @@ def report_problem_for_request(
         sender_type=sender_type,
         content=(
             (
-                "A problem has been reported for this personalized video order. "
+                "A problem has been reported for this personalised video order. "
                 "Our team will review the details."
                 if booking_simple
                 else "A problem has been reported for this event. Our team will review the details."

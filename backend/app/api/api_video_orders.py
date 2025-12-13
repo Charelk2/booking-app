@@ -49,6 +49,8 @@ class VideoOrderDeliverPayload(BaseModel):
     delivery_url: Optional[str] = None
     note: Optional[str] = None
     auto_complete_hours: Optional[int] = None
+    attachment_url: Optional[str] = None
+    attachment_meta: Optional[dict[str, Any]] = None
 
 
 class VideoOrderCreate(BaseModel):
@@ -85,6 +87,10 @@ class VideoOrderResponse(BaseModel):
     buyer_id: int
     status: str
     delivery_by_utc: Optional[str] = None
+    delivery_url: Optional[str] = None
+    delivery_note: Optional[str] = None
+    delivery_attachment_url: Optional[str] = None
+    delivery_attachment_meta: Optional[dict[str, Any]] = None
     length_sec: Optional[int] = None
     language: Optional[str] = None
     tone: Optional[str] = None
@@ -213,6 +219,10 @@ def _pv_state_from_extras(br: BookingRequest) -> dict:
     return {
         "status": pv.get("status", "awaiting_payment"),
         "delivery_by_utc": pv.get("delivery_by_utc"),
+        "delivery_url": pv.get("delivery_url"),
+        "delivery_note": pv.get("delivery_note"),
+        "delivery_attachment_url": pv.get("delivery_attachment_url"),
+        "delivery_attachment_meta": pv.get("delivery_attachment_meta"),
         "length_sec": pv.get("length_sec"),
         "language": pv.get("language"),
         "tone": pv.get("tone"),
@@ -247,6 +257,10 @@ def _to_video_order_response(
         buyer_id=br.client_id,
         status=str(getattr(pv.status, "value", pv.status) or PvStatus.AWAITING_PAYMENT.value),
         delivery_by_utc=pv.delivery_by_utc,
+        delivery_url=pv.delivery_url,
+        delivery_note=pv.delivery_note,
+        delivery_attachment_url=pv.delivery_attachment_url,
+        delivery_attachment_meta=pv.delivery_attachment_meta if isinstance(pv.delivery_attachment_meta, dict) else None,
         length_sec=pv.length_sec,
         language=pv.language,
         tone=pv.tone,
@@ -602,6 +616,9 @@ def deliver_video_order(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
     pv = load_pv_payload(br)
+    prev_status = pv.status
+    prev_delivery_url = pv.delivery_url
+    prev_attachment_url = pv.delivery_attachment_url
     now = datetime.utcnow()
     if pv.status == PvStatus.PAID:
         # Allow artists to deliver from PAID by implicitly moving the order into production.
@@ -622,37 +639,73 @@ def deliver_video_order(
         hours = 168
     pv.auto_complete_at_utc = pv.auto_complete_at_utc or (now + timedelta(hours=hours))
 
-    data = pv.model_dump(mode="json", exclude_none=True)
-    if body.delivery_url:
-        data["delivery_url"] = str(body.delivery_url).strip()
-    if body.note:
-        data["delivery_note"] = str(body.note).strip()
-    save_pv_payload(br, data)
+    try:
+        fields_set = set(getattr(body, "model_fields_set", set()) or set())
+    except Exception:
+        fields_set = set()
+
+    # Allow updating/clearing delivery fields even after the order is delivered.
+    if "delivery_url" in fields_set:
+        cleaned = str(body.delivery_url or "").strip()
+        if cleaned in {"-", "—", "–"}:
+            cleaned = ""
+        pv.delivery_url = cleaned or None
+    if "note" in fields_set:
+        cleaned = str(body.note or "").strip()
+        pv.delivery_note = cleaned or None
+    if "attachment_url" in fields_set:
+        cleaned = str(body.attachment_url or "").strip()
+        pv.delivery_attachment_url = cleaned or None
+        if not pv.delivery_attachment_url:
+            pv.delivery_attachment_meta = None
+        elif "attachment_meta" in fields_set and isinstance(body.attachment_meta, dict):
+            pv.delivery_attachment_meta = body.attachment_meta
+    if "attachment_meta" in fields_set and pv.delivery_attachment_url and isinstance(body.attachment_meta, dict):
+        pv.delivery_attachment_meta = body.attachment_meta
+
+    first_delivery = prev_status != PvStatus.DELIVERED and pv.status == PvStatus.DELIVERED
+    # On first delivery, require at least one delivery mechanism (link or attachment).
+    if first_delivery and not (pv.delivery_url or pv.delivery_attachment_url):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Provide a delivery link or upload a delivery attachment",
+        )
+
+    delivery_changed = pv.delivery_url != prev_delivery_url or pv.delivery_attachment_url != prev_attachment_url
+
+    save_pv_payload(br, pv)
     br.status = _map_status_to_booking(PvStatus.DELIVERED.value)
     db.add(br)
     db.commit()
     db.refresh(br)
 
-    # Emit a system line so both parties see delivery in the thread.
-    try:
-        parts: list[str] = ["Your personalized video has been delivered."]
-        if body.delivery_url:
-            parts.append(f"Link: {str(body.delivery_url).strip()}")
-        if body.note:
-            parts.append(str(body.note).strip())
-        content = " ".join([p for p in parts if p])
-        crud_message.create_message(
-            db=db,
-            booking_request_id=br.id,
-            sender_id=current_user.id,
-            sender_type=SenderType.ARTIST,
-            content=content,
-            message_type=MessageType.SYSTEM,
-            visible_to=VisibleTo.BOTH,
-            system_key="pv_delivered_v1",
-        )
-    except Exception:
-        pass
+    # Emit a message (with optional attachment) so both parties see the delivery in chat.
+    # Only send a new message when delivery is first set or the link/file changes.
+    if (first_delivery or delivery_changed) and (pv.delivery_url or pv.delivery_attachment_url):
+        try:
+            parts: list[str] = [
+                "Your personalised video has been delivered."
+                if first_delivery
+                else "Personalised video delivery updated.",
+            ]
+            if pv.delivery_url:
+                parts.append(f"Link: {str(pv.delivery_url).strip()}")
+            if pv.delivery_note:
+                parts.append(str(pv.delivery_note).strip())
+            content = " ".join([p for p in parts if p]).strip()
+            crud_message.create_message(
+                db=db,
+                booking_request_id=br.id,
+                sender_id=current_user.id,
+                sender_type=SenderType.ARTIST,
+                content=content,
+                message_type=MessageType.USER,
+                visible_to=VisibleTo.BOTH,
+                attachment_url=pv.delivery_attachment_url,
+                attachment_meta=pv.delivery_attachment_meta if isinstance(pv.delivery_attachment_meta, dict) else None,
+            )
+        except Exception:
+            pass
 
     return _to_video_order_response(br)
 

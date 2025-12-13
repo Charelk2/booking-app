@@ -40,6 +40,10 @@ export interface VideoOrder {
     | "info_pending"
     | "closed";
   delivery_by_utc: string;
+  delivery_url?: string | null;
+  delivery_note?: string | null;
+  delivery_attachment_url?: string | null;
+  delivery_attachment_meta?: Record<string, any> | null;
   length_sec: number;
   language: string;
   tone: string;
@@ -65,7 +69,13 @@ export interface VideoOrderApiClient {
   verifyPaystack(orderId: number, reference: string): Promise<VideoOrder | null>;
   deliverOrder(
     orderId: number,
-    payload: { delivery_url?: string; note?: string; auto_complete_hours?: number },
+    payload: {
+      delivery_url?: string | null;
+      note?: string | null;
+      auto_complete_hours?: number;
+      attachment_url?: string | null;
+      attachment_meta?: Record<string, any> | null;
+    },
   ): Promise<VideoOrder | null>;
   postAnswer(orderId: number, key: string, value: any): Promise<boolean>;
   createThreadForOrder(

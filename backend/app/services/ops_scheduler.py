@@ -693,7 +693,7 @@ def handle_pv_auto_completion(db: Session) -> dict:
                 br.id,
                 actor_id=int(br.artist_id),
                 content=(
-                    "This personalized video order has been automatically marked as completed. "
+                    "This personalised video order has been automatically marked as completed. "
                     "If you still need help, you can contact support from this conversation."
                 ),
                 visible_to=models.VisibleTo.BOTH,

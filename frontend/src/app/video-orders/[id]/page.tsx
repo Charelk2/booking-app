@@ -119,6 +119,15 @@ export default function VideoOrderPage() {
                     Deliver video
                   </Button>
                 )}
+                {ENABLE_PV_ORDERS && viewerIsProvider && (delivered || completed) && (
+                  <Button
+                    className="w-full"
+                    variant="secondary"
+                    onClick={() => router.push(`/video-orders/${id}/deliver`)}
+                  >
+                    View video
+                  </Button>
+                )}
                 {(delivered || completed) && (
                   <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
                     Delivered. Check chat for the delivery message.
