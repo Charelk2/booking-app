@@ -184,6 +184,19 @@ export default function useUnreadThreadsCount() {
     };
   }, [syncFromServer]);
 
+  // Gentle background polling so the badge stays correct even when realtime
+  // transport is unavailable. Disabled in tests to avoid fake-timers loops.
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') return () => {};
+    if (!user) return () => {};
+    const tick = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      void syncFromServer();
+    };
+    const id = setInterval(tick, 20000);
+    return () => clearInterval(id);
+  }, [user, syncFromServer]);
+
   // Realtime aggregate updates from notifications (unread_total over WS).
   useEffect(() => {
     // Treat unread_total packets as a hint that the inbox state changed.

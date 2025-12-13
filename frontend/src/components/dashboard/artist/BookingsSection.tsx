@@ -14,12 +14,25 @@ type Props = {
   loading?: boolean;
   error?: string;
   onRetry?: () => void;
+  title?: string;
+  subtitle?: string;
+  hideHeader?: boolean;
+  headerAction?: React.ReactNode;
 };
 
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import ErrorState from "@/components/ui/ErrorState";
 
-const BookingsSection: React.FC<Props> = ({ bookings, loading, error, onRetry }) => {
+const BookingsSection: React.FC<Props> = ({
+  bookings,
+  loading,
+  error,
+  onRetry,
+  title,
+  subtitle,
+  hideHeader = false,
+  headerAction,
+}) => {
   const now = Date.now();
   const upcoming = useMemo(() => {
     return bookings
@@ -30,12 +43,15 @@ const BookingsSection: React.FC<Props> = ({ bookings, loading, error, onRetry })
 
   // use shared status chip styles
 
-  if (loading) return <Section title="Upcoming Bookings" subtitle="Your next confirmed gigs at a glance" className="mb-10"><LoadingSkeleton lines={6} /></Section>;
+  const sectionTitle = hideHeader ? undefined : (title ?? "Bookings");
+  const sectionSubtitle = hideHeader ? undefined : (subtitle ?? "Your next confirmed gigs at a glance");
 
-  if (error) return <Section title="Upcoming Bookings" subtitle="Your next confirmed gigs at a glance" className="mb-10"><ErrorState message={error} onRetry={onRetry} /></Section>;
+  if (loading) return <Section title={sectionTitle} subtitle={sectionSubtitle} action={headerAction} className="mb-10"><LoadingSkeleton lines={6} /></Section>;
+
+  if (error) return <Section title={sectionTitle} subtitle={sectionSubtitle} action={headerAction} className="mb-10"><ErrorState message={error} onRetry={onRetry} /></Section>;
 
   return (
-    <Section title="Upcoming Bookings" subtitle="Your next confirmed gigs at a glance" className="mb-10">
+    <Section title={sectionTitle} subtitle={sectionSubtitle} action={headerAction} className="mb-10">
       <div className="space-y-3">
         {upcoming.length === 0 && (
           <IllustratedEmpty variant="bookings" title="No upcoming bookings" description="When you confirm a booking, it'll show up here with date, status, and payout." />

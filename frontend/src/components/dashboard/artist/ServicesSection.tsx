@@ -28,6 +28,7 @@ type ServiceCardProps = {
   dragHandleProps?: React.HTMLAttributes<HTMLElement>;
   style?: React.CSSProperties;
   isDragging?: boolean;
+  isDeleting?: boolean;
   onEdit: (service: Service) => void;
   onDelete: (id: number) => void;
 };
@@ -43,7 +44,15 @@ function StatusBadge({ status }: { status?: string }) {
   );
 }
 
-function ServiceCard({ service, dragHandleProps, style, isDragging, onEdit, onDelete }: ServiceCardProps) {
+function ServiceCard({
+  service,
+  dragHandleProps,
+  style,
+  isDragging,
+  isDeleting,
+  onEdit,
+  onDelete,
+}: ServiceCardProps) {
   return (
     <div
       style={style}
@@ -70,12 +79,15 @@ function ServiceCard({ service, dragHandleProps, style, isDragging, onEdit, onDe
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (window.confirm("Delete this service? This action cannot be undone.")) onDelete(service.id);
-            }}
-            className="text-sm text-gray-500 hover:text-red-500"
+            aria-label="Delete"
+            disabled={!!isDeleting}
+            onClick={() => onDelete(service.id)}
+            className={clsx(
+              "text-sm",
+              isDeleting ? "text-gray-400" : "text-gray-500 hover:text-red-600",
+            )}
           >
-            Deactivate
+            {isDeleting ? "Deactivating…" : "Deactivate"}
           </button>
         </div>
       </div>
@@ -83,12 +95,30 @@ function ServiceCard({ service, dragHandleProps, style, isDragging, onEdit, onDe
   );
 }
 
-function SortableServiceCard({ service, onEdit, onDelete }: { service: Service; onEdit: (s: Service) => void; onDelete: (id: number) => void }) {
+function SortableServiceCard({
+  service,
+  isDeleting,
+  onEdit,
+  onDelete,
+}: {
+  service: Service;
+  isDeleting?: boolean;
+  onEdit: (s: Service) => void;
+  onDelete: (id: number) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: service.id });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 100 : "auto", opacity: isDragging ? 0.8 : 1 } as React.CSSProperties;
   return (
     <div ref={setNodeRef} data-testid="service-item">
-      <ServiceCard service={service} onEdit={onEdit} onDelete={onDelete} dragHandleProps={{ ...attributes, ...listeners }} style={style} isDragging={isDragging} />
+      <ServiceCard
+        service={service}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        style={style}
+        isDragging={isDragging}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
@@ -102,15 +132,34 @@ type Props = {
   loading?: boolean;
   error?: string;
   onRetry?: () => void;
+  title?: string;
+  subtitle?: string;
+  hideHeader?: boolean;
+  headerAction?: React.ReactNode;
 };
 
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import ErrorState from "@/components/ui/ErrorState";
 
-const ServicesSection: React.FC<Props> = ({ services, onReorder, onAdd, onEdit, onDelete, loading, error, onRetry }) => {
+const ServicesSection: React.FC<Props> = ({
+  services,
+  onReorder,
+  onAdd,
+  onEdit,
+  onDelete,
+  loading,
+  error,
+  onRetry,
+  title,
+  subtitle,
+  hideHeader = false,
+  headerAction,
+}) => {
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
   const [isReordering, setIsReordering] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const items = useMemo(() => services, [services]);
@@ -132,14 +181,39 @@ const ServicesSection: React.FC<Props> = ({ services, onReorder, onAdd, onEdit, 
     onReorder(ordered);
   };
 
-  if (loading) return <Section title="Your Services" subtitle="Manage what you offer and display order" className="mb-10"><LoadingSkeleton lines={6} /></Section>;
+  const sectionTitle = hideHeader ? undefined : (title ?? "Services");
+  const sectionSubtitle = hideHeader ? undefined : (subtitle ?? "Manage what you offer and display order");
+  const actionNode = hideHeader ? undefined : (headerAction ?? <Button onClick={onAdd}>Add service</Button>);
 
-  if (error) return <Section title="Your Services" subtitle="Manage what you offer and display order" className="mb-10"><ErrorState message={error} onRetry={onRetry} /></Section>;
+  const handleDelete = async (id: number) => {
+    setDeleteError(null);
+    if (typeof window !== "undefined") {
+      const ok = window.confirm("Deactivate this service? You can add it again later.");
+      if (!ok) return;
+    }
+    setDeletingId(id);
+    try {
+      await Promise.resolve(onDelete(id));
+    } catch {
+      setDeleteError("Failed to delete service");
+    } finally {
+      setDeletingId((current) => (current === id ? null : current));
+    }
+  };
+
+  if (loading) return <Section title={sectionTitle} subtitle={sectionSubtitle} action={actionNode} className="mb-10"><LoadingSkeleton lines={6} /></Section>;
+
+  if (error) return <Section title={sectionTitle} subtitle={sectionSubtitle} action={actionNode} className="mb-10"><ErrorState message={error} onRetry={onRetry} /></Section>;
 
   return (
-    <Section title="Your Services" subtitle="Manage what you offer and display order" className="mb-10">
+    <Section title={sectionTitle} subtitle={sectionSubtitle} action={actionNode} className="mb-10">
       {isReordering && showHint && (
         <div className="text-sm text-gray-600 mb-2" role="status">Drag to reorder</div>
+      )}
+      {deleteError && (
+        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {deleteError}
+        </div>
       )}
       {services.length === 0 ? (
         <IllustratedEmpty
@@ -153,7 +227,13 @@ const ServicesSection: React.FC<Props> = ({ services, onReorder, onAdd, onEdit, 
           <SortableContext items={services.map((s) => s.id)} strategy={rectSortingStrategy}>
             <div className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {services.map((service) => (
-                <SortableServiceCard key={service.id} service={service} onEdit={onEdit} onDelete={onDelete} />
+                <SortableServiceCard
+                  key={service.id}
+                  service={service}
+                  onEdit={onEdit}
+                  onDelete={handleDelete}
+                  isDeleting={Number(deletingId) === Number(service.id)}
+                />
               ))}
             </div>
           </SortableContext>

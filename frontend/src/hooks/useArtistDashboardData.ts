@@ -55,7 +55,9 @@ export function useArtistDashboardData(userId?: number) {
       (async () => {
         try {
           const servicesRes = await getMyServices();
-          const processedServices = (servicesRes.data as Service[])
+          const raw = (servicesRes as any)?.data;
+          const list: Service[] = Array.isArray(raw) ? (raw as Service[]) : [];
+          const processedServices = list
             .map((s) => normalizeService(s))
             .sort((a, b) => a.display_order - b.display_order);
           setServices(processedServices);
@@ -68,10 +70,10 @@ export function useArtistDashboardData(userId?: number) {
 
       const [bookingsRes, profileRes, requestsRes, statsRes] = await corePromise;
 
-      setBookings(bookingsRes);
-      setBookingRequests(requestsRes);
-      setArtistProfile(profileRes.data);
-      setDashboardStats(statsRes);
+      setBookings(Array.isArray(bookingsRes) ? bookingsRes : []);
+      setBookingRequests(Array.isArray(requestsRes) ? requestsRes : []);
+      setArtistProfile((profileRes as any)?.data ?? null);
+      setDashboardStats(statsRes && typeof statsRes === "object" && !Array.isArray(statsRes) ? (statsRes as any) : null);
     } catch (err) {
       console.error("useArtistDashboardData error:", err);
       const anyErr = err as any;

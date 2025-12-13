@@ -147,56 +147,6 @@ export default function MainLayout({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile, isArtistsPage, isHome, isArtistView, isEventPrep, pathname]);
 
-  // Outside the Inbox route, keep a lightweight SSE connection to
-  // /api/v1/inbox/stream that can optionally push unread_total snapshots.
-  useEffect(() => {
-    if (!user) return;
-    if (pathname.startsWith('/inbox')) return;
-    let es: EventSource | null = null;
-    let closed = false;
-    const role = user.user_type === 'service_provider' ? 'artist' : 'client';
-    const API_BASE = (() => {
-      try {
-        const raw = (process.env.NEXT_PUBLIC_API_URL || '').trim();
-        if (!raw) return '';
-        const u = new URL(raw);
-        return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`.replace(/\/+$/, '');
-      } catch {
-        return '';
-      }
-    })();
-    const connect = () => {
-      if (closed) return;
-      try {
-        const url = API_BASE
-          ? `${API_BASE}/api/v1/inbox/stream?role=${role}`
-          : `/api/v1/inbox/stream?role=${role}`;
-        es = new EventSource(url, { withCredentials: true });
-        const handlePayload = (_payload: any) => {
-          // Snapshot currently not wired into header; kept for future use.
-        };
-        es.addEventListener('hello', (e: MessageEvent) => {
-          try { handlePayload(JSON.parse(String(e.data || '{}'))); } catch {}
-        });
-        es.addEventListener('update', (e: MessageEvent) => {
-          try { handlePayload(JSON.parse(String(e.data || '{}'))); } catch {}
-        });
-        es.onerror = () => {
-          try { es?.close(); } catch {}
-          es = null;
-          setTimeout(connect, 2000);
-        };
-      } catch {
-        setTimeout(connect, 2000);
-      }
-    };
-    connect();
-    return () => {
-      closed = true;
-      try { es?.close(); } catch {}
-    };
-  }, [user, pathname]);
-
   // Watch data-lock-compact from Header (mobile search)
   useEffect(() => {
     const el = headerRef.current;

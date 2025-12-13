@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
+import { fireEvent } from '@testing-library/react';
 import DashboardPage from '../page';
 import { flushPromises } from '@/test/utils/flush';
 import * as api from '@/lib/api';
@@ -58,14 +59,15 @@ describe('DashboardPage booking request sort and filter', () => {
   ];
 
   beforeEach(async () => {
-    useRouter.mockReturnValue({ push: jest.fn() });
+    useRouter.mockReturnValue({ push: jest.fn(), replace: jest.fn() });
     usePathname.mockReturnValue('/dashboard/artist');
     (useAuth as jest.Mock).mockReturnValue({ user: baseUser });
-    (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
-    (api.getServiceProviderServices as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getMyArtistBookingsCached as jest.Mock).mockResolvedValue([]);
+    (api.getMyServices as jest.Mock).mockResolvedValue({ data: [] });
     (api.getServiceProviderProfileMe as jest.Mock).mockResolvedValue({ data: {} });
-    (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: requests });
-    (api.getDashboardStats as jest.Mock).mockResolvedValue({ data: { monthly_new_inquiries: 0, profile_views: 0, response_rate: 0 } });
+    (api.getBookingRequestsForArtistCached as jest.Mock).mockResolvedValue(requests);
+    (api.getDashboardStatsCached as jest.Mock).mockResolvedValue({ monthly_new_inquiries: 0, profile_views: 0, response_rate: 0 });
+    (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({ data: { connected: false } });
 
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -73,6 +75,17 @@ describe('DashboardPage booking request sort and filter', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
+    await act(async () => {
+      await flushPromises();
+    });
+    const tabBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => (b.textContent || '').trim().startsWith('Requests')
+    ) as HTMLButtonElement;
+    if (tabBtn) {
+      await act(async () => {
+        tabBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    }
     await act(async () => {
       await flushPromises();
     });
@@ -93,7 +106,8 @@ describe('DashboardPage booking request sort and filter', () => {
       select.dispatchEvent(new Event('change', { bubbles: true }));
     });
     await flushPromises();
-    const first = container.querySelector('li');
+    const section = select.closest('section') as HTMLElement | null;
+    const first = section?.querySelector('ul li');
     expect(first?.textContent).toContain('C1');
   });
 
@@ -104,7 +118,8 @@ describe('DashboardPage booking request sort and filter', () => {
       select.dispatchEvent(new Event('change', { bubbles: true }));
     });
     await flushPromises();
-    const items = container.querySelectorAll('li');
+    const section = select.closest('section') as HTMLElement | null;
+    const items = section?.querySelectorAll('ul li') ?? [];
     expect(items.length).toBe(1);
     expect(items[0].textContent).toContain('C2');
   });
@@ -112,11 +127,11 @@ describe('DashboardPage booking request sort and filter', () => {
   it('filters booking requests by client name', async () => {
     const input = container.querySelector('input[aria-label="Search by client name"]') as HTMLInputElement;
     await act(async () => {
-      input.value = 'C2';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
+      fireEvent.change(input, { target: { value: 'C2' } });
     });
     await flushPromises();
-    const items = container.querySelectorAll('li');
+    const section = input.closest('section') as HTMLElement | null;
+    const items = section?.querySelectorAll('ul li') ?? [];
     expect(items.length).toBe(1);
     expect(items[0].textContent).toContain('C2');
   });

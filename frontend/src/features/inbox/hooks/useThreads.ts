@@ -26,7 +26,6 @@ export function useThreads(user: User | null | undefined) {
     const uid = user?.id ? String(user.id) : 'anon';
     return `inbox:threadsCache:v2:${role}:${uid}`;
   }, [user?.user_type, user?.id]);
-  const latestCacheKey = 'inbox:threadsCache:latest';
   const persistKey = useMemo(() => `${cacheKey}:persist`, [cacheKey]);
   const PERSIST_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -39,7 +38,6 @@ export function useThreads(user: User | null | undefined) {
         if (!Array.isArray(next) || next.length === 0) return;
         const json = JSON.stringify(next);
         sessionStorage.setItem(cacheKey, json);
-        sessionStorage.setItem(latestCacheKey, json);
         localStorage.setItem(persistKey, JSON.stringify({ ts: Date.now(), items: next }));
       } catch {}
     };
@@ -47,13 +45,13 @@ export function useThreads(user: User | null | undefined) {
     // Persist once on mount so initial cache is stored
     persist();
     return unsubscribe;
-  }, [user, cacheKey, latestCacheKey, persistKey]);
+  }, [user, cacheKey, persistKey]);
 
   // Bootstrap from caches into store for fast first paint
   useEffect(() => {
     if (!user) return;
     try {
-      const sessionCached = sessionStorage.getItem(cacheKey) || sessionStorage.getItem(latestCacheKey);
+      const sessionCached = sessionStorage.getItem(cacheKey);
       if (sessionCached) {
         const items = JSON.parse(sessionCached) as BookingRequest[];
         if (Array.isArray(items) && items.length) {
@@ -71,14 +69,13 @@ export function useThreads(user: User | null | undefined) {
           try {
             const json = JSON.stringify(obj.items);
             sessionStorage.setItem(cacheKey, json);
-            sessionStorage.setItem(latestCacheKey, json);
           } catch {}
         } else if (age >= PERSIST_TTL_MS) {
           try { localStorage.removeItem(persistKey); } catch {}
         }
       }
     } catch {}
-  }, [user, cacheKey, latestCacheKey, persistKey]);
+  }, [user, cacheKey, persistKey]);
 
   // Initialize cross-tab sync (idempotent across mounts)
   useEffect(() => {
@@ -120,9 +117,7 @@ export function useThreads(user: User | null | undefined) {
       if (typeof window !== 'undefined') {
         // Persisted caches survive hard reloads; use them to drive conditional GETs.
         if (!hasCache) {
-          const sessionCached =
-            sessionStorage.getItem(cacheKey) ||
-            sessionStorage.getItem(latestCacheKey);
+          const sessionCached = sessionStorage.getItem(cacheKey);
           if (sessionCached) {
             try {
               const parsed = JSON.parse(sessionCached);
@@ -157,7 +152,8 @@ export function useThreads(user: User | null | undefined) {
       return true;
     }
 
-    const items = (res?.data?.items || []) as any[];
+    const raw = (res as any)?.data ?? {};
+    const items = (raw?.items ?? raw?.threads ?? []) as any[];
 
     if (!Array.isArray(items)) return false;
     const mapped: BookingRequest[] = items.map((it: any) => ({

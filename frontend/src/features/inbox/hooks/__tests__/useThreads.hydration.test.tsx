@@ -5,7 +5,7 @@ import { getSummaries as cacheGetSummaries } from '@/lib/chat/threadCache';
 
 const TestComp = ({ user }: any) => {
   useThreads(user);
-  return <div data-count={cacheGetSummaries().length} />;
+  return <div />;
 };
 
 describe('useThreads hydration', () => {
@@ -26,10 +26,9 @@ describe('useThreads hydration', () => {
       },
     ];
     sessionStorage.setItem(key, JSON.stringify(sample));
-    const { container } = render(<TestComp user={user} />);
+    render(<TestComp user={user} />);
     await waitFor(() => {
-      const div = container.querySelector('div[data-count]');
-      expect(div?.getAttribute('data-count')).toBe('1');
+      expect(cacheGetSummaries().length).toBe(1);
     });
   });
 });

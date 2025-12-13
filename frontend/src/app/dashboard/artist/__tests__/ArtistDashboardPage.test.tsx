@@ -10,16 +10,32 @@ jest.mock('@/contexts/AuthContext');
 test('loads artist data', async () => {
   useRouter.mockReturnValue({ push: jest.fn(), replace: jest.fn() });
   usePathname.mockReturnValue('/dashboard/artist');
-  useSearchParams.mockReturnValue({ get: () => null });
-  (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'service_provider' }, loading: false });
-  (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
-  (api.getServiceProviderServices as jest.Mock).mockResolvedValue({ data: [] });
+  useSearchParams.mockReturnValue(new URLSearchParams());
+  (useAuth as jest.Mock).mockReturnValue({
+    user: {
+      id: 1,
+      email: 'a@example.com',
+      user_type: 'service_provider',
+      first_name: 'A',
+      last_name: 'B',
+      phone_number: '',
+      is_active: true,
+      is_verified: true,
+    },
+    loading: false,
+  });
+  (api.getMyArtistBookingsCached as jest.Mock).mockResolvedValue([]);
+  (api.getMyServices as jest.Mock).mockResolvedValue({ data: [] });
   (api.getServiceProviderProfileMe as jest.Mock).mockResolvedValue({ data: {} });
-  (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
-  (api.getDashboardStats as jest.Mock).mockResolvedValue({ data: {} });
+  (api.getBookingRequestsForArtistCached as jest.Mock).mockResolvedValue([]);
+  (api.getDashboardStatsCached as jest.Mock).mockResolvedValue({
+    monthly_new_inquiries: 0,
+    profile_views: 0,
+    response_rate: 0,
+  });
+  (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({ data: { connected: false } });
 
   render(<ArtistDashboardPage />);
-  await waitFor(() => expect(api.getMyArtistBookings).toHaveBeenCalled());
-  expect(api.getServiceProviderServices).toHaveBeenCalled();
+  await waitFor(() => expect(api.getMyArtistBookingsCached).toHaveBeenCalled());
+  expect(api.getMyServices).toHaveBeenCalled();
 });
-
