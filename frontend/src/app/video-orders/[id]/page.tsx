@@ -14,7 +14,7 @@ const ENABLE_PV_ORDERS =
 export default function VideoOrderPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const id = Number(params.id);
   const [loading, setLoading] = React.useState(true);
@@ -69,7 +69,8 @@ export default function VideoOrderPage() {
   const delivered = status === "delivered";
   const completed = status === "completed" || status === "closed";
 
-  const viewerIsProvider = user?.user_type === "service_provider";
+  const viewerIsProvider = !authLoading && user?.user_type === "service_provider";
+  const viewerReady = !authLoading && !!user;
 
   return (
     <MainLayout>
@@ -107,7 +108,7 @@ export default function VideoOrderPage() {
                     className="w-full"
                     onClick={() => router.push(`/video-orders/${id}/brief`)}
                   >
-                    {viewerIsProvider ? "View brief" : "Complete brief"}
+                    {!viewerReady ? "View brief" : viewerIsProvider ? "View brief" : "Complete brief"}
                   </Button>
                 )}
                 {ENABLE_PV_ORDERS && viewerIsProvider && inProduction && (

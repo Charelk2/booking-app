@@ -117,7 +117,7 @@ export default function BookingDetailsPanel({
   onBookingDetailsHydrated,
   onHydratedBookingRequest,
 }: BookingDetailsPanelProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [eventType, setEventType] = React.useState<string | null>(null);
   const [guestsCount, setGuestsCount] = React.useState<number | null>(null);
   const [services, setServices] = React.useState<any[] | null>(null);
@@ -1105,9 +1105,13 @@ export default function BookingDetailsPanel({
                   <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm">
                     <div className="font-semibold text-indigo-900">Personalised Video</div>
                     <div className="mt-1 text-indigo-800">
-                      {viewerIsProvider
-                        ? 'Review the brief and deliver the video here when it’s ready.'
-                        : 'Complete the brief so production can start right away.'}
+                      {authLoading
+                        ? 'Loading your personalised video details…'
+                        : viewerIsProvider
+                          ? 'Review the brief and deliver the video here when it’s ready.'
+                          : viewerIsClient
+                            ? 'Complete the brief so production can start right away.'
+                            : 'Open the brief to continue.'}
                     </div>
                     {pvDeliveryLabel ? (
                       <div className="mt-2 text-xs text-indigo-700">
@@ -1120,7 +1124,9 @@ export default function BookingDetailsPanel({
                           href={pvBriefLink}
                           className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow transition no-underline hover:bg-indigo-700 hover:no-underline hover:text-white visited:text-white"
                         >
-                          {pvBriefComplete ? 'View Brief' : viewerIsProvider ? 'View Brief' : 'Complete Brief'}
+                          {authLoading || viewerIsProvider || !viewerIsClient || pvBriefComplete
+                            ? 'View Brief'
+                            : 'Complete Brief'}
                         </a>
                       </div>
                     ) : (
@@ -1128,22 +1134,30 @@ export default function BookingDetailsPanel({
                         We’ll drop your brief link here as soon as the order finishes syncing.
                       </div>
                     )}
-                    {ENABLE_PV_ORDERS && viewerIsProvider && pvOrderId ? (
+                    {ENABLE_PV_ORDERS && pvOrderId ? (
                       <div className="mt-3">
                         {(() => {
                           const st = String(pvOrderStatus || '').toLowerCase();
-                          const isDelivered = st === 'delivered' || st === 'completed' || st === 'closed';
-                          const canDeliver = st === 'in_production';
+                          const lastMsg = String((bookingRequest as any)?.last_message_content || '').toLowerCase();
+                          const hintDelivered = lastMsg.includes('video has been delivered');
+                          const isDelivered =
+                            hintDelivered || st === 'delivered' || st === 'completed' || st === 'closed';
+                          const canDeliver = viewerIsProvider && st === 'in_production';
+
                           if (isDelivered) {
                             return (
-                              <a
-                                href={`/video-orders/${Number(pvOrderId)}/deliver`}
-                                className="inline-flex items-center gap-2 rounded-md border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-100"
-                              >
-                                View video
-                              </a>
+                              <div className="flex flex-col gap-2">
+                                <div className="text-xs font-semibold text-emerald-700">Delivered</div>
+                                <a
+                                  href={`/video-orders/${Number(pvOrderId)}/deliver`}
+                                  className="inline-flex items-center gap-2 rounded-md border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-100"
+                                >
+                                  View video
+                                </a>
+                              </div>
                             );
                           }
+
                           if (canDeliver) {
                             return (
                               <a
@@ -1154,6 +1168,7 @@ export default function BookingDetailsPanel({
                               </a>
                             );
                           }
+
                           return null;
                         })()}
                       </div>
