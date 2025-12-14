@@ -361,17 +361,8 @@ export default function DashboardPage() {
                 />
               </nav>
 
-              {/* Quick actions */}
+              {/* Quick links */}
               <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={openAddService}
-                  className="w-full rounded-xl bg-black px-4 py-3 text-left text-sm font-bold text-white hover:bg-gray-900"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Plus size={16} /> Add service
-                  </span>
-                </button>
                 <Link
                   href="/inbox"
                   className="block rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50 no-underline hover:no-underline"
