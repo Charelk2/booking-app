@@ -490,15 +490,21 @@ export function createPersonalizedVideoEngineCore(
       });
 
       let updated: VideoOrder | null = null;
+      let errorMessage: string | null = null;
       try {
         updated = await env.api.applyPromo(id, cleaned);
-      } catch {
+      } catch (e: any) {
+        errorMessage = e?.message || null;
         updated = null;
       }
 
       if (!updated) {
         setState({
-          payment: { ...getState().payment, loading: false, error: "Unable to apply promo code. Please try again." },
+          payment: {
+            ...getState().payment,
+            loading: false,
+            error: errorMessage || "Unable to apply promo code. Please try again.",
+          },
         });
         return false;
       }

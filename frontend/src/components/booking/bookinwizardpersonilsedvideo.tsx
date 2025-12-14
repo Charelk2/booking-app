@@ -392,9 +392,12 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
   });
 
   const { orderSummary, payment } = state;
-  const { reloadOrderSummary, startPayment } = actions;
+  const { reloadOrderSummary, applyPromoCode, startPayment } = actions;
+  const [promoCode, setPromoCode] = React.useState("");
+  const [promoStatus, setPromoStatus] = React.useState<"idle" | "applied" | "error">("idle");
 
-  if (payment.loading) {
+  const isInitialLoading = payment.loading && !orderSummary;
+  if (isInitialLoading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
         <Spinner />
@@ -429,6 +432,10 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
   const totalToPay =
     ENABLE_PV_ORDERS && clientTotal !== null ? clientTotal : orderSummary.total;
   const canStartPayment = canPaystack || !ENABLE_PV_ORDERS;
+  const canApplyPromo =
+    (String(orderSummary.status || "").toLowerCase() === "awaiting_payment" ||
+      String(orderSummary.status || "").toLowerCase() === "draft") &&
+    !payment.loading;
 
   return (
     <div className="min-h-[100dvh] px-4 py-8 sm:py-12">
@@ -510,10 +517,46 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
           </div>
 
           <div className="mt-6">
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <TextInput
+                    label="Promo code"
+                    value={promoCode}
+                    onChange={(e: any) => {
+                      setPromoCode(e.target.value);
+                      setPromoStatus("idle");
+                    }}
+                    placeholder="SAVE10"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!canApplyPromo || !promoCode.trim()}
+                  onClick={async () => {
+                    const ok = await applyPromoCode(promoCode);
+                    setPromoStatus(ok ? "applied" : "error");
+                  }}
+                  className="h-11"
+                >
+                  Apply
+                </Button>
+              </div>
+              {promoStatus === "applied" && orderSummary.discount > 0 && (
+                <div className="mt-2 text-xs font-medium text-emerald-700">Promo applied.</div>
+              )}
+              {promoStatus === "error" && payment.error && (
+                <div className="mt-2 text-xs font-medium text-red-600">{payment.error}</div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6">
             <Button
               onClick={startPayment}
               variant={canStartPayment ? "primary" : "secondary"}
-              disabled={!canStartPayment}
+              disabled={!canStartPayment || payment.loading}
               className="w-full h-11 text-base"
             >
               {canPaystack
@@ -524,6 +567,10 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
               {formatCurrency(totalToPay)}
             </Button>
           </div>
+
+          {payment.error && promoStatus !== "error" && (
+            <div className="mt-3 text-xs font-medium text-red-600">{payment.error}</div>
+          )}
 
           <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
             <ShieldCheckIcon className="h-4 w-4" />
