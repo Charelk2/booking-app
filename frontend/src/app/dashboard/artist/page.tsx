@@ -329,11 +329,10 @@ export default function DashboardPage() {
     <MainLayout>
       <div className="mx-auto w-full max-w-7xl px-4 pt-6 pb-12 md:px-8">
         <div className="flex flex-col gap-8 md:flex-row md:items-start">
-          {/* === DESKTOP SIDEBAR === */}
-          <aside
-            className="hidden w-64 shrink-0 md:block md:sticky md:self-start"
-            style={{ top: "var(--sp-sticky-top)" }}
-          >
+	          {/* === DESKTOP SIDEBAR === */}
+	          <aside
+	            className="hidden w-64 shrink-0 md:block md:sticky md:top-[var(--sp-sticky-top)] md:self-start"
+	          >
             <div className="space-y-6">
               {/* User snippet */}
               <div className="flex items-center gap-3 px-1">
