@@ -159,7 +159,9 @@ function ArtistNav({
   const items = [
     { name: 'Today', href: '/dashboard/today' },
     { name: 'View Profile', href: `/${user.artist_slug || user.id}` },
-    { name: 'Services', href: '/dashboard?tab=services' },
+    // Note: /dashboard redirects to /dashboard/artist and drops query params.
+    // Keep a stable direct link to the provider dashboard.
+    { name: 'Dashboard', href: '/dashboard/artist' },
   ];
   return (
     <>
