@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Calendar, ClipboardList, Send, Wallet, Film, FileText } from "lucide-react";
+import { Calendar, ClipboardList, Send, Wallet, FileText } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Booking, BookingRequest } from "@/types";
@@ -408,23 +408,17 @@ export default function ClientDashboardPage() {
         />
 
         <div className="mt-4 space-y-6">
-          <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                <h2 className="text-lg font-semibold text-gray-900">Personalised Video</h2>
-                <p className="text-sm text-gray-500">Finish briefs, payments, and view deliveries.</p>
-              </div>
-              <Link
-                href="/personalized-video"
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-              >
-                <Film size={16} /> Start a new video
-              </Link>
-            </div>
-            {loadingVideoOrders ? (
-              <div className="py-6 flex justify-center">
-                <Spinner />
-              </div>
+	          <section className="space-y-3">
+	              <div className="flex items-center justify-between">
+	                <div>
+	                <h2 className="text-lg font-semibold text-gray-900">Personalised Video</h2>
+	                <p className="text-sm text-gray-500">Finish briefs, payments, and view deliveries.</p>
+	              </div>
+	            </div>
+	            {loadingVideoOrders ? (
+	              <div className="py-6 flex justify-center">
+	                <Spinner />
+	              </div>
             ) : videoOrders.length === 0 ? (
               <div className="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-sm text-gray-600">
                 No personalised video orders yet.

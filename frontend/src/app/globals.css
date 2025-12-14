@@ -122,8 +122,12 @@ html, body {
   }
 
   a:hover {
-    color: var(--color-link-hover);
     text-decoration: underline;
+  }
+
+  /* Button-like links (common Tailwind pattern) should not inherit global hover underlines. */
+  a.inline-flex:hover {
+    text-decoration: none;
   }
 
   button:focus-visible,
