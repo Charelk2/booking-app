@@ -36,6 +36,11 @@ interface SearchPopupContentProps {
   when: Date | null;
   setWhen: (d: Date | null) => void;
   closeAllPopups: () => void; // Function to close these internal popups
+  onSubmitSearch?: (params: {
+    category: Category | null;
+    location: string;
+    when: Date | null;
+  }) => void | Promise<void>;
   setActiveField: (f: ActivePopup) => void; // Switch to another field without closing
   locationInputRef: RefObject<HTMLInputElement>;
   categoryListboxOptionsRef: RefObject<HTMLUListElement>;
@@ -66,6 +71,7 @@ export default function SearchPopupContent({
   when,
   setWhen,
   closeAllPopups, // This now calls closeThisSearchBarsInternalPopups
+  onSubmitSearch,
   setActiveField,
   locationInputRef,
   categoryListboxOptionsRef,
@@ -205,6 +211,23 @@ export default function SearchPopupContent({
 
   // no-op helpers removed
 
+  const commitLocation = useCallback(
+    (displayName: string) => {
+      const nextLocation = (displayName || '').trim();
+      setLocation(nextLocation);
+      setAnnouncement(`Location selected: ${nextLocation || 'none'}`);
+
+      const canAutoSearch = Boolean(category?.value) && Boolean(when) && Boolean(nextLocation);
+      if (canAutoSearch && onSubmitSearch) {
+        void onSubmitSearch({ category, location: nextLocation, when });
+        return;
+      }
+
+      closeAllPopups();
+    },
+    [category, when, setLocation, closeAllPopups, onSubmitSearch, setAnnouncement],
+  );
+
   const handleLocationSelect = useCallback(
     (prediction: google.maps.places.AutocompletePrediction) => {
       let displayName = prediction.description || '';
@@ -217,11 +240,9 @@ export default function SearchPopupContent({
         const city = parts[0] || main;
         displayName = city;
       }
-      setLocation(displayName);
-      setAnnouncement(`Location selected: ${displayName}`);
-      closeAllPopups();
+      commitLocation(displayName);
     },
-    [setLocation, closeAllPopups, locationCityOnly],
+    [commitLocation, locationCityOnly],
   );
 
   const handleCategorySelect = useCallback(
@@ -279,8 +300,7 @@ export default function SearchPopupContent({
                       <button
                         type="button"
                         onClick={() => {
-                          setLocation(loc);
-                          closeAllPopups();
+                          commitLocation(loc);
                         }}
                         className="flex w-full items-center space-x-3 rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                       >
@@ -645,8 +665,7 @@ export default function SearchPopupContent({
             <li
               key={`default-${name}`}
               onClick={() => {
-                setLocation(name);
-                closeAllPopups();
+                commitLocation(name);
               }}
               className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer"
             >

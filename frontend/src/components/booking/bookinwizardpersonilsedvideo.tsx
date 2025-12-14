@@ -108,10 +108,6 @@ export default function BookinWizardPersonilsedVideo({
     setLengthChoice: (value: LengthChoice) => actions.updateDraftField("lengthChoice", value),
     language: draft.language,
     setLanguage: (value: string) => actions.updateDraftField("language", value as any),
-    recipient: draft.recipient,
-    setRecipient: (value: string) => actions.updateDraftField("recipient", value),
-    promo: draft.promo,
-    setPromo: (value: string) => actions.updateDraftField("promo", value),
   };
 
   const minDate = useMemo(() => new Date(Date.now() + 24 * 3600000).toISOString().slice(0, 10), []);
@@ -173,7 +169,7 @@ export default function BookinWizardPersonilsedVideo({
                       Book a personalised video
                     </Dialog.Title>
                     <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                      Set a delivery date and personalise your video details.
+                      Pick a delivery date and confirm the basics. You’ll complete the brief after payment.
                     </p>
                   </div>
                   <button
@@ -238,20 +234,6 @@ export default function BookinWizardPersonilsedVideo({
 
                   {/* Right column */}
                   <div className="space-y-4">
-                    <TextInput
-                      label="Recipient (optional)"
-                      value={form.recipient}
-                      onChange={(e: any) => form.setRecipient(e.target.value)}
-                      placeholder="e.g. My mom, Sarah"
-                    />
-
-                    <TextInput
-                      label="Promo code (optional)"
-                      value={form.promo}
-                      onChange={(e: any) => form.setPromo(e.target.value)}
-                      placeholder="SAVE10"
-                    />
-
                     {/* Video length */}
                     <section>
                       <label className="block text-sm font-medium text-gray-800">Video length</label>
@@ -312,7 +294,7 @@ export default function BookinWizardPersonilsedVideo({
                       <ShieldCheckIcon className="h-4 w-4 shrink-0 mt-0.5" />
                       <div>
                         <div className="font-medium">No charge yet</div>
-                        <div className="text-emerald-800/80">You’ll review the total and confirm payment on the next screen.</div>
+                        <div className="text-emerald-800/80">You’ll review the full total and can add a promo code on the next screen.</div>
                       </div>
                     </div>
                   </div>
@@ -327,7 +309,9 @@ export default function BookinWizardPersonilsedVideo({
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-baseline gap-2">
-                      <div className="text-sm text-gray-600">Total</div>
+                      <div className="text-sm text-gray-600">
+                        {ENABLE_PV_ORDERS ? "Estimated provider total" : "Estimated total"}
+                      </div>
                       <div className="text-xl font-bold text-gray-900">{formatCurrency(pricing.total)}</div>
                       {pricing.discount > 0 && (
                         <div className="text-xs font-medium text-emerald-700">
@@ -340,6 +324,7 @@ export default function BookinWizardPersonilsedVideo({
                       {pricing.priceAddOn > 0 ? ` • Length ${formatCurrency(pricing.priceAddOn)}` : ""}
                       {pricing.rushFee > 0 ? ` • Rush ${formatCurrency(pricing.rushFee)}` : ""}
                       {pricing.discount > 0 ? ` • Discount −${formatCurrency(pricing.discount)}` : ""}
+                      {ENABLE_PV_ORDERS ? " • Fees/VAT shown on next screen" : ""}
                     </div>
                   </div>
 

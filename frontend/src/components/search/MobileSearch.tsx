@@ -289,12 +289,17 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
   );
 
   const handlePickLocation = useCallback(
-    (place: PlaceResult) => {
+    async (place: PlaceResult) => {
       const name = place.formatted_address || place.name || '';
       setLocation?.(name);
+      if (category?.value && when && name) {
+        await onSearch({ category: category.value, location: name, when });
+        closeAndReset();
+        return;
+      }
       setActive(null);
     },
-    [setLocation]
+    [setLocation, category, when, onSearch, closeAndReset]
   );
 
   const handleSubmit = useCallback(async () => {
@@ -546,7 +551,20 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
                       <li key={p.place_id || p.description}>
                         <button
                           type="button"
-                          onClick={() => (setLocation?.(p.description), setActive(null))}
+                          onClick={async () => {
+                            const nextLocation = p.description;
+                            setLocation?.(nextLocation);
+                            if (category?.value && when && nextLocation) {
+                              await onSearch({
+                                category: category.value,
+                                location: nextLocation,
+                                when,
+                              });
+                              closeAndReset();
+                              return;
+                            }
+                            setActive(null);
+                          }}
                           className="w-full text-left px-3 py-2 text-[15px] hover:bg-gray-100"
                         >
                           <div className="font-medium">
