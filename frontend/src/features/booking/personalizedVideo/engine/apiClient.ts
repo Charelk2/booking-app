@@ -26,6 +26,7 @@ export interface VideoOrder {
   id: number;
   artist_id: number;
   buyer_id: number;
+  service_id?: number | null;
   status:
     | "draft"
     | "awaiting_payment"

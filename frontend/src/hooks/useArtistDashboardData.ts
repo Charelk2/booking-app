@@ -6,21 +6,34 @@ import {
   getServiceProviderProfileMe,
   getBookingRequestsForArtistCached,
   getDashboardStatsCached,
+  getVideoOrders,
   updateService,
   peekArtistDashboardCache,
 } from "@/lib/api";
 import { normalizeService, applyDisplayOrder } from "@/lib/utils";
 import type { Booking, BookingRequest, Service, ServiceProviderProfile } from "@/types";
 
+type VideoOrderLite = {
+  id: number;
+  artist_id?: number;
+  buyer_id?: number;
+  service_id?: number | null;
+  status?: string;
+  delivery_by_utc?: string | null;
+  delivery_url?: string | null;
+};
+
 export function useArtistDashboardData(userId?: number) {
   const [loading, setLoading] = useState(true);
   const [servicesLoading, setServicesLoading] = useState(true);
+  const [videoOrdersLoading, setVideoOrdersLoading] = useState(true);
   const [error, setError] = useState<string>("");
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [artistProfile, setArtistProfile] = useState<ServiceProviderProfile | null>(null);
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
+  const [videoOrders, setVideoOrders] = useState<VideoOrderLite[]>([]);
   const [dashboardStats, setDashboardStats] = useState<{
     monthly_new_inquiries: number;
     profile_views: number;
@@ -31,6 +44,7 @@ export function useArtistDashboardData(userId?: number) {
     if (!userId) return;
     setLoading(true);
     setServicesLoading(true);
+    setVideoOrdersLoading(true);
     setError("");
     // Hydrate from cache first for instant paint
     try {
@@ -65,6 +79,22 @@ export function useArtistDashboardData(userId?: number) {
           console.error("useArtistDashboardData services error:", svcErr);
         } finally {
           setServicesLoading(false);
+        }
+      })();
+
+      // Fetch PV orders (booking_requests + service_extras.pv) in parallel.
+      (async () => {
+        try {
+          const res = await getVideoOrders();
+          const raw = (res as any)?.data;
+          const list: VideoOrderLite[] = Array.isArray(raw) ? (raw as VideoOrderLite[]) : [];
+          const mine = list.filter((o) => Number((o as any)?.artist_id || 0) === Number(userId));
+          setVideoOrders(mine);
+        } catch (voErr) {
+          console.error("useArtistDashboardData video orders error:", voErr);
+          setVideoOrders([]);
+        } finally {
+          setVideoOrdersLoading(false);
         }
       })();
 
@@ -120,12 +150,14 @@ export function useArtistDashboardData(userId?: number) {
   return {
     loading,
     servicesLoading,
+    videoOrdersLoading,
     error,
     fetchAll,
     bookings,
     services,
     artistProfile,
     bookingRequests,
+    videoOrders,
     dashboardStats,
     setBookingRequests,
     upsertService,

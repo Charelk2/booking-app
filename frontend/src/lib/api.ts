@@ -1215,6 +1215,10 @@ export const downloadQuotePdf = (id: number) =>
 export const getBookingIdForRequest = (bookingRequestId: number) =>
   getDeduped<{ booking_id: number | null }>(`${API_V1}/booking-requests/${bookingRequestId}/booking-id`);
 
+// ─── PERSONALIZED VIDEO ORDERS ───────────────────────────────────────────────
+// NOTE: These are backed by booking_requests + service_extras["pv"] on the backend.
+export const getVideoOrders = () => api.get<any[]>(`${API_V1}/video-orders`);
+
 // ─── REVIEWS ───────────────────────────────────────────────────────────────────
 
 // create review for a booking: POST /api/v1/reviews/bookings/{booking_id}/reviews

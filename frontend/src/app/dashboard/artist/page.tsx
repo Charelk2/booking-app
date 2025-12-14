@@ -151,12 +151,14 @@ export default function DashboardPage() {
   const { 
     loading, 
     servicesLoading,
+    videoOrdersLoading,
     error, 
     fetchAll, 
     bookings, 
     services, 
 	    artistProfile, 
 	    bookingRequests, 
+      videoOrders,
 	    dashboardStats, 
 	    upsertService, 
 	    removeService, 
@@ -684,7 +686,7 @@ export default function DashboardPage() {
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <SectionHeader
                     title="Bookings"
-                    subtitle="Confirmed upcoming events."
+                    subtitle="Confirmed bookings and paid orders."
                     action={
                       <Link
                         href="/dashboard/bookings"
@@ -697,7 +699,10 @@ export default function DashboardPage() {
                   <BookingsSection
                     hideHeader
                     bookings={bookings}
+                    services={services}
+                    videoOrders={videoOrders}
                     loading={loading}
+                    videoOrdersLoading={videoOrdersLoading}
                     error={error || undefined}
                     onRetry={fetchAll}
                   />
