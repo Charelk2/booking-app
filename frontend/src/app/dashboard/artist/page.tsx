@@ -263,9 +263,20 @@ export default function DashboardPage() {
   
   const earningsThisMonth = useMemo(() => {
     const now = new Date();
-    return bookings
-      .filter(b => b.status === "completed" && new Date(b.start_time).getMonth() === now.getMonth() && new Date(b.start_time).getFullYear() === now.getFullYear())
-      .reduce((acc, b) => acc + b.total_price, 0);
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    let total = 0;
+    for (const booking of bookings || []) {
+      if (String(booking.status || "").toLowerCase() !== "completed") continue;
+      const start = new Date(booking.start_time);
+      const startMs = start.getTime();
+      if (!Number.isFinite(startMs)) continue;
+      if (start.getMonth() !== month || start.getFullYear() !== year) continue;
+      const amount = Number((booking as any)?.total_price ?? 0);
+      if (!Number.isFinite(amount)) continue;
+      total += amount;
+    }
+    return total;
   }, [bookings]);
 
   const primaryBooking = useMemo(() => {
