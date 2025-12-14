@@ -311,7 +311,7 @@ export default function PriceFilter({
             <p className="mt-1 text-xs text-gray-500">Trip price, includes all fees.</p>
 
             {/* Histogram */}
-            <div className="relative mt-4 h-10 w-full px-3">
+            <div className="relative mt-4 h-10 w-full px-5">
               <div className="absolute inset-0 flex items-end justify-between">
                 {priceDistribution.map((b, i) => (
                   <div
@@ -325,7 +325,7 @@ export default function PriceFilter({
 
             {/* Slider */}
             <div
-              className="relative mt-3 h-10 w-full select-none px-3"
+              className="relative mt-3 h-10 w-full select-none px-5"
               onTouchStart={stopTouchBubble}
               onTouchMove={stopTouchBubble}
               onTouchEnd={stopTouchBubble}

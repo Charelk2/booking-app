@@ -28,7 +28,7 @@ describe('Header profile menu', () => {
     expect(await screen.findByText('Edit Profile')).toBeTruthy();
   });
 
-  it('shows client links without dashboard', async () => {
+  it('shows client links including dashboard', async () => {
     mockUseAuth.mockReturnValue({
       user: { id: 2, user_type: 'client', email: 'b', first_name: 'B' },
       logout: jest.fn(),
@@ -39,8 +39,7 @@ describe('Header profile menu', () => {
     render(<Header headerState="initial" onForceHeaderState={jest.fn()} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Account menu' }));
-    expect(screen.queryByText('Dashboard')).toBeNull();
-    expect(await screen.findByText('Events')).toBeTruthy();
+    expect(await screen.findByText('Dashboard')).toBeTruthy();
     expect(await screen.findByText('Messages')).toBeTruthy();
   });
 });
