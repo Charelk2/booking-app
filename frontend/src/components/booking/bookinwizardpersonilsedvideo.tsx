@@ -108,10 +108,6 @@ export default function BookinWizardPersonilsedVideo({
     setLengthChoice: (value: LengthChoice) => actions.updateDraftField("lengthChoice", value),
     language: draft.language,
     setLanguage: (value: string) => actions.updateDraftField("language", value as any),
-    recipient: draft.recipient,
-    setRecipient: (value: string) => actions.updateDraftField("recipient", value),
-    promo: draft.promo,
-    setPromo: (value: string) => actions.updateDraftField("promo", value),
   };
 
   const minDate = useMemo(() => new Date(Date.now() + 24 * 3600000).toISOString().slice(0, 10), []);
@@ -173,7 +169,7 @@ export default function BookinWizardPersonilsedVideo({
                       Book a personalised video
                     </Dialog.Title>
                     <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                      Set a delivery date and personalise your video details.
+                      Pick a delivery date and confirm the basics. You’ll complete the brief after payment.
                     </p>
                   </div>
                   <button
@@ -238,20 +234,6 @@ export default function BookinWizardPersonilsedVideo({
 
                   {/* Right column */}
                   <div className="space-y-4">
-                    <TextInput
-                      label="Recipient (optional)"
-                      value={form.recipient}
-                      onChange={(e: any) => form.setRecipient(e.target.value)}
-                      placeholder="e.g. My mom, Sarah"
-                    />
-
-                    <TextInput
-                      label="Promo code (optional)"
-                      value={form.promo}
-                      onChange={(e: any) => form.setPromo(e.target.value)}
-                      placeholder="SAVE10"
-                    />
-
                     {/* Video length */}
                     <section>
                       <label className="block text-sm font-medium text-gray-800">Video length</label>
@@ -312,7 +294,7 @@ export default function BookinWizardPersonilsedVideo({
                       <ShieldCheckIcon className="h-4 w-4 shrink-0 mt-0.5" />
                       <div>
                         <div className="font-medium">No charge yet</div>
-                        <div className="text-emerald-800/80">You’ll review the total and confirm payment on the next screen.</div>
+                        <div className="text-emerald-800/80">You’ll review the full total and can add a promo code on the next screen.</div>
                       </div>
                     </div>
                   </div>
@@ -327,7 +309,9 @@ export default function BookinWizardPersonilsedVideo({
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-baseline gap-2">
-                      <div className="text-sm text-gray-600">Total</div>
+                      <div className="text-sm text-gray-600">
+                        {ENABLE_PV_ORDERS ? "Estimated provider total" : "Estimated total"}
+                      </div>
                       <div className="text-xl font-bold text-gray-900">{formatCurrency(pricing.total)}</div>
                       {pricing.discount > 0 && (
                         <div className="text-xs font-medium text-emerald-700">
@@ -340,6 +324,7 @@ export default function BookinWizardPersonilsedVideo({
                       {pricing.priceAddOn > 0 ? ` • Length ${formatCurrency(pricing.priceAddOn)}` : ""}
                       {pricing.rushFee > 0 ? ` • Rush ${formatCurrency(pricing.rushFee)}` : ""}
                       {pricing.discount > 0 ? ` • Discount −${formatCurrency(pricing.discount)}` : ""}
+                      {ENABLE_PV_ORDERS ? " • Fees/VAT shown on next screen" : ""}
                     </div>
                   </div>
 
@@ -392,9 +377,12 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
   });
 
   const { orderSummary, payment } = state;
-  const { reloadOrderSummary, startPayment } = actions;
+  const { reloadOrderSummary, applyPromoCode, startPayment } = actions;
+  const [promoCode, setPromoCode] = React.useState("");
+  const [promoStatus, setPromoStatus] = React.useState<"idle" | "applied" | "error">("idle");
 
-  if (payment.loading) {
+  const isInitialLoading = payment.loading && !orderSummary;
+  if (isInitialLoading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
         <Spinner />
@@ -429,6 +417,10 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
   const totalToPay =
     ENABLE_PV_ORDERS && clientTotal !== null ? clientTotal : orderSummary.total;
   const canStartPayment = canPaystack || !ENABLE_PV_ORDERS;
+  const canApplyPromo =
+    (String(orderSummary.status || "").toLowerCase() === "awaiting_payment" ||
+      String(orderSummary.status || "").toLowerCase() === "draft") &&
+    !payment.loading;
 
   return (
     <div className="min-h-[100dvh] px-4 py-8 sm:py-12">
@@ -510,10 +502,46 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
           </div>
 
           <div className="mt-6">
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <TextInput
+                    label="Promo code"
+                    value={promoCode}
+                    onChange={(e: any) => {
+                      setPromoCode(e.target.value);
+                      setPromoStatus("idle");
+                    }}
+                    placeholder="SAVE10"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!canApplyPromo || !promoCode.trim()}
+                  onClick={async () => {
+                    const ok = await applyPromoCode(promoCode);
+                    setPromoStatus(ok ? "applied" : "error");
+                  }}
+                  className="h-11"
+                >
+                  Apply
+                </Button>
+              </div>
+              {promoStatus === "applied" && orderSummary.discount > 0 && (
+                <div className="mt-2 text-xs font-medium text-emerald-700">Promo applied.</div>
+              )}
+              {promoStatus === "error" && payment.error && (
+                <div className="mt-2 text-xs font-medium text-red-600">{payment.error}</div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6">
             <Button
               onClick={startPayment}
               variant={canStartPayment ? "primary" : "secondary"}
-              disabled={!canStartPayment}
+              disabled={!canStartPayment || payment.loading}
               className="w-full h-11 text-base"
             >
               {canPaystack
@@ -524,6 +552,10 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
               {formatCurrency(totalToPay)}
             </Button>
           </div>
+
+          {payment.error && promoStatus !== "error" && (
+            <div className="mt-3 text-xs font-medium text-red-600">{payment.error}</div>
+          )}
 
           <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
             <ShieldCheckIcon className="h-4 w-4" />

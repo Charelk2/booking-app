@@ -173,7 +173,7 @@ describe('MobileMenuDrawer', () => {
     expect(body).not.toContain('Quote Templates');
   });
 
-  it('shows Events and Messages links for clients', async () => {
+  it('shows Dashboard and Messages links for clients', async () => {
     await act(async () => {
       root.render(
         React.createElement(MobileMenuDrawer, {
@@ -188,7 +188,7 @@ describe('MobileMenuDrawer', () => {
     });
     await flushPromises();
     const body = document.body.textContent || '';
-    expect(body).toContain('Events');
+    expect(body).toContain('Dashboard');
     expect(body).toContain('Messages');
   });
 

@@ -101,6 +101,7 @@ export interface PersonalizedVideoEngineActions {
     value: VideoOrderDraft[K],
   ) => void;
   recalcPricing: () => void;
+  prefetchUnavailableDates: () => Promise<void>;
   checkAvailability: () => Promise<void>;
 
   // Draft lifecycle
@@ -110,6 +111,7 @@ export interface PersonalizedVideoEngineActions {
 
   // Payment
   reloadOrderSummary: () => Promise<void>;
+  applyPromoCode: (promoCode: string) => Promise<boolean>;
   startPayment: () => Promise<void>;
   markPaid: (reference?: string) => Promise<void>;
 

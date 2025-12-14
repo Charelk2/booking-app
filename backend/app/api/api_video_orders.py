@@ -115,6 +115,10 @@ class VideoOrderAnswerPayload(BaseModel):
     value: Any
 
 
+class VideoOrderPromoPayload(BaseModel):
+    promo_code: Optional[str] = None
+
+
 def _find_pv_service(db: Session, artist_id: int, service_id: Optional[int]) -> Service:
     """Find the personalized video service for the artist or the provided service_id."""
     if service_id:
@@ -286,6 +290,8 @@ def create_video_order(
     current_user: User = Depends(get_current_user),
 ):
     svc = _find_pv_service(db, payload.artist_id, payload.service_id)
+    buyer_email = (payload.contact_email or getattr(current_user, "email", None) or None)
+
     if settings.ENABLE_PV_ORDERS:
         idem_key = request.headers.get("Idempotency-Key") if request else None
         existing_id = crud_video_orders.idempotency_lookup(db, current_user.id, idem_key)
@@ -309,7 +315,7 @@ def create_video_order(
             language=payload.language,
             tone=payload.tone,
             recipient_name=payload.recipient_name,
-            contact_email=payload.contact_email,
+            contact_email=buyer_email,
             contact_whatsapp=payload.contact_whatsapp,
             promo_code=payload.promo_code,
             price_base=pricing["price_base"],
@@ -393,7 +399,7 @@ def create_video_order(
             "language": payload.language,
             "tone": payload.tone,
             "recipient_name": payload.recipient_name,
-            "contact_email": payload.contact_email,
+            "contact_email": buyer_email,
             "contact_whatsapp": payload.contact_whatsapp,
             "promo_code": payload.promo_code,
             "price_base": payload.price_base,
@@ -497,6 +503,109 @@ def get_video_order(
         preview = quote_totals_preview_payload(snap) if snap else None
         return _to_video_order_response(br, totals_preview=preview)
     return _to_video_order_response(br)
+
+
+@router.post("/video-orders/{order_id}/promo", response_model=VideoOrderResponse)
+def apply_video_order_promo(
+    order_id: int,
+    payload: VideoOrderPromoPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    br = db.query(BookingRequest).filter(BookingRequest.id == order_id).first()
+    if not br:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    if br.client_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    extras = getattr(br, "service_extras", None)
+    if not isinstance(extras, dict) or "pv" not in extras:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    pv = load_pv_payload(br)
+    status_raw = str(getattr(pv.status, "value", pv.status) or "")
+    if status_raw.lower() not in {"awaiting_payment", "draft"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Promo codes can only be applied before payment.",
+        )
+
+    code = (payload.promo_code or "").strip().upper()
+    if code and code != "SAVE10":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid promo code.",
+        )
+
+    svc = _find_pv_service(db, br.artist_id, getattr(br, "service_id", None))
+    pricing = _compute_pv_pricing(
+        svc,
+        VideoOrderCreate(
+            artist_id=br.artist_id,
+            service_id=getattr(br, "service_id", None),
+            delivery_by_utc=pv.delivery_by_utc or "",
+            length_sec=int(pv.length_sec or 0) or int((svc.details or {}).get("base_length_sec") or 40),
+            language=str(pv.language or "EN"),
+            tone=str(pv.tone or "Cheerful"),
+            recipient_name=pv.recipient_name,
+            contact_email=pv.contact_email,
+            contact_whatsapp=pv.contact_whatsapp,
+            promo_code=code or None,
+            price_base=0,
+            price_rush=0,
+            price_addons=0,
+            discount=0,
+            total=0,
+        ),
+    )
+
+    pv.promo_code = code or None
+    pv.price_base = pricing["price_base"]
+    pv.price_rush = pricing["price_rush"]
+    pv.price_addons = pricing["price_addons"]
+    pv.discount = pricing["discount"]
+    pv.total = pricing["total"]
+    save_pv_payload(br, pv)
+
+    preview = None
+    if settings.ENABLE_PV_ORDERS:
+        quote = (
+            db.query(QuoteV2)
+            .filter(QuoteV2.booking_request_id == br.id)
+            .filter(QuoteV2.is_internal.is_(True))
+            .order_by(QuoteV2.id.desc())
+            .first()
+        )
+        if quote:
+            provider_total = pricing["total"]
+            quote.services = [{"description": "Personalized Video", "price": float(provider_total)}]
+            quote.subtotal = provider_total
+            quote.discount = pricing["discount"]
+            quote.total = provider_total
+            db.add(quote)
+
+    else:
+        # Legacy: total stored in travel_cost for reads.
+        try:
+            br.travel_cost = float(pricing["total"])
+        except Exception:
+            pass
+
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    if settings.ENABLE_PV_ORDERS:
+        quote = (
+            db.query(QuoteV2)
+            .filter(QuoteV2.booking_request_id == br.id)
+            .filter(QuoteV2.is_internal.is_(True))
+            .order_by(QuoteV2.id.desc())
+            .first()
+        )
+        snap = compute_quote_totals_snapshot(quote) if quote else None
+        preview = quote_totals_preview_payload(snap) if snap else None
+
+    return _to_video_order_response(br, totals_preview=preview)
 
 
 @router.post("/video-orders/{order_id}/status", response_model=VideoOrderResponse)

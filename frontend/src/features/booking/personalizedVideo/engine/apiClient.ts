@@ -66,6 +66,7 @@ export interface VideoOrderApiClient {
   ): Promise<VideoOrder | null>;
   listOrders(): Promise<VideoOrder[]>;
   getOrder(orderId: number): Promise<VideoOrder | null>;
+  applyPromo(orderId: number, promoCode: string): Promise<VideoOrder | null>;
   updateStatus(orderId: number, status: VideoOrder["status"] | string): Promise<void>;
   verifyPaystack(orderId: number, reference: string): Promise<VideoOrder | null>;
   deliverOrder(
@@ -122,6 +123,18 @@ export const videoOrderApiClient: VideoOrderApiClient = {
   },
   async getOrder(orderId) {
     return safeGet<VideoOrder>(`/api/v1/video-orders/${orderId}`);
+  },
+  async applyPromo(orderId, promoCode) {
+    try {
+      const res = await api.post<VideoOrder>(`/api/v1/video-orders/${orderId}/promo`, {
+        promo_code: promoCode,
+      });
+      return res.data as VideoOrder;
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : "Unable to apply promo code";
+      throw new Error(msg);
+    }
   },
   async updateStatus(orderId, status) {
     await safePost(`/api/v1/video-orders/${orderId}/status`, { status });

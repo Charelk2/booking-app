@@ -862,7 +862,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   )}
                                 >
                                   <CalendarIcon className="mr-3 h-5 w-5 text-black" />
-                                  Events
+                                  Dashboard
                                 </Link>
                               )}
                             </Menu.Item>

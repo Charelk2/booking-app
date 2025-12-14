@@ -219,6 +219,19 @@ export function createPersonalizedVideoEngineCore(
       recalcPricingInternal();
     },
 
+    prefetchUnavailableDates: async () => {
+      const s = getState();
+      const artistId = params.artistId;
+      if (!artistId) return;
+      if (s.unavailableDates.length) return;
+      try {
+        const unavailableDates = await env.availability.getUnavailableDates(artistId);
+        setState({ unavailableDates: Array.isArray(unavailableDates) ? unavailableDates : [] });
+      } catch {
+        // best-effort
+      }
+    },
+
     checkAvailability: async () => {
       const s = getState();
       const artistId = params.artistId;
@@ -464,6 +477,93 @@ export function createPersonalizedVideoEngineCore(
 	            : "Please check your connection and try again.",
 	        },
 	      });
+    },
+
+    applyPromoCode: async (promoCode) => {
+      const id = getState().orderId;
+      if (!id) return false;
+
+      const cleaned = String(promoCode || "").trim().toUpperCase();
+
+      setState({
+        payment: { ...getState().payment, loading: true, error: null },
+      });
+
+      let updated: VideoOrder | null = null;
+      let errorMessage: string | null = null;
+      try {
+        updated = await env.api.applyPromo(id, cleaned);
+      } catch (e: any) {
+        errorMessage = e?.message || null;
+        updated = null;
+      }
+
+      if (!updated) {
+        setState({
+          payment: {
+            ...getState().payment,
+            loading: false,
+            error: errorMessage || "Unable to apply promo code. Please try again.",
+          },
+        });
+        return false;
+      }
+
+      currentOrder = updated;
+
+      const storedAnswersRaw = env.storage.loadBriefAnswers(id);
+      const storedAnswers =
+        storedAnswersRaw && typeof storedAnswersRaw === "object"
+          ? storedAnswersRaw
+          : {};
+      const serverAnswersRaw = (updated as any)?.answers;
+      const serverAnswers =
+        serverAnswersRaw && typeof serverAnswersRaw === "object"
+          ? (serverAnswersRaw as Record<string, any>)
+          : {};
+      const currentAnswers = getState().brief.answers || {};
+      const mergedAnswers = {
+        ...serverAnswers,
+        ...storedAnswers,
+        ...currentAnswers,
+      };
+      const answered = computeBriefAnsweredCount(mergedAnswers);
+      try {
+        if (Object.keys(mergedAnswers).length) {
+          env.storage.saveBriefAnswers(id, mergedAnswers);
+        }
+      } catch {}
+
+      setState({
+        orderSummary: {
+          id: updated.id,
+          artistId: updated.artist_id,
+          buyerId: updated.buyer_id,
+          status: updated.status,
+          deliveryByUtc: updated.delivery_by_utc,
+          lengthSec: updated.length_sec,
+          language: updated.language,
+          total: updated.total,
+          priceBase: updated.price_base,
+          priceRush: updated.price_rush,
+          priceAddons: updated.price_addons,
+          discount: updated.discount,
+          clientTotalInclVat: (() => {
+            const raw = (updated as any)?.totals_preview?.client_total_incl_vat;
+            const n = typeof raw === "number" ? raw : Number(raw);
+            return Number.isFinite(n) ? n : null;
+          })(),
+        },
+        brief: {
+          ...getState().brief,
+          answers: mergedAnswers,
+          progress: { answered, total: env.briefTotalQuestions },
+          saveState: Object.keys(mergedAnswers).length ? "saved" : getState().brief.saveState,
+        },
+        payment: { ...getState().payment, loading: false, error: null },
+      });
+
+      return true;
     },
 
     startPayment: async () => {

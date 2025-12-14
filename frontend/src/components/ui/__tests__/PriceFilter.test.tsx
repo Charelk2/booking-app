@@ -2,8 +2,6 @@ import React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import PriceFilter from '../PriceFilter';
-import { useRouter, usePathname, useSearchParams, useParams } from '@/tests/mocks/next-navigation';
-
 
 jest.mock('rheostat', () => {
   interface MockSliderProps {
@@ -36,26 +34,18 @@ jest.mock('rheostat', () => {
   };
 });
 
-const push = jest.fn();
-useRouter.mockReturnValue({ push });
-usePathname.mockReturnValue('/service-providers');
-const searchParamsMock: Pick<URLSearchParams, 'toString'> = {
-  toString: () => '',
-};
-useSearchParams.mockReturnValue(searchParamsMock);
-useParams.mockReturnValue({});
-
 afterEach(() => {
   document.body.innerHTML = '';
-  push.mockReset();
+  jest.clearAllMocks();
 });
 
 describe('PriceFilter', () => {
-  it('applies prices and updates router', async () => {
+  it('applies current values and closes', async () => {
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = createRoot(div);
     const onApply = jest.fn();
+    const onClose = jest.fn();
     await act(async () => {
       root.render(
         <PriceFilter
@@ -65,9 +55,11 @@ describe('PriceFilter', () => {
           priceDistribution={[]}
           onApply={onApply}
           onClear={jest.fn()}
-          onClose={jest.fn()}
-          sortOptions={[]}
-          onSortChange={jest.fn()}
+          onClose={onClose}
+          sortOptions={[
+            { value: '', label: 'Best match' },
+            { value: 'most_booked', label: 'Most booked' },
+          ]}
         />,
       );
     });
@@ -80,22 +72,65 @@ describe('PriceFilter', () => {
       applyBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(onApply).toHaveBeenCalledWith({ minPrice: 0, maxPrice: 100 });
-    expect(push).toHaveBeenCalled();
+    expect(onApply).toHaveBeenCalledWith({ minPrice: 0, maxPrice: 100, sort: '' });
+    expect(onClose).toHaveBeenCalledTimes(1);
 
     await act(async () => root.unmount());
     div.remove();
   });
 
-  it('focuses the close button and restores focus on close', async () => {
-    const trigger = document.createElement('button');
-    trigger.textContent = 'Open';
-    document.body.appendChild(trigger);
-    trigger.focus();
-
+  it('includes sort selection when applying', async () => {
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = createRoot(div);
+    const onApply = jest.fn();
+    const onClose = jest.fn();
+    await act(async () => {
+      root.render(
+        <PriceFilter
+          open
+          initialMinPrice={0}
+          initialMaxPrice={100}
+          priceDistribution={[]}
+          onApply={onApply}
+          onClear={jest.fn()}
+          onClose={onClose}
+          sortOptions={[
+            { value: '', label: 'Best match' },
+            { value: 'most_booked', label: 'Most booked' },
+          ]}
+        />,
+      );
+    });
+
+    const select = div.querySelector('#sheet-sort') as HTMLSelectElement;
+    await act(async () => {
+      select.value = 'most_booked';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    const applyBtn = Array.from(div.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Apply',
+    ) as HTMLButtonElement;
+
+    await act(async () => {
+      applyBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(onApply).toHaveBeenCalledWith({ minPrice: 0, maxPrice: 100, sort: 'most_booked' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    await act(async () => root.unmount());
+    div.remove();
+  });
+
+  it('clears values and closes', async () => {
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    const onClear = jest.fn();
+    const onClose = jest.fn();
+
     await act(async () => {
       root.render(
         <PriceFilter
@@ -104,39 +139,25 @@ describe('PriceFilter', () => {
           initialMaxPrice={100}
           priceDistribution={[]}
           onApply={jest.fn()}
-          onClear={jest.fn()}
-          onClose={() => {
-            root.render(
-              <PriceFilter
-                open={false}
-                initialMinPrice={0}
-                initialMaxPrice={100}
-                priceDistribution={[]}
-                onApply={jest.fn()}
-                onClear={jest.fn()}
-                onClose={jest.fn()}
-                sortOptions={[]}
-                onSortChange={jest.fn()}
-              />,
-            );
-          }}
-          sortOptions={[]}
-          onSortChange={jest.fn()}
+          onClear={onClear}
+          onClose={onClose}
+          sortOptions={[{ value: '', label: 'Best match' }]}
         />,
       );
     });
 
-    const closeBtn = div.querySelector('button[aria-label="Close filters"]') as HTMLButtonElement;
-    expect(document.activeElement).toBe(closeBtn);
+    const clearBtn = Array.from(div.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Clear all',
+    ) as HTMLButtonElement;
 
     await act(async () => {
-      closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      clearBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(document.activeElement).toBe(trigger);
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
 
     await act(async () => root.unmount());
     div.remove();
-    trigger.remove();
   });
 });

@@ -110,6 +110,20 @@ export const BRIEF_QUESTIONS: BriefQuestion[] = [
 
 let paystackScriptPromise: Promise<void> | null = null;
 
+function getSignedInEmail(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem("user") || window.sessionStorage.getItem("user");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as any;
+    const email = String(parsed?.email || "").trim();
+    if (!email || !email.includes("@")) return null;
+    return email;
+  } catch {
+    return null;
+  }
+}
+
 async function loadPaystackScript(): Promise<void> {
   if (typeof window === "undefined") return;
   if ((window as any).PaystackPop) return;
@@ -216,8 +230,7 @@ export function usePersonalizedVideoOrderEngine(
             const handler = PaystackPop.setup({
               key: PAYSTACK_PK,
               email:
-                order.contact_email ||
-                `pv-buyer-${order.id}@example.com`,
+                order.contact_email || getSignedInEmail() || `pv-buyer-${order.id}@example.com`,
               amount: Math.round(
                 Math.max(0, amountZar) * 100,
               ),
@@ -266,6 +279,15 @@ export function usePersonalizedVideoOrderEngine(
     if (!params.orderId) return;
     void core.actions.reloadOrderSummary();
   }, [core, params.orderId]);
+
+  // Preload unavailable dates so the calendar can disable blocked days
+  // before the user clicks into it.
+  useEffect(() => {
+    if (!params.artistId) return;
+    if (state.stepId !== "draft") return;
+    if (state.unavailableDates.length) return;
+    void core.actions.prefetchUnavailableDates();
+  }, [core, params.artistId, state.stepId, state.unavailableDates.length]);
 
   // Auto-check availability when in draft step and artistId/date are present.
   useEffect(() => {

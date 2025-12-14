@@ -49,7 +49,7 @@ const useMobileNavItems = (user: User | null, hideAuthLinks: boolean): NavItem[]
     }
     // client
     return [
-      { name: 'Events', href: '/dashboard/client' },
+      { name: 'Dashboard', href: '/dashboard/client' },
       { name: 'Messages', href: '/inbox' },
       { name: 'Edit Profile', href: '/account' },
     ];

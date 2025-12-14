@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   getMyArtistBookingsCached,
   getMyServices,
-  getServiceProviderProfileMe,
+  getServiceProviderProfileMeCached,
   getBookingRequestsForArtistCached,
   getDashboardStatsCached,
   getVideoOrders,
@@ -24,21 +24,38 @@ type VideoOrderLite = {
 };
 
 export function useArtistDashboardData(userId?: number) {
+  const emptyCache = { bookings: null, requests: null, stats: null, profile: null } as const;
+  const initialCache = (() => {
+    try {
+      const v = peekArtistDashboardCache();
+      if (!v || typeof v !== "object") return emptyCache;
+      return v as any;
+    } catch {
+      return emptyCache;
+    }
+  })();
+
   const [loading, setLoading] = useState(true);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [videoOrdersLoading, setVideoOrdersLoading] = useState(true);
+  const [requestsReady, setRequestsReady] = useState<boolean>(() => initialCache.requests != null);
+  const [profileReady, setProfileReady] = useState<boolean>(() => initialCache.profile != null);
   const [error, setError] = useState<string>("");
 
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>(() => (initialCache.bookings ?? []) as Booking[]);
   const [services, setServices] = useState<Service[]>([]);
-  const [artistProfile, setArtistProfile] = useState<ServiceProviderProfile | null>(null);
-  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
+  const [artistProfile, setArtistProfile] = useState<ServiceProviderProfile | null>(
+    () => (initialCache.profile ?? null) as ServiceProviderProfile | null,
+  );
+  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>(
+    () => (initialCache.requests ?? []) as BookingRequest[],
+  );
   const [videoOrders, setVideoOrders] = useState<VideoOrderLite[]>([]);
   const [dashboardStats, setDashboardStats] = useState<{
     monthly_new_inquiries: number;
     profile_views: number;
     response_rate: number;
-  } | null>(null);
+  } | null>(() => (initialCache.stats ?? null) as any);
 
   const fetchAll = useCallback(async () => {
     if (!userId) return;
@@ -49,17 +66,24 @@ export function useArtistDashboardData(userId?: number) {
     // Hydrate from cache first for instant paint
     try {
       const cached = peekArtistDashboardCache();
-      if (cached.bookings) setBookings(cached.bookings);
-      if (cached.requests) setBookingRequests(cached.requests);
-      if (cached.stats) setDashboardStats(cached.stats);
-      if (cached.bookings || cached.requests || cached.stats) setLoading(false);
+      if (cached.bookings != null) setBookings(cached.bookings);
+      if (cached.requests != null) {
+        setBookingRequests(cached.requests);
+        setRequestsReady(true);
+      }
+      if (cached.stats != null) setDashboardStats(cached.stats);
+      if (cached.profile != null) {
+        setArtistProfile(cached.profile);
+        setProfileReady(true);
+      }
+      if (cached.bookings != null || cached.requests != null || cached.stats != null) setLoading(false);
     } catch {}
 
     try {
       // Fetch core dashboard data (bookings, profile, requests, stats)
       const corePromise = Promise.all([
         getMyArtistBookingsCached(),
-        getServiceProviderProfileMe(),
+        getServiceProviderProfileMeCached(),
         getBookingRequestsForArtistCached(),
         getDashboardStatsCached(),
       ]);
@@ -102,8 +126,10 @@ export function useArtistDashboardData(userId?: number) {
 
       setBookings(Array.isArray(bookingsRes) ? bookingsRes : []);
       setBookingRequests(Array.isArray(requestsRes) ? requestsRes : []);
-      setArtistProfile((profileRes as any)?.data ?? null);
+      setArtistProfile(profileRes && typeof profileRes === "object" ? (profileRes as any) : null);
       setDashboardStats(statsRes && typeof statsRes === "object" && !Array.isArray(statsRes) ? (statsRes as any) : null);
+      setRequestsReady(true);
+      setProfileReady(true);
     } catch (err) {
       console.error("useArtistDashboardData error:", err);
       const anyErr = err as any;
@@ -117,6 +143,8 @@ export function useArtistDashboardData(userId?: number) {
       }
     } finally {
       setLoading(false);
+      setRequestsReady(true);
+      setProfileReady(true);
     }
   }, [userId]);
 
@@ -151,6 +179,8 @@ export function useArtistDashboardData(userId?: number) {
     loading,
     servicesLoading,
     videoOrdersLoading,
+    requestsReady,
+    profileReady,
     error,
     fetchAll,
     bookings,

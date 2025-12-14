@@ -135,26 +135,45 @@ export default function SearchBar({
     }
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const submitSearch = useCallback(
+    async ({
+      category: nextCategory,
+      location: nextLocation,
+      when: nextWhen,
+    }: {
+      category: Category | null;
+      location: string;
+      when: Date | null;
+    }) => {
+      if (isSubmitting) return;
+      const whenISO =
+        nextWhen instanceof Date ? nextWhen.toISOString().slice(0, 10) : undefined;
+
+      setSubmitting(true);
+      closeThisSearchBarsInternalPopups();
+      try {
+        await onSearch({
+          category: nextCategory?.value,
+          location: nextLocation || undefined,
+          when: nextWhen,
+        });
+
+        addRecentSearch({
+          categoryLabel: nextCategory?.label,
+          categoryValue: nextCategory?.value,
+          location: nextLocation || undefined,
+          whenISO,
+        });
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [isSubmitting, onSearch, closeThisSearchBarsInternalPopups],
+  );
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    const whenISO =
-      when instanceof Date ? when.toISOString().slice(0, 10) : undefined;
-
-    setSubmitting(true);
-    closeThisSearchBarsInternalPopups();
-    try {
-      await onSearch({ category: category?.value, location: location || undefined, when });
-
-      addRecentSearch({
-        categoryLabel: category?.label,
-        categoryValue: category?.value,
-        location: location || undefined,
-        whenISO,
-      });
-    } finally {
-      setSubmitting(false);
-    }
+    void submitSearch({ category, location, when });
   };
 
   return (
@@ -237,6 +256,7 @@ export default function SearchBar({
                     when={when}
                     setWhen={setWhen}
                     closeAllPopups={closeThisSearchBarsInternalPopups}
+                    onSubmitSearch={submitSearch}
                     setActiveField={(f) => {
                       // Keep popup open and switch to requested field
                       if (resetTimeoutRef.current) {
