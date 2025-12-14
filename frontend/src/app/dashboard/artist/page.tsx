@@ -151,12 +151,14 @@ export default function DashboardPage() {
   const { 
     loading, 
     servicesLoading,
+    videoOrdersLoading,
     error, 
     fetchAll, 
     bookings, 
     services, 
 	    artistProfile, 
 	    bookingRequests, 
+      videoOrders,
 	    dashboardStats, 
 	    upsertService, 
 	    removeService, 
@@ -263,9 +265,20 @@ export default function DashboardPage() {
   
   const earningsThisMonth = useMemo(() => {
     const now = new Date();
-    return bookings
-      .filter(b => b.status === "completed" && new Date(b.start_time).getMonth() === now.getMonth() && new Date(b.start_time).getFullYear() === now.getFullYear())
-      .reduce((acc, b) => acc + b.total_price, 0);
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    let total = 0;
+    for (const booking of bookings || []) {
+      if (String(booking.status || "").toLowerCase() !== "completed") continue;
+      const start = new Date(booking.start_time);
+      const startMs = start.getTime();
+      if (!Number.isFinite(startMs)) continue;
+      if (start.getMonth() !== month || start.getFullYear() !== year) continue;
+      const amount = Number((booking as any)?.total_price ?? 0);
+      if (!Number.isFinite(amount)) continue;
+      total += amount;
+    }
+    return total;
   }, [bookings]);
 
   const primaryBooking = useMemo(() => {
@@ -673,7 +686,7 @@ export default function DashboardPage() {
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <SectionHeader
                     title="Bookings"
-                    subtitle="Confirmed upcoming events."
+                    subtitle="Confirmed bookings and paid orders."
                     action={
                       <Link
                         href="/dashboard/bookings"
@@ -686,7 +699,10 @@ export default function DashboardPage() {
                   <BookingsSection
                     hideHeader
                     bookings={bookings}
+                    services={services}
+                    videoOrders={videoOrders}
                     loading={loading}
+                    videoOrdersLoading={videoOrdersLoading}
                     error={error || undefined}
                     onRetry={fetchAll}
                   />

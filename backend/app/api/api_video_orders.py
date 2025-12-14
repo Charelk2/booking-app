@@ -85,6 +85,7 @@ class VideoOrderResponse(BaseModel):
     id: int
     artist_id: int
     buyer_id: int
+    service_id: Optional[int] = None
     status: str
     delivery_by_utc: Optional[str] = None
     delivery_url: Optional[str] = None
@@ -255,6 +256,7 @@ def _to_video_order_response(
         id=br.id,
         artist_id=br.artist_id,
         buyer_id=br.client_id,
+        service_id=(int(getattr(br, "service_id", 0) or 0) or None),
         status=str(getattr(pv.status, "value", pv.status) or PvStatus.AWAITING_PAYMENT.value),
         delivery_by_utc=pv.delivery_by_utc,
         delivery_url=pv.delivery_url,
