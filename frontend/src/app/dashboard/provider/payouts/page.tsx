@@ -2,6 +2,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { PropsWithChildren, TdHTMLAttributes, ThHTMLAttributes } from 'react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
@@ -56,6 +57,20 @@ type FetchError = {
 
 const PAGE_SIZE = 50;
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object';
+}
+
+function getBackendErrorMessage(body: unknown): string | null {
+  if (!isRecord(body)) return null;
+  const detail = body.detail;
+  if (typeof detail === 'string') return detail;
+  if (isRecord(detail) && typeof detail.message === 'string') return detail.message;
+  const message = body.message;
+  if (typeof message === 'string') return message;
+  return null;
+}
+
 function formatDateSafe(ts: string | null, fmt = 'MMM d, yyyy') {
   if (!ts) return '—';
   const d = new Date(ts);
@@ -109,17 +124,13 @@ export default function ProviderPayoutsPage() {
         });
 
         if (!res.ok) {
-          let body: any = null;
+          let body: unknown = null;
           try {
             body = await res.json();
           } catch {
             // ignore
           }
-          const backendMessage =
-            body?.detail?.message ||
-            (typeof body?.detail === 'string' ? body.detail : null) ||
-            body?.message ||
-            null;
+          const backendMessage = getBackendErrorMessage(body);
 
           let message = backendMessage || 'Failed to load payouts';
           if (res.status === 401) message = 'Your session has expired. Please sign in again.';
@@ -134,7 +145,8 @@ export default function ProviderPayoutsPage() {
         setStats(data.stats || null);
         setTotal(Number.isFinite(Number(data.total)) ? Number(data.total) : items.length);
         setLastUpdatedAt(new Date().toISOString());
-      } catch (e: any) {
+      } catch (err: unknown) {
+        const e = err as { name?: string; message?: string; status?: number };
         if (e?.name === 'AbortError') return;
         setError({ message: e?.message || 'Failed to load payouts', status: e?.status });
       } finally {
@@ -497,18 +509,18 @@ export default function ProviderPayoutsPage() {
                 </table>
               </div>
 
-                {hasMore && (
-                  <div className="border-t border-gray-100 p-4 flex justify-center">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      isLoading={loadingMore}
-                      onClick={() => void fetchPayouts({ offset: payouts.length, append: true })}
-                    >
-                      Load more
-                    </Button>
-                  </div>
-                )}
+              {hasMore && (
+                <div className="border-t border-gray-100 p-4 flex justify-center">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    isLoading={loadingMore}
+                    onClick={() => void fetchPayouts({ offset: payouts.length, append: true })}
+                  >
+                    Load more
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -518,7 +530,11 @@ export default function ProviderPayoutsPage() {
 }
 
 // Small helpers
-const Th = ({ className = '', children, ...props }: any) => (
+const Th = ({
+  className = '',
+  children,
+  ...props
+}: PropsWithChildren<ThHTMLAttributes<HTMLTableCellElement>>) => (
   <th
     scope="col"
     className={className}
@@ -528,7 +544,11 @@ const Th = ({ className = '', children, ...props }: any) => (
     {children}
   </th>
 );
-const Td = ({ className = '', children, ...props }: any) => (
+const Td = ({
+  className = '',
+  children,
+  ...props
+}: PropsWithChildren<TdHTMLAttributes<HTMLTableCellElement>>) => (
   <td
     className={`align-middle whitespace-nowrap ${className}`}
     style={tableCellStyle}
@@ -614,4 +634,3 @@ function SummaryCard({
   }
   return content;
 }
- 
