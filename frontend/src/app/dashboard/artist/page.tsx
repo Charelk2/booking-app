@@ -55,19 +55,19 @@ const SidebarItem = ({
 }) => (
   <button
     onClick={onClick}
-    className={`group flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
+    className={`group flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
       active
-        ? "bg-black text-white shadow-md"
-        : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+        ? "bg-gray-100 text-gray-900"
+        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
     }`}
   >
     <div className="flex items-center gap-3">
-      <Icon size={20} className={active ? "text-white" : "text-gray-400 group-hover:text-gray-900"} />
+      <Icon size={20} className={active ? "text-gray-900" : "text-gray-400 group-hover:text-gray-900"} />
       <span>{label}</span>
     </div>
     {count !== undefined && count > 0 && (
       <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] ${
-        active ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"
+        active ? "bg-white text-gray-900 ring-1 ring-gray-200" : "bg-gray-100 text-gray-600"
       }`}>
         {count}
       </span>
@@ -423,12 +423,10 @@ export default function DashboardPage() {
           <main className="min-w-0 flex-1">
             <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-gray-400">
-                  Today
-                </p>
                 <h1 className="text-2xl font-semibold text-gray-900">
-                  {todayFormatted}
+                  Dashboard
                 </h1>
+                <p className="mt-1 text-sm text-gray-500">{todayFormatted}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Link
@@ -519,15 +517,12 @@ export default function DashboardPage() {
                             <button
                               type="button"
                               onClick={() => setActiveView("requests")}
-                              className="flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50/50 p-5 text-left transition-transform active:scale-[0.98] hover:bg-blue-50"
+                              className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-transform active:scale-[0.98] hover:border-gray-300"
                             >
                               <div>
-                                <div className="mb-1 flex items-center gap-2">
-                                  <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-                                  <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
-                                    Action required
-                                  </p>
-                                </div>
+                                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">
+                                  Pending quotes
+                                </p>
                                 <p className="text-lg font-bold text-gray-900">
                                   {pendingQuoteCount} Quote request{pendingQuoteCount !== 1 && "s"}
                                 </p>
@@ -535,14 +530,14 @@ export default function DashboardPage() {
                                   Clients are waiting for your price.
                                 </p>
                               </div>
-                              <ChevronRight size={20} className="text-blue-400" />
+                              <ChevronRight size={20} className="text-gray-300" />
                             </button>
                           )}
                           {unreadRequestsCount > 0 && (
                             <button
                               type="button"
                               onClick={() => setActiveView("requests")}
-                              className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-transform active:scale-[0.98] hover:border-black"
+                              className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-transform active:scale-[0.98] hover:border-gray-300"
                             >
                               <div>
                                 <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">
@@ -569,7 +564,7 @@ export default function DashboardPage() {
                           </h3>
                         </div>
                         {primaryBooking ? (
-                          <div className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_2px_10px_rgb(0,0,0,0.03)]">
+                          <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                               <div className="flex flex-col items-start gap-5 sm:flex-row">
                                 <div className="min-w-[90px] rounded-2xl border border-gray-100 bg-gray-50 px-5 py-4">
@@ -608,7 +603,7 @@ export default function DashboardPage() {
                               <div className="flex w-full items-end gap-3 md:w-auto md:flex-col">
                                 <Link
                                   href={`/dashboard/events/${primaryBooking.id}`}
-                                  className="w-full rounded-xl bg-black px-6 py-3 text-center text-sm font-bold text-white transition-transform active:scale-95 md:w-auto no-underline hover:no-underline"
+                                  className="w-full rounded-xl border border-gray-200 bg-white px-6 py-3 text-center text-sm font-bold text-gray-900 transition-transform active:scale-95 md:w-auto no-underline hover:no-underline hover:bg-gray-50"
                                 >
                                   View details
                                 </Link>
