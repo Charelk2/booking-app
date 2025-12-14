@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import type { Booking, Service } from "@/types";
 import { formatCurrency, formatStatus } from "@/lib/utils";
 import Section from "@/components/ui/Section";
-import SoundOutreachSection from "./SoundOutreachSection";
 import IllustratedEmpty from "@/components/ui/IllustratedEmpty";
 import { statusChipStyles } from "@/components/ui/status";
 
@@ -225,10 +224,6 @@ const BookingsSection: React.FC<Props> = ({
                       </a>
                     );
                   })()}
-                </div>
-                {/* Inline outreach block for quick status */}
-                <div className="mt-3">
-                  <SoundOutreachSection bookingId={booking.id} eventCity={(booking as any).event_city || undefined} />
                 </div>
               </div>
             );

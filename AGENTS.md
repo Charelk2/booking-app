@@ -261,6 +261,56 @@ New booking‑style services (e.g. “book a slippery slide”) should follow th
   - Live: `fromServiceToLiveBookingConfig(...)` (used in BookingWizard).
   - Custom Song: `fromServiceToCustomSongBookingConfig(...)` (ready for future booking flow).
 
+### Recipe: Adding a New Service Type (DJ / Photographer / Videographer / etc.)
+
+We expect to add many new provider service types. Follow this recipe so new services:
+(1) can be created via the Add Service flows, (2) show up correctly on provider dashboards, and (3) can plug into future booking/order lifecycles.
+
+1. **Choose identifiers**
+   - Pick a stable `serviceType` / `slug` used in the frontend registry (e.g. `dj`, `photographer`, `videographer`).
+   - Keep **backend `service.service_type` values stable** for persistence/analytics; only UI labels should be “pretty”.
+
+2. **Add to the canonical Add Service registry**
+   - Update `frontend/src/features/serviceTypes/addService/serviceTypeRegistry.ts`:
+     - Define fields (title, description, pricing, duration, category, optional details payload).
+     - Provide mapping into the backend create/update payload (via the Add Service engine core).
+   - Update `frontend/src/features/serviceTypes/addService/types.ts` if new domain fields/types are required.
+   - If the service needs special mapping/validation rules, put them in `frontend/src/features/serviceTypes/addService/core.ts` (not in UI components).
+
+3. **Wire into the dashboard “Add service” entry points**
+   - Ensure the relevant router/flow is reachable from the provider dashboard:
+     - `frontend/src/app/dashboard/artist/page.tsx` opens `AddServiceCategorySelector` → picks a category slug → loads the correct modal/flow.
+   - For new categories, add a loader entry in `frontend/src/app/dashboard/artist/page.tsx` and ensure the category appears in `AddServiceCategorySelector`.
+
+4. **Backend persistence + visibility**
+   - Ensure the service can be created/updated/read via:
+     - `backend/app/api/api_service.py` (HTTP surface)
+     - `backend/app/crud/crud_service.py` (DB logic)
+     - `backend/app/models/service.py` (model enum/constants when applicable)
+   - Confirm `/api/v1/services/mine` returns the new service for providers:
+     - The provider dashboard and service filter use `/services/mine` as the source of truth.
+
+5. **Dashboard + inbox plumbing (must “pull through”)**
+   - Provider dashboard services list: uses `/api/v1/services/mine`.
+   - Provider bookings/work list: any non-event “order” must expose a `service_id` so it can be filtered by service:
+     - PV orders do this via `booking_requests.service_id` and the `/api/v1/video-orders` response.
+     - For future order types (e.g. Custom Song orders), follow the same rule: **always include `service_id` in the order response**.
+
+6. **If the service introduces a new booking/order lifecycle**
+   - Prefer the engine pattern (headless core + thin UI shells):
+     - `frontend/src/features/booking/<serviceSlug>/engine/` (types/apiClient/storage/core/engine)
+   - Backend should store order-specific state under `booking_requests.service_extras["<slug>"]` and include:
+     - A due/delivery date field (so dashboards can sort work)
+     - A stable status enum that can map to minimal `BookingRequest.status` updates
+     - `service_id` + `artist_id` + `client_id` consistently
+
+7. **QA checklist**
+   - Provider can create/edit the service.
+   - Service appears in provider dashboard → Services tab.
+   - Service appears in Bookings tab filter dropdown.
+   - If it has orders: the work item appears under Bookings tab (confirmed/paid only) and links to the correct detail/delivery page.
+   - Run `./scripts/test-all.sh` before merging.
+
 
 This pattern keeps booking behaviour centralized, makes React Native and other clients easier to support (by swapping only the `env` layer), and avoids duplicating complex business rules in components.
 
