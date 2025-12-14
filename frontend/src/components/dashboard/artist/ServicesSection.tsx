@@ -215,14 +215,13 @@ const ServicesSection: React.FC<Props> = ({
           {deleteError}
         </div>
       )}
-      {services.length === 0 ? (
-        <IllustratedEmpty
-          variant="services"
-          title="No services yet"
-          description="Add your first service to start receiving booking requests. You can reorder them later."
-          action={<Button onClick={onAdd}>Add Service</Button>}
-        />
-      ) : (
+	      {services.length === 0 ? (
+	        <IllustratedEmpty
+	          variant="services"
+	          title="No services yet"
+	          description="Add your first service to start receiving booking requests. You can reorder them later."
+	        />
+	      ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <SortableContext items={services.map((s) => s.id)} strategy={rectSortingStrategy}>
             <div className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

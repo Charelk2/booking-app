@@ -432,28 +432,30 @@ export default function DashboardPage() {
                 </h1>
                 <p className="mt-1 text-sm text-gray-500">{todayFormatted}</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href="/inbox"
-                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 no-underline hover:no-underline"
-                >
-                  Inbox
-                </Link>
-                <Link
-                  href="/dashboard/provider/payouts"
-                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 no-underline hover:no-underline"
-                >
-                  Payouts
-                </Link>
-                <button
-                  type="button"
-                  onClick={openAddService}
-                  className="inline-flex items-center justify-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
-                >
-                  <Plus size={16} className="mr-2" /> Add service
-                </button>
-              </div>
-            </div>
+	              <div className="flex flex-wrap gap-2">
+	                <Link
+	                  href="/inbox"
+	                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 no-underline hover:no-underline"
+	                >
+	                  Inbox
+	                </Link>
+	                <Link
+	                  href="/dashboard/provider/payouts"
+	                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 no-underline hover:no-underline"
+	                >
+	                  Payouts
+	                </Link>
+	                {activeView !== "services" && (
+	                  <button
+	                    type="button"
+	                    onClick={openAddService}
+	                    className="inline-flex items-center justify-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+	                  >
+	                    <Plus size={16} className="mr-2" /> Add service
+	                  </button>
+	                )}
+	              </div>
+	            </div>
 
             {/* Mobile tabs */}
             <div className="md:hidden mt-4">
@@ -722,25 +724,16 @@ export default function DashboardPage() {
               )}
 
               {/* VIEW: SERVICES */}
-              {activeView === "services" && (
-                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <SectionHeader
-                    title="Services"
-                    subtitle="Manage what you offer."
-                    action={
-                      <button
-                        type="button"
-                        onClick={openAddService}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-bold text-white shadow-sm transition-transform active:scale-95 sm:w-auto"
-                      >
-                        <Plus size={18} /> Add service
-                      </button>
-                    }
-                  />
-                  <ErrorBoundary onRetry={fetchAll}>
-                    <React.Suspense fallback={<LoadingSkeleton lines={6} />}>
-                      <ServicesSection
-                        hideHeader
+	              {activeView === "services" && (
+	                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+	                  <SectionHeader
+	                    title="Services"
+	                    subtitle="Manage what you offer."
+	                  />
+	                  <ErrorBoundary onRetry={fetchAll}>
+	                    <React.Suspense fallback={<LoadingSkeleton lines={6} />}>
+	                      <ServicesSection
+	                        hideHeader
                         services={services}
                         loading={servicesLoading}
                         error={error || undefined}
