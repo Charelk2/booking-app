@@ -19,7 +19,7 @@ import {
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Booking, Service } from "@/types";
-import { deleteService, getGoogleCalendarStatus } from "@/lib/api";
+import { deleteService, getGoogleCalendarStatusCached } from "@/lib/api";
 import { formatCurrency, formatStatus } from "@/lib/utils";
 import { categorySlug } from "@/lib/categoryMap";
 
@@ -136,7 +136,7 @@ export default function DashboardPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
-  const [calendarConnected, setCalendarConnected] = useState<boolean>(false);
+  const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null);
 
   const todayFormatted = useMemo(
     () => format(new Date(), "EEEE, d MMM yyyy"),
@@ -152,6 +152,7 @@ export default function DashboardPage() {
     loading, 
     servicesLoading,
     videoOrdersLoading,
+    requestsReady,
     error, 
     fetchAll, 
     bookings, 
@@ -211,10 +212,13 @@ export default function DashboardPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await getGoogleCalendarStatus();
-        if (!cancelled) setCalendarConnected(!!res.data?.connected);
+        const res = await getGoogleCalendarStatusCached();
+        const connected =
+          typeof (res as any)?.connected === "boolean" ? !!(res as any).connected : null;
+        if (!cancelled) setCalendarConnected(connected);
       } catch {
-        if (!cancelled) setCalendarConnected(false);
+        // Keep as unknown on transient failures.
+        if (!cancelled) setCalendarConnected((prev) => prev ?? null);
       }
     })();
     return () => { cancelled = true; };
@@ -224,18 +228,21 @@ export default function DashboardPage() {
   const missingFields = useMemo(() => {
     const p = artistProfile;
     const list: string[] = [];
-    if (!p) return ['Profile details'];
+    if (!p) return [];
     const nonempty = (v?: string | null) => !!(v && String(v).trim());
     if (!nonempty(p.business_name)) list.push('Business name');
     if (!nonempty(p.description || '')) list.push('Description');
     if (!nonempty(p.location || '')) list.push('Location');
     const hasSpecialties = Array.isArray(p.specialties) && p.specialties.some(Boolean);
     if (!hasSpecialties) list.push('Specialties');
-    if (!calendarConnected) list.push('Calendar sync');
+    if (calendarConnected === false) list.push('Calendar sync');
     return list;
   }, [artistProfile, calendarConnected]);
 
-  const isProfileComplete = missingFields.length === 0;
+  const profileCompleteness = useMemo(() => {
+    if (!artistProfile || calendarConnected === null) return "unknown" as const;
+    return missingFields.length === 0 ? ("complete" as const) : ("incomplete" as const);
+  }, [artistProfile, calendarConnected, missingFields]);
 
   const upcomingBookings = useMemo(() => {
     const now = Date.now();
@@ -290,7 +297,7 @@ export default function DashboardPage() {
 
   // --- Handlers ---
   const openAddService = () => {
-    if (!isProfileComplete) {
+    if (profileCompleteness === "incomplete") {
       setShowCompleteProfileModal(true);
       return;
     }
@@ -299,7 +306,7 @@ export default function DashboardPage() {
   };
 
   const openEditService = (service: Service) => {
-    if (!isProfileComplete) {
+    if (profileCompleteness === "incomplete") {
       setShowCompleteProfileModal(true);
       return;
     }
@@ -397,7 +404,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Setup widget */}
-              {!isProfileComplete && (
+              {profileCompleteness === "incomplete" && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                   <div className="mb-2 flex items-center gap-2 text-amber-900">
                     <AlertCircle size={16} />
@@ -484,7 +491,7 @@ export default function DashboardPage() {
               {/* VIEW: OVERVIEW */}
               {activeView === "overview" && (
                 <div className="space-y-8 animate-in fade-in duration-300">
-                  {!isProfileComplete && (
+                  {profileCompleteness === "incomplete" && (
                     <div className="md:hidden rounded-xl border border-amber-200 bg-amber-50 p-4">
                       <div className="mb-2 flex items-center gap-2 text-amber-900">
                         <AlertCircle size={16} />
@@ -511,7 +518,20 @@ export default function DashboardPage() {
                   ) : (
                     <>
                       {/* Action cards */}
-                      {(pendingQuoteCount > 0 || unreadRequestsCount > 0) && (
+                      {!requestsReady ? (
+                        <section className="grid gap-4 sm:grid-cols-2">
+                          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm animate-pulse">
+                            <div className="h-3 w-24 rounded bg-gray-200" />
+                            <div className="mt-3 h-5 w-40 rounded bg-gray-200" />
+                            <div className="mt-2 h-4 w-56 rounded bg-gray-100" />
+                          </div>
+                          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm animate-pulse">
+                            <div className="h-3 w-20 rounded bg-gray-200" />
+                            <div className="mt-3 h-5 w-44 rounded bg-gray-200" />
+                            <div className="mt-2 h-4 w-52 rounded bg-gray-100" />
+                          </div>
+                        </section>
+                      ) : (pendingQuoteCount > 0 || unreadRequestsCount > 0) && (
                         <section className="grid gap-4 sm:grid-cols-2">
                           {pendingQuoteCount > 0 && (
                             <button

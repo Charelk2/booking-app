@@ -506,6 +506,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('artistViewActive');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('token');
+    // Clear dashboard caches (not keyed by user id).
+    try {
+      if (typeof window !== 'undefined') {
+        const keys: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith('dash:')) keys.push(k);
+        }
+        keys.forEach((k) => sessionStorage.removeItem(k));
+      }
+    } catch {}
     router.push('/');
   };
 

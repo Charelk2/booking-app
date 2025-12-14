@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "rheostat/initialize";
 import "rheostat/css/rheostat.css";
 import Rheostat from "rheostat";
@@ -24,7 +24,6 @@ export interface PriceFilterProps {
 
   sortOptions: SortOption[];
   initialSort?: string;
-  onSortChange: (sortValue: string) => void;
 }
 
 function clamp(n: number, lo: number, hi: number) {
@@ -53,7 +52,6 @@ export default function PriceFilter({
   onClose,
   sortOptions,
   initialSort,
-  onSortChange,
 }: PriceFilterProps) {
   // ────────────────────────────────────────────────────────────────────────────
   // State
@@ -70,12 +68,6 @@ export default function PriceFilter({
   const [activeHandle, setActiveHandle] = useState<number | null>(null);
 
   const [localSortValue, setLocalSortValue] = useState(initialSort || "");
-  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
-
-  const sortDropdownRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   // Re-init when opened or initial values change
   useEffect(() => {
@@ -86,14 +78,8 @@ export default function PriceFilter({
       setMaxDraft(formatZA(initialMaxPrice));
       setEditingMin(false);
       setEditingMax(false);
-
       setLocalSortValue(initialSort || "");
-      setIsSortDropdownOpen(false);
-
-      previouslyFocused.current = document.activeElement as HTMLElement;
-      closeButtonRef.current?.focus();
-    } else if (!open && previouslyFocused.current) {
-      previouslyFocused.current.focus();
+      setActiveHandle(null);
     }
   }, [open, initialMinPrice, initialMaxPrice, initialSort]);
 
@@ -105,9 +91,8 @@ export default function PriceFilter({
       maxPrice: localMaxPrice,
       sort: localSortValue,
     });
-    onSortChange(localSortValue);
     onClose();
-  }, [localMinPrice, localMaxPrice, localSortValue, onApply, onSortChange, onClose]);
+  }, [localMinPrice, localMaxPrice, localSortValue, onApply, onClose]);
 
   const handleClearClick = useCallback(() => {
     setLocalMinPrice(SLIDER_MIN);
@@ -119,9 +104,8 @@ export default function PriceFilter({
 
     setLocalSortValue("");
     onClear();
-    onSortChange("");
     onClose();
-  }, [onClear, onSortChange, onClose]);
+  }, [onClear, onClose]);
 
   // ────────────────────────────────────────────────────────────────────────────
   // Draft input helpers (commit on blur/Enter only)
@@ -169,105 +153,6 @@ export default function PriceFilter({
     setMaxDraft(digitsOnly(e.target.value));
   }, []);
 
-  // Close sort dropdown on outside click
-  useEffect(() => {
-    const onDocDown = (event: MouseEvent) => {
-      if (
-        sortDropdownRef.current &&
-        !sortDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsSortDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDocDown);
-    return () => document.removeEventListener("mousedown", onDocDown);
-  }, []);
-
-  // Focus trap inside modal
-  useEffect(() => {
-    if (!open) return;
-    const container = containerRef.current;
-    const handleTrap = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-      const focusable = Array.from(
-        container?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
-        ) || [],
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else if (document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    container?.addEventListener("keydown", handleTrap);
-    return () => container?.removeEventListener("keydown", handleTrap);
-  }, [open]);
-
-  // Keyboard nav for dropdown
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      if (!isSortDropdownOpen) return;
-
-      const options = Array.from(
-        sortDropdownRef.current?.querySelectorAll('[role="option"]') || [],
-      );
-      const focusedIndex = options.findIndex(
-        (option) => option === document.activeElement,
-      );
-
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        const nextIndex = (focusedIndex + 1) % options.length;
-        (options[nextIndex] as HTMLElement)?.focus();
-      } else if (event.key === "ArrowUp") {
-        event.preventDefault();
-        const prevIndex = (focusedIndex - 1 + options.length) % options.length;
-        (options[prevIndex] as HTMLElement)?.focus();
-      } else if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        if (
-          document.activeElement &&
-          document.activeElement.getAttribute("role") === "option"
-        ) {
-          (document.activeElement as HTMLElement)?.click();
-        }
-      } else if (event.key === "Escape") {
-        setIsSortDropdownOpen(false);
-        sortDropdownRef.current?.querySelector("button")?.focus();
-      }
-    },
-    [isSortDropdownOpen],
-  );
-
-  useEffect(() => {
-    if (isSortDropdownOpen) {
-      document.addEventListener("keydown", handleKeyDown);
-      const selectedOption = sortDropdownRef.current?.querySelector(
-        `[aria-selected="true"]`,
-      );
-      if (selectedOption) {
-        (selectedOption as HTMLElement)?.focus();
-      } else if (sortOptions.filter((opt) => opt.value !== "").length > 0) {
-        (
-          sortDropdownRef.current?.querySelector(
-            '[role="option"]',
-          ) as HTMLElement
-        )?.focus();
-      }
-    } else {
-      document.removeEventListener("keydown", handleKeyDown);
-    }
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isSortDropdownOpen, handleKeyDown, sortOptions]);
-
   // ────────────────────────────────────────────────────────────────────────────
   // Rheostat: big tap targets + touch fixes
   // ────────────────────────────────────────────────────────────────────────────
@@ -302,7 +187,7 @@ export default function PriceFilter({
         }}
         // 44x44 + halo for easy tapping; prevent scroll-from-drag on mobile
         className={clsx(
-          "absolute -top-3 h-7 w-7 rounded-full border-2 border-gray-300 bg-white shadow",
+          "absolute -top-3 h-7 w-7 -translate-x-1/2 rounded-full border-2 border-gray-300 bg-white shadow",
           "before:content-[''] before:absolute before:-inset-3 before:rounded-full before:bg-transparent",
           "focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]",
           "active:scale-105 touch-none select-none",
@@ -311,6 +196,7 @@ export default function PriceFilter({
         )}
         style={{
           ...rest.style,
+          marginLeft: 0,
           zIndex:
             activeHandle === idx
               ? 50
@@ -327,7 +213,7 @@ export default function PriceFilter({
 
   const Progress = ({ style }: { style: React.CSSProperties }) => (
     <div
-      className="absolute bottom-0 h-2 rounded bg-black"
+      className="absolute bottom-0 h-2 rounded bg-[var(--color-accent)]"
       style={style}
     />
   );
@@ -347,22 +233,20 @@ export default function PriceFilter({
   if (!open) return null;
 
   return (
-    <div
-      className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-gray-600/50"
-      role="dialog"
-      aria-modal="true"
-      ref={containerRef}
-    >
-      <div className="animate-fade-in-up mx-auto w-full max-w-md space-y-6 rounded-2xl bg-white p-6 shadow-xl">
-        {/* Header */}
-        <div className="relative flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">Filters</h2>
+    <div className="flex min-h-0 flex-col">
+      {/* Header */}
+      <div className="px-4 pb-3 pt-3">
+        <div
+          aria-hidden="true"
+          className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-gray-200 md:hidden"
+        />
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
           <button
             type="button"
             aria-label="Close filters"
             onClick={onClose}
-            className="text-gray-500 transition-colors hover:text-gray-700"
-            ref={closeButtonRef}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -377,29 +261,31 @@ export default function PriceFilter({
             </svg>
           </button>
         </div>
+      </div>
 
-        {/* Sort By */}
-        <div className="relative border-t border-gray-200 pt-6" ref={sortDropdownRef}>
-          <label id="sort-label" className="mb-2 block text-sm font-medium text-gray-700">
-            Sort by
-          </label>
-          <div className="relative">
-            <button
-              type="button"
-              id="sort-dropdown-button"
-              aria-haspopup="listbox"
-              aria-expanded={isSortDropdownOpen}
-              aria-labelledby="sort-label sort-dropdown-button"
-              className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-300 bg-white py-2 pl-4 pr-10 text-gray-800 transition-all duration-200 focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-              onClick={() => setIsSortDropdownOpen((v) => !v)}
-            >
-              <span>
-                {sortOptions.find((opt) => opt.value === localSortValue)?.label || "Sort"}
-              </span>
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="space-y-6">
+          {/* Sort */}
+          <div>
+            <label htmlFor="sheet-sort" className="mb-2 block text-sm font-medium text-gray-700">
+              Sort by
+            </label>
+            <div className="relative">
+              <select
+                id="sheet-sort"
+                value={localSortValue}
+                onChange={(e) => setLocalSortValue(e.target.value)}
+                className="block w-full appearance-none rounded-xl border border-gray-300 bg-white py-2.5 pl-4 pr-10 text-sm text-gray-900 shadow-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+              >
+                {sortOptions.map((opt) => (
+                  <option key={opt.value || "best_match"} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
               <svg
-                className={clsx("h-5 w-5 text-gray-500 transition-transform duration-200", {
-                  "rotate-180": isSortDropdownOpen,
-                })}
+                className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
@@ -411,158 +297,127 @@ export default function PriceFilter({
                   clipRule="evenodd"
                 />
               </svg>
-            </button>
-
-            {isSortDropdownOpen && (
-              <ul
-                role="listbox"
-                aria-labelledby="sort-label"
-                tabIndex={-1}
-                className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 bg-white shadow-lg focus:outline-none"
-              >
-                {sortOptions
-                  .filter((opt) => opt.value !== "")
-                  .map((opt) => (
-                    <li
-                      key={opt.value}
-                      id={`sort-option-${opt.value}`}
-                      role="option"
-                      aria-selected={opt.value === localSortValue}
-                      onClick={() => {
-                        setLocalSortValue(opt.value);
-                        setIsSortDropdownOpen(false);
-                      }}
-                      className={clsx(
-                        "cursor-pointer px-4 py-2 text-sm text-gray-900",
-                        "hover:bg-gray-100 hover:text-gray-900",
-                        "focus:bg-gray-100 focus:outline-none",
-                        {
-                          "bg-[var(--color-accent)]/10 font-semibold text-[var(--color-accent)]":
-                            opt.value === localSortValue,
-                        },
-                      )}
-                      tabIndex={0}
-                    >
-                      {opt.label}
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </div>
-        </div>
-
-        {/* Price Range */}
-        <div className="border-t border-gray-200 pt-6">
-          <label className="block text-sm font-medium text-gray-700">Price range</label>
-          <p className="mb-4 mt-1 text-xs text-gray-500">Trip price, includes all fees.</p>
-
-          {/* Histogram */}
-          <div className="relative mb-4 h-10 w-full">
-            <div className="absolute inset-0 flex items-end justify-between px-1">
-              {priceDistribution.map((b, i) => (
-                <div
-                  key={i}
-                  className="w-[3px] rounded-t-sm bg-gray-400"
-                  style={{ height: `${(b.count / (maxCount || 1)) * 100}%` }}
-                />
-              ))}
             </div>
           </div>
 
-          {/* Slider */}
-          <div
-            className="relative mb-4 w-full select-none"
-            onTouchStart={stopTouchBubble}
-            onTouchMove={stopTouchBubble}
-            onTouchEnd={stopTouchBubble}
-          >
-            <Rheostat
-              className="touch-none"
-              min={SLIDER_MIN}
-              max={SLIDER_MAX}
-              values={[localMinPrice, localMaxPrice]}
-              onValuesUpdated={({ values }: PublicState) => {
-                // live while dragging
-                setLocalMinPrice(values[0]);
-                setLocalMaxPrice(values[1]);
-                // keep drafts in sync when NOT editing
-                if (!editingMin) setMinDraft(formatZA(values[0]));
-                if (!editingMax) setMaxDraft(formatZA(values[1]));
-              }}
-              handle={Handle}
-              progressBar={Progress}
-              background={Background}
-            />
-          </div>
+          {/* Price Range */}
+          <div className="border-t border-gray-200 pt-6">
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-sm font-medium text-gray-700">Price range</label>
+              <div className="text-sm font-semibold text-gray-900 tabular-nums">
+                R{formatZA(localMinPrice)} – R{formatZA(localMaxPrice)}
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">Trip price, includes all fees.</p>
 
-          {/* Inputs */}
-          <div className="mt-6 flex items-center justify-between gap-4">
-            <div className="flex-1">
-              <label htmlFor="min-price" className="mb-1 block text-xs font-medium text-gray-500">
-                Minimum
-              </label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-900">
-                  R
-                </span>
-                <input
-                  type="text"
-                  id="min-price"
-                  inputMode="numeric"
-                  value={editingMin ? minDraft : formatZA(localMinPrice)}
-                  onChange={handleMinPriceChange}
-                  onFocus={() => {
-                    setEditingMin(true);
-                    setMinDraft(digitsOnly(String(localMinPrice)));
-                  }}
-                  onBlur={commitMin}
-                  onKeyDown={onMinKeyDown}
-                  className="w-full rounded-lg border border-gray-300 py-2 pl-8 pr-3 font-medium text-gray-900 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent)]"
-                />
+            {/* Histogram */}
+            <div className="relative mt-4 h-10 w-full px-3">
+              <div className="absolute inset-0 flex items-end justify-between">
+                {priceDistribution.map((b, i) => (
+                  <div
+                    key={i}
+                    className="w-[3px] rounded-t-sm bg-gray-300"
+                    style={{ height: `${(b.count / (maxCount || 1)) * 100}%` }}
+                  />
+                ))}
               </div>
             </div>
 
-            <div className="mt-6 font-semibold text-gray-400">–</div>
+            {/* Slider */}
+            <div
+              className="relative mt-3 h-10 w-full select-none px-3"
+              onTouchStart={stopTouchBubble}
+              onTouchMove={stopTouchBubble}
+              onTouchEnd={stopTouchBubble}
+            >
+              <Rheostat
+                className="touch-none"
+                min={SLIDER_MIN}
+                max={SLIDER_MAX}
+                values={[localMinPrice, localMaxPrice]}
+                onValuesUpdated={({ values }: PublicState) => {
+                  // live while dragging
+                  setLocalMinPrice(values[0]);
+                  setLocalMaxPrice(values[1]);
+                  // keep drafts in sync when NOT editing
+                  if (!editingMin) setMinDraft(formatZA(values[0]));
+                  if (!editingMax) setMaxDraft(formatZA(values[1]));
+                }}
+                handle={Handle}
+                progressBar={Progress}
+                background={Background}
+              />
+            </div>
 
-            <div className="flex-1">
-              <label htmlFor="max-price" className="mb-1 block text-xs font-medium text-gray-500">
-                Maximum
-              </label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-900">
-                  R
-                </span>
-                <input
-                  type="text"
-                  id="max-price"
-                  inputMode="numeric"
-                  value={editingMax ? maxDraft : formatZA(localMaxPrice)}
-                  onChange={handleMaxPriceChange}
-                  onFocus={() => {
-                    setEditingMax(true);
-                    setMaxDraft(digitsOnly(String(localMaxPrice)));
-                  }}
-                  onBlur={commitMax}
-                  onKeyDown={onMaxKeyDown}
-                  className="w-full rounded-lg border border-gray-300 py-2 pl-8 pr-3 font-medium text-gray-900 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent)]"
-                />
+            {/* Inputs */}
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="min-price" className="mb-1 block text-xs font-medium text-gray-500">
+                  Minimum
+                </label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-900">
+                    R
+                  </span>
+                  <input
+                    type="text"
+                    id="min-price"
+                    inputMode="numeric"
+                    value={editingMin ? minDraft : formatZA(localMinPrice)}
+                    onChange={handleMinPriceChange}
+                    onFocus={() => {
+                      setEditingMin(true);
+                      setMinDraft(digitsOnly(String(localMinPrice)));
+                    }}
+                    onBlur={commitMin}
+                    onKeyDown={onMinKeyDown}
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-8 pr-3 font-medium text-gray-900 shadow-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="max-price" className="mb-1 block text-xs font-medium text-gray-500">
+                  Maximum
+                </label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-900">
+                    R
+                  </span>
+                  <input
+                    type="text"
+                    id="max-price"
+                    inputMode="numeric"
+                    value={editingMax ? maxDraft : formatZA(localMaxPrice)}
+                    onChange={handleMaxPriceChange}
+                    onFocus={() => {
+                      setEditingMax(true);
+                      setMaxDraft(digitsOnly(String(localMaxPrice)));
+                    }}
+                    onBlur={commitMax}
+                    onKeyDown={onMaxKeyDown}
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-8 pr-3 font-medium text-gray-900 shadow-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Actions */}
-        <div className="mt-6 flex justify-between border-t border-gray-200 pt-6">
+      {/* Footer */}
+      <div className="border-t border-gray-200 bg-white px-4 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)]">
+        <div className="flex gap-3">
           <button
             type="button"
-            className="rounded-lg px-5 py-2 font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+            className="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
             onClick={handleClearClick}
           >
             Clear all
           </button>
           <button
             type="button"
-            className="rounded-lg bg-black px-6 py-2 font-semibold text-white shadow-md transition-colors hover:bg-black/90"
+            className="flex-1 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-black/90"
             onClick={handleApplyClick}
           >
             Apply

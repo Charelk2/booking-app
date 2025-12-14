@@ -1276,6 +1276,8 @@ const DASH_CACHE_KEYS = {
   artistBookings: 'dash:artist:bookings:v1',
   artistRequests: 'dash:artist:requests:v1',
   artistStats: 'dash:artist:stats:v1',
+  artistProfile: 'dash:artist:profile:v1',
+  artistCalendar: 'dash:artist:calendar:v1',
 };
 
 const canUseSessionStorage = typeof window !== 'undefined' && (() => {
@@ -1429,6 +1431,28 @@ export const getDashboardStatsCached = (ttlMs = 60_000) =>
     ttlMs,
   );
 
+export const getServiceProviderProfileMeCached = (ttlMs = 60_000) =>
+  getWithCache<ServiceProviderProfile>(
+    DASH_CACHE_KEYS.artistProfile,
+    (etag?: string) =>
+      api.get<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/me`, {
+        headers: etag ? { 'If-None-Match': etag } : undefined,
+        validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+      }).then((res) => ({ ...res, data: normalizeServiceProviderProfile(res.data) })),
+    ttlMs,
+  );
+
+export const getGoogleCalendarStatusCached = (ttlMs = 60_000) =>
+  getWithCache<{ connected: boolean; email?: string }>(
+    DASH_CACHE_KEYS.artistCalendar,
+    (etag?: string) =>
+      api.get(`${API_V1}/google-calendar/status`, {
+        headers: etag ? { 'If-None-Match': etag } : undefined,
+        validateStatus: (s) => (s >= 200 && s < 300) || s === 304,
+      }),
+    ttlMs,
+  );
+
 export const peekArtistDashboardCache = () => {
   const ttl = 24 * 60 * 60 * 1000;
   return {
@@ -1438,6 +1462,8 @@ export const peekArtistDashboardCache = () => {
       DASH_CACHE_KEYS.artistStats,
       ttl,
     )?.data ?? null,
+    profile: readCacheEntry<ServiceProviderProfile>(DASH_CACHE_KEYS.artistProfile, ttl)?.data ?? null,
+    calendar: readCacheEntry<{ connected: boolean; email?: string }>(DASH_CACHE_KEYS.artistCalendar, ttl)?.data ?? null,
   };
 };
 
