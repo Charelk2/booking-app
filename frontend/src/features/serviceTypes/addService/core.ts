@@ -96,6 +96,7 @@ export function createAddServiceEngineCore(
     },
     async submit(extra?: Partial<Service>) {
       const current = getState();
+      if (current.status.saving) return;
       const cfg = SERVICE_TYPE_REGISTRY[
         current.serviceType as ServiceTypeSlug
       ];

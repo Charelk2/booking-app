@@ -60,6 +60,7 @@ interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
   date?: string;
+  time?: string;
   location?: string;
   guests?: string;
   venueType?: string;
@@ -71,6 +72,7 @@ const DETAIL_KEYS: (keyof ParsedBookingDetails)[] = [
   'eventType',
   'description',
   'date',
+  'time',
   'location',
   'guests',
   'venueType',

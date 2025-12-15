@@ -83,6 +83,7 @@ interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
   date?: string;
+  time?: string;
   location?: string;
   guests?: string;
   venueType?: string;
@@ -93,7 +94,7 @@ interface ParsedBookingDetails {
 const DETAILS_CACHE_PREFIX = 'inbox:bookingDetails:v1';
 const parsedDetailsCache = new Map<number, ParsedBookingDetails | null>();
 
-const detailKeys: (keyof ParsedBookingDetails)[] = ['eventType', 'description', 'date', 'location', 'guests', 'venueType', 'soundNeeded', 'notes'];
+const detailKeys: (keyof ParsedBookingDetails)[] = ['eventType', 'description', 'date', 'time', 'location', 'guests', 'venueType', 'soundNeeded', 'notes'];
 
 function normalizeDetails(details: ParsedBookingDetails | null | undefined): ParsedBookingDetails | null {
   if (!details) return null;
@@ -492,12 +493,27 @@ export default function MessageThreadWrapper({
           getPath(venue, ['date']),
           getPath(venue, ['event_date']),
         );
+        const eventType = firstNonEmptyString(
+          getPath(venue, ['event_type']),
+          getPath(venue, ['eventType']),
+        );
+        const startTime = firstNonEmptyString(
+          getPath(venue, ['start_time']),
+          getPath(venue, ['startTime']),
+        );
+        const endTime = firstNonEmptyString(
+          getPath(venue, ['end_time']),
+          getPath(venue, ['endTime']),
+        );
         const guests = firstFiniteNumber(
           getPath(venue, ['guests_count']),
           getPath(venue, ['guests']),
         );
         const notes = firstNonEmptyString(getPath(venue, ['notes']));
         if (date) fallback.date = date;
+        if (eventType) fallback.eventType = eventType;
+        if (startTime && endTime) fallback.time = `${startTime}–${endTime}`;
+        else if (startTime) fallback.time = startTime;
         if (guests != null) fallback.guests = String(guests);
         if (notes) fallback.notes = notes;
         if (Object.keys(fallback).length) {

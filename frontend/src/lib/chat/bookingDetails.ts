@@ -2,6 +2,7 @@ export interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
   date?: string;
+  time?: string;
   location?: string;
   guests?: string;
   venueType?: string;
@@ -108,6 +109,9 @@ export function parseBookingDetailsFromMessage(content: string): ParsedBookingDe
           if (iso) details.date = iso;
           break;
         }
+        case 'Time':
+          details.time = value;
+          break;
         case 'Location':
           details.location = value;
           break;

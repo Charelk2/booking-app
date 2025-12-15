@@ -16,6 +16,7 @@ interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
   date?: string;
+  time?: string;
   location?: string;
   location_name?: string;
   guests?: string;
@@ -409,9 +410,19 @@ export default function BookingSummaryCard({
                 <li className="flex items-start">
                   <span className="font-semibold w-28 text-gray-600 shrink-0">Date &amp; Time:</span>
                   <span className="text-gray-800 break-words">
-                    {isValid(new Date(parsedBookingDetails.date))
-                      ? format(new Date(parsedBookingDetails.date), 'EEE, d MMMM, yyyy h:mm a')
-                      : parsedBookingDetails.date}
+                    {(() => {
+                      const rawDate = String(parsedBookingDetails.date || '').trim();
+                      const rawTime = String(parsedBookingDetails.time || '').trim();
+                      const d = new Date(rawDate);
+                      const dateLabel = isValid(d) ? format(d, 'EEE, d MMMM, yyyy') : rawDate;
+                      const isDateOnly = /T00:00:00\.000Z$/.test(rawDate) || /^\d{4}-\d{2}-\d{2}$/.test(rawDate);
+                      const timeLabel = rawTime
+                        ? rawTime
+                        : isValid(d) && !isDateOnly
+                          ? format(d, 'h:mm a')
+                          : '';
+                      return timeLabel ? `${dateLabel} • ${timeLabel}` : dateLabel;
+                    })()}
                   </span>
                 </li>
               )}

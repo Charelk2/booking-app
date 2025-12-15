@@ -9,7 +9,10 @@ import { Link as RouterLink } from 'react-router-dom';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 
-const ADMIN_API_URL = inferAdminApiUrl();
+function resolveAdminApiUrl(dp: any): string {
+  const url = (dp && typeof dp.API_URL === 'string' && dp.API_URL) ? dp.API_URL : inferAdminApiUrl();
+  return url.replace(/\/$/, '');
+}
 
 const payoutFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
@@ -31,7 +34,8 @@ const Actions = () => {
     const reference = prompt('Reference (required)');
     if (!reference) { notify('Reference required', { type:'warning' }); return; }
     try {
-      await dp.httpClient(`${ADMIN_API_URL}/payouts/${rec.id}/mark-paid`, {
+      const adminApiUrl = resolveAdminApiUrl(dp);
+      await dp.httpClient(`${adminApiUrl}/payouts/${rec.id}/mark-paid`, {
         method: 'POST',
         body: JSON.stringify({ method, reference }),
       });
@@ -40,7 +44,8 @@ const Actions = () => {
   };
   const viewPdf = async () => {
     try {
-      const { json } = await dp.httpClient(`${ADMIN_API_URL}/payouts/${rec.id}/pdf-url`, { method: 'GET' });
+      const adminApiUrl = resolveAdminApiUrl(dp);
+      const { json } = await dp.httpClient(`${adminApiUrl}/payouts/${rec.id}/pdf-url`, { method: 'GET' });
       const url = (json && json.url) ? json.url : null;
       if (url) {
         window.open(url, '_blank');
@@ -50,7 +55,8 @@ const Actions = () => {
     } catch (e:any) {
       // Fallback to direct API (may 403 without headers)
       try {
-        const rootApiUrl = inferRootApiUrl(ADMIN_API_URL);
+        const adminApiUrl = resolveAdminApiUrl(dp);
+        const rootApiUrl = inferRootApiUrl(adminApiUrl);
         const url = `${rootApiUrl}/api/v1/payouts/${rec.id}/pdf`;
         window.open(url, '_blank');
       } catch {}

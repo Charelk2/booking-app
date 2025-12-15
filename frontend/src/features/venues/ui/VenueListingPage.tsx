@@ -349,8 +349,9 @@ function VenueBookingCard({
         </>
       )}
 
-      {(Number.isFinite(cleaningFee) && cleaningFee > 0) ||
-      (Number.isFinite(overtimeRate) && overtimeRate > 0) ? (
+      {step === 0 &&
+      ((Number.isFinite(cleaningFee) && cleaningFee > 0) ||
+        (Number.isFinite(overtimeRate) && overtimeRate > 0)) ? (
         <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
           <div className="font-semibold text-gray-900">Common fees</div>
           <div className="mt-2 space-y-1">

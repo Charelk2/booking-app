@@ -284,6 +284,10 @@ export default function VenueServiceFlow({
     () => normalizeStringList(state.typeFields.gallery_urls),
     [state.typeFields.gallery_urls],
   );
+  const previewGallery = useMemo(
+    () => normalizeStringList([...galleryUrls, ...thumbnails]),
+    [galleryUrls, thumbnails],
+  );
 
   const canAdvanceBasics = useMemo(() => {
     const titleOk = (state.common.title || "").trim().length >= 5;
@@ -930,37 +934,46 @@ export default function VenueServiceFlow({
                         </div>
 
                         <div className="mt-4 text-sm text-gray-500">Photos</div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {galleryUrls[0] ? (
-                            <div className="relative h-24 w-24 overflow-hidden rounded-lg border">
-                              <SafeImage
-                                src={galleryUrls[0]}
-                                alt="cover"
-                                width={96}
-                                height={96}
-                                className="h-full w-full object-cover"
-                              />
-                              <span className="absolute left-1 top-1 rounded bg-black/60 px-1 text-[10px] text-white">
-                                Cover
-                              </span>
+                        {previewGallery.length ? (
+                          <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200">
+                            <div className="grid grid-cols-1 gap-1 sm:grid-cols-4 sm:grid-rows-2">
+                              <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 sm:col-span-2 sm:row-span-2">
+                                <SafeImage
+                                  src={previewGallery[0]}
+                                  alt="Venue cover photo"
+                                  fill
+                                  sizes="(max-width: 640px) 100vw, 50vw"
+                                  className="object-cover"
+                                />
+                                <span className="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-xs font-semibold text-white">
+                                  Cover
+                                </span>
+                              </div>
+                              {previewGallery.slice(1, 5).map((src, i) => (
+                                <div
+                                  key={`${src}:${i}`}
+                                  className="relative hidden aspect-[4/3] overflow-hidden bg-gray-100 sm:block"
+                                >
+                                  <SafeImage
+                                    src={src}
+                                    alt={`Venue photo ${i + 2}`}
+                                    fill
+                                    sizes="25vw"
+                                    className="object-cover"
+                                  />
+                                </div>
+                              ))}
                             </div>
-                          ) : thumbnails[0] ? (
-                            <div className="relative h-24 w-24 overflow-hidden rounded-lg border">
-                              <SafeImage
-                                src={thumbnails[0]}
-                                alt="cover"
-                                width={96}
-                                height={96}
-                                className="h-full w-full object-cover"
-                              />
-                              <span className="absolute left-1 top-1 rounded bg-black/60 px-1 text-[10px] text-white">
-                                Cover
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-700">—</span>
-                          )}
-                        </div>
+                            {previewGallery.length > 1 ? (
+                              <div className="flex items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 text-xs text-gray-600">
+                                <span>{previewGallery.length} photos</span>
+                                <span>Shown to clients in the venue gallery.</span>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-sm text-gray-700">—</div>
+                        )}
                       </div>
 
                       <p className="text-sm text-gray-600">

@@ -5,6 +5,8 @@ export function inferAdminApiUrl(): string {
   if (env) return env.replace(/\/$/, '');
   const host = window.location.hostname;
   if (host.endsWith('booka.co.za')) return 'https://api.booka.co.za/admin';
+  // Production admin console is hosted on Fly; fall back to the public API origin when env is missing.
+  if (host.endsWith('.fly.dev') && /(^|\.)booka-admin/i.test(host)) return 'https://api.booka.co.za/admin';
   return `${window.location.protocol}//${window.location.hostname}:${LOCAL_ADMIN_API_PORT}/admin`;
 }
 
@@ -40,4 +42,3 @@ export function resolveStaticUrl(url?: string | null): string | null {
     return url;
   }
 }
-
