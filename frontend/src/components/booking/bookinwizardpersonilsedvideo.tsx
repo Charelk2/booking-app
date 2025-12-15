@@ -232,10 +232,20 @@ export default function BookinWizardPersonilsedVideo({
                         <label className="block text-sm font-medium text-gray-900">
                           Video length
                         </label>
-                        <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div className="mt-2 rounded-2xl bg-gray-50 p-1">
                           {[
-                            { v: "30_45" as LengthChoice, l: "30–45s", d: "Most popular" },
-                            { v: "60_90" as LengthChoice, l: "60–90s", d: `+ ${formatCurrency(addOnLongZar)}` },
+                            {
+                              v: "30_45" as LengthChoice,
+                              l: "30–45s",
+                              badge: "Most popular",
+                              priceLabel: "Standard",
+                            },
+                            {
+                              v: "60_90" as LengthChoice,
+                              l: "60–90s",
+                              priceLabel:
+                                addOnLongZar > 0 ? `+ ${formatCurrency(addOnLongZar)}` : "No extra cost",
+                            },
                           ].map((opt) => {
                             const active = form.lengthChoice === opt.v;
                             return (
@@ -244,21 +254,27 @@ export default function BookinWizardPersonilsedVideo({
                                 type="button"
                                 onClick={() => form.setLengthChoice(opt.v)}
                                 className={[
-                                  "rounded-xl px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
-                                  active
-                                    ? "bg-black text-white shadow-sm"
-                                    : "bg-gray-50 hover:bg-gray-100 text-gray-700",
+                                  "w-full rounded-xl px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
+                                  active ? "bg-white shadow-sm" : "hover:bg-white/60",
                                 ].join(" ")}
                                 aria-pressed={active}
                               >
-                                <div className="text-sm font-semibold">{opt.l}</div>
-                                <div
-                                  className={[
-                                    "text-[11px]",
-                                    active ? "text-gray-300" : "text-gray-500",
-                                  ].join(" ")}
-                                >
-                                  {opt.d}
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <div className="text-sm font-semibold text-gray-900">
+                                        {opt.l}
+                                      </div>
+                                      {opt.badge ? (
+                                        <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-semibold text-white">
+                                          {opt.badge}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 text-xs font-semibold text-gray-700">
+                                    {opt.priceLabel}
+                                  </div>
                                 </div>
                               </button>
                             );
@@ -271,38 +287,41 @@ export default function BookinWizardPersonilsedVideo({
                         <label className="block text-sm font-medium text-gray-900">
                           Language
                         </label>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {languageOptions.map((l) => {
-                            const active = form.language === l.v;
-                            return (
-                            <button
-                              key={l.v}
-                              type="button"
-                              onClick={() => form.setLanguage(l.v)}
-                              className={[
-                                "rounded-full px-3 py-1.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
-                                active
-                                  ? "bg-black text-white"
-                                  : "bg-gray-50 text-gray-700 hover:bg-gray-100",
-                              ].join(" ")}
-                              aria-pressed={active}
-                            >
-                              {l.l}
-                            </button>
-                            );
-                          })}
+                        <div className="mt-2 rounded-2xl bg-gray-50 p-1">
+                          <div
+                            className={[
+                              "grid gap-1",
+                              languageOptions.length <= 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3",
+                            ].join(" ")}
+                          >
+                            {languageOptions.map((l) => {
+                              const active = form.language === l.v;
+                              return (
+                                <button
+                                  key={l.v}
+                                  type="button"
+                                  onClick={() => form.setLanguage(l.v)}
+                                  className={[
+                                    "rounded-xl px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
+                                    active ? "bg-white shadow-sm text-gray-900" : "hover:bg-white/60 text-gray-800",
+                                  ].join(" ")}
+                                  aria-pressed={active}
+                                >
+                                  {l.l}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-6 rounded-xl bg-black p-3 text-xs text-white flex gap-2">
-                      <ShieldCheckIcon className="h-4 w-4 shrink-0 mt-0.5 text-white/90" />
-                      <div>
-                        <div className="font-semibold">No charge yet</div>
-                        <div className="text-white/70">
-                          You’ll review the full total and can add a promo code on the next screen.
-                        </div>
-                      </div>
+                    <div className="mt-4 flex items-start gap-2 text-xs text-gray-500">
+                      <ShieldCheckIcon className="h-4 w-4 shrink-0 mt-0.5 text-gray-400" />
+                      <p>
+                        <span className="font-medium text-gray-700">No charge yet.</span>{" "}
+                        You’ll review the full total and can add a promo code on the next screen.
+                      </p>
                     </div>
                   </section>
                 </div>
