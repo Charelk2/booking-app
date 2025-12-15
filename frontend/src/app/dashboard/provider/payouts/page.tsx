@@ -55,6 +55,10 @@ type FetchError = {
   status?: number;
 };
 
+type SortKey = 'booking' | 'paid';
+type SortDirection = 'asc' | 'desc';
+type SortState = { key: SortKey; direction: SortDirection };
+
 const PAGE_SIZE = 50;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -78,12 +82,34 @@ function formatDateSafe(ts: string | null, fmt = 'MMM d, yyyy') {
   return format(d, fmt);
 }
 
+function toEpochMsOrNull(ts: string | null): number | null {
+  if (!ts) return null;
+  const d = new Date(ts);
+  const t = d.getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+function compareNullableNumber(a: number | null, b: number | null, direction: SortDirection): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return direction === 'asc' ? a - b : b - a;
+}
+
+function payoutStageOrder(type: string): number {
+  const t = (type || '').toLowerCase();
+  if (t === 'first50') return 1;
+  if (t === 'final50') return 2;
+  return 99;
+}
+
 export default function ProviderPayoutsPage() {
   const { user, loading: authLoading } = useAuth();
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<SortState | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<FetchError | null>(null);
@@ -171,22 +197,43 @@ export default function ProviderPayoutsPage() {
     return () => abortRef.current?.abort();
   }, [user, statusFilter, fetchPayouts]);
 
+  const toggleSort = useCallback((key: SortKey) => {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) {
+        return { key, direction: key === 'booking' ? 'asc' : 'desc' };
+      }
+      return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+    });
+  }, []);
+
   const visiblePayouts = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return payouts;
-    return payouts.filter((p) => {
-      const bookingId = p.booking_id != null ? String(p.booking_id) : '';
-      const ref = (p.reference || '').toLowerCase();
-      const type = (p.type || '').toLowerCase();
-      const status = (p.status || '').toLowerCase();
-      return (
-        bookingId.includes(q) ||
-        ref.includes(q) ||
-        type.includes(q) ||
-        status.includes(q)
-      );
+    const filtered = !q
+      ? payouts
+      : payouts.filter((p) => {
+          const bookingId = p.booking_id != null ? String(p.booking_id) : '';
+          const ref = (p.reference || '').toLowerCase();
+          const type = (p.type || '').toLowerCase();
+          const status = (p.status || '').toLowerCase();
+          return bookingId.includes(q) || ref.includes(q) || type.includes(q) || status.includes(q);
+        });
+
+    if (!sort) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      if (sort.key === 'booking') {
+        const diff = compareNullableNumber(a.booking_id, b.booking_id, sort.direction);
+        if (diff !== 0) return diff;
+        const stageDiff = payoutStageOrder(a.type) - payoutStageOrder(b.type);
+        if (stageDiff !== 0) return stageDiff;
+      }
+      if (sort.key === 'paid') {
+        const diff = compareNullableNumber(toEpochMsOrNull(a.paid_at), toEpochMsOrNull(b.paid_at), sort.direction);
+        if (diff !== 0) return diff;
+      }
+      return b.id - a.id;
     });
-  }, [payouts, query]);
+  }, [payouts, query, sort]);
 
   const hasMore = payouts.length < total;
 
@@ -453,11 +500,11 @@ export default function ProviderPayoutsPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <Th>Stage</Th>
-                      <Th>Booking</Th>
+                      <SortableTh sortKey="booking" sort={sort} toggleSortKey={toggleSort}>Booking</SortableTh>
                       <Th>Amount</Th>
                       <Th>Status</Th>
                       <Th>Scheduled</Th>
-                      <Th>Paid</Th>
+                      <SortableTh sortKey="paid" sort={sort} toggleSortKey={toggleSort}>Paid</SortableTh>
                       <Th>Reference</Th>
                       <Th>Actions</Th>
                     </tr>
@@ -544,6 +591,39 @@ const Th = ({
     {children}
   </th>
 );
+
+const SortableTh = ({
+  sortKey,
+  sort,
+  toggleSortKey,
+  children,
+  ...props
+}: PropsWithChildren<
+  ThHTMLAttributes<HTMLTableCellElement> & {
+    sortKey: SortKey;
+    sort: SortState | null;
+    toggleSortKey: (key: SortKey) => void;
+  }
+>) => {
+  const active = sort?.key === sortKey;
+  const direction = active ? sort?.direction : null;
+  const ariaSort = active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none';
+  return (
+    <Th {...props} aria-sort={ariaSort}>
+      <button
+        type="button"
+        onClick={() => toggleSortKey(sortKey)}
+        className="inline-flex items-center gap-1 bg-transparent p-0 text-left hover:text-gray-900"
+      >
+        {children}
+        <span aria-hidden className="text-[10px] text-gray-500">
+          {active ? (direction === 'asc' ? '▲' : '▼') : '↕'}
+        </span>
+      </button>
+    </Th>
+  );
+};
+
 const Td = ({
   className = '',
   children,

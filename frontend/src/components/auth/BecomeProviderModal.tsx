@@ -104,8 +104,19 @@ export default function BecomeProviderModal({ isOpen, onClose }: Props) {
   const dobMonth = (watch('dob_month') || '').trim();
   const dobYear = (watch('dob_year') || '').trim();
 
-  // Note: we intentionally avoid <datalist> here to keep the DOB inputs minimal
-  // (no dropdown arrows) while still allowing free typing + paste parsing.
+  const months = useMemo(() => {
+    const out: string[] = [];
+    for (let m = 1; m <= 12; m += 1) out.push(String(m).padStart(2, '0'));
+    return out;
+  }, []);
+
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const startYear = 1900;
+    const out: string[] = [];
+    for (let y = currentYear; y >= startYear; y -= 1) out.push(String(y));
+    return out;
+  }, []);
 
   const dobIso = useMemo(() => {
     const y = Number(dobYear);
@@ -240,9 +251,12 @@ export default function BecomeProviderModal({ isOpen, onClose }: Props) {
                       <label className="sr-only" htmlFor="bp_dob_month">Month</label>
                       <input
                         id="bp_dob_month"
+                        inputMode="numeric"
                         autoComplete="bday-month"
                         placeholder="MM"
-                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        maxLength={2}
+                        list="bp_dob_months"
+                        className="no-native-indicator w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                         {...dobMonthReg}
                         onChange={(e) => {
                           const parsed = tryParseDobInput(e.target.value);
@@ -255,6 +269,11 @@ export default function BecomeProviderModal({ isOpen, onClose }: Props) {
                           dobMonthReg.onChange(e);
                         }}
                       />
+                      <datalist id="bp_dob_months">
+                        {months.map((m) => (
+                          <option key={m} value={m} />
+                        ))}
+                      </datalist>
 
                       <label className="sr-only" htmlFor="bp_dob_year">Year</label>
                       <input
@@ -263,7 +282,8 @@ export default function BecomeProviderModal({ isOpen, onClose }: Props) {
                         autoComplete="bday-year"
                         placeholder="YYYY"
                         maxLength={4}
-                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        list="bp_dob_years"
+                        className="no-native-indicator w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                         {...dobYearReg}
                         onChange={(e) => {
                           const parsed = tryParseDobInput(e.target.value);
@@ -276,6 +296,11 @@ export default function BecomeProviderModal({ isOpen, onClose }: Props) {
                           dobYearReg.onChange(e);
                         }}
                       />
+                      <datalist id="bp_dob_years">
+                        {years.map((y) => (
+                          <option key={y} value={y} />
+                        ))}
+                      </datalist>
                     </div>
                     <input
                       type="hidden"

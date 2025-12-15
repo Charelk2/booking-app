@@ -105,8 +105,19 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
   const dobMonth = (watch('dob_month') || '').trim();
   const dobYear = (watch('dob_year') || '').trim();
 
-  // Note: we intentionally avoid <datalist> here to keep the DOB inputs minimal
-  // (no dropdown arrows) while still allowing free typing + paste parsing.
+  const months = useMemo(() => {
+    const out: string[] = [];
+    for (let m = 1; m <= 12; m += 1) out.push(String(m).padStart(2, '0'));
+    return out;
+  }, []);
+
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const startYear = 1900;
+    const out: string[] = [];
+    for (let y = currentYear; y >= startYear; y -= 1) out.push(String(y));
+    return out;
+  }, []);
 
   const dobIso = useMemo(() => {
     const y = Number(dobYear);
@@ -213,7 +224,7 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                         </button>
                       ) : null}
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">Enter day, month, and year (DD/MM/YYYY) — or leave blank.</p>
+                    <p className="mt-1 text-xs text-gray-500">Enter day, month, and year (DD/MM/YYYY) - or leave blank.</p>
                     <div className="mt-2 grid grid-cols-3 gap-2">
                       <label className="sr-only" htmlFor="dob_day">Day</label>
                       <input
@@ -239,9 +250,12 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                       <label className="sr-only" htmlFor="dob_month">Month</label>
                       <input
                         id="dob_month"
+                        inputMode="numeric"
                         autoComplete="bday-month"
                         placeholder="MM"
-                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        maxLength={2}
+                        list="dob_months"
+                        className="no-native-indicator w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                         {...dobMonthReg}
                         onChange={(e) => {
                           const parsed = tryParseDobInput(e.target.value);
@@ -254,6 +268,11 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                           dobMonthReg.onChange(e);
                         }}
                       />
+                      <datalist id="dob_months">
+                        {months.map((m) => (
+                          <option key={m} value={m} />
+                        ))}
+                      </datalist>
 
                       <label className="sr-only" htmlFor="dob_year">Year</label>
                       <input
@@ -262,7 +281,8 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                         autoComplete="bday-year"
                         placeholder="YYYY"
                         maxLength={4}
-                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        list="dob_years"
+                        className="no-native-indicator w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                         {...dobYearReg}
                         onChange={(e) => {
                           const parsed = tryParseDobInput(e.target.value);
@@ -275,6 +295,11 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                           dobYearReg.onChange(e);
                         }}
                       />
+                      <datalist id="dob_years">
+                        {years.map((y) => (
+                          <option key={y} value={y} />
+                        ))}
+                      </datalist>
                     </div>
                     <input
                       type="hidden"

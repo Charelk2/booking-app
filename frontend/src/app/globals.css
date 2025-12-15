@@ -425,6 +425,11 @@ body.no-scroll {
   }
 }
 
+/* Keep <input list> dropdown behavior, but hide the built-in indicator icon (Chrome/Safari). */
+.no-native-indicator::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+
 /* === Mobile-only slimmer header === */
 @media (max-width: 767px) {
   /* 1) Trim the header container padding */
