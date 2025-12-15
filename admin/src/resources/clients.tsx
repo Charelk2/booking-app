@@ -16,14 +16,7 @@ import {
 } from 'react-admin';
 import { useMediaQuery } from '@mui/material';
 import ConfirmButton from '../components/ConfirmButton';
-
-const inferAdminApiUrl = (): string => {
-  const env = (import.meta as any).env?.VITE_API_URL as string | undefined;
-  if (env) return env;
-  const host = window.location.hostname;
-  if (host.endsWith('booka.co.za')) return 'https://api.booka.co.za/admin';
-  return `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-};
+import { getAdminToken, inferAdminApiUrl } from '../env';
 
 const clientFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn />,
@@ -34,7 +27,7 @@ const ExportCSVButton: React.FC = () => {
   const handle = async () => {
     try {
       const base = inferAdminApiUrl();
-      const token = localStorage.getItem('booka_admin_token');
+      const token = getAdminToken();
       const res = await fetch(`${base}/clients/export`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' },
       });
@@ -60,10 +53,6 @@ const RowActions: React.FC = () => {
   const refresh = useRefresh();
   if (!rec) return null;
 
-  const getAdminBase = (): string => {
-    return inferAdminApiUrl();
-  };
-
   const onToggleActive = async () => {
     try {
       if (rec.is_active) await dp.deactivateClient(rec.id);
@@ -77,21 +66,7 @@ const RowActions: React.FC = () => {
 
   const onPurge = async (confirmEmail?: string) => {
     try {
-      const base = getAdminBase();
-      const token = localStorage.getItem('booka_admin_token');
-      const res = await fetch(`${base}/users/${rec.id}/purge`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
-        body: JSON.stringify({ confirm: confirmEmail || '', force: true }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error((body as any)?.detail || `Purge failed (${res.status})`);
-      }
+      await dp.purgeUser(rec.id, confirmEmail || '', true);
       notify('app.user.purged', { type: 'info' });
       refresh();
     } catch (e: any) {

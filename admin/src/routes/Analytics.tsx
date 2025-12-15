@@ -25,17 +25,10 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-
-const inferAdminApiUrl = () => {
-  const env = (import.meta as any).env?.VITE_API_URL as string | undefined;
-  if (env) return env;
-  const host = window.location.hostname;
-  if (host.endsWith('booka.co.za')) return 'https://api.booka.co.za/admin';
-  return `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-};
+import { getAdminToken, inferAdminApiUrl, inferRootApiUrl } from '../env';
 
 const ADMIN_API_URL = inferAdminApiUrl();
-const ROOT_API_URL = ADMIN_API_URL.replace(/\/?admin\/?$/, '');
+const ROOT_API_URL = inferRootApiUrl(ADMIN_API_URL);
 
 type Totals = {
   searches: number;
@@ -89,8 +82,7 @@ export default function Analytics() {
       setLoading(true);
       setError(null);
       try {
-        const token =
-          typeof window !== 'undefined' ? localStorage.getItem('booka_admin_token') : null;
+        const token = typeof window !== 'undefined' ? getAdminToken() : null;
         const headers: HeadersInit = token
           ? { Authorization: `Bearer ${token}` }
           : {};
@@ -387,4 +379,3 @@ export default function Analytics() {
     </Box>
   );
 }
-

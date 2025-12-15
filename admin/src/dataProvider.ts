@@ -1,19 +1,12 @@
 import simpleRest from 'ra-data-simple-rest';
 import { fetchUtils } from 'react-admin';
+import { getAdminToken, inferAdminApiUrl } from './env';
 
-const inferApiUrl = () => {
-  const env = import.meta.env.VITE_API_URL as string | undefined;
-  if (env) return env;
-  const host = window.location.hostname;
-  if (host.endsWith('booka.co.za')) return 'https://api.booka.co.za/admin';
-  return `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-};
-
-const API_URL = inferApiUrl();
+const API_URL = inferAdminApiUrl();
 
 // Inject JWT + JSON headers; map HTTP errors for RA
 const httpClient: typeof fetchUtils.fetchJson = (url, options = {}) => {
-  const token = localStorage.getItem('booka_admin_token');
+  const token = getAdminToken();
   const headers = new Headers(options.headers || {});
   headers.set('Accept', 'application/json');
   if (!headers.has('Content-Type') && options.body) {
@@ -64,6 +57,24 @@ export const dataProvider = {
     });
     return json;
   },
+  bulkApproveListings: async (ids: Array<string | number>) => {
+    const { json } = await httpClient(`${API_URL}/listings/bulk_approve`, {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    });
+    return json;
+  },
+  bulkRejectListings: async (ids: Array<string | number>, reason?: string) => {
+    const { json } = await httpClient(`${API_URL}/listings/bulk_reject`, {
+      method: 'POST',
+      body: JSON.stringify({ ids, reason }),
+    });
+    return json;
+  },
+  getListingModerationLogs: async (id: string | number) => {
+    const { json } = await httpClient(`${API_URL}/listings/${id}/moderation_logs`, { method: 'GET' });
+    return json as Array<{ id: string; action: string; reason?: string | null; at: string; admin_id: string }>;
+  },
 
   // Payout batch creation
   createPayoutBatch: async (payload: { bookingIds: string[] }) => {
@@ -83,6 +94,26 @@ export const dataProvider = {
     const { json } = await httpClient(`${API_URL}/bookings/${bookingId}/refund`, {
       method: 'POST',
       body: JSON.stringify({ amount: amountCents }),
+    });
+    return json;
+  },
+
+  // Disputes workflow actions
+  assignDispute: async (id: string | number) => {
+    const { json } = await httpClient(`${API_URL}/disputes/${id}/assign`, { method: 'POST', body: JSON.stringify({}) });
+    return json;
+  },
+  requestDisputeInfo: async (id: string | number, note: string) => {
+    const { json } = await httpClient(`${API_URL}/disputes/${id}/request_info`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
+    return json;
+  },
+  resolveDispute: async (id: string | number, payload: { outcome: string; note?: string }) => {
+    const { json } = await httpClient(`${API_URL}/disputes/${id}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
     return json;
   },
@@ -143,6 +174,17 @@ export const dataProvider = {
     const { json } = await httpClient(`${API_URL}/clients/${userId}/impersonate`, { method: 'POST' });
     return json as { token: string; user: { id: string; email: string } };
   },
+  searchUserByEmail: async (email: string) => {
+    const { json } = await httpClient(`${API_URL}/users/search?email=${encodeURIComponent(email)}`, { method: 'GET' });
+    return json as { exists: boolean; user?: { id: string; email: string; is_active: boolean; is_verified: boolean; user_type?: string } };
+  },
+  purgeUser: async (userId: string, confirm: string, force?: boolean) => {
+    const { json } = await httpClient(`${API_URL}/users/${userId}/purge`, {
+      method: 'POST',
+      body: JSON.stringify({ confirm, force: !!force }),
+    });
+    return json;
+  },
 
   // Override getList: custom logic for 'listings' and graceful 404 fallback for 'clients'
   getList: async (resource: string, params: any) => {
@@ -161,29 +203,10 @@ export const dataProvider = {
     const res = await (baseProvider as any).getList(resource, params);
     if (resource !== 'listings') return res;
 
-    try {
-      // Normalize provider_id in results
-      const raw: any[] = Array.isArray(res?.data) ? res.data : [];
-      const records: any[] = raw.map((r) => (dataProvider as any)._normalizeListing(r));
-
-      // Source of truth: whatever appears on the Providers page
-      const providersList = await (baseProvider as any).getList('providers', {
-        pagination: { page: 1, perPage: 10000 },
-        sort: { field: 'id', order: 'ASC' },
-        filter: {},
-      });
-      const allowed = new Set<string>((providersList?.data || []).map((p: any) => String(p.id)));
-      if (allowed.size === 0) return { ...res, data: [], total: 0 };
-
-      const filtered = records.filter((r) => {
-        const pid = r?.provider_id;
-        if (!pid) return false;
-        return allowed.has(String(pid));
-      });
-      return { ...res, data: filtered, total: filtered.length };
-    } catch {
-      return res;
-    }
+    // Normalize provider_id in results (backend is the source of truth; no client-side filtering)
+    const raw: any[] = Array.isArray(res?.data) ? res.data : [];
+    const records: any[] = raw.map((r) => (dataProvider as any)._normalizeListing(r));
+    return { ...res, data: records };
   },
 
   // Override getOne for listings to normalize provider_id so detail views work

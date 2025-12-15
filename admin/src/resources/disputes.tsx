@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { List, Datagrid, TextField, DateField, SelectInput, TextInput, Show, SimpleShowLayout, Button, useRecordContext, useNotify, useRefresh, usePermissions } from 'react-admin';
+import { List, Datagrid, TextField, DateField, SelectInput, TextInput, Show, SimpleShowLayout, Button, useRecordContext, useNotify, useRefresh, usePermissions, useDataProvider } from 'react-admin';
 import { Stack } from '@mui/material';
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
 import InfoIcon from '@mui/icons-material/Info';
@@ -43,26 +43,25 @@ export const DisputeShow = () => (
 
 const ActionsBar = () => {
   const rec = useRecordContext<any>();
+  const dp = useDataProvider() as any;
   const notify = useNotify();
   const refresh = useRefresh();
   const { permissions } = usePermissions();
   const canAct = ['trust','admin','superadmin'].includes(permissions as string);
   if (!canAct) return null;
-  const base = (import.meta as any).env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-  const headers = { 'Content-Type':'application/json', 'Authorization': `Bearer ${localStorage.getItem('booka_admin_token')}` };
   const assign = async () => {
-    try { await fetch(`${base}/disputes/${rec.id}/assign`, { method:'POST', headers, body: JSON.stringify({}) }); notify('Assigned'); refresh(); } catch (e:any) { notify(e.message||'Failed', {type:'warning'}); }
+    try { await dp.assignDispute(rec.id); notify('Assigned'); refresh(); } catch (e:any) { notify(e.message||'Failed', {type:'warning'}); }
   };
   const requestInfo = async () => {
     const note = prompt('Request info note');
     if (note===null) return;
-    try { await fetch(`${base}/disputes/${rec.id}/request_info`, { method:'POST', headers, body: JSON.stringify({ note }) }); notify('Requested info'); refresh(); } catch (e:any) { notify(e.message||'Failed', {type:'warning'}); }
+    try { await dp.requestDisputeInfo(rec.id, note); notify('Requested info'); refresh(); } catch (e:any) { notify(e.message||'Failed', {type:'warning'}); }
   };
   const resolve = async () => {
     const outcome = prompt('Outcome (resolved_refund | resolved_release | denied)');
     if (!outcome) return;
     const note = prompt('Resolution note (optional)') || undefined;
-    try { await fetch(`${base}/disputes/${rec.id}/resolve`, { method:'POST', headers, body: JSON.stringify({ outcome, note }) }); notify('Resolved'); refresh(); } catch (e:any) { notify(e.message||'Failed', {type:'warning'}); }
+    try { await dp.resolveDispute(rec.id, { outcome, note }); notify('Resolved'); refresh(); } catch (e:any) { notify(e.message||'Failed', {type:'warning'}); }
   };
   return (
     <Stack direction="row" spacing={1} sx={{ mt: 2 }}>

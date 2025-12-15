@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, asc, desc
+from sqlalchemy import func, asc, desc, text
 from typing import Any, Dict, List, Tuple
 from datetime import datetime
+import json
 import os
 
 from ..database import get_db
@@ -100,6 +101,44 @@ def admin_me(_: Tuple[User, AdminUser] = Depends(get_current_admin_user)):
 def admin_logout():
     # Stateless JWT – client should discard; optionally we could blacklist tokens.
     return {"status": "ok"}
+
+@router.get("/stats")
+def admin_stats(current: Tuple[User, AdminUser] = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    """
+    Lightweight counters for the Admin top bar.
+    Values are permission-aware: counts are zeroed if the caller lacks access.
+    """
+    role = str(getattr(current[1], "role", "") or "").lower()
+
+    # Listings: everyone with admin access can see moderation counts.
+    pending_listings = (
+        db.query(func.count(Service.id))
+        .filter((Service.status.is_(None)) | (func.lower(Service.status) == "pending_review"))
+        .scalar()
+        or 0
+    )
+
+    # Payouts: only payments/admin/superadmin.
+    queued_payouts = 0
+    if role in {"payments", "admin", "superadmin"}:
+        try:
+            queued_payouts = db.execute(text("SELECT COUNT(*) FROM payouts WHERE status = 'queued'")).scalar() or 0
+        except Exception:
+            queued_payouts = 0
+
+    # Disputes: only trust/admin/superadmin.
+    open_disputes = 0
+    if role in {"trust", "admin", "superadmin"}:
+        try:
+            open_disputes = db.execute(text("SELECT COUNT(*) FROM disputes WHERE status = 'open'")).scalar() or 0
+        except Exception:
+            open_disputes = 0
+
+    return {
+        "pending_listings": int(pending_listings),
+        "queued_payouts": int(queued_payouts),
+        "open_disputes": int(open_disputes),
+    }
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -358,13 +397,26 @@ def list_providers(request: Request, _: Tuple[User, AdminUser] = Depends(require
     q_user = _apply_ra_sorting(q_user, User, request.query_params)
     total = q_user.count()
     rows = q_user.offset(offset).limit(limit).all()
+    provider_ids = [u.id for u, _p in rows if getattr(u, "id", None) is not None]
+    svc_counts: Dict[int, int] = {}
+    if provider_ids:
+        try:
+            svc_counts = {
+                int(artist_id): int(count or 0)
+                for artist_id, count in (
+                    db.query(Service.artist_id, func.count(Service.id))
+                    .filter(Service.artist_id.in_(provider_ids))
+                    .group_by(Service.artist_id)
+                    .all()
+                )
+                if artist_id is not None
+            }
+        except Exception:
+            svc_counts = {}
+
     items: List[Dict[str, Any]] = []
     for u, p in rows:
-        try:
-            svc_count = db.query(func.count(Service.id)).filter(Service.artist_id == u.id).scalar() or 0
-        except Exception:
-            svc_count = 0
-        items.append(provider_to_admin(u, p, int(svc_count)))
+        items.append(provider_to_admin(u, p, int(svc_counts.get(int(u.id), 0))))
     return _with_total(items, total, "providers", start, start + len(items) - 1)
 
 
@@ -2305,10 +2357,6 @@ def list_audit_events(request: Request, _: Tuple[User, AdminUser] = Depends(requ
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Audit helper
-
-from sqlalchemy import text
-import json
-
 
 def _audit(db: Session, actor_admin_id: int, entity: str, entity_id: str, action: str, before: Any, after: Any):
     try:
