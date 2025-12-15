@@ -111,6 +111,15 @@ class CRUDBooking:
 
 booking = CRUDBooking()
 
+def _is_venue_service(service: models.Service) -> bool:
+    """Return True when the service category represents a venue."""
+    try:
+        cat = getattr(service, "service_category", None)
+        name = (getattr(cat, "name", None) or "").strip().lower()
+    except Exception:
+        name = ""
+    return name in ("wedding venue", "venue")
+
 # Function to create a booking from a QuoteV2 after it is accepted
 def create_booking_from_quote_v2(db: Session, quote: models.QuoteV2) -> models.Booking:
     """Create a ``Booking`` record from an accepted ``QuoteV2``."""
@@ -126,8 +135,11 @@ def create_booking_from_quote_v2(db: Session, quote: models.QuoteV2) -> models.B
     if service is None:
         raise ValueError(f"Service id {booking_request.service_id} not found")
 
-    if service.service_type == ServiceType.LIVE_PERFORMANCE and not booking_request.proposed_datetime_1:
-        raise ValueError("Booking request lacks proposed_datetime_1 for live performance")
+    if (
+        (service.service_type == ServiceType.LIVE_PERFORMANCE or _is_venue_service(service))
+        and not booking_request.proposed_datetime_1
+    ):
+        raise ValueError("Booking request lacks proposed_datetime_1")
 
     start_time = booking_request.proposed_datetime_1 or datetime.utcnow()
 

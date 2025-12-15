@@ -24,6 +24,14 @@ from ..utils.outbox import enqueue_outbox
 
 logger = logging.getLogger(__name__)
 
+def _is_venue_service(service: models.Service) -> bool:
+    try:
+        cat = getattr(service, "service_category", None)
+        name = (getattr(cat, "name", None) or "").strip().lower()
+    except Exception:
+        name = ""
+    return name in ("wedding venue", "venue")
+
 
 def _status_val(v):
     """Return a comparable string status for QuoteStatusV2 or raw strings.
@@ -345,7 +353,7 @@ def accept_quote(
         )
 
     if (
-        service.service_type == ServiceType.LIVE_PERFORMANCE
+        (service.service_type == ServiceType.LIVE_PERFORMANCE or _is_venue_service(service))
         and not booking_request.proposed_datetime_1
     ):
         logger.error(

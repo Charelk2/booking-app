@@ -67,6 +67,18 @@ const BookinWizardPersonilsedVideo = dynamic(
   }
 );
 
+const VenueBookingSheet = dynamic(
+  () => import('@/features/booking/venue/ui/VenueBookingSheet'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="fixed inset-0 z-[60] grid place-items-center bg-white/40 backdrop-blur">
+        <Spinner size="lg" />
+      </div>
+    ),
+  },
+);
+
 // Demo fallback reviews
 const FAKE_REVIEWS: ReviewType[] = [
   { id: -1, booking_id: 0, rating: 5, comment: 'Absolutely amazing performance! Professional and punctual - highly recommended.', created_at: '2025-07-12T10:30:00.000Z', updated_at: '2025-07-12T10:30:00.000Z', client: { id: 901, email: 'lerato@example.com', user_type: 'client', first_name: 'Lerato', last_name: 'M.', phone_number: '', is_active: true, is_verified: true } },
@@ -187,6 +199,8 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [selectedVideoService, setSelectedVideoService] = useState<Service | null>(null);
+  const [isVenueOpen, setIsVenueOpen] = useState(false);
+  const [selectedVenueService, setSelectedVenueService] = useState<Service | null>(null);
 
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isAllReviewsOpen, setIsAllReviewsOpen] = useState(false);
@@ -366,6 +380,14 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
 
   async function handleBookService(service: Service) {
     const type = (service as any).service_type;
+    const category = (service as any).service_category_slug;
+    if (category === 'venue' || category === 'wedding_venue') {
+      startTransition(() => {
+        setSelectedVenueService(service);
+        setIsVenueOpen(true);
+      });
+      return;
+    }
     if (type === 'Live Performance' || type === 'Virtual Appearance') {
       startTransition(() => {
         setSelectedService(service);
@@ -1154,6 +1176,19 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
           supportedLanguages={pvConfig?.supportedLanguages}
           defaultLanguage={pvConfig?.defaultLanguage}
           serviceId={selectedVideoService?.id}
+        />
+      )}
+
+      {/* Venue booking sheet */}
+      {isVenueOpen && selectedVenueService && (
+        <VenueBookingSheet
+          isOpen={isVenueOpen}
+          onClose={() => {
+            setIsVenueOpen(false);
+            setSelectedVenueService(null);
+          }}
+          serviceProviderId={serviceProviderId}
+          service={selectedVenueService}
         />
       )}
 

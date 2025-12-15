@@ -20,12 +20,14 @@ describe("AddServiceModalWeddingVenue", () => {
     );
 
     await user.click(screen.getByTestId("next"));
-    expect(screen.getByText(/Wedding Venue Details/)).toBeTruthy();
+    expect(screen.getByText(/Venue Details/)).toBeTruthy();
 
     await user.type(screen.getByLabelText(/Title/i), "Hall");
     await user.type(screen.getByLabelText(/Price/i), "500");
     await user.type(screen.getByLabelText(/Capacity/i), "200");
     await user.click(screen.getByTestId("next"));
+
+    expect(await screen.findByText(/Upload Media/i)).toBeTruthy();
 
     const file = new File(["hello"], "venue.jpg", { type: "image/jpeg" });
     await user.upload(screen.getByLabelText(/Media/i), file);
@@ -42,9 +44,8 @@ describe("AddServiceModalWeddingVenue", () => {
         service_type: "Other",
         details: { capacity: 200 },
         media_url: expect.stringContaining("base64"),
-        service_category_slug: "wedding_venue",
+        service_category_slug: "venue",
       }),
     );
   });
 });
-

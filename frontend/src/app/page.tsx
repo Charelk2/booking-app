@@ -70,7 +70,7 @@ export default async function HomePage() {
     djs,
     speakers,
     soundServices,
-    weddingVenues,
+    venues,
     bartenders,
     mcHosts,
   ] = await Promise.all([
@@ -81,7 +81,7 @@ export default async function HomePage() {
     fetchInitial('dj'),
     fetchInitial('speaker'),
     fetchInitial('sound_service'),
-    fetchInitial('wedding_venue'),
+    fetchInitial('venue'),
     fetchInitial('bartender'),
     fetchInitial('mc_host'),
   ]);
@@ -134,9 +134,9 @@ export default async function HomePage() {
         hideIfEmpty
       />
       <ArtistsSection
-        title="Wedding Venues"
-        query={{ category: 'wedding_venue', sort: 'most_booked' }}
-        initialData={weddingVenues}
+        title="Venues"
+        query={{ category: 'venue', sort: 'most_booked' }}
+        initialData={venues}
         hideIfEmpty
       />
       <ArtistsSection

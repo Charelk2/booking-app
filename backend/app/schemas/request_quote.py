@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from decimal import Decimal
@@ -25,7 +25,11 @@ class BookingRequestBase(BaseModel):
     parent_booking_request_id: Optional[int] = None
 
 class BookingRequestCreate(BookingRequestBase):
-    artist_id: int # Client must specify the artist they are requesting
+    # Back-compat: frontend uses `service_provider_id`, backend historically used `artist_id`.
+    artist_id: int = Field(
+        ...,
+        validation_alias=AliasChoices("artist_id", "service_provider_id"),
+    )
     status: Optional[BookingStatus] = BookingStatus.PENDING_QUOTE
 
 class BookingRequestUpdateByClient(BaseModel): # Client can withdraw or update message/times
@@ -46,6 +50,8 @@ class BookingRequestResponse(BookingRequestBase):
     id: int
     client_id: int
     artist_id: int
+    # Canonical alias for frontend compatibility.
+    service_provider_id: Optional[int] = None
     parent_booking_request_id: Optional[int] = None
     status: BookingStatus
     created_at: datetime
@@ -66,6 +72,12 @@ class BookingRequestResponse(BookingRequestBase):
     last_message_content: Optional[str] = None
     last_message_timestamp: Optional[datetime] = None
     quotes: Optional[List[QuoteRead]] = None
+
+    @model_validator(mode="after")
+    def derive_service_provider_id(cls, model: "BookingRequestResponse") -> "BookingRequestResponse":
+        if model.service_provider_id is None:
+            model.service_provider_id = model.artist_id
+        return model
 
     model_config = {
         "from_attributes": True

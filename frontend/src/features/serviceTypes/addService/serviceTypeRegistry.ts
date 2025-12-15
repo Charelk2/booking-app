@@ -139,6 +139,17 @@ const otherFields: ServiceTypeField[] = [
   },
 ];
 
+const venueDayHireFields: ServiceTypeField[] = [
+  {
+    key: "capacity",
+    kind: "number",
+    label: "Capacity (guests)",
+    helper: "Max guest capacity for the venue.",
+    required: true,
+    defaultValue: "",
+  },
+];
+
 const soundServiceFields: ServiceTypeField[] = [
   {
     key: "short_summary",
@@ -366,6 +377,34 @@ const customSongConfig: ServiceTypeConfig = {
       service_type: "Custom Song",
       price: common.price,
       duration_minutes: baseLengthSec >= 90 ? 120 : 60,
+      service_category_slug: opts.serviceCategorySlug,
+      details,
+    };
+  },
+};
+
+const venueDayHireConfig: ServiceTypeConfig = {
+  slug: "venue_day_hire",
+  label: "Venue",
+  description: "Day hire for events, shoots, and gatherings.",
+  serviceTypeLabel: "Other",
+  fields: venueDayHireFields,
+  buildPayload(common, typeFields, opts) {
+    const capacityRaw = typeFields.capacity;
+    const capacity =
+      capacityRaw !== "" && capacityRaw != null ? Number(capacityRaw) : undefined;
+
+    const details: Record<string, any> = {
+      duration_label: "Per day",
+      capacity,
+    };
+
+    return {
+      title: common.title,
+      description: common.description,
+      service_type: "Other",
+      price: common.price,
+      duration_minutes: 60,
       service_category_slug: opts.serviceCategorySlug,
       details,
     };
@@ -612,6 +651,7 @@ export const SERVICE_TYPE_REGISTRY: Record<ServiceTypeSlug, ServiceTypeConfig> =
     live_performance_musician: musicianLiveConfig,
     personalized_video: personalizedVideoConfig,
     custom_song: customSongConfig,
+    venue_day_hire: venueDayHireConfig,
     other: otherConfig,
     sound_service_live: soundServiceConfig,
   };

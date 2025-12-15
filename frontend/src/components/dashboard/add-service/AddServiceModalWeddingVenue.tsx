@@ -41,7 +41,7 @@ export default function AddServiceModalWeddingVenue({
       fields: ["title", "price", "capacity"],
       render: ({ form }) => (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Wedding Venue Details</h2>
+          <h2 className="text-xl font-semibold">Venue Details</h2>
           <TextInput
             label="Title"
             {...form.register("title", { required: true })}
@@ -186,7 +186,7 @@ export default function AddServiceModalWeddingVenue({
       steps={steps}
       defaultValues={defaults}
       toPayload={toPayload}
-      serviceCategorySlug="wedding_venue"
+      serviceCategorySlug="venue"
     />
   );
 }

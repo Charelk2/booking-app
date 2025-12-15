@@ -27,6 +27,17 @@ router = APIRouter(
     tags=["Services"],
 )
 
+def _canonicalize_category_slug(slug: str) -> str:
+    """Normalize category slugs for DB lookups.
+
+    The database stores the category as "Wedding Venue", but the UI uses the
+    canonical slug "venue".
+    """
+    s = (slug or "").strip().lower()
+    if s == "venue":
+        return "wedding_venue"
+    return s
+
 
 @router.get("/", response_model=List[ServiceResponse])
 def list_services(db: Session = Depends(get_db)):
@@ -115,7 +126,7 @@ def create_service(
         )
 
     if category_slug is not None:
-        normalized = category_slug.replace("_", " ").lower()
+        normalized = _canonicalize_category_slug(category_slug).replace("_", " ").lower()
         category = (
             db.query(ServiceCategory)
             .filter(func.lower(ServiceCategory.name) == normalized)
@@ -297,7 +308,7 @@ def update_service(
     category_slug = update_data.pop("service_category_slug", None)
 
     if category_slug is not None:
-        normalized = category_slug.replace("_", " ").lower()
+        normalized = _canonicalize_category_slug(category_slug).replace("_", " ").lower()
         category = (
             db.query(ServiceCategory)
             .filter(func.lower(ServiceCategory.name) == normalized)

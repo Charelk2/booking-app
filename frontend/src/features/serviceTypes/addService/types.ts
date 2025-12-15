@@ -4,6 +4,7 @@ export type ServiceTypeSlug =
   | "live_performance"
   | "personalized_video"
   | "custom_song"
+  | "venue_day_hire"
   | "other"
   | "sound_service_live"
   | "live_performance_musician";

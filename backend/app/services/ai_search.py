@@ -308,7 +308,7 @@ def _ai_derive_filters(
                 "sound system",
                 "audio hire",
             ],
-            "wedding_venue": ["wedding venue", "reception venue", "venue"],
+            "venue": ["venue", "wedding venue", "reception venue"],
             "caterer": ["caterer", "catering", "food"],
             "bartender": ["bartender", "barman", "cocktails", "bar service"],
             "speaker": ["speaker", "keynote speaker"],

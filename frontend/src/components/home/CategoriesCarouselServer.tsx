@@ -16,7 +16,9 @@ const DISPLAY_LABELS: Record<string, string> = {
   videographer: 'Videographers',
   speaker: 'Speakers',
   sound_service: 'Sound Services',
-  wedding_venue: 'Wedding Venues',
+  venue: 'Venues',
+  // Legacy alias (older URLs / cached payloads)
+  wedding_venue: 'Venues',
   bartender: 'Bartending',
   mc_host: 'MC & Hosts',
 };

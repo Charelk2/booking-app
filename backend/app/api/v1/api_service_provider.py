@@ -84,6 +84,17 @@ PRICE_BUCKETS: List[Tuple[int, int]] = [
 
 SERVICE_LIST_VISIBLE_STATUSES = ("approved", "pending_review")
 
+def _canonicalize_category_slug(slug: str) -> str:
+    """Normalize category slugs for DB lookups.
+
+    The database stores the category as "Wedding Venue", but the UI uses the
+    canonical slug "venue".
+    """
+    s = (slug or "").strip().lower()
+    if s == "venue":
+        return "wedding_venue"
+    return s
+
 # Paths for storing uploaded images:
 STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static"
 PROFILE_PICS_DIR = STATIC_DIR / "profile_pics"
@@ -769,7 +780,7 @@ def read_all_service_provider_profiles(
     category_slug: Optional[str] = None
     category_provided = isinstance(category, str) and category
     if category_provided:
-        category_slug = category.lower().replace(" ", "_")
+        category_slug = _canonicalize_category_slug(category.lower().replace(" ", "_"))
         normalized_name = category_slug.replace("_", " ")
         exists = (
             db.query(ServiceCategory.id)

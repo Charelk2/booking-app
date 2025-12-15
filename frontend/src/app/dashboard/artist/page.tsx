@@ -174,7 +174,9 @@ export default function DashboardPage() {
     sound_service: () => import("@/components/dashboard/add-service/sound/SoundServiceFlow"),
     videographer: () => import("@/components/dashboard/add-service/AddServiceModalVideographer"),
     speaker: () => import("@/components/dashboard/add-service/AddServiceModalSpeaker"),
-    wedding_venue: () => import("@/components/dashboard/add-service/AddServiceModalWeddingVenue"),
+    venue: () => import("@/components/dashboard/add-service/venue/VenueServiceFlow"),
+    // Legacy alias kept for older URLs / saved links.
+    wedding_venue: () => import("@/components/dashboard/add-service/venue/VenueServiceFlow"),
     caterer: () => import("@/components/dashboard/add-service/AddServiceModalCaterer"),
     bartender: () => import("@/components/dashboard/add-service/AddServiceModalBartender"),
     mc_host: () => import("@/components/dashboard/add-service/AddServiceModalMcHost"),
