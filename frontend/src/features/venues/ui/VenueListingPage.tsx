@@ -1,20 +1,30 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import SafeImage from "@/components/ui/SafeImage";
 import Button from "@/components/ui/Button";
-import { TextArea, TextInput } from "@/components/ui";
+import { ImagePreviewModal, TextArea, TextInput, Toast } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
 import type { Review, Service } from "@/types";
 import { useVenueBookingEngine } from "@/features/booking/venue/engine/engine";
 import {
+  VENUE_AMENITY_CATEGORIES,
+  VENUE_NOT_INCLUDED_HIGHLIGHTS,
   getVenueAmenityLabel,
   normalizeVenueAmenities,
 } from "@/features/venues/amenities";
+import { getVenueRuleLabel, normalizeVenueRules } from "@/features/venues/rules";
+import { CheckIcon } from "@heroicons/react/24/solid";
+import {
+  ArrowUpOnSquareIcon,
+  HeartIcon as HeartOutlineIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
@@ -87,7 +97,6 @@ function VenueBookingCard({
   const details = (service as any)?.details || {};
   const capacity = Number(details?.capacity || 0);
   const cleaningFee = Number(details?.cleaning_fee || 0);
-  const securityDeposit = Number(details?.security_deposit || 0);
   const overtimeRate = Number(details?.overtime_rate || 0);
 
   const onSubmit = async () => {
@@ -156,7 +165,6 @@ function VenueBookingCard({
       </div>
 
       {(Number.isFinite(cleaningFee) && cleaningFee > 0) ||
-      (Number.isFinite(securityDeposit) && securityDeposit > 0) ||
       (Number.isFinite(overtimeRate) && overtimeRate > 0) ? (
         <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
           <div className="font-semibold text-gray-900">Common fees</div>
@@ -166,14 +174,6 @@ function VenueBookingCard({
                 <span>Cleaning fee</span>
                 <span className="font-medium">
                   {formatCurrency(cleaningFee)}
-                </span>
-              </div>
-            ) : null}
-            {Number.isFinite(securityDeposit) && securityDeposit > 0 ? (
-              <div className="flex items-center justify-between gap-3">
-                <span>Security deposit (refundable)</span>
-                <span className="font-medium">
-                  {formatCurrency(securityDeposit)}
                 </span>
               </div>
             ) : null}
@@ -195,14 +195,32 @@ function VenueBookingCard({
   );
 }
 
-function VenuePhotoGrid({ images }: { images: string[] }) {
+function VenuePhotoGrid({
+  images,
+  onOpen,
+}: {
+  images: string[];
+  onOpen?: (index: number) => void;
+}) {
   const primary = images[0] || null;
-  const rest = images.slice(1, 5);
+  const rest = images.slice(1);
+  const desktop = rest.slice(0, 4);
+  const mobile = rest.slice(0, 7);
+  const openable = typeof onOpen === "function";
 
   return (
     <section aria-label="Venue photos" className="overflow-hidden rounded-2xl">
       <div className="grid grid-cols-1 gap-2 md:grid-cols-4 md:grid-rows-2">
-        <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-gray-100 md:col-span-2 md:row-span-2">
+        <button
+          type="button"
+          onClick={openable ? () => onOpen(0) : undefined}
+          disabled={!openable}
+          aria-label="Open photo"
+          className={[
+            "relative aspect-[4/3] overflow-hidden bg-gray-100 md:col-span-2 md:row-span-2 border-0 p-0 text-left",
+            openable ? "cursor-pointer" : "",
+          ].join(" ")}
+        >
           {primary ? (
             <SafeImage
               src={primary}
@@ -216,11 +234,18 @@ function VenuePhotoGrid({ images }: { images: string[] }) {
               No photos yet
             </div>
           )}
-        </div>
-        {rest.map((src, i) => (
-          <div
+        </button>
+        {desktop.map((src, i) => (
+          <button
             key={`${src}:${i}`}
-            className="relative hidden aspect-[4/3] overflow-hidden rounded-2xl bg-gray-100 md:block"
+            type="button"
+            onClick={openable ? () => onOpen(i + 1) : undefined}
+            disabled={!openable}
+            aria-label="Open photo"
+            className={[
+              "relative hidden aspect-[4/3] overflow-hidden bg-gray-100 md:block border-0 p-0 text-left",
+              openable ? "cursor-pointer" : "",
+            ].join(" ")}
           >
             <SafeImage
               src={src}
@@ -229,11 +254,41 @@ function VenuePhotoGrid({ images }: { images: string[] }) {
               sizes="20vw"
               className="object-cover"
             />
-          </div>
+          </button>
         ))}
       </div>
+
+      {mobile.length ? (
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1 md:hidden">
+          {mobile.map((src, i) => (
+            <button
+              key={`${src}:m:${i}`}
+              type="button"
+              onClick={openable ? () => onOpen(i + 1) : undefined}
+              disabled={!openable}
+              aria-label="Open photo"
+              className={[
+                "relative h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-gray-100 border-0 p-0 text-left",
+                openable ? "cursor-pointer" : "",
+              ].join(" ")}
+            >
+              <SafeImage
+                src={src}
+                alt={`Venue photo ${i + 2}`}
+                fill
+                sizes="112px"
+                className="object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
+}
+
+function getServiceSavedStorageKey(serviceId: number) {
+  return `saved:service:${serviceId}`;
 }
 
 export default function VenueListingPage({
@@ -244,8 +299,11 @@ export default function VenueListingPage({
   reviews: Review[];
 }) {
   const details = (service as any)?.details || {};
-  const { providerId, providerHref, providerName, cancellationPolicy } =
+  const { profile, providerId, providerHref, providerName, cancellationPolicy } =
     resolveProviderInfo(service);
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [saved, setSaved] = useState(false);
 
   const images = useMemo(() => {
     const raw = [
@@ -259,6 +317,47 @@ export default function VenueListingPage({
     () => normalizeVenueAmenities(details?.amenities),
     [details?.amenities],
   );
+  const amenityGroups = useMemo(() => {
+    if (!amenityValues.length) return [];
+    const selected = new Set(amenityValues);
+    const groups: Array<{
+      id: string;
+      label: string;
+      items: Array<{ value: string; label: string }>;
+    }> = [];
+    const included = new Set<string>();
+
+    for (const cat of VENUE_AMENITY_CATEGORIES) {
+      const items = cat.items.filter((item) => selected.has(item.value));
+      if (!items.length) continue;
+      items.forEach((item) => included.add(item.value));
+      groups.push({
+        id: cat.id,
+        label: cat.label,
+        items: items.map((item) => ({ value: item.value, label: item.label })),
+      });
+    }
+
+    const unknown = amenityValues.filter((v) => !included.has(v));
+    if (unknown.length) {
+      groups.push({
+        id: "other",
+        label: "Other",
+        items: unknown.map((v) => ({ value: v, label: getVenueAmenityLabel(v) })),
+      });
+    }
+
+    return groups;
+  }, [amenityValues]);
+  const notIncludedHighlights = useMemo(() => {
+    if (!amenityValues.length) return [];
+    const selected = new Set(amenityValues);
+    return VENUE_NOT_INCLUDED_HIGHLIGHTS.filter((a) => !selected.has(a.value));
+  }, [amenityValues]);
+  const ruleValues = useMemo(
+    () => normalizeVenueRules(details?.house_rules_selected),
+    [details?.house_rules_selected],
+  );
 
   const average =
     reviews.length > 0
@@ -271,17 +370,69 @@ export default function VenueListingPage({
     ? details.venue_type.trim()
     : null;
   const address = isNonEmptyString(details?.address) ? details.address.trim() : null;
-  const houseRules = isNonEmptyString(details?.house_rules)
+  const providerLocation =
+    isNonEmptyString((profile as any)?.location) ? (profile as any).location.trim() : null;
+  const capacity = Number(details?.capacity || 0);
+  const extraHouseRules = isNonEmptyString(details?.house_rules)
     ? details.house_rules.trim()
     : null;
   const policyOverride = isNonEmptyString(details?.cancellation_policy)
     ? details.cancellation_policy.trim()
     : null;
+  const mapQuery = (address || providerLocation || "").trim() || null;
+  const mapEmbedUrl = mapQuery
+    ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`
+    : null;
+  const mapLinkUrl = mapQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
+    : null;
+  const sectionScrollMarginTop = "calc(var(--app-header-height, 64px) + 72px)";
+
+  useEffect(() => {
+    const key = getServiceSavedStorageKey(service.id);
+    try {
+      setSaved(window.localStorage.getItem(key) === "1");
+    } catch {}
+  }, [service.id]);
+
+  const toggleSaved = () => {
+    const key = getServiceSavedStorageKey(service.id);
+    const next = !saved;
+    setSaved(next);
+    try {
+      window.localStorage.setItem(key, next ? "1" : "0");
+    } catch {}
+    Toast.success(next ? "Saved" : "Removed");
+  };
+
+  const share = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    try {
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        await (navigator as any).share({ title: service.title, url });
+        return;
+      }
+    } catch {
+      // ignore share cancellation
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      Toast.success("Link copied");
+    } catch {
+      Toast.error("Could not copy link");
+    }
+  };
+
+  const openPhotos = (idx = 0) => {
+    if (!images.length) return;
+    setPhotoIndex(Math.max(0, Math.min(idx, images.length - 1)));
+    setPhotosOpen(true);
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
       <header className="mb-4 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-bold text-gray-900">
               {service.title}
@@ -300,18 +451,101 @@ export default function VenueListingPage({
             </div>
           </div>
 
-          {providerHref ? (
-            <Link
-              href={providerHref}
-              className="shrink-0 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 no-underline hover:bg-gray-50 hover:no-underline"
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void share()}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
             >
-              {providerName ? `Hosted by ${providerName}` : "View host"}
-            </Link>
-          ) : null}
+              <ArrowUpOnSquareIcon className="h-4 w-4" />
+              Share
+            </button>
+            <button
+              type="button"
+              onClick={toggleSaved}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+              aria-pressed={saved}
+            >
+              {saved ? (
+                <HeartSolidIcon className="h-4 w-4 text-red-500" />
+              ) : (
+                <HeartOutlineIcon className="h-4 w-4" />
+              )}
+              {saved ? "Saved" : "Save"}
+            </button>
+          </div>
         </div>
       </header>
 
-      <VenuePhotoGrid images={images} />
+      <section
+        aria-label="Photos"
+        id="photos"
+        style={{ scrollMarginTop: sectionScrollMarginTop }}
+      >
+        <div className="relative">
+          <VenuePhotoGrid images={images} onOpen={openPhotos} />
+          {images.length > 1 ? (
+            <button
+              type="button"
+              onClick={() => openPhotos(0)}
+              className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white/95 px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-white"
+            >
+              Show all photos
+            </button>
+          ) : null}
+        </div>
+      </section>
+
+      <nav
+        aria-label="Venue sections"
+        className="sticky z-20 mt-4 -mx-4 border-b border-gray-200 bg-white/95 px-4 supports-[backdrop-filter]:backdrop-blur-sm"
+        style={{ top: "var(--app-header-height, 64px)" }}
+      >
+        <div className="flex gap-6 overflow-x-auto py-3 text-sm font-semibold text-gray-700">
+          <a href="#photos" className="whitespace-nowrap hover:text-gray-900">
+            Photos
+          </a>
+          <a href="#amenities" className="whitespace-nowrap hover:text-gray-900">
+            Amenities
+          </a>
+          <a href="#reviews" className="whitespace-nowrap hover:text-gray-900">
+            Reviews
+          </a>
+          <a href="#location" className="whitespace-nowrap hover:text-gray-900">
+            Location
+          </a>
+        </div>
+      </nav>
+
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="truncate text-xl font-semibold text-gray-900">
+            {venueType || "Venue"}
+            {address || providerLocation ? (
+              <span className="font-normal text-gray-700">
+                {" "}
+                in {address || providerLocation}
+              </span>
+            ) : null}
+          </h2>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
+            {Number.isFinite(capacity) && capacity > 0 ? (
+              <span>{capacity} guests</span>
+            ) : null}
+            {Number.isFinite(capacity) && capacity > 0 ? <span>·</span> : null}
+            <span>Per day</span>
+          </div>
+        </div>
+
+        {providerHref ? (
+          <Link
+            href={providerHref}
+            className="shrink-0 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 no-underline hover:bg-gray-50 hover:no-underline"
+          >
+            {providerName ? `Hosted by ${providerName}` : "View host"}
+          </Link>
+        ) : null}
+      </div>
 
       <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_380px]">
         <main className="space-y-10">
@@ -322,28 +556,72 @@ export default function VenueListingPage({
             </p>
           </section>
 
-          {amenityValues.length ? (
-            <section aria-label="Amenities">
-              <h2 className="text-xl font-bold text-gray-900">Amenities</h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {amenityValues.map((a) => (
-                  <span
-                    key={a}
-                    className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-800"
-                  >
-                    {getVenueAmenityLabel(a)}
-                  </span>
+          {amenityGroups.length ? (
+            <section
+              aria-label="What this place offers"
+              id="amenities"
+              style={{ scrollMarginTop: sectionScrollMarginTop }}
+            >
+              <h2 className="text-xl font-bold text-gray-900">
+                What this place offers
+              </h2>
+              <div className="mt-4 space-y-6">
+                {amenityGroups.map((group) => (
+                  <div key={group.id}>
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      {group.label}
+                    </h3>
+                    <ul className="mt-2 grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
+                      {group.items.map((item) => (
+                        <li key={item.value} className="flex items-start gap-2">
+                          <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+                          <span>{item.label}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
+
+                {notIncludedHighlights.length ? (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Not included
+                    </h3>
+                    <ul className="mt-2 grid grid-cols-1 gap-2 text-sm text-gray-500 sm:grid-cols-2">
+                      {notIncludedHighlights.map((item) => (
+                        <li
+                          key={item.value}
+                          className="flex items-start gap-2"
+                        >
+                          <XMarkIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                          <span>{item.label}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             </section>
           ) : null}
 
-          {houseRules ? (
+          {ruleValues.length || extraHouseRules ? (
             <section aria-label="House rules">
               <h2 className="text-xl font-bold text-gray-900">House rules</h2>
-              <p className="mt-2 whitespace-pre-line text-gray-700">
-                {houseRules}
-              </p>
+              {ruleValues.length ? (
+                <ul className="mt-3 space-y-2 text-sm text-gray-700">
+                  {ruleValues.map((rule) => (
+                    <li key={rule} className="flex items-start gap-2">
+                      <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+                      <span>{getVenueRuleLabel(rule)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {extraHouseRules ? (
+                <p className="mt-3 whitespace-pre-line text-gray-700">
+                  {extraHouseRules}
+                </p>
+              ) : null}
             </section>
           ) : null}
 
@@ -358,7 +636,47 @@ export default function VenueListingPage({
             </p>
           </section>
 
-          <section aria-label="Reviews">
+          {mapEmbedUrl ? (
+            <section
+              aria-label="Location"
+              id="location"
+              style={{ scrollMarginTop: sectionScrollMarginTop }}
+            >
+              <h2 className="text-xl font-bold text-gray-900">Location</h2>
+              {mapQuery ? (
+                <p className="mt-2 text-sm text-gray-700">{mapQuery}</p>
+              ) : null}
+              <p className="mt-1 text-xs text-gray-500">
+                Exact location is shared after confirmation.
+              </p>
+              <div className="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
+                <iframe
+                  title={`Map: ${mapQuery || "Venue location"}`}
+                  src={mapEmbedUrl}
+                  className="h-[320px] w-full"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+              {mapLinkUrl ? (
+                <a
+                  href={mapLinkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block text-sm font-semibold text-brand-dark hover:underline"
+                >
+                  Open in Google Maps
+                </a>
+              ) : null}
+            </section>
+          ) : null}
+
+          <section
+            aria-label="Reviews"
+            id="reviews"
+            style={{ scrollMarginTop: sectionScrollMarginTop }}
+          >
             <h2 className="text-xl font-bold text-gray-900">
               Reviews ({reviews.length})
             </h2>
@@ -395,7 +713,17 @@ export default function VenueListingPage({
           <VenueBookingCard service={service} providerId={providerId} />
         </div>
       </div>
+
+      {images.length ? (
+        <ImagePreviewModal
+          open={photosOpen}
+          src={images[photoIndex] || images[0] || ""}
+          images={images}
+          index={photoIndex}
+          onIndexChange={setPhotoIndex}
+          onClose={() => setPhotosOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
-

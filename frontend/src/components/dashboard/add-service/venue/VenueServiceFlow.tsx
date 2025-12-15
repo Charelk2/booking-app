@@ -9,13 +9,14 @@ import { Stepper, TextArea, TextInput } from "@/components/ui";
 import SafeImage from "@/components/ui/SafeImage";
 import type { Service } from "@/types";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
-import { presignServiceMedia, uploadImage } from "@/lib/api";
+import { getServiceProviderProfileMeCached, presignServiceMedia, uploadImage } from "@/lib/api";
 import { useAddServiceEngine } from "@/features/serviceTypes/addService/engine";
 import {
   getVenueAmenityLabel,
   normalizeVenueAmenities,
-  VENUE_AMENITY_OPTIONS,
+  VENUE_AMENITY_CATEGORIES,
 } from "@/features/venues/amenities";
+import { getVenueRuleLabel, normalizeVenueRules, VENUE_RULE_OPTIONS } from "@/features/venues/rules";
 
 type StoredDraft = {
   version: 1;
@@ -75,8 +76,20 @@ export default function VenueServiceFlow({
   const [maxStepCompleted, setMaxStepCompleted] = useState(0);
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [amenitySearch, setAmenitySearch] = useState("");
+  const [profileDefaults, setProfileDefaults] = useState<{
+    title: string | null;
+    description: string | null;
+    location: string | null;
+    cancellationPolicy: string | null;
+  } | null>(null);
   const thumbnails = useImageThumbnails(mediaFiles);
   const autosaveTimerRef = useRef<number | null>(null);
+  const restoredDraftRef = useRef(false);
+  const prefilledFromProfileRef = useRef(false);
+  const submitLockRef = useRef(false);
 
   const { state, actions } = useAddServiceEngine({
     serviceCategorySlug: "venue",
@@ -99,6 +112,13 @@ export default function VenueServiceFlow({
     setMaxStepCompleted(0);
     setMediaFiles([]);
     setMediaError(null);
+    setSubmitError(null);
+    setUploading(false);
+    setAmenitySearch("");
+    setProfileDefaults(null);
+    restoredDraftRef.current = false;
+    prefilledFromProfileRef.current = false;
+    submitLockRef.current = false;
     actions.reset();
 
     // Ensure the hero image is represented in the gallery for consistent
@@ -115,6 +135,7 @@ export default function VenueServiceFlow({
       if (!raw) return;
       const parsed = JSON.parse(raw) as StoredDraft;
       if (!parsed || parsed.version !== 1) return;
+      restoredDraftRef.current = true;
 
       if (typeof parsed.step === "number" && parsed.step > 0) {
         setStep(Math.max(0, Math.min(parsed.step, 7)));
@@ -141,9 +162,77 @@ export default function VenueServiceFlow({
     } catch {}
   }, [isOpen, service, actions]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    if (service?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const prof = (await getServiceProviderProfileMeCached(60_000)) as any;
+        const title =
+          typeof prof?.business_name === "string" ? prof.business_name.trim() : null;
+        const description =
+          typeof prof?.description === "string" ? prof.description.trim() : null;
+        const location =
+          typeof prof?.location === "string" ? prof.location.trim() : null;
+        const cancellationPolicy =
+          typeof prof?.cancellation_policy === "string"
+            ? prof.cancellation_policy.trim()
+            : null;
+        if (cancelled) return;
+        setProfileDefaults({
+          title: title || null,
+          description: description || null,
+          location: location || null,
+          cancellationPolicy: cancellationPolicy || null,
+        });
+      } catch {
+        if (!cancelled) setProfileDefaults(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, service?.id]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (service?.id) return;
+    if (!profileDefaults) return;
+    if (prefilledFromProfileRef.current) return;
+
+    // Only fill missing fields (draft/user input always wins).
+    const titleEmpty = !(state.common.title || "").trim();
+    const descEmpty = !(state.common.description || "").trim();
+    const addressEmpty = !(state.typeFields.address || "").trim();
+
+    if (titleEmpty && profileDefaults.title) {
+      actions.setCommonField("title", profileDefaults.title);
+    }
+    if (descEmpty && profileDefaults.description) {
+      actions.setCommonField("description", profileDefaults.description);
+    }
+    if (addressEmpty && profileDefaults.location) {
+      actions.setTypeField("address", profileDefaults.location);
+    }
+    prefilledFromProfileRef.current = true;
+  }, [
+    isOpen,
+    service?.id,
+    profileDefaults,
+    state.common.title,
+    state.common.description,
+    state.typeFields.address,
+    actions,
+  ]);
+
   const handleCancel = () => {
     setMediaFiles([]);
     setMediaError(null);
+    setSubmitError(null);
+    setUploading(false);
+    setAmenitySearch("");
+    submitLockRef.current = false;
     setStep(0);
     setMaxStepCompleted(0);
     actions.reset();
@@ -256,46 +345,71 @@ export default function VenueServiceFlow({
   }, [isOpen, service?.id, state.common, state.typeFields, state.status.saving, step]);
 
   const handleSubmit = async () => {
+    if (submitLockRef.current) return;
+    if (uploading || state.status.saving) return;
+    setSubmitError(null);
+
+    // Validate core required fields (draft restores may bypass step gating).
+    if (!canAdvanceBasics) {
+      setStep(0);
+      setSubmitError("Please add a title and description before publishing.");
+      return;
+    }
+    if (!canAdvanceCapacity) {
+      setStep(2);
+      setSubmitError("Please enter a valid capacity before publishing.");
+      return;
+    }
+    if (!canAdvancePricing) {
+      setStep(4);
+      setSubmitError("Please enter a day rate before publishing.");
+      return;
+    }
+
     const imageCount = galleryUrls.length + mediaFiles.length;
     if (imageCount === 0) {
       setMediaError("At least one image is required.");
       return;
     }
 
-    const uploadedUrls: string[] = [];
-    for (const f of mediaFiles) {
-      try {
-        const presign = await presignServiceMedia(f);
-        if (presign.put_url) {
-          await fetch(presign.put_url, {
-            method: "PUT",
-            headers: presign.headers || {},
-            body: f,
-          });
-        }
-        const key = (presign.key || presign.public_url || null) as string | null;
-        if (key) uploadedUrls.push(key);
-      } catch (e) {
+    submitLockRef.current = true;
+    setUploading(true);
+    try {
+      const uploadedUrls: string[] = [];
+      for (const f of mediaFiles) {
         try {
+          const presign = await presignServiceMedia(f);
+          if (presign.put_url) {
+            await fetch(presign.put_url, {
+              method: "PUT",
+              headers: presign.headers || {},
+              body: f,
+            });
+          }
+          const key = (presign.key || presign.public_url || null) as string | null;
+          if (key) uploadedUrls.push(key);
+        } catch {
           const uploaded = await uploadImage(f);
           if (uploaded?.url) uploadedUrls.push(uploaded.url);
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error("Image upload failed:", err);
-          setMediaError("Failed to upload image. Please try again.");
-          return;
         }
       }
-    }
 
-    const combined = normalizeStringList([...galleryUrls, ...uploadedUrls]);
-    if (!combined[0]) {
-      setMediaError("At least one image is required.");
-      return;
-    }
+      const combined = normalizeStringList([...galleryUrls, ...uploadedUrls]);
+      if (!combined[0]) {
+        setMediaError("At least one image is required.");
+        return;
+      }
 
-    actions.setTypeField("gallery_urls", combined);
-    await actions.submit({ media_url: combined[0] || undefined });
+      actions.setTypeField("gallery_urls", combined);
+      await actions.submit({ media_url: combined[0] || undefined });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Venue publish failed:", err);
+      setMediaError("Failed to upload photos. Please try again.");
+    } finally {
+      submitLockRef.current = false;
+      setUploading(false);
+    }
   };
 
   const steps = [
@@ -314,6 +428,25 @@ export default function VenueServiceFlow({
     [state.typeFields.amenities],
   );
 
+  const selectedRules = useMemo(
+    () => normalizeVenueRules(state.typeFields.house_rules_selected),
+    [state.typeFields.house_rules_selected],
+  );
+
+  const amenityCategories = useMemo(() => {
+    const q = amenitySearch.trim().toLowerCase();
+    if (!q) return VENUE_AMENITY_CATEGORIES;
+    return VENUE_AMENITY_CATEGORIES.map((cat) => {
+      const items = cat.items.filter((item) => {
+        const label = (item.label || "").toLowerCase();
+        const value = (item.value || "").toLowerCase();
+        const helper = (item.helper || "").toLowerCase();
+        return label.includes(q) || value.includes(q) || helper.includes(q);
+      });
+      return items.length ? { ...cat, items } : null;
+    }).filter(Boolean) as typeof VENUE_AMENITY_CATEGORIES;
+  }, [amenitySearch]);
+
   const toggleAmenity = (value: string) => {
     const set = new Set(selectedAmenities);
     if (set.has(value)) set.delete(value);
@@ -321,7 +454,15 @@ export default function VenueServiceFlow({
     actions.setTypeField("amenities", Array.from(set));
   };
 
+  const toggleRule = (value: string) => {
+    const set = new Set(selectedRules);
+    if (set.has(value)) set.delete(value);
+    else set.add(value);
+    actions.setTypeField("house_rules_selected", Array.from(set));
+  };
+
   const goToStep = (nextStep: number) => {
+    if (uploading || state.status.saving) return;
     if (nextStep < 0 || nextStep >= steps.length) return;
     if (nextStep <= maxStepCompleted) {
       setStep(nextStep);
@@ -409,6 +550,13 @@ export default function VenueServiceFlow({
                           actions.setCommonField("description", e.target.value)
                         }
                       />
+                      {profileDefaults?.description &&
+                      profileDefaults.description ===
+                        (state.common.description || "").trim() ? (
+                        <p className="text-xs text-gray-500">
+                          Pre-filled from your profile bio. Edit it for this venue.
+                        </p>
+                      ) : null}
                       <TextInput
                         label="Venue type (optional)"
                         value={state.typeFields.venue_type || ""}
@@ -435,6 +583,13 @@ export default function VenueServiceFlow({
                         }
                         placeholder="e.g. Sandton, Johannesburg"
                       />
+                      {profileDefaults?.location &&
+                      profileDefaults.location ===
+                        (state.typeFields.address || "").trim() ? (
+                        <p className="text-xs text-gray-500">
+                          Pre-filled from your profile location. An approximate area is fine for now.
+                        </p>
+                      ) : null}
                       <p className="text-sm text-gray-600">
                         You can share an approximate area now and send the full address after confirmation.
                       </p>
@@ -465,25 +620,66 @@ export default function VenueServiceFlow({
 
                   {step === 3 && (
                     <div className="space-y-4">
-                      <h2 className="text-xl font-semibold">Amenities</h2>
-                      <div className="flex flex-wrap gap-2">
-                        {VENUE_AMENITY_OPTIONS.map((a) => (
-                          <button
-                            key={a.value}
-                            type="button"
-                            onClick={() => toggleAmenity(a.value)}
-                            aria-pressed={selectedAmenities.includes(a.value)}
-                            className={[
-                              "rounded-full border px-3 py-1 text-sm transition",
-                              selectedAmenities.includes(a.value)
-                                ? "border-gray-900 bg-gray-900 text-white"
-                                : "border-gray-200 bg-white text-gray-900 hover:border-gray-300",
-                            ].join(" ")}
-                          >
-                            {a.label}
-                          </button>
-                        ))}
+                      <div className="space-y-1">
+                        <h2 className="text-xl font-semibold">What this place offers</h2>
+                        <p className="text-sm text-gray-600">
+                          Select the amenities your venue has. You can update this later.
+                        </p>
                       </div>
+                      <TextInput
+                        label="Search amenities"
+                        value={amenitySearch}
+                        onChange={(e) => setAmenitySearch(e.target.value)}
+                        placeholder="e.g. parking, wifi, pool"
+                      />
+                      {amenityCategories.length === 0 ? (
+                        <p className="text-sm text-gray-600">
+                          No amenities match “{amenitySearch.trim()}”.
+                        </p>
+                      ) : (
+                        <div className="space-y-6">
+                          {amenityCategories.map((cat) => (
+                            <div key={cat.id} className="space-y-2">
+                              <div className="text-sm font-semibold text-gray-900">
+                                {cat.label}
+                              </div>
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                {cat.items.map((a) => {
+                                  const selected = selectedAmenities.includes(a.value);
+                                  return (
+                                    <label
+                                      key={a.value}
+                                      className={[
+                                        "flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm transition",
+                                        selected
+                                          ? "border-gray-200 bg-gray-50"
+                                          : "border-gray-200 bg-white hover:border-gray-300",
+                                      ].join(" ")}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onChange={() => toggleAmenity(a.value)}
+                                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-dark focus:ring-brand"
+                                      />
+                                      <span className="min-w-0">
+                                        <span className="block font-medium">
+                                          {a.label}
+                                        </span>
+                                        {a.helper ? (
+                                          <span className="mt-0.5 block text-xs text-gray-500">
+                                            {a.helper}
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -501,7 +697,7 @@ export default function VenueServiceFlow({
                           )
                         }
                       />
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <TextInput
                           label={`Cleaning fee (${DEFAULT_CURRENCY})`}
                           type="number"
@@ -509,17 +705,6 @@ export default function VenueServiceFlow({
                           onChange={(e) =>
                             actions.setTypeField(
                               "cleaning_fee",
-                              Number(e.target.value || 0),
-                            )
-                          }
-                        />
-                        <TextInput
-                          label={`Security deposit (${DEFAULT_CURRENCY})`}
-                          type="number"
-                          value={state.typeFields.security_deposit ?? 0}
-                          onChange={(e) =>
-                            actions.setTypeField(
-                              "security_deposit",
                               Number(e.target.value || 0),
                             )
                           }
@@ -541,21 +726,66 @@ export default function VenueServiceFlow({
                           Enter a day rate to continue.
                         </p>
                       )}
+                      <p className="text-xs text-gray-600">
+                        Need a refundable deposit? Add it as a line item in your quote (not in the listing).
+                      </p>
                     </div>
                   )}
 
                   {step === 5 && (
                     <div className="space-y-4">
                       <h2 className="text-xl font-semibold">Rules & policies</h2>
-                      <TextArea
-                        label="House rules (optional)"
-                        rows={5}
-                        value={state.typeFields.house_rules || ""}
-                        onChange={(e) =>
-                          actions.setTypeField("house_rules", e.target.value)
-                        }
-                        placeholder="Noise policy, decor restrictions, smoking, catering rules, etc."
-                      />
+                      <div className="space-y-3">
+                        <div className="text-sm font-semibold text-gray-900">
+                          House rules
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {VENUE_RULE_OPTIONS.map((rule) => (
+                            <label
+                              key={rule.value}
+                              className={[
+                                "flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm transition",
+                                selectedRules.includes(rule.value)
+                                  ? "border-gray-900 bg-gray-900 text-white"
+                                  : "border-gray-200 bg-white text-gray-900 hover:border-gray-300",
+                              ].join(" ")}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedRules.includes(rule.value)}
+                                onChange={() => toggleRule(rule.value)}
+                                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-dark focus:ring-brand"
+                              />
+                              <span className="min-w-0">
+                                <span className="block font-medium">
+                                  {getVenueRuleLabel(rule.value)}
+                                </span>
+                                {rule.helper ? (
+                                  <span
+                                    className={[
+                                      "mt-0.5 block text-xs",
+                                      selectedRules.includes(rule.value)
+                                        ? "text-white/80"
+                                        : "text-gray-500",
+                                    ].join(" ")}
+                                  >
+                                    {rule.helper}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                        <TextArea
+                          label="Additional rules (optional)"
+                          rows={4}
+                          value={state.typeFields.house_rules || ""}
+                          onChange={(e) =>
+                            actions.setTypeField("house_rules", e.target.value)
+                          }
+                          placeholder="Noise policy, decor restrictions, smoking, catering rules, etc."
+                        />
+                      </div>
                       <TextArea
                         label="Cancellation policy override (optional)"
                         rows={4}
@@ -568,6 +798,16 @@ export default function VenueServiceFlow({
                         }
                         placeholder="If empty, we show your profile’s cancellation policy."
                       />
+                      {profileDefaults?.cancellationPolicy ? (
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                          <div className="text-xs font-semibold text-gray-700">
+                            Your profile cancellation policy
+                          </div>
+                          <p className="mt-1 whitespace-pre-line text-xs text-gray-600">
+                            {profileDefaults.cancellationPolicy}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
                   )}
 
@@ -677,7 +917,7 @@ export default function VenueServiceFlow({
                         <div className="mt-4 text-sm text-gray-500">Amenities</div>
                         <div className="mt-1 flex flex-wrap gap-2">
                           {selectedAmenities.length ? (
-                            selectedAmenities.map((a) => (
+                            selectedAmenities.slice(0, 12).map((a) => (
                               <span
                                 key={a}
                                 className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800"
@@ -688,6 +928,11 @@ export default function VenueServiceFlow({
                           ) : (
                             <span className="text-sm text-gray-700">—</span>
                           )}
+                          {selectedAmenities.length > 12 ? (
+                            <span className="rounded-full bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">
+                              +{selectedAmenities.length - 12} more
+                            </span>
+                          ) : null}
                         </div>
 
                         <div className="mt-4 text-sm text-gray-500">Photos</div>
@@ -732,7 +977,11 @@ export default function VenueServiceFlow({
                 </div>
 
                 <div className="flex flex-none items-center justify-between border-t bg-white p-4">
-                  <Button variant="outline" onClick={handleCancel}>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={uploading || state.status.saving}
+                  >
                     Cancel
                   </Button>
 
@@ -740,7 +989,7 @@ export default function VenueServiceFlow({
                     <Button
                       variant="outline"
                       onClick={() => setStep(Math.max(0, step - 1))}
-                      disabled={step === 0}
+                      disabled={step === 0 || uploading || state.status.saving}
                     >
                       Back
                     </Button>
@@ -748,17 +997,25 @@ export default function VenueServiceFlow({
                     {step < steps.length - 1 ? (
                     <Button
                       onClick={() => goToStep(step + 1)}
-                      disabled={!canAdvanceCurrentStep}
+                      disabled={!canAdvanceCurrentStep || uploading || state.status.saving}
                     >
                       Next
                     </Button>
                   ) : (
-                    <Button onClick={handleSubmit} isLoading={state.status.saving}>
-                      {service ? "Save" : "Publish"}
+                    <Button
+                      onClick={handleSubmit}
+                      isLoading={uploading || state.status.saving}
+                    >
+                      {uploading ? "Uploading…" : service ? "Save" : "Publish"}
                     </Button>
                   )}
                   </div>
                 </div>
+                {submitError ? (
+                  <div className="border-t bg-white px-6 py-3 text-sm text-red-600">
+                    {submitError}
+                  </div>
+                ) : null}
               </div>
             </Dialog.Panel>
           </Transition.Child>

@@ -32,7 +32,6 @@ const toNumber = (v: string | number) => {
 function stageLabel(t: string): string {
   const v = String(t || "").toLowerCase();
   if (v === "cleaning_fee") return "Cleaning fee";
-  if (v === "security_deposit") return "Security deposit (refundable)";
   if (v === "overtime") return "Overtime";
   return t || "Line item";
 }
@@ -181,7 +180,7 @@ export default function VenueInlineQuote({
           </div>
           {items.length === 0 ? (
             <div className="mt-2 text-sm text-gray-600">
-              Add optional fees like cleaning, security deposit, overtime, etc.
+              Add optional fees like cleaning, overtime, staffing, etc.
             </div>
           ) : (
             <div className="mt-2 space-y-2">
@@ -268,4 +267,3 @@ export default function VenueInlineQuote({
     </div>
   );
 }
-

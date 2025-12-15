@@ -218,18 +218,18 @@ const venueDayHireFields: ServiceTypeField[] = [
     defaultValue: 0,
   },
   {
-    key: "security_deposit",
-    kind: "price",
-    label: "Security deposit (optional, refundable)",
-    required: false,
-    defaultValue: 0,
-  },
-  {
     key: "overtime_rate",
     kind: "price",
     label: "Overtime rate (optional, per hour)",
     required: false,
     defaultValue: 0,
+  },
+  {
+    key: "house_rules_selected",
+    kind: "multi_select",
+    label: "House rules (internal)",
+    required: false,
+    defaultValue: [],
   },
   {
     key: "house_rules",
@@ -554,6 +554,9 @@ const venueDayHireConfig: ServiceTypeConfig = {
     const amenities = Array.isArray(typeFields.amenities)
       ? (typeFields.amenities as unknown[]).map(String).map((s) => s.trim()).filter(Boolean)
       : [];
+    const house_rules_selected = Array.isArray(typeFields.house_rules_selected)
+      ? (typeFields.house_rules_selected as unknown[]).map(String).map((s) => s.trim()).filter(Boolean)
+      : [];
     const gallery_urls = Array.isArray(typeFields.gallery_urls)
       ? (typeFields.gallery_urls as unknown[]).map(String).map((s) => s.trim()).filter(Boolean)
       : [];
@@ -565,8 +568,8 @@ const venueDayHireConfig: ServiceTypeConfig = {
       address: toOptionalString(typeFields.address),
       amenities,
       cleaning_fee: toOptionalNonNegativeMoney(typeFields.cleaning_fee),
-      security_deposit: toOptionalNonNegativeMoney(typeFields.security_deposit),
       overtime_rate: toOptionalNonNegativeMoney(typeFields.overtime_rate),
+      house_rules_selected,
       house_rules: toOptionalString(typeFields.house_rules),
       cancellation_policy: toOptionalString(typeFields.cancellation_policy),
       gallery_urls,

@@ -1562,8 +1562,6 @@ export default function MessageThreadWrapper({
                       const out: Array<{ description: string; price: number }> = [];
                       const cleaning = Number(d?.cleaning_fee || 0);
                       if (Number.isFinite(cleaning) && cleaning > 0) out.push({ description: 'Cleaning fee', price: cleaning });
-                      const deposit = Number(d?.security_deposit || 0);
-                      if (Number.isFinite(deposit) && deposit > 0) out.push({ description: 'Security deposit (refundable)', price: deposit });
                       const overtime = Number(d?.overtime_rate || 0);
                       if (Number.isFinite(overtime) && overtime > 0) out.push({ description: 'Overtime (per hour)', price: overtime });
                       return out;
