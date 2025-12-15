@@ -104,31 +104,8 @@ export default function BecomeProviderModal({ isOpen, onClose }: Props) {
   const dobMonth = (watch('dob_month') || '').trim();
   const dobYear = (watch('dob_year') || '').trim();
 
-  const months = useMemo(
-    () => [
-      { value: '1', label: 'Jan' },
-      { value: '2', label: 'Feb' },
-      { value: '3', label: 'Mar' },
-      { value: '4', label: 'Apr' },
-      { value: '5', label: 'May' },
-      { value: '6', label: 'Jun' },
-      { value: '7', label: 'Jul' },
-      { value: '8', label: 'Aug' },
-      { value: '9', label: 'Sep' },
-      { value: '10', label: 'Oct' },
-      { value: '11', label: 'Nov' },
-      { value: '12', label: 'Dec' },
-    ],
-    [],
-  );
-
-  const years = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const startYear = 1900;
-    const out: string[] = [];
-    for (let y = currentYear; y >= startYear; y -= 1) out.push(String(y));
-    return out;
-  }, []);
+  // Note: we intentionally avoid <datalist> here to keep the DOB inputs minimal
+  // (no dropdown arrows) while still allowing free typing + paste parsing.
 
   const dobIso = useMemo(() => {
     const y = Number(dobYear);
@@ -261,63 +238,44 @@ export default function BecomeProviderModal({ isOpen, onClose }: Props) {
                       />
 
                       <label className="sr-only" htmlFor="bp_dob_month">Month</label>
-                      <div className="relative">
-                        <input
-                          id="bp_dob_month"
-                          autoComplete="bday-month"
-                          placeholder="MM (or Jan)"
-                          list="bp_dob_months"
-                          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                          {...dobMonthReg}
-                          onChange={(e) => {
-                            const parsed = tryParseDobInput(e.target.value);
-                            if (parsed) {
-                              setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
-                              setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
-                              setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
-                              return;
-                            }
-                            dobMonthReg.onChange(e);
-                          }}
-                        />
-                        <datalist id="bp_dob_months">
-                          {months.map((m) => (
-                            <option key={`m-${m.value}`} value={m.label} />
-                          ))}
-                          {months.map((m) => (
-                            <option key={`n-${m.value}`} value={m.value} />
-                          ))}
-                        </datalist>
-                      </div>
+                      <input
+                        id="bp_dob_month"
+                        autoComplete="bday-month"
+                        placeholder="MM"
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        {...dobMonthReg}
+                        onChange={(e) => {
+                          const parsed = tryParseDobInput(e.target.value);
+                          if (parsed) {
+                            setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
+                            setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
+                            setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
+                            return;
+                          }
+                          dobMonthReg.onChange(e);
+                        }}
+                      />
 
                       <label className="sr-only" htmlFor="bp_dob_year">Year</label>
-                      <div className="relative">
-                        <input
-                          id="bp_dob_year"
-                          inputMode="numeric"
-                          autoComplete="bday-year"
-                          placeholder="YYYY"
-                          maxLength={4}
-                          list="bp_dob_years"
-                          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                          {...dobYearReg}
-                          onChange={(e) => {
-                            const parsed = tryParseDobInput(e.target.value);
-                            if (parsed) {
-                              setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
-                              setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
-                              setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
-                              return;
-                            }
-                            dobYearReg.onChange(e);
-                          }}
-                        />
-                        <datalist id="bp_dob_years">
-                          {years.map((y) => (
-                            <option key={y} value={y} />
-                          ))}
-                        </datalist>
-                      </div>
+                      <input
+                        id="bp_dob_year"
+                        inputMode="numeric"
+                        autoComplete="bday-year"
+                        placeholder="YYYY"
+                        maxLength={4}
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        {...dobYearReg}
+                        onChange={(e) => {
+                          const parsed = tryParseDobInput(e.target.value);
+                          if (parsed) {
+                            setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
+                            setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
+                            setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
+                            return;
+                          }
+                          dobYearReg.onChange(e);
+                        }}
+                      />
                     </div>
                     <input
                       type="hidden"
