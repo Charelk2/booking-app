@@ -168,9 +168,6 @@ export default function BookinWizardPersonilsedVideo({
                     <Dialog.Title className="text-base sm:text-lg font-semibold text-gray-900">
                       Book a personalised video
                     </Dialog.Title>
-                    <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                      Pick a delivery date and confirm the basics. You’ll complete the brief after payment.
-                    </p>
                   </div>
                   <button
                     type="button"
