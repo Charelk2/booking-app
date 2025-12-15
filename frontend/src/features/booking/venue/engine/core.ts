@@ -28,6 +28,23 @@ function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test((value || "").trim());
 }
 
+function isTimeHHMM(value: string): boolean {
+  const raw = (value || "").trim();
+  if (!raw) return false;
+  const m = raw.match(/^(\d{2}):(\d{2})$/);
+  if (!m) return false;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  return (
+    Number.isFinite(hh) &&
+    Number.isFinite(mm) &&
+    hh >= 0 &&
+    hh <= 23 &&
+    mm >= 0 &&
+    mm <= 59
+  );
+}
+
 function toProposedDatetime(date: string): string {
   // Use a stable time component to avoid timezone boundary surprises while
   // still preserving the user-chosen calendar date.
@@ -45,7 +62,14 @@ function normalizeGuests(value: string): number | null {
 
 function buildBookingDetailsMessage(form: VenueBookingEngineState["form"]): string {
   const lines: string[] = [];
+  if ((form.eventType || "").trim()) lines.push(`Event Type: ${(form.eventType || "").trim()}`);
   if (isIsoDate(form.date)) lines.push(`Date: ${form.date.trim()}`);
+  const start = (form.startTime || "").trim();
+  const end = (form.endTime || "").trim();
+  const startOk = isTimeHHMM(start);
+  const endOk = isTimeHHMM(end);
+  if (startOk && endOk) lines.push(`Time: ${start}–${end}`);
+  else if (startOk) lines.push(`Time: ${start}`);
   const guests = normalizeGuests(form.guests);
   if (guests != null) lines.push(`Guests: ${guests}`);
   if ((form.notes || "").trim()) lines.push(`Notes: ${(form.notes || "").trim()}`);
@@ -54,11 +78,17 @@ function buildBookingDetailsMessage(form: VenueBookingEngineState["form"]): stri
 
 function buildVenueServiceExtras(form: VenueBookingEngineState["form"]): Record<string, unknown> {
   const date = (form.date || "").trim();
+  const eventType = (form.eventType || "").trim();
+  const startTime = (form.startTime || "").trim();
+  const endTime = (form.endTime || "").trim();
   const guests = normalizeGuests(form.guests);
   const notes = (form.notes || "").trim();
   const venue: Record<string, unknown> = {
-    v: 1,
+    v: 2,
     date,
+    event_type: eventType || undefined,
+    start_time: isTimeHHMM(startTime) ? startTime : undefined,
+    end_time: isTimeHHMM(endTime) ? endTime : undefined,
     guests_count: guests ?? undefined,
     notes: notes || undefined,
   };
@@ -71,7 +101,7 @@ export function createVenueBookingEngineCore(
   params: VenueBookingEngineParams,
 ): VenueBookingEngineCore {
   const initialState: VenueBookingEngineState = {
-    form: { date: "", guests: "", notes: "" },
+    form: { date: "", startTime: "", endTime: "", eventType: "", guests: "", notes: "" },
     booking: { status: "idle", requestId: null, error: null },
   };
 
@@ -91,6 +121,24 @@ export function createVenueBookingEngineCore(
     setDate(value) {
       setState({
         form: { ...state.form, date: value },
+        booking: { ...state.booking, error: null },
+      });
+    },
+    setStartTime(value) {
+      setState({
+        form: { ...state.form, startTime: value },
+        booking: { ...state.booking, error: null },
+      });
+    },
+    setEndTime(value) {
+      setState({
+        form: { ...state.form, endTime: value },
+        booking: { ...state.booking, error: null },
+      });
+    },
+    setEventType(value) {
+      setState({
+        form: { ...state.form, eventType: value },
         booking: { ...state.booking, error: null },
       });
     },
@@ -115,6 +163,14 @@ export function createVenueBookingEngineCore(
       if (!isIsoDate(date)) {
         setState({
           booking: { ...state.booking, error: "Please choose a valid date." },
+        });
+        return;
+      }
+
+      const eventType = (state.form.eventType || "").trim();
+      if (!eventType || eventType.toLowerCase() === "other") {
+        setState({
+          booking: { ...state.booking, error: "Please choose an event type." },
         });
         return;
       }

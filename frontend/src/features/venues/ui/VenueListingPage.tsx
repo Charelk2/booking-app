@@ -93,11 +93,56 @@ function VenueBookingCard({
     serviceProviderId: providerId,
     serviceId: service.id,
   });
+  const [step, setStep] = useState<0 | 1>(0);
+  const [customEventType, setCustomEventType] = useState("");
 
   const details = (service as any)?.details || {};
   const capacity = Number(details?.capacity || 0);
   const cleaningFee = Number(details?.cleaning_fee || 0);
   const overtimeRate = Number(details?.overtime_rate || 0);
+
+  const EVENT_TYPES = [
+    "Wedding",
+    "Corporate",
+    "Birthday",
+    "Conference",
+    "Photoshoot",
+    "Other",
+  ] as const;
+
+  const eventTypeIsOther = (engine.state.form.eventType || "").trim() === "Other";
+  const effectiveEventType = eventTypeIsOther
+    ? (customEventType || "").trim()
+    : (engine.state.form.eventType || "").trim();
+
+  const notesPlaceholder = (() => {
+    const t = effectiveEventType.toLowerCase();
+    if (t.includes("wedding")) {
+      return "Ceremony + reception timing, decor/catering, music, setup notes…";
+    }
+    if (t.includes("corporate")) {
+      return "Agenda, seating style, A/V needs, catering, setup notes…";
+    }
+    if (t.includes("conference")) {
+      return "Agenda, seating/breakout rooms, A/V needs, registration flow…";
+    }
+    if (t.includes("photoshoot")) {
+      return "Crew size, gear/power needs, access times, setup notes…";
+    }
+    if (t.includes("birthday")) {
+      return "Music, catering, kids/activities, setup notes…";
+    }
+    return "Tell the venue about your event (timing, setup, special requirements)…";
+  })();
+
+  const canReview = (() => {
+    const dateOk = /^\d{4}-\d{2}-\d{2}$/.test((engine.state.form.date || "").trim());
+    const guestsOk = Number(engine.state.form.guests || 0) > 0;
+    const typeOk = Boolean((engine.state.form.eventType || "").trim()) && !eventTypeIsOther
+      ? true
+      : Boolean(customEventType.trim());
+    return dateOk && guestsOk && typeOk;
+  })();
 
   const onSubmit = async () => {
     if (authLoading) return;
@@ -106,6 +151,9 @@ function VenueBookingCard({
         `/auth?intent=login&next=${encodeURIComponent(`/services/${service.id}`)}`,
       );
       return;
+    }
+    if (eventTypeIsOther && customEventType.trim()) {
+      engine.actions.setEventType(customEventType.trim());
     }
     await engine.actions.submit();
   };
@@ -123,46 +171,183 @@ function VenueBookingCard({
         <div className="mt-1 text-sm text-gray-600">Up to {capacity} guests</div>
       ) : null}
 
-      <div className="mt-4 space-y-3">
-        <TextInput
-          label="Date"
-          type="date"
-          value={engine.state.form.date}
-          onChange={(e) => engine.actions.setDate(e.target.value)}
-        />
-        <TextInput
-          label="Estimated guests"
-          type="number"
-          value={engine.state.form.guests}
-          onChange={(e) => engine.actions.setGuests(e.target.value)}
-        />
-        <TextArea
-          label="Notes (optional)"
-          rows={4}
-          value={engine.state.form.notes}
-          onChange={(e) => engine.actions.setNotes(e.target.value)}
-          placeholder="Tell the venue about your event (timing, setup, special requirements)…"
-        />
+      {step === 0 ? (
+        <>
+          <div className="mt-4 space-y-3">
+            <TextInput
+              label="Date"
+              type="date"
+              value={engine.state.form.date}
+              onChange={(e) => engine.actions.setDate(e.target.value)}
+            />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <TextInput
+                label="Start time (optional)"
+                type="time"
+                value={engine.state.form.startTime}
+                onChange={(e) => engine.actions.setStartTime(e.target.value)}
+              />
+              <TextInput
+                label="End time (optional)"
+                type="time"
+                value={engine.state.form.endTime}
+                onChange={(e) => engine.actions.setEndTime(e.target.value)}
+              />
+            </div>
 
-        {engine.state.booking.error ? (
-          <p className="text-sm text-red-600" role="alert">
-            {engine.state.booking.error}
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700">Event type</div>
+              <div className="flex flex-wrap gap-2">
+                {EVENT_TYPES.map((t) => {
+                  const selected = (engine.state.form.eventType || "").trim() === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => {
+                        engine.actions.setEventType(t);
+                        if (t !== "Other") setCustomEventType("");
+                      }}
+                      className={[
+                        "rounded-full border px-3 py-1 text-sm font-semibold transition",
+                        selected
+                          ? "border-gray-900 bg-gray-900 text-white"
+                          : "border-gray-200 bg-white text-gray-900 hover:border-gray-300",
+                      ].join(" ")}
+                      aria-pressed={selected}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+              {eventTypeIsOther ? (
+                <TextInput
+                  label="Event type (write it in)"
+                  value={customEventType}
+                  onChange={(e) => setCustomEventType(e.target.value)}
+                  placeholder="e.g. Product launch"
+                />
+              ) : null}
+            </div>
+
+            <TextInput
+              label="Estimated guests"
+              type="number"
+              value={engine.state.form.guests}
+              onChange={(e) => engine.actions.setGuests(e.target.value)}
+            />
+            <TextArea
+              label="Notes (optional)"
+              rows={4}
+              value={engine.state.form.notes}
+              onChange={(e) => engine.actions.setNotes(e.target.value)}
+              placeholder={notesPlaceholder}
+            />
+
+            {engine.state.booking.error ? (
+              <p className="text-sm text-red-600" role="alert">
+                {engine.state.booking.error}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="mt-4">
+            <Button
+              className="w-full"
+              onClick={() => setStep(1)}
+              disabled={!canReview}
+            >
+              Review request
+            </Button>
+            <p className="mt-2 text-xs text-gray-600">
+              You won’t be charged yet. The venue will send a quote for approval.
+            </p>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="mt-4 space-y-3">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm">
+              <div className="text-xs font-semibold text-gray-500">Request summary</div>
+              <div className="mt-2 space-y-1 text-gray-900">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-gray-600">Date</span>
+                  <span className="font-medium">{engine.state.form.date || "—"}</span>
+                </div>
+                {(engine.state.form.startTime || engine.state.form.endTime) ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-600">Time</span>
+                    <span className="font-medium">
+                      {(engine.state.form.startTime || "").trim() || "—"}
+                      {engine.state.form.endTime ? `–${engine.state.form.endTime}` : ""}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-gray-600">Event type</span>
+                  <span className="font-medium">{effectiveEventType || "—"}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-gray-600">Guests</span>
+                  <span className="font-medium">{engine.state.form.guests || "—"}</span>
+                </div>
+                {engine.state.form.notes.trim() ? (
+                  <div className="pt-2 text-gray-700 whitespace-pre-line">
+                    {engine.state.form.notes.trim()}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-3 text-sm">
+              <div className="text-xs font-semibold text-gray-500">Price</div>
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-gray-700">Day rate</span>
+                  <span className="font-semibold text-gray-900">{formatCurrency(Number(service.price || 0))}</span>
+                </div>
+                {Number.isFinite(cleaningFee) && cleaningFee > 0 ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-700">Cleaning fee</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(cleaningFee)}</span>
+                  </div>
+                ) : null}
+                {Number.isFinite(overtimeRate) && overtimeRate > 0 ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-700">Overtime (per hour)</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(overtimeRate)}</span>
+                  </div>
+                ) : null}
+              </div>
+              <div className="mt-2 text-xs text-gray-600">
+                Final pricing is confirmed in the quote.
+              </div>
+            </div>
+
+            {engine.state.booking.error ? (
+              <p className="text-sm text-red-600" role="alert">
+                {engine.state.booking.error}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={() => setStep(0)} disabled={engine.state.booking.status === "submitting"}>
+              Back
+            </Button>
+            <Button
+              onClick={() => void onSubmit()}
+              isLoading={engine.state.booking.status === "submitting"}
+            >
+              Send request
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-gray-600">
+            You won’t be charged yet. The venue will send a quote for approval.
           </p>
-        ) : null}
-      </div>
-
-      <div className="mt-4">
-        <Button
-          className="w-full"
-          onClick={() => void onSubmit()}
-          isLoading={engine.state.booking.status === "submitting"}
-        >
-          Request to book
-        </Button>
-        <p className="mt-2 text-xs text-gray-600">
-          You won’t be charged yet. The venue will send a quote for approval.
-        </p>
-      </div>
+        </>
+      )}
 
       {(Number.isFinite(cleaningFee) && cleaningFee > 0) ||
       (Number.isFinite(overtimeRate) && overtimeRate > 0) ? (
