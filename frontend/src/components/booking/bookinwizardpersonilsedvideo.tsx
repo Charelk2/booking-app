@@ -184,24 +184,17 @@ export default function BookinWizardPersonilsedVideo({
               <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-5">
                 <div className="space-y-6">
                   {/* Delivery date */}
-                  <section className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <label className="block text-sm font-medium text-gray-900">
-                        Delivery date
-                      </label>
-                      <div className="text-xs text-gray-500">Earliest: {minDate}</div>
-                    </div>
+                  <section className="space-y-3">
+                    <h3 className="sr-only">Delivery date</h3>
 
-                    <div className="mt-3">
-                      <PersonalizedVideoDatePicker
-                        value={form.deliveryBy}
-                        minDateIso={minDate}
-                        unavailableDates={unavailableDates}
-                        onChange={form.setDeliveryBy}
-                      />
-                    </div>
+                    <PersonalizedVideoDatePicker
+                      value={form.deliveryBy}
+                      minDateIso={minDate}
+                      unavailableDates={unavailableDates}
+                      onChange={form.setDeliveryBy}
+                    />
 
-                    <div className="mt-3 min-h-[1.25rem] text-xs">
+                    <div className="min-h-[1.25rem] text-xs">
                       {availabilityUi.tone === "loading" && (
                         <span className="inline-flex items-center gap-2 text-gray-600">
                           <Spinner size="sm" />
