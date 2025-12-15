@@ -151,6 +151,7 @@ def get_booking_requests_with_last_message(
     *,
     client_id: int | None = None,
     artist_id: int | None = None,
+    exclude_client_ids: list[int] | None = None,
     skip: int = 0,
     limit: int = 100,
     include_relationships: bool = True,
@@ -297,6 +298,8 @@ def get_booking_requests_with_last_message(
         query = query.filter(models.BookingRequest.client_id == client_id)
     if artist_id is not None:
         query = query.filter(models.BookingRequest.artist_id == artist_id)
+    if exclude_client_ids:
+        query = query.filter(~models.BookingRequest.client_id.in_(exclude_client_ids))
 
     rows = (
         query.order_by(

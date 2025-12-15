@@ -1109,21 +1109,39 @@ def read_my_artist_booking_requests(
     if not isinstance(if_none_match, str):
         if_none_match = None
 
+    # Exclude Booka system threads (moderation updates) from booking request dashboards.
+    booka_system_user_id: int | None = None
+    try:
+        system_email = (os.getenv("BOOKA_SYSTEM_EMAIL") or "system@booka.co.za").strip().lower()
+        booka_system_user_id = (
+            db.query(models.User.id)
+            .filter(func.lower(models.User.email) == system_email)
+            .scalar()
+        )
+        if booka_system_user_id is not None:
+            booka_system_user_id = int(booka_system_user_id)
+    except Exception:
+        booka_system_user_id = None
+
     # Cheap snapshot for ETag: max ids + count for this artist.
     try:
-        max_br = (
+        max_br_q = (
             db.query(func.coalesce(func.max(models.BookingRequest.id), 0))
             .filter(models.BookingRequest.artist_id == current_artist.id)
-            .scalar()
-        ) or 0
+        )
+        if booka_system_user_id:
+            max_br_q = max_br_q.filter(models.BookingRequest.client_id != booka_system_user_id)
+        max_br = max_br_q.scalar() or 0
     except Exception:
         max_br = 0
     try:
-        total_count = (
+        total_count_q = (
             db.query(func.count(models.BookingRequest.id))
             .filter(models.BookingRequest.artist_id == current_artist.id)
-            .scalar()
-        ) or 0
+        )
+        if booka_system_user_id:
+            total_count_q = total_count_q.filter(models.BookingRequest.client_id != booka_system_user_id)
+        total_count = total_count_q.scalar() or 0
     except Exception:
         total_count = 0
     etag = f'W/"bra:{int(current_artist.id)}:{int(max_br)}:{int(total_count)}:{int(skip)}:{int(limit)}:{int(bool(lite))}"'
@@ -1137,6 +1155,7 @@ def read_my_artist_booking_requests(
         requests = crud.crud_booking_request.get_booking_requests_with_last_message(
             db=db,
             artist_id=current_artist.id,
+            exclude_client_ids=([booka_system_user_id] if booka_system_user_id else None),
             skip=skip,
             limit=limit,
             include_relationships=not lite,
@@ -1551,15 +1570,30 @@ def get_dashboard_stats(
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    monthly_inquiries = (
+    booka_system_user_id: int | None = None
+    try:
+        system_email = (os.getenv("BOOKA_SYSTEM_EMAIL") or "system@booka.co.za").strip().lower()
+        booka_system_user_id = (
+            db.query(models.User.id)
+            .filter(func.lower(models.User.email) == system_email)
+            .scalar()
+        )
+        if booka_system_user_id is not None:
+            booka_system_user_id = int(booka_system_user_id)
+    except Exception:
+        booka_system_user_id = None
+
+    monthly_q = (
         db.query(models.BookingRequest)
         .filter(
             models.BookingRequest.artist_id == current_user.id,
             models.BookingRequest.created_at >= month_start,
             models.BookingRequest.status != models.BookingStatus.DRAFT,
         )
-        .count()
     )
+    if booka_system_user_id:
+        monthly_q = monthly_q.filter(models.BookingRequest.client_id != booka_system_user_id)
+    monthly_inquiries = monthly_q.count()
 
     profile_views = (
         db.query(func.count(models.ArtistProfileView.id))
@@ -1568,20 +1602,22 @@ def get_dashboard_stats(
         or 0
     )
 
-    total_requests = (
-        db.query(models.BookingRequest)
-        .filter(models.BookingRequest.artist_id == current_user.id)
-        .count()
-    )
-    responded = (
+    total_q = db.query(models.BookingRequest).filter(models.BookingRequest.artist_id == current_user.id)
+    if booka_system_user_id:
+        total_q = total_q.filter(models.BookingRequest.client_id != booka_system_user_id)
+    total_requests = total_q.count()
+
+    responded_q = (
         db.query(models.BookingRequest)
         .filter(
             models.BookingRequest.artist_id == current_user.id,
             models.BookingRequest.status != models.BookingStatus.PENDING_QUOTE,
             models.BookingRequest.status != models.BookingStatus.DRAFT,
         )
-        .count()
     )
+    if booka_system_user_id:
+        responded_q = responded_q.filter(models.BookingRequest.client_id != booka_system_user_id)
+    responded = responded_q.count()
     response_rate = (responded / total_requests * 100) if total_requests else 0.0
 
     return {
