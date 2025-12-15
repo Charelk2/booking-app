@@ -448,17 +448,15 @@ export default function DashboardPage() {
 	                >
 	                  Payouts
 	                </Link>
-	                {activeView !== "services" && (
-	                  <button
-	                    type="button"
-	                    onClick={openAddService}
-	                    className="inline-flex items-center justify-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
-	                  >
-	                    <Plus size={16} className="mr-2" /> Add service
-	                  </button>
-	                )}
-	              </div>
-	            </div>
+		                <button
+		                  type="button"
+		                  onClick={openAddService}
+		                  className="inline-flex items-center justify-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+		                >
+		                  <Plus size={16} className="mr-2" /> Add service
+		                </button>
+		              </div>
+		            </div>
 
             {/* Mobile tabs */}
             <div className="md:hidden mt-4">
