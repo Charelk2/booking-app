@@ -185,119 +185,136 @@ export default function BookinWizardPersonilsedVideo({
 
               {/* Content */}
               <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Left column */}
-                  <div className="space-y-6">
-                    {/* Delivery date */}
-                    <section>
-                      <div className="flex items-baseline justify-between gap-2">
-                        <label className="block text-sm font-medium text-gray-800">Delivery date</label>
-                        <div className="text-xs text-gray-500">Min: {minDate}</div>
+                <div className="space-y-6">
+                  {/* Delivery date */}
+                  <section className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <label className="block text-sm font-medium text-gray-900">
+                        Delivery date
+                      </label>
+                      <div className="text-xs text-gray-500">Earliest: {minDate}</div>
+                    </div>
+
+                    <div className="mt-3">
+                      <PersonalizedVideoDatePicker
+                        value={form.deliveryBy}
+                        minDateIso={minDate}
+                        unavailableDates={unavailableDates}
+                        onChange={form.setDeliveryBy}
+                      />
+                    </div>
+
+                    <div className="mt-3 min-h-[1.25rem] text-xs">
+                      {availabilityUi.tone === "loading" && (
+                        <span className="inline-flex items-center gap-2 text-gray-600">
+                          <Spinner size="sm" />
+                          {availabilityUi.label}
+                        </span>
+                      )}
+                      {availabilityUi.tone === "ok" && (
+                        <span className="inline-flex items-center gap-2 text-emerald-700 font-medium">
+                          <CheckBadgeIcon className="h-4 w-4" />
+                          {availabilityUi.label}
+                        </span>
+                      )}
+                      {availabilityUi.tone === "bad" && (
+                        <span className="inline-flex items-center gap-2 text-red-600 font-medium">
+                          <BoltIcon className="h-4 w-4" />
+                          {availabilityUi.label}
+                        </span>
+                      )}
+                      {availabilityUi.tone === "muted" && (
+                        <span className="text-gray-500">{availabilityUi.label}</span>
+                      )}
+                    </div>
+
+                    <p className="mt-2 text-xs text-gray-500">
+                      Rush pricing can apply inside{" "}
+                      <span className="font-medium">24–48 hours</span>.
+                    </p>
+                  </section>
+
+                  {/* Options */}
+                  <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                      {/* Video length */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900">
+                          Video length
+                        </label>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          {[
+                            { v: "30_45" as LengthChoice, l: "30–45s", d: "Most popular" },
+                            { v: "60_90" as LengthChoice, l: "60–90s", d: `+ ${formatCurrency(addOnLongZar)}` },
+                          ].map((opt) => {
+                            const active = form.lengthChoice === opt.v;
+                            return (
+                              <button
+                                key={opt.v}
+                                type="button"
+                                onClick={() => form.setLengthChoice(opt.v)}
+                                className={[
+                                  "rounded-xl border px-3 py-2.5 text-left transition",
+                                  active
+                                    ? "border-black bg-black text-white shadow-sm"
+                                    : "border-gray-200 bg-white hover:bg-gray-50 text-gray-700",
+                                ].join(" ")}
+                                aria-pressed={active}
+                              >
+                                <div className="text-sm font-semibold">{opt.l}</div>
+                                <div
+                                  className={[
+                                    "text-[11px]",
+                                    active ? "text-gray-300" : "text-gray-500",
+                                  ].join(" ")}
+                                >
+                                  {opt.d}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
-                      <div className="mt-2">
-                        <PersonalizedVideoDatePicker
-                          value={form.deliveryBy}
-                          minDateIso={minDate}
-                          unavailableDates={unavailableDates}
-                          onChange={form.setDeliveryBy}
-                        />
+                      {/* Language */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900">
+                          Language
+                        </label>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {languageOptions.map((l) => {
+                            const active = form.language === l.v;
+                            return (
+                              <button
+                                key={l.v}
+                                type="button"
+                                onClick={() => form.setLanguage(l.v)}
+                                className={[
+                                  "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                                  active
+                                    ? "border-black bg-black text-white"
+                                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                                ].join(" ")}
+                                aria-pressed={active}
+                              >
+                                {l.l}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
+                    </div>
 
-                      <div className="mt-2 min-h-[1.25rem] text-xs">
-                        {availabilityUi.tone === "loading" && (
-                          <span className="inline-flex items-center gap-2 text-gray-600">
-                            <Spinner size="sm" />
-                            {availabilityUi.label}
-                          </span>
-                        )}
-                        {availabilityUi.tone === "ok" && (
-                          <span className="inline-flex items-center gap-2 text-emerald-700 font-medium">
-                            <CheckBadgeIcon className="h-4 w-4" />
-                            {availabilityUi.label}
-                          </span>
-                        )}
-                        {availabilityUi.tone === "bad" && (
-                          <span className="inline-flex items-center gap-2 text-red-600 font-medium">
-                            <BoltIcon className="h-4 w-4" />
-                            {availabilityUi.label}
-                          </span>
-                        )}
-                        {availabilityUi.tone === "muted" && <span className="text-gray-500">{availabilityUi.label}</span>}
-                      </div>
-
-                      <p className="mt-2 text-xs text-gray-500">
-                        Rush pricing can apply inside <span className="font-medium">24–48 hours</span>.
-                      </p>
-                    </section>
-                  </div>
-
-                  {/* Right column */}
-                  <div className="space-y-4">
-                    {/* Video length */}
-                    <section>
-                      <label className="block text-sm font-medium text-gray-800">Video length</label>
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        {[
-                          { v: "30_45" as LengthChoice, l: "30–45s", d: "Most popular" },
-                          { v: "60_90" as LengthChoice, l: "60–90s", d: `+ ${formatCurrency(addOnLongZar)}` },
-                        ].map((opt) => {
-                          const active = form.lengthChoice === opt.v;
-                          return (
-                            <button
-                              key={opt.v}
-                              type="button"
-                              onClick={() => form.setLengthChoice(opt.v)}
-                              className={[
-                                "rounded-xl border px-3 py-2.5 text-left transition",
-                                active
-                                  ? "border-black bg-black text-white shadow-sm"
-                                  : "border-gray-200 bg-white hover:bg-gray-50 text-gray-700",
-                              ].join(" ")}
-                              aria-pressed={active}
-                            >
-                              <div className="text-sm font-semibold">{opt.l}</div>
-                              <div className={["text-[11px]", active ? "text-gray-300" : "text-gray-500"].join(" ")}>
-                                {opt.d}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </section>
-
-                    {/* Language */}
-                    <section>
-                      <label className="block text-sm font-medium text-gray-800">Language</label>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {languageOptions.map((l) => {
-                          const active = form.language === l.v;
-                          return (
-                            <button
-                              key={l.v}
-                              type="button"
-                              onClick={() => form.setLanguage(l.v)}
-                              className={[
-                                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                                active ? "border-black bg-black text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-                              ].join(" ")}
-                              aria-pressed={active}
-                            >
-                              {l.l}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </section>
-
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs text-emerald-900 flex gap-2">
+                    <div className="mt-6 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs text-emerald-900 flex gap-2">
                       <ShieldCheckIcon className="h-4 w-4 shrink-0 mt-0.5" />
                       <div>
                         <div className="font-medium">No charge yet</div>
-                        <div className="text-emerald-800/80">You’ll review the full total and can add a promo code on the next screen.</div>
+                        <div className="text-emerald-800/80">
+                          You’ll review the full total and can add a promo code on the next screen.
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </section>
                 </div>
               </div>
 
