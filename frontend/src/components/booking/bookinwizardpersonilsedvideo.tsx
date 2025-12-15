@@ -313,10 +313,6 @@ export default function BookinWizardPersonilsedVideo({
                       </div>
                     </div>
 
-                    <p className="mt-4 text-xs text-gray-500">
-                      <span className="font-medium text-gray-700">No charge yet.</span> You’ll
-                      review the full total and can add a promo code on the next screen.
-                    </p>
                   </section>
                 </div>
               </div>
