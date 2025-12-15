@@ -21,6 +21,7 @@ backend/venv/
 
 # Log files
 *.log
+*.har
 
 # Env files
 # Environment variables

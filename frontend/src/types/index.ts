@@ -9,6 +9,7 @@ export interface User {
   phone_number: string;
   is_active: boolean;
   is_verified: boolean;
+  marketing_opt_in?: boolean;
   mfa_enabled?: boolean;
   profile_picture_url?: string | null;
   /** Optional slug for the provider profile when user_type === 'service_provider' */

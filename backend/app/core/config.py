@@ -97,6 +97,13 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "no-reply@localhost"
 
+    # Mailjet marketing list sync (optional)
+    # Uses the Mailjet contacts API to manage list membership when users opt in/out.
+    # If MAILJET_API_KEY/MAILJET_API_SECRET are not set, we fall back to SMTP_USERNAME/SMTP_PASSWORD.
+    MAILJET_API_KEY: str = ""
+    MAILJET_API_SECRET: str = ""
+    MAILJET_MARKETING_LIST_ID: int = 0
+
     # Feature flag: when creating a booking request, also emit a NEW_MESSAGE
     # notification so unread thread counts increment for service providers who
     # rely on message threads as the primary inbox surface. Disabled by default.

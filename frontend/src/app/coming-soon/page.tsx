@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { ArrowRight, CalendarCheck2, ShieldCheck, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
 export const metadata = {
   title: 'Booka — Coming Soon',
@@ -186,36 +186,6 @@ export default function ComingSoonPage({ searchParams }: ComingSoonPageProps) {
               caterers, photographers to decorators—find and book trusted professionals for
               your perfect event.
             </p>
-
-            <dl className="mt-8 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-accent" />
-                  <dt className="font-semibold text-slate-900">Easy Booking</dt>
-                </div>
-                <dd className="mt-2 text-sm leading-relaxed text-slate-600">
-                  Browse, compare, and book service providers in just a few clicks
-                </dd>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-accent" />
-                  <dt className="font-semibold text-slate-900">Verified Pros</dt>
-                </div>
-                <dd className="mt-2 text-sm leading-relaxed text-slate-600">
-                  All service providers are vetted and reviewed by real customers
-                </dd>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <CalendarCheck2 className="h-4 w-4 text-accent" />
-                  <dt className="font-semibold text-slate-900">All-in-One</dt>
-                </div>
-                <dd className="mt-2 text-sm leading-relaxed text-slate-600">
-                  Manage all your event bookings and payments in one place
-                </dd>
-              </div>
-            </dl>
 
             <div
               id="waitlist"

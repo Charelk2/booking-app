@@ -24,6 +24,7 @@ class UserBase(BaseModel):
     first_name: str
     last_name: str
     phone_number: Optional[str]
+    marketing_opt_in: bool = False
     # Make role optional for requests; default to 'client' if not provided.
     # Response models will still include the concrete value from the DB.
     user_type: UserType = UserType.CLIENT

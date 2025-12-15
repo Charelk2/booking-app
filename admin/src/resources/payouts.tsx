@@ -3,10 +3,13 @@ import { List, Datagrid, TextField, SelectInput, TextInput, useRecordContext, us
 import MoneyCell from '../components/MoneyCell';
 import TimeCell from '../components/TimeCell';
 import StatusBadge from '../components/StatusBadge';
+import { inferAdminApiUrl, inferRootApiUrl } from '../env';
 import { Button, Stack, Tooltip, IconButton, Typography, Chip } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
+
+const ADMIN_API_URL = inferAdminApiUrl();
 
 const payoutFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
@@ -28,7 +31,7 @@ const Actions = () => {
     const reference = prompt('Reference (required)');
     if (!reference) { notify('Reference required', { type:'warning' }); return; }
     try {
-      await dp.httpClient(`${dp.API_URL}/payouts/${rec.id}/mark-paid`, {
+      await dp.httpClient(`${ADMIN_API_URL}/payouts/${rec.id}/mark-paid`, {
         method: 'POST',
         body: JSON.stringify({ method, reference }),
       });
@@ -37,7 +40,7 @@ const Actions = () => {
   };
   const viewPdf = async () => {
     try {
-      const { json } = await dp.httpClient(`${dp.API_URL}/payouts/${rec.id}/pdf-url`, { method: 'GET' });
+      const { json } = await dp.httpClient(`${ADMIN_API_URL}/payouts/${rec.id}/pdf-url`, { method: 'GET' });
       const url = (json && json.url) ? json.url : null;
       if (url) {
         window.open(url, '_blank');
@@ -47,8 +50,8 @@ const Actions = () => {
     } catch (e:any) {
       // Fallback to direct API (may 403 without headers)
       try {
-        const apiBase = dp.API_URL.replace(/\/admin$/, '');
-        const url = `${apiBase}/api/v1/payouts/${rec.id}/pdf`;
+        const rootApiUrl = inferRootApiUrl(ADMIN_API_URL);
+        const url = `${rootApiUrl}/api/v1/payouts/${rec.id}/pdf`;
         window.open(url, '_blank');
       } catch {}
     }

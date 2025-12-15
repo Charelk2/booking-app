@@ -1421,6 +1421,17 @@ def ensure_user_profile_picture_column(engine: Engine) -> None:
     )
 
 
+def ensure_user_marketing_opt_in_column(engine: Engine) -> None:
+    """Add the ``marketing_opt_in`` column to ``users`` if it's missing."""
+
+    add_column_if_missing(
+        engine,
+        "users",
+        "marketing_opt_in",
+        "marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+
+
 def ensure_booking_request_travel_columns(engine: Engine) -> None:
     """Add travel-related columns to ``booking_requests`` if missing."""
 
