@@ -19,6 +19,8 @@ export interface ServiceProviderCardCompactProps
   name: string;
   subtitle?: string;
   imageUrl?: string;
+  imageAspect?: 'square' | 'landscape';
+  rounded?: 'lg' | 'xl';
   unoptimizedImage?: boolean;
   price?: number;
   rating?: number;
@@ -33,6 +35,8 @@ export default function ServiceProviderCardCompact({
   name,
   subtitle,
   imageUrl,
+  imageAspect = 'square',
+  rounded = 'xl',
   unoptimizedImage,
   price,
   rating,
@@ -47,19 +51,25 @@ export default function ServiceProviderCardCompact({
   const router = useRouter();
   void subtitle;
   void categories;
+  const imageAspectClassName =
+    imageAspect === 'landscape' ? 'aspect-[4/3]' : 'aspect-[4/4]';
+  const roundedClassName = rounded === 'lg' ? 'rounded-lg' : 'rounded-xl';
   return (
     <Link
       href={href}
       className={clsx(
-        'group block rounded-xl overflow-hidden active:scale-[0.98] transition-transform duration-100',
+        'group block overflow-hidden active:scale-[0.98] transition-transform duration-100',
         'no-underline hover:no-underline',
+        roundedClassName,
         className,
       )}
       onMouseEnter={() => router.prefetch?.(href.toString())}
       onFocus={() => router.prefetch?.(href.toString())}
       {...props}
     >
-      <div className="relative aspect-[4/4] rounded-xl bg-gray-100 overflow-hidden">
+      <div
+        className={`relative ${imageAspectClassName} ${roundedClassName} bg-gray-100 overflow-hidden`}
+      >
         {imageUrl ? (
           <SafeImage
             src={imageUrl}

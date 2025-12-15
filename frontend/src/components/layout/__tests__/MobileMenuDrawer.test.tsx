@@ -284,8 +284,9 @@ describe('MobileMenuDrawer', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('shows "List your service" CTA for clients and links to provider signup', async () => {
+  it('shows "List your service" CTA for clients and opens onboarding flow', async () => {
     const onClose = jest.fn();
+    const onListYourService = jest.fn();
 
     await act(async () => {
       root.render(
@@ -296,19 +297,22 @@ describe('MobileMenuDrawer', () => {
           user: { user_type: 'client', first_name: 'Client', email: 'client@example.com' } as User,
           logout: () => {},
           pathname: '/',
+          onListYourService,
         }),
       );
     });
     await flushPromises();
 
-    const listLink = Array.from(document.querySelectorAll('a')).find(
-      (a) => a.textContent === 'List your service',
-    ) as HTMLAnchorElement | undefined;
+    const listButton = Array.from(document.querySelectorAll('button')).find(
+      (btn) => btn.textContent === 'List your service',
+    ) as HTMLButtonElement | undefined;
 
-    expect(listLink).toBeTruthy();
-    expect(listLink?.getAttribute('href')).toBe(
-      '/auth?intent=signup&role=service_provider&next=/onboarding/provider',
-    );
+    expect(listButton).toBeTruthy();
+    await act(async () => {
+      listButton && listButton.click();
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onListYourService).toHaveBeenCalledTimes(1);
   });
 
   it('shows "List your service" CTA for signed-out users when auth links are visible', async () => {

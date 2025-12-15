@@ -89,6 +89,8 @@ function tryParseDobInput(raw: string): DobParts | null {
 export default function ProviderOnboardingModal({ isOpen, onClose, next, showSetPassword = false }: Props) {
   const { user, refreshUser } = useAuth();
   const router = useRouter();
+  const nextHref = next || '/dashboard/artist';
+  const isProfileEditNext = nextHref.startsWith('/dashboard/profile/edit');
 
   const defaults = useMemo(() => ({
     phone_number: user?.phone_number || '',
@@ -133,9 +135,16 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
     return `${String(y).padStart(4, '0')}-${mm}-${dd}`;
   }, [dobDay, dobMonth, dobYear]);
 
+  const [step, setStep] = useState<'form' | 'success'>('form');
   const [error, setError] = useState('');
 
   useEffect(() => { reset(defaults); }, [defaults, reset]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setStep('form');
+    setError('');
+  }, [isOpen]);
 
   useEffect(() => {
     setValue('dob', dobIso, { shouldDirty: true, shouldValidate: true });
@@ -158,8 +167,7 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
         dob: dobIso || undefined,
       });
       try { await refreshUser?.(); } catch {}
-      onClose();
-      router.replace(next || '/dashboard/artist');
+      setStep('success');
     } catch (e: any) {
       setError(e?.message || 'Could not start provider onboarding.');
     }
@@ -189,171 +197,204 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
               leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl">
-                <Dialog.Title className="text-lg font-semibold">Finish setting up your provider profile</Dialog.Title>
-                <p className="mt-1 text-sm text-gray-600">We’ll use these details to prepare your provider dashboard.</p>
+                {step === 'success' ? (
+                  <>
+                    <Dialog.Title className="text-lg font-semibold">Your details are saved</Dialog.Title>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {isProfileEditNext
+                        ? 'Next: edit your profile to start listing a service.'
+                        : 'Continue to finish setting up your provider account.'}
+                    </p>
 
-                <form className="mt-4 space-y-3" onSubmit={handleSubmit(onSubmit)}>
-                  <div>
-                    <label className="block text-sm font-medium">Phone number</label>
-                    <input
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
-                      placeholder="+27 82 123 4567"
-                      {...register('phone_number', {
-                        required: mustProvidePhone ? 'Phone number is required' : false,
-                        pattern: { value: /^\+?[0-9\s-]{10,}$/, message: 'Please enter a valid phone number' },
-                      })}
-                    />
-                    {errors.phone_number && <p className="mt-1 text-xs text-red-600">{errors.phone_number.message}</p>}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between gap-3">
-                      <label className="block text-sm font-medium">Date of birth (optional)</label>
-                    {dobDay || dobMonth || dobYear ? (
+                    <div className="mt-5 flex items-center justify-end gap-2">
                       <button
                         type="button"
-                        className="text-xs text-gray-500 underline hover:text-gray-700"
+                        className="rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={onClose}
+                      >
+                        Later
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
                         onClick={() => {
-                            setValue('dob_day', '', { shouldDirty: true, shouldValidate: true });
-                            setValue('dob_month', '', { shouldDirty: true, shouldValidate: true });
-                            setValue('dob_year', '', { shouldDirty: true, shouldValidate: true });
-                            setValue('dob', '', { shouldDirty: true, shouldValidate: true });
-                          }}
-                        >
-                          Clear
+                          onClose();
+                          router.replace(nextHref);
+                        }}
+                      >
+                        {isProfileEditNext ? 'Edit profile' : 'Continue'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Dialog.Title className="text-lg font-semibold">Finish setting up your provider profile</Dialog.Title>
+                    <p className="mt-1 text-sm text-gray-600">We’ll use these details to prepare your provider dashboard.</p>
+
+                    <form className="mt-4 space-y-3" onSubmit={handleSubmit(onSubmit)}>
+                      <div>
+                        <label className="block text-sm font-medium">Phone number</label>
+                        <input
+                          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+                          placeholder="+27 82 123 4567"
+                          {...register('phone_number', {
+                            required: mustProvidePhone ? 'Phone number is required' : false,
+                            pattern: { value: /^\+?[0-9\s-]{10,}$/, message: 'Please enter a valid phone number' },
+                          })}
+                        />
+                        {errors.phone_number && <p className="mt-1 text-xs text-red-600">{errors.phone_number.message}</p>}
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between gap-3">
+                          <label className="block text-sm font-medium">Date of birth (optional)</label>
+                        {dobDay || dobMonth || dobYear ? (
+                          <button
+                            type="button"
+                            className="text-xs text-gray-500 underline hover:text-gray-700"
+                            onClick={() => {
+                                setValue('dob_day', '', { shouldDirty: true, shouldValidate: true });
+                                setValue('dob_month', '', { shouldDirty: true, shouldValidate: true });
+                                setValue('dob_year', '', { shouldDirty: true, shouldValidate: true });
+                                setValue('dob', '', { shouldDirty: true, shouldValidate: true });
+                              }}
+                            >
+                              Clear
+                            </button>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">Enter day, month, and year (DD/MM/YYYY) - or leave blank.</p>
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          <label className="sr-only" htmlFor="dob_day">Day</label>
+                          <input
+                            id="dob_day"
+                            inputMode="numeric"
+                            autoComplete="bday-day"
+                            placeholder="DD"
+                            maxLength={2}
+                            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            {...dobDayReg}
+                            onChange={(e) => {
+                              const parsed = tryParseDobInput(e.target.value);
+                              if (parsed) {
+                                setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
+                                setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
+                                setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
+                                return;
+                              }
+                              dobDayReg.onChange(e);
+                            }}
+                          />
+
+                          <label className="sr-only" htmlFor="dob_month">Month</label>
+                          <input
+                            id="dob_month"
+                            inputMode="numeric"
+                            autoComplete="bday-month"
+                            placeholder="MM"
+                            maxLength={2}
+                            list="dob_months"
+                            className="no-native-indicator w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            {...dobMonthReg}
+                            onChange={(e) => {
+                              const parsed = tryParseDobInput(e.target.value);
+                              if (parsed) {
+                                setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
+                                setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
+                                setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
+                                return;
+                              }
+                              dobMonthReg.onChange(e);
+                            }}
+                          />
+                          <datalist id="dob_months">
+                            {months.map((m) => (
+                              <option key={m} value={m} />
+                            ))}
+                          </datalist>
+
+                          <label className="sr-only" htmlFor="dob_year">Year</label>
+                          <input
+                            id="dob_year"
+                            inputMode="numeric"
+                            autoComplete="bday-year"
+                            placeholder="YYYY"
+                            maxLength={4}
+                            list="dob_years"
+                            className="no-native-indicator w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            {...dobYearReg}
+                            onChange={(e) => {
+                              const parsed = tryParseDobInput(e.target.value);
+                              if (parsed) {
+                                setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
+                                setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
+                                setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
+                                return;
+                              }
+                              dobYearReg.onChange(e);
+                            }}
+                          />
+                          <datalist id="dob_years">
+                            {years.map((y) => (
+                              <option key={y} value={y} />
+                            ))}
+                          </datalist>
+                        </div>
+                        <input
+                          type="hidden"
+                          {...register('dob', {
+                            validate: () => {
+                              const v = (getValues('dob') || '').trim();
+                              const any = Boolean(dobDay || dobMonth || dobYear);
+                              const all = Boolean(dobDay && dobMonth && dobYear);
+                              if (!any) return true;
+                              if (!all) return 'Please enter day, month, and year.';
+                              if (!v) return 'Please enter a valid date.';
+                              return true;
+                            },
+                          })}
+                        />
+                        {errors.dob && <p className="mt-1 text-xs text-red-600">{errors.dob.message}</p>}
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <input id="acceptProviderTerms" type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300" {...register('acceptProviderTerms', { required: 'Please accept the provider terms' })} />
+                        <label htmlFor="acceptProviderTerms" className="text-sm text-gray-700">
+                          I agree to the{' '}
+                          <a href="/terms" className="underline text-black hover:text-black">
+                            Provider Terms
+                          </a>
+                        </label>
+                      </div>
+                      {errors.acceptProviderTerms && (
+                        <p className="-mt-2 text-xs text-red-600">{errors.acceptProviderTerms.message}</p>
+                      )}
+
+                      {showSetPassword && (
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="block text-sm font-medium">Set password</label>
+                            <input type="password" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('password')} />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium">Confirm password</label>
+                            <input type="password" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('confirmPassword', { validate: (v) => v === password || 'Passwords do not match' })} />
+                            {errors.confirmPassword && <p className="mt-1 text-xs text-red-600">{errors.confirmPassword.message}</p>}
+                          </div>
+                        </div>
+                      )}
+
+                      {error && <p className="text-sm text-red-600">{error}</p>}
+
+                      <div className="mt-4 flex items-center justify-end gap-2">
+                        <button type="button" className="rounded-md px-3 py-2 text-sm" onClick={onClose}>Cancel</button>
+                        <button type="submit" disabled={isSubmitting} className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white">
+                          {isSubmitting ? 'Continuing…' : 'Continue'}
                         </button>
-                      ) : null}
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">Enter day, month, and year (DD/MM/YYYY) - or leave blank.</p>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      <label className="sr-only" htmlFor="dob_day">Day</label>
-                      <input
-                        id="dob_day"
-                        inputMode="numeric"
-                        autoComplete="bday-day"
-                        placeholder="DD"
-                        maxLength={2}
-                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                        {...dobDayReg}
-                        onChange={(e) => {
-                          const parsed = tryParseDobInput(e.target.value);
-                          if (parsed) {
-                            setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
-                            setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
-                            setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
-                            return;
-                          }
-                          dobDayReg.onChange(e);
-                        }}
-                      />
-
-                      <label className="sr-only" htmlFor="dob_month">Month</label>
-                      <input
-                        id="dob_month"
-                        inputMode="numeric"
-                        autoComplete="bday-month"
-                        placeholder="MM"
-                        maxLength={2}
-                        list="dob_months"
-                        className="no-native-indicator w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                        {...dobMonthReg}
-                        onChange={(e) => {
-                          const parsed = tryParseDobInput(e.target.value);
-                          if (parsed) {
-                            setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
-                            setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
-                            setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
-                            return;
-                          }
-                          dobMonthReg.onChange(e);
-                        }}
-                      />
-                      <datalist id="dob_months">
-                        {months.map((m) => (
-                          <option key={m} value={m} />
-                        ))}
-                      </datalist>
-
-                      <label className="sr-only" htmlFor="dob_year">Year</label>
-                      <input
-                        id="dob_year"
-                        inputMode="numeric"
-                        autoComplete="bday-year"
-                        placeholder="YYYY"
-                        maxLength={4}
-                        list="dob_years"
-                        className="no-native-indicator w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                        {...dobYearReg}
-                        onChange={(e) => {
-                          const parsed = tryParseDobInput(e.target.value);
-                          if (parsed) {
-                            setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
-                            setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
-                            setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
-                            return;
-                          }
-                          dobYearReg.onChange(e);
-                        }}
-                      />
-                      <datalist id="dob_years">
-                        {years.map((y) => (
-                          <option key={y} value={y} />
-                        ))}
-                      </datalist>
-                    </div>
-                    <input
-                      type="hidden"
-                      {...register('dob', {
-                        validate: () => {
-                          const v = (getValues('dob') || '').trim();
-                          const any = Boolean(dobDay || dobMonth || dobYear);
-                          const all = Boolean(dobDay && dobMonth && dobYear);
-                          if (!any) return true;
-                          if (!all) return 'Please enter day, month, and year.';
-                          if (!v) return 'Please enter a valid date.';
-                          return true;
-                        },
-                      })}
-                    />
-                    {errors.dob && <p className="mt-1 text-xs text-red-600">{errors.dob.message}</p>}
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <input id="acceptProviderTerms" type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300" {...register('acceptProviderTerms', { required: 'Please accept the provider terms' })} />
-                    <label htmlFor="acceptProviderTerms" className="text-sm text-gray-700">
-                      I agree to the{' '}
-                      <a href="/terms" className="underline text-black hover:text-black">
-                        Provider Terms
-                      </a>
-                    </label>
-                  </div>
-                  {errors.acceptProviderTerms && (
-                    <p className="-mt-2 text-xs text-red-600">{errors.acceptProviderTerms.message}</p>
-                  )}
-
-                  {showSetPassword && (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className="block text-sm font-medium">Set password</label>
-                        <input type="password" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('password')} />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium">Confirm password</label>
-                        <input type="password" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('confirmPassword', { validate: (v) => v === password || 'Passwords do not match' })} />
-                        {errors.confirmPassword && <p className="mt-1 text-xs text-red-600">{errors.confirmPassword.message}</p>}
-                      </div>
-                    </div>
-                  )}
-
-                  {error && <p className="text-sm text-red-600">{error}</p>}
-
-                  <div className="mt-4 flex items-center justify-end gap-2">
-                    <button type="button" className="rounded-md px-3 py-2 text-sm" onClick={onClose}>Cancel</button>
-                    <button type="submit" disabled={isSubmitting} className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white">
-                      {isSubmitting ? 'Continuing…' : 'Continue to provider onboarding'}
-                    </button>
-                  </div>
-                </form>
+                    </form>
+                  </>
+                )}
               </Dialog.Panel>
             </Transition.Child>
           </div>

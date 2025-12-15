@@ -305,8 +305,14 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const [menuOpen, setMenuOpen] = useState(false);
   const [showProviderOnboarding, setShowProviderOnboarding] = useState(false);
   const [providerOnboardingNext, setProviderOnboardingNext] = useState<string | undefined>(undefined);
+  const providerUpgradeNext = '/dashboard/profile/edit?from=become-provider';
   const isMobile = useIsMobile();
   const [currentBookingId, setCurrentBookingId] = useState<number | null>(null);
+
+  const openProviderUpgrade = useCallback(() => {
+    setProviderOnboardingNext(providerUpgradeNext);
+    setShowProviderOnboarding(true);
+  }, []);
 
   // Listen for booking context emitted by thread pages
   useEffect(() => {
@@ -739,7 +745,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 )}
                   {user.user_type === 'client' && (
                     <button
-                      onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
+                      onClick={openProviderUpgrade}
                       className={clsx(
                         'px-2 py-1.5 text-sm rounded-lg font-semibold',
                         isLightHeader
@@ -837,7 +843,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                               {({ active }) => (
                                 <button
                                   type="button"
-                                  onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
+                                  onClick={openProviderUpgrade}
                                   className={clsx(
                                     'group flex w-full items-center px-4 py-2 text-sm',
                                     'text-black',
@@ -944,10 +950,10 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 </>
               ) : (
                 <div className="flex gap-2">
-                  {(!user || isClientUser) && (
+                      {(!user || isClientUser) && (
                     user ? (
                       <button
-                        onClick={() => { setProviderOnboardingNext('/dashboard/artist'); setShowProviderOnboarding(true); }}
+                        onClick={openProviderUpgrade}
                         className={clsx(
                           'px-1.5 py-1.5 text-sm rounded-lg bg-black text-white font-semibold hover:bg-gray-100 hover:text-black',
                           hoverNeutralLink2
@@ -962,8 +968,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                           e.preventDefault();
                           // If signed in (client), open modal directly
                           if (user) {
-                            setProviderOnboardingNext('/dashboard/artist');
-                            setShowProviderOnboarding(true);
+                            openProviderUpgrade();
                           } else {
                             router.push(`/auth?intent=signup&role=service_provider&next=${encodeURIComponent('/onboarding/provider')}`);
                           }
@@ -1072,6 +1077,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         logout={logout}
         pathname={pathname}
         hideAuthLinks={suppressAccountActions}
+        onListYourService={openProviderUpgrade}
       />
 
       {/* Notifications UI removed from dropdown per request */}

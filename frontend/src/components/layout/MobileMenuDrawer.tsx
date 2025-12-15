@@ -27,6 +27,7 @@ interface MobileMenuDrawerProps {
   hideAuthLinks?: boolean;
   artistViewActive?: boolean;
   toggleArtistView?: () => void;
+  onListYourService?: () => void;
 }
 
 const useMobileNavItems = (user: User | null, hideAuthLinks: boolean): NavItem[] => {
@@ -99,11 +100,13 @@ export default function MobileMenuDrawer({
   hideAuthLinks = false,
   artistViewActive,
   toggleArtistView,
+  onListYourService,
 }: MobileMenuDrawerProps) {
   const accountLinks = useMobileNavItems(user, hideAuthLinks);
   const extraNavigation = secondaryNavigation.filter(
     (item) => !navigation.some((nav) => nav.href === item.href),
   );
+  const canOpenProviderOnboarding = user?.user_type === 'client' && typeof onListYourService === 'function';
   return (
     <Transition.Root show={open} as={Fragment}>
       <Dialog
@@ -199,17 +202,34 @@ export default function MobileMenuDrawer({
 
                   {(!user || user.user_type === 'client') && !hideAuthLinks && (
                     <div className="mt-3 px-2">
-                      <Link
-                        href="/auth?intent=signup&role=service_provider&next=/onboarding/provider"
-                        onClick={onClose}
-                        className={clsx(
-                          navItemClasses,
-                          'w-full justify-start gap-2 rounded-md px-2 py-2 text-base font-semibold hover:bg-gray-100 transition-colors'
-                        )}
-                      >
-                        <SparklesIcon className="h-5 w-5 text-black" aria-hidden="true" />
-                        <span>List your service</span>
-                      </Link>
+                      {canOpenProviderOnboarding ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            onListYourService?.();
+                          }}
+                          className={clsx(
+                            navItemClasses,
+                            'w-full justify-start gap-2 rounded-md px-2 py-2 text-base font-semibold hover:bg-gray-100 transition-colors'
+                          )}
+                        >
+                          <SparklesIcon className="h-5 w-5 text-black" aria-hidden="true" />
+                          <span>List your service</span>
+                        </button>
+                      ) : (
+                        <Link
+                          href="/auth?intent=signup&role=service_provider&next=/onboarding/provider"
+                          onClick={onClose}
+                          className={clsx(
+                            navItemClasses,
+                            'w-full justify-start gap-2 rounded-md px-2 py-2 text-base font-semibold hover:bg-gray-100 transition-colors'
+                          )}
+                        >
+                          <SparklesIcon className="h-5 w-5 text-black" aria-hidden="true" />
+                          <span>List your service</span>
+                        </Link>
+                      )}
                     </div>
                   )}
 

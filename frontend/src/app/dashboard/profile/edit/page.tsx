@@ -213,6 +213,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showBecomeProviderBanner, setShowBecomeProviderBanner] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [calendarEmail, setCalendarEmail] = useState<string | null>(null);
   const [calendarCardMessage, setCalendarCardMessage] = useState<string | null>(null);
@@ -329,6 +330,17 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
       setError('Access denied. This page is for artists only.');
       setLoading(false);
       return;
+    }
+
+    const from = searchParams.get('from');
+    if (from === 'become-provider') {
+      setShowBecomeProviderBanner(true);
+      try {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('from');
+        const q = params.toString();
+        router.replace(q ? `${pathname}?${q}` : pathname);
+      } catch {}
     }
 
     const fetchProfile = async () => {
@@ -898,6 +910,26 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
         <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-8 border-b pb-4">
           Edit Your Service Provider Profile
         </h1>
+
+        {showBecomeProviderBanner && (
+          <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Welcome — let’s finish your profile</p>
+                <p className="mt-1 text-sm text-gray-600">
+                  Add your business details and portfolio to start listing services.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="text-sm text-gray-600 hover:text-gray-900"
+                onClick={() => setShowBecomeProviderBanner(false)}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {showFirstTimeCompleteCta && (
           <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" role="dialog" aria-modal="true">
