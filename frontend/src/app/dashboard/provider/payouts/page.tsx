@@ -55,7 +55,7 @@ type FetchError = {
   status?: number;
 };
 
-type SortKey = 'booking' | 'paid';
+type SortKey = 'booking' | 'paid' | 'scheduled';
 type SortDirection = 'asc' | 'desc';
 type SortState = { key: SortKey; direction: SortDirection };
 
@@ -200,7 +200,9 @@ export default function ProviderPayoutsPage() {
   const toggleSort = useCallback((key: SortKey) => {
     setSort((prev) => {
       if (!prev || prev.key !== key) {
-        return { key, direction: key === 'booking' ? 'asc' : 'desc' };
+        if (key === 'booking') return { key, direction: 'asc' };
+        if (key === 'scheduled') return { key, direction: 'asc' };
+        return { key, direction: 'desc' };
       }
       return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
     });
@@ -229,6 +231,10 @@ export default function ProviderPayoutsPage() {
       }
       if (sort.key === 'paid') {
         const diff = compareNullableNumber(toEpochMsOrNull(a.paid_at), toEpochMsOrNull(b.paid_at), sort.direction);
+        if (diff !== 0) return diff;
+      }
+      if (sort.key === 'scheduled') {
+        const diff = compareNullableNumber(toEpochMsOrNull(a.scheduled_at), toEpochMsOrNull(b.scheduled_at), sort.direction);
         if (diff !== 0) return diff;
       }
       return b.id - a.id;
@@ -503,7 +509,7 @@ export default function ProviderPayoutsPage() {
                       <SortableTh sortKey="booking" sort={sort} toggleSortKey={toggleSort}>Booking</SortableTh>
                       <Th>Amount</Th>
                       <Th>Status</Th>
-                      <Th>Scheduled</Th>
+                      <SortableTh sortKey="scheduled" sort={sort} toggleSortKey={toggleSort}>Scheduled</SortableTh>
                       <SortableTh sortKey="paid" sort={sort} toggleSortKey={toggleSort}>Paid</SortableTh>
                       <Th>Reference</Th>
                       <Th>Actions</Th>
