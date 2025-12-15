@@ -742,15 +742,15 @@ export default function VenueListingPage({
             </p>
           </section>
 
-          {amenityGroups.length ? (
-            <section
-              aria-label="What this place offers"
-              id="amenities"
-              style={{ scrollMarginTop: sectionScrollMarginTop }}
-            >
-              <h2 className="text-xl font-bold text-gray-900">
-                What this place offers
-              </h2>
+          <section
+            aria-label="What this place offers"
+            id="amenities"
+            style={{ scrollMarginTop: sectionScrollMarginTop }}
+          >
+            <h2 className="text-xl font-bold text-gray-900">
+              What this place offers
+            </h2>
+            {amenityGroups.length ? (
               <div className="mt-4 space-y-6">
                 {amenityGroups.map((group) => (
                   <div key={group.id}>
@@ -787,29 +787,35 @@ export default function VenueListingPage({
                   </div>
                 ) : null}
               </div>
-            </section>
-          ) : null}
+            ) : (
+              <p className="mt-2 text-sm text-gray-600">
+                Amenities haven’t been listed yet.
+              </p>
+            )}
+          </section>
 
-          {ruleValues.length || extraHouseRules ? (
-            <section aria-label="House rules">
-              <h2 className="text-xl font-bold text-gray-900">House rules</h2>
-              {ruleValues.length ? (
-                <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                  {ruleValues.map((rule) => (
-                    <li key={rule} className="flex items-start gap-2">
-                      <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
-                      <span>{getVenueRuleLabel(rule)}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {extraHouseRules ? (
-                <p className="mt-3 whitespace-pre-line text-gray-700">
-                  {extraHouseRules}
-                </p>
-              ) : null}
-            </section>
-          ) : null}
+          <section aria-label="House rules">
+            <h2 className="text-xl font-bold text-gray-900">House rules</h2>
+            {ruleValues.length ? (
+              <ul className="mt-3 space-y-2 text-sm text-gray-700">
+                {ruleValues.map((rule) => (
+                  <li key={rule} className="flex items-start gap-2">
+                    <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+                    <span>{getVenueRuleLabel(rule)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-gray-600">
+                No house rules have been added yet.
+              </p>
+            )}
+            {extraHouseRules ? (
+              <p className="mt-3 whitespace-pre-line text-gray-700">
+                {extraHouseRules}
+              </p>
+            ) : null}
+          </section>
 
           <section aria-label="Cancellation policy">
             <h2 className="text-xl font-bold text-gray-900">
@@ -822,16 +828,20 @@ export default function VenueListingPage({
             </p>
           </section>
 
-          {mapEmbedUrl ? (
-            <section
-              aria-label="Location"
-              id="location"
-              style={{ scrollMarginTop: sectionScrollMarginTop }}
-            >
-              <h2 className="text-xl font-bold text-gray-900">Location</h2>
-              {mapQuery ? (
-                <p className="mt-2 text-sm text-gray-700">{mapQuery}</p>
-              ) : null}
+          <section
+            aria-label="Location"
+            id="location"
+            style={{ scrollMarginTop: sectionScrollMarginTop }}
+          >
+            <h2 className="text-xl font-bold text-gray-900">Location</h2>
+            {mapQuery ? (
+              <p className="mt-2 text-sm text-gray-700">{mapQuery}</p>
+            ) : (
+              <p className="mt-2 text-sm text-gray-600">
+                Location hasn’t been added yet.
+              </p>
+            )}
+            {mapEmbedUrl ? (
               <div className="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
                 <iframe
                   title={`Map: ${mapQuery || "Venue location"}`}
@@ -842,18 +852,18 @@ export default function VenueListingPage({
                   referrerPolicy="no-referrer-when-downgrade"
                 />
               </div>
-              {mapLinkUrl ? (
-                <a
-                  href={mapLinkUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 inline-block text-sm font-semibold text-brand-dark hover:underline"
-                >
-                  Open in Google Maps
-                </a>
-              ) : null}
-            </section>
-          ) : null}
+            ) : null}
+            {mapLinkUrl ? (
+              <a
+                href={mapLinkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-sm font-semibold text-brand-dark hover:underline"
+              >
+                Open in Google Maps
+              </a>
+            ) : null}
+          </section>
 
           <section
             aria-label="Reviews"
