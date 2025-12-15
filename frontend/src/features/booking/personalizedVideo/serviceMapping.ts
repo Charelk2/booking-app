@@ -8,6 +8,10 @@ export interface PvBookingConfig {
   defaultLengthChoice: PvLengthChoice;
   supportedLanguages: string[];
   defaultLanguage: string;
+  minNoticeDays: number;
+  rushCustomEnabled: boolean;
+  rushFeeZar: number;
+  rushWithinDays: number;
 }
 
 const DEFAULT_LANGS = ["EN", "AF"] as const;
@@ -25,11 +29,33 @@ export function fromServiceToPvBookingConfig(service?: Service | null): PvBookin
 
   const defaultLanguage = langs[0] || DEFAULT_LANGS[0];
 
+  const minNoticeDays = (() => {
+    const n = Number(details.min_notice_days ?? 1);
+    if (!Number.isFinite(n)) return 1;
+    return Math.max(0, Math.min(365, Math.trunc(n)));
+  })();
+
+  const rushCustomEnabled = Boolean(details.rush_custom_enabled);
+  const rushFeeZar = (() => {
+    const n = Number(details.rush_fee_zar ?? 0);
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, Math.round(n));
+  })();
+  const rushWithinDays = (() => {
+    const n = Number(details.rush_within_days ?? 2);
+    if (!Number.isFinite(n)) return 2;
+    return Math.max(0, Math.min(30, Math.trunc(n)));
+  })();
+
   return {
     basePriceZar: base,
     addOnLongZar: addOn,
     defaultLengthChoice,
     supportedLanguages: langs,
     defaultLanguage,
+    minNoticeDays,
+    rushCustomEnabled,
+    rushFeeZar,
+    rushWithinDays,
   };
 }

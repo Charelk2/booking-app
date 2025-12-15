@@ -41,13 +41,6 @@ function formatCurrency(val: number, currency = "ZAR", locale = "en-ZA") {
   return new Intl.NumberFormat(locale, { style: "currency", currency }).format(Number.isFinite(val) ? val : 0);
 }
 
-function toIsoDateUtc(day: string): string {
-  // day: YYYY-MM-DD -> 00:00:00Z
-  const [y, m, d] = day.split("-").map((s) => parseInt(s, 10));
-  const dt = new Date(Date.UTC(y || 1970, (m || 1) - 1, d || 1, 0, 0, 0));
-  return dt.toISOString();
-}
-
 // =============================================================================
 // STEP 1 — BOOKING WIZARD (Sheet)
 // =============================================================================
@@ -62,6 +55,10 @@ interface WizardProps {
   defaultLengthChoice?: PvLengthChoice;
   supportedLanguages?: string[];
   defaultLanguage?: string;
+  minNoticeDays?: number;
+  rushCustomEnabled?: boolean;
+  rushFeeZar?: number;
+  rushWithinDays?: number;
 }
 
 export default function BookinWizardPersonilsedVideo({
@@ -74,6 +71,10 @@ export default function BookinWizardPersonilsedVideo({
   defaultLengthChoice,
   supportedLanguages,
   defaultLanguage,
+  minNoticeDays = 1,
+  rushCustomEnabled = false,
+  rushFeeZar = 0,
+  rushWithinDays = 2,
 }: WizardProps) {
   const router = useRouter();
 
@@ -82,6 +83,10 @@ export default function BookinWizardPersonilsedVideo({
     serviceId,
     basePriceZar,
     addOnLongZar,
+    minNoticeDays,
+    rushCustomEnabled,
+    rushFeeZar,
+    rushWithinDays,
     onDraftCreated: (orderId, isDemo) => {
       // close sheet and route
       onClose();
@@ -110,7 +115,10 @@ export default function BookinWizardPersonilsedVideo({
     setLanguage: (value: string) => actions.updateDraftField("language", value as any),
   };
 
-  const minDate = useMemo(() => new Date(Date.now() + 24 * 3600000).toISOString().slice(0, 10), []);
+  const minDate = useMemo(() => {
+    const days = Number.isFinite(minNoticeDays) ? Math.max(0, Math.trunc(minNoticeDays)) : 1;
+    return new Date(Date.now() + days * 24 * 3600000).toISOString().slice(0, 10);
+  }, [minNoticeDays]);
 
   const languageOptions = useMemo(() => {
     const codes = supportedLanguages && supportedLanguages.length > 0 ? supportedLanguages : ["EN", "AF"];
@@ -340,7 +348,6 @@ export default function BookinWizardPersonilsedVideo({
                       {pricing.priceAddOn > 0 ? ` • Length ${formatCurrency(pricing.priceAddOn)}` : ""}
                       {pricing.rushFee > 0 ? ` • Rush ${formatCurrency(pricing.rushFee)}` : ""}
                       {pricing.discount > 0 ? ` • Discount −${formatCurrency(pricing.discount)}` : ""}
-                      {ENABLE_PV_ORDERS ? " • Fees/VAT shown on next screen" : ""}
                     </div>
                   </div>
 

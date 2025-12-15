@@ -69,6 +69,15 @@ export default function MusicianPersonalizedVideoFlow({
     setExistingMediaUrl(service?.media_url ?? null);
     setMediaError(null);
     actions.reset();
+
+    const existingDetails = (service?.details || {}) as Record<string, any>;
+    const hasCustomRush =
+      existingDetails.rush_custom_enabled === true ||
+      existingDetails.rush_fee_zar != null ||
+      existingDetails.rush_within_days != null;
+    if (hasCustomRush) {
+      actions.setTypeField("rush_custom_enabled", true);
+    }
   }, [isOpen, service, actions]);
 
   const handleCancel = () => {
@@ -95,7 +104,9 @@ export default function MusicianPersonalizedVideoFlow({
       (state.common.title || "").trim().length >= 5 &&
       (state.common.description || "").trim().length >= 20 &&
       Number(state.common.price || 0) > 0 &&
-      state.typeFields.base_length_sec
+      state.typeFields.base_length_sec &&
+      Number(state.typeFields.max_videos_per_day || 0) >= 1 &&
+      Number(state.typeFields.min_notice_days ?? 0) >= 0
     );
   };
 
@@ -334,6 +345,91 @@ export default function MusicianPersonalizedVideoFlow({
                             );
                           })}
                         </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          Availability rules
+                        </h3>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <TextInput
+                            label="Minimum notice (days)"
+                            type="number"
+                            value={state.typeFields.min_notice_days ?? 1}
+                            min={0}
+                            onChange={(e) =>
+                              actions.setTypeField(
+                                "min_notice_days",
+                                Number(e.target.value || 0),
+                              )
+                            }
+                          />
+                          <TextInput
+                            label="Max videos per day"
+                            type="number"
+                            value={state.typeFields.max_videos_per_day ?? 3}
+                            min={1}
+                            onChange={(e) =>
+                              actions.setTypeField(
+                                "max_videos_per_day",
+                                Number(e.target.value || 0),
+                              )
+                            }
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          We’ll mark a day as unavailable when you reach your max bookings for that day.
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          Rush pricing
+                        </h3>
+                        <label className="flex items-center gap-3 text-sm text-gray-800">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={Boolean(state.typeFields.rush_custom_enabled)}
+                            onChange={(e) =>
+                              actions.setTypeField("rush_custom_enabled", e.target.checked)
+                            }
+                          />
+                          Add a rush fee for short-notice deliveries
+                        </label>
+
+                        {Boolean(state.typeFields.rush_custom_enabled) ? (
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <TextInput
+                              label="Rush fee (ZAR)"
+                              type="number"
+                              value={state.typeFields.rush_fee_zar ?? 0}
+                              min={0}
+                              onChange={(e) =>
+                                actions.setTypeField(
+                                  "rush_fee_zar",
+                                  Number(e.target.value || 0),
+                                )
+                              }
+                            />
+                            <TextInput
+                              label="Rush applies within (days)"
+                              type="number"
+                              value={state.typeFields.rush_within_days ?? 2}
+                              min={0}
+                              onChange={(e) =>
+                                actions.setTypeField(
+                                  "rush_within_days",
+                                  Number(e.target.value || 0),
+                                )
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-500">
+                            Rush pricing stays on the default system rules until you enable custom rush pricing.
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}

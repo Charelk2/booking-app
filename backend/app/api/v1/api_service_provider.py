@@ -1792,6 +1792,152 @@ def read_artist_profile_full_by_slug(slug: str, db: Session = Depends(get_db)):
 
 
 @router.get(
+    "/{artist_id}/pv-availability",
+    response_model=ArtistAvailabilityResponse,
+    response_model_exclude_none=True,
+)
+def read_artist_pv_availability(
+    artist_id: int,
+    service_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Return unavailable PV delivery dates for an artist based on PV daily capacity.
+
+    Unlike the standard availability endpoint, this does not consult Google Calendar.
+    A date is unavailable once the provider reaches their configured PV bookings-per-day.
+    """
+    try:
+        from app.schemas.pv import PvStatus  # local import to avoid import-time coupling
+        from app.services.pv_orders import load_pv_payload
+    except Exception:
+        # If PV modules aren't available, fail open (best-effort) so booking flows don't 5xx.
+        return {"unavailable_dates": []}
+
+    def _parse_delivery_dt(delivery_by_utc: str) -> Optional[datetime]:
+        if not delivery_by_utc:
+            return None
+        raw = str(delivery_by_utc).strip()
+        try:
+            if len(raw) == 10:  # YYYY-MM-DD
+                return datetime.fromisoformat(raw)
+            from datetime import timezone as _tz  # local import to avoid widening module imports
+
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(_tz.utc).replace(tzinfo=None)
+            return dt
+        except Exception:
+            return None
+
+    # Find PV services for this artist (capacity is per artist per day, across PV services).
+    try:
+        pv_services = (
+            db.query(Service)
+            .filter(Service.artist_id == artist_id)
+            .filter(Service.service_type.ilike("%personalized video%"))
+            .order_by(Service.id.asc())
+            .all()
+        )
+    except Exception:
+        logger.exception("Failed to load PV services (artist_id=%s)", artist_id)
+        return {"unavailable_dates": []}
+
+    if not pv_services:
+        return {"unavailable_dates": []}
+
+    cfg_service: Service | None = None
+    if service_id:
+        for svc in pv_services:
+            if int(getattr(svc, "id", 0) or 0) == int(service_id):
+                cfg_service = svc
+                break
+        if cfg_service is None:
+            raise HTTPException(status_code=404, detail="Service not found")
+    else:
+        cfg_service = pv_services[0]
+
+    details = (getattr(cfg_service, "details", None) or {}) if cfg_service else {}
+    try:
+        max_per_day_raw = details.get("max_videos_per_day", None)
+    except Exception:
+        max_per_day_raw = None
+
+    try:
+        max_per_day = int(max_per_day_raw) if max_per_day_raw is not None else 3
+    except Exception:
+        max_per_day = 3
+    if max_per_day < 1:
+        max_per_day = 1
+    if max_per_day > 50:
+        max_per_day = 50
+
+    pv_service_ids = [int(getattr(s, "id", 0) or 0) for s in pv_services if int(getattr(s, "id", 0) or 0) > 0]
+    if not pv_service_ids:
+        return {"unavailable_dates": []}
+
+    # Range: today -> 365 days
+    start_day = datetime.utcnow().date()
+    start_dt = datetime.combine(start_day, datetime.min.time())
+    end_dt = start_dt + timedelta(days=365)
+
+    # Treat unpaid PV drafts as holding a slot briefly to avoid oversell.
+    hold_minutes = 30
+    now = datetime.utcnow()
+
+    counts: Dict[str, int] = defaultdict(int)
+
+    try:
+        q = (
+            db.query(BookingRequest)
+            .filter(BookingRequest.artist_id == artist_id)
+            .filter(BookingRequest.service_id.in_(pv_service_ids))
+            .order_by(BookingRequest.id.asc())
+        )
+        rows = q.all()
+    except Exception:
+        logger.exception("Failed to load PV booking requests (artist_id=%s)", artist_id)
+        return {"unavailable_dates": []}
+
+    for br in rows:
+        extras = getattr(br, "service_extras", None)
+        if not isinstance(extras, dict) or "pv" not in extras:
+            continue
+
+        try:
+            pv = load_pv_payload(br)
+        except Exception:
+            continue
+
+        delivery_dt = _parse_delivery_dt(getattr(pv, "delivery_by_utc", None) or "")
+        if delivery_dt is None:
+            continue
+        if delivery_dt < start_dt or delivery_dt >= end_dt:
+            continue
+
+        status_val = getattr(pv, "status", None)
+        status_raw = str(getattr(status_val, "value", status_val) or "").strip().lower()
+
+        if status_raw in {PvStatus.CANCELLED.value, PvStatus.REFUNDED.value, "canceled"}:
+            continue
+
+        if status_raw == PvStatus.AWAITING_PAYMENT.value:
+            created_at = getattr(pv, "awaiting_payment_at_utc", None)
+            if created_at is None:
+                continue
+            try:
+                if (now - created_at).total_seconds() > (hold_minutes * 60):
+                    continue
+            except Exception:
+                continue
+
+        day_key = delivery_dt.date().isoformat()
+        counts[day_key] += 1
+
+    unavailable = sorted([d for d, c in counts.items() if c >= max_per_day])
+    return {"unavailable_dates": unavailable}
+
+
+@router.get(
     "/{artist_id}/availability",
     response_model=ArtistAvailabilityResponse,
     response_model_exclude_none=True,

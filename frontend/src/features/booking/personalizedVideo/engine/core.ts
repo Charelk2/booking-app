@@ -51,11 +51,36 @@ export interface PvEngineCore {
 
 type LengthChoice = "30_45" | "60_90";
 
-function computeRushFee(base: number, deliveryBy: Date, now: Date): number {
-  const hours = Math.max(0, (deliveryBy.getTime() - now.getTime()) / 3600000);
-  if (hours <= 24) return Math.round(base * 0.75);
-  if (hours <= 48) return Math.round(base * 0.4);
-  return 0;
+const MS_PER_DAY = 24 * 3600000;
+
+function utcStartOfDayMs(dt: Date): number {
+  return Date.UTC(
+    dt.getUTCFullYear(),
+    dt.getUTCMonth(),
+    dt.getUTCDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+}
+
+function isoDayToUtcMs(day: string): number | null {
+  const raw = String(day || "").trim();
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const date = Number(m[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(date)) return null;
+  return Date.UTC(year, month - 1, date, 0, 0, 0, 0);
+}
+
+function daysUntilUtc(day: string, now: Date): number | null {
+  const target = isoDayToUtcMs(day);
+  if (target == null) return null;
+  const today = utcStartOfDayMs(now);
+  return Math.round((target - today) / MS_PER_DAY);
 }
 
 function toIsoDateUtc(day: string): string {
@@ -75,6 +100,24 @@ export function createPersonalizedVideoEngineCore(
       return v != null;
     }).length;
   };
+
+  const minNoticeDays = (() => {
+    const n = Number(params.minNoticeDays ?? 1);
+    if (!Number.isFinite(n)) return 1;
+    return Math.max(0, Math.min(365, Math.trunc(n)));
+  })();
+
+  const rushCustomEnabled = Boolean(params.rushCustomEnabled);
+  const rushFeeZar = (() => {
+    const n = Number(params.rushFeeZar ?? 0);
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, Math.round(n));
+  })();
+  const rushWithinDays = (() => {
+    const n = Number(params.rushWithinDays ?? 2);
+    if (!Number.isFinite(n)) return 2;
+    return Math.max(0, Math.min(30, Math.trunc(n)));
+  })();
 
   let state: PersonalizedVideoEngine["state"] = {
     stepId: "draft",
@@ -145,9 +188,17 @@ export function createPersonalizedVideoEngineCore(
       draft.lengthChoice === "60_90" ? s.pricing.addOnLongZar : 0;
 
     let rushFee = 0;
-    if (draft.deliveryBy) {
-      const deliveryDate = new Date(`${draft.deliveryBy}T00:00:00`);
-      rushFee = computeRushFee(base, deliveryDate, env.now());
+    const daysUntil = draft.deliveryBy ? daysUntilUtc(draft.deliveryBy, env.now()) : null;
+    if (daysUntil != null && daysUntil >= 0) {
+      if (rushCustomEnabled) {
+        if (rushWithinDays > 0 && rushFeeZar > 0 && daysUntil <= rushWithinDays) {
+          rushFee = rushFeeZar;
+        }
+      } else {
+        // Legacy rush pricing (kept for backward compatibility with existing services).
+        if (daysUntil <= 1) rushFee = Math.round(base * 0.75);
+        else if (daysUntil <= 2) rushFee = Math.round(base * 0.4);
+      }
     }
 
     const code = draft.promo.trim().toUpperCase();
@@ -157,6 +208,9 @@ export function createPersonalizedVideoEngineCore(
     const total = Math.max(0, subtotal - discount);
 
     const lengthSec = draft.lengthChoice === "30_45" ? 40 : 75;
+    const meetsNotice =
+      !draft.deliveryBy ||
+      (daysUntil != null && daysUntil >= minNoticeDays);
 
     setState({
       pricing: {
@@ -171,12 +225,15 @@ export function createPersonalizedVideoEngineCore(
       status: {
         ...s.status,
         canContinue:
+          meetsNotice &&
           s.status.available !== false &&
           !!draft.deliveryBy &&
           total > 0,
         disabledReason:
           !draft.deliveryBy
             ? "Choose a delivery date"
+            : !meetsNotice
+            ? `Requires at least ${minNoticeDays} day${minNoticeDays === 1 ? "" : "s"} notice`
             : s.status.available === false
             ? "Not available for that date"
             : total <= 0
@@ -275,6 +332,20 @@ export function createPersonalizedVideoEngineCore(
             available: null,
           },
         });
+        return;
+      }
+
+      const noticeDaysUntil = daysUntilUtc(deliveryBy, env.now());
+      if (noticeDaysUntil == null || noticeDaysUntil < minNoticeDays) {
+        setState({
+          availabilityStatus: "unavailable",
+          status: {
+            ...getState().status,
+            checking: false,
+            available: false,
+          },
+        });
+        recalcPricingInternal();
         return;
       }
 

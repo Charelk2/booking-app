@@ -1175,6 +1175,10 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
           defaultLengthChoice={pvConfig?.defaultLengthChoice ?? "30_45"}
           supportedLanguages={pvConfig?.supportedLanguages}
           defaultLanguage={pvConfig?.defaultLanguage}
+          minNoticeDays={pvConfig?.minNoticeDays ?? 1}
+          rushCustomEnabled={pvConfig?.rushCustomEnabled ?? false}
+          rushFeeZar={pvConfig?.rushFeeZar ?? 0}
+          rushWithinDays={pvConfig?.rushWithinDays ?? 2}
           serviceId={selectedVideoService?.id}
         />
       )}

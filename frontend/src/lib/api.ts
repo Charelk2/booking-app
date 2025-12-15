@@ -791,6 +791,15 @@ export const getServiceProvider = async (slugOrId: number | string) => {
 export const getServiceProviderAvailability = (serviceProviderId: number) =>
   api.get<{ unavailable_dates: string[] }>(`${API_V1}/service-provider-profiles/${serviceProviderId}/availability`);
 
+export const getServiceProviderPvAvailability = (
+  serviceProviderId: number,
+  serviceId?: number,
+) =>
+  api.get<{ unavailable_dates: string[] }>(
+    `${API_V1}/service-provider-profiles/${serviceProviderId}/pv-availability`,
+    { params: serviceId ? { service_id: serviceId } : undefined },
+  );
+
 export const getServiceProviderProfileMe = async () => {
   const res = await api.get<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/me`);
   return { ...res, data: normalizeServiceProviderProfile(res.data) };

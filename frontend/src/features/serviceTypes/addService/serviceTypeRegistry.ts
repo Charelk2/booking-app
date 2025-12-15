@@ -92,6 +92,45 @@ const personalizedVideoFields: ServiceTypeField[] = [
     ],
     defaultValue: ["EN"],
   },
+  {
+    key: "min_notice_days",
+    kind: "number",
+    label: "Minimum notice (days)",
+    helper: "How many days in advance you need for delivery.",
+    required: false,
+    defaultValue: 1,
+  },
+  {
+    key: "max_videos_per_day",
+    kind: "number",
+    label: "Max videos per day",
+    helper: "How many personalised videos you can take per day.",
+    required: false,
+    defaultValue: 3,
+  },
+  {
+    key: "rush_custom_enabled",
+    kind: "toggle",
+    label: "Custom rush pricing",
+    helper: "Charge an extra rush fee for short-notice delivery.",
+    defaultValue: false,
+  },
+  {
+    key: "rush_fee_zar",
+    kind: "price",
+    label: "Rush fee",
+    helper: "Extra fee added when rush applies.",
+    required: false,
+    defaultValue: 0,
+  },
+  {
+    key: "rush_within_days",
+    kind: "number",
+    label: "Rush applies within (days)",
+    helper: "Apply rush fee when delivery is within this many days.",
+    required: false,
+    defaultValue: 2,
+  },
 ];
 
 const customSongFields: ServiceTypeField[] = [
@@ -141,12 +180,78 @@ const otherFields: ServiceTypeField[] = [
 
 const venueDayHireFields: ServiceTypeField[] = [
   {
+    key: "venue_type",
+    kind: "text",
+    label: "Venue type",
+    helper: "Optional label like garden, hall, lodge, studio, rooftop.",
+    required: false,
+    defaultValue: "",
+  },
+  {
+    key: "address",
+    kind: "text",
+    label: "Address",
+    helper: "Displayed to clients after the venue confirms the booking (or earlier if you choose).",
+    required: false,
+    defaultValue: "",
+  },
+  {
     key: "capacity",
     kind: "number",
     label: "Capacity (guests)",
     helper: "Max guest capacity for the venue.",
     required: true,
     defaultValue: "",
+  },
+  {
+    key: "amenities",
+    kind: "multi_select",
+    label: "Amenities",
+    required: false,
+    defaultValue: [],
+  },
+  {
+    key: "cleaning_fee",
+    kind: "price",
+    label: "Cleaning fee (optional)",
+    required: false,
+    defaultValue: 0,
+  },
+  {
+    key: "security_deposit",
+    kind: "price",
+    label: "Security deposit (optional, refundable)",
+    required: false,
+    defaultValue: 0,
+  },
+  {
+    key: "overtime_rate",
+    kind: "price",
+    label: "Overtime rate (optional, per hour)",
+    required: false,
+    defaultValue: 0,
+  },
+  {
+    key: "house_rules",
+    kind: "textarea",
+    label: "House rules",
+    helper: "Noise, smoking, catering, decor, parking, time limits, etc.",
+    required: false,
+    defaultValue: "",
+  },
+  {
+    key: "cancellation_policy",
+    kind: "textarea",
+    label: "Cancellation policy override (optional)",
+    required: false,
+    defaultValue: "",
+  },
+  {
+    key: "gallery_urls",
+    kind: "text",
+    label: "Gallery (internal)",
+    required: false,
+    defaultValue: [],
   },
 ];
 
@@ -336,11 +441,46 @@ const personalizedVideoConfig: ServiceTypeConfig = {
       ? typeFields.languages
       : [];
 
+    const minNoticeDaysRaw = typeFields.min_notice_days;
+    const minNoticeDays = (() => {
+      const n = typeof minNoticeDaysRaw === "number" ? minNoticeDaysRaw : Number(minNoticeDaysRaw);
+      if (!Number.isFinite(n)) return 1;
+      return Math.max(0, Math.min(365, Math.trunc(n)));
+    })();
+
+    const maxVideosPerDayRaw = typeFields.max_videos_per_day;
+    const maxVideosPerDay = (() => {
+      const n = typeof maxVideosPerDayRaw === "number" ? maxVideosPerDayRaw : Number(maxVideosPerDayRaw);
+      if (!Number.isFinite(n)) return 3;
+      return Math.max(1, Math.min(50, Math.trunc(n)));
+    })();
+
+    const rushCustomEnabled = Boolean(typeFields.rush_custom_enabled);
+    const rushFeeZarRaw = typeFields.rush_fee_zar;
+    const rushFeeZar = (() => {
+      const n = typeof rushFeeZarRaw === "number" ? rushFeeZarRaw : Number(rushFeeZarRaw);
+      if (!Number.isFinite(n)) return 0;
+      return Math.max(0, Math.round(n));
+    })();
+    const rushWithinDaysRaw = typeFields.rush_within_days;
+    const rushWithinDays = (() => {
+      const n = typeof rushWithinDaysRaw === "number" ? rushWithinDaysRaw : Number(rushWithinDaysRaw);
+      if (!Number.isFinite(n)) return 2;
+      return Math.max(0, Math.min(30, Math.trunc(n)));
+    })();
+
     const details: Record<string, any> = {
       base_length_sec: baseLengthSec,
       long_addon_price: longAddonPrice,
       languages,
+      min_notice_days: minNoticeDays,
+      max_videos_per_day: maxVideosPerDay,
+      rush_custom_enabled: rushCustomEnabled,
     };
+    if (rushCustomEnabled) {
+      details.rush_fee_zar = rushFeeZar;
+      details.rush_within_days = rushWithinDays;
+    }
 
     return {
       title: common.title,
@@ -390,13 +530,46 @@ const venueDayHireConfig: ServiceTypeConfig = {
   serviceTypeLabel: "Other",
   fields: venueDayHireFields,
   buildPayload(common, typeFields, opts) {
-    const capacityRaw = typeFields.capacity;
-    const capacity =
-      capacityRaw !== "" && capacityRaw != null ? Number(capacityRaw) : undefined;
+    const toOptionalString = (v: unknown): string | undefined => {
+      if (typeof v !== "string") return undefined;
+      const t = v.trim();
+      return t ? t : undefined;
+    };
+
+    const toOptionalPositiveInt = (v: unknown): number | undefined => {
+      const n = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(n)) return undefined;
+      const i = Math.trunc(n);
+      return i > 0 ? i : undefined;
+    };
+
+    const toOptionalNonNegativeMoney = (v: unknown): number | undefined => {
+      const n = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(n)) return undefined;
+      const m = Math.max(0, Math.round(n));
+      return m > 0 ? m : undefined;
+    };
+
+    const capacity = toOptionalPositiveInt(typeFields.capacity);
+    const amenities = Array.isArray(typeFields.amenities)
+      ? (typeFields.amenities as unknown[]).map(String).map((s) => s.trim()).filter(Boolean)
+      : [];
+    const gallery_urls = Array.isArray(typeFields.gallery_urls)
+      ? (typeFields.gallery_urls as unknown[]).map(String).map((s) => s.trim()).filter(Boolean)
+      : [];
 
     const details: Record<string, any> = {
       duration_label: "Per day",
       capacity,
+      venue_type: toOptionalString(typeFields.venue_type),
+      address: toOptionalString(typeFields.address),
+      amenities,
+      cleaning_fee: toOptionalNonNegativeMoney(typeFields.cleaning_fee),
+      security_deposit: toOptionalNonNegativeMoney(typeFields.security_deposit),
+      overtime_rate: toOptionalNonNegativeMoney(typeFields.overtime_rate),
+      house_rules: toOptionalString(typeFields.house_rules),
+      cancellation_policy: toOptionalString(typeFields.cancellation_policy),
+      gallery_urls,
     };
 
     return {
@@ -404,7 +577,8 @@ const venueDayHireConfig: ServiceTypeConfig = {
       description: common.description,
       service_type: "Other",
       price: common.price,
-      duration_minutes: 60,
+      // Represent a day hire. (Bookings use proposed_datetime_1 for the event date.)
+      duration_minutes: 1440,
       service_category_slug: opts.serviceCategorySlug,
       details,
     };

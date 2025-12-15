@@ -193,11 +193,27 @@ def _compute_pv_pricing(svc: Service, payload: VideoOrderCreate) -> dict[str, An
     delivery_dt = _parse_delivery_dt(payload.delivery_by_utc)
     if delivery_dt:
         now = datetime.now(timezone.utc)
-        hours = max(0.0, (delivery_dt - now).total_seconds() / 3600.0)
-        if hours <= 24:
-            rush_fee = (base * Decimal("0.75")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-        elif hours <= 48:
-            rush_fee = (base * Decimal("0.4")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        days_until = (delivery_dt.date() - now.date()).days
+
+        rush_custom_enabled = bool(details.get("rush_custom_enabled"))
+        if rush_custom_enabled:
+            try:
+                rush_fee_zar = Decimal(str(details.get("rush_fee_zar") or 0))
+            except Exception:
+                rush_fee_zar = Decimal("0")
+            try:
+                rush_within_days = int(details.get("rush_within_days") or 0)
+            except Exception:
+                rush_within_days = 0
+
+            if rush_within_days > 0 and rush_fee_zar > 0 and 0 <= days_until <= rush_within_days:
+                rush_fee = rush_fee_zar.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        else:
+            # Legacy rush pricing (kept for backward compatibility with existing services).
+            if days_until <= 1:
+                rush_fee = (base * Decimal("0.75")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+            elif days_until <= 2:
+                rush_fee = (base * Decimal("0.4")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
     subtotal = base + add_on + rush_fee
     promo = (payload.promo_code or "").strip().upper()
@@ -299,6 +315,118 @@ def create_video_order(
             existing = db.query(BookingRequest).filter(BookingRequest.id == existing_id).first()
             if existing:
                 return _to_video_order_response(existing)
+
+        delivery_dt = _parse_delivery_dt(payload.delivery_by_utc)
+        if delivery_dt is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid delivery date",
+            )
+
+        details = svc.details or {}
+        try:
+            min_notice_days = int(details.get("min_notice_days") or 1)
+        except Exception:
+            min_notice_days = 1
+        if min_notice_days < 0:
+            min_notice_days = 0
+        if min_notice_days > 365:
+            min_notice_days = 365
+
+        try:
+            max_per_day = int(details.get("max_videos_per_day") or 3)
+        except Exception:
+            max_per_day = 3
+        if max_per_day < 1:
+            max_per_day = 1
+        if max_per_day > 50:
+            max_per_day = 50
+
+        now = datetime.now(timezone.utc)
+        days_until = (delivery_dt.date() - now.date()).days
+        if days_until < min_notice_days:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Delivery date must be at least {min_notice_days} day(s) from today",
+            )
+
+        # Capacity guard: count PV orders on the requested delivery date.
+        # We treat unpaid drafts as holding a slot briefly to avoid oversell.
+        hold_minutes = 30
+        target_day = delivery_dt.date().isoformat()
+        try:
+            pv_service_ids = [
+                int(r[0])
+                for r in (
+                    db.query(Service.id)
+                    .filter(Service.artist_id == payload.artist_id)
+                    .filter(Service.service_type.ilike("%personalized video%"))
+                    .all()
+                )
+                if int(r[0] or 0) > 0
+            ]
+        except Exception:
+            pv_service_ids = [int(getattr(svc, "id", 0) or 0)]
+
+        if not pv_service_ids:
+            pv_service_ids = [int(getattr(svc, "id", 0) or 0)]
+
+        booked_count = 0
+        try:
+            q = (
+                db.query(BookingRequest)
+                .filter(BookingRequest.artist_id == payload.artist_id)
+                .filter(BookingRequest.service_id.in_(pv_service_ids))
+                .order_by(BookingRequest.id.asc())
+            )
+            # Narrow candidates on Postgres when possible
+            try:
+                if db.bind and db.bind.dialect.name == "postgresql":
+                    q = q.filter(text("service_extras::jsonb ? 'pv'"))
+            except Exception:
+                pass
+            candidates = q.all()
+        except Exception:
+            candidates = []
+
+        for br_row in candidates:
+            extras = getattr(br_row, "service_extras", None)
+            if not isinstance(extras, dict) or "pv" not in extras:
+                continue
+            try:
+                pv_row = load_pv_payload(br_row)
+            except Exception:
+                continue
+
+            row_delivery_dt = _parse_delivery_dt(getattr(pv_row, "delivery_by_utc", None) or "")
+            if row_delivery_dt is None:
+                continue
+            if row_delivery_dt.date().isoformat() != target_day:
+                continue
+
+            status_val = getattr(pv_row, "status", None)
+            status_raw = str(getattr(status_val, "value", status_val) or "").strip().lower()
+            if status_raw in {PvStatus.CANCELLED.value, PvStatus.REFUNDED.value, "canceled"}:
+                continue
+            if status_raw == PvStatus.AWAITING_PAYMENT.value:
+                created_at = getattr(pv_row, "awaiting_payment_at_utc", None)
+                if created_at is None:
+                    continue
+                try:
+                    if (datetime.utcnow() - created_at).total_seconds() > (hold_minutes * 60):
+                        continue
+                except Exception:
+                    continue
+
+            booked_count += 1
+            if booked_count >= max_per_day:
+                break
+
+        if booked_count >= max_per_day:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Fully booked for that date",
+            )
 
         pricing = _compute_pv_pricing(svc, payload)
         br = BookingRequest(

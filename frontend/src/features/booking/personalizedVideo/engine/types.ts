@@ -131,6 +131,10 @@ export interface PersonalizedVideoEngineParams {
   serviceId?: number;
   basePriceZar: number;
   addOnLongZar: number;
+  minNoticeDays?: number;
+  rushCustomEnabled?: boolean;
+  rushFeeZar?: number;
+  rushWithinDays?: number;
   orderId?: number;
   threadId?: number;
   onDraftCreated?: (orderId: number, isDemo: boolean) => void;

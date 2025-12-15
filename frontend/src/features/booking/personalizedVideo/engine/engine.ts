@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Toast } from "@/components/ui";
-import { getServiceProviderAvailability } from "@/lib/api";
+import { getServiceProviderPvAvailability } from "@/lib/api";
 import {
   PersonalizedVideoEngine,
   PersonalizedVideoEngineParams,
@@ -158,7 +158,7 @@ export function usePersonalizedVideoOrderEngine(
       availability: {
         async getUnavailableDates(artistId: number): Promise<string[]> {
           try {
-            const res = await getServiceProviderAvailability(artistId);
+            const res = await getServiceProviderPvAvailability(artistId, params.serviceId);
             return (res?.data?.unavailable_dates || []) as string[];
           } catch {
             return [];
