@@ -379,6 +379,15 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const selectedServiceObj = selectedServiceId ? services.find((s) => s.id === selectedServiceId) ?? null : null;
 
   async function handleBookService(service: Service) {
+    if (!authLoading && !user) {
+      const next =
+        typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : "/";
+      router.push(`/auth?intent=login&next=${encodeURIComponent(next)}`);
+      return;
+    }
+
     const type = (service as any).service_type;
     const category = (service as any).service_category_slug;
     if (category === 'venue' || category === 'wedding_venue') {
@@ -1499,6 +1508,8 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
       {/* Service Details Modal */}
       {isDetailsOpen && detailedService && (() => {
         const d = getServiceDisplay(detailedService);
+        const category = String((detailedService as any)?.service_category_slug || '').toLowerCase();
+        const isVenueService = category === 'venue' || category === 'wedding_venue';
         return (
         <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Service details">
           <div className="absolute inset-0 bg-black/40 transition-opacity duration-200" onClick={() => setIsDetailsOpen(false)} aria-hidden="true" />
@@ -1530,8 +1541,33 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
         )}
       </div>
       <div className="mt-auto flex gap-3 pt-2">
-        <button onClick={() => setIsDetailsOpen(false)} className="w-1/2 inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">Close</button>
-        <button onClick={() => { handleBookService(detailedService); setIsDetailsOpen(false); }} className="w-1/2 inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition">Book this service</button>
+        {isVenueService ? (
+          <>
+            <button
+              onClick={() => {
+                setIsDetailsOpen(false);
+                router.push(`/services/${detailedService.id}`);
+              }}
+              className="w-1/2 inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+            >
+              View listing
+            </button>
+            <button
+              onClick={() => {
+                handleBookService(detailedService);
+                setIsDetailsOpen(false);
+              }}
+              className="w-1/2 inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition"
+            >
+              Request to book
+            </button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => setIsDetailsOpen(false)} className="w-1/2 inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">Close</button>
+            <button onClick={() => { handleBookService(detailedService); setIsDetailsOpen(false); }} className="w-1/2 inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition">Book this service</button>
+          </>
+        )}
       </div>
     </div>
   </div>

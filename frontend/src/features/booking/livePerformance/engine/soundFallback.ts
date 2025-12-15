@@ -1,5 +1,6 @@
 import { estimatePriceSafe, calculateSoundServiceEstimate } from "@/lib/api";
 import { computeSoundServicePrice } from "@/lib/soundPricing";
+import type { SoundEstimatePayload } from "@/lib/shared/estimates/sound";
 
 type SoundFallbackStageSize = "S" | "M" | "L";
 
@@ -22,8 +23,19 @@ export interface SoundFallbackParams {
 
 export interface SoundFallbackDeps {
   loadService?: (serviceId: number) => Promise<any | null>;
-  pricebookEstimate?: typeof estimatePriceSafe;
-  calculateEstimate?: typeof calculateSoundServiceEstimate;
+  pricebookEstimate?: (
+    serviceId: number,
+    payload: any,
+  ) => Promise<{
+    estimate_min: number | null;
+    estimate_max: number | null;
+    breakdown?: Record<string, any>;
+    pricebook_missing?: boolean;
+  }>;
+  calculateEstimate?: (
+    serviceId: number,
+    payload: SoundEstimatePayload,
+  ) => Promise<{ total?: number | null } | null>;
   log?: (event: string, data?: any) => void;
 }
 
@@ -47,7 +59,16 @@ export async function computeFallbackSoundCost(
 
   const log = deps?.log;
   const pricebookEstimate = deps?.pricebookEstimate ?? estimatePriceSafe;
-  const calculateEstimate = deps?.calculateEstimate ?? calculateSoundServiceEstimate;
+  const calculateEstimate =
+    deps?.calculateEstimate ??
+    (async (serviceId: number, payload: SoundEstimatePayload) => {
+      try {
+        const resp = await calculateSoundServiceEstimate(serviceId, payload);
+        return (resp as any)?.data || null;
+      } catch {
+        return null;
+      }
+    });
   const loadService = deps?.loadService;
 
   const guestCount =
@@ -55,6 +76,12 @@ export async function computeFallbackSoundCost(
       ? Number(params.guestCount)
       : undefined;
   const stageSize = params.stageRequired ? params.stageSize || "S" : null;
+  const venueType = (() => {
+    const raw = String(params.venueType || "").toLowerCase();
+    if (raw === "outdoor") return "outdoor";
+    if (raw === "hybrid") return "hybrid";
+    return "indoor";
+  })() satisfies SoundEstimatePayload["venue_type"];
 
   // 1) Pricebook audience tiers
   try {
@@ -89,16 +116,13 @@ export async function computeFallbackSoundCost(
   try {
     const svcEstimate = await calculateEstimate(supplierServiceId, {
       guest_count: guestCount || 0,
-      venue_type: (params.venueType as any) || "indoor",
+      venue_type: venueType,
       stage_required: !!params.stageRequired,
       stage_size: stageSize,
       lighting_evening: !!params.lightingEvening,
       upgrade_lighting_advanced: !!params.lightingUpgradeAdvanced,
       rider_units: params.riderUnits,
       backline_requested: params.backlineRequested,
-      backline_required: !!params.backlineRequired,
-      event_city: params.eventCity || undefined,
-      distance_km: params.distanceKm ?? undefined,
     });
     const t = toNumber((svcEstimate as any)?.total);
     if (Number.isFinite(t) && t > 0) {

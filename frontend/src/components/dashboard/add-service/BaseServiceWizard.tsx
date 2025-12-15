@@ -24,10 +24,32 @@ function useImageThumbnails(files: File[]) {
   const [thumbnails, setThumbnails] = useState<string[]>([]);
 
   useEffect(() => {
-    const urls = files.map((file) => URL.createObjectURL(file));
+    if (
+      typeof URL === "undefined" ||
+      typeof URL.createObjectURL !== "function"
+    ) {
+      setThumbnails([]);
+      return;
+    }
+
+    const urls = files
+      .map((file) => {
+        try {
+          return URL.createObjectURL(file);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as string[];
+
     setThumbnails(urls);
     return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
+      if (typeof URL.revokeObjectURL !== "function") return;
+      urls.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {}
+      });
     };
   }, [files]);
 

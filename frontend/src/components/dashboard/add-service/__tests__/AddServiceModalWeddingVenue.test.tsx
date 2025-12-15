@@ -10,6 +10,10 @@ describe("AddServiceModalWeddingVenue", () => {
     const createSpy = jest
       .spyOn(api, "createService")
       .mockResolvedValue({ data: {} } as any);
+    jest
+      .spyOn(api, "presignServiceMedia")
+      .mockResolvedValue({ key: "media/venue.jpg", put_url: "https://upload.example", headers: {} } as any);
+    (global as any).fetch = jest.fn().mockResolvedValue({ ok: true } as any);
 
     render(
       <AddServiceModalWeddingVenue
@@ -43,7 +47,7 @@ describe("AddServiceModalWeddingVenue", () => {
         price: 500,
         service_type: "Other",
         details: { capacity: 200 },
-        media_url: expect.stringContaining("base64"),
+        media_url: expect.stringContaining("media/"),
         service_category_slug: "venue",
       }),
     );

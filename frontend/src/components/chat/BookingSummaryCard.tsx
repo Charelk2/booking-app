@@ -5,6 +5,7 @@ import SafeImage from '@/components/ui/SafeImage';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import { format, isValid } from 'date-fns';
 import { getFullImageUrl, formatCurrency, buildReceiptUrl } from '@/lib/utils';
+import { apiUrl } from '@/lib/api';
 import { resolveQuoteTotalsPreview, QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 import { Booking, QuoteV2 } from '@/types';
 import Button from '../ui/Button';
@@ -264,6 +265,72 @@ export default function BookingSummaryCard({
     !!bookingDetails &&
     Number(user.id) === Number((bookingDetails as any).client_id);
 
+  const isProvider =
+    !!user &&
+    !!bookingDetails &&
+    Number(user.id) === Number(currentArtistId || 0);
+
+  type Payout = {
+    id: number;
+    booking_id: number | null;
+    amount: number;
+    currency: string;
+    status: string;
+    type: string;
+    scheduled_at: string | null;
+    paid_at: string | null;
+    reference: string | null;
+  };
+
+  const bookingId = bookingDetails?.id ?? null;
+  const [payoutsForBooking, setPayoutsForBooking] = React.useState<Payout[] | null>(null);
+  const [payoutsLoading, setPayoutsLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isProvider || !bookingId) {
+      setPayoutsForBooking(null);
+      setPayoutsLoading(false);
+      return;
+    }
+    let cancelled = false;
+
+    const payoutStageOrder = (t: string): number => {
+      const v = String(t || '').toLowerCase();
+      if (v === 'first50') return 1;
+      if (v === 'final50') return 2;
+      return 99;
+    };
+
+    (async () => {
+      setPayoutsLoading(true);
+      try {
+        const res = await fetch(apiUrl('/api/v1/payouts/me?limit=200&offset=0'), { credentials: 'include' });
+        if (!res.ok) throw new Error(`payouts ${res.status}`);
+        const data = (await res.json()) as { items?: Payout[] };
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const filtered = items
+          .filter((p) => Number(p?.booking_id || 0) === Number(bookingId))
+          .sort((a, b) => {
+            const stage = payoutStageOrder(a.type) - payoutStageOrder(b.type);
+            if (stage !== 0) return stage;
+            return (a.id || 0) - (b.id || 0);
+          });
+        if (cancelled) return;
+        setPayoutsForBooking(filtered);
+      } catch {
+        if (cancelled) return;
+        setPayoutsForBooking([]);
+      } finally {
+        if (cancelled) return;
+        setPayoutsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isProvider, bookingId]);
+
   // Sticky mobile CTA height measurement to create safe bottom space
   const stickyRef = React.useRef<HTMLDivElement | null>(null);
   const [stickyH, setStickyH] = React.useState(0);
@@ -513,44 +580,115 @@ export default function BookingSummaryCard({
 
                 const showReceipt = Boolean(isClient && receiptUrl);
 
-                if (!showReceipt && !providerHref && !bookaHref) return null;
+                const showPayoutDocs = Boolean(
+                  isProvider &&
+                    bookingId &&
+                    (payoutsLoading ||
+                      (Array.isArray(payoutsForBooking) &&
+                        payoutsForBooking.length > 0)),
+                );
+
+                if (!showReceipt && !providerHref && !bookaHref && !showPayoutDocs) return null;
+
+                const payoutStageLabel = (t: string): string => {
+                  const v = String(t || '').toLowerCase();
+                  if (v === 'first50') return 'First payout (50%)';
+                  if (v === 'final50') return 'Final payout (50%)';
+                  return t || 'Payout';
+                };
+
+                const formatDateSafe = (ts: string | null): string => {
+                  if (!ts) return '—';
+                  const d = new Date(ts);
+                  if (Number.isNaN(d.getTime())) return '—';
+                  try {
+                    return format(d, 'd MMM yyyy');
+                  } catch {
+                    return '—';
+                  }
+                };
 
                 return (
-                  <div className="pt-2 border-t border-gray-100 text-right space-y-1">
-                    {showReceipt && (
-                      <a
-                        href={receiptUrl as string}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
-                      >
-                        View receipt
-                      </a>
-                    )}
-                    {providerHref && (
-                      <div>
+                  <div className="pt-2 border-t border-gray-100">
+                    <div className="text-xs font-semibold text-gray-700">Documents</div>
+                    <div className="mt-2 space-y-2 text-right">
+                      {showReceipt && (
                         <a
-                          href={providerHref}
+                          href={receiptUrl as string}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
                         >
-                          Download provider invoice
+                          View receipt
                         </a>
-                      </div>
-                    )}
-                    {bookaHref && (
-                      <div>
-                        <a
-                          href={bookaHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
-                        >
-                          Download Booka tax invoice
-                        </a>
-                      </div>
-                    )}
+                      )}
+                      {providerHref && (
+                        <div>
+                          <a
+                            href={providerHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
+                          >
+                            Download provider invoice
+                          </a>
+                        </div>
+                      )}
+                      {bookaHref && (
+                        <div>
+                          <a
+                            href={bookaHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
+                          >
+                            Download Booka tax invoice
+                          </a>
+                        </div>
+                      )}
+
+                      {isProvider && (
+                        <div className="space-y-1 text-left">
+                          {payoutsLoading ? (
+                            <div className="text-xs text-gray-500">
+                              Loading payout schedule…
+                            </div>
+                          ) : null}
+                          {Array.isArray(payoutsForBooking) &&
+                          payoutsForBooking.length > 0 ? (
+                            <div className="space-y-2">
+                              {payoutsForBooking.map((p) => (
+                                <div
+                                  key={p.id}
+                                  className="flex items-start justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-semibold text-gray-900">
+                                      {payoutStageLabel(p.type)}
+                                    </div>
+                                    <div className="mt-0.5 text-[11px] text-gray-600">
+                                      Scheduled {formatDateSafe(p.scheduled_at)} ·{' '}
+                                      {String(p.status || '').toLowerCase() ===
+                                      'paid'
+                                        ? `Paid ${formatDateSafe(p.paid_at)}`
+                                        : `Status ${p.status || 'queued'}`}
+                                    </div>
+                                  </div>
+                                  <a
+                                    href={apiUrl(`/api/v1/payouts/${p.id}/pdf`)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="shrink-0 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
+                                  >
+                                    Remittance PDF
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })()}

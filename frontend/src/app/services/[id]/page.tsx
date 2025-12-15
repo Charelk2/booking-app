@@ -8,6 +8,7 @@ import { Service, Review } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { StarIcon } from '@heroicons/react/24/outline';
 import { Spinner } from '@/components/ui';
+import VenueListingPage from '@/features/venues/ui/VenueListingPage';
 
 export default function ServiceDetailPage() {
   const params = useParams();
@@ -49,6 +50,21 @@ export default function ServiceDetailPage() {
     return (
       <MainLayout>
         <div className="p-8 text-red-600">{error || 'Service not found'}</div>
+      </MainLayout>
+    );
+  }
+
+  const isVenue = (() => {
+    const any: any = service as any;
+    const slug = String(any?.service_category_slug || '').toLowerCase();
+    const name = String(any?.service_category?.name || '').toLowerCase();
+    return slug === 'venue' || slug === 'wedding_venue' || name.includes('venue');
+  })();
+
+  if (isVenue) {
+    return (
+      <MainLayout>
+        <VenueListingPage service={service} reviews={reviews} />
       </MainLayout>
     );
   }

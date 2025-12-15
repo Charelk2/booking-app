@@ -17,6 +17,7 @@ import ProviderProfilePanel from '@/components/chat/MessageThread/ProviderProfil
 import usePaymentModal from '@/hooks/usePaymentModal';
 import SoundInlineQuote from '@/components/chat/inlinequote/SoundInlineQuote';
 import LivePerformanceInlineQuote from '@/components/chat/inlinequote/LivePerformanceInlineQuote';
+import VenueInlineQuote from '@/components/chat/inlinequote/VenueInlineQuote';
 import {
   createQuoteV2,
   getQuotesForBookingRequest,
@@ -888,6 +889,15 @@ export default function MessageThreadWrapper({
     );
   }, [effectiveBookingRequest]);
 
+  const isVenueThread = useMemo(() => {
+    const raw: any = effectiveBookingRequest;
+    if (!raw) return false;
+    const svc = raw.service || {};
+    const slug = String(svc.service_category_slug || '').toLowerCase();
+    const catName = String(svc.service_category?.name || '').toLowerCase();
+    return slug === 'venue' || slug === 'wedding_venue' || catName.includes('venue');
+  }, [effectiveBookingRequest]);
+
   return (
     <div className="flex flex-col h-full w-full relative">
       {/* Unified header */}
@@ -1505,6 +1515,36 @@ export default function MessageThreadWrapper({
                   <div className="text-sm text-gray-700">
                     Quotes are handled via the Personalised Video flow for this request. You can continue the brief or delivery in the thread.
                   </div>
+                ) : isVenueThread ? (
+                  <VenueInlineQuote
+                    onSubmit={async (payload) => {
+                      try {
+                        const res = await createQuoteV2(payload);
+                        try { setQuote(res.data as any); } catch {}
+                        try { await ensureQuotesLoaded?.([Number(res.data.id)] as any); } catch {}
+                        setShowQuoteModal(false);
+                      } catch (e) {
+                        console.error('Create quote failed', e);
+                      }
+                    }}
+                    artistId={Number((effectiveBookingRequest as any).service_provider_id || (effectiveBookingRequest as any).artist_id || 0)}
+                    clientId={Number((effectiveBookingRequest as any).client_id || 0)}
+                    bookingRequestId={Number(bookingRequestId || 0)}
+                    serviceName={effectiveBookingRequest?.service?.title || 'Venue rental'}
+                    initialBaseFee={effectiveBookingRequest?.service?.price ? Number(effectiveBookingRequest.service.price) : undefined}
+                    initialItems={(() => {
+                      const svc: any = (effectiveBookingRequest as any)?.service || {};
+                      const d: any = svc?.details || {};
+                      const out: Array<{ description: string; price: number }> = [];
+                      const cleaning = Number(d?.cleaning_fee || 0);
+                      if (Number.isFinite(cleaning) && cleaning > 0) out.push({ description: 'Cleaning fee', price: cleaning });
+                      const deposit = Number(d?.security_deposit || 0);
+                      if (Number.isFinite(deposit) && deposit > 0) out.push({ description: 'Security deposit (refundable)', price: deposit });
+                      const overtime = Number(d?.overtime_rate || 0);
+                      if (Number.isFinite(overtime) && overtime > 0) out.push({ description: 'Overtime (per hour)', price: overtime });
+                      return out;
+                    })()}
+                  />
                 ) : (
                   <LivePerformanceInlineQuote
                   onSubmit={async (payload) => {
