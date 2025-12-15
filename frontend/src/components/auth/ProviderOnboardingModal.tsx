@@ -324,7 +324,7 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                       I agree to the{' '}
                       <a href="/terms" className="underline text-black hover:text-black">
                         Provider Terms
-                      </a>.
+                      </a>
                     </label>
                   </div>
                   {errors.acceptProviderTerms && (

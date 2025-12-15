@@ -184,7 +184,7 @@ export default function BookinWizardPersonilsedVideo({
               <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-5">
                 <div className="space-y-6">
                   {/* Delivery date */}
-                  <section className="space-y-3">
+                  <section className="space-y-2">
                     <h3 className="sr-only">Delivery date</h3>
 
                     <PersonalizedVideoDatePicker
@@ -225,7 +225,7 @@ export default function BookinWizardPersonilsedVideo({
                   </section>
 
                   {/* Options */}
-                  <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5">
+                  <section>
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                       {/* Video length */}
                       <div>
@@ -244,10 +244,10 @@ export default function BookinWizardPersonilsedVideo({
                                 type="button"
                                 onClick={() => form.setLengthChoice(opt.v)}
                                 className={[
-                                  "rounded-xl border px-3 py-2.5 text-left transition",
+                                  "rounded-xl px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
                                   active
-                                    ? "border-black bg-black text-white shadow-sm"
-                                    : "border-gray-200 bg-white hover:bg-gray-50 text-gray-700",
+                                    ? "bg-black text-white shadow-sm"
+                                    : "bg-gray-50 hover:bg-gray-100 text-gray-700",
                                 ].join(" ")}
                                 aria-pressed={active}
                               >
@@ -275,27 +275,27 @@ export default function BookinWizardPersonilsedVideo({
                           {languageOptions.map((l) => {
                             const active = form.language === l.v;
                             return (
-                              <button
-                                key={l.v}
-                                type="button"
-                                onClick={() => form.setLanguage(l.v)}
-                                className={[
-                                  "rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                                  active
-                                    ? "border-black bg-black text-white"
-                                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-                                ].join(" ")}
-                                aria-pressed={active}
-                              >
-                                {l.l}
-                              </button>
+                            <button
+                              key={l.v}
+                              type="button"
+                              onClick={() => form.setLanguage(l.v)}
+                              className={[
+                                "rounded-full px-3 py-1.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
+                                active
+                                  ? "bg-black text-white"
+                                  : "bg-gray-50 text-gray-700 hover:bg-gray-100",
+                              ].join(" ")}
+                              aria-pressed={active}
+                            >
+                              {l.l}
+                            </button>
                             );
                           })}
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-6 rounded-xl border border-white/10 bg-black p-3 text-xs text-white flex gap-2">
+                    <div className="mt-6 rounded-xl bg-black p-3 text-xs text-white flex gap-2">
                       <ShieldCheckIcon className="h-4 w-4 shrink-0 mt-0.5 text-white/90" />
                       <div>
                         <div className="font-semibold">No charge yet</div>
