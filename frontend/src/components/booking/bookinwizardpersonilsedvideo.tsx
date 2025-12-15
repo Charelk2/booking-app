@@ -121,7 +121,7 @@ export default function BookinWizardPersonilsedVideo({
   }, [supportedLanguages]);
 
   const availabilityUi = useMemo(() => {
-    if (!form.deliveryBy) return { tone: "muted" as const, label: "Select a date to check availability" };
+    if (!form.deliveryBy) return { tone: "muted" as const, label: "" };
     if (status.checking) return { tone: "loading" as const, label: "Checking availability…" };
     if (status.available === true) return { tone: "ok" as const, label: "Available" };
     if (status.available === false) return { tone: "bad" as const, label: "Not available for that date" };
@@ -214,14 +214,11 @@ export default function BookinWizardPersonilsedVideo({
                         </span>
                       )}
                       {availabilityUi.tone === "muted" && (
-                        <span className="text-gray-500">{availabilityUi.label}</span>
+                        availabilityUi.label ? (
+                          <span className="text-gray-500">{availabilityUi.label}</span>
+                        ) : null
                       )}
                     </div>
-
-                    <p className="mt-2 text-xs text-gray-500">
-                      Rush pricing can apply inside{" "}
-                      <span className="font-medium">24–48 hours</span>.
-                    </p>
                   </section>
 
                   {/* Options */}
@@ -232,7 +229,7 @@ export default function BookinWizardPersonilsedVideo({
                         <label className="block text-sm font-medium text-gray-900">
                           Video length
                         </label>
-                        <div className="mt-2 rounded-2xl bg-gray-50 p-1">
+                        <div className="mt-2 space-y-1">
                           {[
                             {
                               v: "30_45" as LengthChoice,
@@ -255,7 +252,7 @@ export default function BookinWizardPersonilsedVideo({
                                 onClick={() => form.setLengthChoice(opt.v)}
                                 className={[
                                   "w-full rounded-xl px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
-                                  active ? "bg-white shadow-sm" : "hover:bg-white/60",
+                                  active ? "bg-gray-100" : "hover:bg-gray-50",
                                 ].join(" ")}
                                 aria-pressed={active}
                               >
@@ -287,42 +284,39 @@ export default function BookinWizardPersonilsedVideo({
                         <label className="block text-sm font-medium text-gray-900">
                           Language
                         </label>
-                        <div className="mt-2 rounded-2xl bg-gray-50 p-1">
-                          <div
-                            className={[
-                              "grid gap-1",
-                              languageOptions.length <= 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3",
-                            ].join(" ")}
-                          >
-                            {languageOptions.map((l) => {
-                              const active = form.language === l.v;
-                              return (
-                                <button
-                                  key={l.v}
-                                  type="button"
-                                  onClick={() => form.setLanguage(l.v)}
-                                  className={[
-                                    "rounded-xl px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
-                                    active ? "bg-white shadow-sm text-gray-900" : "hover:bg-white/60 text-gray-800",
-                                  ].join(" ")}
-                                  aria-pressed={active}
-                                >
-                                  {l.l}
-                                </button>
-                              );
-                            })}
-                          </div>
+                        <div
+                          className={[
+                            "mt-2 grid gap-1",
+                            languageOptions.length <= 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3",
+                          ].join(" ")}
+                        >
+                          {languageOptions.map((l) => {
+                            const active = form.language === l.v;
+                            return (
+                              <button
+                                key={l.v}
+                                type="button"
+                                onClick={() => form.setLanguage(l.v)}
+                                className={[
+                                  "rounded-xl px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
+                                  active
+                                    ? "bg-gray-100 text-gray-900"
+                                    : "hover:bg-gray-50 text-gray-800",
+                                ].join(" ")}
+                                aria-pressed={active}
+                              >
+                                {l.l}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-4 flex items-start gap-2 text-xs text-gray-500">
-                      <ShieldCheckIcon className="h-4 w-4 shrink-0 mt-0.5 text-gray-400" />
-                      <p>
-                        <span className="font-medium text-gray-700">No charge yet.</span>{" "}
-                        You’ll review the full total and can add a promo code on the next screen.
-                      </p>
-                    </div>
+                    <p className="mt-4 text-xs text-gray-500">
+                      <span className="font-medium text-gray-700">No charge yet.</span> You’ll
+                      review the full total and can add a promo code on the next screen.
+                    </p>
                   </section>
                 </div>
               </div>
