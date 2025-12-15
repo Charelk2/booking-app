@@ -19,6 +19,9 @@ type Props = {
 type FormValues = {
   phone_number: string;
   dob?: string;
+  dob_day?: string;
+  dob_month?: string;
+  dob_year?: string;
   acceptProviderTerms: boolean;
   password?: string;
   confirmPassword?: string;
@@ -31,15 +34,80 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
   const defaults = useMemo(() => ({
     phone_number: user?.phone_number || '',
     dob: '',
+    dob_day: '',
+    dob_month: '',
+    dob_year: '',
     acceptProviderTerms: false,
   }), [user]);
 
-  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<FormValues>({ defaultValues: defaults });
+  const { register, handleSubmit, reset, setValue, getValues, watch, formState: { errors, isSubmitting } } = useForm<FormValues>({ defaultValues: defaults });
   const password = watch('password') || '';
+  const dobDay = (watch('dob_day') || '').trim();
+  const dobMonth = (watch('dob_month') || '').trim();
+  const dobYear = (watch('dob_year') || '').trim();
+
+  const months = useMemo(
+    () => [
+      { value: '1', label: 'Jan' },
+      { value: '2', label: 'Feb' },
+      { value: '3', label: 'Mar' },
+      { value: '4', label: 'Apr' },
+      { value: '5', label: 'May' },
+      { value: '6', label: 'Jun' },
+      { value: '7', label: 'Jul' },
+      { value: '8', label: 'Aug' },
+      { value: '9', label: 'Sep' },
+      { value: '10', label: 'Oct' },
+      { value: '11', label: 'Nov' },
+      { value: '12', label: 'Dec' },
+    ],
+    [],
+  );
+
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const startYear = 1900;
+    const out: string[] = [];
+    for (let y = currentYear; y >= startYear; y -= 1) out.push(String(y));
+    return out;
+  }, []);
+
+  const daysInMonth = useMemo(() => {
+    const m = Number(dobMonth);
+    if (!Number.isFinite(m) || m < 1 || m > 12) return 31;
+    const y = Number(dobYear) || 2000; // leap-year-friendly default
+    return new Date(y, m, 0).getDate();
+  }, [dobMonth, dobYear]);
+
+  const dobIso = useMemo(() => {
+    const y = Number(dobYear);
+    const m = Number(dobMonth);
+    const d = Number(dobDay);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return '';
+    if (y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return '';
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return '';
+    if (dt.getTime() > Date.now()) return '';
+    const mm = String(m).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    return `${String(y).padStart(4, '0')}-${mm}-${dd}`;
+  }, [dobDay, dobMonth, dobYear]);
 
   const [error, setError] = useState('');
 
   useEffect(() => { reset(defaults); }, [defaults, reset]);
+
+  useEffect(() => {
+    setValue('dob', dobIso, { shouldDirty: true, shouldValidate: true });
+  }, [dobIso, setValue]);
+
+  useEffect(() => {
+    if (!dobDay) return;
+    const d = Number(dobDay);
+    if (!Number.isFinite(d) || d < 1 || d > daysInMonth) {
+      setValue('dob_day', '', { shouldDirty: true, shouldValidate: true });
+    }
+  }, [dobDay, daysInMonth, setValue]);
 
   const onSubmit = async (data: FormValues) => {
     setError('');
@@ -55,7 +123,7 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
         last_name: user?.last_name || '',
         email: user?.email || '',
         phone_number: (data.phone_number || '').trim() || undefined,
-        dob: data.dob || undefined,
+        dob: dobIso || undefined,
       });
       try { await refreshUser?.(); } catch {}
       onClose();
@@ -104,8 +172,83 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium">Date of birth (optional)</label>
-                    <input type="date" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('dob')} />
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="block text-sm font-medium">Date of birth (optional)</label>
+                      {dobDay || dobMonth || dobYear ? (
+                        <button
+                          type="button"
+                          className="text-xs text-gray-500 underline hover:text-gray-700"
+                          onClick={() => {
+                            setValue('dob_day', '', { shouldDirty: true, shouldValidate: true });
+                            setValue('dob_month', '', { shouldDirty: true, shouldValidate: true });
+                            setValue('dob_year', '', { shouldDirty: true, shouldValidate: true });
+                            setValue('dob', '', { shouldDirty: true, shouldValidate: true });
+                          }}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Choose month, day, and year (or leave blank).</p>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      <label className="sr-only" htmlFor="dob_month">Month</label>
+                      <select
+                        id="dob_month"
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        {...register('dob_month')}
+                      >
+                        <option value="">Month</option>
+                        {months.map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label className="sr-only" htmlFor="dob_day">Day</label>
+                      <select
+                        id="dob_day"
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        disabled={!dobMonth}
+                        {...register('dob_day')}
+                      >
+                        <option value="">Day</option>
+                        {Array.from({ length: daysInMonth }, (_, idx) => String(idx + 1)).map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label className="sr-only" htmlFor="dob_year">Year</label>
+                      <select
+                        id="dob_year"
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        {...register('dob_year')}
+                      >
+                        <option value="">Year</option>
+                        {years.map((y) => (
+                          <option key={y} value={y}>
+                            {y}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <input
+                      type="hidden"
+                      {...register('dob', {
+                        validate: () => {
+                          const v = (getValues('dob') || '').trim();
+                          const any = Boolean(dobDay || dobMonth || dobYear);
+                          const all = Boolean(dobDay && dobMonth && dobYear);
+                          if (!any) return true;
+                          if (!all) return 'Please select month, day, and year.';
+                          if (!v) return 'Please select a valid date.';
+                          return true;
+                        },
+                      })}
+                    />
+                    {errors.dob && <p className="mt-1 text-xs text-red-600">{errors.dob.message}</p>}
                   </div>
 
                   <div className="flex items-start gap-3">
