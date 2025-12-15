@@ -305,11 +305,11 @@ export default function BookinWizardPersonilsedVideo({
                       </div>
                     </div>
 
-                    <div className="mt-6 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs text-emerald-900 flex gap-2">
-                      <ShieldCheckIcon className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div className="mt-6 rounded-xl border border-white/10 bg-black p-3 text-xs text-white flex gap-2">
+                      <ShieldCheckIcon className="h-4 w-4 shrink-0 mt-0.5 text-white/90" />
                       <div>
-                        <div className="font-medium">No charge yet</div>
-                        <div className="text-emerald-800/80">
+                        <div className="font-semibold">No charge yet</div>
+                        <div className="text-white/70">
                           You’ll review the full total and can add a promo code on the next screen.
                         </div>
                       </div>

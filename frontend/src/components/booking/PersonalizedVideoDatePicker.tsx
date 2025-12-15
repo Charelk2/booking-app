@@ -85,10 +85,10 @@ export function PersonalizedVideoDatePicker({
 
   return (
     <div className="w-full flex justify-center">
-      <div className="w-full max-w-[340px] rounded-2xl border border-gray-100 bg-white p-4 shadow-sm select-none">
+      <div className="w-full max-w-[440px] rounded-2xl border border-gray-100 bg-white p-3 sm:p-4 shadow-sm select-none">
         
         {/* --- Header --- */}
-        <div className="flex items-center justify-between mb-4 px-1">
+        <div className="flex items-center justify-between mb-3 px-1">
           <button
             onClick={(e) => { e.preventDefault(); prevMonth(); }}
             disabled={isPrevDisabled}
@@ -115,16 +115,19 @@ export function PersonalizedVideoDatePicker({
         </div>
 
         {/* --- Weekday Labels --- */}
-        <div className="grid grid-cols-7 mb-2">
+        <div className="grid grid-cols-7 mb-1">
           {weekDayLabels.map((day) => (
-            <div key={day} className="h-8 flex items-center justify-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+            <div
+              key={day}
+              className="h-7 flex items-center justify-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider"
+            >
               {day}
             </div>
           ))}
         </div>
 
         {/* --- Days Grid --- */}
-        <div className="grid grid-cols-7 gap-y-1">
+        <div className="grid grid-cols-7 gap-1">
           {calendarDays.map((day, idx) => {
             // Determine Day State
             const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
@@ -134,7 +137,7 @@ export function PersonalizedVideoDatePicker({
             const isRush = !isDisabled && isBefore(day, rushThreshold);
 
             // Calculation Classes
-            let buttonClass = "relative h-10 w-10 mx-auto flex items-center justify-center rounded-full text-sm transition-all duration-200 ";
+            let buttonClass = "relative h-8 w-full flex items-center justify-center rounded-full text-sm transition-all duration-200 ";
             
             if (isDisabled) {
                buttonClass += "text-gray-200 line-through decoration-gray-200 cursor-not-allowed";
@@ -147,7 +150,7 @@ export function PersonalizedVideoDatePicker({
             }
 
             return (
-              <div key={day.toString()} className="relative">
+              <div key={day.toString()} className="relative px-0.5">
                 <button
                   onClick={(e) => { e.preventDefault(); handleDateClick(day); }}
                   disabled={isDisabled}
@@ -171,7 +174,7 @@ export function PersonalizedVideoDatePicker({
         </div>
 
         {/* --- Legend --- */}
-        <div className="mt-4 pt-3 border-t border-gray-50 flex items-center justify-center gap-5 text-[10px] text-gray-400 font-medium uppercase tracking-wide">
+        <div className="mt-3 pt-2 border-t border-gray-50 flex items-center justify-center gap-4 text-[10px] text-gray-400 font-medium uppercase tracking-wide">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-black"></div>
             <span>Selected</span>
