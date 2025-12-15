@@ -27,6 +27,65 @@ type FormValues = {
   confirmPassword?: string;
 };
 
+type DobParts = {
+  day: string;
+  month: string;
+  year: string;
+};
+
+function parseMonthInput(raw: string): number | null {
+  const s = String(raw || '').trim().toLowerCase();
+  if (!s) return null;
+
+  const n = Number(s);
+  if (Number.isInteger(n) && n >= 1 && n <= 12) return n;
+
+  const key = s.replace(/[^a-z]/g, '');
+  const map: Record<string, number> = {
+    jan: 1,
+    january: 1,
+    feb: 2,
+    february: 2,
+    mar: 3,
+    march: 3,
+    apr: 4,
+    april: 4,
+    may: 5,
+    jun: 6,
+    june: 6,
+    jul: 7,
+    july: 7,
+    aug: 8,
+    august: 8,
+    sep: 9,
+    sept: 9,
+    september: 9,
+    oct: 10,
+    october: 10,
+    nov: 11,
+    november: 11,
+    dec: 12,
+    december: 12,
+  };
+  return map[key] || null;
+}
+
+function tryParseDobInput(raw: string): DobParts | null {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+
+  let m = s.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+  if (m) return { year: m[1], month: m[2], day: m[3] };
+
+  m = s.match(/^(\d{1,2})[./-](\d{1,2}|[A-Za-z]{3,9})[./-](\d{4})$/);
+  if (m) return { day: m[1], month: m[2], year: m[3] };
+
+  m = s.match(/^(\d{2})(\d{2})(\d{4})$/);
+  if (m) return { day: m[1], month: m[2], year: m[3] };
+
+  return null;
+}
+
 export default function ProviderOnboardingModal({ isOpen, onClose, next, showSetPassword = false }: Props) {
   const { user, refreshUser } = useAuth();
   const router = useRouter();
@@ -72,19 +131,12 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
     return out;
   }, []);
 
-  const daysInMonth = useMemo(() => {
-    const m = Number(dobMonth);
-    if (!Number.isFinite(m) || m < 1 || m > 12) return 31;
-    const y = Number(dobYear) || 2000; // leap-year-friendly default
-    return new Date(y, m, 0).getDate();
-  }, [dobMonth, dobYear]);
-
   const dobIso = useMemo(() => {
     const y = Number(dobYear);
-    const m = Number(dobMonth);
+    const m = parseMonthInput(dobMonth);
     const d = Number(dobDay);
-    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return '';
-    if (y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return '';
+    if (!Number.isFinite(y) || !Number.isFinite(d) || !m) return '';
+    if (y < 1900 || d < 1 || d > 31) return '';
     const dt = new Date(Date.UTC(y, m - 1, d));
     if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return '';
     if (dt.getTime() > Date.now()) return '';
@@ -100,14 +152,6 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
   useEffect(() => {
     setValue('dob', dobIso, { shouldDirty: true, shouldValidate: true });
   }, [dobIso, setValue]);
-
-  useEffect(() => {
-    if (!dobDay) return;
-    const d = Number(dobDay);
-    if (!Number.isFinite(d) || d < 1 || d > daysInMonth) {
-      setValue('dob_day', '', { shouldDirty: true, shouldValidate: true });
-    }
-  }, [dobDay, daysInMonth, setValue]);
 
   const onSubmit = async (data: FormValues) => {
     setError('');
@@ -134,6 +178,9 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
   };
 
   const mustProvidePhone = !user?.phone_number;
+  const dobDayReg = register('dob_day');
+  const dobMonthReg = register('dob_month');
+  const dobYearReg = register('dob_year');
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -174,11 +221,11 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                   <div>
                     <div className="flex items-center justify-between gap-3">
                       <label className="block text-sm font-medium">Date of birth (optional)</label>
-                      {dobDay || dobMonth || dobYear ? (
-                        <button
-                          type="button"
-                          className="text-xs text-gray-500 underline hover:text-gray-700"
-                          onClick={() => {
+                    {dobDay || dobMonth || dobYear ? (
+                      <button
+                        type="button"
+                        className="text-xs text-gray-500 underline hover:text-gray-700"
+                        onClick={() => {
                             setValue('dob_day', '', { shouldDirty: true, shouldValidate: true });
                             setValue('dob_month', '', { shouldDirty: true, shouldValidate: true });
                             setValue('dob_year', '', { shouldDirty: true, shouldValidate: true });
@@ -189,50 +236,87 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                         </button>
                       ) : null}
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">Choose month, day, and year (or leave blank).</p>
+                    <p className="mt-1 text-xs text-gray-500">Enter day, month, and year (DD/MM/YYYY) — or leave blank.</p>
                     <div className="mt-2 grid grid-cols-3 gap-2">
-                      <label className="sr-only" htmlFor="dob_month">Month</label>
-                      <select
-                        id="dob_month"
-                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                        {...register('dob_month')}
-                      >
-                        <option value="">Month</option>
-                        {months.map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label}
-                          </option>
-                        ))}
-                      </select>
-
                       <label className="sr-only" htmlFor="dob_day">Day</label>
-                      <select
+                      <input
                         id="dob_day"
+                        inputMode="numeric"
+                        autoComplete="bday-day"
+                        placeholder="DD"
+                        maxLength={2}
                         className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                        disabled={!dobMonth}
-                        {...register('dob_day')}
-                      >
-                        <option value="">Day</option>
-                        {Array.from({ length: daysInMonth }, (_, idx) => String(idx + 1)).map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
+                        {...dobDayReg}
+                        onChange={(e) => {
+                          const parsed = tryParseDobInput(e.target.value);
+                          if (parsed) {
+                            setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
+                            setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
+                            setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
+                            return;
+                          }
+                          dobDayReg.onChange(e);
+                        }}
+                      />
+
+                      <label className="sr-only" htmlFor="dob_month">Month</label>
+                      <div className="relative">
+                        <input
+                          id="dob_month"
+                          autoComplete="bday-month"
+                          placeholder="MM (or Jan)"
+                          list="dob_months"
+                          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                          {...dobMonthReg}
+                          onChange={(e) => {
+                            const parsed = tryParseDobInput(e.target.value);
+                            if (parsed) {
+                              setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
+                              setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
+                              setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
+                              return;
+                            }
+                            dobMonthReg.onChange(e);
+                          }}
+                        />
+                        <datalist id="dob_months">
+                          {months.map((m) => (
+                            <option key={`m-${m.value}`} value={m.label} />
+                          ))}
+                          {months.map((m) => (
+                            <option key={`n-${m.value}`} value={m.value} />
+                          ))}
+                        </datalist>
+                      </div>
 
                       <label className="sr-only" htmlFor="dob_year">Year</label>
-                      <select
+                      <div className="relative">
+                        <input
                         id="dob_year"
-                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                        {...register('dob_year')}
-                      >
-                        <option value="">Year</option>
-                        {years.map((y) => (
-                          <option key={y} value={y}>
-                            {y}
-                          </option>
-                        ))}
-                      </select>
+                          inputMode="numeric"
+                          autoComplete="bday-year"
+                          placeholder="YYYY"
+                          maxLength={4}
+                          list="dob_years"
+                          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                          {...dobYearReg}
+                          onChange={(e) => {
+                            const parsed = tryParseDobInput(e.target.value);
+                            if (parsed) {
+                              setValue('dob_day', parsed.day, { shouldDirty: true, shouldValidate: true });
+                              setValue('dob_month', parsed.month, { shouldDirty: true, shouldValidate: true });
+                              setValue('dob_year', parsed.year, { shouldDirty: true, shouldValidate: true });
+                              return;
+                            }
+                            dobYearReg.onChange(e);
+                          }}
+                        />
+                        <datalist id="dob_years">
+                          {years.map((y) => (
+                            <option key={y} value={y} />
+                          ))}
+                        </datalist>
+                      </div>
                     </div>
                     <input
                       type="hidden"
@@ -242,8 +326,8 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                           const any = Boolean(dobDay || dobMonth || dobYear);
                           const all = Boolean(dobDay && dobMonth && dobYear);
                           if (!any) return true;
-                          if (!all) return 'Please select month, day, and year.';
-                          if (!v) return 'Please select a valid date.';
+                          if (!all) return 'Please enter day, month, and year.';
+                          if (!v) return 'Please enter a valid date.';
                           return true;
                         },
                       })}

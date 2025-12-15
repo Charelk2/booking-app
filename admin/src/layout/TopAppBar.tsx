@@ -5,6 +5,9 @@ import SearchIcon from '@mui/icons-material/Search';
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 import NearMeIcon from '@mui/icons-material/NearMe';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+import { inferAdminApiUrl } from '../env';
+
+const ADMIN_API_URL = inferAdminApiUrl();
 
 export default function TopAppBar(props: AppBarProps) {
   const dp = useDataProvider();
@@ -18,20 +21,17 @@ export default function TopAppBar(props: AppBarProps) {
     const run = async () => {
       try {
         // Prefer a dedicated stats endpoint (single request); fall back to getList totals.
-        const maybe: any = dp;
-        if (maybe?.httpClient && maybe?.API_URL) {
-          try {
-            const { json } = await maybe.httpClient(`${maybe.API_URL}/stats`, { method: 'GET' });
-            const next = {
-              pending: Number(json?.pending_listings ?? 0),
-              payouts: Number(json?.queued_payouts ?? 0),
-              disputes: Number(json?.open_disputes ?? 0),
-            };
-            if (!cancelled) setCounts(next);
-            return;
-          } catch {
-            // ignore; fallback below
-          }
+        try {
+          const { json } = await (dp as any).httpClient(`${ADMIN_API_URL}/stats`, { method: 'GET' });
+          const next = {
+            pending: Number(json?.pending_listings ?? 0),
+            payouts: Number(json?.queued_payouts ?? 0),
+            disputes: Number(json?.open_disputes ?? 0),
+          };
+          if (!cancelled) setCounts(next);
+          return;
+        } catch {
+          // ignore; fallback below
         }
 
         const [listings, payouts, disputes] = await Promise.all([

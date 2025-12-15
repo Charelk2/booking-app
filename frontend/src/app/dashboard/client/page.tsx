@@ -515,103 +515,103 @@ export default function ClientDashboardPage() {
               </section>
 
               <div className="space-y-6">
-                <section className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900">Personalised Video</h2>
-                      <p className="text-sm text-gray-500">
-                        Finish briefs, payments, and view deliveries.
-                      </p>
+                {(loadingVideoOrders || videoOrders.length > 0) && (
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-semibold text-gray-900">
+                          Personalised Video
+                        </h2>
+                        <p className="text-sm text-gray-500">
+                          Finish briefs, payments, and view deliveries.
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  {loadingVideoOrders ? (
-                    <div className="py-6 flex justify-center">
-                      <Spinner />
-                    </div>
-                  ) : videoOrders.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-sm text-gray-600">
-                      No personalised video orders yet.
-                    </div>
-                  ) : (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {videoOrders.map((order) => {
-                        const status = String(order.status || "").toLowerCase();
-                        const needsPayment = status === "awaiting_payment";
-                        const needsBrief = status === "paid" || status === "info_pending";
-                        const delivered =
-                          status === "delivered" ||
-                          status === "completed" ||
-                          status === "closed";
-                        const inProd = status === "in_production";
-                        let actionHref = `/video-orders/${order.id}`;
-                        let actionLabel = "View order";
-                        if (needsPayment) {
-                          actionHref = `/video-orders/${order.id}/pay`;
-                          actionLabel = "Complete payment";
-                        } else if (needsBrief) {
-                          actionHref = `/video-orders/${order.id}/brief`;
-                          actionLabel = "Finish brief";
-                        } else if (delivered) {
-                          actionHref = `/video-orders/${order.id}`;
-                          actionLabel = "View delivery";
-                        } else if (inProd) {
-                          actionLabel = "Track progress";
-                        }
-                        return (
-                          <div
-                            key={order.id}
-                            className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="text-sm font-semibold text-gray-900">
-                                  Order #{order.id}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Delivery by{" "}
-                                  {order.delivery_by_utc
-                                    ? format(new Date(order.delivery_by_utc), "MMM d, yyyy")
-                                    : "—"}
-                                </p>
+                    {loadingVideoOrders ? (
+                      <div className="py-6 flex justify-center">
+                        <Spinner />
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {videoOrders.map((order) => {
+                          const status = String(order.status || "").toLowerCase();
+                          const needsPayment = status === "awaiting_payment";
+                          const needsBrief = status === "paid" || status === "info_pending";
+                          const delivered =
+                            status === "delivered" ||
+                            status === "completed" ||
+                            status === "closed";
+                          const inProd = status === "in_production";
+                          let actionHref = `/video-orders/${order.id}`;
+                          let actionLabel = "View order";
+                          if (needsPayment) {
+                            actionHref = `/video-orders/${order.id}/pay`;
+                            actionLabel = "Complete payment";
+                          } else if (needsBrief) {
+                            actionHref = `/video-orders/${order.id}/brief`;
+                            actionLabel = "Finish brief";
+                          } else if (delivered) {
+                            actionHref = `/video-orders/${order.id}`;
+                            actionLabel = "View delivery";
+                          } else if (inProd) {
+                            actionLabel = "Track progress";
+                          }
+                          return (
+                            <div
+                              key={order.id}
+                              className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">
+                                    Order #{order.id}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    Delivery by{" "}
+                                    {order.delivery_by_utc
+                                      ? format(new Date(order.delivery_by_utc), "MMM d, yyyy")
+                                      : "—"}
+                                  </p>
+                                </div>
+                                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100 text-gray-700 capitalize">
+                                  {status.replace(/_/g, " ")}
+                                </span>
                               </div>
-                              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100 text-gray-700 capitalize">
-                                {status.replace(/_/g, " ")}
-                              </span>
+                              <div className="mt-3 text-sm text-gray-700 flex items-center gap-2">
+                                <FileText size={14} />
+                                <span>
+                                  {needsPayment
+                                    ? "Payment pending"
+                                    : needsBrief
+                                    ? "Brief incomplete"
+                                    : delivered
+                                    ? "Delivered"
+                                    : inProd
+                                    ? "In production"
+                                    : "In progress"}
+                                </span>
+                              </div>
+                              <div className="mt-4 flex gap-2">
+                                <Link
+                                  href={actionHref}
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+                                >
+                                  {actionLabel}
+                                </Link>
+                                <Link
+                                  href={`/video-orders/${order.id}`}
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                                >
+                                  View details
+                                </Link>
+                              </div>
                             </div>
-                            <div className="mt-3 text-sm text-gray-700 flex items-center gap-2">
-                              <FileText size={14} />
-                              <span>
-                                {needsPayment
-                                  ? "Payment pending"
-                                  : needsBrief
-                                  ? "Brief incomplete"
-                                  : delivered
-                                  ? "Delivered"
-                                  : inProd
-                                  ? "In production"
-                                  : "In progress"}
-                              </span>
-                            </div>
-                            <div className="mt-4 flex gap-2">
-                              <Link
-                                href={actionHref}
-                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
-                              >
-                                {actionLabel}
-                              </Link>
-                              <Link
-                                href={`/video-orders/${order.id}`}
-                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                              >
-                                View details
-                              </Link>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
+                )}
 
                 {activeTab === "requests" && (
                   <section className="space-y-3">

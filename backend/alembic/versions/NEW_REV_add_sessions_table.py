@@ -132,6 +132,15 @@ def downgrade() -> None:
 #       ON video_order_idempotency (booking_request_id);
 #   This change is manual-only (no Alembic upgrade); also recorded in AGENTS.md.
 #
+# 2025-12-15:
+#   On appdb at revision ed57deb9c434 (this file), add a marketing opt-in flag
+#   to support client account preferences:
+#     ALTER TABLE users
+#       ADD COLUMN IF NOT EXISTS marketing_opt_in boolean NOT NULL DEFAULT FALSE;
+#   This change is manual-only (no Alembic upgrade step). When recreating
+#   appdb at this revision, re-apply the same DDL before deploying code that
+#   reads or writes users.marketing_opt_in.
+#
 # 2026-01-02:
 #   On production appdb at revision ed57deb9c434 (this file), add an index to
 #   speed provider rating aggregates on the reviews table:
