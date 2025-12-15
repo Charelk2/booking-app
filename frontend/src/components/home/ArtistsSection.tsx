@@ -19,7 +19,7 @@ interface ArtistsSectionProps {
 function CardSkeleton() {
   return (
     <div className="rounded-lg bg-white overflow-hidden border border-gray-100 shadow-sm">
-      <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
+      <div className="aspect-[4/4] bg-gray-100 animate-pulse" />
       <div className="p-3 space-y-2">
         <div className="h-4 bg-gray-100 rounded w-3/4 animate-pulse" />
         <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse" />
@@ -231,7 +231,7 @@ export default function ArtistsSection({
                       a.profile_picture_url || a.portfolio_urls?.[0],
                     ) || undefined
                   }
-                  imageAspect="landscape"
+                  imageAspect="square"
                   rounded="lg"
                   price={
                     a.hourly_rate && a.price_visible

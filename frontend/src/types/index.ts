@@ -272,6 +272,8 @@ export interface BookingRequestCreate {
   travel_mode?: 'fly' | 'drive';
   travel_cost?: number;
   travel_breakdown?: Record<string, unknown>;
+  /** Service-specific payload stored under booking_requests.service_extras */
+  service_extras?: Record<string, unknown>;
   /** New structured sound context (optional during transition) */
   sound_context?: SoundContext;
   /** Optional link to a parent booking request for multi-provider events. */
@@ -314,6 +316,8 @@ export interface BookingRequest {
   travel_mode?: 'fly' | 'drive' | null;
   travel_cost?: number | null;
   travel_breakdown?: Record<string, unknown> | null;
+  /** Service-specific payload stored under booking_requests.service_extras */
+  service_extras?: Record<string, unknown> | null;
   status: BookingStatus;
   created_at: string;
   updated_at: string;

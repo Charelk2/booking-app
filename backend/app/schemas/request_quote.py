@@ -20,6 +20,8 @@ class BookingRequestBase(BaseModel):
     travel_mode: Optional[str] = None
     travel_cost: Optional[Decimal] = None
     travel_breakdown: Optional[dict] = None
+    # service-specific extras (e.g., personalized video payload, venue request fields)
+    service_extras: Optional[dict] = None
     # Optional link to a parent booking request so artist + supplier threads
     # can be grouped for the same underlying event.
     parent_booking_request_id: Optional[int] = None

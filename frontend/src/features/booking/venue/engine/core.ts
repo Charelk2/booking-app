@@ -52,6 +52,20 @@ function buildBookingDetailsMessage(form: VenueBookingEngineState["form"]): stri
   return `${BOOKING_DETAILS_PREFIX}\n${lines.join("\n")}`.trim();
 }
 
+function buildVenueServiceExtras(form: VenueBookingEngineState["form"]): Record<string, unknown> {
+  const date = (form.date || "").trim();
+  const guests = normalizeGuests(form.guests);
+  const notes = (form.notes || "").trim();
+  const venue: Record<string, unknown> = {
+    v: 1,
+    date,
+    guests_count: guests ?? undefined,
+    notes: notes || undefined,
+  };
+  Object.keys(venue).forEach((k) => (venue[k] === undefined ? delete venue[k] : null));
+  return { venue };
+}
+
 export function createVenueBookingEngineCore(
   env: VenueBookingEnv,
   params: VenueBookingEngineParams,
@@ -119,10 +133,12 @@ export function createVenueBookingEngineCore(
       setState({ booking: { ...state.booking, status: "submitting", error: null } });
       try {
         const proposedDatetime = toProposedDatetime(date);
+        const service_extras = buildVenueServiceExtras(state.form);
         const created = await env.bookingApi.createBookingRequest({
           service_provider_id: params.serviceProviderId,
           service_id: params.serviceId,
           proposed_datetime_1: proposedDatetime,
+          service_extras,
         });
 
         const requestId = Number(created?.id || 0);
@@ -165,4 +181,3 @@ export function createVenueBookingEngineCore(
     actions,
   };
 }
-

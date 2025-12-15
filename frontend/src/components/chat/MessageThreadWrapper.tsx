@@ -485,6 +485,30 @@ export default function MessageThreadWrapper({
     }
 
     try {
+      const venue = getPath(request, ['service_extras', 'venue']);
+      if (isRecord(venue)) {
+        const fallback: ParsedBookingDetails = {};
+        const date = firstNonEmptyString(
+          getPath(venue, ['date']),
+          getPath(venue, ['event_date']),
+        );
+        const guests = firstFiniteNumber(
+          getPath(venue, ['guests_count']),
+          getPath(venue, ['guests']),
+        );
+        const notes = firstNonEmptyString(getPath(venue, ['notes']));
+        if (date) fallback.date = date;
+        if (guests != null) fallback.guests = String(guests);
+        if (notes) fallback.notes = notes;
+        if (Object.keys(fallback).length) {
+          handleFallbackDetails(fallback);
+        }
+      }
+    } catch {
+      // ignore service_extras errors; other fallbacks cover it
+    }
+
+    try {
       const eventType = (request as any)?.event_type || (request as any)?.event?.event_type;
       const guests = (request as any)?.guests_count;
       const soundContext = (request as any)?.sound_context;
