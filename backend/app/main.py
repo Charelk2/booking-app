@@ -311,73 +311,78 @@ except Exception as _exc:  # pragma: no cover
 # Register SQLAlchemy listeners that log status transitions
 register_status_listeners()
 
+_should_bootstrap = _skip_db_bootstrap_raw not in {"1", "true", "yes"}
+
 # ─── Ensure database schema is up-to-date ──────────────────────────────────
-ensure_message_type_column(engine)
-normalize_message_type_values(engine)
-ensure_message_core_columns(engine)
-ensure_attachment_url_column(engine)
-ensure_attachment_meta_column(engine)
-ensure_message_is_read_column(engine)
-ensure_visible_to_column(engine)
-ensure_message_action_column(engine)
-ensure_message_expires_at_column(engine)
-ensure_message_system_key_column(engine)
-ensure_message_reply_to_column(engine)
-ensure_message_reactions_table(engine)
-# One-time cleanup of legacy blank messages (safe/idempotent)
-try:
-    from .db_utils import cleanup_blank_messages
-    deleted = cleanup_blank_messages(engine)
-    if deleted:
-        logger.info("Removed %s legacy blank messages", deleted)
-except Exception as _exc:
-    logger.warning("Blank message cleanup skipped: %s", _exc)
-ensure_request_attachment_column(engine)
-ensure_service_type_column(engine)
-ensure_service_core_columns(engine)
-ensure_timestamp_columns(engine, "services")
-ensure_timestamp_defaults(engine, "services")
-ensure_display_order_column(engine)
-ensure_notification_link_column(engine)
-ensure_custom_subtitle_column(engine)
-ensure_price_visible_column(engine)
-ensure_portfolio_image_urls_column(engine)
-ensure_currency_column(engine)
-ensure_media_url_column(engine)
-ensure_service_travel_columns(engine)
-ensure_service_managed_markup_column(engine)
-ensure_service_status_column(engine)
-ensure_mfa_columns(engine)
-ensure_refresh_token_columns(engine)
-ensure_booking_simple_columns(engine)
-remove_deposit_columns_from_booking_simple(engine)
-ensure_timestamp_columns(engine, "bookings_simple")
-ensure_timestamp_defaults(engine, "bookings_simple")
-ensure_timestamp_columns(engine, "bookings")
-ensure_timestamp_defaults(engine, "bookings")
-ensure_calendar_account_email_column(engine)
-ensure_timestamp_columns(engine, "calendar_accounts")
-ensure_timestamp_defaults(engine, "calendar_accounts")
-ensure_timestamp_columns(engine, "service_provider_profiles")
-ensure_timestamp_defaults(engine, "service_provider_profiles")
-ensure_timestamp_columns(engine, "notifications")
-ensure_timestamp_defaults(engine, "notifications")
-ensure_timestamp_defaults(engine, "users")
-ensure_timestamp_defaults(engine, "admin_users")
-ensure_timestamp_defaults(engine, "booking_requests")
-ensure_timestamp_defaults(engine, "quotes")
-ensure_timestamp_defaults(engine, "quotes_v2")
-ensure_timestamp_defaults(engine, "invoices")
-ensure_user_profile_picture_column(engine)
-ensure_user_marketing_opt_in_column(engine)
-ensure_booking_request_travel_columns(engine)
-ensure_booking_request_service_extras_column(engine)
-ensure_sound_outreach_columns(engine)
-ensure_booking_event_city_column(engine)
-ensure_booking_artist_deadline_column(engine)
-ensure_quote_v2_sound_firm_column(engine)
-ensure_rider_tables(engine)
-if os.getenv("SKIP_DB_BOOTSTRAP", "0").strip().lower() not in {"1", "true", "yes"}:
+# In production web workers we set SKIP_DB_BOOTSTRAP=1 so we never run schema DDL
+# on startup; migrations are applied via Alembic (see fly.toml release_command).
+if _should_bootstrap:
+    ensure_message_type_column(engine)
+    normalize_message_type_values(engine)
+    ensure_message_core_columns(engine)
+    ensure_attachment_url_column(engine)
+    ensure_attachment_meta_column(engine)
+    ensure_message_is_read_column(engine)
+    ensure_visible_to_column(engine)
+    ensure_message_action_column(engine)
+    ensure_message_expires_at_column(engine)
+    ensure_message_system_key_column(engine)
+    ensure_message_reply_to_column(engine)
+    ensure_message_reactions_table(engine)
+    # One-time cleanup of legacy blank messages (safe/idempotent)
+    try:
+        from .db_utils import cleanup_blank_messages
+        deleted = cleanup_blank_messages(engine)
+        if deleted:
+            logger.info("Removed %s legacy blank messages", deleted)
+    except Exception as _exc:
+        logger.warning("Blank message cleanup skipped: %s", _exc)
+    ensure_request_attachment_column(engine)
+    ensure_service_type_column(engine)
+    ensure_service_core_columns(engine)
+    ensure_timestamp_columns(engine, "services")
+    ensure_timestamp_defaults(engine, "services")
+    ensure_display_order_column(engine)
+    ensure_notification_link_column(engine)
+    ensure_custom_subtitle_column(engine)
+    ensure_price_visible_column(engine)
+    ensure_portfolio_image_urls_column(engine)
+    ensure_currency_column(engine)
+    ensure_media_url_column(engine)
+    ensure_service_travel_columns(engine)
+    ensure_service_managed_markup_column(engine)
+    ensure_service_status_column(engine)
+    ensure_mfa_columns(engine)
+    ensure_refresh_token_columns(engine)
+    ensure_booking_simple_columns(engine)
+    remove_deposit_columns_from_booking_simple(engine)
+    ensure_timestamp_columns(engine, "bookings_simple")
+    ensure_timestamp_defaults(engine, "bookings_simple")
+    ensure_timestamp_columns(engine, "bookings")
+    ensure_timestamp_defaults(engine, "bookings")
+    ensure_calendar_account_email_column(engine)
+    ensure_timestamp_columns(engine, "calendar_accounts")
+    ensure_timestamp_defaults(engine, "calendar_accounts")
+    ensure_timestamp_columns(engine, "service_provider_profiles")
+    ensure_timestamp_defaults(engine, "service_provider_profiles")
+    ensure_timestamp_columns(engine, "notifications")
+    ensure_timestamp_defaults(engine, "notifications")
+    ensure_timestamp_defaults(engine, "users")
+    ensure_timestamp_defaults(engine, "admin_users")
+    ensure_timestamp_defaults(engine, "booking_requests")
+    ensure_timestamp_defaults(engine, "quotes")
+    ensure_timestamp_defaults(engine, "quotes_v2")
+    ensure_timestamp_defaults(engine, "invoices")
+    ensure_user_profile_picture_column(engine)
+    ensure_user_marketing_opt_in_column(engine)
+    ensure_booking_request_travel_columns(engine)
+    ensure_booking_request_service_extras_column(engine)
+    ensure_sound_outreach_columns(engine)
+    ensure_booking_event_city_column(engine)
+    ensure_booking_artist_deadline_column(engine)
+    ensure_quote_v2_sound_firm_column(engine)
+    ensure_rider_tables(engine)
+
     ensure_legacy_artist_user_type(engine)
     ensure_service_category_id_column(engine)
     seed_service_categories(engine)
@@ -398,21 +403,23 @@ if os.getenv("SKIP_DB_BOOTSTRAP", "0").strip().lower() not in {"1", "true", "yes
     ensure_notification_core_indexes(engine)
     ensure_message_unread_indexes(engine)
     ensure_booking_requests_user_indexes(engine)
-try:
-    # Ensure key enums contain all labels in Postgres
-    from .models.booking_status import BookingStatus
-    from .models.notification import NotificationType
-    from .models.calendar_account import CalendarProvider
-    from .models.quote_v2 import QuoteStatusV2
-    from .models.invoice import InvoiceStatus
-    ensure_enum_values(engine, "bookingstatus", [s.value for s in BookingStatus])
-    ensure_enum_values(engine, "notificationtype", [s.value for s in NotificationType])
-    ensure_enum_values(engine, "calendarprovider", [s.value for s in CalendarProvider])
-    ensure_enum_values(engine, "quotestatusv2", [s.value for s in QuoteStatusV2])
-    ensure_enum_values(engine, "invoicestatus", [s.value for s in InvoiceStatus])
-except Exception as _exc:
-    logger.warning("Enum ensure skipped: %s", _exc)
-if os.getenv("SKIP_DB_BOOTSTRAP", "0").strip().lower() not in {"1", "true", "yes"}:
+
+    try:
+        # Ensure key enums contain all labels in Postgres
+        from .models.booking_status import BookingStatus
+        from .models.notification import NotificationType
+        from .models.calendar_account import CalendarProvider
+        from .models.quote_v2 import QuoteStatusV2
+        from .models.invoice import InvoiceStatus
+
+        ensure_enum_values(engine, "bookingstatus", [s.value for s in BookingStatus])
+        ensure_enum_values(engine, "notificationtype", [s.value for s in NotificationType])
+        ensure_enum_values(engine, "calendarprovider", [s.value for s in CalendarProvider])
+        ensure_enum_values(engine, "quotestatusv2", [s.value for s in QuoteStatusV2])
+        ensure_enum_values(engine, "invoicestatus", [s.value for s in InvoiceStatus])
+    except Exception as _exc:
+        logger.warning("Enum ensure skipped: %s", _exc)
+
     ensure_ledger_tables(engine)
     ensure_payout_tables(engine)
     ensure_dispute_table(engine)
@@ -441,11 +448,13 @@ if os.getenv("SKIP_DB_BOOTSTRAP", "0").strip().lower() not in {"1", "true", "yes
         add_column_if_missing(engine, "event_preps", "guests_count", "guests_count INTEGER")
     except Exception as _exc:
         logger.warning("EventPrep schedule columns ensure skipped: %s", _exc)
-Base.metadata.create_all(bind=engine)
-try:
-    ensure_default_admin()
-except Exception as _exc:
-    logger.warning("Default admin bootstrap skipped: %s", _exc)
+    Base.metadata.create_all(bind=engine)
+    try:
+        ensure_default_admin()
+    except Exception as _exc:
+        logger.warning("Default admin bootstrap skipped: %s", _exc)
+else:
+    logger.info("startup.bootstrap.skipped skip_db_bootstrap=%s pid=%s", _skip_db_bootstrap_raw or "0", os.getpid())
 
 _bootstrap_finished_at = datetime.utcnow()
 _bootstrap_ms = int(
@@ -1186,17 +1195,22 @@ async def start_health_monitors() -> None:
 
 @app.on_event("startup")
 async def start_background_tasks() -> None:
-    """Launch background maintenance tasks."""
-    # Ensure DB is reachable before starting periodic schedulers
-    await _wait_for_db_ready()
-    # Start WebSocket Redis bus consumer (cross-instance fanout)
-    try:
-        from app.api import api_ws as _api_ws
-        await _api_ws.ensure_ws_bus_started()
-    except Exception:
-        pass
-    asyncio.create_task(expire_quotes_loop())
-    asyncio.create_task(ops_maintenance_loop())
+    """Launch background maintenance tasks (non-blocking)."""
+
+    async def _launch() -> None:
+        # Ensure DB is reachable before starting periodic schedulers
+        await _wait_for_db_ready()
+        # Start WebSocket Redis bus consumer (cross-instance fanout)
+        try:
+            from app.api import api_ws as _api_ws
+            await _api_ws.ensure_ws_bus_started()
+        except Exception:
+            pass
+        asyncio.create_task(expire_quotes_loop())
+        asyncio.create_task(ops_maintenance_loop())
+
+    # Avoid blocking app startup (helps Fly health checks during cold starts)
+    asyncio.create_task(_launch())
 
 
 # ─── A simple root check ─────────────────────────────────────────────────────────────
@@ -1226,15 +1240,18 @@ def shutdown_redis_client() -> None:
 
 @app.on_event("startup")
 async def warm_cache_on_startup() -> None:
-    """Warm the homepage list via an internal HTTP GET so ETag/Redis are engaged.
+    """Best-effort cache warm (non-blocking)."""
 
-    Best effort; if it fails, we simply skip warming.
-    """
-    try:
-        if get_cached_artist_list(1, limit=12) is not None:
-            return
-        url = f"http://127.0.0.1:{os.getenv('PORT','8000')}{settings.API_V1_STR}/service-provider-profiles/?limit=12&sort=newest&fields=id,business_name,profile_picture_url"
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.get(url)
-    except Exception as exc:
-        logger.warning("Warm-cache skipped: %s", exc)
+    async def _warm_once() -> None:
+        # Give Uvicorn a moment to start accepting connections.
+        await asyncio.sleep(1.0)
+        try:
+            if get_cached_artist_list(1, limit=12) is not None:
+                return
+            url = f"http://127.0.0.1:{os.getenv('PORT','8000')}{settings.API_V1_STR}/service-provider-profiles/?limit=12&sort=newest&fields=id,business_name,profile_picture_url"
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.get(url)
+        except Exception as exc:
+            logger.warning("Warm-cache skipped: %s", exc)
+
+    asyncio.create_task(_warm_once())

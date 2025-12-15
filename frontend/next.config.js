@@ -178,8 +178,8 @@ const nextConfig = {
       `${scriptSrcElemBase} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co https://static.cloudflareinsights.com https://va.vercel-scripts.com https://vercel.live`,
       // XHR/fetch and WebSocket: backend API, R2, Google Identity/Maps, Paystack, and Cloudflare Insights collection
       `connect-src 'self' ${connectApi} ${wsApi}${wsExtra} ${R2_S3_ORIGIN} ${R2_PUBLIC_BASE} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co https://cloudflareinsights.com`,
-      // Frames for Google Identity widgets and Paystack's checkout iframe
-      "frame-src 'self' https://accounts.google.com https://accounts.gstatic.com https://js.paystack.co https://checkout.paystack.com",
+      // Frames for Google Identity widgets, Paystack's checkout iframe, and Google Maps embeds
+      "frame-src 'self' https://accounts.google.com https://accounts.gstatic.com https://js.paystack.co https://checkout.paystack.com https://www.google.com https://maps.google.com",
       // Images: backend API, Cloudflare R2, Cloudflare Images, Google Identity/Maps, and local blob/data
       `img-src 'self' data: blob: ${connectApi} https://api.booka.co.za ${R2_PUBLIC_BASE} ${R2_S3_ORIGIN} https://imagedelivery.net https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com`,
       // Media (audio/video) sources including R2 and local blob previews

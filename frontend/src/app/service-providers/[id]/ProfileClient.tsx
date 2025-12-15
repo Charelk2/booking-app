@@ -67,18 +67,6 @@ const BookinWizardPersonilsedVideo = dynamic(
   }
 );
 
-const VenueBookingSheet = dynamic(
-  () => import('@/features/booking/venue/ui/VenueBookingSheet'),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="fixed inset-0 z-[60] grid place-items-center bg-white/40 backdrop-blur">
-        <Spinner size="lg" />
-      </div>
-    ),
-  },
-);
-
 // Demo fallback reviews
 const FAKE_REVIEWS: ReviewType[] = [
   { id: -1, booking_id: 0, rating: 5, comment: 'Absolutely amazing performance! Professional and punctual - highly recommended.', created_at: '2025-07-12T10:30:00.000Z', updated_at: '2025-07-12T10:30:00.000Z', client: { id: 901, email: 'lerato@example.com', user_type: 'client', first_name: 'Lerato', last_name: 'M.', phone_number: '', is_active: true, is_verified: true } },
@@ -199,8 +187,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [selectedVideoService, setSelectedVideoService] = useState<Service | null>(null);
-  const [isVenueOpen, setIsVenueOpen] = useState(false);
-  const [selectedVenueService, setSelectedVenueService] = useState<Service | null>(null);
 
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isAllReviewsOpen, setIsAllReviewsOpen] = useState(false);
@@ -391,10 +377,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
     const type = (service as any).service_type;
     const category = (service as any).service_category_slug;
     if (category === 'venue' || category === 'wedding_venue') {
-      startTransition(() => {
-        setSelectedVenueService(service);
-        setIsVenueOpen(true);
-      });
+      router.push(`/services/${service.id}`);
       return;
     }
     if (type === 'Live Performance' || type === 'Virtual Appearance') {
@@ -668,7 +651,19 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     <ul className="space-y-3">
                       {services.map((s) => (
                         <li key={`svc-mobile-${s.id}`}>
-                          <ServiceCard service={s} variant="mobile" onClick={() => { setDetailedService(s); setIsDetailsOpen(true); }} />
+                          <ServiceCard
+                            service={s}
+                            variant="mobile"
+                            onClick={() => {
+                              const slug = String((s as any)?.service_category_slug || '').toLowerCase();
+                              if (slug === 'venue' || slug === 'wedding_venue') {
+                                router.push(`/services/${s.id}`);
+                                return;
+                              }
+                              setDetailedService(s);
+                              setIsDetailsOpen(true);
+                            }}
+                          />
                         </li>
                       ))}
                     </ul>
@@ -978,7 +973,19 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     <ul className="space-y-6">
                       {services.map((s) => (
                         <li key={`service-desktop-${s.id}`}>
-                          <ServiceCard service={s} variant="desktop" onClick={() => { setDetailedService(s); setIsDetailsOpen(true); }} />
+                          <ServiceCard
+                            service={s}
+                            variant="desktop"
+                            onClick={() => {
+                              const slug = String((s as any)?.service_category_slug || '').toLowerCase();
+                              if (slug === 'venue' || slug === 'wedding_venue') {
+                                router.push(`/services/${s.id}`);
+                                return;
+                              }
+                              setDetailedService(s);
+                              setIsDetailsOpen(true);
+                            }}
+                          />
                         </li>
                       ))}
                     </ul>
@@ -1189,19 +1196,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
           rushFeeZar={pvConfig?.rushFeeZar ?? 0}
           rushWithinDays={pvConfig?.rushWithinDays ?? 2}
           serviceId={selectedVideoService?.id}
-        />
-      )}
-
-      {/* Venue booking sheet */}
-      {isVenueOpen && selectedVenueService && (
-        <VenueBookingSheet
-          isOpen={isVenueOpen}
-          onClose={() => {
-            setIsVenueOpen(false);
-            setSelectedVenueService(null);
-          }}
-          serviceProviderId={serviceProviderId}
-          service={selectedVenueService}
         />
       )}
 

@@ -601,7 +601,7 @@ export default function VenueServiceFlow({
                       profileDefaults.location ===
                         (state.typeFields.address || "").trim() ? (
                         <p className="text-xs text-gray-500">
-                          Pre-filled from your profile location. An approximate area is fine for now.
+                          Pre-filled from your profile location.
                         </p>
                       ) : null}
                     </div>
@@ -752,10 +752,10 @@ export default function VenueServiceFlow({
                             <label
                               key={rule.value}
                               className={[
-                                "flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm transition",
+                                "flex cursor-pointer items-start gap-3 rounded-xl border bg-white p-3 text-sm text-gray-900 transition hover:bg-gray-50",
                                 selectedRules.includes(rule.value)
-                                  ? "border-gray-900 bg-gray-900 text-white"
-                                  : "border-gray-200 bg-white text-gray-900 hover:border-gray-300",
+                                  ? "border-gray-900 shadow-sm"
+                                  : "border-gray-200 hover:border-gray-300",
                               ].join(" ")}
                             >
                               <input
@@ -773,7 +773,7 @@ export default function VenueServiceFlow({
                                     className={[
                                       "mt-0.5 block text-xs",
                                       selectedRules.includes(rule.value)
-                                        ? "text-white/80"
+                                        ? "text-gray-600"
                                         : "text-gray-500",
                                     ].join(" ")}
                                   >

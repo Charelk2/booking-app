@@ -215,9 +215,21 @@ main() {
   else
     # Default to uvicorn if nothing provided
     local port="${PORT:-8000}"
-    local workers="${UVICORN_WORKERS:-2}"
-    log "Starting default uvicorn on port ${port}"
-    exec bash -lc "uvicorn app.main:app --host 0.0.0.0 --port ${port} --proxy-headers --forwarded-allow-ips='*' --workers ${workers} --loop uvloop --http httptools"
+    local workers="${UVICORN_WORKERS:-1}"
+    if ! [[ "${workers}" =~ ^[0-9]+$ ]]; then
+      log "WARNING: UVICORN_WORKERS is not numeric (${workers}); defaulting to 1"
+      workers="1"
+    fi
+    if [[ "${workers}" == "0" ]]; then
+      workers="1"
+    fi
+    log "Starting default uvicorn on port ${port} workers=${workers}"
+    local base_cmd="uvicorn app.main:app --host 0.0.0.0 --port ${port} --proxy-headers --forwarded-allow-ips='*' --loop uvloop --http httptools"
+    if [[ "${workers}" == "1" ]]; then
+      # Avoid multiprocess mode entirely for a single worker (faster boots + fewer moving parts)
+      exec bash -lc "${base_cmd}"
+    fi
+    exec bash -lc "${base_cmd} --workers ${workers}"
   fi
 }
 

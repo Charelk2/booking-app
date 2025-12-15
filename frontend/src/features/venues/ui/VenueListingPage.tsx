@@ -832,9 +832,6 @@ export default function VenueListingPage({
               {mapQuery ? (
                 <p className="mt-2 text-sm text-gray-700">{mapQuery}</p>
               ) : null}
-              <p className="mt-1 text-xs text-gray-500">
-                Exact location is shared after confirmation.
-              </p>
               <div className="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
                 <iframe
                   title={`Map: ${mapQuery || "Venue location"}`}

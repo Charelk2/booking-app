@@ -74,7 +74,7 @@ kill_timeout = 30
 
 # Health check against FastAPI health endpoint
 [[http_service.checks]]
-  grace_period = "30s"
+  grace_period = "90s"
   interval = "15s"
   method = "GET"
   timeout = "5s"
