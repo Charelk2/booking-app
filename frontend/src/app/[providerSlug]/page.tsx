@@ -82,6 +82,16 @@ type FullProviderPayload = {
   reviews: Review[];
 };
 
+function filterPublicServices(services: Service[]): Service[] {
+  const list = Array.isArray(services) ? services : [];
+  return list.filter((svc) => {
+    const status = String((svc as any)?.status || "").trim().toLowerCase();
+    // Back-compat: if the API didn't include a status, keep the service visible.
+    if (!status) return true;
+    return status === "approved";
+  });
+}
+
 async function fetchProviderFull(raw: string): Promise<FullProviderPayload> {
   const isNumeric = /^\d+$/.test(raw);
   const path = isNumeric
@@ -96,7 +106,7 @@ async function fetchProviderFull(raw: string): Promise<FullProviderPayload> {
     const payload = (await res.json()) as FullProviderPayload;
     return {
       provider: normalizeProvider(payload.provider),
-      services: payload.services,
+      services: filterPublicServices(payload.services),
       reviews: payload.reviews,
     };
   }
@@ -113,7 +123,7 @@ async function fetchProviderFull(raw: string): Promise<FullProviderPayload> {
     fetchServices(providerId),
     fetchReviews(providerId),
   ]);
-  return { provider, services, reviews };
+  return { provider, services: filterPublicServices(services), reviews };
 }
 
 async function fetchServices(providerId: number): Promise<Service[]> {

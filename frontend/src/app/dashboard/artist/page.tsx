@@ -195,6 +195,7 @@ export default function DashboardPage() {
     const cat = params.get('addCategory');
     if (cat) {
       setActiveView('services');
+      setEditingService(null);
       setWizardCategory(cat);
     }
   }, [params]);

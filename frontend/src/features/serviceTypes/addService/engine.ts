@@ -10,22 +10,30 @@ export function useAddServiceEngine(
     onSaved?: (service: Service) => void;
   },
 ): AddServiceEngine {
-  const coreRef = useRef<ReturnType<typeof createAddServiceEngineCore> | null>(
-    null,
-  );
+  const instanceKey = `${params.serviceCategorySlug}:${params.serviceType}:${
+    params.service?.id ? String(params.service.id) : "new"
+  }`;
+  const coreRef = useRef<{
+    key: string;
+    core: ReturnType<typeof createAddServiceEngineCore>;
+  } | null>(null);
 
-  if (!coreRef.current) {
+  if (!coreRef.current || coreRef.current.key !== instanceKey) {
     const env: AddServiceEnv = {
       now: () => new Date(),
       api: addServiceApiClient,
     };
-    coreRef.current = createAddServiceEngineCore(env, params);
+    coreRef.current = {
+      key: instanceKey,
+      core: createAddServiceEngineCore(env, params),
+    };
   }
 
-  const core = coreRef.current;
+  const core = coreRef.current.core;
   const [state, setState] = useState(core.getState());
 
   useEffect(() => {
+    setState(core.getState());
     const unsubscribe = core.subscribe(setState);
     return unsubscribe;
   }, [core]);
@@ -43,4 +51,3 @@ export function useAddServiceEngine(
 
   return { state, actions: core.actions };
 }
-
