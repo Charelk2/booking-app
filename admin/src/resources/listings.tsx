@@ -10,7 +10,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useDataProvider } from 'react-admin';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
-import type { ExtendedDataProvider } from '../dataProvider';
+import { inferPublicWebOrigin, resolveStaticUrl } from '../env';
 
 const listingFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
@@ -19,11 +19,14 @@ const listingFilters = [
     { id: 'approved', name: 'Approved' },
     { id: 'rejected', name: 'Rejected' },
     { id: 'draft', name: 'Draft' },
-  ]} alwaysOn size="small" margin="dense" variant="outlined" />
+  ]} alwaysOn size="small" margin="dense" variant="outlined" />,
+  <TextInput key="provider_id" source="provider_id" label="Provider ID" size="small" margin="dense" variant="outlined" />,
+  <TextInput key="service_type" source="service_type" label="Service Type" size="small" margin="dense" variant="outlined" />
 ];
 
 const ApproveReject = () => {
   const rec = useRecordContext();
+  const dp = useDataProvider() as any;
   const refresh = useRefresh();
   const notify = useNotify();
   const { permissions } = usePermissions();
@@ -31,14 +34,14 @@ const ApproveReject = () => {
   if (!canModerate) return null;
   const approve = async () => {
     try {
-      await (window as any).raDataProvider.approveListing(rec.id);
+      await dp.approveListing(rec.id);
       notify('Listing approved', { type: 'info' }); refresh();
     } catch (e:any) { notify(e.message || 'Approve failed', { type: 'warning' }); }
   };
   const reject = async () => {
     const reason = prompt('Reason (optional)');
     try {
-      await (window as any).raDataProvider.rejectListing(rec.id, reason || undefined);
+      await dp.rejectListing(rec.id, reason || undefined);
       notify('Listing rejected', { type: 'info' }); refresh();
     } catch (e:any) { notify(e.message || 'Reject failed', { type: 'warning' }); }
   };
@@ -51,22 +54,9 @@ const ApproveReject = () => {
 };
 
 // Thumbnail for list rows
-const getThumbUrl = (url?: string | null) => {
-  if (!url) return null;
-  if (/^https?:\/\//i.test(url) || /^data:/i.test(url)) return url;
-  try {
-    const base = (import.meta as any).env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-    const origin = new URL(base).origin;
-    const path = url.startsWith('/static/') ? url : `/static/${url.replace(/^\/+/, '')}`;
-    return `${origin}${path}`;
-  } catch {
-    return url;
-  }
-};
-
 const Thumb: React.FC = () => {
   const rec = useRecordContext<any>();
-  const src = getThumbUrl(rec?.media_url);
+  const src = resolveStaticUrl(rec?.media_url);
   if (!src) return null;
   return (
     <img
@@ -79,7 +69,7 @@ const Thumb: React.FC = () => {
 
 const TitleWithThumb: React.FC = () => {
   const rec = useRecordContext<any>();
-  const src = getThumbUrl(rec?.media_url);
+  const src = resolveStaticUrl(rec?.media_url);
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
       {src ? (
@@ -96,15 +86,7 @@ const ProviderCellInner: React.FC = () => {
   const name = prov.business_name || prov.email || `#${prov.id}`;
   const active = prov.is_active !== undefined ? !!prov.is_active : true;
   const url = `/providers/${prov.id}/show`;
-  const getPublicOrigin = (): string => {
-    const env = (import.meta as any).env?.VITE_PUBLIC_WEB_ORIGIN as string | undefined;
-    if (env) return env.replace(/\/$/, '');
-    const { protocol, hostname } = window.location;
-    if (/^admin\./i.test(hostname)) return `${protocol}//${hostname.replace(/^admin\./i, '')}`;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return `${protocol}//${hostname}:3000`;
-    return `${protocol}//${hostname}`;
-  };
-  const publicUrl = `${getPublicOrigin()}/service-providers/${prov.id}`;
+  const publicUrl = `${inferPublicWebOrigin()}/service-providers/${prov.id}`;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <Tooltip title={`Open Provider • ${prov.email || ''}`} arrow>
@@ -145,6 +127,7 @@ const ProviderCellInner: React.FC = () => {
 
 const StatusBadge: React.FC = () => {
   const rec = useRecordContext<any>();
+  const dp = useDataProvider() as any;
   const notify = useNotify();
   const refresh = useRefresh();
   const [open, setOpen] = React.useState(false);
@@ -166,7 +149,7 @@ const StatusBadge: React.FC = () => {
 
   const doApprove = async () => {
     try {
-      await (window as any).raDataProvider.approveListing(rec.id);
+      await dp.approveListing(rec.id);
       notify('Listing approved', { type: 'info' });
       setOpen(false);
       refresh();
@@ -174,7 +157,7 @@ const StatusBadge: React.FC = () => {
   };
   const doReject = async () => {
     try {
-      await (window as any).raDataProvider.rejectListing(rec.id, reason || undefined);
+      await dp.rejectListing(rec.id, reason || undefined);
       notify('Listing rejected', { type: 'info' });
       setOpen(false);
       setMode('idle');
@@ -279,6 +262,7 @@ function styleFromString(styleStr: string): React.CSSProperties {
 
 const BulkApprove = () => {
   const { selectedIds } = useListContext();
+  const dp = useDataProvider() as any;
   const refresh = useRefresh();
   const notify = useNotify();
   const { permissions } = usePermissions();
@@ -287,10 +271,7 @@ const BulkApprove = () => {
   const run = async () => {
     if (!selectedIds?.length) return notify('Select rows first', { type:'warning' });
     try {
-      const base = (import.meta as any).env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-      await fetch(base + '/listings/bulk_approve', {
-        method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${localStorage.getItem('booka_admin_token')}` }, body: JSON.stringify({ ids: selectedIds })
-      });
+      await dp.bulkApproveListings(selectedIds);
       notify('Approved'); refresh();
     } catch (e:any) { notify(e.message || 'Bulk approve failed', { type:'warning' }); }
   };
@@ -299,6 +280,7 @@ const BulkApprove = () => {
 
 const BulkReject = () => {
   const { selectedIds } = useListContext();
+  const dp = useDataProvider() as any;
   const refresh = useRefresh();
   const notify = useNotify();
   const { permissions } = usePermissions();
@@ -308,10 +290,7 @@ const BulkReject = () => {
     if (!selectedIds?.length) return notify('Select rows first', { type:'warning' });
     const reason = prompt('Reason (optional)') || undefined;
     try {
-      const base = (import.meta as any).env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-      await fetch(base + '/listings/bulk_reject', {
-        method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${localStorage.getItem('booka_admin_token')}` }, body: JSON.stringify({ ids: selectedIds, reason })
-      });
+      await dp.bulkRejectListings(selectedIds, reason);
       notify('Rejected'); refresh();
     } catch (e:any) { notify(e.message || 'Bulk reject failed', { type:'warning' }); }
   };
@@ -387,27 +366,20 @@ const ClearProviderFilterButton: React.FC = () => {
   );
 };
 
-// expose dataProvider to window to simplify calling custom actions
-export const attachDP = (dp: ExtendedDataProvider) => { (window as any).raDataProvider = dp; };
-
 // ─── Show view with Moderation Logs ───────────────────────────────────────────
 
 type Log = { id: string; action: string; reason?: string | null; at: string; admin_id: string };
 
 const ModerationLogs: React.FC = () => {
   const rec = useRecordContext<any>();
+  const dp = useDataProvider() as any;
   const [logs, setLogs] = React.useState<Log[]>([]);
   const notify = useNotify();
   React.useEffect(() => {
     let aborted = false;
     const run = async () => {
       try {
-        const base = (import.meta as any).env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-        const res = await fetch(`${base}/listings/${rec.id}/moderation_logs`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('booka_admin_token')}` }
-        });
-        if (!res.ok) throw new Error(`Failed: ${res.status}`);
-        const data = await res.json();
+        const data = await dp.getListingModerationLogs(rec.id);
         if (!aborted) setLogs(data);
       } catch (e:any) { if (!aborted) notify(e.message || 'Failed to load logs', { type: 'warning' }); }
     };
@@ -447,20 +419,8 @@ const ModerationLogs: React.FC = () => {
 };
 
 // Media helpers
-const getMediaUrl = (url?: string | null) => {
-  if (!url) return null;
-  if (/^https?:\/\//i.test(url) || /^data:/i.test(url)) return url;
-  try {
-    const origin = new URL(import.meta.env.VITE_API_URL as string).origin;
-    const path = url.startsWith('/static/') ? url : `/static/${url.replace(/^\/+/, '')}`;
-    return `${origin}${path}`;
-  } catch {
-    return url;
-  }
-};
-
 const MediaPreview: React.FC<{ url?: string | null; title?: string | null }> = ({ url, title }) => {
-  const src = getMediaUrl(url || undefined);
+  const src = resolveStaticUrl(url || undefined);
   if (!src) return null;
   const lower = src.toLowerCase();
   const isImage = /(\.png|\.jpg|\.jpeg|\.webp|\.gif)(\?|$)/.test(lower);
@@ -487,7 +447,7 @@ const ListingMediaPreview: React.FC = () => {
 
 const ListingThumbnail: React.FC = () => {
   const rec = useRecordContext<any>();
-  const src = getMediaUrl(rec?.media_url);
+  const src = resolveStaticUrl(rec?.media_url);
   if (!src) return null;
   return (
     <img

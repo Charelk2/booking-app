@@ -1,18 +1,10 @@
 import * as React from 'react';
 import { Title } from 'react-admin';
 import { Box, Button, Card, CardContent, CardHeader, Grid, Typography, Alert, Stack } from '@mui/material';
-
-// Infer admin API base (same heuristic as authProvider/dataProvider)
-const inferAdminApiUrl = () => {
-  const env = (import.meta as any).env?.VITE_API_URL as string | undefined;
-  if (env) return env;
-  const host = window.location.hostname;
-  if (host.endsWith('booka.co.za')) return 'https://api.booka.co.za/admin';
-  return `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-};
+import { getAdminToken, inferAdminApiUrl, inferRootApiUrl } from '../env';
 
 const ADMIN_API_URL = inferAdminApiUrl();
-const ROOT_API_URL = ADMIN_API_URL.replace(/\/?admin\/?$/, '');
+const ROOT_API_URL = inferRootApiUrl(ADMIN_API_URL);
 
 type MigrateResult = Record<string, number> & { status?: string; error?: string };
 
@@ -22,7 +14,7 @@ export default function Migrations() {
   const [serviceRes, setServiceRes] = React.useState<MigrateResult | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('booka_admin_token') : null;
+  const token = typeof window !== 'undefined' ? getAdminToken() : null;
   const headers: HeadersInit = token ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } : { 'Content-Type': 'application/json' };
 
   const runProfiles = async () => {
@@ -121,4 +113,3 @@ export default function Migrations() {
     </Box>
   );
 }
-

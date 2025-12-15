@@ -40,3 +40,6 @@ frontend/.eslintcache
 frontend/next-env.d.ts
 frontend/tsconfig.tsbuildinfo
 frontend/coverage/
+
+# Admin build artifacts
+admin/tsconfig.tsbuildinfo

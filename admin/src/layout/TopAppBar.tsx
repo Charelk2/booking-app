@@ -14,16 +14,41 @@ export default function TopAppBar(props: AppBarProps) {
   const [type, setType] = React.useState<'providers'|'listings'|'users'|'conversations'>('providers');
 
   React.useEffect(() => {
-    (async () => {
+    let cancelled = false;
+    const run = async () => {
       try {
+        // Prefer a dedicated stats endpoint (single request); fall back to getList totals.
+        const maybe: any = dp;
+        if (maybe?.httpClient && maybe?.API_URL) {
+          try {
+            const { json } = await maybe.httpClient(`${maybe.API_URL}/stats`, { method: 'GET' });
+            const next = {
+              pending: Number(json?.pending_listings ?? 0),
+              payouts: Number(json?.queued_payouts ?? 0),
+              disputes: Number(json?.open_disputes ?? 0),
+            };
+            if (!cancelled) setCounts(next);
+            return;
+          } catch {
+            // ignore; fallback below
+          }
+        }
+
         const [listings, payouts, disputes] = await Promise.all([
-          dp.getList('listings', { pagination: { page: 1, perPage: 1000 }, sort: { field: 'id', order: 'ASC' }, filter: { status: 'pending_review' } }) as any,
+          dp.getList('listings', { pagination: { page: 1, perPage: 1 }, sort: { field: 'id', order: 'ASC' }, filter: { status: 'pending_review' } }) as any,
           dp.getList('payouts', { pagination: { page: 1, perPage: 1 }, sort: { field: 'id', order: 'ASC' }, filter: { status: 'queued' } }) as any,
           dp.getList('disputes', { pagination: { page: 1, perPage: 1 }, sort: { field: 'id', order: 'ASC' }, filter: { status: 'open' } }) as any,
         ]);
-        setCounts({ pending: (listings?.data?.length ?? listings.total ?? 0), payouts: payouts.total ?? 0, disputes: disputes.total ?? 0 });
+        if (!cancelled) setCounts({ pending: Number(listings?.total ?? 0), payouts: Number(payouts?.total ?? 0), disputes: Number(disputes?.total ?? 0) });
       } catch {}
-    })();
+    };
+
+    void run();
+    const interval = window.setInterval(run, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
   }, [dp]);
 
   const doSearch = () => {

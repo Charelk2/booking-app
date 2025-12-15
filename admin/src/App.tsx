@@ -9,27 +9,7 @@ import { dataProvider as dp } from './dataProvider';
 
 import AdminLayout from './layout/Layout';
 import Dashboard from './layout/Dashboard';
-
-// Resources
-import { ListingList, ListingShow, attachDP as attachDPListings } from './resources/listings';
-import { BookingList, BookingShow, attachDPBookings } from './resources/bookings';
-import { LedgerList } from './resources/ledger';
-import { PayoutList } from './resources/payouts';
-import { DisputeList, DisputeShow } from './resources/disputes';
-import { EmailEventList } from './resources/emailEvents';
-import { SmsEventList } from './resources/smsEvents';
-import { ReviewList } from './resources/reviews';
-import { AuditList } from './resources/audit';
-import { AdminUserList, AdminUserEdit, AdminUserCreate } from './resources/adminUsers';
-import { ProviderList, ProviderShow } from './resources/providers';
-import { ClientList } from './resources/clients';
-import { ConversationList, ConversationShow } from './resources/conversations';
-
-// Custom pages
-import PayoutsRun from './routes/PayoutsRun';
-import UsersSearch from './routes/UsersSearch';
-import Migrations from './routes/Migrations';
-import Analytics from './routes/Analytics';
+import { ADMIN_RESOURCES, ADMIN_ROUTES } from './adminConfig';
 
 const customEn = {
   app: {
@@ -57,12 +37,6 @@ const i18nProvider = polyglotI18nProvider(() => ({
 }), 'en');
 
 export default function App() {
-  // Attach custom dataProvider actions for convenience
-  React.useEffect(() => {
-    attachDPListings(dp as any);
-    attachDPBookings(dp as any);
-  }, []);
-
   return (
     <BrowserRouter>
       <Admin
@@ -75,26 +49,21 @@ export default function App() {
         dashboard={Dashboard}
         disableTelemetry
       >
-        <Resource name="listings" list={ListingList} show={ListingShow} />
-        <Resource name="bookings" list={BookingList} show={BookingShow} />
-        <Resource name="ledger" list={LedgerList} />
-        <Resource name="payouts" list={PayoutList} />
-        <Resource name="disputes" list={DisputeList} show={DisputeShow} />
-        <Resource name="email_events" list={EmailEventList} />
-        <Resource name="sms_events" list={SmsEventList} />
-        <Resource name="reviews" list={ReviewList} />
-        <Resource name="audit_events" list={AuditList} />
-        <Resource name="admin_users" list={AdminUserList} edit={AdminUserEdit} create={AdminUserCreate} />
-        <Resource name="providers" list={ProviderList} show={ProviderShow} />
-        <Resource name="clients" list={ClientList} />
-        <Resource name="conversations" list={ConversationList} show={ConversationShow} />
+        {ADMIN_RESOURCES.map((r) => (
+          <Resource
+            key={r.name}
+            name={r.name}
+            list={r.list}
+            show={r.show}
+            edit={r.edit}
+            create={r.create}
+          />
+        ))}
 
         <CustomRoutes>
-          <Route path="/payouts/run" element={<PayoutsRun />} />
-          <Route path="/users" element={<UsersSearch />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/ops/migrations" element={<Migrations />} />
-          <Route path="/providers/deleted" element={<ProviderList />} />
+          {ADMIN_ROUTES.map((r) => (
+            <Route key={r.path} path={r.path} element={r.element} />
+          ))}
         </CustomRoutes>
       </Admin>
     </BrowserRouter>

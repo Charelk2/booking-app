@@ -1,15 +1,7 @@
 import type { AuthProvider } from 'react-admin';
+import { getAdminToken, inferAdminApiUrl } from './env';
 
-// Allow zero-config by inferring API URL from hostname if env is missing
-const inferApiUrl = () => {
-  const env = import.meta.env.VITE_API_URL as string | undefined;
-  if (env) return env;
-  const host = window.location.hostname;
-  if (host.endsWith('booka.co.za')) return 'https://api.booka.co.za/admin';
-  return `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-};
-
-const API_URL = inferApiUrl();
+const API_URL = inferAdminApiUrl();
 
 type LoginBody = { email: string; password: string };
 type LoginResp = { token: string; user: { id: string; email: string; role: string } };
@@ -31,7 +23,7 @@ export const authProvider: AuthProvider = {
     return;
   },
   logout: async () => {
-    const token = localStorage.getItem('booka_admin_token');
+    const token = getAdminToken();
     try {
       if (token) {
         await fetch(`${API_URL}/auth/logout`, {
@@ -53,7 +45,7 @@ export const authProvider: AuthProvider = {
     return Promise.resolve();
   },
   checkAuth: async () => {
-    const token = localStorage.getItem('booka_admin_token');
+    const token = getAdminToken();
     if (!token) return Promise.reject();
     const res = await fetch(`${API_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },

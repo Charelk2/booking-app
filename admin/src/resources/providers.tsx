@@ -24,6 +24,7 @@ import { useRedirect, SimpleList, FunctionField } from 'react-admin';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import ConfirmButton from '../components/ConfirmButton';
+import { inferPublicWebOrigin } from '../env';
 
 const providerFilters = [
   <TextInput key="q" source="q" label="Search" alwaysOn />,
@@ -37,15 +38,6 @@ const providerFilters = [
     ]}
   />,
 ];
-
-const getPublicOrigin = (): string => {
-  const env = (import.meta as any).env?.VITE_PUBLIC_WEB_ORIGIN as string | undefined;
-  if (env) return env.replace(/\/$/, '');
-  const { protocol, hostname } = window.location;
-  if (/^admin\./i.test(hostname)) return `${protocol}//${hostname.replace(/^admin\./i, '')}`;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return `${protocol}//${hostname}:3000`;
-  return `${protocol}//${hostname}`;
-};
 
 const RowActions = () => {
   const record = useRecordContext<any>();
@@ -83,7 +75,7 @@ const RowActions = () => {
       <ShowButton label="Details" />
       {/* Public profile quick link */}
       <Tooltip title="Open Public Profile" arrow>
-        <IconButton aria-label="Open Public Profile" onClick={() => window.open(`${getPublicOrigin()}/service-providers/${record.id}`, '_blank', 'noopener,noreferrer')} size="small" sx={{ color: '#0f766e' }}>
+        <IconButton aria-label="Open Public Profile" onClick={() => window.open(`${inferPublicWebOrigin()}/service-providers/${record.id}`, '_blank', 'noopener,noreferrer')} size="small" sx={{ color: '#0f766e' }}>
           <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path d="M14 3h3a1 1 0 011 1v3a1 1 0 11-2 0V6.414l-6.293 6.293a1 1 0 01-1.414-1.414L14.586 5H14a1 1 0 110-2z" />
             <path d="M5 6a1 1 0 011-1h3a1 1 0 110 2H7v7h7v-2a1 1 0 112 0v3a1 1 0 01-1 1H6a1 1 0 01-1-1V6z" />
@@ -168,17 +160,7 @@ export const ProviderList = () => {
 const PublicProfileButton: React.FC = () => {
   const rec = useRecordContext<any>();
   if (!rec?.id) return null;
-
-  const getPublicOrigin = (): string => {
-    const env = (import.meta as any).env?.VITE_PUBLIC_WEB_ORIGIN as string | undefined;
-    if (env) return env.replace(/\/$/, '');
-    const { protocol, hostname } = window.location;
-    if (/^admin\./i.test(hostname)) return `${protocol}//${hostname.replace(/^admin\./i, '')}`;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return `${protocol}//${hostname}:3000`;
-    return `${protocol}//${hostname}`;
-  };
-
-  const url = `${getPublicOrigin()}/service-providers/${rec.id}`;
+  const url = `${inferPublicWebOrigin()}/service-providers/${rec.id}`;
   return (
     <Tooltip title="Open Public Profile" arrow>
       <Button
@@ -291,16 +273,7 @@ const ConversationPanel = () => {
                   });
                   const toReject = (all?.data || []).filter((l: any) => String(l.status).toLowerCase() !== 'rejected').map((l:any) => l.id);
                   if (toReject.length) {
-                    const env = (import.meta as any).env?.VITE_API_URL as string | undefined;
-                    const base = env || `${window.location.protocol}//${window.location.hostname}:8000/admin`;
-                    await fetch(base + '/listings/bulk_reject', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('booka_admin_token')}`
-                      },
-                      body: JSON.stringify({ ids: toReject, reason: 'Provider purged' }),
-                    });
+                    await (dp as any).bulkRejectListings(toReject, 'Provider purged');
                   }
                 } catch {}
 

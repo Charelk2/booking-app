@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { List, Datagrid, TextField, SelectInput, TextInput, useRecordContext, useNotify, useRefresh, FunctionField } from 'react-admin';
+import { List, Datagrid, TextField, SelectInput, TextInput, useRecordContext, useNotify, useRefresh, FunctionField, useDataProvider } from 'react-admin';
 import MoneyCell from '../components/MoneyCell';
 import TimeCell from '../components/TimeCell';
 import StatusBadge from '../components/StatusBadge';
@@ -20,6 +20,7 @@ const payoutFilters = [
 
 const Actions = () => {
   const rec = useRecordContext() as any;
+  const dp: any = useDataProvider();
   const notify = useNotify();
   const refresh = useRefresh();
   const markPaid = async () => {
@@ -27,7 +28,6 @@ const Actions = () => {
     const reference = prompt('Reference (required)');
     if (!reference) { notify('Reference required', { type:'warning' }); return; }
     try {
-      const dp: any = (window as any).raDataProvider;
       await dp.httpClient(`${dp.API_URL}/payouts/${rec.id}/mark-paid`, {
         method: 'POST',
         body: JSON.stringify({ method, reference }),
@@ -36,7 +36,6 @@ const Actions = () => {
     } catch (e:any) { notify(e.message || 'Failed', { type:'warning' }); }
   };
   const viewPdf = async () => {
-    const dp: any = (window as any).raDataProvider;
     try {
       const { json } = await dp.httpClient(`${dp.API_URL}/payouts/${rec.id}/pdf-url`, { method: 'GET' });
       const url = (json && json.url) ? json.url : null;

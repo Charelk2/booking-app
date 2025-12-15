@@ -1,9 +1,8 @@
 import * as React from 'react';
-import { List, Datagrid, TextField, DateField, TextInput, SelectInput, Show, SimpleShowLayout, useNotify, useRefresh, Button, useRecordContext, usePermissions, FunctionField } from 'react-admin';
+import { List, Datagrid, TextField, DateField, TextInput, SelectInput, Show, SimpleShowLayout, useNotify, useRefresh, Button, useRecordContext, usePermissions, FunctionField, useDataProvider } from 'react-admin';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import type { ExtendedDataProvider } from '../dataProvider';
 import MoneyCell from '../components/MoneyCell';
 import TimeCell from '../components/TimeCell';
 import { Card, CardContent, Stack, Typography, Divider, Tooltip, IconButton, Chip } from '@mui/material';
@@ -24,6 +23,7 @@ const bookingFilters = [
 
 const Actions = () => {
   const rec = useRecordContext();
+  const dp = useDataProvider() as any;
   const notify = useNotify();
   const refresh = useRefresh();
   const { permissions } = usePermissions();
@@ -31,7 +31,7 @@ const Actions = () => {
   const canRefund = ['payments','admin','superadmin'].includes(permissions as string);
   const markComplete = async () => {
     try {
-      await (window as any).raDataProvider.markCompleted(rec.id);
+      await dp.markCompleted(rec.id);
       notify('Booking marked completed'); refresh();
     } catch (e:any) { notify(e.message || 'Failed', { type:'warning' }); }
   };
@@ -40,7 +40,7 @@ const Actions = () => {
     if (!amount) return;
     const cents = Math.round(parseFloat(amount) * 100);
     try {
-      await (window as any).raDataProvider.refundBooking(rec.id, cents);
+      await dp.refundBooking(rec.id, cents);
       notify(`Refunded R${amount}`); refresh();
     } catch (e:any) { notify(e.message || 'Refund failed', { type:'warning' }); }
   };
@@ -164,11 +164,9 @@ export const BookingShow = () => (
   </Show>
 );
 
-export const attachDPBookings = (dp: ExtendedDataProvider) => { (window as any).raDataProvider = dp; };
-
 function PayoutWorksheet() {
   const rec = useRecordContext<any>();
-  const dp: any = (window as any).raDataProvider;
+  const dp = useDataProvider();
   const [rows, setRows] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   React.useEffect(() => {
