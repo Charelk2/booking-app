@@ -180,7 +180,7 @@ export default function VenueInlineQuote({
           </div>
           {items.length === 0 ? (
             <div className="mt-2 text-sm text-gray-600">
-              Add optional fees like cleaning, overtime, staffing, etc.
+              Add optional fees like cleaning, refundable deposit, overtime, staffing, etc.
             </div>
           ) : (
             <div className="mt-2 space-y-2">

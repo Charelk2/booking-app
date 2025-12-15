@@ -36,6 +36,8 @@ type VenueServiceFlowProps = {
   service?: Service;
 };
 
+const DEFAULT_VENUE_CANCELLATION_POLICY = `# Moderate\n\n- Free cancellation within 24 hours of booking.\n- 50% refund up to 7 days before the event.`;
+
 function useImageThumbnails(files: File[]) {
   const [thumbnails, setThumbnails] = useState<string[]>([]);
   useEffect(() => {
@@ -205,6 +207,7 @@ export default function VenueServiceFlow({
     const titleEmpty = !(state.common.title || "").trim();
     const descEmpty = !(state.common.description || "").trim();
     const addressEmpty = !(state.typeFields.address || "").trim();
+    const policyEmpty = !(state.typeFields.cancellation_policy || "").trim();
 
     if (titleEmpty && profileDefaults.title) {
       actions.setCommonField("title", profileDefaults.title);
@@ -215,6 +218,12 @@ export default function VenueServiceFlow({
     if (addressEmpty && profileDefaults.location) {
       actions.setTypeField("address", profileDefaults.location);
     }
+    if (policyEmpty) {
+      actions.setTypeField(
+        "cancellation_policy",
+        profileDefaults.cancellationPolicy || DEFAULT_VENUE_CANCELLATION_POLICY,
+      );
+    }
     prefilledFromProfileRef.current = true;
   }, [
     isOpen,
@@ -223,6 +232,7 @@ export default function VenueServiceFlow({
     state.common.title,
     state.common.description,
     state.typeFields.address,
+    state.typeFields.cancellation_policy,
     actions,
   ]);
 
@@ -590,9 +600,6 @@ export default function VenueServiceFlow({
                           Pre-filled from your profile location. An approximate area is fine for now.
                         </p>
                       ) : null}
-                      <p className="text-sm text-gray-600">
-                        You can share an approximate area now and send the full address after confirmation.
-                      </p>
                     </div>
                   )}
 
@@ -726,9 +733,6 @@ export default function VenueServiceFlow({
                           Enter a day rate to continue.
                         </p>
                       )}
-                      <p className="text-xs text-gray-600">
-                        Need a refundable deposit? Add it as a line item in your quote (not in the listing).
-                      </p>
                     </div>
                   )}
 
@@ -798,16 +802,6 @@ export default function VenueServiceFlow({
                         }
                         placeholder="If empty, we show your profile’s cancellation policy."
                       />
-                      {profileDefaults?.cancellationPolicy ? (
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                          <div className="text-xs font-semibold text-gray-700">
-                            Your profile cancellation policy
-                          </div>
-                          <p className="mt-1 whitespace-pre-line text-xs text-gray-600">
-                            {profileDefaults.cancellationPolicy}
-                          </p>
-                        </div>
-                      ) : null}
                     </div>
                   )}
 

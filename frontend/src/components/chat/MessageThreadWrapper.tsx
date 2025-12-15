@@ -1564,6 +1564,7 @@ export default function MessageThreadWrapper({
                       if (Number.isFinite(cleaning) && cleaning > 0) out.push({ description: 'Cleaning fee', price: cleaning });
                       const overtime = Number(d?.overtime_rate || 0);
                       if (Number.isFinite(overtime) && overtime > 0) out.push({ description: 'Overtime (per hour)', price: overtime });
+                      out.push({ description: 'Refundable deposit', price: 0 });
                       return out;
                     })()}
                   />
