@@ -18,27 +18,27 @@ type ComingSoonPageProps = {
 function BackgroundDecor() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-950 to-black" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-slate-50" />
 
       {/* Soft gradient blobs */}
-      <div className="absolute -top-44 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-accent/35 via-fuchsia-500/15 to-sky-500/10 blur-3xl" />
-      <div className="absolute -bottom-52 left-[-140px] h-[560px] w-[560px] rounded-full bg-gradient-to-tr from-emerald-400/10 via-cyan-400/10 to-accent/25 blur-3xl" />
-      <div className="absolute -bottom-56 right-[-220px] h-[640px] w-[640px] rounded-full bg-gradient-to-tr from-violet-500/10 via-slate-900/10 to-accent/25 blur-3xl" />
+      <div className="absolute -top-52 left-1/2 h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-rose-200 via-fuchsia-100 to-sky-100 blur-3xl opacity-80" />
+      <div className="absolute -bottom-56 left-[-200px] h-[620px] w-[620px] rounded-full bg-gradient-to-tr from-emerald-100 via-cyan-100 to-rose-100 blur-3xl opacity-70" />
+      <div className="absolute -bottom-64 right-[-260px] h-[720px] w-[720px] rounded-full bg-gradient-to-tr from-violet-100 via-sky-100 to-rose-100 blur-3xl opacity-70" />
 
       {/* Subtle grid */}
-      <svg className="absolute inset-0 h-full w-full opacity-[0.10]" viewBox="0 0 1200 800">
+      <svg className="absolute inset-0 h-full w-full opacity-[0.22]" viewBox="0 0 1200 800">
         <defs>
-          <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
-            <path d="M 48 0 L 0 0 0 48" fill="none" stroke="white" strokeWidth="1" />
+          <pattern id="cs_grid" width="48" height="48" patternUnits="userSpaceOnUse">
+            <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(15,23,42,0.18)" strokeWidth="1" />
           </pattern>
-          <linearGradient id="gridFade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="white" stopOpacity="0.9" />
-            <stop offset="55%" stopColor="white" stopOpacity="0.25" />
+          <linearGradient id="cs_gridFade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="white" stopOpacity="1" />
+            <stop offset="55%" stopColor="white" stopOpacity="0.65" />
             <stop offset="100%" stopColor="white" stopOpacity="0" />
           </linearGradient>
         </defs>
-        <rect width="1200" height="800" fill="url(#grid)" />
-        <rect width="1200" height="800" fill="url(#gridFade)" />
+        <rect width="1200" height="800" fill="url(#cs_grid)" />
+        <rect width="1200" height="800" fill="url(#cs_gridFade)" />
       </svg>
     </div>
   );
@@ -46,25 +46,28 @@ function BackgroundDecor() {
 
 function HeroVector() {
   return (
-    <div aria-hidden="true" className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-white/0" />
+    <div
+      aria-hidden="true"
+      className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-elevation"
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-white via-white to-slate-50" />
       <div className="absolute inset-0 bg-[radial-gradient(closest-side_at_25%_30%,rgba(255,122,133,0.30),transparent_62%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(closest-side_at_72%_62%,rgba(56,189,248,0.18),transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(closest-side_at_72%_62%,rgba(56,189,248,0.20),transparent_60%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(closest-side_at_55%_90%,rgba(168,85,247,0.16),transparent_60%)]" />
 
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 600 750">
         <defs>
-          <linearGradient id="strokeA" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id="cs_strokeA" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="rgba(255,122,133,0.90)" />
             <stop offset="45%" stopColor="rgba(168,85,247,0.55)" />
             <stop offset="100%" stopColor="rgba(56,189,248,0.55)" />
           </linearGradient>
-          <linearGradient id="strokeB" x1="1" y1="0" x2="0" y2="1">
+          <linearGradient id="cs_strokeB" x1="1" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="rgba(34,197,94,0.45)" />
             <stop offset="55%" stopColor="rgba(56,189,248,0.35)" />
             <stop offset="100%" stopColor="rgba(255,122,133,0.35)" />
           </linearGradient>
-          <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id="cs_softGlow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="8" result="blur" />
             <feColorMatrix
               in="blur"
@@ -83,16 +86,16 @@ function HeroVector() {
         <path
           d="M -40 260 C 80 210, 140 310, 240 260 C 330 215, 390 300, 520 250 C 610 215, 670 250, 720 220"
           fill="none"
-          stroke="url(#strokeA)"
+          stroke="url(#cs_strokeA)"
           strokeWidth="10"
           strokeLinecap="round"
-          filter="url(#softGlow)"
+          filter="url(#cs_softGlow)"
           opacity="0.9"
         />
         <path
           d="M -30 340 C 90 295, 160 395, 260 345 C 350 305, 420 380, 540 340 C 640 305, 690 355, 720 330"
           fill="none"
-          stroke="url(#strokeB)"
+          stroke="url(#cs_strokeB)"
           strokeWidth="8"
           strokeLinecap="round"
           opacity="0.75"
@@ -100,7 +103,7 @@ function HeroVector() {
         <path
           d="M -20 420 C 110 365, 180 470, 290 420 C 380 380, 450 455, 560 420 C 660 385, 700 435, 720 410"
           fill="none"
-          stroke="rgba(255,255,255,0.18)"
+          stroke="rgba(15,23,42,0.14)"
           strokeWidth="6"
           strokeLinecap="round"
         />
@@ -117,13 +120,13 @@ function HeroVector() {
         </g>
 
         {/* Minimal “stage” */}
-        <g opacity="0.35">
-          <rect x="120" y="610" width="360" height="46" rx="18" fill="rgba(255,255,255,0.10)" />
-          <rect x="170" y="624" width="260" height="16" rx="8" fill="rgba(255,255,255,0.12)" />
+        <g opacity="0.55">
+          <rect x="120" y="610" width="360" height="46" rx="18" fill="rgba(15,23,42,0.06)" />
+          <rect x="170" y="624" width="260" height="16" rx="8" fill="rgba(15,23,42,0.07)" />
         </g>
       </svg>
 
-      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/50 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/90 to-transparent" />
     </div>
   );
 }
@@ -133,24 +136,22 @@ export default function ComingSoonPage({ searchParams }: ComingSoonPageProps) {
   const hasError = searchParams?.error === '1';
 
   return (
-    <main className="relative min-h-screen overflow-hidden text-white">
+    <main className="relative min-h-screen overflow-hidden text-slate-900">
       <BackgroundDecor />
 
       <div className="relative mx-auto max-w-6xl px-6 py-10 sm:py-14">
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-white/90 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
-              <Image
-                src="/booka_logo.jpg"
-                alt="Booka"
-                width={120}
-                height={48}
-                priority
-                className="h-auto w-[120px] rounded-md"
-              />
-            </div>
+            <Image
+              src="/booka_logo.jpg"
+              alt="Booka"
+              width={120}
+              height={48}
+              priority
+              className="h-auto w-[120px] rounded-md"
+            />
             <div className="hidden sm:block">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 backdrop-blur">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 shadow-sm">
                 <Sparkles className="h-4 w-4 text-accent" />
                 Launching soon
               </div>
@@ -159,7 +160,7 @@ export default function ComingSoonPage({ searchParams }: ComingSoonPageProps) {
 
           <a
             href="#waitlist"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
           >
             Get early access
             <ArrowRight className="h-4 w-4" />
@@ -168,49 +169,49 @@ export default function ComingSoonPage({ searchParams }: ComingSoonPageProps) {
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
           <section>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 backdrop-blur sm:hidden">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 shadow-sm sm:hidden">
               <Sparkles className="h-4 w-4 text-accent" />
               Launching soon
             </div>
 
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-6xl">
+            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-900 sm:text-6xl">
               Your Event,
-              <span className="block bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent">
+              <span className="block bg-gradient-to-r from-slate-900 via-slate-900 to-slate-500 bg-clip-text text-transparent">
                 Simplified
               </span>
             </h1>
 
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-white/70">
+            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600">
               South Africa&apos;s premier platform for booking event service providers. From DJs to
               caterers, photographers to decorators—find and book trusted professionals for
               your perfect event.
             </p>
 
             <dl className="mt-8 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-accent" />
-                  <dt className="font-semibold text-white">Easy Booking</dt>
+                  <dt className="font-semibold text-slate-900">Easy Booking</dt>
                 </div>
-                <dd className="mt-2 text-sm leading-relaxed text-white/70">
+                <dd className="mt-2 text-sm leading-relaxed text-slate-600">
                   Browse, compare, and book service providers in just a few clicks
                 </dd>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-accent" />
-                  <dt className="font-semibold text-white">Verified Pros</dt>
+                  <dt className="font-semibold text-slate-900">Verified Pros</dt>
                 </div>
-                <dd className="mt-2 text-sm leading-relaxed text-white/70">
+                <dd className="mt-2 text-sm leading-relaxed text-slate-600">
                   All service providers are vetted and reviewed by real customers
                 </dd>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center gap-2">
                   <CalendarCheck2 className="h-4 w-4 text-accent" />
-                  <dt className="font-semibold text-white">All-in-One</dt>
+                  <dt className="font-semibold text-slate-900">All-in-One</dt>
                 </div>
-                <dd className="mt-2 text-sm leading-relaxed text-white/70">
+                <dd className="mt-2 text-sm leading-relaxed text-slate-600">
                   Manage all your event bookings and payments in one place
                 </dd>
               </div>
@@ -218,29 +219,29 @@ export default function ComingSoonPage({ searchParams }: ComingSoonPageProps) {
 
             <div
               id="waitlist"
-              className="mt-10 overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur"
+              className="mt-10 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-elevation"
             >
               <div className="px-6 py-6 sm:px-8">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-semibold text-white">Be the First to Know</h2>
-                    <p className="mt-2 text-sm text-white/70">
+                    <h2 className="text-xl font-semibold text-slate-900">Be the First to Know</h2>
+                    <p className="mt-2 text-sm text-slate-600">
                       Sign up to get early access, exclusive launch offers, and a launch-day
                       notification.
                     </p>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/70">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
                     Join 500+ others waiting for launch
                   </div>
                 </div>
 
                 {subscribed ? (
-                  <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+                  <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
                     Thanks — you&apos;re on the list.
                   </div>
                 ) : null}
                 {hasError ? (
-                  <div className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+                  <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
                     Something went wrong. Please try again.
                   </div>
                 ) : null}
@@ -254,7 +255,7 @@ export default function ComingSoonPage({ searchParams }: ComingSoonPageProps) {
                       required
                       placeholder="you@example.com"
                       autoComplete="email"
-                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white placeholder:text-white/40 shadow-sm focus:border-white/25 focus:outline-none focus:ring-2 focus:ring-white/10"
+                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </label>
                   <input
@@ -267,43 +268,41 @@ export default function ComingSoonPage({ searchParams }: ComingSoonPageProps) {
                   />
                   <button
                     type="submit"
-                    className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-accent to-fuchsia-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(255,122,133,0.25)] hover:from-accent/90 hover:to-fuchsia-500/90 focus:outline-none focus:ring-2 focus:ring-white/20"
+                    className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-fuchsia-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(225,29,72,0.20)] hover:from-rose-600 hover:to-fuchsia-700 focus:outline-none focus:ring-2 focus:ring-rose-200"
                   >
                     Notify Me at Launch
                     <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                   </button>
                 </form>
-                <p className="mt-3 text-xs text-white/55">
-                  No spam. Unsubscribe anytime.
-                </p>
+                <p className="mt-3 text-xs text-slate-500">No spam. Unsubscribe anytime.</p>
               </div>
 
-              <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+              <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
 
               <div className="grid gap-4 px-6 py-6 sm:grid-cols-2 sm:px-8">
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <div className="text-sm font-semibold text-white">For clients</div>
-                  <div className="mt-1 text-sm text-white/70">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">For clients</div>
+                  <div className="mt-1 text-sm text-slate-600">
                     Find trusted pros and book faster with chat, quotes, and payments in one place.
                   </div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <div className="text-sm font-semibold text-white">For providers</div>
-                  <div className="mt-1 text-sm text-white/70">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">For providers</div>
+                  <div className="mt-1 text-sm text-slate-600">
                     Get discovered, manage enquiries, send quotes, and get paid—without the chaos.
                   </div>
                 </div>
               </div>
             </div>
 
-            <p className="mt-8 text-xs text-white/45">All Rights reserved © Booka 2025</p>
+            <p className="mt-8 text-xs text-slate-500">All Rights reserved © Booka 2025</p>
           </section>
 
           <aside className="space-y-6">
             <HeroVector />
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h2 className="text-lg font-semibold text-white">Service Categories Coming Soon</h2>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900">Service Categories Coming Soon</h2>
               <div className="mt-4 flex flex-wrap gap-2">
                 {[
                   'DJs & Entertainment',
@@ -317,7 +316,7 @@ export default function ComingSoonPage({ searchParams }: ComingSoonPageProps) {
                 ].map((label) => (
                   <span
                     key={label}
-                    className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-medium text-white/80"
+                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
                   >
                     {label}
                   </span>
