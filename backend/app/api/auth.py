@@ -33,6 +33,7 @@ from ..schemas.user import (
 )
 from ..utils.auth import get_password_hash, verify_password, normalize_email, bcrypt_rounds_from_hash
 from ..utils.email import send_email
+from ..utils.mailjet_contacts import sync_marketing_opt_in
 from ..utils.redis_cache import get_redis_client
 from ..utils.server_timing import ServerTimer
 from ..utils.json import dumps_bytes as _json_dumps
@@ -339,6 +340,7 @@ def register(
         first_name=user_data.first_name,
         last_name=user_data.last_name,
         phone_number=user_data.phone_number,
+        marketing_opt_in=bool(getattr(user_data, "marketing_opt_in", False)),
         user_type=user_data.user_type,
         # Service providers can skip email confirmation in this environment.
         is_verified=(user_data.user_type == UserType.SERVICE_PROVIDER),
@@ -348,6 +350,13 @@ def register(
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
+
+        # Best-effort marketing list sync when opted in.
+        if getattr(db_user, "marketing_opt_in", False):
+            try:
+                background_tasks.add_task(sync_marketing_opt_in, db_user.email, True)
+            except Exception:
+                pass
 
         if db_user.user_type == UserType.SERVICE_PROVIDER:
             # Create an empty service provider profile so the artist can

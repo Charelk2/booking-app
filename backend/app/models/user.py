@@ -27,6 +27,7 @@ class User(BaseModel):
     first_name   = Column(String, nullable=False)
     last_name    = Column(String, nullable=False)
     phone_number = Column(String, nullable=True)
+    marketing_opt_in = Column(Boolean, nullable=False, default=False)
     user_type    = Column(Enum(UserType), nullable=False)
     is_active    = Column(Boolean, default=True)
     is_verified  = Column(Boolean, default=False)

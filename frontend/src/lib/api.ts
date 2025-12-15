@@ -552,6 +552,7 @@ type RequestConfig = AxiosRequestConfig & { _skipRefresh?: boolean };
 export const getCurrentUser = (config?: RequestConfig) => api.get<User>('/auth/me', config);
 
 export const logout = () => api.post('/auth/logout');
+export const logoutAll = () => api.post('/auth/logout-all');
 
 export const forgotPassword = (email: string) => api.post('/auth/forgot-password', { email });
 export const resetPassword = (token: string, password: string) =>
@@ -2312,6 +2313,22 @@ export const exportMyAccount = () =>
 
 export const deleteMyAccount = (password: string) =>
   api.delete(`${API_V1}/users/me`, { data: { password } });
+
+export const updateMyAccount = (patch: {
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string | null;
+  marketing_opt_in?: boolean;
+}) => api.patch<User>(`${API_V1}/users/me`, patch);
+
+export const requestEmailChange = (newEmail: string) =>
+  api.post<{ message: string; confirm_link?: string }>(
+    `${API_V1}/users/me/email-change/request`,
+    { new_email: newEmail },
+  );
+
+export const confirmEmailChange = (token: string) =>
+  api.post<{ message: string }>(`${API_V1}/users/email-change/confirm`, { token });
 
 // ─── EVENT PREP ───────────────────────────────────────────────────────────────
 export async function getEventPrep(bookingId: number) {

@@ -122,6 +122,7 @@ from .db_utils import (
     ensure_email_sms_event_tables,
     ensure_audit_events_table,
     ensure_user_profile_picture_column,
+    ensure_user_marketing_opt_in_column,
     ensure_visible_to_column,
     ensure_quote_v2_sound_firm_column,
     ensure_rider_tables,
@@ -368,6 +369,7 @@ ensure_timestamp_defaults(engine, "quotes")
 ensure_timestamp_defaults(engine, "quotes_v2")
 ensure_timestamp_defaults(engine, "invoices")
 ensure_user_profile_picture_column(engine)
+ensure_user_marketing_opt_in_column(engine)
 ensure_booking_request_travel_columns(engine)
 ensure_booking_request_service_extras_column(engine)
 ensure_sound_outreach_columns(engine)
