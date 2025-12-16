@@ -13,6 +13,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pgbouncer postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
+# Install Cloud SQL Auth Proxy in the image so runtime boots don't depend on
+# external network fetches.
+ARG CLOUD_SQL_PROXY_VERSION=2.10.0
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) proxy_arch="amd64" ;; \
+      arm64) proxy_arch="arm64" ;; \
+      *) echo "Unsupported architecture: $arch" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /usr/local/bin/cloud-sql-proxy \
+      "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v${CLOUD_SQL_PROXY_VERSION}/cloud-sql-proxy.linux.${proxy_arch}"; \
+    chmod +x /usr/local/bin/cloud-sql-proxy
+
 # Install Python deps
 COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r /app/requirements.txt
@@ -26,7 +40,7 @@ RUN rm -f /app/.env /app/.env.* || true
 EXPOSE 8000
 
 # Healthcheck (Fly also does HTTP checks; this is a container-level check)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=90s CMD curl -fsS http://127.0.0.1:${PORT}/healthz/ready || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s CMD curl -fsS http://127.0.0.1:${PORT}/healthz/live || exit 1
 
 # Run the API
 # Allow tuning the number of workers via UVICORN_WORKERS (default 2).

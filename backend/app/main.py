@@ -200,6 +200,26 @@ class ReadyState:
 
 READY = ReadyState()
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    raw = raw.strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except Exception:
+        return default
+
+
+# Health/readiness tuning. Defaults are intentionally tolerant to avoid transient
+# DB/CPU hiccups flapping Fly health checks (which can result in "no healthy instances").
+_HEALTH_DB_PROBE_TIMEOUT_S = max(0.1, _env_float("HEALTH_DB_PROBE_TIMEOUT_S", 3.0))
+_HEALTH_DB_PROBE_INTERVAL_S = max(0.1, _env_float("HEALTH_DB_PROBE_INTERVAL_S", 1.0))
+_HEALTH_READY_GRACE_S = max(0.0, _env_float("HEALTH_READY_GRACE_S", 10.0))
+_HEALTH_READY_STALE_AFTER_S = max(0.1, _env_float("HEALTH_READY_STALE_AFTER_S", 5.0))
+
 
 def _set_ready(
     ready: bool,
@@ -244,26 +264,38 @@ def _db_ping_sync() -> float:
 async def _readiness_poller() -> None:
     """Periodic readiness probe that caches DB/loop state for health checks."""
     await asyncio.sleep(0.2)
+    probe_task: Optional[asyncio.Task[float]] = None
     while True:
         try:
-            started = time.time()
+            if probe_task is None:
+                # Only allow a single in-flight DB probe: cancelling asyncio.wait_for
+                # does not stop the underlying thread, so starting a new probe on every
+                # timeout can pile up blocked threads under DB pressure.
+                probe_task = asyncio.create_task(asyncio.to_thread(_db_ping_sync))
             ping_ms = await asyncio.wait_for(
-                asyncio.to_thread(_db_ping_sync),
-                timeout=1.0,
+                asyncio.shield(probe_task),
+                timeout=_HEALTH_DB_PROBE_TIMEOUT_S,
             )
+            probe_task = None
             _set_ready(True, "ok", db_ping_ms=round(ping_ms, 2))
         except asyncio.TimeoutError:
-            _set_ready(False, "db_timeout", err="db ping exceeded 1.0s")
+            _set_ready(
+                False,
+                "db_timeout",
+                err=f"db ping exceeded {_HEALTH_DB_PROBE_TIMEOUT_S:.1f}s",
+            )
         except SA_TimeoutError as exc:
+            probe_task = None
             # SQLAlchemy pool timeout (very relevant to DB pressure symptoms)
             _set_ready(False, "db_pool_timeout", err=str(exc))
         except Exception as exc:  # pragma: no cover - defensive guard
+            probe_task = None
             _set_ready(False, "db_error", err=repr(exc))
         try:
             READY.last_probe_ts = time.time()
         except Exception:
             pass
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(_HEALTH_DB_PROBE_INTERVAL_S)
 
 
 async def _event_loop_lag_monitor(
@@ -300,13 +332,23 @@ logger.info(
     os.getpid(),
 )
 
-# Optionally enable tracemalloc for richer allocation tracebacks on RuntimeWarning hints
-try:
-    import tracemalloc  # type: ignore
-    tracemalloc.start(25)
-    logger.info("Tracemalloc started (25 frames)")
-except Exception as _exc:  # pragma: no cover
-    logger.warning("Tracemalloc start failed: %s", _exc)
+# Optionally enable tracemalloc for richer allocation tracebacks on RuntimeWarning hints.
+# Keep it off by default in production: it adds overhead and can slow cold starts.
+_enable_tracemalloc_raw = os.getenv("ENABLE_TRACEMALLOC", "0").strip().lower()
+if _enable_tracemalloc_raw in {"1", "true", "yes"}:
+    try:
+        import tracemalloc  # type: ignore
+
+        try:
+            _frames = int(os.getenv("TRACEMALLOC_FRAMES", "25").strip() or "25")
+        except Exception:
+            _frames = 25
+        if _frames <= 0:
+            _frames = 25
+        tracemalloc.start(_frames)
+        logger.info("Tracemalloc started (%s frames)", _frames)
+    except Exception as _exc:  # pragma: no cover
+        logger.warning("Tracemalloc start failed: %s", _exc)
 
 # Register SQLAlchemy listeners that log status transitions
 register_status_listeners()
@@ -718,7 +760,7 @@ async def health_ready():
     # Treat stale probes as not-ready without mutating the cached READY state.
     last_probe = getattr(READY, "last_probe_ts", 0.0) or 0.0
     probe_age_s = now - last_probe if last_probe > 0 else None
-    stale = probe_age_s is not None and probe_age_s > 5.0
+    stale = probe_age_s is not None and probe_age_s > _HEALTH_READY_STALE_AFTER_S
 
     # Compute effective readiness combining cached DB probe + loop lag + staleness.
     effective_ready = bool(READY.ready)
@@ -726,6 +768,13 @@ async def health_ready():
     base_reason = READY.reason or "unknown"
     if not READY.ready:
         reasons.append(base_reason)
+        # Avoid flapping readiness for brief DB hiccups: if we had a successful probe
+        # recently, keep returning 200 for a short grace window so Fly doesn't drop
+        # the only instance out of routing.
+        last_ok = getattr(READY, "last_ok_ts", 0.0) or 0.0
+        if last_ok > 0 and (now - last_ok) <= _HEALTH_READY_GRACE_S:
+            effective_ready = True
+            reasons.append("grace")
     if stale:
         effective_ready = False
         reasons.append("stale_probe")
@@ -1173,14 +1222,22 @@ async def _wait_for_db_ready(max_wait_seconds: int = 30, interval_seconds: float
     background loops also have their own backoff.
     """
     elapsed = 0.0
+    probe_task: Optional[asyncio.Task[float]] = None
     while elapsed < max_wait_seconds:
         try:
+            if probe_task is None:
+                probe_task = asyncio.create_task(asyncio.to_thread(_db_ping_sync))
             await asyncio.wait_for(
-                asyncio.to_thread(_db_ping_sync),
-                timeout=1.0,
+                asyncio.shield(probe_task),
+                timeout=_HEALTH_DB_PROBE_TIMEOUT_S,
             )
             return
+        except asyncio.TimeoutError:
+            # Keep waiting on the same in-flight probe; avoid piling up threads.
+            await asyncio.sleep(interval_seconds)
+            elapsed += interval_seconds
         except Exception:
+            probe_task = None
             await asyncio.sleep(interval_seconds)
             elapsed += interval_seconds
     logger.warning("DB readiness check timed out; starting tasks with backoff enabled")

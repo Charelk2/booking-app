@@ -48,10 +48,14 @@ kill_timeout = 30
   UPLOADS_DIR = "/data/uploads"
 
   # IMPORTANT (do this via secrets, not here):
-  #   fly secrets set SQLALCHEMY_DATABASE_URL='postgresql+psycopg2://appuser:PASS@127.0.0.1:5432/appdb' -a booka-api-charel
+  #   fly secrets set SQLALCHEMY_DATABASE_URL='postgresql+psycopg2://appuser:PASS@127.0.0.1:6432/appdb' -a booka-api-charel
   #
   # Optional duplicate for Alembic tooling:
-  #   fly secrets set DB_URL='postgresql+psycopg2://appuser:PASS@127.0.0.1:5432/appdb' -a booka-api-charel
+  #   fly secrets set DB_URL='postgresql+psycopg2://appuser:PASS@127.0.0.1:6432/appdb' -a booka-api-charel
+
+  # Health/readiness tuning (optional; defaults are safe)
+  # HEALTH_DB_PROBE_TIMEOUT_S = "3.0"
+  # HEALTH_READY_GRACE_S = "10.0"
 
   # Redis (optional):
   #   fly secrets set REDIS_URL='redis://...' WEBSOCKET_REDIS_URL='redis://...' -a booka-api-charel
@@ -72,13 +76,14 @@ kill_timeout = 30
     soft_limit = 50
     hard_limit = 60
 
-# Health check against FastAPI health endpoint
+# Health check against FastAPI health endpoint.
+# Use liveness for Fly routing so transient DB slowdowns don't drop the only machine.
 [[http_service.checks]]
-  grace_period = "90s"
+  grace_period = "180s"
   interval = "15s"
   method = "GET"
   timeout = "5s"
-  path = "/healthz/ready"
+  path = "/healthz/live"
   # If your app redirects http->https based on scheme, uncomment:
   # headers = { "X-Forwarded-Proto" = "https" }
 
