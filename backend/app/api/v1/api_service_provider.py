@@ -1249,7 +1249,7 @@ def read_all_service_provider_profiles(
                     .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
                     .filter(Service.artist_id.in_(artist_ids))
                     # Only deep-link to publicly visible (approved) services.
-                    .filter(or_(Service.status == None, Service.status == "approved"))
+                    .filter(Service.status == "approved")
                     .filter(func.lower(ServiceCategory.name) == venue_category_name)
                     .group_by(Service.artist_id)
                     .all()

@@ -1245,9 +1245,9 @@ export const createReviewForBooking = (
 export const getReview = (bookingId: number) =>
   api.get<Review>(`${API_V1}/reviews/${bookingId}`);
 
-// list reviews for a service: GET /api/v1/services/{service_id}/reviews
+// list reviews for a service: GET /api/v1/reviews/services/{service_id}/reviews
 export const getServiceReviews = (serviceId: number) =>
-  api.get<Review[]>(`${API_V1}/services/${serviceId}/reviews`);
+  api.get<Review[]>(`${API_V1}/reviews/services/${serviceId}/reviews`);
 
 // list reviews for a service provider: GET /api/v1/reviews/service-provider-profiles/{service_provider_id}/reviews
 export const getServiceProviderReviews = (serviceProviderUserId: number) =>

@@ -22,12 +22,20 @@ export default function ServiceDetailPage() {
     if (!serviceId) return;
     const fetch = async () => {
       try {
-        const [sRes, rRes] = await Promise.all([
+        const [sRes, rRes] = await Promise.allSettled([
           getService(serviceId),
           getServiceReviews(serviceId),
         ]);
-        setService(sRes.data);
-        setReviews(rRes.data);
+        if (sRes.status === 'fulfilled') {
+          setService(sRes.value.data);
+        } else {
+          throw sRes.reason;
+        }
+        if (rRes.status === 'fulfilled') {
+          setReviews(rRes.value.data);
+        } else {
+          setReviews([]);
+        }
       } catch (err) {
         console.error('Failed to load service', err);
         setError('Failed to load service');

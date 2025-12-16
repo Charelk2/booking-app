@@ -319,7 +319,7 @@ describe('review helpers', () => {
       .spyOn(api, 'get')
       .mockResolvedValue({ data: [] } as unknown as { data: unknown });
     await getServiceReviews(7);
-    expect(spy).toHaveBeenCalledWith('/api/v1/services/7/reviews');
+    expect(spy).toHaveBeenCalledWith('/api/v1/reviews/services/7/reviews');
     spy.mockRestore();
   });
 });
