@@ -816,6 +816,7 @@ def read_all_service_provider_profiles(
             "rating_count",
             "location",
             "service_categories",
+            "venue_service_id",
             "created_at",
             "updated_at",
         }
@@ -1227,6 +1228,42 @@ def read_all_service_provider_profiles(
     offset = (page - 1) * limit
     artists = query.offset(offset).limit(limit).all()
 
+    need_venue_service_id = requested is not None and ("venue_service_id" in requested)
+    venue_service_by_artist: Dict[int, int] = {}
+    if need_venue_service_id:
+        try:
+            artist_ids: List[int] = []
+            for row in artists:
+                try:
+                    # Row shape: (Artist, ...) or (Artist, ..., service_price)
+                    artist_obj = row[0]
+                    artist_ids.append(int(getattr(artist_obj, "user_id", 0) or 0))
+                except Exception:
+                    continue
+            artist_ids = [i for i in artist_ids if i > 0]
+
+            if artist_ids:
+                venue_category_name = _canonicalize_category_slug("venue").replace("_", " ")
+                rows = (
+                    db.query(Service.artist_id, func.min(Service.id).label("venue_service_id"))
+                    .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
+                    .filter(Service.artist_id.in_(artist_ids))
+                    # Only deep-link to publicly visible (approved) services.
+                    .filter(or_(Service.status == None, Service.status == "approved"))
+                    .filter(func.lower(ServiceCategory.name) == venue_category_name)
+                    .group_by(Service.artist_id)
+                    .all()
+                )
+                for artist_id, svc_id in rows:
+                    try:
+                        if artist_id is None or svc_id is None:
+                            continue
+                        venue_service_by_artist[int(artist_id)] = int(svc_id)
+                    except Exception:
+                        continue
+        except Exception:
+            venue_service_by_artist = {}
+
     # Helper to scrub heavy inline images from list payloads
     def _scrub_image(val: Optional[str]) -> Optional[str]:
         try:
@@ -1260,6 +1297,13 @@ def read_all_service_provider_profiles(
             "service_price": (float(service_price) if service_price is not None else None),
             "service_categories": categories,
         }
+        if need_venue_service_id:
+            try:
+                base["venue_service_id"] = venue_service_by_artist.get(
+                    int(getattr(artist, "user_id", 0) or 0),
+                )
+            except Exception:
+                base["venue_service_id"] = None
         # Ensure user_id is present explicitly for response validation
         try:
             base["user_id"] = int(getattr(artist, "user_id"))

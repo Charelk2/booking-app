@@ -13,26 +13,33 @@ async function fetchInitial(category: string, limit = 12) {
     process.env.SERVER_API_ORIGIN ||
     process.env.NEXT_PUBLIC_API_URL ||
     (process.env.NODE_ENV === 'production' ? 'https://api.booka.co.za' : 'http://localhost:8000');
+  const fields = [
+    'id',
+    'business_name',
+    'slug',
+    'profile_picture_url',
+    'custom_subtitle',
+    'hourly_rate',
+    'price_visible',
+    'rating',
+    'rating_count',
+    'location',
+    'service_categories',
+    // Backend currently ignores dotted fields, but we keep these for backward compatibility.
+    'user.first_name',
+    'user.last_name',
+  ];
+
+  if (category === 'venue' || category === 'wedding_venue') {
+    fields.push('venue_service_id');
+  }
+
   const params = new URLSearchParams({
     limit: String(limit),
     category,
     sort: 'most_booked',
     // Full card fields so home strips can hydrate without an extra client fetch.
-    fields: [
-      'id',
-      'business_name',
-      'slug',
-      'profile_picture_url',
-      'custom_subtitle',
-      'hourly_rate',
-      'price_visible',
-      'rating',
-      'rating_count',
-      'location',
-      'service_categories',
-      'user.first_name',
-      'user.last_name',
-    ].join(','),
+    fields: fields.join(','),
   });
   const url = `${API_BASE}/api/v1/service-provider-profiles/?${params.toString()}`;
   try {

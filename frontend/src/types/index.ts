@@ -59,6 +59,8 @@ export interface ServiceProviderProfile {
   price_visible?: boolean;
   /** Price of the selected service category when filtering */
   service_price?: number | string | null;
+  /** Venue listing (service) id to deep-link venue cards to /services/[id] */
+  venue_service_id?: number | null;
   /** Names of service categories offered by the service provider */
   service_categories?: string[];
 

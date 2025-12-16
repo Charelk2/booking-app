@@ -41,6 +41,18 @@ export default function ArtistsSection({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const serializedQuery = useMemo(() => JSON.stringify(query), [query]);
+  const isVenueCategory = useMemo(() => {
+    const c = String(query.category || '').toLowerCase();
+    return c === 'venue' || c === 'wedding_venue';
+  }, [query.category]);
+
+  const enableVenueListingLinks = (() => {
+    const raw = (process.env.NEXT_PUBLIC_VENUE_CARDS_LINK_TO_SERVICE ?? '').trim();
+    if (raw === '1') return true;
+    if (raw === '0') return false;
+    // Default on in dev for easy preview; opt-in for prod via env var.
+    return process.env.NODE_ENV !== 'production';
+  })();
 
   // Fetch data: fast minimal fields, then hydrate with full details
   useEffect(() => {
@@ -212,6 +224,11 @@ export default function ArtistsSection({
             const name =
               a.business_name ||
               `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`.trim();
+            const venueServiceId = Number(a.venue_service_id || 0);
+            const href =
+              enableVenueListingLinks && isVenueCategory && venueServiceId > 0
+                ? `/services/${venueServiceId}`
+                : `/${a.slug || a.id}`;
 
             return (
               <div
@@ -242,7 +259,7 @@ export default function ArtistsSection({
                   ratingCount={a.rating_count ?? undefined}
                   location={a.location}
                   categories={a.service_categories}
-                  href={`/${a.slug || a.id}`}
+                  href={href}
                   className="h-full"
                 />
               </div>

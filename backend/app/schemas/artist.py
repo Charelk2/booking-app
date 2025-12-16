@@ -86,6 +86,7 @@ class ArtistProfileResponse(ArtistProfileBase):
     cancelled_events: int = 0
     is_available: Optional[bool] = None
     service_price: Optional[Decimal] = None
+    venue_service_id: Optional[int] = None
     service_categories: List[str] = Field(default_factory=list)
     onboarding_completed: Optional[bool] = None
     # Derived convenience field for clients to check completion status
