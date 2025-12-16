@@ -36,7 +36,7 @@ export default function ServiceProviderCardCompact({
   subtitle,
   imageUrl,
   imageAspect = 'square',
-  rounded = 'lg',
+  rounded = 'xl',
   unoptimizedImage,
   price,
   rating,

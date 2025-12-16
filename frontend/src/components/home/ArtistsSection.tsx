@@ -212,7 +212,7 @@ export default function ArtistsSection({
               key={i}
               className="
                 flex-shrink-0
-                w-[50vw] xs:w-50 sm:w-50
+                w-[55vw] xs:w-56 sm:w-56
                 snap-center sm:snap-start
               "
             >
