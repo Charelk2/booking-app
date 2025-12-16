@@ -159,7 +159,7 @@ function VenueBookingCard({
   };
 
   return (
-    <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+    <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
       <div className="flex items-baseline justify-between gap-2">
         <div className="text-2xl font-semibold text-gray-900">
           {formatCurrency(Number(service.price || 0))}
