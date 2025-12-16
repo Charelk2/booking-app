@@ -687,17 +687,29 @@ export default function VenueListingPage({
         className="sticky z-20 mt-4 -mx-4 border-b border-gray-200 bg-white/95 px-4 supports-[backdrop-filter]:backdrop-blur-sm"
         style={{ top: "var(--app-header-height, 64px)" }}
       >
-        <div className="flex gap-6 overflow-x-auto py-3 text-sm font-semibold text-gray-700">
-          <a href="#photos" className="whitespace-nowrap hover:text-gray-900">
+        <div className="flex gap-6 overflow-x-auto py-3 text-sm font-semibold text-gray-900">
+          <a
+            href="#photos"
+            className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
+          >
             Photos
           </a>
-          <a href="#amenities" className="whitespace-nowrap hover:text-gray-900">
+          <a
+            href="#amenities"
+            className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
+          >
             Amenities
           </a>
-          <a href="#reviews" className="whitespace-nowrap hover:text-gray-900">
+          <a
+            href="#reviews"
+            className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
+          >
             Reviews
           </a>
-          <a href="#location" className="whitespace-nowrap hover:text-gray-900">
+          <a
+            href="#location"
+            className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
+          >
             Location
           </a>
         </div>
