@@ -129,6 +129,7 @@ export const VENUE_AMENITY_CATEGORIES: VenueAmenityCategory[] = [
     items: [
       { value: "parking", label: "Parking on premises" },
       { value: "pool", label: "Pool" },
+      { value: "play_area", label: "Play area" },
       { value: "single_level_home", label: "Single level (no stairs)" },
       { value: "wheelchair_access", label: "Wheelchair access" },
       { value: "indoor_area", label: "Indoor area" },

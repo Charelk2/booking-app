@@ -738,14 +738,24 @@ export default function VenueListingPage({
           </div>
         </div>
 
-        {providerHref ? (
-          <Link
-            href={providerHref}
-            className="shrink-0 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 no-underline hover:bg-gray-50 hover:no-underline"
+        <div className="flex shrink-0 items-center gap-2">
+          {providerHref ? (
+            <Link
+              href={providerHref}
+              className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 no-underline hover:bg-gray-50 hover:no-underline"
+            >
+              {providerName ? `Hosted by ${providerName}` : "View host"}
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            onClick={onMessageClick}
+            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+            title={providerName ? `Message ${providerName}` : "Message"}
           >
-            {providerName ? `Hosted by ${providerName}` : "View host"}
-          </Link>
-        ) : null}
+            Message
+          </button>
+        </div>
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_380px]">

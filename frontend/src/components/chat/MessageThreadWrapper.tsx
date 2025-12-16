@@ -1064,13 +1064,17 @@ export default function MessageThreadWrapper({
                           );
                         })())
                   : 'Messages'}
-              </span>
-              {effectiveBookingRequest && !isBookaModeration && (
-                <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 text-[11px] px-2 py-0.5 whitespace-nowrap">
-                  {isChildThread ? 'Sound booking' : 'Artist booking'}
-                </span>
-              )}
-            </div>
+	              </span>
+	              {effectiveBookingRequest && !isBookaModeration && (
+	                <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 text-[11px] px-2 py-0.5 whitespace-nowrap">
+	                  {isChildThread
+	                    ? 'Sound booking'
+	                    : isVenueThread
+	                      ? 'Venue booking'
+	                      : 'Artist booking'}
+	                </span>
+	              )}
+	            </div>
             {presenceHeader && !isBookaModeration ? (
               <span className="text-[11px] text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis -mt-0.5">
                 {presenceHeader}
