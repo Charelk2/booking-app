@@ -159,7 +159,7 @@ function VenueBookingCard({
   };
 
   return (
-    <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+    <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
       <div className="flex items-baseline justify-between gap-2">
         <div className="text-2xl font-semibold text-gray-900">
           {formatCurrency(Number(service.price || 0))}
@@ -616,8 +616,44 @@ export default function VenueListingPage({
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
-      <header className="mb-4 space-y-2">
+    <div className="w-full">
+      <nav
+        aria-label="Venue sections"
+        className="sticky z-30 border-b border-gray-200 bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm"
+        style={{ top: "var(--app-header-height, 64px)" }}
+      >
+        <div className="mx-auto w-full max-w-6xl px-4">
+          <div className="flex gap-6 overflow-x-auto py-3 text-sm font-semibold text-gray-900">
+            <a
+              href="#photos"
+              className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
+            >
+              Photos
+            </a>
+            <a
+              href="#amenities"
+              className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
+            >
+              Amenities
+            </a>
+            <a
+              href="#reviews"
+              className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
+            >
+              Reviews
+            </a>
+            <a
+              href="#location"
+              className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
+            >
+              Location
+            </a>
+          </div>
+        </div>
+      </nav>
+
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        <header className="mb-4 space-y-2">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-bold text-gray-900">
@@ -681,39 +717,6 @@ export default function VenueListingPage({
           ) : null}
         </div>
       </section>
-
-      <nav
-        aria-label="Venue sections"
-        className="sticky z-20 mt-4 -mx-4 border-b border-gray-200 bg-white/95 px-4 supports-[backdrop-filter]:backdrop-blur-sm"
-        style={{ top: "var(--app-header-height, 64px)" }}
-      >
-        <div className="flex gap-6 overflow-x-auto py-3 text-sm font-semibold text-gray-900">
-          <a
-            href="#photos"
-            className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
-          >
-            Photos
-          </a>
-          <a
-            href="#amenities"
-            className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
-          >
-            Amenities
-          </a>
-          <a
-            href="#reviews"
-            className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
-          >
-            Reviews
-          </a>
-          <a
-            href="#location"
-            className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
-          >
-            Location
-          </a>
-        </div>
-      </nav>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
@@ -929,6 +932,7 @@ export default function VenueListingPage({
           onClose={() => setPhotosOpen(false)}
         />
       ) : null}
+      </div>
     </div>
   );
 }
