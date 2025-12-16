@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import { ImagePreviewModal, TextArea, TextInput, Toast } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getTownProvinceFromAddress } from "@/lib/utils";
 import type { Review, Service } from "@/types";
 import { useVenueBookingEngine } from "@/features/booking/venue/engine/engine";
 import {
@@ -490,6 +490,7 @@ export default function VenueListingPage({
   const [photosOpen, setPhotosOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [aboutExpanded, setAboutExpanded] = useState(false);
 
   const images = useMemo(() => {
     const raw = [
@@ -573,6 +574,25 @@ export default function VenueListingPage({
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
     : null;
   const sectionScrollMarginTop = "calc(var(--app-header-height, 64px) + 72px)";
+
+  const aboutTitle = providerName || service.title || "Venue";
+  const aboutMetaLocation = (() => {
+    const raw = (address || providerLocation || "").trim();
+    if (!raw) return null;
+    const compact = getTownProvinceFromAddress(raw);
+    return compact || raw;
+  })();
+  const aboutTextRaw = String(service.description || "").trim();
+  const aboutShouldClamp = aboutTextRaw.length > 320;
+
+  const onMessageClick = () => {
+    try {
+      const el = document.getElementById("venue-booking-card");
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     const key = getServiceSavedStorageKey(service.id);
@@ -751,10 +771,55 @@ export default function VenueListingPage({
       <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_380px]">
         <main className="space-y-10">
           <section aria-label="About this venue">
-            <h2 className="text-xl font-bold text-gray-900">About</h2>
-            <p className="mt-2 whitespace-pre-line text-gray-700">
-              {service.description || "—"}
+            <h2 className="text-xl font-bold text-gray-900">
+              About {aboutTitle}
+            </h2>
+
+            <div className="mt-2 space-y-0.5 text-sm">
+              {providerName ? (
+                <div className="font-semibold text-gray-900">{providerName}</div>
+              ) : null}
+              {service.title && service.title !== providerName ? (
+                <div className="text-gray-700">{service.title}</div>
+              ) : null}
+              {aboutMetaLocation ? (
+                <div className="text-gray-600">{aboutMetaLocation}</div>
+              ) : null}
+            </div>
+
+            <p
+              className={[
+                "mt-3 text-gray-700",
+                aboutExpanded ? "whitespace-pre-line" : "whitespace-normal",
+                aboutShouldClamp && !aboutExpanded ? "line-clamp-4" : "",
+              ].join(" ")}
+            >
+              {aboutTextRaw || "—"}
             </p>
+
+            {aboutShouldClamp ? (
+              <button
+                type="button"
+                onClick={() => setAboutExpanded((v) => !v)}
+                className="mt-2 text-sm font-semibold text-brand-dark hover:text-brand-dark"
+              >
+                {aboutExpanded ? "Show less" : "Read more"}
+              </button>
+            ) : null}
+
+            <div className="mt-4">
+              <Button
+                variant="secondary"
+                onClick={onMessageClick}
+                className="w-full sm:w-auto"
+              >
+                Message {providerName || service.title || "venue"}
+              </Button>
+              <p className="mt-3 text-xs text-gray-600">
+                For your safety, only send payments and messages to artists
+                through Booka.
+              </p>
+            </div>
           </section>
 
           <section
@@ -917,7 +982,11 @@ export default function VenueListingPage({
           </section>
         </main>
 
-        <div className="lg:sticky lg:top-24 lg:self-start">
+        <div
+          id="venue-booking-card"
+          className="lg:sticky lg:top-24 lg:self-start"
+          style={{ scrollMarginTop: sectionScrollMarginTop }}
+        >
           <VenueBookingCard service={service} providerId={providerId} />
         </div>
       </div>
