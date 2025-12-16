@@ -10,13 +10,14 @@ const {
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ['class'], // keep class-driven theming if you ever want an inverted mode
-  content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-    // include shared style files so Tailwind preserves classes
-    './src/styles/**/*.{js,ts,jsx,tsx}',
-  ],
+	  content: [
+	    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+	    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+	    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+	    './src/features/**/*.{js,ts,jsx,tsx,mdx}',
+	    // include shared style files so Tailwind preserves classes
+	    './src/styles/**/*.{js,ts,jsx,tsx}',
+	  ],
   theme: {
     container: {
       center: true,
