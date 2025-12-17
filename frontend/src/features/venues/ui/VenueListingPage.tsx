@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
 import type { Review, Service } from "@/types";
+import { startMessageThread } from "@/lib/api";
 import { useVenueBookingEngine } from "@/features/booking/venue/engine/engine";
 import {
   VENUE_AMENITY_CATEGORIES,
@@ -484,6 +485,8 @@ export default function VenueListingPage({
   service: Service;
   reviews: Review[];
 }) {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const details = (service as any)?.details || {};
   const { profile, providerId, providerHref, providerName, cancellationPolicy } =
     resolveProviderInfo(service);
@@ -613,6 +616,43 @@ export default function VenueListingPage({
     if (!images.length) return;
     setPhotoIndex(Math.max(0, Math.min(idx, images.length - 1)));
     setPhotosOpen(true);
+  };
+
+  const onMessageClick = () => {
+    if (!providerId || Number.isNaN(providerId)) {
+      Toast.error("Host not available yet");
+      return;
+    }
+
+    if (!authLoading && !user) {
+      const next =
+        typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : "/inbox";
+      router.push(`/auth?intent=login&next=${encodeURIComponent(next)}`);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const res = await startMessageThread({
+          artist_id: providerId,
+          service_id: service.id,
+        });
+        const requestId = Number(res.data.booking_request_id);
+        if (requestId && !Number.isNaN(requestId)) {
+          router.push(`/booking-requests/${requestId}`);
+          return;
+        }
+        router.push("/inbox");
+      } catch {
+        if (providerHref) {
+          router.push(providerHref);
+          return;
+        }
+        Toast.error("Could not start message thread");
+      }
+    })();
   };
 
   return (
@@ -747,14 +787,15 @@ export default function VenueListingPage({
               {providerName ? `Hosted by ${providerName}` : "View host"}
             </Link>
           ) : null}
-          <button
-            type="button"
-            onClick={onMessageClick}
-            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-            title={providerName ? `Message ${providerName}` : "Message"}
-          >
-            Message
-          </button>
+	          <button
+	            type="button"
+	            onClick={onMessageClick}
+	            disabled={authLoading || !providerId}
+	            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+	            title={providerName ? `Message ${providerName}` : "Message"}
+	          >
+	            Message
+	          </button>
         </div>
       </div>
 
