@@ -44,6 +44,7 @@ import { getServiceDisplay } from '@/lib/display';
 import Chip from '@/components/ui/Chip';
 import { useScrollSync } from '@/hooks/useScrollSync';
 import { formatCityRegion } from '@/lib/shared/mappers/location';
+import { sanitizeCancellationPolicy } from '@/lib/shared/mappers/policy';
 import { fromServiceToPvBookingConfig } from "@/features/booking/personalizedVideo/serviceMapping";
 
 const BookingWizard = dynamic(() => import('@/components/booking/BookingWizard'), {
@@ -149,19 +150,6 @@ function ShareArrowUpIcon(props: React.SVGProps<SVGSVGElement>) {
       />
     </svg>
   );
-}
-
-function sanitizePolicy(raw?: string | null) {
-  if (!raw) return { intro: '', bullets: [] as string[] };
-  const lines = String(raw).split(/\r?\n/);
-  const filtered = lines.filter((l) => !/^\s*#\s*(Flexible|Moderate|Strict)\s*$/i.test(l));
-  const bullets: string[] = [];
-  const introParts: string[] = [];
-  for (const l of filtered) {
-    if (/^\s*-\s+/.test(l)) bullets.push(l.replace(/^\s*-\s+/, '').trim());
-    else if (l.trim()) introParts.push(l.trim());
-  }
-  return { intro: introParts.join(' '), bullets };
 }
 
 type Props = {
@@ -809,7 +797,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
 
               {/* Policies (mobile) */}
               {(serviceProvider as any)?.cancellation_policy && (() => {
-                const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
+                const { intro, bullets } = sanitizeCancellationPolicy((serviceProvider as any).cancellation_policy);
                 return (
                   <>
                     <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
@@ -1135,7 +1123,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
 
                 {/* Policies - (desktop) */}
                 {(serviceProvider as any)?.cancellation_policy && (() => {
-                  const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
+                  const { intro, bullets } = sanitizeCancellationPolicy((serviceProvider as any).cancellation_policy);
                   return (
                     <>
                       <div className="mt-16 mb-10 h-px w-full bg-gray-200" />

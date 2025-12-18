@@ -13,6 +13,7 @@ import { formatCurrency } from "@/lib/utils";
 import type { Review, Service } from "@/types";
 import { startMessageThread } from "@/lib/api";
 import { useVenueBookingEngine } from "@/features/booking/venue/engine/engine";
+import { sanitizeCancellationPolicy } from "@/lib/shared/mappers/policy";
 import {
   VENUE_AMENITY_CATEGORIES,
   VENUE_NOT_INCLUDED_HIGHLIGHTS,
@@ -730,6 +731,11 @@ export default function VenueListingPage({
   const policyOverride = isNonEmptyString(details?.cancellation_policy)
     ? details.cancellation_policy.trim()
     : null;
+  const effectiveCancellationPolicy = policyOverride || cancellationPolicy || null;
+  const parsedCancellationPolicy = useMemo(
+    () => sanitizeCancellationPolicy(effectiveCancellationPolicy),
+    [effectiveCancellationPolicy],
+  );
   const mapQuery = (address || providerLocation || "").trim() || null;
   const shortLocation = getShortLocation(mapQuery) || mapQuery;
   const headerAddress = getAddressPreview(mapQuery) || shortLocation;
@@ -1134,16 +1140,43 @@ export default function VenueListingPage({
 	            ) : null}
 	          </section>
 
-          <section aria-label="Cancellation policy">
-            <h2 className="text-xl font-bold text-gray-900">
-              Cancellation policy
-            </h2>
-            <p className="mt-2 whitespace-pre-line text-gray-700">
-              {policyOverride ||
-                cancellationPolicy ||
-                "Policies vary by venue. Review the quote for final cancellation and refund terms."}
-            </p>
-          </section>
+	          <section aria-label="Cancellation policy">
+	            <h2 className="text-xl font-bold text-gray-900">
+	              Cancellation policy
+	            </h2>
+	            {effectiveCancellationPolicy ? (
+	              <div className="mt-3 rounded-2xl bg-gray-50 p-4">
+	                {parsedCancellationPolicy.intro ? (
+	                  <p className="text-sm text-gray-700">
+	                    {parsedCancellationPolicy.intro}
+	                  </p>
+	                ) : null}
+	                {parsedCancellationPolicy.bullets.length ? (
+	                  <ul
+	                    className={[
+	                      "text-sm text-gray-700 space-y-2",
+	                      parsedCancellationPolicy.intro ? "mt-3" : "mt-0",
+	                    ].join(" ")}
+	                  >
+	                    {parsedCancellationPolicy.bullets.map((bullet, idx) => (
+	                      <li
+	                        key={`${bullet}:${idx}`}
+	                        className="flex items-start gap-2"
+	                      >
+	                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+	                        <span>{bullet}</span>
+	                      </li>
+	                    ))}
+	                  </ul>
+	                ) : null}
+	              </div>
+	            ) : (
+	              <p className="mt-2 text-sm text-gray-600">
+	                Policies vary by venue. Review the quote for final cancellation and
+	                refund terms.
+	              </p>
+	            )}
+	          </section>
 
 	          <section
 	            aria-label="Location"
