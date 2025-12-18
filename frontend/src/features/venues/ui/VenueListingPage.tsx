@@ -24,7 +24,10 @@ import { CheckIcon } from "@heroicons/react/24/solid";
 import {
   ArrowUpOnSquareIcon,
   BanknotesIcon,
+  ChatBubbleOvalLeftIcon,
   ChevronDownIcon,
+  EnvelopeIcon,
+  LinkIcon,
   MapPinIcon,
   HeartIcon as HeartOutlineIcon,
   UserGroupIcon,
@@ -574,6 +577,7 @@ export default function VenueListingPage({
   const [photosOpen, setPhotosOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [amenitiesExpanded, setAmenitiesExpanded] = useState(false);
   const [houseRulesExpanded, setHouseRulesExpanded] = useState(false);
 
@@ -750,24 +754,6 @@ export default function VenueListingPage({
     Toast.success(next ? "Saved" : "Removed");
   };
 
-  const share = async () => {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    try {
-      if (typeof navigator !== "undefined" && (navigator as any).share) {
-        await (navigator as any).share({ title: service.title, url });
-        return;
-      }
-    } catch {
-      // ignore share cancellation
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      Toast.success("Link copied");
-    } catch {
-      Toast.error("Could not copy link");
-    }
-  };
-
   const openPhotos = (idx = 0) => {
     if (!images.length) return;
     setPhotoIndex(Math.max(0, Math.min(idx, images.length - 1)));
@@ -882,7 +868,7 @@ export default function VenueListingPage({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => void share()}
+              onClick={() => setIsShareOpen(true)}
               className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
             >
               <ArrowUpOnSquareIcon className="h-4 w-4" />
@@ -1228,17 +1214,166 @@ export default function VenueListingPage({
         </div>
       </div>
 
-      {images.length ? (
-        <ImagePreviewModal
-          open={photosOpen}
-          src={images[photoIndex] || images[0] || ""}
+	      {images.length ? (
+	        <ImagePreviewModal
+	          open={photosOpen}
+	          src={images[photoIndex] || images[0] || ""}
           images={images}
           index={photoIndex}
           onIndexChange={setPhotoIndex}
-          onClose={() => setPhotosOpen(false)}
-        />
-      ) : null}
-      </div>
-    </div>
-  );
+	          onClose={() => setPhotosOpen(false)}
+	        />
+	      ) : null}
+
+        {/* Share modal */}
+        {isShareOpen ? (
+          <div
+            className="fixed inset-0 z-50"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Share venue"
+          >
+            <div
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setIsShareOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="absolute left-1/2 top-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-gray-100 bg-white p-4 shadow-2xl">
+              <div className="flex items-center justify-end">
+                <button
+                  aria-label="Close"
+                  onClick={() => setIsShareOpen(false)}
+                  className="rounded p-1.5 hover:bg-gray-50"
+                >
+                  <XMarkIcon className="h-5 w-5 text-gray-600" />
+                </button>
+              </div>
+
+              <h3 className="mb-3 text-3xl font-semibold text-gray-900">Share</h3>
+
+              <div className="mb-4 flex items-center gap-3">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                  {images[0] ? (
+                    <SafeImage
+                      src={images[0]}
+                      alt={service.title}
+                      fill
+                      className="object-cover"
+                      sizes="56px"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-gray-100" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {service.title}
+                  </p>
+                  {average ? (
+                    <p className="flex items-center gap-1 text-xs text-gray-600">
+                      <span className="font-medium text-gray-900">{average}</span>
+                      <span className="text-gray-400">·</span>
+                      <span>{reviews.length} reviews</span>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mb-3 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const url =
+                        typeof window !== "undefined" ? window.location.href : "";
+                      await navigator.clipboard.writeText(url);
+                      Toast.success("Link copied");
+                    } catch {
+                      Toast.error("Could not copy link");
+                    }
+                  }}
+                  className="inline-flex w-full items-center justify-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
+                >
+                  <LinkIcon className="h-5 w-5 text-gray-800" />
+                  Copy Link
+                </button>
+
+                <a
+                  href={`mailto:?subject=${encodeURIComponent(
+                    service.title,
+                  )}&body=${encodeURIComponent(
+                    typeof window !== "undefined" ? window.location.href : "",
+                  )}`}
+                  className="inline-flex w-full items-center justify-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-800 no-underline hover:bg-gray-50 hover:no-underline"
+                >
+                  <EnvelopeIcon className="h-5 w-5 text-gray-800" />
+                  Email
+                </a>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <a
+                  href={`sms:&body=${encodeURIComponent(
+                    typeof window !== "undefined" ? window.location.href : "",
+                  )}`}
+                  className="inline-flex items-center justify-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-800 no-underline hover:bg-gray-50 hover:no-underline"
+                >
+                  <ChatBubbleOvalLeftIcon className="h-5 w-5 text-gray-800" />
+                  Messages
+                </a>
+
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(
+                    typeof window !== "undefined" ? window.location.href : "",
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-800 no-underline hover:bg-gray-50 hover:no-underline"
+                >
+                  <svg
+                    className="h-5 w-5 text-gray-800"
+                    viewBox="0 0 32 32"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="m26.4996694 5.42690083c-2.7964463-2.80004133-6.5157025-4.34283558-10.4785124-4.3442562-8.16570245 0-14.81136692 6.64495868-14.81420824 14.81280987-.00142066 2.6110744.68118843 5.1596695 1.97750579 7.4057025l-2.10180992 7.6770248 7.85319008-2.0599173c2.16358679 1.1805785 4.59995039 1.8020661 7.07895869 1.8028099h.0063636c8.1642975 0 14.8107438-6.6457025 14.8135547-14.8135537.001404-3.9585124-1.5378522-7.67985954-4.3350423-10.47990913zm-10.4785124 22.79243797h-.0049587c-2.2090909-.0006611-4.3761983-.5945454-6.26702475-1.7161157l-.44965289-.2670248-4.66034711 1.2223967 1.24375207-4.5438843-.29265289-.4659504c-1.23238843-1.9604132-1.8837438-4.2263636-1.88232464-6.552562.0028453-6.78846276 5.5262172-12.31184293 12.31825021-12.31184293 3.2886777.00142149 6.38 1.28353719 8.7047934 3.61122314 2.3248761 2.32698347 3.6041323 5.42111569 3.6027285 8.71053719-.0028938 6.7891736-5.5261995 12.312562-12.3125632 12.312562zm6.7536364-9.2212396c-.3700827-.1853719-2.1898347-1.0804132-2.5294215-1.203967-.3395041-.1236363-.5859504-.1853719-.8324793.1853719-.2464463.3708265-.9560331 1.2047108-1.1719835 1.4511571-.2159504.24719-.4319008.2777686-.8019835.092314-.37-.1853719-1.5626446-.5760331-2.9768595-1.8368595-1.1002479-.9816529-1.8433058-2.1933884-2.0591735-2.5642149-.2159505-.3707438-.0227273-.5710744.1619008-.7550413.1661983-.1661983.3700826-.432562.5554545-.6485124.1854546-.2159504.246529-.3707438.3700827-.6172727.1236363-.2471901.0618182-.4630579-.0304959-.6485124-.0923967-.1853719-.8324793-2.0073554-1.1414876-2.74818183-.3004959-.72166116-.6058678-.62363637-.8324793-.63571075-.2159504-.01066116-.4623967-.01278512-.7095868-.01278512s-.6478512.09233884-.98735538.46312396c-.33950413.37074381-1.29561157 1.26644624-1.29561157 3.08768594s1.32619008 3.5821488 1.51156195 3.8293389c.1853719.24719 2.6103306 3.9855371 6.3231405 5.5894214.8829752.381405 1.5726447.6094215 2.1103306.7799174.8865289.2819835 1.6933884.2422314 2.3312397.1470248.7110744-.1065289 2.1899173-.8957025 2.4981818-1.7601653s.3082645-1.6060331.2159504-1.7601653c-.092314-.1541322-.3395041-.2471901-.7095868-.432562z" />
+                  </svg>
+                  WhatsApp
+                </a>
+
+                <a
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+                    typeof window !== "undefined" ? window.location.href : "",
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-800 no-underline hover:bg-gray-50 hover:no-underline"
+                >
+                  <svg
+                    className="h-5 w-5 text-gray-800"
+                    viewBox="0 0 32 32"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="m15.9700599 1c-8.26766469 0-14.9700599 6.70239521-14.9700599 14.9700599 0 7.0203593 4.83353293 12.9113772 11.3538922 14.5293413v-9.954491h-3.08682633v-4.5748503h3.08682633v-1.9712575c0-5.09520959 2.305988-7.45688623 7.3083832-7.45688623.948503 0 2.58503.18622754 3.2544911.37185629v4.14670654c-.3532934-.0371257-.9670659-.0556886-1.7293414-.0556886-2.454491 0-3.402994.9299401-3.402994 3.3473054v1.6179641h4.8898204l-.8401198 4.5748503h-4.0497006v10.2856287c7.4125749-.8952096 13.1562875-7.2065868 13.1562875-14.860479-.0005988-8.26766469-6.702994-14.9700599-14.9706587-14.9700599z" />
+                  </svg>
+                  Facebook
+                </a>
+              </div>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsShareOpen(false)}
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+	      </div>
+	    </div>
+	  );
 }
