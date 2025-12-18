@@ -107,6 +107,29 @@ export default function VideoOrderDeliverPage() {
     : 0;
   const revisionsRemaining = Math.max(0, revisionsIncluded - revisionRequestsCount);
 
+  const getMediaKind = (url: string | null | undefined, meta?: any | null) => {
+    const rawUrl = String(url || "").trim();
+    if (!rawUrl) return null;
+
+    const contentType = String(meta?.content_type || meta?.mime || meta?.type || "")
+      .trim()
+      .toLowerCase();
+    if (contentType.startsWith("video/")) return "video";
+    if (contentType.startsWith("audio/")) return "audio";
+    if (contentType.startsWith("image/")) return "image";
+    if (contentType === "application/pdf") return "pdf";
+
+    const clean = rawUrl.split("?")[0]?.split("#")[0]?.toLowerCase() || "";
+    if (/\.(mp4|mov|m4v|webm|ogv)$/.test(clean)) return "video";
+    if (/\.(mp3|wav|m4a|ogg)$/.test(clean)) return "audio";
+    if (/\.(png|jpe?g|gif|webp)$/.test(clean)) return "image";
+    if (/\.(pdf)$/.test(clean)) return "pdf";
+    return null;
+  };
+
+  const attachmentKind = getMediaKind(existingAttachmentUrl, existingAttachmentMeta);
+  const deliveryLinkKind = getMediaKind(deliveryUrl, null);
+
   return (
     <MainLayout>
       <div className="mx-auto max-w-lg p-6">
@@ -143,6 +166,41 @@ export default function VideoOrderDeliverPage() {
 
               {viewerIsProvider ? (
                 <>
+                  {isDelivered && (existingAttachmentUrl || deliveryUrl.trim()) ? (
+                    <div className="mt-6 space-y-3">
+                      {existingAttachmentUrl && attachmentKind === "video" ? (
+                        <video
+                          controls
+                          playsInline
+                          className="w-full overflow-hidden rounded-xl bg-black aspect-video"
+                          src={existingAttachmentUrl}
+                        />
+                      ) : null}
+                      {existingAttachmentUrl && attachmentKind === "audio" ? (
+                        <audio controls className="w-full" src={existingAttachmentUrl} />
+                      ) : null}
+                      {existingAttachmentUrl && attachmentKind === "image" ? (
+                        <img
+                          src={existingAttachmentUrl}
+                          alt="Delivery attachment"
+                          className="w-full rounded-xl border border-gray-200 object-cover"
+                          loading="lazy"
+                        />
+                      ) : null}
+                      {deliveryUrl.trim() && deliveryLinkKind === "video" ? (
+                        <video
+                          controls
+                          playsInline
+                          className="w-full overflow-hidden rounded-xl bg-black aspect-video"
+                          src={deliveryUrl.trim()}
+                        />
+                      ) : null}
+                      {deliveryUrl.trim() && deliveryLinkKind === "audio" ? (
+                        <audio controls className="w-full" src={deliveryUrl.trim()} />
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <div className="mt-6 space-y-4">
                     <TextInput
                       label="Delivery link"
@@ -300,6 +358,37 @@ export default function VideoOrderDeliverPage() {
                     </div>
                   ) : (
                     <div className="mt-6 space-y-4">
+                      {existingAttachmentUrl && attachmentKind === "video" ? (
+                        <video
+                          controls
+                          playsInline
+                          className="w-full overflow-hidden rounded-xl bg-black aspect-video"
+                          src={existingAttachmentUrl}
+                        />
+                      ) : null}
+                      {existingAttachmentUrl && attachmentKind === "audio" ? (
+                        <audio controls className="w-full" src={existingAttachmentUrl} />
+                      ) : null}
+                      {existingAttachmentUrl && attachmentKind === "image" ? (
+                        <img
+                          src={existingAttachmentUrl}
+                          alt="Delivery attachment"
+                          className="w-full rounded-xl border border-gray-200 object-cover"
+                          loading="lazy"
+                        />
+                      ) : null}
+                      {deliveryUrl.trim() && deliveryLinkKind === "video" ? (
+                        <video
+                          controls
+                          playsInline
+                          className="w-full overflow-hidden rounded-xl bg-black aspect-video"
+                          src={deliveryUrl.trim()}
+                        />
+                      ) : null}
+                      {deliveryUrl.trim() && deliveryLinkKind === "audio" ? (
+                        <audio controls className="w-full" src={deliveryUrl.trim()} />
+                      ) : null}
+
                       {deliveryUrl.trim() ? (
                         <a
                           href={deliveryUrl.trim()}

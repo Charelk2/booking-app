@@ -5,6 +5,7 @@ BookingSimple spine and computes pricing server-side.
 """
 
 import logging
+import asyncio
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, List, Optional
@@ -21,6 +22,7 @@ from ..core.config import settings
 from ..crud import crud_video_orders
 from ..crud import crud_invoice, crud_message
 from .. import models
+from .. import schemas
 from ..models import (
     BookingSimple,
     MessageType,
@@ -36,9 +38,64 @@ from ..models.user import User
 from ..schemas.pv import PvPayload, PvStatus
 from ..services.pv_orders import can_transition, load_pv_payload, save_pv_payload
 from ..services.quote_totals import compute_quote_totals_snapshot, quote_totals_preview_payload
+from ..utils.notifications import notify_user_new_message
+from ..utils.outbox import enqueue_outbox
+from ..utils.redis_cache import invalidate_preview_cache_for_user
+from .api_ws import manager as ws_manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _avatar_for_sender(sender: Optional[models.User]) -> Optional[str]:
+    try:
+        if not sender:
+            return None
+        if sender.user_type == models.UserType.SERVICE_PROVIDER:
+            profile = sender.artist_profile
+            url = getattr(profile, "profile_picture_url", None) if profile else None
+            if url:
+                return url
+        url = getattr(sender, "profile_picture_url", None)
+        return url or None
+    except Exception:
+        return None
+
+
+def _broadcast_thread_message(db: Session, booking_request_id: int, msg: models.Message) -> None:
+    """Best-effort realtime broadcast for messages created outside api_message."""
+    try:
+        data = schemas.MessageResponse.model_validate(msg).model_dump()
+    except Exception:
+        data = {
+            "id": int(getattr(msg, "id", 0) or 0),
+            "booking_request_id": int(getattr(msg, "booking_request_id", 0) or 0),
+            "sender_id": int(getattr(msg, "sender_id", 0) or 0),
+            "sender_type": getattr(msg, "sender_type", None),
+            "content": getattr(msg, "content", "") or "",
+            "message_type": getattr(msg, "message_type", None),
+            "visible_to": getattr(msg, "visible_to", None),
+            "quote_id": getattr(msg, "quote_id", None),
+            "attachment_url": getattr(msg, "attachment_url", None),
+            "attachment_meta": getattr(msg, "attachment_meta", None),
+            "timestamp": getattr(msg, "timestamp", None),
+        }
+    try:
+        data["avatar_url"] = _avatar_for_sender(getattr(msg, "sender", None))
+    except Exception:
+        data.setdefault("avatar_url", None)
+    try:
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(ws_manager.broadcast(int(booking_request_id), data))
+        except RuntimeError:
+            asyncio.run(ws_manager.broadcast(int(booking_request_id), data))
+    except Exception:
+        pass
+    try:
+        enqueue_outbox(db, topic=f"booking-requests:{int(booking_request_id)}", payload=data)
+    except Exception:
+        pass
 
 
 class PaystackVerifyPayload(BaseModel):
@@ -982,6 +1039,7 @@ def deliver_video_order(
 
     # Emit a message (with optional attachment) so both parties see the delivery in chat.
     # Only send a new message when delivery is first set or the link/file changes.
+    delivery_msg: models.Message | None = None
     if (first_delivery or delivery_changed) and (pv.delivery_url or pv.delivery_attachment_url):
         try:
             parts: list[str] = [
@@ -994,7 +1052,7 @@ def deliver_video_order(
             if pv.delivery_note:
                 parts.append(str(pv.delivery_note).strip())
             content = " ".join([p for p in parts if p]).strip()
-            crud_message.create_message(
+            delivery_msg = crud_message.create_message(
                 db=db,
                 booking_request_id=br.id,
                 sender_id=current_user.id,
@@ -1005,6 +1063,30 @@ def deliver_video_order(
                 attachment_url=pv.delivery_attachment_url,
                 attachment_meta=pv.delivery_attachment_meta if isinstance(pv.delivery_attachment_meta, dict) else None,
             )
+        except Exception:
+            pass
+    if delivery_msg is not None:
+        try:
+            client_user = db.query(models.User).filter(models.User.id == br.client_id).first()
+            if client_user:
+                notify_user_new_message(
+                    db=db,
+                    user=client_user,
+                    sender=current_user,
+                    booking_request_id=int(br.id),
+                    content=str(getattr(delivery_msg, "content", "") or ""),
+                    message_type=MessageType.USER,
+                    message_id=int(getattr(delivery_msg, "id", 0) or 0) or None,
+                )
+        except Exception:
+            pass
+        try:
+            _broadcast_thread_message(db, int(br.id), delivery_msg)
+        except Exception:
+            pass
+        try:
+            invalidate_preview_cache_for_user(int(br.client_id))
+            invalidate_preview_cache_for_user(int(br.artist_id))
         except Exception:
             pass
 
@@ -1125,8 +1207,9 @@ def request_video_order_revision(
     db.commit()
     db.refresh(br)
 
+    msg_obj: models.Message | None = None
     try:
-        crud_message.create_message(
+        msg_obj = crud_message.create_message(
             db=db,
             booking_request_id=br.id,
             sender_id=current_user.id,
@@ -1136,7 +1219,32 @@ def request_video_order_revision(
             visible_to=VisibleTo.BOTH,
         )
     except Exception:
-        pass
+        msg_obj = None
+
+    if msg_obj is not None:
+        try:
+            artist_user = db.query(models.User).filter(models.User.id == br.artist_id).first()
+            if artist_user:
+                notify_user_new_message(
+                    db=db,
+                    user=artist_user,
+                    sender=current_user,
+                    booking_request_id=int(br.id),
+                    content=str(getattr(msg_obj, "content", "") or ""),
+                    message_type=MessageType.USER,
+                    message_id=int(getattr(msg_obj, "id", 0) or 0) or None,
+                )
+        except Exception:
+            pass
+        try:
+            _broadcast_thread_message(db, int(br.id), msg_obj)
+        except Exception:
+            pass
+        try:
+            invalidate_preview_cache_for_user(int(br.client_id))
+            invalidate_preview_cache_for_user(int(br.artist_id))
+        except Exception:
+            pass
 
     return _to_video_order_response(br)
 
