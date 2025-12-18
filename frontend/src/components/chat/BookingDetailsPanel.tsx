@@ -277,6 +277,45 @@ export default function BookingDetailsPanel({
     return () => { cancelled = true; };
   }, [confirmedBookingDetails, bookingConfirmed, paymentStatus, bookingRequest?.id, viewerIsClient]);
 
+  // When a Personalized Video order is manually marked completed, a Booking row is created
+  // server-side so existing review/invoice flows can reuse Booking endpoints. This event
+  // allows the details panel to re-hydrate immediately without a hard refresh.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+    let cancelled = false;
+
+    const handler = (event: Event) => {
+      try {
+        const detail = (event as CustomEvent<{ threadId?: number }>).detail || {};
+        const threadId = Number(detail.threadId || 0);
+        if (!threadId || threadId !== Number(bookingRequest?.id || 0)) return;
+        const alreadyHave = Boolean(confirmedBookingDetails && confirmedBookingDetails.id);
+        if (alreadyHave) return;
+        (async () => {
+          try {
+            const res = await getBookingIdForRequest(threadId);
+            const bid = Number((res as any)?.data?.booking_id || 0);
+            if (!Number.isFinite(bid) || bid <= 0) return;
+            const r = await getBookingDetails(bid);
+            if (cancelled) return;
+            setHydratedBooking(r.data as Booking);
+            try { sessionStorage.setItem(`bookingId:br:${threadId}`, String(bid)); } catch {}
+          } catch {
+            // best-effort only
+          }
+        })();
+      } catch {
+        // no-op
+      }
+    };
+
+    window.addEventListener('pv:completed', handler as EventListener);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('pv:completed', handler as EventListener);
+    };
+  }, [bookingRequest?.id, confirmedBookingDetails]);
+
   React.useEffect(() => {
     if (!viewerIsProvider) return;
     if (selfProviderIdentityCache) {

@@ -32,6 +32,7 @@ export default function VideoOrderDeliverPage() {
   const [revisionMessage, setRevisionMessage] = React.useState("");
   const [revisionError, setRevisionError] = React.useState<string | null>(null);
   const [revisionSubmitting, setRevisionSubmitting] = React.useState(false);
+  const [revisionSuccess, setRevisionSuccess] = React.useState<string | null>(null);
   const revisionFieldRef = React.useRef<HTMLTextAreaElement>(null);
 
   React.useEffect(() => {
@@ -95,7 +96,9 @@ export default function VideoOrderDeliverPage() {
     if (viewerId && order) return viewerId === Number(order?.buyer_id || 0);
     return !viewerIsProvider;
   })();
-  const isDelivered = String(status || "").toLowerCase() === "delivered";
+  const statusNorm = String(status || "").toLowerCase();
+  const isDeliveredOrComplete =
+    statusNorm === "delivered" || statusNorm === "completed" || statusNorm === "closed";
   const revisionsIncluded = (() => {
     const raw = (order as any)?.revisions_included;
     const n = typeof raw === "number" ? raw : Number(raw);
@@ -106,6 +109,51 @@ export default function VideoOrderDeliverPage() {
     ? (order as any).revision_requests.length
     : 0;
   const revisionsRemaining = Math.max(0, revisionsIncluded - revisionRequestsCount);
+  const revisionRequests: Array<Record<string, any>> = Array.isArray((order as any)?.revision_requests)
+    ? ((order as any).revision_requests as Array<Record<string, any>>).filter(Boolean)
+    : [];
+
+  const parseUtcDate = (value: any): Date | null => {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+    try {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        const dt = new Date(`${raw}T00:00:00Z`);
+        return Number.isNaN(dt.getTime()) ? null : dt;
+      }
+      const dt = new Date(raw);
+      return Number.isNaN(dt.getTime()) ? null : dt;
+    } catch {
+      return null;
+    }
+  };
+
+  const revisionWindow = (() => {
+    const deliveredAt = parseUtcDate((order as any)?.delivered_at_utc);
+    const deliveryBy = parseUtcDate((order as any)?.delivery_by_utc);
+    if (!deliveredAt) return { closesAt: null as Date | null };
+    const now = new Date();
+    const hourMs = 60 * 60 * 1000;
+    const dayMs = 24 * hourMs;
+    if (deliveryBy) {
+      const cutoff = new Date(deliveryBy.getTime() - 3 * dayMs);
+      if (now.getTime() >= cutoff.getTime() && deliveredAt.getTime() >= cutoff.getTime()) {
+        return { closesAt: new Date(deliveredAt.getTime() + 12 * hourMs) };
+      }
+      return { closesAt: cutoff };
+    }
+    return { closesAt: new Date(deliveredAt.getTime() + 3 * dayMs) };
+  })();
+  const revisionWindowLabel = (() => {
+    if (!revisionWindow.closesAt) return null;
+    try {
+      return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
+        revisionWindow.closesAt,
+      );
+    } catch {
+      return revisionWindow.closesAt.toISOString();
+    }
+  })();
 
   const getMediaKind = (url: string | null | undefined, meta?: any | null) => {
     const rawUrl = String(url || "").trim();
@@ -136,10 +184,10 @@ export default function VideoOrderDeliverPage() {
         <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <h1 className="text-lg font-bold text-gray-900">
             {viewerIsProvider
-              ? isDelivered
+              ? isDeliveredOrComplete
                 ? "Delivery"
                 : "Deliver video"
-              : isDelivered
+              : isDeliveredOrComplete
                 ? "View video"
                 : "Video delivery"}
           </h1>
@@ -158,6 +206,12 @@ export default function VideoOrderDeliverPage() {
                 </div>
               )}
 
+              {revisionSuccess ? (
+                <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">
+                  {revisionSuccess}
+                </div>
+              ) : null}
+
               {error && (
                 <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
                   {error}
@@ -166,7 +220,67 @@ export default function VideoOrderDeliverPage() {
 
               {viewerIsProvider ? (
                 <>
-                  {isDelivered && (existingAttachmentUrl || deliveryUrl.trim()) ? (
+                  {isDeliveredOrComplete ? (
+                    <div className="mt-4 rounded-xl bg-gray-50 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-semibold text-gray-900">Revisions</div>
+                          <div className="mt-1 text-sm text-gray-700">
+                            {revisionsIncluded} included · {revisionRequestsCount} requested
+                          </div>
+                          {revisionWindowLabel ? (
+                            <div className="mt-1 text-xs text-gray-500">
+                              Revision window closes {revisionWindowLabel}.
+                            </div>
+                          ) : null}
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => router.push(`/inbox?requestId=${id}`)}
+                        >
+                          Open chat
+                        </Button>
+                      </div>
+                      {revisionRequests.length ? (
+                        <div className="mt-3 space-y-2">
+                          {revisionRequests
+                            .slice()
+                            .reverse()
+                            .map((r, idx) => {
+                              const when = parseUtcDate(r?.requested_at_utc);
+                              const whenLabel = when
+                                ? new Intl.DateTimeFormat(undefined, {
+                                    dateStyle: "medium",
+                                    timeStyle: "short",
+                                  }).format(when)
+                                : null;
+                              const message = String(r?.message || "").trim();
+                              if (!message) return null;
+                              return (
+                                <div key={`${r?.id || idx}`} className="rounded-lg bg-white px-3 py-2">
+                                  <div className="text-xs font-semibold text-gray-900">
+                                    Revision request #{Number(r?.id || 0) || idx + 1}
+                                    {whenLabel ? (
+                                      <span className="text-gray-400"> · {whenLabel}</span>
+                                    ) : null}
+                                  </div>
+                                  <div className="mt-1 whitespace-pre-line text-sm text-gray-700">
+                                    {message}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-sm text-gray-600">
+                          No revision requests yet.
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {isDeliveredOrComplete && (existingAttachmentUrl || deliveryUrl.trim()) ? (
                     <div className="mt-6 space-y-3">
                       {existingAttachmentUrl && attachmentKind === "video" ? (
                         <video
@@ -338,9 +452,9 @@ export default function VideoOrderDeliverPage() {
                           setSubmitting(false);
                         }
                       }}
-                      disabled={submitting || !viewerIsProvider}
+                      disabled={submitting || !viewerIsProvider || statusNorm === "completed"}
                     >
-                      {submitting ? "Saving…" : isDelivered ? "Save changes" : "Mark as delivered"}
+                      {submitting ? "Saving…" : isDeliveredOrComplete ? "Save changes" : "Mark as delivered"}
                     </Button>
                     <Button
                       variant="secondary"
@@ -352,12 +466,70 @@ export default function VideoOrderDeliverPage() {
                 </>
               ) : (
                 <>
-                  {!isDelivered ? (
+                  {!isDeliveredOrComplete ? (
                     <div className="mt-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
                       Your video hasn’t been delivered yet.
                     </div>
                   ) : (
                     <div className="mt-6 space-y-4">
+                      <div className="rounded-xl bg-gray-50 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-xs font-semibold text-gray-900">Revisions</div>
+                            <div className="mt-1 text-sm text-gray-700">
+                              {revisionsRemaining} remaining of {revisionsIncluded}
+                            </div>
+                            {revisionWindowLabel ? (
+                              <div className="mt-1 text-xs text-gray-500">
+                                Revision window closes {revisionWindowLabel}.
+                              </div>
+                            ) : null}
+                          </div>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => router.push(`/inbox?requestId=${id}`)}
+                          >
+                            Open chat
+                          </Button>
+                        </div>
+                        {revisionRequests.length ? (
+                          <div className="mt-3 space-y-2">
+                            {revisionRequests
+                              .slice()
+                              .reverse()
+                              .map((r, idx) => {
+                                const when = parseUtcDate(r?.requested_at_utc);
+                                const whenLabel = when
+                                  ? new Intl.DateTimeFormat(undefined, {
+                                      dateStyle: "medium",
+                                      timeStyle: "short",
+                                    }).format(when)
+                                  : null;
+                                const message = String(r?.message || "").trim();
+                                if (!message) return null;
+                                return (
+                                  <div key={`${r?.id || idx}`} className="rounded-lg bg-white px-3 py-2">
+                                    <div className="text-xs font-semibold text-gray-900">
+                                      Your request #{Number(r?.id || 0) || idx + 1}
+                                      {whenLabel ? (
+                                        <span className="text-gray-400"> · {whenLabel}</span>
+                                      ) : null}
+                                    </div>
+                                    <div className="mt-1 whitespace-pre-line text-sm text-gray-700">
+                                      {message}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-sm text-gray-600">
+                            No revision requests yet.
+                          </div>
+                        )}
+                      </div>
+
                       {existingAttachmentUrl && attachmentKind === "video" ? (
                         <video
                           controls
@@ -421,10 +593,15 @@ export default function VideoOrderDeliverPage() {
                   )}
 
                   <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-                    {viewerIsClient && isDelivered && revisionsRemaining > 0 ? (
+                    {viewerIsClient && statusNorm === "delivered" && revisionsRemaining > 0 ? (
                       <Button onClick={() => setRevisionOpen(true)} disabled={revisionSubmitting}>
                         Ask for revision
                       </Button>
+                    ) : null}
+                    {viewerIsClient && statusNorm === "delivered" && revisionsRemaining <= 0 ? (
+                      <div className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                        You’ve used all included revisions.
+                      </div>
                     ) : null}
                     <Button
                       variant="secondary"
@@ -464,8 +641,21 @@ export default function VideoOrderDeliverPage() {
                 if (updated) setOrder(updated as any);
                 setRevisionOpen(false);
                 Toast.success("Revision request sent");
+                setRevisionSuccess("Revision request sent — the provider has been notified.");
+                setTimeout(() => setRevisionSuccess(null), 8000);
               } catch (err: any) {
-                setRevisionError(err?.message || "Unable to request a revision");
+                const raw = String(err?.message || "").trim();
+                if (raw.toLowerCase().includes("closed")) {
+                  setRevisionError(
+                    "Revision window is closed for this order. You can still message the provider in chat.",
+                  );
+                } else if (raw.toLowerCase().includes("no revisions remaining")) {
+                  setRevisionError(
+                    "You’ve used all included revisions. You can still message the provider in chat.",
+                  );
+                } else {
+                  setRevisionError(raw || "Unable to request a revision");
+                }
               } finally {
                 setRevisionSubmitting(false);
               }
@@ -476,6 +666,14 @@ export default function VideoOrderDeliverPage() {
             <p className="mt-1 text-sm text-gray-600">
               {revisionsRemaining} revision{revisionsRemaining === 1 ? "" : "s"} remaining.
             </p>
+            <p className="mt-1 text-xs text-gray-500">
+              We’ll notify the provider and post this request in your chat.
+            </p>
+            {revisionWindowLabel ? (
+              <p className="mt-1 text-xs text-gray-500">
+                Revision window closes {revisionWindowLabel}.
+              </p>
+            ) : null}
             <div className="mt-4 flex-1 overflow-y-auto">
               <TextArea
                 ref={revisionFieldRef}
@@ -486,6 +684,10 @@ export default function VideoOrderDeliverPage() {
                 error={revisionError || undefined}
                 placeholder="Tell the provider what you’d like updated (tone, wording, missing details, etc.)"
               />
+              <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                <span>Be as specific as possible so the revision is fast.</span>
+                <span>{revisionMessage.length}/2000</span>
+              </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Button

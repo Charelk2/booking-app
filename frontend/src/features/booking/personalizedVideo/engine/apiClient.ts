@@ -82,6 +82,7 @@ export interface VideoOrderApiClient {
       attachment_meta?: Record<string, any> | null;
     },
   ): Promise<VideoOrder | null>;
+  completeOrder(orderId: number): Promise<VideoOrder | null>;
   requestRevision(orderId: number, message: string): Promise<VideoOrder | null>;
   postAnswer(orderId: number, key: string, value: any): Promise<boolean>;
   createThreadForOrder(
@@ -150,6 +151,16 @@ export const videoOrderApiClient: VideoOrderApiClient = {
   },
   async deliverOrder(orderId, payload) {
     return safePost<VideoOrder>(`/api/v1/video-orders/${orderId}/deliver`, payload);
+  },
+  async completeOrder(orderId) {
+    try {
+      const res = await api.post<VideoOrder>(`/api/v1/video-orders/${orderId}/complete`);
+      return res.data as VideoOrder;
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : "Unable to complete this order";
+      throw new Error(msg);
+    }
   },
   async requestRevision(orderId, message) {
     try {

@@ -114,6 +114,20 @@ class VideoOrderRevisionRequestPayload(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
 
 
+def _has_open_simple_dispute(db: Session, booking_simple_id: int) -> bool:
+    """Return True if there is an open/active dispute row for this BookingSimple."""
+    try:
+        row = db.execute(
+            text(
+                "SELECT 1 FROM disputes WHERE booking_simple_id=:sid AND status IN ('open', 'needs_info') LIMIT 1"
+            ),
+            {"sid": int(booking_simple_id)},
+        ).fetchone()
+        return row is not None
+    except Exception:
+        return False
+
+
 class VideoOrderCreate(BaseModel):
     artist_id: int
     service_id: Optional[int] = None
@@ -1238,6 +1252,186 @@ def request_video_order_revision(
             pass
         try:
             _broadcast_thread_message(db, int(br.id), msg_obj)
+        except Exception:
+            pass
+        try:
+            invalidate_preview_cache_for_user(int(br.client_id))
+            invalidate_preview_cache_for_user(int(br.artist_id))
+        except Exception:
+            pass
+
+    return _to_video_order_response(br)
+
+
+@router.post("/video-orders/{order_id}/complete", response_model=VideoOrderResponse)
+def complete_video_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Mark a delivered PV order as completed (client-only) and release payouts."""
+    if not settings.ENABLE_PV_ORDERS:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    br = db.query(BookingRequest).filter(BookingRequest.id == order_id).first()
+    if not br:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    if br.client_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    pv = load_pv_payload(br)
+    status_raw = str(getattr(pv.status, "value", pv.status) or "").strip().lower()
+    if status_raw != PvStatus.DELIVERED.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Order must be delivered before it can be completed",
+        )
+    if not pv.booking_simple_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Booking not found")
+
+    simple_id = int(pv.booking_simple_id)
+    if _has_open_simple_dispute(db, simple_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This order has an open dispute",
+        )
+
+    simple = (
+        db.query(BookingSimple)
+        .filter(BookingSimple.id == simple_id)
+        .first()
+    )
+    if not simple or (getattr(simple, "booking_type", "") or "").lower() != "personalized_video":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+    if (getattr(simple, "payment_status", "") or "").lower() != "paid":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment required")
+
+    now = datetime.utcnow()
+    pv.status = PvStatus.COMPLETED
+    pv.completed_at_utc = pv.completed_at_utc or now
+    pv.payout_state = "payable"
+    save_pv_payload(br, pv)
+    br.status = BookingStatus.REQUEST_COMPLETED
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    # Ensure a canonical Booking exists so review flows can reuse existing endpoints.
+    # Also allows payout scheduling to key off booking.start_time (for earlier completion).
+    booking_row: models.Booking | None = None
+    try:
+        booking_row = (
+            db.query(models.Booking)
+            .filter(models.Booking.quote_id == int(getattr(simple, "quote_id", 0) or 0))
+            .order_by(models.Booking.id.desc())
+            .first()
+        )
+    except Exception:
+        booking_row = None
+
+    completed_at = pv.completed_at_utc or now
+    try:
+        if completed_at.tzinfo is not None:
+            completed_at = completed_at.astimezone(timezone.utc).replace(tzinfo=None)
+    except Exception:
+        completed_at = datetime.utcnow()
+
+    try:
+        if booking_row is None:
+            start_time = completed_at
+            end_time = start_time + timedelta(minutes=1)
+            booking_row = models.Booking(
+                client_id=int(br.client_id),
+                artist_id=int(br.artist_id),
+                service_id=int(getattr(br, "service_id", 0) or 0),
+                start_time=start_time,
+                end_time=end_time,
+                status=models.BookingStatus.COMPLETED,
+                total_price=Decimal(str(pv.total or 0)),
+                notes="Personalised video order",
+                quote_id=int(getattr(simple, "quote_id", 0) or 0),
+            )
+            db.add(booking_row)
+            db.commit()
+            db.refresh(booking_row)
+        else:
+            changed = False
+            try:
+                if getattr(booking_row, "status", None) != models.BookingStatus.COMPLETED:
+                    booking_row.status = models.BookingStatus.COMPLETED
+                    changed = True
+            except Exception:
+                pass
+            try:
+                st = getattr(booking_row, "start_time", None)
+                if st is not None and completed_at is not None and st > completed_at:
+                    booking_row.start_time = completed_at
+                    booking_row.end_time = completed_at + timedelta(minutes=1)
+                    changed = True
+            except Exception:
+                pass
+            if changed:
+                db.add(booking_row)
+                db.commit()
+                db.refresh(booking_row)
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+    # Create queued payout rows if missing (idempotent).
+    try:
+        from ..api.api_payment import _ensure_payout_rows  # noqa: WPS433
+
+        ref = (
+            str(pv.paystack_reference or "").strip()
+            or str(getattr(simple, "payment_id", "") or "").strip()
+            or f"pv_client_complete:{br.id}"
+        )
+        _ensure_payout_rows(
+            db,
+            simple=simple,
+            total_amount=Decimal(str(pv.total or 0)),
+            reference=ref,
+            phase="pv_client_complete",
+        )
+    except Exception:
+        pass
+
+    # Emit a system line (and notify the provider) so completion is visible in chat.
+    complete_msg: models.Message | None = None
+    try:
+        complete_msg = crud_message.create_message(
+            db=db,
+            booking_request_id=br.id,
+            sender_id=current_user.id,
+            sender_type=SenderType.CLIENT,
+            content="Marked as complete. Thanks — this order is now finished.",
+            message_type=MessageType.SYSTEM,
+            visible_to=VisibleTo.BOTH,
+            system_key="pv_client_completed_v1",
+        )
+    except Exception:
+        complete_msg = None
+
+    if complete_msg is not None:
+        try:
+            artist_user = db.query(models.User).filter(models.User.id == br.artist_id).first()
+            if artist_user:
+                notify_user_new_message(
+                    db=db,
+                    user=artist_user,
+                    sender=current_user,
+                    booking_request_id=int(br.id),
+                    content=str(getattr(complete_msg, "content", "") or ""),
+                    message_type=MessageType.SYSTEM,
+                    message_id=int(getattr(complete_msg, "id", 0) or 0) or None,
+                )
+        except Exception:
+            pass
+        try:
+            _broadcast_thread_message(db, int(br.id), complete_msg)
         except Exception:
             pass
         try:

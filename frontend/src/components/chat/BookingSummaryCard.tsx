@@ -206,6 +206,9 @@ export default function BookingSummaryCard({
   const [pvRevisionError, setPvRevisionError] = React.useState<string | null>(null);
   const [pvRevisionSubmitting, setPvRevisionSubmitting] = React.useState(false);
   const pvRevisionFieldRef = React.useRef<HTMLTextAreaElement>(null);
+  const [pvCompleteOpen, setPvCompleteOpen] = React.useState(false);
+  const [pvCompleteError, setPvCompleteError] = React.useState<string | null>(null);
+  const [pvCompleteSubmitting, setPvCompleteSubmitting] = React.useState(false);
   const isPersonalizedVideo = variant === 'personalizedVideo';
   const enablePvOrders =
     (process.env.NEXT_PUBLIC_ENABLE_PV_ORDERS ?? '') === '1';
@@ -215,6 +218,11 @@ export default function BookingSummaryCard({
     setPvRevisionMessage('');
     setPvRevisionError(null);
   }, [pvRevisionOpen]);
+
+  React.useEffect(() => {
+    if (!pvCompleteOpen) return;
+    setPvCompleteError(null);
+  }, [pvCompleteOpen]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -339,13 +347,58 @@ export default function BookingSummaryCard({
     const included = pvRevisionsIncluded ?? 1;
     return Math.max(0, included - pvRevisionRequestsCount);
   })();
+  const pvRevisionWindowLabel = React.useMemo(() => {
+    const parseUtcDate = (value: any): Date | null => {
+      const raw = String(value || '').trim();
+      if (!raw) return null;
+      try {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+          const dt = new Date(`${raw}T00:00:00Z`);
+          return Number.isNaN(dt.getTime()) ? null : dt;
+        }
+        const dt = new Date(raw);
+        return Number.isNaN(dt.getTime()) ? null : dt;
+      } catch {
+        return null;
+      }
+    };
+
+    const deliveredAt = parseUtcDate((pvOrder as any)?.delivered_at_utc);
+    if (!deliveredAt) return null;
+    const deliveryBy = parseUtcDate((pvOrder as any)?.delivery_by_utc);
+    const hourMs = 60 * 60 * 1000;
+    const dayMs = 24 * hourMs;
+    const now = new Date();
+
+    let closesAt: Date | null = null;
+    if (deliveryBy) {
+      const cutoff = new Date(deliveryBy.getTime() - 3 * dayMs);
+      closesAt =
+        now.getTime() >= cutoff.getTime() && deliveredAt.getTime() >= cutoff.getTime()
+          ? new Date(deliveredAt.getTime() + 12 * hourMs)
+          : cutoff;
+    } else {
+      closesAt = new Date(deliveredAt.getTime() + 3 * dayMs);
+    }
+
+    try {
+      return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+        closesAt,
+      );
+    } catch {
+      return closesAt.toISOString();
+    }
+  }, [(pvOrder as any)?.delivered_at_utc, (pvOrder as any)?.delivery_by_utc]);
   const showPvRevisionButton = Boolean(
     enablePvOrders &&
       isPersonalizedVideo &&
       pvOrderId &&
-      pvDeliveredHint &&
+      pvStatus === 'delivered' &&
       isClient &&
       pvRevisionsRemaining > 0,
+  );
+  const showPvCompleteButton = Boolean(
+    enablePvOrders && isPersonalizedVideo && pvOrderId && isClient && pvStatus === 'delivered',
   );
 
   type Payout = {
@@ -837,7 +890,20 @@ export default function BookingSummaryCard({
                   className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-white text-gray-900 font-semibold rounded-lg px-5 py-3 shadow-sm border border-gray-200 hover:bg-gray-50 transition"
                   disabled={pvOrderLoading || pvRevisionSubmitting}
                 >
-                  Ask for revision
+                  <span>Ask for revision</span>
+                  <span className="ml-2 text-xs font-semibold text-gray-500">
+                    {pvRevisionsRemaining} left
+                  </span>
+                </button>
+              ) : null}
+              {showPvCompleteButton ? (
+                <button
+                  type="button"
+                  onClick={() => setPvCompleteOpen(true)}
+                  className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-gray-900 text-white font-semibold rounded-lg px-5 py-3 shadow-sm hover:bg-gray-800 transition"
+                  disabled={pvOrderLoading || pvCompleteSubmitting}
+                >
+                  Mark as complete
                 </button>
               ) : null}
             </div>
@@ -929,7 +995,14 @@ export default function BookingSummaryCard({
                 setPvRevisionOpen(false);
                 Toast.success('Revision request sent');
               } catch (err: any) {
-                setPvRevisionError(err?.message || 'Unable to request a revision');
+                const raw = String(err?.message || '').trim();
+                if (raw.toLowerCase().includes('closed')) {
+                  setPvRevisionError('Revision window is closed. You can still message the provider in chat.');
+                } else if (raw.toLowerCase().includes('no revisions remaining')) {
+                  setPvRevisionError('You’ve used all included revisions. You can still message the provider in chat.');
+                } else {
+                  setPvRevisionError(raw || 'Unable to request a revision');
+                }
               } finally {
                 setPvRevisionSubmitting(false);
               }
@@ -940,6 +1013,14 @@ export default function BookingSummaryCard({
             <p className="mt-1 text-sm text-gray-600">
               {pvRevisionsRemaining} revision{pvRevisionsRemaining === 1 ? '' : 's'} remaining.
             </p>
+            <p className="mt-1 text-xs text-gray-500">
+              We’ll notify the provider and post this request in your chat.
+            </p>
+            {pvRevisionWindowLabel ? (
+              <p className="mt-1 text-xs text-gray-500">
+                Revision window closes {pvRevisionWindowLabel}.
+              </p>
+            ) : null}
             <div className="mt-4 flex-1 overflow-y-auto">
               <TextArea
                 ref={pvRevisionFieldRef}
@@ -950,6 +1031,10 @@ export default function BookingSummaryCard({
                 error={pvRevisionError || undefined}
                 placeholder="Tell the provider what you’d like updated (tone, wording, missing details, etc.)"
               />
+              <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                <span>Be as specific as possible so the revision is fast.</span>
+                <span>{pvRevisionMessage.length}/2000</span>
+              </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Button
@@ -965,6 +1050,65 @@ export default function BookingSummaryCard({
               </Button>
             </div>
           </form>
+        </BottomSheet>
+      ) : null}
+
+      {enablePvOrders && isPersonalizedVideo && pvOrderId ? (
+        <BottomSheet
+          open={pvCompleteOpen}
+          onClose={() => setPvCompleteOpen(false)}
+          desktopCenter
+          panelClassName="md:max-w-md md:mx-auto"
+          title="Mark as complete"
+        >
+          <div className="flex flex-col p-4 max-h-[90vh] md:max-h-none min-h-0">
+            <h2 className="text-lg font-semibold text-gray-900">Mark this order as complete?</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              This confirms you’re happy with the delivery. It will close revisions and release payouts sooner.
+            </p>
+            {pvCompleteError ? (
+              <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                {pvCompleteError}
+              </div>
+            ) : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setPvCompleteOpen(false)}
+                disabled={pvCompleteSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                isLoading={pvCompleteSubmitting}
+                onClick={async () => {
+                  if (!pvOrderId) return;
+                  setPvCompleteSubmitting(true);
+                  setPvCompleteError(null);
+                  try {
+                    const updated = await videoOrderApiClient.completeOrder(pvOrderId);
+                    if (updated) setPvOrder(updated);
+                    setPvCompleteOpen(false);
+                    Toast.success('Marked as complete');
+                    try {
+                      window.dispatchEvent(
+                        new CustomEvent('pv:completed', { detail: { threadId: bookingRequestId } }),
+                      );
+                    } catch {}
+                  } catch (err: any) {
+                    const raw = String(err?.message || '').trim();
+                    setPvCompleteError(raw || 'Unable to mark as complete');
+                  } finally {
+                    setPvCompleteSubmitting(false);
+                  }
+                }}
+              >
+                Confirm
+              </Button>
+            </div>
+          </div>
         </BottomSheet>
       ) : null}
 

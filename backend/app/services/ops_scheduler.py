@@ -667,6 +667,59 @@ def handle_pv_auto_completion(db: Session) -> dict:
         db.add(br)
         db.commit()
 
+        # Ensure a canonical Booking exists so review flows can reuse existing endpoints.
+        # Also allows payout scheduling to key off booking.start_time (for earlier completion).
+        try:
+            booking = (
+                db.query(models.Booking)
+                .filter(models.Booking.quote_id == int(getattr(simple, "quote_id", 0) or 0))
+                .order_by(models.Booking.id.desc())
+                .first()
+            )
+        except Exception:
+            booking = None
+        try:
+            if booking is None:
+                booking = models.Booking(
+                    client_id=int(br.client_id),
+                    artist_id=int(br.artist_id),
+                    service_id=int(getattr(br, "service_id", 0) or 0),
+                    start_time=now,
+                    end_time=(now + timedelta(minutes=1)),
+                    status=models.BookingStatus.COMPLETED,
+                    total_price=Decimal(str(pv.total or 0)),
+                    notes="Personalised video order",
+                    quote_id=int(getattr(simple, "quote_id", 0) or 0),
+                )
+                db.add(booking)
+                db.commit()
+                db.refresh(booking)
+            else:
+                changed = False
+                try:
+                    if getattr(booking, "status", None) != models.BookingStatus.COMPLETED:
+                        booking.status = models.BookingStatus.COMPLETED
+                        changed = True
+                except Exception:
+                    pass
+                try:
+                    st = getattr(booking, "start_time", None)
+                    if st is not None and st > now:
+                        booking.start_time = now
+                        booking.end_time = now + timedelta(minutes=1)
+                        changed = True
+                except Exception:
+                    pass
+                if changed:
+                    db.add(booking)
+                    db.commit()
+                    db.refresh(booking)
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
         # Create queued payout rows if missing (idempotent).
         try:
             from ..api.api_payment import _ensure_payout_rows  # noqa: WPS433
