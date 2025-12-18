@@ -41,10 +41,13 @@ export interface VideoOrder {
     | "info_pending"
     | "closed";
   delivery_by_utc: string;
+  delivered_at_utc?: string | null;
   delivery_url?: string | null;
   delivery_note?: string | null;
   delivery_attachment_url?: string | null;
   delivery_attachment_meta?: Record<string, any> | null;
+  revisions_included?: number | null;
+  revision_requests?: Array<Record<string, any>> | null;
   length_sec: number;
   language: string;
   tone: string;
@@ -79,6 +82,7 @@ export interface VideoOrderApiClient {
       attachment_meta?: Record<string, any> | null;
     },
   ): Promise<VideoOrder | null>;
+  requestRevision(orderId: number, message: string): Promise<VideoOrder | null>;
   postAnswer(orderId: number, key: string, value: any): Promise<boolean>;
   createThreadForOrder(
     artistId: number,
@@ -146,6 +150,18 @@ export const videoOrderApiClient: VideoOrderApiClient = {
   },
   async deliverOrder(orderId, payload) {
     return safePost<VideoOrder>(`/api/v1/video-orders/${orderId}/deliver`, payload);
+  },
+  async requestRevision(orderId, message) {
+    try {
+      const res = await api.post<VideoOrder>(`/api/v1/video-orders/${orderId}/revisions`, {
+        message,
+      });
+      return res.data as VideoOrder;
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : "Unable to request a revision";
+      throw new Error(msg);
+    }
   },
   async postAnswer(orderId, key, value) {
     const ok = await safePost(`/api/v1/video-orders/${orderId}/answers`, {

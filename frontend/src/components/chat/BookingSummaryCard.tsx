@@ -8,13 +8,16 @@ import { getFullImageUrl, formatCurrency, buildReceiptUrl } from '@/lib/utils';
 import { apiUrl } from '@/lib/api';
 import { resolveQuoteTotalsPreview, QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 import { Booking, QuoteV2 } from '@/types';
+import { BottomSheet, TextArea } from '@/components/ui';
+import Toast from '@/components/ui/Toast';
+import { sanitizeCancellationPolicy } from '@/lib/shared/mappers/policy';
 import {
   videoOrderApiClient,
   type VideoOrder,
 } from '@/features/booking/personalizedVideo/engine/apiClient';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, MapPin, Users, CheckCircle, User } from 'lucide-react';
+import { Calendar, MapPin, Users, CheckCircle, Check, User } from 'lucide-react';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -198,9 +201,20 @@ export default function BookingSummaryCard({
   const [pvOrderId, setPvOrderId] = React.useState<number | null>(null);
   const [pvOrder, setPvOrder] = React.useState<VideoOrder | null>(null);
   const [pvOrderLoading, setPvOrderLoading] = React.useState(false);
+  const [pvRevisionOpen, setPvRevisionOpen] = React.useState(false);
+  const [pvRevisionMessage, setPvRevisionMessage] = React.useState('');
+  const [pvRevisionError, setPvRevisionError] = React.useState<string | null>(null);
+  const [pvRevisionSubmitting, setPvRevisionSubmitting] = React.useState(false);
+  const pvRevisionFieldRef = React.useRef<HTMLTextAreaElement>(null);
   const isPersonalizedVideo = variant === 'personalizedVideo';
   const enablePvOrders =
     (process.env.NEXT_PUBLIC_ENABLE_PV_ORDERS ?? '') === '1';
+
+  React.useEffect(() => {
+    if (!pvRevisionOpen) return;
+    setPvRevisionMessage('');
+    setPvRevisionError(null);
+  }, [pvRevisionOpen]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -312,6 +326,27 @@ export default function BookingSummaryCard({
   const pvVideoHref = pvOrderId ? `/video-orders/${pvOrderId}/deliver` : null;
   const showPvVideoButton = Boolean(pvVideoHref && (pvDeliveredHint || (isProvider && pvCanDeliverHint)));
   const pvVideoButtonLabel = pvDeliveredHint ? 'View video' : 'Deliver video';
+  const pvRevisionsIncluded = (() => {
+    const raw = (pvOrder as any)?.revisions_included;
+    const n = typeof raw === 'number' ? raw : Number(raw);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(0, Math.min(10, Math.trunc(n)));
+  })();
+  const pvRevisionRequestsCount = Array.isArray((pvOrder as any)?.revision_requests)
+    ? (pvOrder as any).revision_requests.length
+    : 0;
+  const pvRevisionsRemaining = (() => {
+    const included = pvRevisionsIncluded ?? 1;
+    return Math.max(0, included - pvRevisionRequestsCount);
+  })();
+  const showPvRevisionButton = Boolean(
+    enablePvOrders &&
+      isPersonalizedVideo &&
+      pvOrderId &&
+      pvDeliveredHint &&
+      isClient &&
+      pvRevisionsRemaining > 0,
+  );
 
   type Payout = {
     id: number;
@@ -328,6 +363,10 @@ export default function BookingSummaryCard({
   const bookingId = bookingDetails?.id ?? null;
   const [payoutsForBooking, setPayoutsForBooking] = React.useState<Payout[] | null>(null);
   const [payoutsLoading, setPayoutsLoading] = React.useState(false);
+  const parsedCancellationPolicy = React.useMemo(
+    () => sanitizeCancellationPolicy(artistCancellationPolicy),
+    [artistCancellationPolicy],
+  );
 
   React.useEffect(() => {
     if (!isProvider || !bookingId) {
@@ -791,6 +830,16 @@ export default function BookingSummaryCard({
                   {pvOrderLoading ? 'Loading…' : pvVideoButtonLabel}
                 </a>
               ) : null}
+              {showPvRevisionButton ? (
+                <button
+                  type="button"
+                  onClick={() => setPvRevisionOpen(true)}
+                  className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-white text-gray-900 font-semibold rounded-lg px-5 py-3 shadow-sm border border-gray-200 hover:bg-gray-50 transition"
+                  disabled={pvOrderLoading || pvRevisionSubmitting}
+                >
+                  Ask for revision
+                </button>
+              ) : null}
             </div>
           );
         })()}
@@ -801,10 +850,43 @@ export default function BookingSummaryCard({
             <h2 id="policy-h" className="text-xl font-bold text-gray-900 mb-3">
               Cancellation Policy
             </h2>
-            <p className="rounded-lg bg-white border border-gray-200 p-3 space-y-2 shadow-sm overflow-x-hidden">
-              {artistCancellationPolicy?.trim() ||
-                'Free cancellation within 48 hours of booking. 50% refund up to 7 days before the event. Policies may vary by provider. Please review the full terms before confirming.'}
-            </p>
+            {artistCancellationPolicy?.trim() ? (
+              <div className="rounded-2xl bg-gray-50 p-4">
+                {parsedCancellationPolicy.intro ? (
+                  <p className="text-sm text-gray-700">{parsedCancellationPolicy.intro}</p>
+                ) : null}
+                {parsedCancellationPolicy.bullets.length ? (
+                  <ul
+                    className={[
+                      "text-sm text-gray-700 space-y-2",
+                      parsedCancellationPolicy.intro ? "mt-3" : "mt-0",
+                    ].join(" ")}
+                  >
+                    {parsedCancellationPolicy.bullets.map((b, idx) => (
+                      <li key={`${b}:${idx}`} className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-700">{artistCancellationPolicy.trim()}</p>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-gray-50 p-4">
+                <ul className="text-sm text-gray-700 space-y-2">
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+                    <span>Free cancellation within 24 hours of booking.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+                    <span>50% refund up to 7 days before the event.</span>
+                  </li>
+                </ul>
+              </div>
+            )}
           </section>
         )}
 
@@ -820,6 +902,71 @@ export default function BookingSummaryCard({
           </div>
         </section>
       </div>
+
+      {enablePvOrders && isPersonalizedVideo && pvOrderId ? (
+        <BottomSheet
+          open={pvRevisionOpen}
+          onClose={() => setPvRevisionOpen(false)}
+          initialFocus={pvRevisionFieldRef}
+          desktopCenter
+          panelClassName="md:max-w-md md:mx-auto"
+          title="Request a revision"
+        >
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!pvOrderId) return;
+              const msg = pvRevisionMessage.trim();
+              if (!msg) {
+                setPvRevisionError('Please describe what you’d like revised.');
+                return;
+              }
+              setPvRevisionSubmitting(true);
+              setPvRevisionError(null);
+              try {
+                const updated = await videoOrderApiClient.requestRevision(pvOrderId, msg);
+                if (updated) setPvOrder(updated);
+                setPvRevisionOpen(false);
+                Toast.success('Revision request sent');
+              } catch (err: any) {
+                setPvRevisionError(err?.message || 'Unable to request a revision');
+              } finally {
+                setPvRevisionSubmitting(false);
+              }
+            }}
+            className="flex flex-col p-4 max-h-[90vh] md:max-h-none min-h-0"
+          >
+            <h2 className="text-lg font-semibold text-gray-900">Ask for a revision</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              {pvRevisionsRemaining} revision{pvRevisionsRemaining === 1 ? '' : 's'} remaining.
+            </p>
+            <div className="mt-4 flex-1 overflow-y-auto">
+              <TextArea
+                ref={pvRevisionFieldRef}
+                label="What should be changed?"
+                value={pvRevisionMessage}
+                onChange={(e) => setPvRevisionMessage(e.target.value)}
+                rows={6}
+                error={pvRevisionError || undefined}
+                placeholder="Tell the provider what you’d like updated (tone, wording, missing details, etc.)"
+              />
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setPvRevisionOpen(false)}
+                disabled={pvRevisionSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={pvRevisionSubmitting}>
+                Send request
+              </Button>
+            </div>
+          </form>
+        </BottomSheet>
+      ) : null}
 
       {/* Mobile sticky CTA; measured height ensures the last buttons are never hidden */}
       {stickyPresent && (

@@ -768,7 +768,7 @@ export default function VenueListingPage({
 	        node: (
 	          <a
 	            href={mapAnchorHref}
-	            className="truncate text-gray-600 no-underline hover:text-gray-900 hover:no-underline"
+	            className="text-gray-600 no-underline hover:text-gray-900 hover:no-underline break-words"
 	            title={mapQuery || undefined}
 	          >
 	            {headerAddress}
@@ -885,14 +885,17 @@ export default function VenueListingPage({
 	            </h1>
 		            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
 		              {headerMetaItems.map((item, idx) => (
-		                <Fragment key={item.key}>
-		                  {idx ? (
-		                    <span aria-hidden="true" className="text-gray-300">
-		                      ·
-		                    </span>
-		                  ) : null}
+		                <span
+		                  key={item.key}
+		                  className={[
+		                    "min-w-0",
+		                    idx
+		                      ? "before:mx-2 before:text-gray-300 before:content-['·']"
+		                      : "",
+		                  ].join(" ")}
+		                >
 		                  {item.node}
-		                </Fragment>
+		                </span>
 		              ))}
 		            </div>
 		          </div>
@@ -1035,7 +1038,7 @@ export default function VenueListingPage({
 		                    <button
 		                      type="button"
 		                      onClick={() => setAmenitiesExpanded(true)}
-		                      className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+		                      className="inline-flex items-center text-sm font-semibold text-brand-dark hover:underline"
 		                    >
 		                      Show all amenities ({amenityCount})
 		                    </button>
@@ -1086,7 +1089,7 @@ export default function VenueListingPage({
 		                      <button
 		                        type="button"
 		                        onClick={() => setAmenitiesExpanded(false)}
-		                        className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+		                        className="inline-flex items-center text-sm font-semibold text-brand-dark hover:underline"
 		                      >
 		                        Show less
 		                      </button>
@@ -1132,7 +1135,7 @@ export default function VenueListingPage({
 	                <button
 	                  type="button"
 	                  onClick={() => setHouseRulesExpanded((v) => !v)}
-	                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+	                  className="inline-flex items-center text-sm font-semibold text-brand-dark hover:underline"
 	                >
 	                  {houseRulesExpanded ? "Show fewer" : "Show all house rules"}
 	                </button>
@@ -1285,7 +1288,7 @@ export default function VenueListingPage({
               onClick={() => setIsShareOpen(false)}
               aria-hidden="true"
             />
-            <div className="absolute left-1/2 top-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-gray-100 bg-white p-4 shadow-2xl">
+            <div className="absolute left-1/2 top-1/2 w-[90vw] sm:w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-2xl border border-gray-100 p-4">
               <div className="flex items-center justify-end">
                 <button
                   aria-label="Close"

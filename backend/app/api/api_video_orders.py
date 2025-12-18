@@ -1011,6 +1011,136 @@ def deliver_video_order(
     return _to_video_order_response(br)
 
 
+@router.post("/video-orders/{order_id}/revisions", response_model=VideoOrderResponse)
+def request_video_order_revision(
+    order_id: int,
+    body: VideoOrderRevisionRequestPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a revision request for a delivered PV order (client-only)."""
+    if not settings.ENABLE_PV_ORDERS:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    br = db.query(BookingRequest).filter(BookingRequest.id == order_id).first()
+    if not br:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    if br.client_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    pv = load_pv_payload(br)
+    status_raw = str(getattr(pv.status, "value", pv.status) or "").strip().lower()
+    if status_raw != PvStatus.DELIVERED.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Revisions can only be requested after delivery",
+        )
+
+    # Resolve revisions included (payload -> service.details -> default 1).
+    revisions_included: int = 1
+    try:
+        raw = getattr(pv, "revisions_included", None)
+        if raw is None:
+            svc = getattr(br, "service", None)
+            details = getattr(svc, "details", None) if svc is not None else None
+            raw = details.get("revisions_included", None) if isinstance(details, dict) else None
+        if raw is not None:
+            revisions_included = int(raw)
+    except Exception:
+        revisions_included = 1
+    if revisions_included < 0:
+        revisions_included = 0
+    if revisions_included > 10:
+        revisions_included = 10
+
+    existing: list[dict[str, Any]] = []
+    try:
+        raw_reqs = getattr(pv, "revision_requests", None)
+        if isinstance(raw_reqs, list):
+            existing = [r for r in raw_reqs if isinstance(r, dict)]
+    except Exception:
+        existing = []
+
+    if revisions_included <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This service does not include revisions",
+        )
+    if len(existing) >= revisions_included:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No revisions remaining for this order",
+        )
+
+    def _as_utc(dt: Optional[datetime]) -> Optional[datetime]:
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+
+    now = datetime.now(timezone.utc)
+    delivered_at = _as_utc(getattr(pv, "delivered_at_utc", None))
+    delivery_by = _parse_delivery_dt(getattr(pv, "delivery_by_utc", None) or "")
+
+    if delivered_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Delivery timestamp not found",
+        )
+
+    # Timing policy:
+    # - Default: revisions must be requested at least 3 days before delivery_by_utc.
+    # - Exception: if the provider delivered within the last 3 days before delivery_by_utc,
+    #   the client has 12 hours from delivery to request revisions.
+    allowed = True
+    if delivery_by is not None:
+        cutoff = delivery_by - timedelta(days=3)
+        if now >= cutoff:
+            allowed = delivered_at >= cutoff and now <= (delivered_at + timedelta(hours=12))
+    else:
+        allowed = now <= (delivered_at + timedelta(days=3))
+
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Revision requests are closed for this order",
+        )
+
+    message = str(body.message or "").strip()
+    if not message:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Message required")
+
+    req = {
+        "id": len(existing) + 1,
+        "requested_at_utc": now.isoformat().replace("+00:00", "Z"),
+        "message": message,
+    }
+    existing.append(req)
+    pv.revisions_included = revisions_included  # persist the resolved value for future reads
+    pv.revision_requests = existing
+
+    save_pv_payload(br, pv)
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    try:
+        crud_message.create_message(
+            db=db,
+            booking_request_id=br.id,
+            sender_id=current_user.id,
+            sender_type=SenderType.CLIENT,
+            content=f"Revision requested: {message}",
+            message_type=MessageType.USER,
+            visible_to=VisibleTo.BOTH,
+        )
+    except Exception:
+        pass
+
+    return _to_video_order_response(br)
+
+
 @router.post("/video-orders/{order_id}/paystack/verify", response_model=VideoOrderResponse)
 def verify_video_order_paystack(
     order_id: int,
