@@ -22,13 +22,92 @@ import { getVenueRuleLabel, normalizeVenueRules } from "@/features/venues/rules"
 import { CheckIcon } from "@heroicons/react/24/solid";
 import {
   ArrowUpOnSquareIcon,
+  BanknotesIcon,
+  ChevronDownIcon,
   HeartIcon as HeartOutlineIcon,
+  UserGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 
+const AMENITY_HIGHLIGHTS_LIMIT = 8;
+const HOUSE_RULES_PREVIEW_LIMIT = 5;
+const VENUE_AMENITY_HIGHLIGHT_ORDER = [
+  "parking",
+  "toilets",
+  "wifi",
+  "tables_chairs",
+  "kitchen",
+  "sound_system",
+  "wheelchair_access",
+  "generator",
+  "indoor_area",
+  "outdoor_area",
+  "changing_room",
+  "air_conditioning",
+  "security",
+  "pool",
+];
+
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
+}
+
+function isPostalCodePart(value: string): boolean {
+  const compact = value.replace(/\s+/g, "");
+  return /^\d{3,10}$/.test(compact);
+}
+
+function isCountryPart(value: string): boolean {
+  const v = value.trim().toLowerCase();
+  return (
+    v === "south africa" ||
+    v === "south-africa" ||
+    v === "southafrica" ||
+    v === "za" ||
+    v === "sa"
+  );
+}
+
+function isProvincePart(value: string): boolean {
+  const v = value.trim().toLowerCase();
+  const provinces = new Set([
+    "gauteng",
+    "western cape",
+    "eastern cape",
+    "kwazulu-natal",
+    "kzn",
+    "free state",
+    "limpopo",
+    "mpumalanga",
+    "northern cape",
+    "north west",
+    "northwest",
+  ]);
+  return provinces.has(v);
+}
+
+function getShortLocation(location: string | null): string | null {
+  if (!isNonEmptyString(location)) return null;
+  const parts = location
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (!parts.length) return null;
+
+  while (parts.length && isCountryPart(parts[parts.length - 1] || "")) {
+    parts.pop();
+  }
+  while (parts.length && isPostalCodePart(parts[parts.length - 1] || "")) {
+    parts.pop();
+  }
+  if (!parts.length) return null;
+
+  const last = parts[parts.length - 1] || null;
+  if (last && isProvincePart(last) && parts.length > 1) {
+    return parts[parts.length - 2] || last;
+  }
+  return last;
 }
 
 function normalizeStringList(input: unknown): string[] {
@@ -493,6 +572,8 @@ export default function VenueListingPage({
   const [photosOpen, setPhotosOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [amenitiesExpanded, setAmenitiesExpanded] = useState(false);
+  const [houseRulesExpanded, setHouseRulesExpanded] = useState(false);
 
   const images = useMemo(() => {
     const raw = [
@@ -538,6 +619,34 @@ export default function VenueListingPage({
 
     return groups;
   }, [amenityValues]);
+  const amenityCount = useMemo(
+    () => amenityGroups.reduce((sum, g) => sum + g.items.length, 0),
+    [amenityGroups],
+  );
+  const amenityHighlights = useMemo(() => {
+    if (!amenityValues.length) return [];
+
+    const selected = new Set(amenityValues);
+    const added = new Set<string>();
+    const result: Array<{ value: string; label: string }> = [];
+
+    for (const value of VENUE_AMENITY_HIGHLIGHT_ORDER) {
+      if (!selected.has(value)) continue;
+      if (added.has(value)) continue;
+      added.add(value);
+      result.push({ value, label: getVenueAmenityLabel(value) });
+      if (result.length >= AMENITY_HIGHLIGHTS_LIMIT) return result;
+    }
+
+    for (const value of amenityValues) {
+      if (added.has(value)) continue;
+      added.add(value);
+      result.push({ value, label: getVenueAmenityLabel(value) });
+      if (result.length >= AMENITY_HIGHLIGHTS_LIMIT) break;
+    }
+
+    return result;
+  }, [amenityValues]);
   const notIncludedHighlights = useMemo(() => {
     if (!amenityValues.length) return [];
     const selected = new Set(amenityValues);
@@ -563,12 +672,25 @@ export default function VenueListingPage({
     isNonEmptyString((profile as any)?.location) ? (profile as any).location.trim() : null;
   const capacity = Number(details?.capacity || 0);
   const extraHouseRules = isNonEmptyString(details?.house_rules)
-    ? details.house_rules.trim()
+    ? String(details.house_rules).trim()
     : null;
+  const extraHouseRulesLineCount = extraHouseRules
+    ? extraHouseRules.split(/\r?\n/).filter((l) => l.trim()).length
+    : 0;
+  const houseRulePreview = houseRulesExpanded
+    ? ruleValues
+    : ruleValues.slice(0, HOUSE_RULES_PREVIEW_LIMIT);
+  const houseRulesToggleVisible =
+    ruleValues.length > HOUSE_RULES_PREVIEW_LIMIT ||
+    Boolean(
+      extraHouseRules &&
+        (extraHouseRules.length > 140 || extraHouseRulesLineCount > 4),
+    );
   const policyOverride = isNonEmptyString(details?.cancellation_policy)
     ? details.cancellation_policy.trim()
     : null;
   const mapQuery = (address || providerLocation || "").trim() || null;
+  const shortLocation = getShortLocation(mapQuery) || mapQuery;
   const mapEmbedUrl = mapQuery
     ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`
     : null;
@@ -694,24 +816,28 @@ export default function VenueListingPage({
 
       <div className="mx-auto w-full max-w-6xl px-4 py-6">
         <header className="mb-4 space-y-2">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold text-gray-900">
-              {service.title}
-            </h1>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
-              {average ? (
-                <span className="font-medium text-gray-900">
+	        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+	          <div className="min-w-0">
+	            <h1 className="text-2xl font-bold leading-tight text-gray-900">
+	              {service.title}
+	            </h1>
+	            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
+	              {average ? (
+	                <span className="font-medium text-gray-900">
                   {average} / 5
                 </span>
-              ) : null}
-              {reviews.length ? (
-                <span>({reviews.length} reviews)</span>
-              ) : null}
-              {venueType ? <span>· {venueType}</span> : null}
-              {address ? <span className="truncate">· {address}</span> : null}
-            </div>
-          </div>
+	              ) : null}
+	              {reviews.length ? (
+	                <span>({reviews.length} reviews)</span>
+	              ) : null}
+	              {venueType ? <span>· {venueType}</span> : null}
+	              {shortLocation ? (
+	                <span className="truncate" title={mapQuery || undefined}>
+	                  · {shortLocation}
+	                </span>
+	              ) : null}
+	            </div>
+	          </div>
 
           <div className="flex items-center gap-2">
             <button
@@ -758,25 +884,41 @@ export default function VenueListingPage({
         </div>
       </section>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="truncate text-xl font-semibold text-gray-900">
-            {venueType || "Venue"}
-            {address || providerLocation ? (
-              <span className="font-normal text-gray-700">
-                {" "}
-                in {address || providerLocation}
-              </span>
-            ) : null}
-          </h2>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
-            {Number.isFinite(capacity) && capacity > 0 ? (
-              <span>{capacity} guests</span>
-            ) : null}
-            {Number.isFinite(capacity) && capacity > 0 ? <span>·</span> : null}
-            <span>Per day</span>
-          </div>
-        </div>
+	      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+	        <div className="min-w-0">
+	          <h2 className="text-xl font-semibold leading-tight text-gray-900">
+	            {venueType || "Venue"}
+	            {shortLocation ? (
+	              <span className="font-normal text-gray-700">
+	                {" "}
+	                in {shortLocation}
+	              </span>
+	            ) : null}
+	          </h2>
+	          <div className="mt-2 flex flex-wrap gap-2 text-sm">
+	            {Number.isFinite(capacity) && capacity > 0 ? (
+	              <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-200">
+	                <UserGroupIcon className="h-4 w-4 text-gray-500" />
+	                <span className="font-semibold">{capacity}</span>
+	                <span className="text-gray-700">guests</span>
+	              </div>
+	            ) : null}
+	            {Number(service.price || 0) > 0 ? (
+	              <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-200">
+	                <BanknotesIcon className="h-4 w-4 text-gray-500" />
+	                <span className="font-semibold">
+	                  {formatCurrency(Number(service.price || 0))}
+	                </span>
+	                <span className="text-gray-700">per day</span>
+	              </div>
+	            ) : (
+	              <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-200">
+	                <BanknotesIcon className="h-4 w-4 text-gray-500" />
+	                <span className="font-semibold">Per day</span>
+	              </div>
+	            )}
+	          </div>
+	        </div>
 
         <div className="flex shrink-0 items-center gap-2">
           {providerHref ? (
@@ -808,80 +950,147 @@ export default function VenueListingPage({
             </p>
           </section>
 
-          <section
-            aria-label="What this place offers"
-            id="amenities"
-            style={{ scrollMarginTop: sectionScrollMarginTop }}
-          >
-            <h2 className="text-xl font-bold text-gray-900">
-              What this place offers
-            </h2>
-            {amenityGroups.length ? (
-              <div className="mt-4 space-y-6">
-                {amenityGroups.map((group) => (
-                  <div key={group.id}>
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      {group.label}
-                    </h3>
-                    <ul className="mt-2 grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
-                      {group.items.map((item) => (
-                        <li key={item.value} className="flex items-start gap-2">
-                          <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
-                          <span>{item.label}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+	          <section
+	            aria-label="What this place offers"
+	            id="amenities"
+	            style={{ scrollMarginTop: sectionScrollMarginTop }}
+	          >
+	            <h2 className="text-xl font-bold text-gray-900">
+	              What this place offers
+	            </h2>
+	            {amenityGroups.length ? (
+	              <>
+	                <ul className="mt-4 grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
+	                  {amenityHighlights.map((item) => (
+	                    <li key={item.value} className="flex items-start gap-2">
+	                      <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+	                      <span>{item.label}</span>
+	                    </li>
+	                  ))}
+	                </ul>
 
-                {notIncludedHighlights.length ? (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      Not included
-                    </h3>
-                    <ul className="mt-2 grid grid-cols-1 gap-2 text-sm text-gray-500 sm:grid-cols-2">
-                      {notIncludedHighlights.map((item) => (
-                        <li
-                          key={item.value}
-                          className="flex items-start gap-2"
-                        >
-                          <XMarkIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-                          <span>{item.label}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-gray-600">
-                Amenities haven’t been listed yet.
-              </p>
-            )}
-          </section>
+	                {amenityCount > amenityHighlights.length ? (
+	                  <div className="mt-4">
+	                    <button
+	                      type="button"
+	                      onClick={() => setAmenitiesExpanded((v) => !v)}
+	                      className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+	                    >
+	                      {amenitiesExpanded
+	                        ? "Show fewer"
+	                        : `Show all amenities (${amenityCount})`}
+	                    </button>
+	                  </div>
+	                ) : null}
 
-          <section aria-label="House rules">
-            <h2 className="text-xl font-bold text-gray-900">House rules</h2>
-            {ruleValues.length ? (
-              <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                {ruleValues.map((rule) => (
-                  <li key={rule} className="flex items-start gap-2">
-                    <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
-                    <span>{getVenueRuleLabel(rule)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-2 text-sm text-gray-600">
-                No house rules have been added yet.
-              </p>
-            )}
-            {extraHouseRules ? (
-              <p className="mt-3 whitespace-pre-line text-gray-700">
-                {extraHouseRules}
-              </p>
-            ) : null}
-          </section>
+	                {amenitiesExpanded ? (
+	                  <div className="mt-4 divide-y divide-gray-200 rounded-2xl border border-gray-200 bg-white">
+	                    {amenityGroups.map((group) => (
+	                      <details
+	                        key={group.id}
+	                        className="group open:bg-gray-50"
+	                      >
+	                        <summary className="list-none cursor-pointer select-none px-4 py-4 flex items-start gap-3">
+	                          <span
+	                            className="mt-0.5 inline-block h-2 w-2 rounded-full bg-gray-300 group-open:bg-gray-400"
+	                            aria-hidden="true"
+	                          />
+	                          <span className="font-medium text-gray-900">
+	                            {group.label}
+	                          </span>
+	                          <ChevronDownIcon className="ml-auto h-5 w-5 text-gray-400 transition-transform group-open:rotate-180" />
+	                        </summary>
+	                        <div className="px-4 pb-4 pt-1">
+	                          <ul className="grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
+	                            {group.items.map((item) => (
+	                              <li
+	                                key={item.value}
+	                                className="flex items-start gap-2"
+	                              >
+	                                <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+	                                <span>{item.label}</span>
+	                              </li>
+	                            ))}
+	                          </ul>
+	                        </div>
+	                      </details>
+	                    ))}
+
+	                    {notIncludedHighlights.length ? (
+	                      <details className="group open:bg-gray-50">
+	                        <summary className="list-none cursor-pointer select-none px-4 py-4 flex items-start gap-3">
+	                          <span
+	                            className="mt-0.5 inline-block h-2 w-2 rounded-full bg-gray-300 group-open:bg-gray-400"
+	                            aria-hidden="true"
+	                          />
+	                          <span className="font-medium text-gray-900">
+	                            Not included
+	                          </span>
+	                          <ChevronDownIcon className="ml-auto h-5 w-5 text-gray-400 transition-transform group-open:rotate-180" />
+	                        </summary>
+	                        <div className="px-4 pb-4 pt-1">
+	                          <ul className="grid grid-cols-1 gap-2 text-sm text-gray-500 sm:grid-cols-2">
+	                            {notIncludedHighlights.map((item) => (
+	                              <li
+	                                key={item.value}
+	                                className="flex items-start gap-2"
+	                              >
+	                                <XMarkIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+	                                <span>{item.label}</span>
+	                              </li>
+	                            ))}
+	                          </ul>
+	                        </div>
+	                      </details>
+	                    ) : null}
+	                  </div>
+	                ) : null}
+	              </>
+	            ) : (
+	              <p className="mt-2 text-sm text-gray-600">
+	                Amenities haven’t been listed yet.
+	              </p>
+	            )}
+	          </section>
+
+	          <section aria-label="House rules">
+	            <h2 className="text-xl font-bold text-gray-900">House rules</h2>
+	            {ruleValues.length ? (
+	              <ul className="mt-3 grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
+	                {houseRulePreview.map((rule) => (
+	                  <li key={rule} className="flex items-start gap-2">
+	                    <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+	                    <span>{getVenueRuleLabel(rule)}</span>
+	                  </li>
+	                ))}
+	              </ul>
+	            ) : (
+	              <p className="mt-2 text-sm text-gray-600">
+	                No house rules have been added yet.
+	              </p>
+	            )}
+	            {extraHouseRules ? (
+	              <p
+	                className={[
+	                  "mt-3 whitespace-pre-line text-sm text-gray-700",
+	                  houseRulesExpanded ? "" : "line-clamp-4",
+	                ].join(" ")}
+	              >
+	                {extraHouseRules}
+	              </p>
+	            ) : null}
+	            {houseRulesToggleVisible ? (
+	              <div className="mt-4">
+	                <button
+	                  type="button"
+	                  onClick={() => setHouseRulesExpanded((v) => !v)}
+	                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+	                >
+	                  {houseRulesExpanded ? "Show fewer" : "Show all house rules"}
+	                </button>
+	              </div>
+	            ) : null}
+	          </section>
 
           <section aria-label="Cancellation policy">
             <h2 className="text-xl font-bold text-gray-900">
