@@ -106,7 +106,8 @@ export default function MusicianPersonalizedVideoFlow({
       Number(state.common.price || 0) > 0 &&
       state.typeFields.base_length_sec &&
       Number(state.typeFields.max_videos_per_day || 0) >= 1 &&
-      Number(state.typeFields.min_notice_days ?? 0) >= 0
+      Number(state.typeFields.min_notice_days ?? 0) >= 0 &&
+      Number(state.typeFields.revisions_included ?? 0) >= 0
     );
   };
 
@@ -347,15 +348,15 @@ export default function MusicianPersonalizedVideoFlow({
                         </div>
                       </div>
 
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold text-gray-900">
-                          Availability rules
-                        </h3>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <TextInput
-                            label="Minimum notice (days)"
-                            type="number"
-                            value={state.typeFields.min_notice_days ?? 1}
+	                      <div className="space-y-3">
+	                        <h3 className="text-sm font-semibold text-gray-900">
+	                          Availability rules
+	                        </h3>
+	                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+	                          <TextInput
+	                            label="Minimum notice (days)"
+	                            type="number"
+	                            value={state.typeFields.min_notice_days ?? 1}
                             min={0}
                             onChange={(e) =>
                               actions.setTypeField(
@@ -364,23 +365,36 @@ export default function MusicianPersonalizedVideoFlow({
                               )
                             }
                           />
-                          <TextInput
-                            label="Max videos per day"
-                            type="number"
-                            value={state.typeFields.max_videos_per_day ?? 3}
-                            min={1}
-                            onChange={(e) =>
-                              actions.setTypeField(
-                                "max_videos_per_day",
-                                Number(e.target.value || 0),
-                              )
-                            }
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          We’ll mark a day as unavailable when you reach your max bookings for that day.
-                        </p>
-                      </div>
+	                          <TextInput
+	                            label="Max videos per day"
+	                            type="number"
+	                            value={state.typeFields.max_videos_per_day ?? 3}
+	                            min={1}
+	                            onChange={(e) =>
+	                              actions.setTypeField(
+	                                "max_videos_per_day",
+	                                Number(e.target.value || 0),
+	                              )
+	                            }
+	                          />
+	                          <TextInput
+	                            label="Included revisions"
+	                            type="number"
+	                            value={state.typeFields.revisions_included ?? 1}
+	                            min={0}
+	                            max={10}
+	                            onChange={(e) =>
+	                              actions.setTypeField(
+	                                "revisions_included",
+	                                Number(e.target.value || 0),
+	                              )
+	                            }
+	                          />
+	                        </div>
+	                        <p className="text-xs text-gray-500">
+	                          We’ll mark a day as unavailable when you reach your max bookings for that day.
+	                        </p>
+	                      </div>
 
                       <div className="space-y-3">
                         <h3 className="text-sm font-semibold text-gray-900">

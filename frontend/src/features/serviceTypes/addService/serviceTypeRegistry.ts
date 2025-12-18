@@ -109,6 +109,14 @@ const personalizedVideoFields: ServiceTypeField[] = [
     defaultValue: 3,
   },
   {
+    key: "revisions_included",
+    kind: "number",
+    label: "Included revisions",
+    helper: "How many revision requests you’re willing to include after delivery.",
+    required: false,
+    defaultValue: 1,
+  },
+  {
     key: "rush_custom_enabled",
     kind: "toggle",
     label: "Custom rush pricing",
@@ -455,6 +463,13 @@ const personalizedVideoConfig: ServiceTypeConfig = {
       return Math.max(1, Math.min(50, Math.trunc(n)));
     })();
 
+    const revisionsIncludedRaw = typeFields.revisions_included;
+    const revisionsIncluded = (() => {
+      const n = typeof revisionsIncludedRaw === "number" ? revisionsIncludedRaw : Number(revisionsIncludedRaw);
+      if (!Number.isFinite(n)) return 1;
+      return Math.max(0, Math.min(10, Math.trunc(n)));
+    })();
+
     const rushCustomEnabled = Boolean(typeFields.rush_custom_enabled);
     const rushFeeZarRaw = typeFields.rush_fee_zar;
     const rushFeeZar = (() => {
@@ -475,6 +490,7 @@ const personalizedVideoConfig: ServiceTypeConfig = {
       languages,
       min_notice_days: minNoticeDays,
       max_videos_per_day: maxVideosPerDay,
+      revisions_included: revisionsIncluded,
       rush_custom_enabled: rushCustomEnabled,
     };
     if (rushCustomEnabled) {

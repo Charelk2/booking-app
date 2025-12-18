@@ -42,6 +42,9 @@ class PvPayload(BaseModel):
     contact_whatsapp: Optional[str] = None
     promo_code: Optional[str] = None
 
+    revisions_included: Optional[int] = None
+    revision_requests: list[dict[str, Any]] = Field(default_factory=list)
+
     price_base: Decimal = Field(default=Decimal("0"))
     price_rush: Decimal = Field(default=Decimal("0"))
     price_addons: Decimal = Field(default=Decimal("0"))

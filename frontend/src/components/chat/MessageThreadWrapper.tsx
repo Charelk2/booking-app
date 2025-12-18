@@ -1069,6 +1069,8 @@ export default function MessageThreadWrapper({
 	                <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 text-[11px] px-2 py-0.5 whitespace-nowrap">
 	                  {isChildThread
 	                    ? 'Sound booking'
+	                    : isPersonalizedVideoThread
+	                      ? 'Personalised Video'
 	                    : isVenueThread
 	                      ? 'Venue booking'
 	                      : 'Artist booking'}

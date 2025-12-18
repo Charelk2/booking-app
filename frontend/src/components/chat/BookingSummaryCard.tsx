@@ -8,6 +8,10 @@ import { getFullImageUrl, formatCurrency, buildReceiptUrl } from '@/lib/utils';
 import { apiUrl } from '@/lib/api';
 import { resolveQuoteTotalsPreview, QUOTE_TOTALS_PLACEHOLDER } from '@/lib/quoteTotals';
 import { Booking, QuoteV2 } from '@/types';
+import {
+  videoOrderApiClient,
+  type VideoOrder,
+} from '@/features/booking/personalizedVideo/engine/apiClient';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar, MapPin, Users, CheckCircle, User } from 'lucide-react';
@@ -191,6 +195,9 @@ export default function BookingSummaryCard({
   const { user } = useAuth();
   const [briefLink, setBriefLink] = React.useState<string | null>(null);
   const [briefComplete, setBriefComplete] = React.useState<boolean>(false);
+  const [pvOrderId, setPvOrderId] = React.useState<number | null>(null);
+  const [pvOrder, setPvOrder] = React.useState<VideoOrder | null>(null);
+  const [pvOrderLoading, setPvOrderLoading] = React.useState(false);
   const isPersonalizedVideo = variant === 'personalizedVideo';
   const enablePvOrders =
     (process.env.NEXT_PUBLIC_ENABLE_PV_ORDERS ?? '') === '1';
@@ -202,11 +209,14 @@ export default function BookingSummaryCard({
         const oid = localStorage.getItem(`vo-order-for-thread-${bookingRequestId}`);
         const resolved = oid || (enablePvOrders && isPersonalizedVideo ? String(bookingRequestId) : null);
         if (resolved) {
+          const resolvedId = Number(resolved);
+          setPvOrderId(Number.isFinite(resolvedId) && resolvedId > 0 ? resolvedId : null);
           setBriefLink(`/video-orders/${resolved}/brief`);
           setBriefComplete(!!localStorage.getItem(`vo-brief-complete-${resolved}`));
         } else {
           setBriefLink(null);
           setBriefComplete(false);
+          setPvOrderId(null);
         }
       } catch {}
     };
@@ -218,6 +228,30 @@ export default function BookingSummaryCard({
       window.removeEventListener('focus', update);
     };
   }, [bookingRequestId, enablePvOrders, isPersonalizedVideo]);
+
+  React.useEffect(() => {
+    if (!enablePvOrders || !isPersonalizedVideo || !pvOrderId) {
+      setPvOrder(null);
+      setPvOrderLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setPvOrderLoading(true);
+    (async () => {
+      try {
+        const order = await videoOrderApiClient.getOrder(pvOrderId);
+        if (cancelled) return;
+        setPvOrder(order);
+      } catch {
+        if (!cancelled) setPvOrder(null);
+      } finally {
+        if (!cancelled) setPvOrderLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enablePvOrders, isPersonalizedVideo, pvOrderId]);
 
   const getLocationLabel = () => {
     const locName = (parsedBookingDetails as any)?.location_name as string | undefined;
@@ -270,6 +304,14 @@ export default function BookingSummaryCard({
     !!user &&
     !!bookingDetails &&
     Number(user.id) === Number(currentArtistId || 0);
+
+  const pvStatus = String(pvOrder?.status || '').toLowerCase();
+  const pvDeliveredHint =
+    pvStatus === 'delivered' || pvStatus === 'completed' || pvStatus === 'closed';
+  const pvCanDeliverHint = pvStatus === 'in_production';
+  const pvVideoHref = pvOrderId ? `/video-orders/${pvOrderId}/deliver` : null;
+  const showPvVideoButton = Boolean(pvVideoHref && (pvDeliveredHint || (isProvider && pvCanDeliverHint)));
+  const pvVideoButtonLabel = pvDeliveredHint ? 'View video' : 'Deliver video';
 
   type Payout = {
     id: number;
@@ -733,13 +775,22 @@ export default function BookingSummaryCard({
               : 'Finish Brief';
           if (!canShow) return null;
           return (
-            <div className="pt-4">
+            <div className="pt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
               <a
                 href={briefLink}
                 className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-indigo-600 text-white font-semibold rounded-lg px-5 py-3 shadow-lg hover:bg-indigo-700 transition no-underline hover:no-underline hover:text-white visited:text-white"
               >
                 {label}
               </a>
+              {showPvVideoButton ? (
+                <a
+                  href={pvVideoHref || undefined}
+                  className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-white text-gray-900 font-semibold rounded-lg px-5 py-3 shadow-sm border border-gray-200 hover:bg-gray-50 transition no-underline hover:no-underline"
+                  aria-disabled={pvOrderLoading}
+                >
+                  {pvOrderLoading ? 'Loading…' : pvVideoButtonLabel}
+                </a>
+              ) : null}
             </div>
           );
         })()}

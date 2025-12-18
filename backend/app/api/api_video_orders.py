@@ -53,6 +53,10 @@ class VideoOrderDeliverPayload(BaseModel):
     attachment_meta: Optional[dict[str, Any]] = None
 
 
+class VideoOrderRevisionRequestPayload(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+
+
 class VideoOrderCreate(BaseModel):
     artist_id: int
     service_id: Optional[int] = None
@@ -88,6 +92,7 @@ class VideoOrderResponse(BaseModel):
     service_id: Optional[int] = None
     status: str
     delivery_by_utc: Optional[str] = None
+    delivered_at_utc: Optional[str] = None
     delivery_url: Optional[str] = None
     delivery_note: Optional[str] = None
     delivery_attachment_url: Optional[str] = None
@@ -104,6 +109,8 @@ class VideoOrderResponse(BaseModel):
     contact_email: Optional[str] = None
     contact_whatsapp: Optional[str] = None
     answers: dict[str, Any] = Field(default_factory=dict)
+    revisions_included: Optional[int] = None
+    revision_requests: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class VideoOrderStatusUpdate(BaseModel):
@@ -272,6 +279,43 @@ def _to_video_order_response(
     totals_preview: Optional[dict[str, float]] = None,
 ) -> VideoOrderResponse:
     pv = load_pv_payload(br)
+    delivered_at_str: Optional[str] = None
+    try:
+        if pv.delivered_at_utc:
+            dt = pv.delivered_at_utc
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            delivered_at_str = dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    except Exception:
+        delivered_at_str = None
+
+    rev_included: Optional[int] = None
+    try:
+        raw = getattr(pv, "revisions_included", None)
+        if raw is not None:
+            rev_included = int(raw)
+    except Exception:
+        rev_included = None
+    if rev_included is None:
+        try:
+            svc = getattr(br, "service", None)
+            details = getattr(svc, "details", None) if svc is not None else None
+            if isinstance(details, dict):
+                raw = details.get("revisions_included", None)
+                if raw is not None:
+                    rev_included = int(raw)
+        except Exception:
+            rev_included = None
+    if rev_included is None:
+        rev_included = 1
+
+    revision_requests: list[dict[str, Any]] = []
+    try:
+        raw_reqs = getattr(pv, "revision_requests", None)
+        if isinstance(raw_reqs, list):
+            revision_requests = [r for r in raw_reqs if isinstance(r, dict)]
+    except Exception:
+        revision_requests = []
     return VideoOrderResponse(
         id=br.id,
         artist_id=br.artist_id,
@@ -279,6 +323,7 @@ def _to_video_order_response(
         service_id=(int(getattr(br, "service_id", 0) or 0) or None),
         status=str(getattr(pv.status, "value", pv.status) or PvStatus.AWAITING_PAYMENT.value),
         delivery_by_utc=pv.delivery_by_utc,
+        delivered_at_utc=delivered_at_str,
         delivery_url=pv.delivery_url,
         delivery_note=pv.delivery_note,
         delivery_attachment_url=pv.delivery_attachment_url,
@@ -295,6 +340,8 @@ def _to_video_order_response(
         contact_email=pv.contact_email,
         contact_whatsapp=pv.contact_whatsapp,
         answers=dict(pv.answers or {}),
+        revisions_included=rev_included,
+        revision_requests=revision_requests,
     )
 
 
@@ -307,6 +354,15 @@ def create_video_order(
 ):
     svc = _find_pv_service(db, payload.artist_id, payload.service_id)
     buyer_email = (payload.contact_email or getattr(current_user, "email", None) or None)
+    svc_details = svc.details or {}
+    try:
+        revisions_included = int(svc_details.get("revisions_included") or 1)
+    except Exception:
+        revisions_included = 1
+    if revisions_included < 0:
+        revisions_included = 0
+    if revisions_included > 10:
+        revisions_included = 10
 
     if settings.ENABLE_PV_ORDERS:
         idem_key = request.headers.get("Idempotency-Key") if request else None
@@ -323,7 +379,7 @@ def create_video_order(
                 detail="Invalid delivery date",
             )
 
-        details = svc.details or {}
+        details = svc_details
         try:
             min_notice_days = int(details.get("min_notice_days") or 1)
         except Exception:
@@ -446,6 +502,8 @@ def create_video_order(
             contact_email=buyer_email,
             contact_whatsapp=payload.contact_whatsapp,
             promo_code=payload.promo_code,
+            revisions_included=revisions_included,
+            revision_requests=[],
             price_base=pricing["price_base"],
             price_rush=pricing["price_rush"],
             price_addons=pricing["price_addons"],
@@ -530,6 +588,8 @@ def create_video_order(
             "contact_email": buyer_email,
             "contact_whatsapp": payload.contact_whatsapp,
             "promo_code": payload.promo_code,
+            "revisions_included": revisions_included,
+            "revision_requests": [],
             "price_base": payload.price_base,
             "price_rush": payload.price_rush,
             "price_addons": payload.price_addons,
