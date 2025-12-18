@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 import SafeImage from "@/components/ui/SafeImage";
@@ -24,6 +25,7 @@ import {
   ArrowUpOnSquareIcon,
   BanknotesIcon,
   ChevronDownIcon,
+  MapPinIcon,
   HeartIcon as HeartOutlineIcon,
   UserGroupIcon,
   XMarkIcon,
@@ -691,6 +693,7 @@ export default function VenueListingPage({
     : null;
   const mapQuery = (address || providerLocation || "").trim() || null;
   const shortLocation = getShortLocation(mapQuery) || mapQuery;
+  const mapAnchorHref = mapQuery ? "#map" : "#location";
   const mapEmbedUrl = mapQuery
     ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`
     : null;
@@ -698,6 +701,37 @@ export default function VenueListingPage({
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
     : null;
   const sectionScrollMarginTop = "calc(var(--app-header-height, 64px) + 72px)";
+
+  const headerMetaItems = useMemo(() => {
+    const items: Array<{ key: string; node: ReactNode }> = [];
+    if (average) {
+      items.push({
+        key: "rating",
+        node: <span className="font-medium text-gray-900">{average} / 5</span>,
+      });
+    }
+    if (reviews.length) {
+      items.push({ key: "reviews", node: <span>({reviews.length} reviews)</span> });
+    }
+    if (venueType) {
+      items.push({ key: "type", node: <span>{venueType}</span> });
+    }
+    if (shortLocation) {
+      items.push({
+        key: "location",
+        node: (
+          <a
+            href={mapAnchorHref}
+            className="truncate text-gray-600 no-underline hover:text-gray-900 hover:no-underline"
+            title={mapQuery || undefined}
+          >
+            {shortLocation}
+          </a>
+        ),
+      });
+    }
+    return items;
+  }, [average, mapAnchorHref, mapQuery, reviews.length, shortLocation, venueType]);
 
   useEffect(() => {
     const key = getServiceSavedStorageKey(service.id);
@@ -779,11 +813,11 @@ export default function VenueListingPage({
 
   return (
     <div className="w-full">
-      <nav
-        aria-label="Venue sections"
-        className="sticky z-30 border-b border-gray-200 bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm"
-        style={{ top: "var(--app-header-height, 64px)" }}
-      >
+	      <nav
+	        aria-label="Venue sections"
+	        className="sticky z-30 border-b border-gray-200 bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm"
+	        style={{ top: "var(--app-header-height, 64px)" }}
+	      >
         <div className="mx-auto w-full max-w-6xl px-4">
           <div className="flex gap-6 overflow-x-auto py-3 text-sm font-semibold text-gray-900">
             <a
@@ -798,20 +832,20 @@ export default function VenueListingPage({
             >
               Amenities
             </a>
-            <a
-              href="#reviews"
-              className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
-            >
-              Reviews
-            </a>
-            <a
-              href="#location"
-              className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
-            >
-              Location
-            </a>
-          </div>
-        </div>
+	            <a
+	              href="#reviews"
+	              className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
+	            >
+	              Reviews
+	            </a>
+	            <a
+	              href={mapAnchorHref}
+	              className="whitespace-nowrap text-gray-900 no-underline hover:text-gray-900 hover:no-underline"
+	            >
+	              Location
+	            </a>
+	          </div>
+	        </div>
       </nav>
 
       <div className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -822,21 +856,27 @@ export default function VenueListingPage({
 	              {service.title}
 	            </h1>
 	            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
-	              {average ? (
-	                <span className="font-medium text-gray-900">
-                  {average} / 5
-                </span>
-	              ) : null}
-	              {reviews.length ? (
-	                <span>({reviews.length} reviews)</span>
-	              ) : null}
-	              {venueType ? <span>· {venueType}</span> : null}
-	              {shortLocation ? (
-	                <span className="truncate" title={mapQuery || undefined}>
-	                  · {shortLocation}
-	                </span>
-	              ) : null}
+	              {headerMetaItems.map((item, idx) => (
+	                <Fragment key={item.key}>
+	                  {idx ? (
+	                    <span aria-hidden="true" className="text-gray-300">
+	                      ·
+	                    </span>
+	                  ) : null}
+	                  {item.node}
+	                </Fragment>
+	              ))}
 	            </div>
+	            {mapQuery ? (
+	              <a
+	                href={mapAnchorHref}
+	                className="mt-2 inline-flex max-w-full items-start gap-1.5 text-sm text-gray-600 no-underline hover:text-gray-900 hover:no-underline"
+	                title={mapQuery}
+	              >
+	                <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+	                <span className="line-clamp-2">{mapQuery}</span>
+	              </a>
+	            ) : null}
 	          </div>
 
           <div className="flex items-center gap-2">
@@ -891,32 +931,34 @@ export default function VenueListingPage({
 	            {shortLocation ? (
 	              <span className="font-normal text-gray-700">
 	                {" "}
-	                in {shortLocation}
+	                in{" "}
+	                <a
+	                  href={mapAnchorHref}
+	                  className="text-gray-700 no-underline hover:text-gray-900 hover:no-underline"
+	                  title={mapQuery || undefined}
+	                >
+	                  {shortLocation}
+	                </a>
 	              </span>
 	            ) : null}
 	          </h2>
-	          <div className="mt-2 flex flex-wrap gap-2 text-sm">
+	          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-700">
 	            {Number.isFinite(capacity) && capacity > 0 ? (
-	              <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-200">
+	              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
 	                <UserGroupIcon className="h-4 w-4 text-gray-500" />
-	                <span className="font-semibold">{capacity}</span>
-	                <span className="text-gray-700">guests</span>
-	              </div>
+	                <span className="font-semibold text-gray-900">{capacity}</span>
+	                <span>guests</span>
+	              </span>
 	            ) : null}
-	            {Number(service.price || 0) > 0 ? (
-	              <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-200">
-	                <BanknotesIcon className="h-4 w-4 text-gray-500" />
-	                <span className="font-semibold">
+	            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+	              <BanknotesIcon className="h-4 w-4 text-gray-500" />
+	              {Number(service.price || 0) > 0 ? (
+	                <span className="font-semibold text-gray-900">
 	                  {formatCurrency(Number(service.price || 0))}
 	                </span>
-	                <span className="text-gray-700">per day</span>
-	              </div>
-	            ) : (
-	              <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-200">
-	                <BanknotesIcon className="h-4 w-4 text-gray-500" />
-	                <span className="font-semibold">Per day</span>
-	              </div>
-	            )}
+	              ) : null}
+	              <span>per day</span>
+	            </span>
 	          </div>
 	        </div>
 
@@ -1103,26 +1145,30 @@ export default function VenueListingPage({
             </p>
           </section>
 
-          <section
-            aria-label="Location"
-            id="location"
-            style={{ scrollMarginTop: sectionScrollMarginTop }}
-          >
-            <h2 className="text-xl font-bold text-gray-900">Location</h2>
-            {mapQuery ? (
-              <p className="mt-2 text-sm text-gray-700">{mapQuery}</p>
-            ) : (
-              <p className="mt-2 text-sm text-gray-600">
-                Location hasn’t been added yet.
-              </p>
-            )}
-            {mapEmbedUrl ? (
-              <div className="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
-                <iframe
-                  title={`Map: ${mapQuery || "Venue location"}`}
-                  src={mapEmbedUrl}
-                  className="h-[320px] w-full"
-                  style={{ border: 0 }}
+	          <section
+	            aria-label="Location"
+	            id="location"
+	            style={{ scrollMarginTop: sectionScrollMarginTop }}
+	          >
+	            <h2 className="text-xl font-bold text-gray-900">Location</h2>
+	            {mapQuery ? (
+	              <p className="mt-2 text-sm text-gray-700">{mapQuery}</p>
+	            ) : (
+	              <p className="mt-2 text-sm text-gray-600">
+	                Location hasn’t been added yet.
+	              </p>
+	            )}
+	            {mapEmbedUrl ? (
+	              <div
+	                id="map"
+	                style={{ scrollMarginTop: sectionScrollMarginTop }}
+	                className="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100"
+	              >
+	                <iframe
+	                  title={`Map: ${mapQuery || "Venue location"}`}
+	                  src={mapEmbedUrl}
+	                  className="h-[320px] w-full"
+	                  style={{ border: 0 }}
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
                 />
