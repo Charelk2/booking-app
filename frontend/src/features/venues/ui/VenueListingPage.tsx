@@ -25,10 +25,8 @@ import {
   ArrowUpOnSquareIcon,
   BanknotesIcon,
   ChatBubbleOvalLeftIcon,
-  ChevronDownIcon,
   EnvelopeIcon,
   LinkIcon,
-  MapPinIcon,
   HeartIcon as HeartOutlineIcon,
   UserGroupIcon,
   XMarkIcon,
@@ -113,6 +111,28 @@ function getShortLocation(location: string | null): string | null {
     return parts[parts.length - 2] || last;
   }
   return last;
+}
+
+function getAddressPreview(location: string | null, maxParts = 3): string | null {
+  if (!isNonEmptyString(location)) return null;
+  const parts = location
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (!parts.length) return null;
+
+  while (parts.length && isCountryPart(parts[parts.length - 1] || "")) {
+    parts.pop();
+  }
+  while (parts.length && isPostalCodePart(parts[parts.length - 1] || "")) {
+    parts.pop();
+  }
+  if (parts.length >= 2 && isProvincePart(parts[parts.length - 1] || "")) {
+    parts.pop();
+  }
+  if (!parts.length) return null;
+
+  return parts.slice(0, Math.max(1, maxParts)).join(", ");
 }
 
 function normalizeStringList(input: unknown): string[] {
@@ -653,6 +673,21 @@ export default function VenueListingPage({
 
     return result;
   }, [amenityValues]);
+  const amenityHighlightValueSet = useMemo(
+    () => new Set(amenityHighlights.map((a) => a.value)),
+    [amenityHighlights],
+  );
+  const amenityGroupsAfterHighlights = useMemo(() => {
+    if (!amenityGroups.length) return [];
+    if (!amenityHighlights.length) return amenityGroups;
+    const highlightSet = amenityHighlightValueSet;
+    return amenityGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => !highlightSet.has(item.value)),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [amenityGroups, amenityHighlightValueSet, amenityHighlights.length]);
   const notIncludedHighlights = useMemo(() => {
     if (!amenityValues.length) return [];
     const selected = new Set(amenityValues);
@@ -697,6 +732,7 @@ export default function VenueListingPage({
     : null;
   const mapQuery = (address || providerLocation || "").trim() || null;
   const shortLocation = getShortLocation(mapQuery) || mapQuery;
+  const headerAddress = getAddressPreview(mapQuery) || shortLocation;
   const mapAnchorHref = mapQuery ? "#map" : "#location";
   const mapEmbedUrl = mapQuery
     ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`
@@ -717,25 +753,25 @@ export default function VenueListingPage({
     if (reviews.length) {
       items.push({ key: "reviews", node: <span>({reviews.length} reviews)</span> });
     }
-    if (venueType) {
-      items.push({ key: "type", node: <span>{venueType}</span> });
-    }
-    if (shortLocation) {
-      items.push({
-        key: "location",
-        node: (
-          <a
-            href={mapAnchorHref}
-            className="truncate text-gray-600 no-underline hover:text-gray-900 hover:no-underline"
-            title={mapQuery || undefined}
-          >
-            {shortLocation}
-          </a>
-        ),
-      });
-    }
-    return items;
-  }, [average, mapAnchorHref, mapQuery, reviews.length, shortLocation, venueType]);
+	    if (venueType) {
+	      items.push({ key: "type", node: <span>{venueType}</span> });
+	    }
+	    if (headerAddress) {
+	      items.push({
+	        key: "address",
+	        node: (
+	          <a
+	            href={mapAnchorHref}
+	            className="truncate text-gray-600 no-underline hover:text-gray-900 hover:no-underline"
+	            title={mapQuery || undefined}
+	          >
+	            {headerAddress}
+	          </a>
+	        ),
+	      });
+	    }
+	    return items;
+	  }, [average, headerAddress, mapAnchorHref, mapQuery, reviews.length, venueType]);
 
   useEffect(() => {
     const key = getServiceSavedStorageKey(service.id);
@@ -841,29 +877,19 @@ export default function VenueListingPage({
 	            <h1 className="text-2xl font-bold leading-tight text-gray-900">
 	              {service.title}
 	            </h1>
-	            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
-	              {headerMetaItems.map((item, idx) => (
-	                <Fragment key={item.key}>
-	                  {idx ? (
-	                    <span aria-hidden="true" className="text-gray-300">
-	                      ·
-	                    </span>
-	                  ) : null}
-	                  {item.node}
-	                </Fragment>
-	              ))}
-	            </div>
-	            {mapQuery ? (
-	              <a
-	                href={mapAnchorHref}
-	                className="mt-2 inline-flex max-w-full items-start gap-1.5 text-sm text-gray-600 no-underline hover:text-gray-900 hover:no-underline"
-	                title={mapQuery}
-	              >
-	                <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-	                <span className="line-clamp-2">{mapQuery}</span>
-	              </a>
-	            ) : null}
-	          </div>
+		            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
+		              {headerMetaItems.map((item, idx) => (
+		                <Fragment key={item.key}>
+		                  {idx ? (
+		                    <span aria-hidden="true" className="text-gray-300">
+		                      ·
+		                    </span>
+		                  ) : null}
+		                  {item.node}
+		                </Fragment>
+		              ))}
+		            </div>
+		          </div>
 
           <div className="flex items-center gap-2">
             <button
@@ -983,98 +1009,86 @@ export default function VenueListingPage({
 	            id="amenities"
 	            style={{ scrollMarginTop: sectionScrollMarginTop }}
 	          >
-	            <h2 className="text-xl font-bold text-gray-900">
-	              What this place offers
-	            </h2>
-	            {amenityGroups.length ? (
-	              <>
-	                <ul className="mt-4 grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
-	                  {amenityHighlights.map((item) => (
-	                    <li key={item.value} className="flex items-start gap-2">
-	                      <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
-	                      <span>{item.label}</span>
-	                    </li>
-	                  ))}
-	                </ul>
+		            <h2 className="text-xl font-bold text-gray-900">
+		              What this place offers
+		            </h2>
+		            {amenityGroups.length ? (
+		              <>
+		                <ul className="mt-4 grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
+		                  {amenityHighlights.map((item) => (
+		                    <li key={item.value} className="flex items-start gap-2">
+		                      <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+		                      <span>{item.label}</span>
+		                    </li>
+		                  ))}
+		                </ul>
 
-	                {amenityCount > amenityHighlights.length ? (
-	                  <div className="mt-4">
-	                    <button
-	                      type="button"
-	                      onClick={() => setAmenitiesExpanded((v) => !v)}
-	                      className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-	                    >
-	                      {amenitiesExpanded
-	                        ? "Show fewer"
-	                        : `Show all amenities (${amenityCount})`}
-	                    </button>
-	                  </div>
-	                ) : null}
+		                {!amenitiesExpanded &&
+		                amenityCount > amenityHighlights.length ? (
+		                  <div className="mt-4">
+		                    <button
+		                      type="button"
+		                      onClick={() => setAmenitiesExpanded(true)}
+		                      className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+		                    >
+		                      Show all amenities ({amenityCount})
+		                    </button>
+		                  </div>
+		                ) : null}
 
-	                {amenitiesExpanded ? (
-	                  <div className="mt-4 divide-y divide-gray-200 rounded-2xl border border-gray-200 bg-white">
-	                    {amenityGroups.map((group) => (
-	                      <details
-	                        key={group.id}
-	                        className="group open:bg-gray-50"
-	                      >
-	                        <summary className="list-none cursor-pointer select-none px-4 py-4 flex items-start gap-3">
-	                          <span
-	                            className="mt-0.5 inline-block h-2 w-2 rounded-full bg-gray-300 group-open:bg-gray-400"
-	                            aria-hidden="true"
-	                          />
-	                          <span className="font-medium text-gray-900">
-	                            {group.label}
-	                          </span>
-	                          <ChevronDownIcon className="ml-auto h-5 w-5 text-gray-400 transition-transform group-open:rotate-180" />
-	                        </summary>
-	                        <div className="px-4 pb-4 pt-1">
-	                          <ul className="grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
-	                            {group.items.map((item) => (
-	                              <li
-	                                key={item.value}
-	                                className="flex items-start gap-2"
-	                              >
-	                                <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
-	                                <span>{item.label}</span>
-	                              </li>
-	                            ))}
-	                          </ul>
-	                        </div>
-	                      </details>
-	                    ))}
+		                {amenitiesExpanded ? (
+		                  <div className="mt-6 space-y-6">
+		                    {amenityGroupsAfterHighlights.map((group) => (
+		                      <div key={group.id}>
+		                        <h3 className="text-sm font-semibold text-gray-900">
+		                          {group.label}
+		                        </h3>
+		                        <ul className="mt-2 grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
+		                          {group.items.map((item) => (
+		                            <li
+		                              key={item.value}
+		                              className="flex items-start gap-2"
+		                            >
+		                              <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-900" />
+		                              <span>{item.label}</span>
+		                            </li>
+		                          ))}
+		                        </ul>
+		                      </div>
+		                    ))}
 
-	                    {notIncludedHighlights.length ? (
-	                      <details className="group open:bg-gray-50">
-	                        <summary className="list-none cursor-pointer select-none px-4 py-4 flex items-start gap-3">
-	                          <span
-	                            className="mt-0.5 inline-block h-2 w-2 rounded-full bg-gray-300 group-open:bg-gray-400"
-	                            aria-hidden="true"
-	                          />
-	                          <span className="font-medium text-gray-900">
-	                            Not included
-	                          </span>
-	                          <ChevronDownIcon className="ml-auto h-5 w-5 text-gray-400 transition-transform group-open:rotate-180" />
-	                        </summary>
-	                        <div className="px-4 pb-4 pt-1">
-	                          <ul className="grid grid-cols-1 gap-2 text-sm text-gray-500 sm:grid-cols-2">
-	                            {notIncludedHighlights.map((item) => (
-	                              <li
-	                                key={item.value}
-	                                className="flex items-start gap-2"
-	                              >
-	                                <XMarkIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-	                                <span>{item.label}</span>
-	                              </li>
-	                            ))}
-	                          </ul>
-	                        </div>
-	                      </details>
-	                    ) : null}
-	                  </div>
-	                ) : null}
-	              </>
-	            ) : (
+		                    {notIncludedHighlights.length ? (
+		                      <div>
+		                        <h3 className="text-sm font-semibold text-gray-900">
+		                          Not included
+		                        </h3>
+		                        <ul className="mt-2 grid grid-cols-1 gap-2 text-sm text-gray-500 sm:grid-cols-2">
+		                          {notIncludedHighlights.map((item) => (
+		                            <li
+		                              key={item.value}
+		                              className="flex items-start gap-2"
+		                            >
+		                              <XMarkIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+		                              <span>{item.label}</span>
+		                            </li>
+		                          ))}
+		                        </ul>
+		                      </div>
+		                    ) : null}
+
+		                    <div className="pt-2">
+		                      <button
+		                        type="button"
+		                        onClick={() => setAmenitiesExpanded(false)}
+		                        className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+		                      >
+		                        Show less
+		                      </button>
+		                    </div>
+		                  </div>
+		                ) : null}
+		              </>
+		            ) : (
 	              <p className="mt-2 text-sm text-gray-600">
 	                Amenities haven’t been listed yet.
 	              </p>
