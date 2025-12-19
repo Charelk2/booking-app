@@ -155,6 +155,8 @@ class UpdateMeRequest(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     phone_number: str | None = None
+    organization: str | None = None
+    job_title: str | None = None
     marketing_opt_in: bool | None = None
 
 
@@ -191,6 +193,12 @@ def update_me(
 
     if payload.phone_number is not None:
         current_user.phone_number = (payload.phone_number or "").strip() or None
+
+    if payload.organization is not None:
+        current_user.organization = (payload.organization or "").strip() or None
+
+    if payload.job_title is not None:
+        current_user.job_title = (payload.job_title or "").strip() or None
 
     if payload.marketing_opt_in is not None:
         next_opt_in = bool(payload.marketing_opt_in)

@@ -14,7 +14,7 @@ jest.mock('@/contexts/AuthContext');
 const mockUseAuth = useAuth as jest.Mock;
 
 describe('Header profile menu', () => {
-  it('shows edit profile link when user is logged in', async () => {
+  it('shows profile link when user is logged in', async () => {
     mockUseAuth.mockReturnValue({
       user: { id: 1, user_type: 'service_provider', email: 'a', first_name: 'A' },
       logout: jest.fn(),
@@ -25,7 +25,7 @@ describe('Header profile menu', () => {
     render(<Header headerState="initial" onForceHeaderState={jest.fn()} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Account menu' }));
-    expect(await screen.findByText('Edit Profile')).toBeTruthy();
+    expect(await screen.findByText('Profile')).toBeTruthy();
   });
 
   it('shows client links including dashboard', async () => {

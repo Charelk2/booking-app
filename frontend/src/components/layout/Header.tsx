@@ -831,7 +831,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   )}
                                 >
                                   <UserAccountIcon className="mr-3 h-5 w-5 text-black" />
-                                  Edit Profile
+                                  Profile
                                 </Link>
                               )}
                             </Menu.Item>
@@ -901,7 +901,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   )}
                                 >
                                   <UserAccountIcon className="mr-3 h-5 w-5 text-black" />
-                                  Edit Profile
+                                  Profile
                                 </Link>
                               )}
                             </Menu.Item>

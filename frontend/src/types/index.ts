@@ -7,6 +7,8 @@ export interface User {
   first_name: string;
   last_name: string;
   phone_number: string;
+  organization?: string | null;
+  job_title?: string | null;
   is_active: boolean;
   is_verified: boolean;
   marketing_opt_in?: boolean;

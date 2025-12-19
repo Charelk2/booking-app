@@ -167,7 +167,7 @@ describe('MobileMenuDrawer', () => {
     await flushPromises();
     const body = document.body.textContent || '';
     expect(body).toContain('Dashboard');
-    expect(body).toContain('Edit Profile');
+    expect(body).toContain('Profile');
     // Quotes and templates removed from mobile drawer per request
     expect(body).not.toContain('Quotes');
     expect(body).not.toContain('Quote Templates');

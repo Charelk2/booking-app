@@ -44,7 +44,7 @@ const useMobileNavItems = (user: User | null, hideAuthLinks: boolean): NavItem[]
     if (user.user_type === 'service_provider') {
       return [
         { name: 'Dashboard', href: '/dashboard/artist' },
-        { name: 'Edit Profile', href: '/dashboard/profile/edit' },
+        { name: 'Profile', href: '/dashboard/profile/edit' },
         { name: 'Messages', href: '/inbox' },
       ];
     }
@@ -52,7 +52,7 @@ const useMobileNavItems = (user: User | null, hideAuthLinks: boolean): NavItem[]
     return [
       { name: 'Dashboard', href: '/dashboard/client' },
       { name: 'Messages', href: '/inbox' },
-      { name: 'Edit Profile', href: '/account' },
+      { name: 'Profile', href: '/account' },
     ];
   }, [user, hideAuthLinks]);
 };

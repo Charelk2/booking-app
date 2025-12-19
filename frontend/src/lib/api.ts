@@ -2327,6 +2327,8 @@ export const updateMyAccount = (patch: {
   first_name?: string;
   last_name?: string;
   phone_number?: string | null;
+  organization?: string | null;
+  job_title?: string | null;
   marketing_opt_in?: boolean;
 }) => api.patch<User>(`${API_V1}/users/me`, patch);
 

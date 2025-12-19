@@ -14,7 +14,7 @@ import Link from 'next/link';
 import {
   ArrowDownTrayIcon,
   TrashIcon,
-  PhotoIcon,
+  CameraIcon,
   ShieldCheckIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline';
@@ -34,9 +34,17 @@ export default function AccountPage() {
     return (i1 + i2).toUpperCase() || 'B';
   }, [user?.first_name, user?.last_name]);
 
+  const viewProfileHref = useMemo(() => {
+    if (!user) return '/';
+    if (user.user_type === 'service_provider') return `/${user.artist_slug || user.id}`;
+    return `/clients/${user.id}`;
+  }, [user]);
+
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
+  const [organization, setOrganization] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
   const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const [savingProfile, setSavingProfile] = useState(false);
@@ -51,6 +59,8 @@ export default function AccountPage() {
     setFirstName(String(user.first_name || ''));
     setLastName(String(user.last_name || ''));
     setPhoneNumber(user.phone_number ? String(user.phone_number) : undefined);
+    setOrganization(String(user.organization || ''));
+    setJobTitle(String(user.job_title || ''));
     setMarketingOptIn(Boolean(user.marketing_opt_in));
   }, [user]);
 
@@ -99,13 +109,23 @@ export default function AccountPage() {
       <div className="mx-auto max-w-2xl px-4 py-10 space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Avatar
-              src={user.profile_picture_url}
-              initials={initials}
-              alt="Profile picture"
-              size={56}
-              className="ring-2 ring-brand/10"
-            />
+            <div className="relative">
+              <Avatar
+                src={user.profile_picture_url}
+                initials={initials}
+                alt="Profile picture"
+                size={56}
+                className="ring-2 ring-brand/10"
+              />
+              <button
+                type="button"
+                aria-label="Change profile photo"
+                onClick={() => router.push('/account/profile-picture')}
+                className="absolute -bottom-1 -right-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-900 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                <CameraIcon className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Account</h1>
               <p className="text-sm text-gray-700">
@@ -116,12 +136,9 @@ export default function AccountPage() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => router.push('/account/profile-picture')}
+            onClick={() => router.push(viewProfileHref)}
           >
-            <span className="inline-flex items-center gap-2">
-              <PhotoIcon className="h-4 w-4" />
-              Change photo
-            </span>
+            View profile
           </Button>
         </div>
 
@@ -146,6 +163,22 @@ export default function AccountPage() {
                 onChange={(v) => setPhoneNumber(v)}
               />
             </div>
+            {user.user_type === 'client' ? (
+              <>
+                <TextInput
+                  label="Organization"
+                  value={organization}
+                  onChange={(e) => setOrganization(e.target.value)}
+                  autoComplete="organization"
+                />
+                <TextInput
+                  label="Job title"
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  autoComplete="organization-title"
+                />
+              </>
+            ) : null}
           </div>
           <div className="mt-4 flex items-center justify-between gap-4">
             <p className="text-xs text-gray-600">
@@ -160,6 +193,8 @@ export default function AccountPage() {
                     first_name: firstName.trim(),
                     last_name: lastName.trim(),
                     phone_number: (phoneNumber || '').trim() || null,
+                    organization: user.user_type === 'client' ? (organization.trim() || null) : undefined,
+                    job_title: user.user_type === 'client' ? (jobTitle.trim() || null) : undefined,
                   });
                   await refreshUser?.();
                   toast.success('Profile updated.');
