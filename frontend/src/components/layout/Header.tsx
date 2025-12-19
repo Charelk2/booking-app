@@ -859,7 +859,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     leaveFrom="transform opacity-100 translate-y-0 scale-100"
                     leaveTo="transform opacity-0 translate-y-1 scale-[0.98]"
                   >
-                    <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-black/5 focus:outline-none z-50">
+                    <Menu.Items className="absolute right-0 mt-2 w-64 origin-top-right overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-black/5 focus:outline-none z-50">
                       {/* Profile summary */}
                       <div className="px-4 py-3 flex items-center gap-3">
                         <Avatar
