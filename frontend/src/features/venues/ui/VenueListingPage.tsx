@@ -16,7 +16,6 @@ import { useVenueBookingEngine } from "@/features/booking/venue/engine/engine";
 import { sanitizeCancellationPolicy } from "@/lib/shared/mappers/policy";
 import {
   VENUE_AMENITY_CATEGORIES,
-  VENUE_NOT_INCLUDED_HIGHLIGHTS,
   getVenueAmenityLabel,
   normalizeVenueAmenities,
 } from "@/features/venues/amenities";
@@ -32,7 +31,7 @@ import {
   UserGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
+import { HeartIcon as HeartSolidIcon, StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 
 const AMENITY_HIGHLIGHTS_LIMIT = 8;
 const HOUSE_RULES_PREVIEW_LIMIT = 5;
@@ -689,11 +688,6 @@ export default function VenueListingPage({
       }))
       .filter((group) => group.items.length > 0);
   }, [amenityGroups, amenityHighlightValueSet, amenityHighlights.length]);
-  const notIncludedHighlights = useMemo(() => {
-    if (!amenityValues.length) return [];
-    const selected = new Set(amenityValues);
-    return VENUE_NOT_INCLUDED_HIGHLIGHTS.filter((a) => !selected.has(a.value));
-  }, [amenityValues]);
   const ruleValues = useMemo(
     () => normalizeVenueRules(details?.house_rules_selected),
     [details?.house_rules_selected],
@@ -738,7 +732,15 @@ export default function VenueListingPage({
   );
   const mapQuery = (address || providerLocation || "").trim() || null;
   const shortLocation = getShortLocation(mapQuery) || mapQuery;
-  const headerAddress = getAddressPreview(mapQuery) || shortLocation;
+  const addressPreview = getAddressPreview(mapQuery);
+  const displayLocation = useMemo(() => {
+    const city = shortLocation || null;
+    const preview = addressPreview || null;
+    if (!preview) return city;
+    if (!city) return preview;
+    return preview.length > 42 ? city : preview;
+  }, [addressPreview, shortLocation]);
+  const headerAddress = addressPreview && addressPreview !== displayLocation ? addressPreview : null;
   const mapAnchorHref = mapQuery ? "#map" : "#location";
   const mapEmbedUrl = mapQuery
     ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`
@@ -750,34 +752,39 @@ export default function VenueListingPage({
 
   const headerMetaItems = useMemo(() => {
     const items: Array<{ key: string; node: ReactNode }> = [];
+    if (venueType) {
+      items.push({ key: "type", node: <span>{venueType}</span> });
+    }
+    if (displayLocation) {
+      items.push({
+        key: "location",
+        node: (
+          <a
+            href={mapAnchorHref}
+            className="text-gray-700 no-underline hover:text-gray-900 hover:no-underline"
+            title={mapQuery || undefined}
+          >
+            {displayLocation}
+          </a>
+        ),
+      });
+    }
     if (average) {
       items.push({
         key: "rating",
-        node: <span className="font-medium text-gray-900">{average} / 5</span>,
+        node: (
+          <span className="inline-flex items-center gap-1">
+            <StarSolidIcon className="h-4 w-4 text-gray-900" />
+            <span className="font-semibold text-gray-900">{average}</span>
+          </span>
+        ),
       });
     }
     if (reviews.length) {
       items.push({ key: "reviews", node: <span>({reviews.length} reviews)</span> });
     }
-	    if (venueType) {
-	      items.push({ key: "type", node: <span>{venueType}</span> });
-	    }
-	    if (headerAddress) {
-	      items.push({
-	        key: "address",
-	        node: (
-	          <a
-	            href={mapAnchorHref}
-	            className="text-gray-600 no-underline hover:text-gray-900 hover:no-underline break-words"
-	            title={mapQuery || undefined}
-	          >
-	            {headerAddress}
-	          </a>
-	        ),
-	      });
-	    }
-	    return items;
-	  }, [average, headerAddress, mapAnchorHref, mapQuery, reviews.length, venueType]);
+    return items;
+  }, [average, displayLocation, mapAnchorHref, mapQuery, reviews.length, venueType]);
 
   useEffect(() => {
     const key = getServiceSavedStorageKey(service.id);
@@ -883,21 +890,31 @@ export default function VenueListingPage({
 	            <h1 className="text-2xl font-bold leading-tight text-gray-900">
 	              {service.title}
 	            </h1>
-		            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
-		              {headerMetaItems.map((item, idx) => (
-		                <span
-		                  key={item.key}
-		                  className={[
-		                    "min-w-0",
-		                    idx
-		                      ? "before:mx-2 before:text-gray-300 before:content-['·']"
-		                      : "",
-		                  ].join(" ")}
-		                >
-		                  {item.node}
-		                </span>
-		              ))}
-		            </div>
+              {headerMetaItems.length ? (
+                <div className="mt-1 flex flex-wrap items-center text-sm text-gray-600">
+                  {headerMetaItems.map((item, idx) => (
+                    <span key={item.key} className="inline-flex min-w-0 items-center">
+                      {item.node}
+                      {idx < headerMetaItems.length - 1 ? (
+                        <span aria-hidden className="mx-2 text-gray-300">
+                          ·
+                        </span>
+                      ) : null}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {headerAddress ? (
+                <div className="mt-1 text-sm text-gray-600">
+                  <a
+                    href={mapAnchorHref}
+                    className="text-gray-600 no-underline hover:text-gray-900 hover:no-underline break-words"
+                    title={mapQuery || undefined}
+                  >
+                    {headerAddress}
+                  </a>
+                </div>
+              ) : null}
 		          </div>
 
           <div className="flex items-center gap-2">
@@ -947,28 +964,12 @@ export default function VenueListingPage({
 
 	      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 	        <div className="min-w-0">
-	          <h2 className="text-xl font-semibold leading-tight text-gray-900">
-	            {venueType || "Venue"}
-	            {shortLocation ? (
-	              <span className="font-normal text-gray-700">
-	                {" "}
-	                in{" "}
-	                <a
-	                  href={mapAnchorHref}
-	                  className="text-gray-700 no-underline hover:text-gray-900 hover:no-underline"
-	                  title={mapQuery || undefined}
-	                >
-	                  {shortLocation}
-	                </a>
-	              </span>
-	            ) : null}
-	          </h2>
 	          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-700">
 	            {Number.isFinite(capacity) && capacity > 0 ? (
 	              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
 	                <UserGroupIcon className="h-4 w-4 text-gray-500" />
 	                <span className="font-semibold text-gray-900">{capacity}</span>
-	                <span>guests</span>
+	                <span className="font-semibold text-gray-900">guests</span>
 	              </span>
 	            ) : null}
 	            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
@@ -978,7 +979,7 @@ export default function VenueListingPage({
 	                  {formatCurrency(Number(service.price || 0))}
 	                </span>
 	              ) : null}
-	              <span>per day</span>
+	              <span className="font-semibold text-gray-900">per day</span>
 	            </span>
 	          </div>
 	        </div>
@@ -1066,25 +1067,6 @@ export default function VenueListingPage({
 		                      </div>
 		                    ))}
 
-		                    {notIncludedHighlights.length ? (
-		                      <div>
-		                        <h3 className="text-sm font-semibold text-gray-900">
-		                          Not included
-		                        </h3>
-		                        <ul className="mt-2 grid grid-cols-1 gap-2 text-sm text-gray-500 sm:grid-cols-2">
-		                          {notIncludedHighlights.map((item) => (
-		                            <li
-		                              key={item.value}
-		                              className="flex items-start gap-2"
-		                            >
-		                              <XMarkIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-		                              <span>{item.label}</span>
-		                            </li>
-		                          ))}
-		                        </ul>
-		                      </div>
-		                    ) : null}
-
 		                    <div className="pt-2">
 		                      <button
 		                        type="button"
@@ -1137,7 +1119,7 @@ export default function VenueListingPage({
 	                  onClick={() => setHouseRulesExpanded((v) => !v)}
 	                  className="inline-flex items-center text-sm font-semibold text-brand-dark hover:underline"
 	                >
-	                  {houseRulesExpanded ? "Show fewer" : "Show all house rules"}
+	                  {houseRulesExpanded ? "Show less" : "Show all house rules"}
 	                </button>
 	              </div>
 	            ) : null}
@@ -1293,13 +1275,13 @@ export default function VenueListingPage({
                 <button
                   aria-label="Close"
                   onClick={() => setIsShareOpen(false)}
-                  className="rounded p-1.5 hover:bg-gray-50"
+                  className="p-1.5 rounded hover:bg-gray-50"
                 >
                   <XMarkIcon className="h-5 w-5 text-gray-600" />
                 </button>
               </div>
 
-              <h3 className="mb-3 text-3xl font-semibold text-gray-900">Share</h3>
+              <h3 className="font-semibold text-3xl text-gray-900 mb-3">Share</h3>
 
               <div className="mb-4 flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
@@ -1320,10 +1302,8 @@ export default function VenueListingPage({
                     {service.title}
                   </p>
                   {average ? (
-                    <p className="flex items-center gap-1 text-xs text-gray-600">
-                      <span className="font-medium text-gray-900">{average}</span>
-                      <span className="text-gray-400">·</span>
-                      <span>{reviews.length} reviews</span>
+                    <p className="text-xs text-gray-600 flex items-center gap-1">
+                      <StarSolidIcon className="h-3 w-3 text-black" /> {average} ({reviews.length})
                     </p>
                   ) : null}
                 </div>
