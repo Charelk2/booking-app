@@ -152,9 +152,9 @@ export default function CategoriesCarousel() {
     el.style.scrollBehavior = 'auto';
     el.style.scrollSnapType = 'none';
     el.scrollLeft = left;
-    el.style.scrollBehavior = prev;
-    el.style.scrollSnapType = prevSnap;
     requestAnimationFrame(() => {
+      el.style.scrollBehavior = prev;
+      el.style.scrollSnapType = prevSnap;
       requestAnimationFrame(() => {
         isAdjustingRef.current = false;
       });
