@@ -180,7 +180,7 @@ export default function ArtistsSection({
   const showSeeAll = artists.length === limit;
 
   return (
-    <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+    <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="flex items-baseline justify-between mb-4">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 tracking-tight">
