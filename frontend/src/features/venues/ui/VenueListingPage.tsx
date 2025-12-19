@@ -732,15 +732,12 @@ export default function VenueListingPage({
   );
   const mapQuery = (address || providerLocation || "").trim() || null;
   const shortLocation = getShortLocation(mapQuery) || mapQuery;
-  const addressPreview = getAddressPreview(mapQuery);
-  const displayLocation = useMemo(() => {
-    const city = shortLocation || null;
-    const preview = addressPreview || null;
-    if (!preview) return city;
-    if (!city) return preview;
-    return preview.length > 42 ? city : preview;
-  }, [addressPreview, shortLocation]);
-  const headerAddress = addressPreview && addressPreview !== displayLocation ? addressPreview : null;
+  const locationPreview = useMemo(() => {
+    if (!mapQuery) return null;
+    const preview = getAddressPreview(mapQuery, 3) || shortLocation || mapQuery;
+    if (preview && preview.length > 60) return shortLocation || preview;
+    return preview;
+  }, [mapQuery, shortLocation]);
   const mapAnchorHref = mapQuery ? "#map" : "#location";
   const mapEmbedUrl = mapQuery
     ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`
@@ -750,41 +747,7 @@ export default function VenueListingPage({
     : null;
   const sectionScrollMarginTop = "calc(var(--app-header-height, 64px) + 72px)";
 
-  const headerMetaItems = useMemo(() => {
-    const items: Array<{ key: string; node: ReactNode }> = [];
-    if (venueType) {
-      items.push({ key: "type", node: <span>{venueType}</span> });
-    }
-    if (displayLocation) {
-      items.push({
-        key: "location",
-        node: (
-          <a
-            href={mapAnchorHref}
-            className="text-gray-700 no-underline hover:text-gray-900 hover:no-underline"
-            title={mapQuery || undefined}
-          >
-            {displayLocation}
-          </a>
-        ),
-      });
-    }
-    if (average) {
-      items.push({
-        key: "rating",
-        node: (
-          <span className="inline-flex items-center gap-1">
-            <StarSolidIcon className="h-4 w-4 text-gray-900" />
-            <span className="font-semibold text-gray-900">{average}</span>
-          </span>
-        ),
-      });
-    }
-    if (reviews.length) {
-      items.push({ key: "reviews", node: <span>({reviews.length} reviews)</span> });
-    }
-    return items;
-  }, [average, displayLocation, mapAnchorHref, mapQuery, reviews.length, venueType]);
+  const metaVenueType = venueType || "Venue";
 
   useEffect(() => {
     const key = getServiceSavedStorageKey(service.id);
@@ -890,31 +853,23 @@ export default function VenueListingPage({
 	            <h1 className="text-2xl font-bold leading-tight text-gray-900">
 	              {service.title}
 	            </h1>
-              {headerMetaItems.length ? (
-                <div className="mt-1 flex flex-wrap items-center text-sm text-gray-600">
-                  {headerMetaItems.map((item, idx) => (
-                    <span key={item.key} className="inline-flex min-w-0 items-center">
-                      {item.node}
-                      {idx < headerMetaItems.length - 1 ? (
-                        <span aria-hidden className="mx-2 text-gray-300">
-                          ·
-                        </span>
-                      ) : null}
+              <div className="mt-1 flex min-w-0 items-center gap-2 text-sm text-gray-600 whitespace-nowrap">
+                <span className="shrink-0">{metaVenueType}</span>
+                {locationPreview ? (
+                  <>
+                    <span aria-hidden className="shrink-0 text-gray-300">
+                      ·
                     </span>
-                  ))}
-                </div>
-              ) : null}
-              {headerAddress ? (
-                <div className="mt-1 text-sm text-gray-600">
-                  <a
-                    href={mapAnchorHref}
-                    className="text-gray-600 no-underline hover:text-gray-900 hover:no-underline break-words"
-                    title={mapQuery || undefined}
-                  >
-                    {headerAddress}
-                  </a>
-                </div>
-              ) : null}
+                    <a
+                      href={mapAnchorHref}
+                      className="min-w-0 truncate text-gray-700 no-underline hover:text-gray-900 hover:no-underline"
+                      title={mapQuery || undefined}
+                    >
+                      {locationPreview}
+                    </a>
+                  </>
+                ) : null}
+              </div>
 		          </div>
 
           <div className="flex items-center gap-2">
