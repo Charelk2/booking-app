@@ -18,7 +18,7 @@ import {
   ShieldCheckIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
@@ -46,6 +46,9 @@ export default function AccountPage() {
   const [organization, setOrganization] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const marketingOptInSavedRef = useRef(false);
+  const marketingOptInQueueRef = useRef<boolean | null>(null);
+  const marketingOptInSavingRef = useRef(false);
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
@@ -61,8 +64,48 @@ export default function AccountPage() {
     setPhoneNumber(user.phone_number ? String(user.phone_number) : undefined);
     setOrganization(String(user.organization || ''));
     setJobTitle(String(user.job_title || ''));
-    setMarketingOptIn(Boolean(user.marketing_opt_in));
+    const nextMarketingOptIn = Boolean(user.marketing_opt_in);
+    setMarketingOptIn(nextMarketingOptIn);
+    marketingOptInSavedRef.current = nextMarketingOptIn;
   }, [user]);
+
+  const flushMarketingOptInQueue = async () => {
+    if (marketingOptInSavingRef.current) return;
+    if (marketingOptInQueueRef.current === null) return;
+
+    marketingOptInSavingRef.current = true;
+    setSavingPrefs(true);
+
+    let lastSaved: boolean | null = null;
+
+    try {
+      while (marketingOptInQueueRef.current !== null) {
+        const next = marketingOptInQueueRef.current;
+        marketingOptInQueueRef.current = null;
+        await updateMyAccount({ marketing_opt_in: next });
+        marketingOptInSavedRef.current = next;
+        lastSaved = next;
+      }
+      if (lastSaved !== null) {
+        void refreshUser?.();
+      }
+    } catch (e: any) {
+      marketingOptInQueueRef.current = null;
+      setMarketingOptIn(marketingOptInSavedRef.current);
+      toast.error(
+        e?.response?.data?.detail?.message ||
+          e?.response?.data?.detail ||
+          e?.message ||
+          'Update failed.',
+      );
+    } finally {
+      marketingOptInSavingRef.current = false;
+      setSavingPrefs(false);
+      if (marketingOptInQueueRef.current !== null) {
+        void flushMarketingOptInQueue();
+      }
+    }
+  };
 
   if (authLoading) {
     return (
@@ -282,7 +325,7 @@ export default function AccountPage() {
         </Section>
 
         <Section title="Preferences" subtitle="Control what updates you receive from Booka.">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-gray-900">
                 Product updates and launch offers
@@ -293,21 +336,12 @@ export default function AccountPage() {
             </div>
             <ToggleSwitch
               checked={marketingOptIn}
-              onChange={async (next) => {
-                if (savingPrefs) return;
-                setSavingPrefs(true);
+              onChange={(next) => {
                 setMarketingOptIn(next);
-                try {
-                  await updateMyAccount({ marketing_opt_in: next });
-                  await refreshUser?.();
-                  toast.success(next ? 'Subscribed.' : 'Unsubscribed.');
-                } catch (e: any) {
-                  setMarketingOptIn((prev) => !prev);
-                  toast.error(e?.response?.data?.detail?.message || e?.response?.data?.detail || e?.message || 'Update failed.');
-                } finally {
-                  setSavingPrefs(false);
-                }
+                marketingOptInQueueRef.current = next;
+                void flushMarketingOptInQueue();
               }}
+              className={savingPrefs ? 'opacity-70' : undefined}
             />
           </div>
         </Section>

@@ -141,6 +141,17 @@ def downgrade() -> None:
 #   appdb at this revision, re-apply the same DDL before deploying code that
 #   reads or writes users.marketing_opt_in.
 #
+# 2025-12-19:
+#   On appdb at revision ed57deb9c434 (this file), extend users with optional
+#   organization and job title fields for client profiles:
+#     ALTER TABLE users
+#       ADD COLUMN IF NOT EXISTS organization varchar NULL;
+#     ALTER TABLE users
+#       ADD COLUMN IF NOT EXISTS job_title varchar NULL;
+#   This change is manual-only (no Alembic upgrade step). When recreating
+#   appdb at this revision, re-apply the same DDL before deploying code that
+#   reads or writes users.organization / users.job_title.
+#
 # 2026-01-02:
 #   On production appdb at revision ed57deb9c434 (this file), add an index to
 #   speed provider rating aggregates on the reviews table:
