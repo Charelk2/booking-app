@@ -843,92 +843,114 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
             <div className="mx-auto max-w-6xl md:flex bg-white">
               {/* Left rail (sticky outer, scrollable inner) */}
               <aside className="md:w-2/5 md:flex md:flex-col bg-white md:sticky md:self-start md:border-gray-100 p-0" style={{ top: 'var(--sp-sticky-top)' }}>
-                <div ref={leftRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-4 pb-24 scrollbar-hide">
-                <div className="relative h-48 overflow-hidden rounded-3xl shadow-lg" role="img" aria-label="Cover photo">
-                  {coverPhotoUrl ? (
-                    <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover rounded-3xl" sizes="40vw" />
-                  ) : (
-                    <div className="h-full grid place-items-center text-gray-500">No cover photo</div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent rounded-3xl" />
-                </div>
-
-                <div className="pt-0 bg-white">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="relative -mt-12">
-                      {profilePictureUrl ? (
-                        <SafeImage
-                          src={profilePictureUrl}
-                          width={80}
-                          height={80}
-                          className="h-24 w-24 rounded-full object-cover shadow-md ring-2 ring-white"
-                          alt={displayName}
-                        />
+                <div className="h-[calc(100vh-var(--sp-sticky-top))] flex flex-col">
+                  <div ref={leftRef} className="flex-1 overflow-y-auto p-4 scrollbar-hide">
+                    <div className="relative h-48 overflow-hidden rounded-3xl shadow-lg" role="img" aria-label="Cover photo">
+                      {coverPhotoUrl ? (
+                        <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover rounded-3xl" sizes="40vw" />
                       ) : (
-                        <div className="h-24 w-24 rounded-full bg-gray-300 grid place-items-center text-gray-500 shadow-md ring-4 ring-white">
-                          <UserIcon className="h-12 w-12 text-gray-400" />
+                        <div className="h-full grid place-items-center text-gray-500">No cover photo</div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent rounded-3xl" />
+                    </div>
+
+                    <div className="pt-0 bg-white">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="relative -mt-12">
+                          {profilePictureUrl ? (
+                            <SafeImage
+                              src={profilePictureUrl}
+                              width={80}
+                              height={80}
+                              className="h-24 w-24 rounded-full object-cover shadow-md ring-2 ring-white"
+                              alt={displayName}
+                            />
+                          ) : (
+                            <div className="h-24 w-24 rounded-full bg-gray-300 grid place-items-center text-gray-500 shadow-md ring-4 ring-white">
+                              <UserIcon className="h-12 w-12 text-gray-400" />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <h1 className="mt-4 text-4xl font-bold text-gray-900">{displayName}</h1>
+                        <h1 className="mt-4 text-4xl font-bold text-gray-900">{displayName}</h1>
 
-                    {serviceProvider.custom_subtitle && (
-                      <p className="mt-1 text-sm text-gray-800">{serviceProvider.custom_subtitle}</p>
-                    )}
+                        {serviceProvider.custom_subtitle && (
+                          <p className="mt-1 text-sm text-gray-800">{serviceProvider.custom_subtitle}</p>
+                        )}
 
-                    {!!highlights.length && (
-                      <div className="mt-3 hidden flex-wrap items-center justify-center gap-2">
-                        {highlights.slice(0, 4).map((h) => (
-                          <span
-                            key={`left-highlight-${h}`}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-800"
+                        {!!highlights.length && (
+                          <div className="mt-3 hidden flex-wrap items-center justify-center gap-2">
+                            {highlights.slice(0, 4).map((h) => (
+                              <span
+                                key={`left-highlight-${h}`}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-800"
+                              >
+                                <CheckBadgeIcon className="h-3.5 w-3.5 text-gray-700" />
+                                {h}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-gray-800 leading-none">
+                          {averageRating && (
+                            <span className="inline-flex items-center justify-center gap-1 cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
+                              <StarSolidIcon className="h-3 w-3 text-black" />
+                              {averageRating} ({displayReviews.length} reviews)
+                            </span>
+                          )}
+                          {averageRating && formattedLocation && (
+                            <span aria-hidden className="text-gray-800 text-[10px]">•</span>
+                          )}
+                          {formattedLocation && (
+                            <span className="flex items-center">{formattedLocation}</span>
+                          )}
+                        </div>
+
+                        <div className="pt-3 flex items-center justify-center gap-2">
+                          <button
+                            className="hover:rounded-full hover:shadow-sm hover:bg-gray-50 p-3"
+                            aria-label="Share profile"
+                            onClick={() => setIsShareOpen(true)}
                           >
-                            <CheckBadgeIcon className="h-3.5 w-3.5 text-gray-700" />
-                            {h}
-                          </span>
-                        ))}
+                            <ShareArrowUpIcon className="h-4 w-4 text-gray-900" />
+                          </button>
+                          <button
+                            className="hover:rounded-full hover:shadow-sm hover:bg-gray-50 p-3"
+                            aria-label="Save profile"
+                          >
+                            <HeartIcon className="h-4 w-4 text-gray-900" strokeWidth={2.5} />
+                          </button>
+                        </div>
                       </div>
-                    )}
-
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-gray-800 leading-none">
-                      {averageRating && (
-                        <span className="inline-flex items-center justify-center gap-1 cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
-                          <StarSolidIcon className="h-3 w-3 text-black" />
-                          {averageRating} ({displayReviews.length} reviews)
-                        </span>
-                      )}
-                      {averageRating && formattedLocation && (
-                        <span aria-hidden className="text-gray-800 text-[10px]">•</span>
-                      )}
-                      {formattedLocation && (
-                        <span className="flex items-center">{formattedLocation}</span>
-                      )}
-                    </div>
-
-                    <div className="pt-3 flex items-center justify-center gap-2">
-                      <button
-                        className="hover:rounded-full hover:shadow-sm hover:bg-gray-50 p-3"
-                        aria-label="Share profile"
-                        onClick={() => setIsShareOpen(true)}
-                      >
-                        <ShareArrowUpIcon className="h-4 w-4 text-gray-900" />
-                      </button>
-                      <button
-                        className="hover:rounded-full hover:shadow-sm hover:bg-gray-50 p-3"
-                        aria-label="Save profile"
-                      >
-                        <HeartIcon className="h-4 w-4 text-gray-900" strokeWidth={2.5} />
-                      </button>
                     </div>
                   </div>
 
-                </div>
+                  {/* Bottom booking card (desktop) */}
+                  {!!services.length && (
+                    <div className="shrink-0 p-4 pt-0">
+                      <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)] p-6">
+                        <div className="flex items-baseline justify-between mb-3">
+                          <div>
+                            <span className="text-xl font-bold text-gray-900">
+                              From {priceBand || 'Contact us'}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => openMobileServicePicker()}
+                          className="w-full rounded-xl bg-gradient-to-r from-gray-800 via-black to-gray-800 py-2.5 text-base font-bold text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
+                        >
+                          Request Booking
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </aside>
 
               {/* Right rail (sticky outer, scrollable inner) */}
               <section className="md:w-3/5 md:sticky md:self-start p-0" style={{ top: 'var(--sp-sticky-top)' }}>
-                <div ref={rightRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-4 pb-24 space-y-4 scrollbar-hide">
+                <div ref={rightRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-4 space-y-4 scrollbar-hide">
                
 
                 <section id="services-desktop" aria-labelledby="services-heading-desktop" className="pb-10">
@@ -1124,29 +1146,6 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                 </div>
               </section>
             </div>
-
-            {/* Desktop Bottom Booking Bar */}
-            {!!services.length && (
-              <div className="hidden md:block fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/85 supports-[backdrop-filter]:bg-white/70 backdrop-blur">
-                <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-600">From</p>
-                    <p className="text-sm font-semibold text-gray-900 truncate">
-                      {priceBand || 'Contact us'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => openMobileServicePicker()}
-                    className="inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold bg-gray-900 text-white shadow-sm hover:bg-gray-800 active:scale-[0.99] transition disabled:opacity-50"
-                    disabled={!services.length}
-                    aria-label="Request booking"
-                  >
-                    <BoltIcon className="mr-2 h-4 w-4" />
-                    Request booking
-                  </button>
-                </div>
-              </div>
-            )}
           </section>
         </div>
       </MainLayout>
