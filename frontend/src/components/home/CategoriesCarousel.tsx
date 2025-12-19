@@ -1,12 +1,10 @@
 'use client';
 
 // Use plain <img> for static category icons to avoid /_next/image revalidation costs
-import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useServiceCategories from '@/hooks/useServiceCategories';
-import { prefetchServiceProviders } from '@/lib/api';
 import { CATEGORY_IMAGES, UI_CATEGORY_TO_ID } from '@/lib/categoryMap';
 
 const CARD_W = 128; // w-32 = 8rem = 128px
@@ -53,6 +51,23 @@ export default function CategoriesCarousel() {
     },
     [categories, fallbackItems]
   );
+
+  // Preload category images so wrap-around doesn't briefly show empty tiles
+  // when the scroll position jumps between duplicated copies.
+  useEffect(() => {
+    if (!items.length) return;
+    try {
+      const srcs = Array.from(
+        new Set(items.map((cat) => CATEGORY_IMAGES[cat.value] || '/bartender.png')),
+      );
+      srcs.forEach((src) => {
+        const img = new Image();
+        img.src = src;
+        // Best-effort decode (not supported everywhere)
+        (img as any).decode?.().catch(() => {});
+      });
+    } catch {}
+  }, [items]);
 
   const renderItems = useMemo(() => {
     if (!items.length) return [] as Array<{ cat: typeof items[number]; repeatIndex: number }>;
@@ -306,9 +321,8 @@ export default function CategoriesCarousel() {
           aria-label="Scrollable list"
         >
           {renderItems.map(({ cat, repeatIndex }, i) => {
-            const eagerStart = items.length * INFINITE_MIDDLE_INDEX;
-            const isEager = i >= eagerStart && i < eagerStart + 2;
             const isInteractive = repeatIndex === INFINITE_MIDDLE_INDEX;
+            const isEager = repeatIndex === INFINITE_MIDDLE_INDEX;
 
             return (
             <Link
@@ -335,15 +349,14 @@ export default function CategoriesCarousel() {
                   alt={cat.display}
                   loading={isEager ? 'eager' : 'lazy'}
                   decoding="async"
-                  width={144}
-                  height={144}
+                  width={128}
+                  height={128}
                   style={{
                     objectFit: 'cover',
                     width: '100%',
                     height: '100%',
-                    transition: 'transform 180ms ease-out',
                   }}
-                  className="hover:scale-105"
+                  className="block"
                 />
               </div>
               <p className="mt-2 text-xs text-left text-black font-semibold whitespace-nowrap">
