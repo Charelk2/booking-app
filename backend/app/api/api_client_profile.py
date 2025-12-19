@@ -104,6 +104,8 @@ def read_client_profile(
             "first_name": user.first_name,
             "last_name": user.last_name,
             "profile_picture_url": getattr(user, "profile_picture_url", None),
+            "organization": getattr(user, "organization", None),
+            "job_title": getattr(user, "job_title", None),
             "member_since_year": member_since_year,
         },
         "stats": {

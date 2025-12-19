@@ -14,6 +14,8 @@ type ClientProfileResponse = {
     first_name: string;
     last_name: string;
     profile_picture_url?: string | null;
+    organization?: string | null;
+    job_title?: string | null;
     member_since_year?: number | null;
   };
   stats: {
@@ -287,6 +289,12 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
   const name =
     `${profile.user.first_name || ''} ${profile.user.last_name || ''}`.trim() || 'Client';
   const firstName = profile.user.first_name || name.split(' ')[0] || 'User';
+  const clientSubtitle = (() => {
+    const organization = String(profile.user.organization || '').trim();
+    const jobTitle = String(profile.user.job_title || '').trim();
+    const parts = [organization, jobTitle].filter(Boolean);
+    return parts.length ? parts.join(' • ') : 'Client';
+  })();
   const memberSince = profile.user.member_since_year;
   const nowYear = new Date().getFullYear();
   const yearsOnBooka =
@@ -334,7 +342,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
                   <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-1">
                     {firstName}
                   </h1>
-                  <p className="text-sm text-gray-500 font-medium">Client</p>
+                  <p className="text-sm text-gray-500 font-medium">{clientSubtitle}</p>
                 </div>
 
                 {/* Stats Side */}
