@@ -859,35 +859,35 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     leaveFrom="transform opacity-100 translate-y-0 scale-100"
                     leaveTo="transform opacity-0 translate-y-1 scale-[0.98]"
                   >
-                    <Menu.Items className="absolute right-0 mt-2 w-80 origin-top-right overflow-hidden rounded-2xl bg-white shadow-[0_20px_60px_rgba(0,0,0,0.14)] ring-1 ring-black/10 focus:outline-none z-50">
+                    <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-black/5 focus:outline-none z-50">
                       {/* Profile summary */}
-                      <div className="px-4 py-4 flex items-center gap-3">
+                      <div className="px-4 py-3 flex items-center gap-3">
                         <Avatar
                           src={user.profile_picture_url || null}
                           initials={user.first_name?.[0] || user.email[0]}
                           size={44}
                         />
                         <div className="min-w-0">
-                          <p className="text-[15px] font-semibold text-gray-900 truncate">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
                             {user.first_name || user.email?.split('@')[0]}
                           </p>
                           <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         </div>
                       </div>
                       <div className="border-t border-gray-200" />
-                      <div className="py-2">
+                      <div className="py-1">
                         {/* Primary actions */}
                         <Menu.Item>
                           {({ active }) => (
                             <Link
                               href={user.user_type === 'service_provider' ? '/dashboard/artist' : '/dashboard/client'}
                               className={clsx(
-                                'group flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-gray-900',
+                                'group flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-900',
                                 active && 'bg-gray-50',
                                 dropdownItemFocus,
                               )}
                             >
-                              <CalendarIcon className="h-5 w-5 text-gray-900" />
+                              <CalendarIcon className="h-4 w-4 text-gray-700" />
                               Dashboard
                             </Link>
                           )}
@@ -898,12 +898,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                             <Link
                               href="/inbox"
                               className={clsx(
-                                'group flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-gray-900',
+                                'group flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-900',
                                 active && 'bg-gray-50',
                                 dropdownItemFocus,
                               )}
                             >
-                              <ChatOutline className="h-5 w-5 text-gray-900" />
+                              <ChatOutline className="h-4 w-4 text-gray-700" />
                               Messages
                             </Link>
                           )}
@@ -914,12 +914,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                             <Link
                               href={user.user_type === 'service_provider' ? '/dashboard/profile/edit' : '/account'}
                               className={clsx(
-                                'group flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-gray-900',
+                                'group flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-900',
                                 active && 'bg-gray-50',
                                 dropdownItemFocus,
                               )}
                             >
-                              <UserAccountIcon strokeWidth={1.5} className="h-5 w-5 text-gray-900" />
+                              <UserAccountIcon strokeWidth={1.5} className="h-4 w-4 text-gray-700" />
                               Profile
                             </Link>
                           )}
@@ -927,53 +927,38 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
                         {user.user_type === 'client' ? (
                           <>
-                            <div className="border-t border-gray-200 my-2" />
                             <Menu.Item>
                               {({ active }) => (
                                 <button
                                   type="button"
                                   onClick={openProviderUpgrade}
                                   className={clsx(
-                                    'mx-3 w-[calc(100%-1.5rem)] rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-left transition-colors',
-                                    active && 'bg-gray-100',
+                                    'group flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-900',
+                                    active && 'bg-gray-50',
                                     dropdownItemFocus,
                                   )}
                                 >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <div className="text-[15px] font-semibold text-gray-900">
-                                        List your service
-                                      </div>
-                                      <div className="mt-1 text-xs text-gray-600">
-                                        It’s easy to start hosting and earn extra income.
-                                      </div>
-                                    </div>
-                                    <SparklesIcon
-                                      className={clsx(
-                                        'h-6 w-6 text-gray-900 transition-transform duration-200',
-                                        active && '-rotate-12 scale-110',
-                                      )}
-                                    />
-                                  </div>
+                                  <SparklesIcon className="h-4 w-4 text-gray-700" aria-hidden="true" />
+                                  List your service
                                 </button>
                               )}
                             </Menu.Item>
                           </>
                         ) : null}
 
-                        <div className="border-t border-gray-200 my-2" />
+                        <div className="border-t border-gray-200 my-1" />
                         {FEATURE_EVENT_PREP && currentBookingId && (
                           <Menu.Item>
                             {({ active }) => (
                               <Link
                                 href={`/dashboard/events/${currentBookingId}`}
                                 className={clsx(
-                                  'group flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-gray-900',
+                                  'group flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-900',
                                   active && 'bg-gray-50',
                                   dropdownItemFocus
                                 )}
                               >
-                                <CalendarIcon className="h-5 w-5 text-gray-900" />
+                                <CalendarIcon className="h-4 w-4 text-gray-700" />
                                 Event Prep
                               </Link>
                             )}
@@ -985,12 +970,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                             <button
                               onClick={logout}
                               className={clsx(
-                                'group flex w-full items-center gap-3 px-4 py-3 text-[15px] font-medium',
+                                'group flex w-full items-center gap-2 px-4 py-2 text-sm font-medium',
                                 active ? 'bg-gray-50 text-red-700' : 'text-red-600',
                                 dropdownItemFocus
                               )}
                             >
-                              <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                              <ArrowRightOnRectangleIcon className="h-4 w-4" />
                               Sign out
                             </button>
                           )}
