@@ -148,6 +148,70 @@ describe('Header', () => {
     div.remove();
   });
 
+  it('opens the Location popup when clicking location in the compact pill', async () => {
+    jest.useFakeTimers();
+    const { div, root } = render();
+
+    function Wrapper() {
+      const [state, setState] = React.useState<'initial' | 'compacted' | 'expanded-from-compact'>('compacted');
+      return <Header headerState={state} onForceHeaderState={(next) => setState(next)} />;
+    }
+
+    await act(async () => {
+      root.render(<Wrapper />);
+    });
+    await flushPromises();
+
+    const trigger = div.querySelector('#compact-search-trigger') as HTMLButtonElement;
+    const locationSegment = trigger.querySelector('[data-search-field="location"]') as HTMLElement;
+    expect(locationSegment).toBeTruthy();
+
+    act(() => {
+      locationSegment.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      jest.runOnlyPendingTimers();
+    });
+
+    expect(
+      document.querySelector('[aria-labelledby="search-popup-label-location"]'),
+    ).toBeTruthy();
+
+    jest.useRealTimers();
+    act(() => root.unmount());
+    div.remove();
+  });
+
+  it('opens the Category popup when clicking service in the compact pill', async () => {
+    jest.useFakeTimers();
+    const { div, root } = render();
+
+    function Wrapper() {
+      const [state, setState] = React.useState<'initial' | 'compacted' | 'expanded-from-compact'>('compacted');
+      return <Header headerState={state} onForceHeaderState={(next) => setState(next)} />;
+    }
+
+    await act(async () => {
+      root.render(<Wrapper />);
+    });
+    await flushPromises();
+
+    const trigger = div.querySelector('#compact-search-trigger') as HTMLButtonElement;
+    const categorySegment = trigger.querySelector('[data-search-field="category"]') as HTMLElement;
+    expect(categorySegment).toBeTruthy();
+
+    act(() => {
+      categorySegment.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      jest.runOnlyPendingTimers();
+    });
+
+    expect(
+      document.querySelector('[aria-labelledby="search-popup-label-category"]'),
+    ).toBeTruthy();
+
+    jest.useRealTimers();
+    act(() => root.unmount());
+    div.remove();
+  });
+
   it('shows only street name in compact pill when location contains commas', async () => {
     useSearchParams.mockReturnValue(
       new URLSearchParams('location=123%20Main%20St%2C%20Cape%20Town%2C%20South%20Africa'),
