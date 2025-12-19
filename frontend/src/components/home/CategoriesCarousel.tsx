@@ -285,7 +285,7 @@ export default function CategoriesCarousel() {
 
   return (
     <section
-      className="full-width mx-auto w-full max-w-7xl mt-4 px-4 sm:px-6 lg:px-8"
+      className="full-width mx-auto w-full max-w-7xl mt-4 px-4 py-6 sm:px-6 lg:px-8"
       aria-labelledby="categories-heading"
     >
       <div className="flex items-center justify-between">
