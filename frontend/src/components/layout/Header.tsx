@@ -934,7 +934,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   onClick={openProviderUpgrade}
                                   className={clsx(
                                     'group flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-900',
-                                    active && 'bg-gray-50',
                                     dropdownItemFocus,
                                   )}
                                 >
