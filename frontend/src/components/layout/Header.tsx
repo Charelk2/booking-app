@@ -46,6 +46,7 @@ import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import SearchBar from '../search/SearchBar';
 import MobileSearch, { type MobileSearchHandle } from '../search/MobileSearch';
+import type { SearchFieldId } from '../search/types';
 import useServiceCategories, { type Category as CategoryType } from '@/hooks/useServiceCategories';
 import { Avatar } from '../ui';
 import { parseISO, isValid } from 'date-fns';
@@ -339,6 +340,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Desktop SearchBar mount (for focus)
   const desktopSearchMountRef = useRef<HTMLDivElement>(null);
+  const desktopSearchOpenTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Build return URL (path + query) for auth redirects
   const nextAfterAuth = useMemo(() => {
@@ -472,22 +474,87 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   }, [mobileSearchOpen]);
 
   // Expand from compact (desktop)
-  const openDesktopSearchFromCompact = useCallback(() => {
-    if (isArtistView) return;
-    if (headerState === 'expanded-from-compact') return;
+  const focusFirstInDesktopSearch = useCallback(() => {
+    const root = desktopSearchMountRef.current;
+    if (!root) return;
+    const el = root.querySelector<HTMLElement>(
+      'input,button,select,textarea,[tabindex]:not([tabindex="-1"])',
+    );
+    el?.focus();
+  }, []);
 
-    onForceHeaderState('expanded-from-compact');
-
-    const focusSoon = () => {
+  const openDesktopSearchField = useCallback(
+    (field: SearchFieldId) => {
       const root = desktopSearchMountRef.current;
       if (!root) return;
-      const el = root.querySelector<HTMLElement>(
-        'input,button,select,textarea,[tabindex]:not([tabindex="-1"])',
-      );
-      el?.focus();
+
+      if (field === 'location') {
+        const input = root.querySelector<HTMLInputElement>(
+          'input[placeholder="Add location"]',
+        );
+        input?.focus();
+        return;
+      }
+
+      const button = root.querySelector<HTMLButtonElement>(`#${field}-search-button`);
+      if (button) {
+        button.click();
+        button.focus();
+        return;
+      }
+
+      focusFirstInDesktopSearch();
+    },
+    [focusFirstInDesktopSearch],
+  );
+
+  const openDesktopSearchFromCompact = useCallback(
+    (field?: SearchFieldId) => {
+      if (isArtistView) return;
+
+      if (desktopSearchOpenTimeoutRef.current) {
+        clearTimeout(desktopSearchOpenTimeoutRef.current);
+        desktopSearchOpenTimeoutRef.current = null;
+      }
+
+      const needsExpand = headerState !== 'expanded-from-compact';
+      if (needsExpand) {
+        onForceHeaderState('expanded-from-compact');
+      }
+
+      // Ensure focus moves into the expanded SearchBar quickly after it mounts/expands.
+      requestAnimationFrame(() => requestAnimationFrame(focusFirstInDesktopSearch));
+
+      if (!field) return;
+
+      // When expanding from compact, wait for the expand animation so the popup positions correctly.
+      if (needsExpand) {
+        desktopSearchOpenTimeoutRef.current = setTimeout(() => {
+          openDesktopSearchField(field);
+          desktopSearchOpenTimeoutRef.current = null;
+        }, 220);
+        return;
+      }
+
+      openDesktopSearchField(field);
+    },
+    [
+      focusFirstInDesktopSearch,
+      headerState,
+      isArtistView,
+      onForceHeaderState,
+      openDesktopSearchField,
+    ],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (desktopSearchOpenTimeoutRef.current) {
+        clearTimeout(desktopSearchOpenTimeoutRef.current);
+        desktopSearchOpenTimeoutRef.current = null;
+      }
     };
-    requestAnimationFrame(() => requestAnimationFrame(focusSoon));
-  }, [headerState, isArtistView, onForceHeaderState]);
+  }, []);
 
   // Visual style
   const headerClasses = clsx(
@@ -662,7 +729,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     onMouseDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      openDesktopSearchFromCompact();
+                      const field =
+                        (e.target as HTMLElement)
+                          ?.closest<HTMLElement>('[data-search-field]')
+                          ?.getAttribute('data-search-field') ?? undefined;
+                      openDesktopSearchFromCompact(field as SearchFieldId | undefined);
                     }}
                     className={clsx(
                       'w-full flex items-center border justify-between rounded-lg',
@@ -674,7 +745,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     )}
                   >
                     <div className="flex flex-1 divide-x divide-slate-200">
-                      <div className="flex-1 px-2 truncate">
+                      <div className="flex-1 px-2 truncate" data-search-field="category">
                         {category ? (
                           <span className="text-xs text-black truncate">
                             {category.label}
@@ -685,7 +756,10 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                           </span>
                         )}
                       </div>
-                      <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
+                      <div
+                        className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis"
+                        data-search-field="location"
+                      >
                         {location ? (
                           <span className="text-xs text-black whitespace-nowrap overflow-hidden text-ellipsis">
                             {getStreetFromAddress(location)}
@@ -696,7 +770,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                           </span>
                         )}
                       </div>
-                      <div className="flex-1 px-2 truncate">
+                      <div className="flex-1 px-2 truncate" data-search-field="when">
                         {when ? (
                           <span className="text-xs text-black truncate">
                             {dateFormatter.format(when)}
@@ -830,7 +904,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   hoverNeutralLink2
                                   )}
                                 >
-                                  <UserAccountIcon className="mr-3 h-5 w-5 text-black" />
+                                  <UserAccountIcon strokeWidth={1.5} className="mr-3 h-5 w-5 text-black" />
                                   Profile
                                 </Link>
                               )}
@@ -845,7 +919,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   type="button"
                                   onClick={openProviderUpgrade}
                                   className={clsx(
-                                    'group flex w-full items-center px-4 py-2 text-sm',
+                                    'group flex w-full items-center px-4 py-2 text-sm font-semibold',
                                     'text-black',
                                     active && 'bg-slate-100',
                                     hoverNeutralLink2
@@ -900,7 +974,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                   hoverNeutralLink2
                                   )}
                                 >
-                                  <UserAccountIcon className="mr-3 h-5 w-5 text-black" />
+                                  <UserAccountIcon strokeWidth={1.5} className="mr-3 h-5 w-5 text-black" />
                                   Profile
                                 </Link>
                               )}

@@ -234,6 +234,8 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
       try {
         const res = await fetch(apiUrl(`/api/v1/users/${clientId}/profile`), {
           credentials: 'include',
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' },
         });
         if (!res.ok) {
           if (res.status === 401 || res.status === 403) {
