@@ -344,7 +344,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
                   <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-1">
                     {firstName}
                   </h1>
-                  <p className="text-sm text-gray-500 font-medium">{clientSubtitle}</p>
+                  <p className="text-xs text-gray-500 font-medium">{clientSubtitle}</p>
                 </div>
 
                 {/* Stats Side */}

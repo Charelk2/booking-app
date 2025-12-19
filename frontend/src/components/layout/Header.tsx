@@ -93,6 +93,8 @@ const hoverNeutralLink =
   'no-underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
 const hoverNeutralLink2 =
   'no-underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
+const dropdownItemFocus =
+  'no-underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white';
 
 // Filter icon overlay: theme-aware icon/text; supports placing it *outside* on the right
 function FilterSlot({
@@ -850,152 +852,128 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   </Menu.Button>
                   <Transition
                     as={Fragment}
-                    enter="transition ease-out duration-100"
-                    enterFrom="transform opacity-0 scale-95"
-                    enterTo="transform opacity-100 scale-100"
-                    leave="transition ease-in duration-75"
-                    leaveFrom="opacity-100 scale-100"
-                    leaveTo="opacity-0 scale-95"
+                    enter="transition ease-out duration-150"
+                    enterFrom="transform opacity-0 translate-y-1 scale-[0.98]"
+                    enterTo="transform opacity-100 translate-y-0 scale-100"
+                    leave="transition ease-in duration-100"
+                    leaveFrom="transform opacity-100 translate-y-0 scale-100"
+                    leaveTo="transform opacity-0 translate-y-1 scale-[0.98]"
                   >
-                    <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right bg-white rounded-xl shadow-xl ring-1 ring-black/5 focus:outline-none z-50">
+                    <Menu.Items className="absolute right-0 mt-2 w-80 origin-top-right overflow-hidden rounded-2xl bg-white shadow-[0_20px_60px_rgba(0,0,0,0.14)] ring-1 ring-black/10 focus:outline-none z-50">
                       {/* Profile summary */}
-                      <div className="px-4 py-3 flex items-center gap-3">
+                      <div className="px-4 py-4 flex items-center gap-3">
                         <Avatar
                           src={user.profile_picture_url || null}
                           initials={user.first_name?.[0] || user.email[0]}
                           size={44}
                         />
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">
+                          <p className="text-[15px] font-semibold text-gray-900 truncate">
                             {user.first_name || user.email?.split('@')[0]}
                           </p>
                           <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         </div>
                       </div>
-                      <div className="border-t border-slate-200" />
-                      <div className="py-1">
-                        {user.user_type === 'service_provider' ? (
-                          <>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <Link
-                                  href="/dashboard/artist"
-                                  className={clsx(
-                                    'group flex items-center px-4 py-2 text-sm',
-                                    'text-black',
-                                    active && 'bg-slate-100',
-                                    hoverNeutralLink2
-                                  )}
-                                >
-                                  <CalendarIcon className="mr-3 h-5 w-5 text-black" />
-                                  Dashboard
-                                </Link>
+                      <div className="border-t border-gray-200" />
+                      <div className="py-2">
+                        {/* Primary actions */}
+                        <Menu.Item>
+                          {({ active }) => (
+                            <Link
+                              href={user.user_type === 'service_provider' ? '/dashboard/artist' : '/dashboard/client'}
+                              className={clsx(
+                                'group flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-gray-900',
+                                active && 'bg-gray-50',
+                                dropdownItemFocus,
                               )}
-                            </Menu.Item>
-                          
-                          <Menu.Item>
-                            {({ active }) => (
-                              <Link
-                                href="/dashboard/profile/edit"
-                                className={clsx(
-                                  'group flex items-center px-4 py-2 text-sm',
-                                  'text-black',
-                                  active && 'bg-slate-100',
-                                  hoverNeutralLink2
-                                  )}
-                                >
-                                  <UserAccountIcon strokeWidth={1.5} className="mr-3 h-5 w-5 text-black" />
-                                  Profile
-                                </Link>
+                            >
+                              <CalendarIcon className="h-5 w-5 text-gray-900" />
+                              Dashboard
+                            </Link>
+                          )}
+                        </Menu.Item>
+
+                        <Menu.Item>
+                          {({ active }) => (
+                            <Link
+                              href="/inbox"
+                              className={clsx(
+                                'group flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-gray-900',
+                                active && 'bg-gray-50',
+                                dropdownItemFocus,
                               )}
-                            </Menu.Item>
-                          </>
-                        ) : (
+                            >
+                              <ChatOutline className="h-5 w-5 text-gray-900" />
+                              Messages
+                            </Link>
+                          )}
+                        </Menu.Item>
+
+                        <Menu.Item>
+                          {({ active }) => (
+                            <Link
+                              href={user.user_type === 'service_provider' ? '/dashboard/profile/edit' : '/account'}
+                              className={clsx(
+                                'group flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-gray-900',
+                                active && 'bg-gray-50',
+                                dropdownItemFocus,
+                              )}
+                            >
+                              <UserAccountIcon strokeWidth={1.5} className="h-5 w-5 text-gray-900" />
+                              Profile
+                            </Link>
+                          )}
+                        </Menu.Item>
+
+                        {user.user_type === 'client' ? (
                           <>
-                            {/* Client-only: quick upgrade to provider */}
+                            <div className="border-t border-gray-200 my-2" />
                             <Menu.Item>
                               {({ active }) => (
                                 <button
                                   type="button"
                                   onClick={openProviderUpgrade}
                                   className={clsx(
-                                    'group flex w-full items-center px-4 py-2 text-sm font-semibold',
-                                    'text-black',
-                                    active && 'bg-slate-100',
-                                    hoverNeutralLink2
+                                    'mx-3 w-[calc(100%-1.5rem)] rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-left transition-colors',
+                                    active && 'bg-gray-100',
+                                    dropdownItemFocus,
                                   )}
                                 >
-                                  <SparklesIcon className="mr-3 h-5 w-5 text-black transform transition-transform duration-200 group-hover:-rotate-12 group-hover:scale-110" />
-                                  List your service
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="text-[15px] font-semibold text-gray-900">
+                                        List your service
+                                      </div>
+                                      <div className="mt-1 text-xs text-gray-600">
+                                        It’s easy to start hosting and earn extra income.
+                                      </div>
+                                    </div>
+                                    <SparklesIcon
+                                      className={clsx(
+                                        'h-6 w-6 text-gray-900 transition-transform duration-200',
+                                        active && '-rotate-12 scale-110',
+                                      )}
+                                    />
+                                  </div>
                                 </button>
                               )}
                             </Menu.Item>
-                            <Menu.Item>
-                            {({ active }) => (
-                              <Link
-                                href="/dashboard/client"
-                                className={clsx(
-                                  'group flex items-center px-4 py-2 text-sm',
-                                  'text-black',
-                                  active && 'bg-slate-100',
-                                  hoverNeutralLink2
-                                  )}
-                                >
-                                  <CalendarIcon className="mr-3 h-5 w-5 text-black" />
-                                  Dashboard
-                                </Link>
-                              )}
-                            </Menu.Item>
-
-                          <Menu.Item>
-                            {({ active }) => (
-                              <Link
-                                href="/inbox"
-                                className={clsx(
-                                  'group flex items-center px-4 py-2 text-sm',
-                                  'text-black',
-                                  active && 'bg-slate-100',
-                                  hoverNeutralLink2
-                                  )}
-                                >
-                                  <ChatOutline className="mr-3 h-5 w-5 text-black" />
-                                  Messages
-                                </Link>
-                              )}
-                            </Menu.Item>
-                            <Menu.Item>
-                            {({ active }) => (
-                              <Link
-                                href="/account"
-                                className={clsx(
-                                  'group flex items-center px-4 py-2 text-sm',
-                                  'text-black',
-                                  active && 'bg-slate-100',
-                                  hoverNeutralLink2
-                                  )}
-                                >
-                                  <UserAccountIcon strokeWidth={1.5} className="mr-3 h-5 w-5 text-black" />
-                                  Profile
-                                </Link>
-                              )}
-                            </Menu.Item>
                           </>
-                        )}
+                        ) : null}
 
-                        <div className="border-t border-slate-200 my-1" />
+                        <div className="border-t border-gray-200 my-2" />
                         {FEATURE_EVENT_PREP && currentBookingId && (
                           <Menu.Item>
                             {({ active }) => (
                               <Link
                                 href={`/dashboard/events/${currentBookingId}`}
                                 className={clsx(
-                                  'group flex items-center px-4 py-2 text-sm',
-                                  'text-black',
-                                  active && 'bg-slate-100',
-                                  hoverNeutralLink2
+                                  'group flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-gray-900',
+                                  active && 'bg-gray-50',
+                                  dropdownItemFocus
                                 )}
                               >
-                                <CalendarIcon className="mr-3 h-5 w-5 text-black" />
+                                <CalendarIcon className="h-5 w-5 text-gray-900" />
                                 Event Prep
                               </Link>
                             )}
@@ -1007,12 +985,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                             <button
                               onClick={logout}
                               className={clsx(
-                                'group flex w-full items-center px-4 py-2 text-sm',
-                                active ? 'bg-red-50 text-red-700' : 'text-red-600',
-                                hoverNeutralLink2
+                                'group flex w-full items-center gap-3 px-4 py-3 text-[15px] font-medium',
+                                active ? 'bg-gray-50 text-red-700' : 'text-red-600',
+                                dropdownItemFocus
                               )}
                             >
-                              <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5" />
+                              <ArrowRightOnRectangleIcon className="h-5 w-5" />
                               Sign out
                             </button>
                           )}
