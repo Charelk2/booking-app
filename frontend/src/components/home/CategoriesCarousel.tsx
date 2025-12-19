@@ -148,11 +148,16 @@ export default function CategoriesCarousel() {
     if (!el) return;
     isAdjustingRef.current = true;
     const prev = el.style.scrollBehavior;
+    const prevSnap = el.style.scrollSnapType;
     el.style.scrollBehavior = 'auto';
+    el.style.scrollSnapType = 'none';
     el.scrollLeft = left;
     el.style.scrollBehavior = prev;
+    el.style.scrollSnapType = prevSnap;
     requestAnimationFrame(() => {
-      isAdjustingRef.current = false;
+      requestAnimationFrame(() => {
+        isAdjustingRef.current = false;
+      });
     });
   }, []);
 
@@ -218,15 +223,16 @@ export default function CategoriesCarousel() {
         const stride = strideRef.current || measureStride();
         if (stride) {
           const middleStart = stride * INFINITE_MIDDLE_INDEX;
-          const lower = middleStart - stride / 2;
-          const upper = middleStart + stride / 2;
+          const middleEnd = middleStart + stride;
           let left = el.scrollLeft;
 
-          if (left < lower) {
-            while (left < lower) left += stride;
+          // Keep the user within the middle copy; when they scroll into the
+          // first/last copy, jump by exactly one stride to preserve continuity.
+          if (left < middleStart) {
+            while (left < middleStart) left += stride;
             if (Math.abs(el.scrollLeft - left) > 1) setScrollLeftInstant(left);
-          } else if (left > upper) {
-            while (left > upper) left -= stride;
+          } else if (left >= middleEnd) {
+            while (left >= middleEnd) left -= stride;
             if (Math.abs(el.scrollLeft - left) > 1) setScrollLeftInstant(left);
           }
         }
