@@ -843,7 +843,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
             <div className="mx-auto max-w-6xl md:flex bg-white">
               {/* Left rail (sticky outer, scrollable inner) */}
               <aside className="md:w-2/5 md:flex md:flex-col bg-white md:sticky md:self-start md:border-gray-100 p-0" style={{ top: 'var(--sp-sticky-top)' }}>
-                <div ref={leftRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-4 scrollbar-hide">
+                <div ref={leftRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-4 pb-24 scrollbar-hide">
                 <div className="relative h-48 overflow-hidden rounded-3xl shadow-lg" role="img" aria-label="Cover photo">
                   {coverPhotoUrl ? (
                     <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover rounded-3xl" sizes="40vw" />
@@ -922,38 +922,13 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     </div>
                   </div>
 
-                {/* Sticky Action Dock -  Airbnb Style Card */}
-{!!services.length && (
-  <div className="mt-2 sticky z-10 top-24 w-full">
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)] p-6">
-      
-      {/* Header: Price & Rating */}
-      <div className="flex items-baseline justify-between mb-3">
-        <div>
-          <span className="text-xl font-bold text-gray-900">
-            From {priceBand || 'Contact us'}
-          </span>
-        </div>
-
-      </div>
-
-      {/* Big Gradient CTA Button */}
-      <button
-        onClick={() => openMobileServicePicker()}
-        className="w-full rounded-xl bg-gradient-to-r from-gray-800 via-black to-gray-800 py-2.5 text-base font-bold text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
-      >
-        Request Booking
-      </button>
-    </div>
-  </div>
-)}
                 </div>
                 </div>
               </aside>
 
               {/* Right rail (sticky outer, scrollable inner) */}
               <section className="md:w-3/5 md:sticky md:self-start p-0" style={{ top: 'var(--sp-sticky-top)' }}>
-                <div ref={rightRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-4 space-y-4 scrollbar-hide">
+                <div ref={rightRef} className="h-[calc(100vh-var(--sp-sticky-top))] overflow-y-auto p-4 pb-24 space-y-4 scrollbar-hide">
                
 
                 <section id="services-desktop" aria-labelledby="services-heading-desktop" className="pb-10">
@@ -1149,6 +1124,29 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                 </div>
               </section>
             </div>
+
+            {/* Desktop Bottom Booking Bar */}
+            {!!services.length && (
+              <div className="hidden md:block fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/85 supports-[backdrop-filter]:bg-white/70 backdrop-blur">
+                <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-600">From</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {priceBand || 'Contact us'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => openMobileServicePicker()}
+                    className="inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold bg-gray-900 text-white shadow-sm hover:bg-gray-800 active:scale-[0.99] transition disabled:opacity-50"
+                    disabled={!services.length}
+                    aria-label="Request booking"
+                  >
+                    <BoltIcon className="mr-2 h-4 w-4" />
+                    Request booking
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       </MainLayout>
