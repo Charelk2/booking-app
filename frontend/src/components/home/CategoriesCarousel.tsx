@@ -5,7 +5,6 @@ import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import useServiceCategories from '@/hooks/useServiceCategories';
 import { prefetchServiceProviders } from '@/lib/api';
 import { CATEGORY_IMAGES, UI_CATEGORY_TO_ID } from '@/lib/categoryMap';
@@ -276,26 +275,6 @@ export default function CategoriesCarousel() {
     >
       <div className="flex items-center justify-between">
         <h2 id="categories-heading" className="text-xl font-semibold">Services</h2>
-        <div className="hidden sm:flex gap-2">
-          <button
-            type="button"
-            aria-label="Previous"
-            className="rounded-full border bg-white p-2 shadow transition disabled:opacity-40"
-            disabled={!canScrollLeft}
-            onClick={() => onScrollBy(-1)}
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Next"
-            className="rounded-full border bg-white p-2 shadow transition disabled:opacity-40"
-            disabled={!canScrollRight}
-            onClick={() => onScrollBy(1)}
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </button>
-        </div>
       </div>
 
       <div className="relative mt-3" role="region" aria-roledescription="carousel" aria-label="Service categories">
