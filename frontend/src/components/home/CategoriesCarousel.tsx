@@ -10,8 +10,10 @@ import useServiceCategories from '@/hooks/useServiceCategories';
 import { prefetchServiceProviders } from '@/lib/api';
 import { CATEGORY_IMAGES, UI_CATEGORY_TO_ID } from '@/lib/categoryMap';
 
-const CARD_W = 144; // h/w-36 = 9rem = 144px
-const GAP = 12;     // gap-3 = 12px
+const CARD_W = 128; // w-32 = 8rem = 128px
+const GAP = 12; // gap-3 = 12px
+const INFINITE_REPEATS = 3;
+const INFINITE_MIDDLE_INDEX = Math.floor(INFINITE_REPEATS / 2);
 
 const DISPLAY_LABELS: Record<string, string> = {
   photographer: 'Photography',
@@ -31,6 +33,8 @@ const DISPLAY_LABELS: Record<string, string> = {
 export default function CategoriesCarousel() {
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const strideRef = useRef<number>(0);
+  const isAdjustingRef = useRef(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -50,6 +54,13 @@ export default function CategoriesCarousel() {
     },
     [categories, fallbackItems]
   );
+
+  const renderItems = useMemo(() => {
+    if (!items.length) return [] as Array<{ cat: typeof items[number]; repeatIndex: number }>;
+    return Array.from({ length: INFINITE_REPEATS }, (_, repeatIndex) =>
+      items.map((cat) => ({ cat, repeatIndex }))
+    ).flat();
+  }, [items]);
 
   // Idle prefetch top categories on homepage
   useEffect(() => {
@@ -132,28 +143,101 @@ export default function CategoriesCarousel() {
     };
   }, [items, router]);
 
+  const setScrollLeftInstant = useCallback((left: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    isAdjustingRef.current = true;
+    const prev = el.style.scrollBehavior;
+    el.style.scrollBehavior = 'auto';
+    el.scrollLeft = left;
+    el.style.scrollBehavior = prev;
+    requestAnimationFrame(() => {
+      isAdjustingRef.current = false;
+    });
+  }, []);
+
+  const measureStride = useCallback((): number => {
+    const el = scrollRef.current;
+    const n = items.length;
+    if (!el || n <= 0) return 0;
+    const children = el.children;
+    if (children.length < n + 1) return 0;
+    const first = children[0] as HTMLElement | undefined;
+    const second = children[n] as HTMLElement | undefined;
+    if (!first || !second) return 0;
+    const stride = second.offsetLeft - first.offsetLeft;
+    if (!Number.isFinite(stride) || stride <= 0) return 0;
+    strideRef.current = stride;
+    return stride;
+  }, [items.length]);
+
+  const normalizeToMiddleCopy = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const stride = strideRef.current || measureStride();
+    if (!stride) return;
+    const middleStart = stride * INFINITE_MIDDLE_INDEX;
+    const relative = ((el.scrollLeft % stride) + stride) % stride;
+    const next = middleStart + relative;
+    if (Math.abs(el.scrollLeft - next) <= 1) return;
+    setScrollLeftInstant(next);
+  }, [measureStride, setScrollLeftInstant]);
+
   const updateButtons = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    // allow tiny tolerance for sub-pixel rounding
-    setCanScrollLeft(el.scrollLeft > 1);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    const scrollable = el.scrollWidth > el.clientWidth + 1;
+    setCanScrollLeft(scrollable);
+    setCanScrollRight(scrollable);
   }, []);
 
   const onScrollBy = (dir: 1 | -1) => {
     const el = scrollRef.current;
     if (!el) return;
     // scroll ~3 cards at a time
-    el.scrollBy({ left: dir * (CARD_W * 3 + GAP * 3), behavior: 'smooth' });
+    el.scrollBy({ left: dir * (CARD_W + GAP) * 3, behavior: 'smooth' });
   };
+
+  // Initialize in the "middle" copy so the carousel can wrap infinitely.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    // Ensure we have a stride and start in the middle set.
+    measureStride();
+    normalizeToMiddleCopy();
+    updateButtons();
+  }, [items.length, measureStride, normalizeToMiddleCopy, updateButtons]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     updateButtons();
 
-    const onScroll = () => updateButtons();
-    const onResize = () => updateButtons();
+    const onScroll = () => {
+      if (!isAdjustingRef.current) {
+        const stride = strideRef.current || measureStride();
+        if (stride) {
+          const middleStart = stride * INFINITE_MIDDLE_INDEX;
+          const lower = middleStart - stride / 2;
+          const upper = middleStart + stride / 2;
+          let left = el.scrollLeft;
+
+          if (left < lower) {
+            while (left < lower) left += stride;
+            if (Math.abs(el.scrollLeft - left) > 1) setScrollLeftInstant(left);
+          } else if (left > upper) {
+            while (left > upper) left -= stride;
+            if (Math.abs(el.scrollLeft - left) > 1) setScrollLeftInstant(left);
+          }
+        }
+      }
+      updateButtons();
+    };
+    const onResize = () => {
+      measureStride();
+      normalizeToMiddleCopy();
+      updateButtons();
+    };
 
     el.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
@@ -172,7 +256,7 @@ export default function CategoriesCarousel() {
       window.removeEventListener('resize', onResize);
       ro?.disconnect();
     };
-  }, [updateButtons]);
+  }, [measureStride, normalizeToMiddleCopy, setScrollLeftInstant, updateButtons]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowRight') { e.preventDefault(); onScrollBy(1); }
@@ -236,20 +320,35 @@ export default function CategoriesCarousel() {
           className="flex gap-3 overflow-x-auto pb-2 pr-2 scroll-smooth scrollbar-hide snap-x snap-mandatory"
           aria-label="Scrollable list"
         >
-          {items.map((cat, i) => (
+          {renderItems.map(({ cat, repeatIndex }, i) => {
+            const eagerStart = items.length * INFINITE_MIDDLE_INDEX;
+            const isEager = i >= eagerStart && i < eagerStart + 2;
+            const isInteractive = repeatIndex === INFINITE_MIDDLE_INDEX;
+
+            return (
             <Link
-              key={cat.value}
+              key={`${repeatIndex}:${cat.value}`}
               href={`/category/${encodeURIComponent(cat.value)}`}
               className="flex-shrink-0 flex flex-col hover:no-underline snap-start active:scale-[0.98] transition-transform duration-100"
               aria-label={cat.display}
-              onMouseEnter={() => router.prefetch?.(`/category/${encodeURIComponent(cat.value)}`)}
-              onFocus={() => router.prefetch?.(`/category/${encodeURIComponent(cat.value)}`)}
+              aria-hidden={isInteractive ? undefined : true}
+              tabIndex={isInteractive ? 0 : -1}
+              onMouseEnter={
+                isInteractive
+                  ? () => router.prefetch?.(`/category/${encodeURIComponent(cat.value)}`)
+                  : undefined
+              }
+              onFocus={
+                isInteractive
+                  ? () => router.prefetch?.(`/category/${encodeURIComponent(cat.value)}`)
+                  : undefined
+              }
             >
               <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
                 <img
                   src={CATEGORY_IMAGES[cat.value] || '/bartender.png'}
                   alt={cat.display}
-                  loading={i === 0 ? 'eager' : 'lazy'}
+                  loading={isEager ? 'eager' : 'lazy'}
                   decoding="async"
                   width={144}
                   height={144}
@@ -266,7 +365,8 @@ export default function CategoriesCarousel() {
                 {cat.display}
               </p>
             </Link>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
