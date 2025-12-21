@@ -1085,17 +1085,17 @@ export default function VenueListingPage({
 	              Cancellation policy
 	            </h2>
 	            {effectiveCancellationPolicy ? (
-	              <div className="mt-3 rounded-2xl bg-gray-50 p-4">
+	              <>
 	                {parsedCancellationPolicy.intro ? (
-	                  <p className="text-sm text-gray-700">
+	                  <p className="mt-2 text-sm text-gray-700">
 	                    {parsedCancellationPolicy.intro}
 	                  </p>
 	                ) : null}
 	                {parsedCancellationPolicy.bullets.length ? (
 	                  <ul
 	                    className={[
-	                      "text-sm text-gray-700 space-y-2",
-	                      parsedCancellationPolicy.intro ? "mt-3" : "mt-0",
+	                      parsedCancellationPolicy.intro ? "mt-3" : "mt-2",
+	                      "grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2",
 	                    ].join(" ")}
 	                  >
 	                    {parsedCancellationPolicy.bullets.map((bullet, idx) => (
@@ -1109,7 +1109,7 @@ export default function VenueListingPage({
 	                    ))}
 	                  </ul>
 	                ) : null}
-	              </div>
+	              </>
 	            ) : (
 	              <p className="mt-2 text-sm text-gray-600">
 	                Policies vary by venue. Review the quote for final cancellation and
