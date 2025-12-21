@@ -803,13 +803,13 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                     <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
                     <section aria-labelledby="policies-heading-mobile">
                       <h2 id="policies-heading-mobile" className="text-lg font-bold text-gray-900">Policies</h2>
-                      <div className="mt-3 rounded-2xl border border-gray-100 p-4 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
+                      <div className="mt-3 text-gray-700">
                         <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">Cancellation Policy</p>
                         {intro && <p className="mb-3 leading-relaxed text-sm">{intro}</p>}
                         {!!bullets.length && (
-                          <ul className="list-disc pl-6 space-y-1 text-sm">
+                          <ul className="space-y-1">
                             {bullets.map((b, i) => (
-                              <li key={`mobile-pol-${i}`}>{b}</li>
+                              <li key={`mobile-pol-${i}`} className="text-sm">{b}</li>
                             ))}
                           </ul>
                         )}
@@ -1126,13 +1126,13 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
                       <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
                       <section aria-labelledby="policies-heading-desktop">
                         <h2 id="policies-heading-desktop" className="mt-12 text-lg font-bold text-gray-800 mb-3">Policies</h2>
-                        <div className="rounded-2xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
+                        <div className="text-gray-700">
                           <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">Cancellation Policy</p>
                           {intro && <p className="mb-3 leading-relaxed">{intro}</p>}
                           {!!bullets.length && (
-                            <ul className="list-disc pl-6 space-y-1">
+                            <ul className="space-y-1">
                               {bullets.map((b, i) => (
-                                <li key={`desktop-pol-${i}`}>{b}</li>
+                                <li key={`desktop-pol-${i}`} className="text-sm">{b}</li>
                               ))}
                             </ul>
                           )}
