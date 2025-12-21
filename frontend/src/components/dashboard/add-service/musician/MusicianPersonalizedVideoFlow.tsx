@@ -62,6 +62,65 @@ export default function MusicianPersonalizedVideoFlow({
     [pvConfig.fields],
   );
 
+  const pvClientPreview = useMemo(() => {
+    const minNoticeRaw = state.typeFields.min_notice_days;
+    const minNotice = (() => {
+      const n = typeof minNoticeRaw === "number" ? minNoticeRaw : Number(minNoticeRaw);
+      if (!Number.isFinite(n)) return 1;
+      return Math.max(0, Math.min(365, Math.trunc(n)));
+    })();
+
+    const maxPerDayRaw = state.typeFields.max_videos_per_day;
+    const maxPerDay = (() => {
+      const n = typeof maxPerDayRaw === "number" ? maxPerDayRaw : Number(maxPerDayRaw);
+      if (!Number.isFinite(n)) return 3;
+      return Math.max(1, Math.min(50, Math.trunc(n)));
+    })();
+
+    const rushEnabled = Boolean(state.typeFields.rush_custom_enabled);
+    const rushFeeRaw = state.typeFields.rush_fee_zar;
+    const rushFee = (() => {
+      const n = typeof rushFeeRaw === "number" ? rushFeeRaw : Number(rushFeeRaw);
+      if (!Number.isFinite(n)) return 0;
+      return Math.max(0, Math.round(n));
+    })();
+    const rushWithinRaw = state.typeFields.rush_within_days;
+    const rushWithin = (() => {
+      const n = typeof rushWithinRaw === "number" ? rushWithinRaw : Number(rushWithinRaw);
+      if (!Number.isFinite(n)) return 2;
+      return Math.max(0, Math.min(30, Math.trunc(n)));
+    })();
+
+    const money = (value: number) =>
+      new Intl.NumberFormat("en-ZA", {
+        style: "currency",
+        currency: DEFAULT_CURRENCY,
+      }).format(Number.isFinite(value) ? value : 0);
+
+    const parts: string[] = [
+      `Earliest delivery: ${minNotice} day${minNotice === 1 ? "" : "s"}`,
+      `Daily capacity: ${maxPerDay}/day`,
+    ];
+
+    if (rushEnabled && rushFee > 0 && rushWithin > 0) {
+      parts.push(
+        `Rush: +${money(rushFee)} within ${rushWithin} day${rushWithin === 1 ? "" : "s"}`,
+      );
+    } else if (rushEnabled) {
+      parts.push("Rush: enabled");
+    } else {
+      parts.push("Rush: standard");
+    }
+
+    return parts.join(" • ");
+  }, [
+    state.typeFields.min_notice_days,
+    state.typeFields.max_videos_per_day,
+    state.typeFields.rush_custom_enabled,
+    state.typeFields.rush_fee_zar,
+    state.typeFields.rush_within_days,
+  ]);
+
   useEffect(() => {
     if (!isOpen) return;
     setStep(0);
@@ -444,6 +503,15 @@ export default function MusicianPersonalizedVideoFlow({
                             Rush pricing stays on the default system rules until you enable custom rush pricing.
                           </p>
                         )}
+                      </div>
+
+                      <div className="rounded-xl border border-gray-200 bg-white p-4">
+                        <div className="text-xs font-semibold text-gray-900">
+                          Client-facing preview
+                        </div>
+                        <p className="mt-1 text-sm text-gray-600">
+                          {pvClientPreview}
+                        </p>
                       </div>
                     </div>
                   )}

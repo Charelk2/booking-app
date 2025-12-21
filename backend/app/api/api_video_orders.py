@@ -1703,5 +1703,23 @@ def verify_video_order_paystack(
     except Exception:
         pass
 
+    # Prompt client to complete the brief after payment (client-only).
+    # Keep this as a separate system_key so chat renderers can show a CTA
+    # without interfering with payment-received receipt extraction.
+    try:
+        brief_url = f"/video-orders/{br.id}/brief"
+        crud_message.create_message(
+            db=db,
+            booking_request_id=br.id,
+            sender_id=br.artist_id,
+            sender_type=SenderType.ARTIST,
+            content=f"Complete your brief: {brief_url}",
+            message_type=MessageType.SYSTEM,
+            visible_to=VisibleTo.CLIENT,
+            system_key="pv_brief_prompt_v1",
+        )
+    except Exception:
+        pass
+
     preview = quote_totals_preview_payload(snap) if snap else None
     return _to_video_order_response(br, totals_preview=preview)

@@ -136,6 +136,26 @@ export default function BookinWizardPersonilsedVideo({
     return { tone: "muted" as const, label: "Availability unknown (we’ll still try)" };
   }, [form.deliveryBy, status.checking, status.available]);
 
+  const highlights = useMemo(() => {
+    const chips: string[] = [];
+
+    const notice = Number.isFinite(minNoticeDays) ? Math.max(0, Math.trunc(minNoticeDays)) : 1;
+    chips.push(`Delivery from ${notice} day${notice === 1 ? "" : "s"}`);
+
+    if (addOnLongZar > 0) {
+      chips.push(`Long video + ${formatCurrency(addOnLongZar)}`);
+    }
+
+    if (rushCustomEnabled && rushFeeZar > 0 && rushWithinDays > 0) {
+      const within = Math.max(0, Math.trunc(rushWithinDays));
+      chips.push(
+        `Rush + ${formatCurrency(rushFeeZar)} within ${within} day${within === 1 ? "" : "s"}`,
+      );
+    }
+
+    return chips.slice(0, 3);
+  }, [minNoticeDays, addOnLongZar, rushCustomEnabled, rushFeeZar, rushWithinDays]);
+
   return (
     <Transition show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -191,6 +211,19 @@ export default function BookinWizardPersonilsedVideo({
               {/* Content */}
               <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-5">
                 <div className="space-y-6">
+                  {highlights.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {highlights.map((label) => (
+                        <span
+                          key={label}
+                          className="rounded-full bg-gray-100 px-3 py-1 text-[11px] font-semibold text-gray-700"
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
                   {/* Delivery date */}
                   <section className="space-y-2">
                     <h3 className="sr-only">Delivery date</h3>

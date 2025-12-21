@@ -3,6 +3,7 @@ import * as React from 'react';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { apiUrl } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import { t } from '@/lib/i18n';
 import SafeImage from '@/components/ui/SafeImage';
 import SystemCard from './SystemCard';
@@ -42,6 +43,7 @@ export default function SystemMessage({
   viewerIsThreadClient = false,
 }: SystemMessageProps) {
   try {
+    const router = useRouter();
     const { user } = useAuth() || {} as any;
     const key = String((msg?.system_key || msg?.action || '')).toLowerCase();
     const content = String(msg?.content || '');
@@ -406,6 +408,38 @@ export default function SystemMessage({
                 }
               : undefined
           }
+        />
+      );
+    }
+
+    // PV: prompt the client to complete their brief after payment
+    if (key.startsWith('pv_brief_prompt')) {
+      if (!isThreadClient) return null;
+      const briefMatch = content.match(/\/video-orders\/\d+\/brief/i)?.[0] || null;
+      const href = briefMatch ? briefMatch.replace(/https?:\/\/[^\s]+/i, '') : null;
+      const target = href || '/inbox';
+      return (
+        <SystemCard
+          icon="V"
+          tone="neutral"
+          title={t('system.pvBriefTitle', 'Complete your brief')}
+          subtitle={t(
+            'system.pvBriefBody',
+            'Answer a few quick questions so the artist can start production.',
+          )}
+          primaryAction={{
+            label: t('system.pvBriefCta', 'Complete brief'),
+            variant: 'primary',
+            onClick: () => {
+              try {
+                router.push(target);
+              } catch {
+                try {
+                  if (typeof window !== 'undefined') window.location.href = target;
+                } catch {}
+              }
+            },
+          }}
         />
       );
     }

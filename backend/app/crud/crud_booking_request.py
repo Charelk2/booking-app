@@ -438,7 +438,11 @@ def get_booking_requests_with_last_message(
         if is_pv and preview_message is not None:
             text = (preview_message.content or "").strip()
             low = text.lower()
-            if low.startswith("payment received"):
+            sk = (getattr(preview_message, "system_key", None) or "").strip().lower()
+            if sk.startswith("pv_brief_prompt") or low.startswith("complete your brief"):
+                preview = "Complete brief"
+                preview_key = "pv_brief_prompt"
+            elif low.startswith("payment received"):
                 m = re.search(r"order\s*#\s*([A-Za-z0-9\-]+)", text, flags=re.IGNORECASE)
                 order = f" — order #{m.group(1)}" if m else ""
                 preview = f"Payment received{order} · View receipt"
@@ -456,6 +460,8 @@ def get_booking_requests_with_last_message(
             sk = (meta_msg.system_key or "").strip().lower()
             if sk.startswith("booking_details"):
                 preview_key = preview_key or "new_booking_request"
+            elif sk.startswith("pv_brief_prompt"):
+                preview_key = preview_key or "pv_brief_prompt"
             elif sk.startswith("payment_received") or sk == "payment_received":
                 preview_key = "payment_received"
             elif sk.startswith("event_reminder"):
