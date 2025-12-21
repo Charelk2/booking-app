@@ -304,10 +304,7 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
       ? nowYear - memberSince
       : null;
   
-  const isVerified =
-    profile.verifications.email_verified ||
-    profile.verifications.phone_verified ||
-    profile.verifications.payment_verified;
+  const isVerified = Boolean(profile.verifications.email_verified);
 
   return (
     <main className="py-12 md:py-16">
@@ -368,9 +365,10 @@ function SimpleClientProfile({ clientId }: { clientId: number }) {
                 <div className="flex items-start space-x-4">
                   <ShieldCheck className="w-6 h-6 text-gray-900 mt-0.5" />
                   <div>
-                    <h3 className="text-base font-bold text-gray-900">Identity verified</h3>
+                    <h3 className="text-base font-bold text-gray-900">Verification</h3>
                     <p className="text-gray-500 text-sm mt-0.5">
-                      {firstName} has verified their identity details with Booka.
+                      {firstName}&rsquo;s email is verified. {profile.stats.reviews_count}{' '}
+                      review{profile.stats.reviews_count === 1 ? '' : 's'}.
                     </p>
                   </div>
                 </div>
