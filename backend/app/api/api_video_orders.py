@@ -895,6 +895,7 @@ def update_video_order_status(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Unknown status",
             )
+        prev_status = pv.status
         if pv.status != new_status:
             pv.status = new_status
             now = datetime.utcnow()
@@ -915,15 +916,138 @@ def update_video_order_status(
         db.add(br)
         db.commit()
         db.refresh(br)
+
+        # Brief submitted: client moves PV into production after completing brief.
+        # Emit a system line + in-app notification to the provider (PV chats suppress generic system notifications).
+        try:
+            status_changed = prev_status != new_status
+            if status_changed and role == "client" and new_status == PvStatus.IN_PRODUCTION:
+                sys_key = "pv_brief_completed_v1"
+                existing = (
+                    db.query(models.Message)
+                    .filter(models.Message.booking_request_id == br.id)
+                    .filter(models.Message.system_key == sys_key)
+                    .order_by(models.Message.timestamp.asc())
+                    .first()
+                )
+                brief_msg: models.Message | None = None
+                if existing is None:
+                    brief_url = f"/video-orders/{br.id}/brief"
+                    brief_msg = crud_message.create_message(
+                        db=db,
+                        booking_request_id=br.id,
+                        sender_id=current_user.id,
+                        sender_type=SenderType.CLIENT,
+                        content=f"Brief completed. View brief: {brief_url}",
+                        message_type=MessageType.SYSTEM,
+                        visible_to=VisibleTo.BOTH,
+                        system_key=sys_key,
+                    )
+                else:
+                    brief_msg = existing
+
+                if brief_msg is not None:
+                    try:
+                        artist_user = (
+                            db.query(models.User)
+                            .filter(models.User.id == br.artist_id)
+                            .first()
+                        )
+                        if artist_user:
+                            notify_user_new_message(
+                                db=db,
+                                user=artist_user,
+                                sender=current_user,
+                                booking_request_id=int(br.id),
+                                content=str(getattr(brief_msg, "content", "") or ""),
+                                message_type=MessageType.SYSTEM,
+                                message_id=int(getattr(brief_msg, "id", 0) or 0) or None,
+                            )
+                    except Exception:
+                        pass
+                    try:
+                        _broadcast_thread_message(db, int(br.id), brief_msg)
+                    except Exception:
+                        pass
+                    try:
+                        invalidate_preview_cache_for_user(int(br.client_id))
+                        invalidate_preview_cache_for_user(int(br.artist_id))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
         return _to_video_order_response(br)
 
     pv = _pv_state_from_extras(br)
+    prev_status = str(pv.get("status", "") or "").strip().lower()
     pv["status"] = payload.status
     _write_pv_extras(br, pv)
     br.status = _map_status_to_booking(payload.status)
     db.add(br)
     db.commit()
     db.refresh(br)
+
+    # Legacy PV: emit the same brief-completed system line + provider notification.
+    try:
+        next_status = str(payload.status or "").strip().lower()
+        status_changed = prev_status != next_status
+        if status_changed and br.client_id == current_user.id and next_status == "in_production":
+            sys_key = "pv_brief_completed_v1"
+            existing = (
+                db.query(models.Message)
+                .filter(models.Message.booking_request_id == br.id)
+                .filter(models.Message.system_key == sys_key)
+                .order_by(models.Message.timestamp.asc())
+                .first()
+            )
+            brief_msg: models.Message | None = None
+            if existing is None:
+                brief_url = f"/video-orders/{br.id}/brief"
+                brief_msg = crud_message.create_message(
+                    db=db,
+                    booking_request_id=br.id,
+                    sender_id=current_user.id,
+                    sender_type=SenderType.CLIENT,
+                    content=f"Brief completed. View brief: {brief_url}",
+                    message_type=MessageType.SYSTEM,
+                    visible_to=VisibleTo.BOTH,
+                    system_key=sys_key,
+                )
+            else:
+                brief_msg = existing
+
+            if brief_msg is not None:
+                try:
+                    artist_user = (
+                        db.query(models.User)
+                        .filter(models.User.id == br.artist_id)
+                        .first()
+                    )
+                    if artist_user:
+                        notify_user_new_message(
+                            db=db,
+                            user=artist_user,
+                            sender=current_user,
+                            booking_request_id=int(br.id),
+                            content=str(getattr(brief_msg, "content", "") or ""),
+                            message_type=MessageType.SYSTEM,
+                            message_id=int(getattr(brief_msg, "id", 0) or 0) or None,
+                        )
+                except Exception:
+                    pass
+                try:
+                    _broadcast_thread_message(db, int(br.id), brief_msg)
+                except Exception:
+                    pass
+                try:
+                    invalidate_preview_cache_for_user(int(br.client_id))
+                    invalidate_preview_cache_for_user(int(br.artist_id))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
     return _to_video_order_response(br)
 
 

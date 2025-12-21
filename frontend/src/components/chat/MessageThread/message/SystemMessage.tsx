@@ -42,8 +42,8 @@ export default function SystemMessage({
   canCreateQuote = false,
   viewerIsThreadClient = false,
 }: SystemMessageProps) {
+  const router = useRouter();
   try {
-    const router = useRouter();
     const { user } = useAuth() || {} as any;
     const key = String((msg?.system_key || msg?.action || '')).toLowerCase();
     const content = String(msg?.content || '');

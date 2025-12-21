@@ -805,26 +805,22 @@ export function createPersonalizedVideoEngineCore(
       await env.api.updateStatus(id, "in_production");
 
       try {
-        const tid =
-          env.storage.getThreadIdForOrder(id) || (env.enablePvOrders ? String(id) : null);
-        if (tid) {
-          const briefUrl = `/video-orders/${id}/brief`;
-          await env.api.postThreadMessage(
-            tid,
-            `Brief complete for order #${id}. Ready to start production. View brief: ${briefUrl}`,
-          );
-          env.storage.markBriefComplete(id);
-          env.ui.toastSuccess(
-            "Brief submitted. The artist has been notified.",
-          );
-          env.ui.navigateToInbox(tid);
-          return;
-        }
+        env.storage.markBriefComplete(id);
       } catch {
         // best-effort
       }
 
-      env.ui.toastSuccess("Brief submitted.");
+      env.ui.toastSuccess("Brief submitted. The artist has been notified.");
+      try {
+        const tid =
+          env.storage.getThreadIdForOrder(id) || (env.enablePvOrders ? String(id) : null);
+        if (tid) {
+          env.ui.navigateToInbox(tid);
+          return;
+        }
+      } catch {
+        // ignore
+      }
       env.ui.navigateToInbox();
     },
   };

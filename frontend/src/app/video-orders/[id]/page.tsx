@@ -7,6 +7,7 @@ import { Spinner } from "@/components/ui";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { videoOrderApiClient, type VideoOrder } from "@/features/booking/personalizedVideo/engine/apiClient";
+import VideoOrderStatusTimeline from "@/features/booking/personalizedVideo/ui/VideoOrderStatusTimeline";
 
 const ENABLE_PV_ORDERS =
   (process.env.NEXT_PUBLIC_ENABLE_PV_ORDERS ?? "") === "1";
@@ -92,6 +93,13 @@ export default function VideoOrderPage() {
               <div className="mt-4 text-xs text-gray-500">
                 Status:{" "}
                 <span className="font-semibold">{status.replace(/_/g, " ")}</span>
+              </div>
+
+              <div className="mt-4">
+                <VideoOrderStatusTimeline
+                  status={status}
+                  deliveryByUtc={order.delivery_by_utc}
+                />
               </div>
 
               <div className="mt-6 flex flex-col gap-2">
