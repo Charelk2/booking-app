@@ -1113,6 +1113,8 @@ def deliver_video_order(
     prev_status = pv.status
     prev_delivery_url = pv.delivery_url
     prev_attachment_url = pv.delivery_attachment_url
+    prev_delivered_at = pv.delivered_at_utc
+    prev_auto_complete_at = pv.auto_complete_at_utc
     now = datetime.utcnow()
     status_raw = str(getattr(pv.status, "value", pv.status) or "").strip().lower()
     if status_raw == PvStatus.PAID.value:
@@ -1126,14 +1128,28 @@ def deliver_video_order(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status transition")
     if pv.status != PvStatus.DELIVERED:
         pv.status = PvStatus.DELIVERED
-    pv.delivered_at_utc = pv.delivered_at_utc or now
 
-    hours = int(body.auto_complete_hours or 72)
-    if hours < 1:
-        hours = 1
-    if hours > 168:
-        hours = 168
-    pv.auto_complete_at_utc = pv.auto_complete_at_utc or (now + timedelta(hours=hours))
+    # Resolve the auto-complete horizon (hours) for this delivery.
+    # Prefer an explicit payload value; otherwise preserve the previously-stored horizon length.
+    horizon_hours: int | None = None
+    try:
+        if body.auto_complete_hours is not None:
+            horizon_hours = int(body.auto_complete_hours)
+    except Exception:
+        horizon_hours = None
+    if horizon_hours is None:
+        try:
+            if prev_auto_complete_at and prev_delivered_at and prev_auto_complete_at > prev_delivered_at:
+                delta = (prev_auto_complete_at - prev_delivered_at).total_seconds() / 3600
+                horizon_hours = int(round(delta))
+        except Exception:
+            horizon_hours = None
+    if horizon_hours is None:
+        horizon_hours = 72
+    if horizon_hours < 1:
+        horizon_hours = 1
+    if horizon_hours > 168:
+        horizon_hours = 168
 
     try:
         fields_set = set(getattr(body, "model_fields_set", set()) or set())
@@ -1169,6 +1185,15 @@ def deliver_video_order(
 
     delivery_changed = pv.delivery_url != prev_delivery_url or pv.delivery_attachment_url != prev_attachment_url
 
+    # Treat first delivery and any subsequent delivery update as a new "delivery event".
+    # This resets the review window and prevents auto-completion from firing while revisions are in flight.
+    if first_delivery or delivery_changed:
+        pv.delivered_at_utc = now
+        pv.auto_complete_at_utc = now + timedelta(hours=horizon_hours)
+    else:
+        pv.delivered_at_utc = pv.delivered_at_utc or now
+        pv.auto_complete_at_utc = pv.auto_complete_at_utc or (pv.delivered_at_utc + timedelta(hours=horizon_hours))
+
     save_pv_payload(br, pv)
     br.status = _map_status_to_booking(PvStatus.DELIVERED.value)
     db.add(br)
@@ -1201,6 +1226,34 @@ def deliver_video_order(
                 attachment_url=pv.delivery_attachment_url,
                 attachment_meta=pv.delivery_attachment_meta if isinstance(pv.delivery_attachment_meta, dict) else None,
             )
+        except Exception:
+            pass
+
+    # Client-facing system card anchor for delivery (enables "Report a problem" from chat).
+    # We keep this separate from the delivery USER message so we can render richer UI without
+    # sending extra push/toast notifications.
+    if first_delivery:
+        try:
+            sys_key = "pv_delivered_v1"
+            existing = (
+                db.query(models.Message)
+                .filter(models.Message.booking_request_id == br.id)
+                .filter(models.Message.system_key == sys_key)
+                .order_by(models.Message.timestamp.asc())
+                .first()
+            )
+            if existing is None:
+                deliver_url = f"/video-orders/{br.id}/deliver"
+                crud_message.create_message(
+                    db=db,
+                    booking_request_id=br.id,
+                    sender_id=current_user.id,
+                    sender_type=SenderType.ARTIST,
+                    content=f"Personalised video delivered. View: {deliver_url}",
+                    message_type=MessageType.SYSTEM,
+                    visible_to=VisibleTo.CLIENT,
+                    system_key=sys_key,
+                )
         except Exception:
             pass
     if delivery_msg is not None:
@@ -1563,6 +1616,94 @@ def complete_video_order(
             invalidate_preview_cache_for_user(int(br.artist_id))
         except Exception:
             pass
+
+    # Review prompts (best-effort): post the usual review invite system messages and
+    # emit an in-app notification for the client once a canonical Booking exists.
+    try:
+        booking_id_for_review: int | None = None
+        try:
+            booking_id_for_review = int(getattr(booking_row, "id", 0) or 0) if booking_row else None
+            if booking_id_for_review and booking_id_for_review <= 0:
+                booking_id_for_review = None
+        except Exception:
+            booking_id_for_review = None
+
+        # Review invite for the client (if not already present)
+        existing_invite = (
+            db.query(models.Message)
+            .filter(
+                models.Message.booking_request_id == int(br.id),
+                models.Message.message_type == models.MessageType.SYSTEM,
+                models.Message.system_key == "review_invite_client_v1",
+            )
+            .first()
+        )
+        if not existing_invite:
+            provider_profile = (
+                db.query(models.ServiceProviderProfile)
+                .filter(models.ServiceProviderProfile.user_id == int(br.artist_id))
+                .first()
+            )
+            provider_name = (
+                (provider_profile.business_name or "").strip()
+                if provider_profile and provider_profile.business_name
+                else ""
+            )
+            invite_content = (
+                f"How was your personalised video with {provider_name or 'your service provider'}? "
+                "Leave a rating and short review to help others book with confidence."
+            )
+            crud_message.create_message(
+                db=db,
+                booking_request_id=int(br.id),
+                sender_id=int(br.artist_id),
+                sender_type=SenderType.ARTIST,
+                content=invite_content,
+                message_type=MessageType.SYSTEM,
+                visible_to=VisibleTo.CLIENT,
+                system_key="review_invite_client_v1",
+            )
+
+        # Review invite for provider (review the client)
+        existing_provider_invite = (
+            db.query(models.Message)
+            .filter(
+                models.Message.booking_request_id == int(br.id),
+                models.Message.message_type == models.MessageType.SYSTEM,
+                models.Message.system_key == "review_invite_provider_v1",
+            )
+            .first()
+        )
+        if not existing_provider_invite:
+            client = db.query(models.User).filter(models.User.id == int(br.client_id)).first()
+            client_label = (
+                f"{client.first_name} {client.last_name}".strip()
+                if client
+                else "this client"
+            )
+            provider_invite_content = (
+                f"How was your experience with {client_label}? "
+                "Share a short review to help you and other providers identify reliable clients."
+            )
+            crud_message.create_message(
+                db=db,
+                booking_request_id=int(br.id),
+                sender_id=int(br.artist_id),
+                sender_type=SenderType.ARTIST,
+                content=provider_invite_content,
+                message_type=MessageType.SYSTEM,
+                visible_to=VisibleTo.ARTIST,
+                system_key="review_invite_provider_v1",
+            )
+
+        # In-app review request notification for the client
+        if booking_id_for_review:
+            from ..utils.notifications import notify_review_request  # noqa: WPS433
+
+            client_user = db.query(models.User).filter(models.User.id == int(br.client_id)).first()
+            notify_review_request(db, client_user, int(booking_id_for_review))
+    except Exception:
+        pass
 
     return _to_video_order_response(br)
 

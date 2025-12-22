@@ -21,6 +21,8 @@ export default function VideoOrderPage() {
   const [loading, setLoading] = React.useState(true);
   const [order, setOrder] = React.useState<VideoOrder | null>(null);
   const [threadId, setThreadId] = React.useState<string | number | null>(null);
+  const [cancelSubmitting, setCancelSubmitting] = React.useState(false);
+  const [cancelError, setCancelError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!id || Number.isNaN(id)) return;
@@ -69,6 +71,9 @@ export default function VideoOrderPage() {
   const inProduction = status === "in_production";
   const delivered = status === "delivered";
   const completed = status === "completed" || status === "closed";
+  const cancelled = status === "cancelled" || status === "canceled";
+  const refunded = status === "refunded";
+  const inDispute = status === "in_dispute";
 
   const viewerIsProvider = !authLoading && user?.user_type === "service_provider";
   const viewerReady = !authLoading && !!user;
@@ -102,13 +107,68 @@ export default function VideoOrderPage() {
                 />
               </div>
 
+              {cancelError ? (
+                <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                  {cancelError}
+                </div>
+              ) : null}
+
+              {cancelled ? (
+                <div className="mt-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+                  This order was cancelled.
+                </div>
+              ) : null}
+
+              {refunded ? (
+                <div className="mt-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+                  This order was refunded.
+                </div>
+              ) : null}
+
+              {inDispute ? (
+                <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                  A dispute is open for this order. Our team will review the details.
+                </div>
+              ) : null}
+
               <div className="mt-6 flex flex-col gap-2">
                 {needsPayment && (
                   <Button
                     className="w-full"
                     onClick={() => router.push(`/video-orders/${id}/pay`)}
+                    disabled={cancelSubmitting}
                   >
                     Complete payment
+                  </Button>
+                )}
+                {needsPayment && !viewerIsProvider && (
+                  <Button
+                    className="w-full"
+                    variant="secondary"
+                    disabled={cancelSubmitting}
+                    onClick={async () => {
+                      if (typeof window !== "undefined") {
+                        const ok = window.confirm("Cancel this order?");
+                        if (!ok) return;
+                      }
+                      setCancelSubmitting(true);
+                      setCancelError(null);
+                      try {
+                        await videoOrderApiClient.updateStatus(id, "cancelled");
+                        const refreshed = await videoOrderApiClient.getOrder(id);
+                        if (refreshed) {
+                          setOrder(refreshed);
+                        } else {
+                          setCancelError("Unable to cancel order. Please try again.");
+                        }
+                      } catch {
+                        setCancelError("Unable to cancel order. Please try again.");
+                      } finally {
+                        setCancelSubmitting(false);
+                      }
+                    }}
+                  >
+                    {cancelSubmitting ? "Cancelling…" : "Cancel order"}
                   </Button>
                 )}
                 {needsBrief && (

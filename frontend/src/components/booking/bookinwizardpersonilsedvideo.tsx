@@ -19,6 +19,7 @@ import {
   usePersonalizedVideoOrderEngine as usePvEngine,
   BRIEF_QUESTIONS,
 } from "@/features/booking/personalizedVideo/engine/engine";
+import { videoOrderApiClient } from "@/features/booking/personalizedVideo/engine/apiClient";
 import type { PvLengthChoice } from "@/features/booking/personalizedVideo/serviceMapping";
 type LengthChoice = "30_45" | "60_90";
 const ENABLE_PV_ORDERS =
@@ -425,6 +426,7 @@ export default function BookinWizardPersonilsedVideo({
 // =============================================================================
 
 export function VideoPaymentPage({ orderId }: { orderId: number }) {
+  const router = useRouter();
   const { state, actions } = usePvEngine({
     artistId: 0,
     basePriceZar: 0,
@@ -436,6 +438,7 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
   const { reloadOrderSummary, applyPromoCode, startPayment } = actions;
   const [promoCode, setPromoCode] = React.useState("");
   const [promoStatus, setPromoStatus] = React.useState<"idle" | "applied" | "error">("idle");
+  const [cancelSubmitting, setCancelSubmitting] = React.useState(false);
 
   const isInitialLoading = payment.loading && !orderSummary;
   if (isInitialLoading) {
@@ -464,6 +467,10 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
   }
 
   const canPaystack = payment.canPay;
+  const orderStatus = String(orderSummary.status || "").toLowerCase();
+  const isAwaitingPayment = orderStatus === "awaiting_payment" || orderStatus === "draft";
+  const isCancelled = orderStatus === "cancelled" || orderStatus === "canceled";
+  const isRefunded = orderStatus === "refunded";
   const clientTotal =
     typeof orderSummary.clientTotalInclVat === "number" &&
     Number.isFinite(orderSummary.clientTotalInclVat) &&
@@ -472,11 +479,9 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
       : null;
   const totalToPay =
     ENABLE_PV_ORDERS && clientTotal !== null ? clientTotal : orderSummary.total;
-  const canStartPayment = canPaystack || !ENABLE_PV_ORDERS;
+  const canStartPayment = (canPaystack || !ENABLE_PV_ORDERS) && isAwaitingPayment;
   const canApplyPromo =
-    (String(orderSummary.status || "").toLowerCase() === "awaiting_payment" ||
-      String(orderSummary.status || "").toLowerCase() === "draft") &&
-    !payment.loading;
+    isAwaitingPayment && !payment.loading;
 
   return (
     <div className="min-h-[100dvh] px-4 py-8 sm:py-12">
@@ -557,6 +562,16 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
             </div>
           </div>
 
+          {!isAwaitingPayment ? (
+            <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
+              {isCancelled
+                ? "This order was cancelled."
+                : isRefunded
+                ? "This order was refunded."
+                : "Payment has already been processed for this order."}
+            </div>
+          ) : null}
+
           <div className="mt-6">
             <div className="rounded-xl border border-gray-200 bg-white p-4">
               <div className="flex items-end gap-3">
@@ -597,7 +612,7 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
             <Button
               onClick={startPayment}
               variant={canStartPayment ? "primary" : "secondary"}
-              disabled={!canStartPayment || payment.loading}
+              disabled={!canStartPayment || payment.loading || cancelSubmitting}
               className="w-full h-11 text-base"
             >
               {canPaystack
@@ -608,6 +623,34 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
               {formatCurrency(totalToPay)}
             </Button>
           </div>
+
+          {ENABLE_PV_ORDERS && isAwaitingPayment ? (
+            <div className="mt-3">
+              <Button
+                variant="secondary"
+                className="w-full h-11"
+                disabled={cancelSubmitting || payment.loading}
+                onClick={async () => {
+                  if (typeof window !== "undefined") {
+                    const ok = window.confirm("Cancel this order?");
+                    if (!ok) return;
+                  }
+                  setCancelSubmitting(true);
+                  try {
+                    await videoOrderApiClient.updateStatus(orderId, "cancelled");
+                    router.push(`/inbox?requestId=${orderId}`);
+                  } catch {
+                    // keep on page; reload will surface state
+                    await reloadOrderSummary();
+                  } finally {
+                    setCancelSubmitting(false);
+                  }
+                }}
+              >
+                {cancelSubmitting ? "Cancelling…" : "Cancel order"}
+              </Button>
+            </div>
+          ) : null}
 
           {payment.error && promoStatus !== "error" && (
             <div className="mt-3 text-xs font-medium text-red-600">{payment.error}</div>

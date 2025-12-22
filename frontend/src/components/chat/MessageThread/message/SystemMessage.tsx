@@ -444,6 +444,51 @@ export default function SystemMessage({
       );
     }
 
+    // PV: delivery card (client-only)
+    if (key.startsWith('pv_delivered')) {
+      if (!isThreadClient) return null;
+      const deliverMatch = content.match(/\/video-orders\/\d+\/deliver/i)?.[0] || null;
+      const href = deliverMatch ? deliverMatch.replace(/https?:\/\/[^\s]+/i, '') : null;
+      const target = href || '/inbox';
+      return (
+        <SystemCard
+          icon="V"
+          tone="neutral"
+          title={t('system.pvDeliveredTitle', 'Video delivered')}
+          subtitle={t(
+            'system.pvDeliveredBody',
+            'View your video, request a revision if needed, or report a problem.',
+          )}
+          primaryAction={{
+            label: t('system.pvDeliveredCta', 'View delivery'),
+            variant: 'primary',
+            onClick: () => {
+              try {
+                router.push(target);
+              } catch {
+                try {
+                  if (typeof window !== 'undefined') window.location.href = target;
+                } catch {}
+              }
+            },
+          }}
+          secondaryAction={
+            onReportProblemFromSystem
+              ? {
+                  label: t('system.reportProblem', 'Report a problem'),
+                  variant: 'secondary',
+                  onClick: () => {
+                    try {
+                      onReportProblemFromSystem?.();
+                    } catch {}
+                  },
+                }
+              : undefined
+          }
+        />
+      );
+    }
+
     // Payment received
     if (key.includes('payment_received') || content.toLowerCase().includes('payment received')) {
       // Extract a receipt link from the content. Prefer absolute; fall back to

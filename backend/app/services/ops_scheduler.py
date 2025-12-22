@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -615,7 +615,20 @@ def handle_pv_auto_completion(db: Session) -> dict:
     from ..services.pv_orders import load_pv_payload, save_pv_payload
 
     now = datetime.utcnow()
-    results = {"pv_auto_completed": 0, "pv_skipped_due_to_dispute": 0}
+    results = {"pv_auto_completed": 0, "pv_skipped_due_to_dispute": 0, "pv_skipped_due_to_revision": 0}
+
+    def _parse_iso_ts(value: object) -> datetime | None:
+        raw = str(value or "").strip()
+        if not raw:
+            return None
+        try:
+            # Support Zulu timestamps and timezone-aware inputs; normalize to naive UTC.
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt
+        except Exception:
+            return None
 
     q = db.query(models.BookingRequest).order_by(models.BookingRequest.id.asc())
     try:
@@ -640,6 +653,30 @@ def handle_pv_auto_completion(db: Session) -> dict:
         if pv.auto_complete_at_utc is None or pv.auto_complete_at_utc > now:
             continue
         if not pv.booking_simple_id:
+            continue
+
+        # If the client has requested a revision after the last delivery, do not auto-complete.
+        # We treat "latest revision request > delivered_at_utc" as an unresolved revision.
+        delivered_at = getattr(pv, "delivered_at_utc", None)
+        try:
+            if delivered_at is not None and getattr(delivered_at, "tzinfo", None) is not None:
+                delivered_at = delivered_at.astimezone(timezone.utc).replace(tzinfo=None)
+        except Exception:
+            pass
+        latest_revision_at: datetime | None = None
+        try:
+            for r in (getattr(pv, "revision_requests", None) or []):
+                if not isinstance(r, dict):
+                    continue
+                ts = _parse_iso_ts(r.get("requested_at_utc"))
+                if ts is None:
+                    continue
+                if latest_revision_at is None or ts > latest_revision_at:
+                    latest_revision_at = ts
+        except Exception:
+            latest_revision_at = None
+        if latest_revision_at is not None and (delivered_at is None or latest_revision_at > delivered_at):
+            results["pv_skipped_due_to_revision"] += 1
             continue
 
         simple_id = int(pv.booking_simple_id)
@@ -752,6 +789,62 @@ def handle_pv_auto_completion(db: Session) -> dict:
                 visible_to=models.VisibleTo.BOTH,
                 system_key="pv_auto_completed_v1",
             )
+        except Exception:
+            pass
+
+        # Review prompts (best-effort): align PV completion with the normal review flow.
+        try:
+            booking_id = int(getattr(booking, "id", 0) or 0) if booking else 0
+            if booking_id > 0:
+                provider_profile = (
+                    db.query(models.ServiceProviderProfile)
+                    .filter(models.ServiceProviderProfile.user_id == int(br.artist_id))
+                    .first()
+                )
+                provider_name = (
+                    (provider_profile.business_name or "").strip()
+                    if provider_profile and provider_profile.business_name
+                    else ""
+                )
+                crud_message.create_message(
+                    db=db,
+                    booking_request_id=int(br.id),
+                    sender_id=int(br.artist_id),
+                    sender_type=models.SenderType.ARTIST,
+                    content=(
+                        f"How was your personalised video with {provider_name or 'your service provider'}? "
+                        "Leave a rating and short review to help others book with confidence."
+                    ),
+                    message_type=models.MessageType.SYSTEM,
+                    visible_to=models.VisibleTo.CLIENT,
+                    system_key="review_invite_client_v1",
+                )
+                client = (
+                    db.query(models.User)
+                    .filter(models.User.id == int(br.client_id))
+                    .first()
+                )
+                client_label = (
+                    f"{client.first_name} {client.last_name}".strip()
+                    if client
+                    else "this client"
+                )
+                crud_message.create_message(
+                    db=db,
+                    booking_request_id=int(br.id),
+                    sender_id=int(br.artist_id),
+                    sender_type=models.SenderType.ARTIST,
+                    content=(
+                        f"How was your experience with {client_label}? "
+                        "Share a short review to help you and other providers identify reliable clients."
+                    ),
+                    message_type=models.MessageType.SYSTEM,
+                    visible_to=models.VisibleTo.ARTIST,
+                    system_key="review_invite_provider_v1",
+                )
+                from ..utils.notifications import notify_review_request  # noqa: WPS433
+
+                notify_review_request(db, client, int(booking_id))
         except Exception:
             pass
 

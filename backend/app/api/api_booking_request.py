@@ -766,6 +766,31 @@ def report_problem_for_request(
     db.commit()
     db.refresh(dispute)
 
+    # If this is a PV order, also reflect the dispute in the PV state machine so UI
+    # surfaces (timeline/status) can show "in dispute" without relying on admin tables.
+    if booking_simple is not None:
+        try:
+            from ..services.pv_orders import load_pv_payload, save_pv_payload  # noqa: WPS433
+            from ..schemas.pv import PvStatus  # noqa: WPS433
+
+            pv = load_pv_payload(db_request)
+            if pv.status not in {
+                PvStatus.AWAITING_PAYMENT,
+                PvStatus.CANCELLED,
+                PvStatus.REFUNDED,
+                PvStatus.COMPLETED,
+            }:
+                pv.status = PvStatus.IN_DISPUTE
+                save_pv_payload(db_request, pv)
+                db.add(db_request)
+                db.commit()
+                db.refresh(db_request)
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
     # Emit a system message into the thread so both parties see that a dispute
     # is open; admins consume the disputes table via api_admin.
     sender_type = (
