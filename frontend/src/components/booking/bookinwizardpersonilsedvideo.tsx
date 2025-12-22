@@ -67,7 +67,7 @@ export default function BookinWizardPersonilsedVideo({
   isOpen,
   onClose,
   basePriceZar = 850,
-  addOnLongZar = 250,
+  addOnLongZar = 0,
   serviceId,
   defaultLengthChoice,
   supportedLanguages,
@@ -142,10 +142,6 @@ export default function BookinWizardPersonilsedVideo({
 
     const notice = Number.isFinite(minNoticeDays) ? Math.max(0, Math.trunc(minNoticeDays)) : 1;
     chips.push(`Delivery from ${notice} day${notice === 1 ? "" : "s"}`);
-
-    if (addOnLongZar > 0) {
-      chips.push(`Long video + ${formatCurrency(addOnLongZar)}`);
-    }
 
     if (rushCustomEnabled && rushFeeZar > 0 && rushWithinDays > 0) {
       const within = Math.max(0, Math.trunc(rushWithinDays));
@@ -277,13 +273,10 @@ export default function BookinWizardPersonilsedVideo({
                               v: "30_45" as LengthChoice,
                               l: "30–45s",
                               badge: "Most popular",
-                              priceLabel: "Standard",
                             },
                             {
                               v: "60_90" as LengthChoice,
                               l: "60–90s",
-                              priceLabel:
-                                addOnLongZar > 0 ? `+ ${formatCurrency(addOnLongZar)}` : "No extra cost",
                             },
                           ].map((opt) => {
                             const active = form.lengthChoice === opt.v;
@@ -308,11 +301,8 @@ export default function BookinWizardPersonilsedVideo({
                                         <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-semibold text-white">
                                           {opt.badge}
                                         </span>
-                                      ) : null}
+                                  ) : null}
                                     </div>
-                                  </div>
-                                  <div className="shrink-0 text-xs font-semibold text-gray-700">
-                                    {opt.priceLabel}
                                   </div>
                                 </div>
                               </button>
@@ -379,7 +369,6 @@ export default function BookinWizardPersonilsedVideo({
                     </div>
                     <div className="mt-1 text-[11px] text-gray-500">
                       Base {formatCurrency(pricing.basePriceZar)}
-                      {pricing.priceAddOn > 0 ? ` • Length ${formatCurrency(pricing.priceAddOn)}` : ""}
                       {pricing.rushFee > 0 ? ` • Rush ${formatCurrency(pricing.rushFee)}` : ""}
                       {pricing.discount > 0 ? ` • Discount −${formatCurrency(pricing.discount)}` : ""}
                     </div>
@@ -516,14 +505,6 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
                   {formatCurrency(orderSummary.priceBase)}
                 </span>
               </div>
-              {orderSummary.priceAddons > 0 && (
-                <div className="mt-2 flex justify-between gap-3">
-                  <span className="text-gray-500">Length add-on</span>
-                  <span className="font-medium text-gray-900">
-                    {formatCurrency(orderSummary.priceAddons)}
-                  </span>
-                </div>
-              )}
               {orderSummary.priceRush > 0 && (
                 <div className="mt-2 flex justify-between gap-3">
                   <span className="text-gray-500">Rush</span>

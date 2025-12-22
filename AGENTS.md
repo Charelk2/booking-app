@@ -144,7 +144,7 @@ and cache hygiene), see [docs/CHAT_SPEED_PLAYBOOK.md](docs/CHAT_SPEED_PLAYBOOK.m
       - `env.ui` to Next.js router + Toasts.
       - `env.payments` to the Paystack inline script (or demo mode when not configured).
   - The Personalized Video flow is now the reference implementation for “engine‑driven” booking flows on the frontend.
-  - Personalized Video service config (details.base_length_sec, long_addon_price, languages) is authored via the add-service engine (see serviceTypeRegistry) and read into booking via `fromServiceToPvBookingConfig(...)`.
+  - Personalized Video service config (details.base_length_sec, languages, min_notice_days, max_videos_per_day, rush settings) is authored via the add-service engine (see serviceTypeRegistry) and read into booking via `fromServiceToPvBookingConfig(...)`.
 
 
 ### 12. Availability Agent

@@ -334,62 +334,35 @@ export default function MusicianPersonalizedVideoFlow({
 	                        }}
 	                      />
 
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-gray-800">
-                            Default video length
-                          </label>
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            {(pvConfig.fields.find(
-                              (f) => f.key === "base_length_sec",
-                            )?.options || []).map((opt) => (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                className={clsx(
-                                  "rounded-md border px-3 py-2 text-sm",
-                                  state.typeFields.base_length_sec === opt.value
-                                    ? "border-[var(--brand-color)] bg-[var(--brand-color)]/10"
-                                    : "border-gray-200 hover:border-gray-300",
-                                )}
-                                onClick={() =>
-                                  actions.setTypeField(
-                                    "base_length_sec",
-                                    opt.value,
-                                  )
-                                }
-                              >
-                                {opt.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-	                        <TextInput
-	                          label="Long video add-on price"
-	                          type="number"
-	                          inputMode="numeric"
-	                          min={0}
-	                          step={1}
-	                          value={state.typeFields.long_addon_price ?? ""}
-	                          onWheel={(e) => {
-	                            (e.target as HTMLInputElement).blur();
-	                          }}
-	                          onChange={(e) =>
-	                            actions.setTypeField(
-	                              "long_addon_price",
-	                              (() => {
-	                                const raw = e.target.value;
-	                                return raw === "" ? "" : Number(raw);
-	                              })(),
-	                            )
-	                          }
-	                          onBlur={(e) => {
-	                            const raw = e.target.value;
-	                            if (raw === "") actions.setTypeField("long_addon_price", 0);
-	                          }}
-	                        />
-                      </div>
+	                      <div className="space-y-2">
+	                        <label className="text-sm font-medium text-gray-800">
+	                          Default video length
+	                        </label>
+	                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+	                          {(pvConfig.fields.find(
+	                            (f) => f.key === "base_length_sec",
+	                          )?.options || []).map((opt) => (
+	                            <button
+	                              key={opt.value}
+	                              type="button"
+	                              className={clsx(
+	                                "rounded-md border px-3 py-2 text-sm",
+	                                state.typeFields.base_length_sec === opt.value
+	                                  ? "border-[var(--brand-color)] bg-[var(--brand-color)]/10"
+	                                  : "border-gray-200 hover:border-gray-300",
+	                              )}
+	                              onClick={() =>
+	                                actions.setTypeField(
+	                                  "base_length_sec",
+	                                  opt.value,
+	                                )
+	                              }
+	                            >
+	                              {opt.label}
+	                            </button>
+	                          ))}
+	                        </div>
+	                      </div>
 
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-800">

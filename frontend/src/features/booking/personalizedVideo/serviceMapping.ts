@@ -19,7 +19,8 @@ const DEFAULT_LANGS = ["EN", "AF"] as const;
 export function fromServiceToPvBookingConfig(service?: Service | null): PvBookingConfig {
   const details = (service?.details || {}) as Record<string, any>;
   const base = Number(service?.price ?? 0) || 0;
-  const addOn = Number(details.long_addon_price ?? 0) || 0;
+  // Long-video add-ons were removed; pricing is now a single base price.
+  const addOn = 0;
   const baseLengthSec = Number(details.base_length_sec ?? 40) || 40;
   const defaultLengthChoice: PvLengthChoice = baseLengthSec >= 60 ? "60_90" : "30_45";
 

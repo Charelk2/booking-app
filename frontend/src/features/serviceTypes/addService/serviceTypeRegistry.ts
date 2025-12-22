@@ -73,14 +73,6 @@ const personalizedVideoFields: ServiceTypeField[] = [
     defaultValue: "40",
   },
   {
-    key: "long_addon_price",
-    kind: "price",
-    label: "Long video add-on price",
-    helper: "Additional fee when the client chooses a longer video.",
-    required: false,
-    defaultValue: 0,
-  },
-  {
     key: "languages",
     kind: "multi_select",
     label: "Supported languages",
@@ -444,7 +436,6 @@ const personalizedVideoConfig: ServiceTypeConfig = {
   fields: personalizedVideoFields,
   buildPayload(common, typeFields, opts) {
     const baseLengthSec = Number(typeFields.base_length_sec || 40);
-    const longAddonPrice = Number(typeFields.long_addon_price || 0);
     const languages = Array.isArray(typeFields.languages)
       ? typeFields.languages
       : [];
@@ -486,7 +477,6 @@ const personalizedVideoConfig: ServiceTypeConfig = {
 
     const details: Record<string, any> = {
       base_length_sec: baseLengthSec,
-      long_addon_price: longAddonPrice,
       languages,
       min_notice_days: minNoticeDays,
       max_videos_per_day: maxVideosPerDay,

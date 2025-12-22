@@ -261,11 +261,10 @@ def _parse_delivery_dt(delivery_by_utc: str) -> Optional[datetime]:
 def _compute_pv_pricing(svc: Service, payload: VideoOrderCreate) -> dict[str, Any]:
     details = svc.details or {}
     base = Decimal(str(getattr(svc, "price", 0) or 0))
-    long_addon = Decimal(str(details.get("long_addon_price") or 0))
     base_length_sec = int(details.get("base_length_sec") or 40)
     length_sec = int(getattr(payload, "length_sec", None) or base_length_sec or 40)
-    is_long = length_sec >= 60
-    add_on = long_addon if is_long else Decimal("0")
+    # Long-video add-ons were removed; pricing is now a single base price.
+    add_on = Decimal("0")
 
     rush_fee = Decimal("0")
     delivery_dt = _parse_delivery_dt(payload.delivery_by_utc)

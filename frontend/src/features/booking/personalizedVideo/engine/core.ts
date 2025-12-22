@@ -139,7 +139,7 @@ export function createPersonalizedVideoEngineCore(
     pricing: {
       basePriceZar: params.basePriceZar,
       rushFee: 0,
-      addOnLongZar: params.addOnLongZar,
+      addOnLongZar: 0,
       priceAddOn: 0,
       discount: 0,
       total: params.basePriceZar,
@@ -184,8 +184,8 @@ export function createPersonalizedVideoEngineCore(
     const s = getState();
     const { draft } = s;
     const base = s.pricing.basePriceZar;
-    const addOn =
-      draft.lengthChoice === "60_90" ? s.pricing.addOnLongZar : 0;
+    // Long-video add-ons were removed; pricing is now a single base price.
+    const addOn = 0;
 
     let rushFee = 0;
     const daysUntil = draft.deliveryBy ? daysUntilUtc(draft.deliveryBy, env.now()) : null;
@@ -216,8 +216,8 @@ export function createPersonalizedVideoEngineCore(
       pricing: {
         basePriceZar: base,
         rushFee,
-        addOnLongZar: s.pricing.addOnLongZar,
-        priceAddOn: addOn,
+        addOnLongZar: 0,
+        priceAddOn: 0,
         discount,
         total,
         lengthSec,
@@ -395,7 +395,7 @@ export function createPersonalizedVideoEngineCore(
           promo_code: draft.promo || undefined,
           price_base: pricing.basePriceZar,
           price_rush: pricing.rushFee,
-          price_addons: pricing.priceAddOn,
+          price_addons: 0,
           discount: pricing.discount,
           total: pricing.total,
         };

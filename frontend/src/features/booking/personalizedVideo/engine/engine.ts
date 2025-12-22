@@ -93,12 +93,6 @@ export const BRIEF_QUESTIONS: BriefQuestion[] = [
     options: ["English", "Afrikaans"],
   },
   {
-    key: "desired_length",
-    label: "Preferred length",
-    type: "chips",
-    options: ["Short", "Medium (30–45s)", "Long (60s+)"],
-  },
-  {
     key: "reference_assets",
     label: "Optional reference links",
     type: "text",

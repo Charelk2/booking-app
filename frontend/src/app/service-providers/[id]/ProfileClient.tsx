@@ -1172,7 +1172,7 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
           isOpen={isVideoOpen}
           onClose={() => setIsVideoOpen(false)}
           basePriceZar={pvConfig?.basePriceZar ?? 0}
-          addOnLongZar={pvConfig?.addOnLongZar ?? 250}
+          addOnLongZar={pvConfig?.addOnLongZar ?? 0}
           defaultLengthChoice={pvConfig?.defaultLengthChoice ?? "30_45"}
           supportedLanguages={pvConfig?.supportedLanguages}
           defaultLanguage={pvConfig?.defaultLanguage}
