@@ -512,10 +512,23 @@ export default function AddServiceModalSoundService({
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Hero + Gallery</h2>
           <p className="text-sm text-gray-600">First image is the hero. Up to 7 total (1 hero + 6 gallery).</p>
-          <label htmlFor="media-upload" className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center">
-            <p className="text-sm">Media: Drag images here or click to upload</p>
-            <input id="media-upload" aria-label="Media" data-testid="media-input" type="file" accept="image/*" multiple className="sr-only" onChange={(e) => onFileChange(e.target.files)} />
-          </label>
+	          <label
+	            htmlFor="media-upload"
+	            className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center"
+	            onDragOver={(e) => {
+	              e.preventDefault();
+	              e.stopPropagation();
+	              if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+	            }}
+	            onDrop={(e) => {
+	              e.preventDefault();
+	              e.stopPropagation();
+	              onFileChange(e.dataTransfer.files);
+	            }}
+	          >
+	            <p className="text-sm">Media: Drag images here or click to upload</p>
+	            <input id="media-upload" aria-label="Media" data-testid="media-input" type="file" accept="image/*" multiple className="sr-only" onChange={(e) => onFileChange(e.target.files)} />
+	          </label>
           {mediaError && <p className="mt-2 text-sm text-red-600">{mediaError}</p>}
           <div className="mt-2 flex flex-wrap gap-2">
             {existingMediaUrl && (

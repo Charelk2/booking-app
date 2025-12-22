@@ -370,23 +370,43 @@ export default function SoundServiceFlow({
                     </div>
                   )}
 
-                  {step === 1 && (
-                    <div className="space-y-4">
-                      <h2 className="text-xl font-semibold">Media</h2>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-800">
-                          Cover image
-                        </label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => onFileChange(e.target.files)}
-                          className="block w-full text-sm text-gray-600"
-                        />
-                        {mediaError && (
-                          <p className="text-sm text-red-600">{mediaError}</p>
-                        )}
-                      </div>
+	                  {step === 1 && (
+	                    <div className="space-y-4">
+	                      <h2 className="text-xl font-semibold">Media</h2>
+	                      <div className="space-y-2">
+	                        <label className="text-sm font-medium text-gray-800">
+	                          Cover image
+	                        </label>
+	                        <label
+	                          htmlFor="media-upload"
+	                          className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 bg-white p-4 text-center"
+	                          onDragOver={(e) => {
+	                            e.preventDefault();
+	                            e.stopPropagation();
+	                            if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+	                          }}
+	                          onDrop={(e) => {
+	                            e.preventDefault();
+	                            e.stopPropagation();
+	                            onFileChange(e.dataTransfer.files);
+	                          }}
+	                        >
+	                          <p className="text-sm text-gray-700">
+	                            Drag images here or click to upload
+	                          </p>
+	                          <input
+	                            id="media-upload"
+	                            type="file"
+	                            accept="image/*"
+	                            multiple
+	                            className="sr-only"
+	                            onChange={(e) => onFileChange(e.target.files)}
+	                          />
+	                        </label>
+	                        {mediaError && (
+	                          <p className="text-sm text-red-600">{mediaError}</p>
+	                        )}
+	                      </div>
 
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                         {existingMediaUrl && (

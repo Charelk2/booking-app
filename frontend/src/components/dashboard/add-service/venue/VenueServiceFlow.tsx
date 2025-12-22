@@ -815,13 +815,23 @@ export default function VenueServiceFlow({
                       <p className="text-sm text-gray-600">
                         First image is the cover photo. Up to 7 total.
                       </p>
-                      <label
-                        htmlFor="media-upload"
-                        className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center"
-                      >
-                        <p className="text-sm">Drag files here or click to upload</p>
-                        <input
-                          id="media-upload"
+	                      <label
+	                        htmlFor="media-upload"
+	                        className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center"
+	                        onDragOver={(e) => {
+	                          e.preventDefault();
+	                          e.stopPropagation();
+	                          if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+	                        }}
+	                        onDrop={(e) => {
+	                          e.preventDefault();
+	                          e.stopPropagation();
+	                          onFileChange(e.dataTransfer.files);
+	                        }}
+	                      >
+	                        <p className="text-sm">Drag files here or click to upload</p>
+	                        <input
+	                          id="media-upload"
                           aria-label="Media"
                           data-testid="media-input"
                           type="file"
