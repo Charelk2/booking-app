@@ -67,8 +67,8 @@ const personalizedVideoFields: ServiceTypeField[] = [
     helper: "Typical length for this personalised video.",
     required: true,
     options: [
-      { value: "40", label: "~40 seconds" },
-      { value: "75", label: "~75 seconds" },
+      { value: "40", label: "30–45 seconds" },
+      { value: "75", label: "60–90 seconds" },
     ],
     defaultValue: "40",
   },

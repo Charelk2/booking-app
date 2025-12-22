@@ -365,17 +365,30 @@ export default function MusicianPersonalizedVideoFlow({
                           </div>
                         </div>
 
-                        <TextInput
-                          label="Long video add-on price"
-                          type="number"
-                          value={state.typeFields.long_addon_price ?? 0}
-                          onChange={(e) =>
-                            actions.setTypeField(
-                              "long_addon_price",
-                              Number(e.target.value || 0),
-                            )
-                          }
-                        />
+	                        <TextInput
+	                          label="Long video add-on price"
+	                          type="number"
+	                          inputMode="numeric"
+	                          min={0}
+	                          step={1}
+	                          value={state.typeFields.long_addon_price ?? ""}
+	                          onWheel={(e) => {
+	                            (e.target as HTMLInputElement).blur();
+	                          }}
+	                          onChange={(e) =>
+	                            actions.setTypeField(
+	                              "long_addon_price",
+	                              (() => {
+	                                const raw = e.target.value;
+	                                return raw === "" ? "" : Number(raw);
+	                              })(),
+	                            )
+	                          }
+	                          onBlur={(e) => {
+	                            const raw = e.target.value;
+	                            if (raw === "") actions.setTypeField("long_addon_price", 0);
+	                          }}
+	                        />
                       </div>
 
                       <div className="space-y-2">
@@ -416,45 +429,73 @@ export default function MusicianPersonalizedVideoFlow({
 	                        <h3 className="text-sm font-semibold text-gray-900">
 	                          Availability rules
 	                        </h3>
-	                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-	                          <TextInput
-	                            label="Minimum notice (days)"
-	                            type="number"
-	                            value={state.typeFields.min_notice_days ?? 1}
-                            min={0}
-                            onChange={(e) =>
-                              actions.setTypeField(
-                                "min_notice_days",
-                                Number(e.target.value || 0),
-                              )
-                            }
-                          />
-	                          <TextInput
-	                            label="Max videos per day"
-	                            type="number"
-	                            value={state.typeFields.max_videos_per_day ?? 3}
-	                            min={1}
-	                            onChange={(e) =>
-	                              actions.setTypeField(
-	                                "max_videos_per_day",
-	                                Number(e.target.value || 0),
-	                              )
-	                            }
-	                          />
-	                          <TextInput
-	                            label="Included revisions"
-	                            type="number"
-	                            value={state.typeFields.revisions_included ?? 1}
-	                            min={0}
-	                            max={10}
-	                            onChange={(e) =>
-	                              actions.setTypeField(
-	                                "revisions_included",
-	                                Number(e.target.value || 0),
-	                              )
-	                            }
-	                          />
-	                        </div>
+		                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+		                          <TextInput
+		                            label="Minimum notice (days)"
+		                            type="number"
+		                            inputMode="numeric"
+		                            step={1}
+		                            value={state.typeFields.min_notice_days ?? ""}
+		                            min={0}
+		                            onWheel={(e) => {
+		                              // Avoid changing the value when scrolling the modal over number inputs.
+		                              (e.target as HTMLInputElement).blur();
+		                            }}
+		                            onChange={(e) =>
+		                              actions.setTypeField("min_notice_days", (() => {
+		                                const raw = e.target.value;
+		                                return raw === "" ? "" : Number(raw);
+		                              })())
+		                            }
+		                            onBlur={(e) => {
+		                              const raw = e.target.value;
+		                              if (raw === "") actions.setTypeField("min_notice_days", 1);
+		                            }}
+		                          />
+		                          <TextInput
+		                            label="Max videos per day"
+		                            type="number"
+		                            inputMode="numeric"
+		                            step={1}
+		                            value={state.typeFields.max_videos_per_day ?? ""}
+		                            min={1}
+		                            onWheel={(e) => {
+		                              (e.target as HTMLInputElement).blur();
+		                            }}
+		                            onChange={(e) =>
+		                              actions.setTypeField("max_videos_per_day", (() => {
+		                                const raw = e.target.value;
+		                                return raw === "" ? "" : Number(raw);
+		                              })())
+		                            }
+		                            onBlur={(e) => {
+		                              const raw = e.target.value;
+		                              if (raw === "") actions.setTypeField("max_videos_per_day", 3);
+		                            }}
+		                          />
+		                          <TextInput
+		                            label="Included revisions"
+		                            type="number"
+		                            inputMode="numeric"
+		                            step={1}
+		                            value={state.typeFields.revisions_included ?? ""}
+		                            min={0}
+		                            max={10}
+		                            onWheel={(e) => {
+		                              (e.target as HTMLInputElement).blur();
+		                            }}
+		                            onChange={(e) =>
+		                              actions.setTypeField("revisions_included", (() => {
+		                                const raw = e.target.value;
+		                                return raw === "" ? "" : Number(raw);
+		                              })())
+		                            }
+		                            onBlur={(e) => {
+		                              const raw = e.target.value;
+		                              if (raw === "") actions.setTypeField("revisions_included", 1);
+		                            }}
+		                          />
+		                        </div>
 	                        <p className="text-xs text-gray-500">
 	                          We’ll mark a day as unavailable when you reach your max bookings for that day.
 	                        </p>
@@ -478,30 +519,54 @@ export default function MusicianPersonalizedVideoFlow({
 
                         {Boolean(state.typeFields.rush_custom_enabled) ? (
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <TextInput
-                              label="Rush fee (ZAR)"
-                              type="number"
-                              value={state.typeFields.rush_fee_zar ?? 0}
-                              min={0}
-                              onChange={(e) =>
-                                actions.setTypeField(
-                                  "rush_fee_zar",
-                                  Number(e.target.value || 0),
-                                )
-                              }
-                            />
-                            <TextInput
-                              label="Rush applies within (days)"
-                              type="number"
-                              value={state.typeFields.rush_within_days ?? 2}
-                              min={0}
-                              onChange={(e) =>
-                                actions.setTypeField(
-                                  "rush_within_days",
-                                  Number(e.target.value || 0),
-                                )
-                              }
-                            />
+	                            <TextInput
+	                              label="Rush fee (ZAR)"
+	                              type="number"
+	                              inputMode="numeric"
+	                              step={1}
+	                              value={state.typeFields.rush_fee_zar ?? ""}
+	                              min={0}
+	                              onWheel={(e) => {
+	                                (e.target as HTMLInputElement).blur();
+	                              }}
+	                              onChange={(e) =>
+	                                actions.setTypeField(
+	                                  "rush_fee_zar",
+	                                  (() => {
+	                                    const raw = e.target.value;
+	                                    return raw === "" ? "" : Number(raw);
+	                                  })(),
+	                                )
+	                              }
+	                              onBlur={(e) => {
+	                                const raw = e.target.value;
+	                                if (raw === "") actions.setTypeField("rush_fee_zar", 0);
+	                              }}
+	                            />
+	                            <TextInput
+	                              label="Rush applies within (days)"
+	                              type="number"
+	                              inputMode="numeric"
+	                              step={1}
+	                              value={state.typeFields.rush_within_days ?? ""}
+	                              min={0}
+	                              onWheel={(e) => {
+	                                (e.target as HTMLInputElement).blur();
+	                              }}
+	                              onChange={(e) =>
+	                                actions.setTypeField(
+	                                  "rush_within_days",
+	                                  (() => {
+	                                    const raw = e.target.value;
+	                                    return raw === "" ? "" : Number(raw);
+	                                  })(),
+	                                )
+	                              }
+	                              onBlur={(e) => {
+	                                const raw = e.target.value;
+	                                if (raw === "") actions.setTypeField("rush_within_days", 2);
+	                              }}
+	                            />
                           </div>
                         ) : (
                           <p className="text-xs text-gray-500">

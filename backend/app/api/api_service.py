@@ -177,6 +177,10 @@ def list_my_services(db: Session = Depends(get_db), current_artist=Depends(get_c
         db.query(Service)
         .options(joinedload(Service.artist))
         .filter(Service.artist_id == current_artist.id)
+        # Deactivated services are hidden by default. We soft-delete services to
+        # preserve booking/chat history, so "deactivate" should remove the
+        # service from the dashboard list without deleting related records.
+        .filter(getattr(Service, "status", "") != "inactive")
         .order_by(Service.display_order)
         .all()
     )
@@ -381,7 +385,7 @@ def delete_service(
     current_artist=Depends(get_current_service_provider)
 ):
     """
-    Delete a service owned by the currently authenticated artist.
+    Deactivate a service owned by the currently authenticated artist.
     Full path → DELETE /api/v1/services/{service_id}
     """
     service = (
@@ -396,7 +400,13 @@ def delete_service(
             status.HTTP_404_NOT_FOUND,
         )
 
-    db.delete(service)
-    db.commit()
+    # Soft-delete instead of hard delete.
+    # Hard-deleting services can cascade into bookings/requests and break
+    # historical data or violate FK constraints. "Deactivate" should simply
+    # hide the service from public + dashboard listings.
+    if getattr(service, "status", None) != "inactive":
+        service.status = "inactive"
+        db.add(service)
+        db.commit()
     invalidate_artist_list_cache()
     return None
