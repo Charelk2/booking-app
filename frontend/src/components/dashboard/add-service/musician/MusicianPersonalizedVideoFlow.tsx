@@ -317,17 +317,22 @@ export default function MusicianPersonalizedVideoFlow({
                           actions.setCommonField("description", e.target.value)
                         }
                       />
-                      <TextInput
-                        label={`Base Price (${DEFAULT_CURRENCY})`}
-                        type="number"
-                        value={state.common.price}
-                        onChange={(e) =>
-                          actions.setCommonField(
-                            "price",
-                            Number(e.target.value || 0),
-                          )
-                        }
-                      />
+	                      <TextInput
+	                        label={`Base Price (${DEFAULT_CURRENCY})`}
+	                        type="number"
+	                        inputMode="numeric"
+	                        min={0}
+	                        step={1}
+	                        value={state.common.price || ""}
+	                        onWheel={(e) => {
+	                          // Avoid changing the value when scrolling the modal over number inputs.
+	                          (e.target as HTMLInputElement).blur();
+	                        }}
+	                        onChange={(e) => {
+	                          const raw = e.target.value;
+	                          actions.setCommonField("price", raw === "" ? 0 : Number(raw));
+	                        }}
+	                      />
 
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-2">
