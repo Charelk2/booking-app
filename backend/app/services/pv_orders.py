@@ -72,7 +72,7 @@ _ALLOWED_TRANSITIONS: dict[PvStatus, set[PvStatus]] = {
         PvStatus.IN_DISPUTE,
         PvStatus.REFUNDED,
     },
-    PvStatus.IN_DISPUTE: {PvStatus.REFUNDED, PvStatus.COMPLETED, PvStatus.CANCELLED},
+    PvStatus.IN_DISPUTE: {PvStatus.REFUNDED, PvStatus.COMPLETED, PvStatus.CANCELLED, PvStatus.DELIVERED},
     PvStatus.COMPLETED: set(),
     PvStatus.REFUNDED: set(),
     PvStatus.CANCELLED: set(),

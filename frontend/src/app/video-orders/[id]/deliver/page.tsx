@@ -98,7 +98,11 @@ export default function VideoOrderDeliverPage() {
   })();
   const statusNorm = String(status || "").toLowerCase();
   const isDeliveredOrComplete =
-    statusNorm === "delivered" || statusNorm === "completed" || statusNorm === "closed";
+    statusNorm === "delivered" ||
+    statusNorm === "completed" ||
+    statusNorm === "closed" ||
+    statusNorm === "in_dispute" ||
+    statusNorm === "refunded";
   const revisionsIncluded = (() => {
     const raw = (order as any)?.revisions_included;
     const n = typeof raw === "number" ? raw : Number(raw);

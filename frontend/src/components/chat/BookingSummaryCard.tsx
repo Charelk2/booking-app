@@ -329,7 +329,11 @@ export default function BookingSummaryCard({
 
   const pvStatus = String(pvOrder?.status || '').toLowerCase();
   const pvDeliveredHint =
-    pvStatus === 'delivered' || pvStatus === 'completed' || pvStatus === 'closed';
+    pvStatus === 'delivered' ||
+    pvStatus === 'completed' ||
+    pvStatus === 'closed' ||
+    pvStatus === 'in_dispute' ||
+    pvStatus === 'refunded';
   const pvCanDeliverHint = pvStatus === 'in_production';
   const pvVideoHref = pvOrderId ? `/video-orders/${pvOrderId}/deliver` : null;
   const showPvVideoButton = Boolean(pvVideoHref && (pvDeliveredHint || (isProvider && pvCanDeliverHint)));
@@ -841,7 +845,7 @@ export default function BookingSummaryCard({
           </section>
         )}
 
-        {/* Optional brief button (unchanged logic) */}
+        {/* Optional brief/video actions */}
         {(() => {
           const isProviderForThread = (() => {
             try {
@@ -859,22 +863,33 @@ export default function BookingSummaryCard({
               return user?.user_type === 'service_provider';
             }
           })();
-          const canShow = !!briefLink && (isClient || (isProviderForThread && briefComplete));
+          const canShowBriefButton =
+            !isPersonalizedVideo &&
+            !!briefLink &&
+            (isClient || (isProviderForThread && briefComplete));
+          const canShowPvVideoButtonInSummary = !isPersonalizedVideo && showPvVideoButton;
           const label = briefComplete
             ? 'View Brief'
             : isPersonalizedVideo
               ? 'Complete Brief'
               : 'Finish Brief';
-          if (!canShow) return null;
+          const canShowAny =
+            canShowBriefButton ||
+            canShowPvVideoButtonInSummary ||
+            showPvRevisionButton ||
+            showPvCompleteButton;
+          if (!canShowAny) return null;
           return (
             <div className="pt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-              <a
-                href={briefLink}
-                className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-indigo-600 text-white font-semibold rounded-lg px-5 py-3 shadow-lg hover:bg-indigo-700 transition no-underline hover:no-underline hover:text-white visited:text-white"
-              >
-                {label}
-              </a>
-              {showPvVideoButton ? (
+              {canShowBriefButton ? (
+                <a
+                  href={briefLink}
+                  className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-indigo-600 text-white font-semibold rounded-lg px-5 py-3 shadow-lg hover:bg-indigo-700 transition no-underline hover:no-underline hover:text-white visited:text-white"
+                >
+                  {label}
+                </a>
+              ) : null}
+              {canShowPvVideoButtonInSummary ? (
                 <a
                   href={pvVideoHref || undefined}
                   className="inline-flex justify-center items-center w-full sm:w-auto text-center bg-white text-gray-900 font-semibold rounded-lg px-5 py-3 shadow-sm border border-gray-200 hover:bg-gray-50 transition no-underline hover:no-underline"

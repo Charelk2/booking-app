@@ -1182,7 +1182,12 @@ export default function BookingDetailsPanel({
                           const lastMsg = String((bookingRequest as any)?.last_message_content || '').toLowerCase();
                           const hintDelivered = lastMsg.includes('video has been delivered');
                           const isDelivered =
-                            hintDelivered || st === 'delivered' || st === 'completed' || st === 'closed';
+                            hintDelivered ||
+                            st === 'delivered' ||
+                            st === 'completed' ||
+                            st === 'closed' ||
+                            st === 'in_dispute' ||
+                            st === 'refunded';
                           const canDeliver = viewerIsProvider && st === 'in_production';
 
                           if (isDelivered) {
