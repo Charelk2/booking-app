@@ -164,6 +164,7 @@ export function createPersonalizedVideoEngineCore(
       creatingDraft: false,
       hasSavedDraft: false,
       loadingFromStorage: false,
+      loadedFromStorage: false,
     },
   };
 
@@ -274,8 +275,17 @@ export function createPersonalizedVideoEngineCore(
 
     updateDraftField: (key, value) => {
       const s = getState();
+      const nextDraft = { ...s.draft, [key]: value } as typeof s.draft;
+
+      if (params.artistId) {
+        try {
+          env.storage.saveDraft(params.artistId, params.serviceId, nextDraft as any);
+        } catch {}
+      }
+
       setState({
-        draft: { ...s.draft, [key]: value } as typeof s.draft,
+        draft: nextDraft,
+        flags: params.artistId ? { ...s.flags, hasSavedDraft: true } : s.flags,
         payment: s.payment.error ? { ...s.payment, error: null } : s.payment,
       });
       recalcPricingInternal();
@@ -442,6 +452,9 @@ export function createPersonalizedVideoEngineCore(
         }
 
         env.storage.saveBriefSeed(res.id, seed);
+        try {
+          env.storage.clearDraft(artistId, params.serviceId);
+        } catch {}
 
         if (env.enablePvOrders) {
           env.storage.saveThreadIdForOrder(res.id, res.id);
@@ -466,7 +479,7 @@ export function createPersonalizedVideoEngineCore(
         setState({
           orderId: res.id,
           stepId: "payment",
-          flags: { ...getState().flags, creatingDraft: false },
+          flags: { ...getState().flags, creatingDraft: false, hasSavedDraft: false },
         });
         env.ui.navigateToPayment(res.id, false);
       } finally {
@@ -478,13 +491,91 @@ export function createPersonalizedVideoEngineCore(
     },
 
     loadDraftFromStorage: async () => {
-      // Not implemented for PV yet.
-      return;
+      const s = getState();
+      const artistId = params.artistId;
+      if (!artistId) return;
+      if (s.flags.loadingFromStorage || s.flags.loadedFromStorage) return;
+
+      setState({
+        flags: { ...s.flags, loadingFromStorage: true },
+      });
+
+      let stored: any | null = null;
+      try {
+        stored = env.storage.loadDraft(artistId, params.serviceId);
+      } catch {
+        stored = null;
+      }
+
+      const nextFlags = {
+        ...getState().flags,
+        loadingFromStorage: false,
+        loadedFromStorage: true,
+        hasSavedDraft: Boolean(stored),
+      };
+
+      if (!stored || typeof stored !== "object") {
+        setState({ flags: nextFlags });
+        return;
+      }
+
+      const nextDraft = { ...getState().draft } as typeof state.draft;
+
+      const deliveryBy = typeof stored.deliveryBy === "string" ? stored.deliveryBy.trim() : "";
+      if (/^\d{4}-\d{2}-\d{2}$/.test(deliveryBy)) {
+        const du = daysUntilUtc(deliveryBy, env.now());
+        nextDraft.deliveryBy = du != null && du >= earliestAllowedDays ? deliveryBy : "";
+      }
+
+      const lengthChoice = typeof stored.lengthChoice === "string" ? stored.lengthChoice.trim() : "";
+      if (lengthChoice === "30_45" || lengthChoice === "60_90") {
+        nextDraft.lengthChoice = lengthChoice as LengthChoice;
+      }
+
+      const language = typeof stored.language === "string" ? stored.language.trim().toUpperCase() : "";
+      if (language) nextDraft.language = language as any;
+
+      const recipient = typeof stored.recipient === "string" ? stored.recipient : "";
+      if (recipient) nextDraft.recipient = recipient;
+
+      const promo = typeof stored.promo === "string" ? stored.promo : "";
+      if (promo) nextDraft.promo = promo;
+
+      setState({
+        availabilityStatus: "idle",
+        status: { ...getState().status, checking: false, available: null },
+        draft: nextDraft,
+        flags: nextFlags,
+      });
+      recalcPricingInternal();
     },
 
     discardDraft: async () => {
-      // Not implemented for PV yet.
-      return;
+      const artistId = params.artistId;
+      if (!artistId) return;
+      try {
+        env.storage.clearDraft(artistId, params.serviceId);
+      } catch {}
+
+      const s = getState();
+      setState({
+        availabilityStatus: "idle",
+        draft: {
+          deliveryBy: "",
+          lengthChoice: "30_45",
+          language: "EN",
+          recipient: "",
+          promo: "",
+        },
+        status: { ...s.status, checking: false, available: null },
+        flags: {
+          ...s.flags,
+          hasSavedDraft: false,
+          loadingFromStorage: false,
+          loadedFromStorage: true,
+        },
+      });
+      recalcPricingInternal();
     },
 
     reloadOrderSummary: async () => {

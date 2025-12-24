@@ -1,7 +1,13 @@
+import type { VideoOrderDraft } from "./types";
+
 export interface PersonalizedVideoStorage {
   loadSimulatedOrder(orderId: number): any | null;
   saveSimulatedOrder(orderId: number, order: any): void;
   clearSimulatedOrder(orderId: number): void;
+
+  loadDraft(artistId: number, serviceId?: number): VideoOrderDraft | null;
+  saveDraft(artistId: number, serviceId: number | undefined, draft: VideoOrderDraft): void;
+  clearDraft(artistId: number, serviceId?: number): void;
 
   getThreadIdForOrder(orderId: number): string | null;
   saveThreadIdForOrder(orderId: number, threadId: number | string): void;
@@ -39,6 +45,8 @@ function safeLocalStorageRemove(key: string) {
   } catch {}
 }
 
+const DRAFT_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
 export const pvStorage: PersonalizedVideoStorage = {
   loadSimulatedOrder(orderId) {
     const raw = safeLocalStorageGet(`vo-sim-${orderId}`);
@@ -56,6 +64,37 @@ export const pvStorage: PersonalizedVideoStorage = {
   },
   clearSimulatedOrder(orderId) {
     safeLocalStorageRemove(`vo-sim-${orderId}`);
+  },
+  loadDraft(artistId, serviceId) {
+    const sid = Number(serviceId || 0) || 0;
+    const raw = safeLocalStorageGet(`vo-draft-${artistId}-${sid}`);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as any;
+      const updatedAt = Number(parsed?.updated_at ?? parsed?.updatedAt ?? 0) || 0;
+      if (updatedAt && Date.now() - updatedAt > DRAFT_TTL_MS) {
+        safeLocalStorageRemove(`vo-draft-${artistId}-${sid}`);
+        return null;
+      }
+      const draft = parsed?.draft;
+      if (!draft || typeof draft !== "object") return null;
+      return draft as VideoOrderDraft;
+    } catch {
+      return null;
+    }
+  },
+  saveDraft(artistId, serviceId, draft) {
+    const sid = Number(serviceId || 0) || 0;
+    try {
+      safeLocalStorageSet(
+        `vo-draft-${artistId}-${sid}`,
+        JSON.stringify({ v: 1, updated_at: Date.now(), draft }),
+      );
+    } catch {}
+  },
+  clearDraft(artistId, serviceId) {
+    const sid = Number(serviceId || 0) || 0;
+    safeLocalStorageRemove(`vo-draft-${artistId}-${sid}`);
   },
   getThreadIdForOrder(orderId) {
     return safeLocalStorageGet(`vo-thread-${orderId}`);
@@ -98,4 +137,3 @@ export const pvStorage: PersonalizedVideoStorage = {
     safeLocalStorageSet(`vo-brief-complete-${orderId}`, "1");
   },
 };
-

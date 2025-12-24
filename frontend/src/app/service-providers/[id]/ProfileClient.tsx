@@ -1181,6 +1181,8 @@ export default function ProfileClient({ serviceProviderId, initialServiceProvide
           rushFeeZar={pvConfig?.rushFeeZar ?? 0}
           rushWithinDays={pvConfig?.rushWithinDays ?? 2}
           serviceId={selectedVideoService?.id}
+          providerVatRegistered={Boolean((serviceProvider as any)?.vat_registered)}
+          providerVatRate={(serviceProvider as any)?.vat_rate ?? null}
         />
       )}
 

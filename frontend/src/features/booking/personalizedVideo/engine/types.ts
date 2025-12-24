@@ -88,6 +88,7 @@ export interface PersonalizedVideoEngineState {
     creatingDraft: boolean;
     hasSavedDraft: boolean;
     loadingFromStorage: boolean;
+    loadedFromStorage: boolean;
   };
 }
 

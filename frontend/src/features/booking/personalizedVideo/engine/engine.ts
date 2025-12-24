@@ -274,6 +274,22 @@ export function usePersonalizedVideoOrderEngine(
     void core.actions.reloadOrderSummary();
   }, [core, params.orderId]);
 
+  // Restore a saved draft when starting from the booking sheet.
+  useEffect(() => {
+    if (!params.artistId) return;
+    if (params.orderId) return;
+    if (state.stepId !== "draft") return;
+    if (state.flags.loadingFromStorage || state.flags.loadedFromStorage) return;
+    void core.actions.loadDraftFromStorage();
+  }, [
+    core,
+    params.artistId,
+    params.orderId,
+    state.stepId,
+    state.flags.loadingFromStorage,
+    state.flags.loadedFromStorage,
+  ]);
+
   // Preload unavailable dates so the calendar can disable blocked days
   // before the user clicks into it.
   useEffect(() => {

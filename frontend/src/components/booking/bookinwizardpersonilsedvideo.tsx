@@ -20,6 +20,7 @@ import {
   BRIEF_QUESTIONS,
 } from "@/features/booking/personalizedVideo/engine/engine";
 import { videoOrderApiClient } from "@/features/booking/personalizedVideo/engine/apiClient";
+import { getQuoteTotalsPreview } from "@/lib/api";
 import type { PvLengthChoice } from "@/features/booking/personalizedVideo/serviceMapping";
 type LengthChoice = "30_45" | "60_90";
 const ENABLE_PV_ORDERS =
@@ -60,6 +61,8 @@ interface WizardProps {
   rushCustomEnabled?: boolean;
   rushFeeZar?: number;
   rushWithinDays?: number;
+  providerVatRegistered?: boolean;
+  providerVatRate?: number | string | null;
 }
 
 export default function BookinWizardPersonilsedVideo({
@@ -76,6 +79,8 @@ export default function BookinWizardPersonilsedVideo({
   rushCustomEnabled = false,
   rushFeeZar = 0,
   rushWithinDays = 2,
+  providerVatRegistered = false,
+  providerVatRate = null,
 }: WizardProps) {
   const router = useRouter();
 
@@ -97,15 +102,72 @@ export default function BookinWizardPersonilsedVideo({
 
   const { draft, pricing, status, unavailableDates, payment } = state;
 
-  // Apply defaults from service config when provided
+  const normalizedProviderVatRate = useMemo(() => {
+    if (!providerVatRegistered) return 0;
+    const raw = providerVatRate;
+    const n = typeof raw === "number" ? raw : Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return 0.15;
+    return n > 1 ? n / 100 : n;
+  }, [providerVatRegistered, providerVatRate]);
+
+  const [clientTotalInclVat, setClientTotalInclVat] = React.useState<number | null>(null);
+  const [clientTotalLoading, setClientTotalLoading] = React.useState(false);
+
   useEffect(() => {
+    if (!ENABLE_PV_ORDERS) {
+      setClientTotalInclVat(null);
+      setClientTotalLoading(false);
+      return;
+    }
+    const subtotal = Number(pricing.total || 0);
+    if (!Number.isFinite(subtotal) || subtotal <= 0) {
+      setClientTotalInclVat(null);
+      setClientTotalLoading(false);
+      return;
+    }
+    const total = providerVatRegistered
+      ? subtotal + subtotal * normalizedProviderVatRate
+      : subtotal;
+
+    let cancelled = false;
+    setClientTotalLoading(true);
+    (async () => {
+      try {
+        const pv = await getQuoteTotalsPreview({ subtotal, total, currency: "ZAR" });
+        if (cancelled) return;
+        const v = (pv as any)?.client_total_incl_vat;
+        const n = typeof v === "number" ? v : Number(v);
+        setClientTotalInclVat(Number.isFinite(n) && n > 0 ? n : null);
+      } catch {
+        if (cancelled) return;
+        setClientTotalInclVat(null);
+      } finally {
+        if (cancelled) return;
+        setClientTotalLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pricing.total, providerVatRegistered, normalizedProviderVatRate]);
+
+  // Apply defaults from service config (only after draft restore has finished, and only when no saved draft exists).
+  useEffect(() => {
+    if (!state.flags.loadedFromStorage) return;
+    if (state.flags.hasSavedDraft) return;
     if (defaultLengthChoice) {
       actions.updateDraftField("lengthChoice", defaultLengthChoice as LengthChoice);
     }
     if (defaultLanguage) {
       actions.updateDraftField("language", defaultLanguage as any);
     }
-  }, [defaultLengthChoice, defaultLanguage, actions]);
+  }, [
+    state.flags.loadedFromStorage,
+    state.flags.hasSavedDraft,
+    defaultLengthChoice,
+    defaultLanguage,
+    actions,
+  ]);
 
   const form = {
     deliveryBy: draft.deliveryBy,
@@ -231,6 +293,21 @@ export default function BookinWizardPersonilsedVideo({
                           {label}
                         </span>
                       ))}
+                    </div>
+                  ) : null}
+
+                  {draft.deliveryBy && state.flags.hasSavedDraft ? (
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-700 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        Saved draft — we’ll remember your selections on this device.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => actions.discardDraft()}
+                        className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-white"
+                      >
+                        Reset
+                      </button>
                     </div>
                   ) : null}
 
@@ -380,6 +457,18 @@ export default function BookinWizardPersonilsedVideo({
                         </div>
                       )}
                     </div>
+                    {ENABLE_PV_ORDERS ? (
+                      <div className="mt-1 text-sm text-gray-700">
+                        Total to pay (incl fees + VAT):{" "}
+                        <span className="font-semibold text-gray-900">
+                          {clientTotalLoading
+                            ? "Calculating…"
+                            : clientTotalInclVat != null
+                            ? formatCurrency(clientTotalInclVat)
+                            : "Shown at checkout"}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="mt-1 text-[11px] text-gray-500">
                       Base {formatCurrency(pricing.basePriceZar)}
                       {pricing.rushFee > 0 ? ` • Rush ${formatCurrency(pricing.rushFee)}` : ""}
