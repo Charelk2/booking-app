@@ -118,9 +118,19 @@ async function safePost<T>(
 
 export const videoOrderApiClient: VideoOrderApiClient = {
   async createOrder(payload, idempotencyKey) {
-    return safePost<VideoOrder>("/api/v1/video-orders", payload, {
-      "Idempotency-Key": idempotencyKey,
-    });
+    try {
+      const res = await api.post<VideoOrder>("/api/v1/video-orders", payload, {
+        headers: { "Idempotency-Key": idempotencyKey },
+      });
+      return res.data as VideoOrder;
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      const msg =
+        typeof detail === "string"
+          ? detail
+          : e?.message || "Unable to create order. Please try again.";
+      throw new Error(msg);
+    }
   },
   async listOrders() {
     const res = await safeGet<VideoOrder[]>("/api/v1/video-orders");

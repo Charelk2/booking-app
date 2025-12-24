@@ -261,6 +261,14 @@ def _parse_delivery_dt(delivery_by_utc: str) -> Optional[datetime]:
 def _compute_pv_pricing(svc: Service, payload: VideoOrderCreate) -> dict[str, Any]:
     details = svc.details or {}
     base = Decimal(str(getattr(svc, "price", 0) or 0))
+    try:
+        min_notice_days = int(details.get("min_notice_days") or 1)
+    except Exception:
+        min_notice_days = 1
+    if min_notice_days < 0:
+        min_notice_days = 0
+    if min_notice_days > 365:
+        min_notice_days = 365
     base_length_sec = int(details.get("base_length_sec") or 40)
     length_sec = int(getattr(payload, "length_sec", None) or base_length_sec or 40)
     # Long-video add-ons were removed; pricing is now a single base price.
@@ -279,11 +287,22 @@ def _compute_pv_pricing(svc: Service, payload: VideoOrderCreate) -> dict[str, An
             except Exception:
                 rush_fee_zar = Decimal("0")
             try:
-                rush_within_days = int(details.get("rush_within_days") or 0)
+                rush_delivery_days = int(details.get("rush_within_days") or 0)
             except Exception:
-                rush_within_days = 0
+                rush_delivery_days = 0
+            if rush_delivery_days < 0:
+                rush_delivery_days = 0
+            if rush_delivery_days > 365:
+                rush_delivery_days = 365
 
-            if rush_within_days > 0 and rush_fee_zar > 0 and 0 <= days_until <= rush_within_days:
+            # "Rush" means earlier-than-standard delivery. If standard is 5 days
+            # and rush is 3 days, rush applies for 3–4 day deliveries.
+            if (
+                rush_fee_zar > 0
+                and rush_delivery_days < min_notice_days
+                and 0 <= days_until < min_notice_days
+                and days_until >= rush_delivery_days
+            ):
                 rush_fee = rush_fee_zar.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
         else:
             # Legacy rush pricing (kept for backward compatibility with existing services).
@@ -470,10 +489,27 @@ def create_video_order(
 
         now = datetime.now(timezone.utc)
         days_until = (delivery_dt.date() - now.date()).days
-        if days_until < min_notice_days:
+        effective_min_notice_days = min_notice_days
+        if bool(details.get("rush_custom_enabled")):
+            try:
+                rush_fee_zar = Decimal(str(details.get("rush_fee_zar") or 0))
+            except Exception:
+                rush_fee_zar = Decimal("0")
+            try:
+                rush_delivery_days = int(details.get("rush_within_days") or 0)
+            except Exception:
+                rush_delivery_days = 0
+            if rush_delivery_days < 0:
+                rush_delivery_days = 0
+            if rush_delivery_days > 365:
+                rush_delivery_days = 365
+            if rush_fee_zar > 0 and rush_delivery_days < min_notice_days:
+                effective_min_notice_days = rush_delivery_days
+
+        if days_until < effective_min_notice_days:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Delivery date must be at least {min_notice_days} day(s) from today",
+                detail=f"Delivery date must be at least {effective_min_notice_days} day(s) from today",
             )
 
         # Capacity guard: count PV orders on the requested delivery date.

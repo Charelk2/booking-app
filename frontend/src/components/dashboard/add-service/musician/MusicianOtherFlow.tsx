@@ -9,6 +9,7 @@ import { Stepper, TextInput, TextArea } from "@/components/ui";
 import type { Service } from "@/types";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { presignServiceMedia, uploadImage } from "@/lib/api";
+import { getFullImageUrl } from "@/lib/utils";
 import { useAddServiceEngine } from "@/features/serviceTypes/addService/engine";
 
 type MusicianOtherFlowProps = {
@@ -289,7 +290,7 @@ export default function MusicianOtherFlow({
                         {existingMediaUrl && (
                           <div className="relative">
                             <img
-                              src={existingMediaUrl}
+                              src={getFullImageUrl(existingMediaUrl) || existingMediaUrl}
                               alt="Existing media"
                               className="h-32 w-full rounded-md object-cover"
                             />

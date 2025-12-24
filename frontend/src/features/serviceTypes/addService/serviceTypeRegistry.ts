@@ -126,8 +126,8 @@ const personalizedVideoFields: ServiceTypeField[] = [
   {
     key: "rush_within_days",
     kind: "number",
-    label: "Rush applies within (days)",
-    helper: "Apply rush fee when delivery is within this many days.",
+    label: "Rush delivery (days)",
+    helper: "Rush is for earlier-than-standard delivery. Example: standard 5 + rush 3 → rush fee applies for 3–4 day deliveries.",
     required: false,
     defaultValue: 2,
   },

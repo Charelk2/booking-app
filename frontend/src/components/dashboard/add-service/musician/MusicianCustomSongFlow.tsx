@@ -10,6 +10,7 @@ import { Stepper, TextInput, TextArea, ToggleSwitch } from "@/components/ui";
 import type { Service } from "@/types";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { presignServiceMedia, uploadImage } from "@/lib/api";
+import { getFullImageUrl } from "@/lib/utils";
 import { useAddServiceEngine } from "@/features/serviceTypes/addService/engine";
 import { SERVICE_TYPE_REGISTRY } from "@/features/serviceTypes/addService/serviceTypeRegistry";
 
@@ -369,7 +370,7 @@ export default function MusicianCustomSongFlow({
                         {existingMediaUrl && (
                           <div className="relative">
                             <img
-                              src={existingMediaUrl}
+                              src={getFullImageUrl(existingMediaUrl) || existingMediaUrl}
                               alt="Existing media"
                               className="h-32 w-full rounded-md object-cover"
                             />

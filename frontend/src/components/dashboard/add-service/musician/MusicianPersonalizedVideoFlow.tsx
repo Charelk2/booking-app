@@ -10,6 +10,7 @@ import { Stepper, TextInput, TextArea } from "@/components/ui";
 import type { Service } from "@/types";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { presignServiceMedia, uploadImage } from "@/lib/api";
+import { getFullImageUrl } from "@/lib/utils";
 import { useAddServiceEngine } from "@/features/serviceTypes/addService/engine";
 import { SERVICE_TYPE_REGISTRY } from "@/features/serviceTypes/addService/serviceTypeRegistry";
 
@@ -98,14 +99,23 @@ export default function MusicianPersonalizedVideoFlow({
       }).format(Number.isFinite(value) ? value : 0);
 
     const parts: string[] = [
-      `Earliest delivery: ${minNotice} day${minNotice === 1 ? "" : "s"}`,
+      `Standard delivery: ${minNotice} day${minNotice === 1 ? "" : "s"}`,
       `Daily capacity: ${maxPerDay}/day`,
     ];
 
-    if (rushEnabled && rushFee > 0 && rushWithin > 0) {
-      parts.push(
-        `Rush: +${money(rushFee)} within ${rushWithin} day${rushWithin === 1 ? "" : "s"}`,
-      );
+    if (rushEnabled && rushFee > 0) {
+      if (minNotice <= 0) {
+        parts.push("Rush: not applicable");
+      } else if (rushWithin >= minNotice) {
+        parts.push(`Rush: won't apply (set under ${minNotice} days)`);
+      } else {
+        const latestRush = minNotice - 1;
+        const range =
+          rushWithin === latestRush
+            ? `${rushWithin} day${rushWithin === 1 ? "" : "s"}`
+            : `${rushWithin}–${latestRush} days`;
+        parts.push(`Rush: +${money(rushFee)} for delivery in ${range}`);
+      }
     } else if (rushEnabled) {
       parts.push("Rush: enabled");
     } else {
@@ -119,6 +129,59 @@ export default function MusicianPersonalizedVideoFlow({
     state.typeFields.rush_custom_enabled,
     state.typeFields.rush_fee_zar,
     state.typeFields.rush_within_days,
+  ]);
+
+  const rushHelp = useMemo(() => {
+    const enabled = Boolean(state.typeFields.rush_custom_enabled);
+    if (!enabled) return null;
+
+    const standardRaw = state.typeFields.min_notice_days;
+    const standard = (() => {
+      const n = typeof standardRaw === "number" ? standardRaw : Number(standardRaw);
+      if (!Number.isFinite(n)) return 1;
+      return Math.max(0, Math.min(365, Math.trunc(n)));
+    })();
+
+    const feeRaw = state.typeFields.rush_fee_zar;
+    const fee = (() => {
+      const n = typeof feeRaw === "number" ? feeRaw : Number(feeRaw);
+      if (!Number.isFinite(n)) return 0;
+      return Math.max(0, Math.round(n));
+    })();
+
+    const rushRaw = state.typeFields.rush_within_days;
+    const rushDays = (() => {
+      const n = typeof rushRaw === "number" ? rushRaw : Number(rushRaw);
+      if (!Number.isFinite(n)) return 2;
+      return Math.max(0, Math.min(365, Math.trunc(n)));
+    })();
+
+    if (fee <= 0) {
+      return { tone: "muted" as const, text: "Add a rush fee to enable rush delivery." };
+    }
+    if (standard <= 0) {
+      return { tone: "muted" as const, text: "Standard delivery is immediate, so rush won't apply." };
+    }
+    if (rushDays >= standard) {
+      return {
+        tone: "warn" as const,
+        text: `Rush won't apply — set rush days lower than ${standard} (your standard delivery is ${standard} days).`,
+      };
+    }
+    const latestRush = Math.max(0, standard - 1);
+    const range =
+      rushDays === latestRush
+        ? `${rushDays} day${rushDays === 1 ? "" : "s"}`
+        : `${rushDays}–${latestRush} days`;
+    return {
+      tone: "muted" as const,
+      text: `Rush fee applies for delivery in ${range}. Standard delivery applies from ${standard} days.`,
+    };
+  }, [
+    state.typeFields.rush_custom_enabled,
+    state.typeFields.rush_fee_zar,
+    state.typeFields.rush_within_days,
+    state.typeFields.min_notice_days,
   ]);
 
   useEffect(() => {
@@ -171,14 +234,16 @@ export default function MusicianPersonalizedVideoFlow({
   };
 
   const onFileChange = (files: FileList | null) => {
-    if (!files) return;
-    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    if (images.length !== files.length) {
+    if (!files || files.length === 0) return;
+    const picked = Array.from(files);
+    const images = picked.filter((f) => f.type.startsWith("image/"));
+    if (images.length !== picked.length || images.length === 0) {
       setMediaError("Only image files are allowed.");
-    } else {
-      setMediaError(null);
+      return;
     }
-    setMediaFiles((prev) => [...prev, ...images]);
+    setMediaError(null);
+    // Service currently supports a single cover image.
+    setMediaFiles([images[0]]);
   };
 
   const removeFile = (i: number) => {
@@ -490,7 +555,7 @@ export default function MusicianPersonalizedVideoFlow({
                           Add a rush fee for short-notice deliveries
                         </label>
 
-                        {Boolean(state.typeFields.rush_custom_enabled) ? (
+	                        {Boolean(state.typeFields.rush_custom_enabled) ? (
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 	                            <TextInput
 	                              label="Rush fee (ZAR)"
@@ -517,7 +582,7 @@ export default function MusicianPersonalizedVideoFlow({
 	                              }}
 	                            />
 	                            <TextInput
-	                              label="Rush applies within (days)"
+	                              label="Rush delivery (days)"
 	                              type="number"
 	                              inputMode="numeric"
 	                              step={1}
@@ -540,6 +605,16 @@ export default function MusicianPersonalizedVideoFlow({
 	                                if (raw === "") actions.setTypeField("rush_within_days", 2);
 	                              }}
 	                            />
+	                            {rushHelp ? (
+	                              <p
+	                                className={clsx(
+	                                  "text-xs sm:col-span-2",
+	                                  rushHelp.tone === "warn" ? "text-amber-700" : "text-gray-500",
+	                                )}
+	                              >
+	                                {rushHelp.text}
+	                              </p>
+	                            ) : null}
                           </div>
                         ) : (
                           <p className="text-xs text-gray-500">
@@ -580,18 +655,17 @@ export default function MusicianPersonalizedVideoFlow({
 	                            onFileChange(e.dataTransfer.files);
 	                          }}
 	                        >
-	                          <p className="text-sm text-gray-700">
-	                            Drag images here or click to upload
-	                          </p>
-	                          <input
-	                            id="media-upload"
-	                            type="file"
-	                            accept="image/*"
-	                            multiple
-	                            className="sr-only"
-	                            onChange={(e) => onFileChange(e.target.files)}
-	                          />
-	                        </label>
+                          <p className="text-sm text-gray-700">
+                            Drag an image here or click to upload
+                          </p>
+                          <input
+                            id="media-upload"
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={(e) => onFileChange(e.target.files)}
+                          />
+                        </label>
 	                        {mediaError && (
 	                          <p className="text-sm text-red-600">{mediaError}</p>
 	                        )}
@@ -601,7 +675,7 @@ export default function MusicianPersonalizedVideoFlow({
                         {existingMediaUrl && (
                           <div className="relative">
                             <img
-                              src={existingMediaUrl}
+                              src={getFullImageUrl(existingMediaUrl) || existingMediaUrl}
                               alt="Existing media"
                               className="h-32 w-full rounded-md object-cover"
                             />

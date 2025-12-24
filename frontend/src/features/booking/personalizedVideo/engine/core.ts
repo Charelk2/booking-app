@@ -118,6 +118,9 @@ export function createPersonalizedVideoEngineCore(
     if (!Number.isFinite(n)) return 2;
     return Math.max(0, Math.min(30, Math.trunc(n)));
   })();
+  const earliestAllowedDays = rushCustomEnabled && rushFeeZar > 0 && rushWithinDays < minNoticeDays
+    ? rushWithinDays
+    : minNoticeDays;
 
   let state: PersonalizedVideoEngine["state"] = {
     stepId: "draft",
@@ -191,7 +194,14 @@ export function createPersonalizedVideoEngineCore(
     const daysUntil = draft.deliveryBy ? daysUntilUtc(draft.deliveryBy, env.now()) : null;
     if (daysUntil != null && daysUntil >= 0) {
       if (rushCustomEnabled) {
-        if (rushWithinDays > 0 && rushFeeZar > 0 && daysUntil <= rushWithinDays) {
+        // Rush is earlier-than-standard delivery. If standard is 5 days and rush is 3 days,
+        // rush applies for 3–4 day deliveries (and standard for 5+).
+        if (
+          rushFeeZar > 0 &&
+          rushWithinDays < minNoticeDays &&
+          daysUntil >= rushWithinDays &&
+          daysUntil < minNoticeDays
+        ) {
           rushFee = rushFeeZar;
         }
       } else {
@@ -208,9 +218,7 @@ export function createPersonalizedVideoEngineCore(
     const total = Math.max(0, subtotal - discount);
 
     const lengthSec = draft.lengthChoice === "30_45" ? 40 : 75;
-    const meetsNotice =
-      !draft.deliveryBy ||
-      (daysUntil != null && daysUntil >= minNoticeDays);
+    const meetsNotice = !draft.deliveryBy || (daysUntil != null && daysUntil >= earliestAllowedDays);
 
     setState({
       pricing: {
@@ -233,7 +241,7 @@ export function createPersonalizedVideoEngineCore(
           !draft.deliveryBy
             ? "Choose a delivery date"
             : !meetsNotice
-            ? `Requires at least ${minNoticeDays} day${minNoticeDays === 1 ? "" : "s"} notice`
+            ? `Requires at least ${earliestAllowedDays} day${earliestAllowedDays === 1 ? "" : "s"} notice`
             : s.status.available === false
             ? "Not available for that date"
             : total <= 0
@@ -268,6 +276,7 @@ export function createPersonalizedVideoEngineCore(
       const s = getState();
       setState({
         draft: { ...s.draft, [key]: value } as typeof s.draft,
+        payment: s.payment.error ? { ...s.payment, error: null } : s.payment,
       });
       recalcPricingInternal();
     },
@@ -336,7 +345,7 @@ export function createPersonalizedVideoEngineCore(
       }
 
       const noticeDaysUntil = daysUntilUtc(deliveryBy, env.now());
-      if (noticeDaysUntil == null || noticeDaysUntil < minNoticeDays) {
+      if (noticeDaysUntil == null || noticeDaysUntil < earliestAllowedDays) {
         setState({
           availabilityStatus: "unavailable",
           status: {
@@ -377,6 +386,7 @@ export function createPersonalizedVideoEngineCore(
 
       setState({
         flags: { ...s.flags, creatingDraft: true },
+        payment: { ...s.payment, error: null },
       });
 
       try {
@@ -401,7 +411,16 @@ export function createPersonalizedVideoEngineCore(
         };
 
         const idempotency = `vo-${artistId}-${params.serviceId || 0}-${draft.deliveryBy}-${lengthSec}-${pricing.total}`;
-        const res = await env.api.createOrder(payload, idempotency);
+        let res: VideoOrder | null = null;
+        try {
+          res = await env.api.createOrder(payload, idempotency);
+        } catch (e: any) {
+          const message = e?.message || "Could not create order. Please try again.";
+          setState({
+            payment: { ...getState().payment, error: message },
+          });
+          return;
+        }
 
         const seed = {
           delivery_by_utc: payload.delivery_by_utc,

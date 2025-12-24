@@ -95,7 +95,7 @@ export default function BookinWizardPersonilsedVideo({
     },
   });
 
-  const { draft, pricing, status, unavailableDates } = state;
+  const { draft, pricing, status, unavailableDates, payment } = state;
 
   // Apply defaults from service config when provided
   useEffect(() => {
@@ -117,9 +117,14 @@ export default function BookinWizardPersonilsedVideo({
   };
 
   const minDate = useMemo(() => {
-    const days = Number.isFinite(minNoticeDays) ? Math.max(0, Math.trunc(minNoticeDays)) : 1;
+    const standard = Number.isFinite(minNoticeDays) ? Math.max(0, Math.trunc(minNoticeDays)) : 1;
+    const rushDays = Number.isFinite(rushWithinDays) ? Math.max(0, Math.trunc(rushWithinDays)) : 2;
+    const days =
+      rushCustomEnabled && rushFeeZar > 0 && rushDays < standard
+        ? rushDays
+        : standard;
     return new Date(Date.now() + days * 24 * 3600000).toISOString().slice(0, 10);
-  }, [minNoticeDays]);
+  }, [minNoticeDays, rushCustomEnabled, rushFeeZar, rushWithinDays]);
 
   const languageOptions = useMemo(() => {
     const codes = supportedLanguages && supportedLanguages.length > 0 ? supportedLanguages : ["EN", "AF"];
@@ -143,15 +148,23 @@ export default function BookinWizardPersonilsedVideo({
     const notice = Number.isFinite(minNoticeDays) ? Math.max(0, Math.trunc(minNoticeDays)) : 1;
     chips.push(`Delivery from ${notice} day${notice === 1 ? "" : "s"}`);
 
-    if (rushCustomEnabled && rushFeeZar > 0 && rushWithinDays > 0) {
-      const within = Math.max(0, Math.trunc(rushWithinDays));
-      chips.push(
-        `Rush + ${formatCurrency(rushFeeZar)} within ${within} day${within === 1 ? "" : "s"}`,
-      );
+    const rushDays = Number.isFinite(rushWithinDays) ? Math.max(0, Math.trunc(rushWithinDays)) : 2;
+    const canRush = rushCustomEnabled && rushFeeZar > 0 && rushDays < notice && notice > 0;
+    if (canRush) {
+      const latestRush = Math.max(0, notice - 1);
+      if (rushDays === latestRush) {
+        chips.push(
+          `Rush + ${formatCurrency(rushFeeZar)} for delivery in ${rushDays} day${rushDays === 1 ? "" : "s"}`,
+        );
+      } else {
+        chips.push(
+          `Rush + ${formatCurrency(rushFeeZar)} for delivery in ${rushDays}–${latestRush} days`,
+        );
+      }
     }
 
     return chips.slice(0, 3);
-  }, [minNoticeDays, addOnLongZar, rushCustomEnabled, rushFeeZar, rushWithinDays]);
+  }, [minNoticeDays, rushCustomEnabled, rushFeeZar, rushWithinDays]);
 
   return (
     <Transition show={isOpen} as={Fragment}>
@@ -378,10 +391,13 @@ export default function BookinWizardPersonilsedVideo({
                     {status.disabledReason && (
                       <div className="sm:hidden text-xs text-gray-500">{status.disabledReason}</div>
                     )}
+                    {payment.error && (
+                      <div className="sm:hidden text-xs font-medium text-red-600">{payment.error}</div>
+                    )}
 
                     <Button
                       onClick={actions.createOrUpdateDraft}
-                      disabled={!status.canContinue}
+                      disabled={!status.canContinue || state.flags.creatingDraft}
                       className="w-full sm:w-auto"
                       title={status.disabledReason || undefined}
                     >
@@ -400,6 +416,9 @@ export default function BookinWizardPersonilsedVideo({
 
                 {!status.canContinue && status.disabledReason && (
                   <div className="hidden sm:block mt-2 text-xs text-gray-500">{status.disabledReason}</div>
+                )}
+                {payment.error && (
+                  <div className="hidden sm:block mt-2 text-xs font-medium text-red-600">{payment.error}</div>
                 )}
               </div>
             </Dialog.Panel>
