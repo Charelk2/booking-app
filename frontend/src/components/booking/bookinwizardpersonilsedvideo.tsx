@@ -249,7 +249,7 @@ export default function BookinWizardPersonilsedVideo({
                   {draft.deliveryBy && state.flags.hasSavedDraft ? (
                     <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-700 flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        Saved draft — we’ll remember your selections on this device.
+                        Saved draft - we’ll remember your selections on this device.
                       </div>
                       <button
                         type="button"
