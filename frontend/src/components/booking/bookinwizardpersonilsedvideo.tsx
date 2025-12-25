@@ -20,7 +20,6 @@ import {
   BRIEF_QUESTIONS,
 } from "@/features/booking/personalizedVideo/engine/engine";
 import { videoOrderApiClient } from "@/features/booking/personalizedVideo/engine/apiClient";
-import { getQuoteTotalsPreview } from "@/lib/api";
 import type { PvLengthChoice } from "@/features/booking/personalizedVideo/serviceMapping";
 type LengthChoice = "30_45" | "60_90";
 const ENABLE_PV_ORDERS =
@@ -101,55 +100,6 @@ export default function BookinWizardPersonilsedVideo({
   });
 
   const { draft, pricing, status, unavailableDates, payment } = state;
-
-  const normalizedProviderVatRate = useMemo(() => {
-    if (!providerVatRegistered) return 0;
-    const raw = providerVatRate;
-    const n = typeof raw === "number" ? raw : Number(raw);
-    if (!Number.isFinite(n) || n <= 0) return 0.15;
-    return n > 1 ? n / 100 : n;
-  }, [providerVatRegistered, providerVatRate]);
-
-  const [clientTotalInclVat, setClientTotalInclVat] = React.useState<number | null>(null);
-  const [clientTotalLoading, setClientTotalLoading] = React.useState(false);
-
-  useEffect(() => {
-    if (!ENABLE_PV_ORDERS) {
-      setClientTotalInclVat(null);
-      setClientTotalLoading(false);
-      return;
-    }
-    const subtotal = Number(pricing.total || 0);
-    if (!Number.isFinite(subtotal) || subtotal <= 0) {
-      setClientTotalInclVat(null);
-      setClientTotalLoading(false);
-      return;
-    }
-    const total = providerVatRegistered
-      ? subtotal + subtotal * normalizedProviderVatRate
-      : subtotal;
-
-    let cancelled = false;
-    setClientTotalLoading(true);
-    (async () => {
-      try {
-        const pv = await getQuoteTotalsPreview({ subtotal, total, currency: "ZAR" });
-        if (cancelled) return;
-        const v = (pv as any)?.client_total_incl_vat;
-        const n = typeof v === "number" ? v : Number(v);
-        setClientTotalInclVat(Number.isFinite(n) && n > 0 ? n : null);
-      } catch {
-        if (cancelled) return;
-        setClientTotalInclVat(null);
-      } finally {
-        if (cancelled) return;
-        setClientTotalLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [pricing.total, providerVatRegistered, normalizedProviderVatRate]);
 
   // Apply defaults from service config (only after draft restore has finished, and only when no saved draft exists).
   useEffect(() => {
@@ -451,24 +401,12 @@ export default function BookinWizardPersonilsedVideo({
                         {ENABLE_PV_ORDERS ? "Estimated provider total" : "Estimated total"}
                       </div>
                       <div className="text-xl font-bold text-gray-900">{formatCurrency(pricing.total)}</div>
-                      {pricing.discount > 0 && (
-                        <div className="text-xs font-medium text-emerald-700">
-                          ({formatCurrency(pricing.discount)} off)
-                        </div>
-                      )}
-                    </div>
-                    {ENABLE_PV_ORDERS ? (
-                      <div className="mt-1 text-sm text-gray-700">
-                        Total to pay (incl fees + VAT):{" "}
-                        <span className="font-semibold text-gray-900">
-                          {clientTotalLoading
-                            ? "Calculating…"
-                            : clientTotalInclVat != null
-                            ? formatCurrency(clientTotalInclVat)
-                            : "Shown at checkout"}
-                        </span>
+                    {pricing.discount > 0 && (
+                      <div className="text-xs font-medium text-emerald-700">
+                        ({formatCurrency(pricing.discount)} off)
                       </div>
-                    ) : null}
+                    )}
+                  </div>
                     <div className="mt-1 text-[11px] text-gray-500">
                       Base {formatCurrency(pricing.basePriceZar)}
                       {pricing.rushFee > 0 ? ` • Rush ${formatCurrency(pricing.rushFee)}` : ""}
@@ -638,16 +576,6 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
                   {formatCurrency(orderSummary.total)}
                 </span>
               </div>
-              {ENABLE_PV_ORDERS && clientTotal !== null && (
-                <div className="mt-2 flex justify-between text-base">
-                  <span className="font-semibold text-gray-900">
-                    Total to pay (incl fees + VAT)
-                  </span>
-                  <span className="font-bold text-gray-900">
-                    {formatCurrency(clientTotal)}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
 
