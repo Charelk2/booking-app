@@ -365,7 +365,7 @@ export default function ProviderOnboardingModal({ isOpen, onClose, next, showSet
                           className="h-4 w-4 shrink-0 rounded border-gray-300"
                           {...register('acceptProviderTerms', { required: 'Please accept the provider terms' })}
                         />
-                        <label htmlFor="acceptProviderTerms" className="text-sm leading-5 text-gray-700">
+                        <label htmlFor="acceptProviderTerms" className="mt-px text-sm leading-5 text-gray-700">
                           I agree to the{' '}
                           <a href="/terms" className="underline text-black hover:text-black">
                             Provider Terms
