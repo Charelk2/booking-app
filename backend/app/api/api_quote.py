@@ -41,6 +41,18 @@ def _quote_payload_with_preview(quote: models.QuoteV2) -> dict:
     return payload
 
 
+def _quote_model_with_preview(quote: models.QuoteV2) -> schemas.QuoteV2Read:
+    base = schemas.QuoteV2Read.model_validate(quote)
+    try:
+        preview = quote_preview_fields(quote)
+        if preview:
+            base = base.model_copy(update=preview)
+    except Exception:
+        # Preview is best-effort; never fail list endpoints on preview calculation.
+        pass
+    return base
+
+
 def _quote_etag(quote_id: int, marker: str | None) -> str:
     """Return a weak ETag for a quote based on an updated_at marker."""
     marker = marker or "0"
@@ -393,7 +405,7 @@ def get_quotes_batch(
             continue
         if current_user.id in {br.client_id, br.artist_id}:
             permitted.append(q)
-    return [schemas.QuoteV2Read.model_validate(q) for q in permitted]
+    return [_quote_model_with_preview(q) for q in permitted]
 
 
 @router.get("/quotes/v2/me/artist", response_model=List[schemas.QuoteV2Read])
@@ -406,7 +418,7 @@ def list_my_artist_quotes(
     quotes = crud_quote.list_quotes_for_artist(
         db=db, artist_id=current_user.id, skip=skip, limit=limit
     )
-    return [schemas.QuoteV2Read.model_validate(q) for q in quotes]
+    return [_quote_model_with_preview(q) for q in quotes]
 
 
 @router.get("/quotes/v2/me/client", response_model=List[schemas.QuoteV2Read])
@@ -424,7 +436,7 @@ def list_my_client_quotes(
         skip=skip,
         limit=limit,
     )
-    return [schemas.QuoteV2Read.model_validate(q) for q in quotes]
+    return [_quote_model_with_preview(q) for q in quotes]
 
 
 @router.get(
@@ -455,7 +467,7 @@ def list_quotes_for_booking_request(
             status.HTTP_403_FORBIDDEN,
         )
     quotes = crud_quote.list_quotes_for_booking_request(db, request_id)
-    return [schemas.QuoteV2Read.model_validate(q) for q in quotes]
+    return [_quote_model_with_preview(q) for q in quotes]
 
 
 @router.get("/quotes/{quote_id}", response_model=None)

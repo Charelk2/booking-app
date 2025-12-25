@@ -1134,3 +1134,88 @@ def test_create_quote_notifies_client_when_ids_missing():
         n.type == models.NotificationType.NEW_MESSAGE and "Artist sent a quote" in n.message
         for n in notifs
     )
+
+
+def test_quote_list_endpoints_include_preview_fields():
+    """List/batch quote endpoints should include totals_preview + legacy preview fields."""
+    db = setup_db()
+
+    artist = User(
+        email="artist_list@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    client = User(
+        email="client_list@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    service = Service(
+        artist_id=artist.id,
+        title="Show",
+        description="test",
+        price=Decimal("100"),
+        currency="ZAR",
+        duration_minutes=60,
+        service_type="Live Performance",
+        media_url="x",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        status=BookingStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description="Performance", price=Decimal("100"))],
+        sound_fee=Decimal("20"),
+        travel_fee=Decimal("30"),
+    )
+    quote = api_quote.create_quote(quote_in, db, current_user=artist)
+
+    def assert_has_preview(quote_row):
+        assert quote_row is not None
+        assert quote_row.totals_preview is not None
+        assert quote_row.booka_fee_preview is not None
+        assert quote_row.booka_fee_vat_preview is not None
+        assert quote_row.client_total_preview is not None
+
+    batch = api_quote.get_quotes_batch(ids=str(quote.id), db=db, current_user=client)
+    assert len(batch) == 1
+    assert_has_preview(batch[0])
+
+    by_request = api_quote.list_quotes_for_booking_request(
+        request_id=br.id, db=db, current_user=client
+    )
+    assert len(by_request) == 1
+    assert_has_preview(by_request[0])
+
+    my_client = api_quote.list_my_client_quotes(
+        status_filter=None, db=db, current_user=client
+    )
+    picked_client = next((q for q in my_client if q.id == quote.id), None)
+    assert_has_preview(picked_client)
+
+    my_artist = api_quote.list_my_artist_quotes(db=db, current_user=artist)
+    picked_artist = next((q for q in my_artist if q.id == quote.id), None)
+    assert_has_preview(picked_artist)
