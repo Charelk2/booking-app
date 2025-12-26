@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Calendar, ClipboardList, Send, Wallet, FileText } from "lucide-react";
+import { AlertTriangle, ClipboardList, FileText, Heart, Package, Star } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { Booking, BookingRequest } from "@/types";
+import type { Booking, BookingRequest, Review, Service } from "@/types";
 import {
+  getService,
   getMyClientBookingsCached,
   getMyBookingRequestsCached,
   peekClientDashboardCache,
@@ -14,7 +15,6 @@ import {
 import {
   SectionList,
   BookingRequestCard,
-  DashboardTabs,
 } from "@/components/dashboard";
 import { Spinner } from "@/components/ui";
 import { format } from "date-fns";
@@ -22,8 +22,9 @@ import { formatCurrency, formatStatus } from "@/lib/utils";
 import { statusChipStyles } from "@/components/ui/status";
 import Link from "next/link";
 import { videoOrderApiClient, type VideoOrder } from "@/features/booking/personalizedVideo/engine/apiClient";
+import ReviewFormModal from "@/components/review/ReviewFormModal";
 
-type TabId = "requests" | "bookings";
+type SectionId = "orders" | "requests" | "invoices" | "disputes" | "reviews" | "my_list";
 
 const SidebarItem = ({
   active,
@@ -64,31 +65,6 @@ const SidebarItem = ({
   </button>
 );
 
-function StatCard({
-  icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  hint?: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-black text-white">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-        <div className="text-xl font-bold text-gray-900">{value}</div>
-        {hint ? <p className="text-xs text-gray-500 mt-0.5">{hint}</p> : null}
-      </div>
-    </div>
-  );
-}
-
 export default function ClientDashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -96,10 +72,18 @@ export default function ClientDashboardPage() {
   const searchParams = useSearchParams();
 
   const initialTabParam = searchParams.get("tab");
-  const initialTab: TabId =
-    initialTabParam === "bookings" ? "bookings" : "requests";
+  const initialSection: SectionId = useMemo(() => {
+    const v = String(initialTabParam || "").toLowerCase();
+    if (v === "orders" || v === "bookings") return "orders";
+    if (v === "requests") return "requests";
+    if (v === "invoices") return "invoices";
+    if (v === "disputes") return "disputes";
+    if (v === "reviews") return "reviews";
+    if (v === "my_list" || v === "my-list" || v === "list") return "my_list";
+    return "orders";
+  }, [initialTabParam]);
 
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+  const [activeSection, setActiveSection] = useState<SectionId>(initialSection);
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
@@ -125,9 +109,9 @@ export default function ClientDashboardPage() {
   // Keep tab in the URL, but don't rely on window directly
   useEffect(() => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
-    params.set("tab", activeTab);
+    params.set("tab", activeSection);
     router.replace(`${pathname}?${params.toString()}`);
-  }, [activeTab, router, pathname, searchParams]);
+  }, [activeSection, router, pathname, searchParams]);
 
   // Auth + initial cache hydration
   useEffect(() => {
@@ -161,159 +145,97 @@ export default function ClientDashboardPage() {
     }
   }, [authLoading, user, router, pathname, fetchedBookings, fetchedRequests]);
 
-  // Fetch data for the active tab (only when needed)
+  // Fetch dashboard data (best-effort, cached). We load everything so each
+  // section (orders/requests/invoices/...) can render instantly when selected.
   useEffect(() => {
     if (authLoading) return;
     if (!user || user.user_type !== "client") return;
 
-    const fetchActiveTab = async () => {
-      if (!fetchedVideoOrders) {
-        setLoadingVideoOrders(true);
-        try {
-          const orders = await videoOrderApiClient.listOrders();
-          setVideoOrders(Array.isArray(orders) ? orders : []);
-          setFetchedVideoOrders(true);
-        } catch {
-          setVideoOrders([]);
-        } finally {
-          setLoadingVideoOrders(false);
-        }
-      }
-
-      // BOOKINGS
-      if (
-        activeTab === "bookings" &&
-        !fetchedBookings &&
-        !bookingsInflightRef.current
-      ) {
-        setLoadingBookings(true);
-        setError(null);
-        try {
-          bookingsInflightRef.current = getMyClientBookingsCached().catch(
-            () => null,
-          );
-          const data = await bookingsInflightRef.current;
-          bookingsInflightRef.current = null;
-          if (data) {
-            setBookings(data);
-            setFetchedBookings(true);
-          }
-        } catch (err) {
-          console.error("Client dashboard bookings fetch error:", err);
-          setError("Failed to load bookings. Please try again.");
-        } finally {
-          setLoadingBookings(false);
-        }
-      }
-
-      // REQUESTS
-      if (
-        activeTab === "requests" &&
-        !fetchedRequests &&
-        !requestsInflightRef.current
-      ) {
-        setLoadingRequests(true);
-        setError(null);
-        try {
-          requestsInflightRef.current = getMyBookingRequestsCached().catch(
-            () => null,
-          );
-          const data = await requestsInflightRef.current;
-          requestsInflightRef.current = null;
-          if (data) {
-            setBookingRequests(data);
-            setFetchedRequests(true);
-          }
-        } catch (err) {
-          console.error("Client dashboard requests fetch error:", err);
-          setError("Failed to load requests. Please try again.");
-        } finally {
-          setLoadingRequests(false);
-        }
+    const fetchVideoOrders = async () => {
+      if (fetchedVideoOrders || loadingVideoOrders) return;
+      setLoadingVideoOrders(true);
+      try {
+        const orders = await videoOrderApiClient.listOrders();
+        setVideoOrders(Array.isArray(orders) ? orders : []);
+      } catch {
+        setVideoOrders([]);
+      } finally {
+        setFetchedVideoOrders(true);
+        setLoadingVideoOrders(false);
       }
     };
 
-    void fetchActiveTab();
-  }, [
-    authLoading,
-    user,
-    activeTab,
-    fetchedBookings,
-    fetchedRequests,
-    fetchedVideoOrders,
-  ]);
+    const fetchBookings = async () => {
+      if (fetchedBookings || bookingsInflightRef.current) return;
+      setLoadingBookings(true);
+      setError(null);
+      try {
+        bookingsInflightRef.current = getMyClientBookingsCached(60_000, 100).catch(() => null);
+        const data = await bookingsInflightRef.current;
+        if (data) setBookings(data);
+      } catch (err) {
+        console.error("Client dashboard bookings fetch error:", err);
+        setError("Failed to load bookings. Please try again.");
+      } finally {
+        bookingsInflightRef.current = null;
+        setFetchedBookings(true);
+        setLoadingBookings(false);
+      }
+    };
 
-  // Background preload of the opposite tab (best-effort)
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user || user.user_type !== "client") return;
+    const fetchRequests = async () => {
+      if (fetchedRequests || requestsInflightRef.current) return;
+      setLoadingRequests(true);
+      setError(null);
+      try {
+        requestsInflightRef.current = getMyBookingRequestsCached(60_000, 100).catch(() => null);
+        const data = await requestsInflightRef.current;
+        if (data) setBookingRequests(data);
+      } catch (err) {
+        console.error("Client dashboard requests fetch error:", err);
+        setError("Failed to load requests. Please try again.");
+      } finally {
+        requestsInflightRef.current = null;
+        setFetchedRequests(true);
+        setLoadingRequests(false);
+      }
+    };
 
-    // Preload bookings
-    if (!fetchedBookings && !bookingsInflightRef.current) {
-      bookingsInflightRef.current = getMyClientBookingsCached()
-        .then((data) => {
-          if (data && !bookings.length) {
-            setBookings(data);
-          }
-          setFetchedBookings(true);
-          return data;
-        })
-        .catch(() => null)
-        .finally(() => {
-          bookingsInflightRef.current = null;
-        });
-    }
-
-    // Preload requests
-    if (!fetchedRequests && !requestsInflightRef.current) {
-      requestsInflightRef.current = getMyBookingRequestsCached()
-        .then((data) => {
-          if (data && !bookingRequests.length) {
-            setBookingRequests(data);
-          }
-          setFetchedRequests(true);
-          return data;
-        })
-        .catch(() => null)
-        .finally(() => {
-          requestsInflightRef.current = null;
-        });
-    }
-
-    // Preload video orders
-    if (!fetchedVideoOrders && !loadingVideoOrders) {
-      setLoadingVideoOrders(true);
-      videoOrderApiClient
-        .listOrders()
-        .then((orders) => {
-          setVideoOrders(Array.isArray(orders) ? orders : []);
-          setFetchedVideoOrders(true);
-          return orders;
-        })
-        .catch(() => null)
-        .finally(() => setLoadingVideoOrders(false));
-    }
+    void fetchVideoOrders();
+    void fetchBookings();
+    void fetchRequests();
   }, [
     authLoading,
     user,
     fetchedBookings,
     fetchedRequests,
-    bookings.length,
-    bookingRequests.length,
     fetchedVideoOrders,
     loadingVideoOrders,
   ]);
 
-  const upcomingBookings = useMemo(() => {
-    const now = Date.now();
-    return bookings
-      .filter((b) => new Date(b.start_time).getTime() >= now)
-      .sort(
-        (a, b) =>
-          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
-      )
-      .slice(0, 5);
-  }, [bookings]);
+  const toEpochMsOrNull = (value: string | null | undefined): number | null => {
+    if (!value) return null;
+    const dt = new Date(value);
+    const ms = dt.getTime();
+    return Number.isFinite(ms) ? ms : null;
+  };
+
+  const formatDateSafe = (value: string | null | undefined, fmt: string): string => {
+    const ms = toEpochMsOrNull(value);
+    if (!ms) return "—";
+    try {
+      return format(new Date(ms), fmt);
+    } catch {
+      return "—";
+    }
+  };
+
+  const resolveProviderName = (booking: Booking): string =>
+    booking.service?.service_provider?.business_name ||
+    (booking.service as any)?.artist?.business_name ||
+    (booking.service_provider as any)?.business_name ||
+    (booking as any)?.artist?.business_name ||
+    "Unknown Service Provider";
 
   const pendingRequestsCount = useMemo(
     () =>
@@ -326,25 +248,182 @@ export default function ClientDashboardPage() {
     [bookingRequests],
   );
 
-  const totalSpend = useMemo(
-    () =>
-      bookings.reduce(
-        (sum, b) => sum + (Number((b as any)?.total_price) || 0),
-        0,
-      ),
-    [bookings],
-  );
+  type OrderItem = {
+    kind: "booking" | "video";
+    id: number;
+    title: string;
+    subtitle: string;
+    statusLabel: string;
+    statusStyle?: React.CSSProperties;
+    amount: number | null;
+    orderedAt: string | null;
+    paidAt: string | null;
+    detailsHref: string;
+    primaryActionHref: string;
+    primaryActionLabel: string;
+    primaryActionVariant: "primary" | "secondary";
+    secondaryActionHref?: string | null;
+    secondaryActionLabel?: string | null;
+    invoiceHref?: string | null;
+  };
 
-  const nextBooking = useMemo(
-    () =>
-      [...upcomingBookings].sort(
-        (a, b) =>
-          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
-      )[0],
-    [upcomingBookings],
-  );
+  const orderItems: OrderItem[] = useMemo(() => {
+    const bookingOrders: OrderItem[] = bookings.map((b) => {
+      const providerName = resolveProviderName(b);
+      const serviceTitle = b.service?.title || "—";
+      const orderedAt = b.created_at || null;
+      const paidAt = b.paid_at_utc || null;
+      const statusLabel = formatStatus(b.status);
+      const paymentStatus = String(b.payment_status || "").toLowerCase();
+      const invoiceHref = getInvoiceHref(b);
+      const detailsHref = `/dashboard/client/bookings/${b.id}`;
+      const payHref = `${detailsHref}?pay=1`;
+      const hasPendingPayment = paymentStatus === "pending";
+      return {
+        kind: "booking",
+        id: b.id,
+        title: providerName,
+        subtitle: `${serviceTitle} • ${formatDateSafe(b.start_time, "MMM d, yyyy h:mm a")}`,
+        statusLabel,
+        statusStyle: statusChipStyles(b.status),
+        amount: Number.isFinite(Number(b.total_price)) ? Number(b.total_price) : null,
+        orderedAt,
+        paidAt,
+        detailsHref,
+        primaryActionHref: hasPendingPayment ? payHref : detailsHref,
+        primaryActionLabel: hasPendingPayment ? "Pay now" : "Order details",
+        primaryActionVariant: hasPendingPayment ? "primary" : "secondary",
+        secondaryActionHref: hasPendingPayment ? detailsHref : null,
+        secondaryActionLabel: hasPendingPayment ? "Order details" : null,
+        invoiceHref,
+      };
+    });
 
-  const getInvoiceHref = (booking: Booking): string | null => {
+    const videoOrdersItems: OrderItem[] = videoOrders.map((o) => {
+      const status = String(o.status || "").toLowerCase();
+      const statusLabel = status ? status.replace(/_/g, " ") : "—";
+      const orderedAt = o.created_at_utc || null;
+      const paidAt = o.paid_at_utc || null;
+      const subtitle = `Delivery by ${formatDateSafe(o.delivery_by_utc, "MMM d, yyyy")}`;
+      const detailsHref = `/video-orders/${o.id}`;
+      const needsPayment = status === "awaiting_payment";
+      const needsBrief = status === "paid" || status === "info_pending";
+      const delivered =
+        status === "delivered" || status === "completed" || status === "closed";
+
+      let primaryActionHref = detailsHref;
+      let primaryActionLabel = "Order details";
+      let primaryActionVariant: OrderItem["primaryActionVariant"] = "secondary";
+      let secondaryActionHref: string | null = null;
+      let secondaryActionLabel: string | null = null;
+      if (needsPayment) {
+        primaryActionHref = `/video-orders/${o.id}/pay`;
+        primaryActionLabel = "Complete payment";
+        primaryActionVariant = "primary";
+        secondaryActionHref = detailsHref;
+        secondaryActionLabel = "Order details";
+      } else if (needsBrief) {
+        primaryActionHref = `/video-orders/${o.id}/brief`;
+        primaryActionLabel = "Finish brief";
+        primaryActionVariant = "primary";
+        secondaryActionHref = detailsHref;
+        secondaryActionLabel = "Order details";
+      } else if (delivered) {
+        primaryActionLabel = "View delivery";
+      }
+      return {
+        kind: "video",
+        id: o.id,
+        title: "Personalised Video",
+        subtitle,
+        statusLabel,
+        amount: Number.isFinite(Number(o.total)) ? Number(o.total) : null,
+        orderedAt,
+        paidAt,
+        detailsHref,
+        primaryActionHref,
+        primaryActionLabel,
+        primaryActionVariant,
+        secondaryActionHref,
+        secondaryActionLabel,
+      };
+    });
+
+    const all = [...bookingOrders, ...videoOrdersItems];
+    all.sort((a, b) => {
+      const aPaid = toEpochMsOrNull(a.paidAt);
+      const bPaid = toEpochMsOrNull(b.paidAt);
+      if (aPaid !== null || bPaid !== null) {
+        return (bPaid ?? -Infinity) - (aPaid ?? -Infinity);
+      }
+      const aOrd = toEpochMsOrNull(a.orderedAt);
+      const bOrd = toEpochMsOrNull(b.orderedAt);
+      if (aOrd !== null || bOrd !== null) {
+        return (bOrd ?? -Infinity) - (aOrd ?? -Infinity);
+      }
+      return (b.id || 0) - (a.id || 0);
+    });
+    return all;
+  }, [bookings, videoOrders]);
+
+  type InvoiceItem = {
+    id: number;
+    bookingId: number;
+    type: string;
+    createdAt: string | null;
+    title: string;
+    href: string;
+  };
+
+  const invoiceItems: InvoiceItem[] = useMemo(() => {
+    const items: InvoiceItem[] = [];
+    for (const b of bookings) {
+      const providerName = resolveProviderName(b);
+      const serviceTitle = b.service?.title || "—";
+      const visible = Array.isArray((b as any)?.visible_invoices)
+        ? ((b as any).visible_invoices as Array<{ id: number; type?: string; created_at?: string }>)
+        : [];
+      for (const iv of visible) {
+        if (!iv || typeof iv.id !== "number") continue;
+        items.push({
+          id: iv.id,
+          bookingId: b.id,
+          type: String(iv.type || "invoice"),
+          createdAt: (iv as any)?.created_at || null,
+          title: `${providerName} • ${serviceTitle}`,
+          href: `/invoices/${iv.id}`,
+        });
+      }
+      if (!visible.length && typeof b.invoice_id === "number") {
+        const id = Number(b.invoice_id);
+        items.push({
+          id,
+          bookingId: b.id,
+          type: "invoice",
+          createdAt: b.updated_at || b.created_at || null,
+          title: `${providerName} • ${serviceTitle}`,
+          href: `/invoices/${id}`,
+        });
+      }
+    }
+    items.sort((a, b) => {
+      const aMs = toEpochMsOrNull(a.createdAt);
+      const bMs = toEpochMsOrNull(b.createdAt);
+      if (aMs !== null || bMs !== null) return (bMs ?? -Infinity) - (aMs ?? -Infinity);
+      return (b.id || 0) - (a.id || 0);
+    });
+    return items;
+  }, [bookings]);
+
+  const disputeOrders = useMemo(() => {
+    return videoOrders.filter((o) => String(o.status || "").toLowerCase() === "in_dispute");
+  }, [videoOrders]);
+
+  const completedBookings = useMemo(() => {
+    return bookings.filter((b) => String(b.status || "").toLowerCase() === "completed");
+  }, [bookings]);
+
+  function getInvoiceHref(booking: Booking): string | null {
     const anyBooking: any = booking as any;
     const vis = Array.isArray(anyBooking.visible_invoices)
       ? (anyBooking.visible_invoices as Array<{ type: string; id: number }>)
@@ -357,7 +436,116 @@ export default function ClientDashboardPage() {
     if (target && typeof target.id === "number") return `/invoices/${target.id}`;
     if (booking.invoice_id) return `/invoices/${booking.invoice_id}`;
     return `/invoices/by-booking/${booking.id}?type=provider`;
+  }
+
+  const [reviewId, setReviewId] = useState<number | null>(null);
+  const [reviewProviderName, setReviewProviderName] = useState<string | null>(null);
+  const [submittedReviews, setSubmittedReviews] = useState<Record<number, Review>>({});
+
+  const getServiceSavedStorageKey = (serviceId: number) => `saved:service:${serviceId}`;
+  const readSavedServiceIds = (): number[] => {
+    if (typeof window === "undefined") return [];
+    try {
+      const out: number[] = [];
+      const prefix = "saved:service:";
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (!key || !key.startsWith(prefix)) continue;
+        const v = window.localStorage.getItem(key);
+        if (v !== "1") continue;
+        const idStr = key.slice(prefix.length);
+        const id = Number(idStr);
+        if (!Number.isFinite(id) || id <= 0) continue;
+        out.push(id);
+      }
+      return Array.from(new Set(out)).sort((a, b) => b - a);
+    } catch {
+      return [];
+    }
   };
+
+  const [savedServiceIds, setSavedServiceIds] = useState<number[]>([]);
+  const [savedServices, setSavedServices] = useState<Service[]>([]);
+  const [savedServicesLoading, setSavedServicesLoading] = useState(false);
+  const [savedServicesLoaded, setSavedServicesLoaded] = useState(false);
+  const [savedServicesError, setSavedServicesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    setSavedServiceIds(readSavedServiceIds());
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || user.user_type !== "client") return;
+    if (activeSection !== "my_list") return;
+    if (savedServicesLoaded || savedServicesLoading) return;
+
+    const ids = readSavedServiceIds();
+    setSavedServiceIds(ids);
+    setSavedServicesError(null);
+
+    if (ids.length === 0) {
+      setSavedServices([]);
+      setSavedServicesLoaded(true);
+      return;
+    }
+
+    let cancelled = false;
+    setSavedServicesLoading(true);
+    void (async () => {
+      try {
+        const max = 50;
+        const subset = ids.slice(0, max);
+        const results = await Promise.allSettled(subset.map((id) => getService(id)));
+        const services: Service[] = [];
+        for (const r of results) {
+          if (r.status !== "fulfilled") continue;
+          const svc = r.value?.data;
+          if (svc && typeof (svc as any)?.id === "number") services.push(svc);
+        }
+        if (cancelled) return;
+        setSavedServices(services);
+      } catch (e) {
+        if (cancelled) return;
+        setSavedServicesError("Failed to load saved items.");
+        setSavedServices([]);
+      } finally {
+        if (cancelled) return;
+        setSavedServicesLoaded(true);
+        setSavedServicesLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSection, authLoading, user, savedServicesLoaded, savedServicesLoading]);
+
+  const ordersCount = orderItems.length;
+  const invoicesCount = invoiceItems.length;
+  const disputesCount = disputeOrders.length;
+  const reviewsCount = completedBookings.length;
+  const savedCount = savedServiceIds.length;
+
+  const sectionTitle = (() => {
+    switch (activeSection) {
+      case "orders":
+        return "Orders";
+      case "requests":
+        return "Requests";
+      case "invoices":
+        return "Invoices";
+      case "disputes":
+        return "Disputes";
+      case "reviews":
+        return "Reviews";
+      case "my_list":
+        return "My List";
+      default:
+        return "Dashboard";
+    }
+  })();
 
   // While auth is resolving, show a simple spinner
   if (authLoading) {
@@ -385,10 +573,12 @@ export default function ClientDashboardPage() {
     <MainLayout>
       <div className="mx-auto w-full max-w-7xl px-4 pt-6 pb-12 md:px-8">
         <div className="flex flex-col gap-8 md:flex-row md:items-start">
-          {/* === DESKTOP SIDEBAR === */}
           <aside className="hidden w-64 shrink-0 md:block md:sticky md:top-[var(--sp-sticky-top)] md:self-start">
             <div className="space-y-6">
-              {/* User snippet */}
+              <div className="px-1">
+                <p className="text-xs font-semibold text-gray-500">My Account</p>
+              </div>
+
               <div className="flex items-center gap-3 px-1">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-black text-sm font-bold text-white shadow-sm">
                   {(user?.first_name?.[0] || user?.email?.[0] || "U").toUpperCase()}
@@ -400,323 +590,473 @@ export default function ClientDashboardPage() {
                       ? `${user.first_name}${user.last_name ? ` ${user.last_name}` : ""}`
                       : user?.email || "Client"}
                   </p>
-                  <p className="truncate text-xs font-medium text-gray-500">Client Dashboard</p>
+                  <p className="truncate text-xs font-medium text-gray-500">Client</p>
                 </div>
               </div>
 
-              {/* Navigation */}
               <nav className="space-y-1">
                 <SidebarItem
-                  active={activeTab === "requests"}
+                  active={activeSection === "orders"}
+                  icon={Package}
+                  label="Orders"
+                  count={ordersCount}
+                  onClick={() => setActiveSection("orders")}
+                />
+                <SidebarItem
+                  active={activeSection === "requests"}
                   icon={ClipboardList}
                   label="Requests"
                   count={pendingRequestsCount}
-                  onClick={() => setActiveTab("requests")}
+                  onClick={() => setActiveSection("requests")}
                 />
                 <SidebarItem
-                  active={activeTab === "bookings"}
-                  icon={Calendar}
-                  label="Bookings"
-                  count={upcomingBookings.length}
-                  onClick={() => setActiveTab("bookings")}
+                  active={activeSection === "invoices"}
+                  icon={FileText}
+                  label="Invoices"
+                  count={invoicesCount}
+                  onClick={() => setActiveSection("invoices")}
+                />
+                <SidebarItem
+                  active={activeSection === "disputes"}
+                  icon={AlertTriangle}
+                  label="Disputes"
+                  count={disputesCount}
+                  onClick={() => setActiveSection("disputes")}
+                />
+                <SidebarItem
+                  active={activeSection === "reviews"}
+                  icon={Star}
+                  label="Reviews"
+                  count={reviewsCount}
+                  onClick={() => setActiveSection("reviews")}
+                />
+                <SidebarItem
+                  active={activeSection === "my_list"}
+                  icon={Heart}
+                  label="My List"
+                  count={savedCount}
+                  onClick={() => setActiveSection("my_list")}
                 />
               </nav>
-
-              {/* Quick links */}
-              <div className="space-y-2">
-                <Link
-                  href="/inbox"
-                  className="block rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-                >
-                  Open inbox
-                </Link>
-                <Link
-                  href="/dashboard/client/bookings"
-                  className="block rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-                >
-                  All bookings
-                </Link>
-                <Link
-                  href="/dashboard/client/quotes"
-                  className="block rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-                >
-                  Quotes & Requests
-                </Link>
-              </div>
             </div>
           </aside>
 
-          {/* === MAIN CONTENT === */}
           <main className="min-w-0 flex-1">
             <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+                <h1 className="text-2xl font-semibold text-gray-900">{sectionTitle}</h1>
                 <p className="mt-1 text-sm text-gray-500">{todayFormatted}</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href="/dashboard/client/bookings"
-                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+
+              <div className="md:hidden">
+                <label htmlFor="client-dashboard-section" className="sr-only">
+                  Section
+                </label>
+                <select
+                  id="client-dashboard-section"
+                  value={activeSection}
+                  onChange={(e) => setActiveSection(e.target.value as SectionId)}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm"
                 >
-                  <Calendar size={16} className="mr-2" /> All bookings
-                </Link>
-                <Link
-                  href="/dashboard/client/quotes"
-                  className="inline-flex items-center justify-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
-                >
-                  <Send size={16} className="mr-2" /> Quotes & Requests
-                </Link>
+                  <option value="orders">Orders</option>
+                  <option value="requests">Requests</option>
+                  <option value="invoices">Invoices</option>
+                  <option value="disputes">Disputes</option>
+                  <option value="reviews">Reviews</option>
+                  <option value="my_list">My List</option>
+                </select>
               </div>
             </div>
 
-            {/* Mobile tabs */}
-            <div className="mt-4 md:hidden">
-              <DashboardTabs
-                tabs={[
-                  { id: "requests", label: "Requests" },
-                  { id: "bookings", label: "Bookings" },
-                ]}
-                active={activeTab}
-                onChange={(id) => setActiveTab(id === "requests" ? "requests" : "bookings")}
-                variant="segmented"
-              />
-            </div>
-
-            <div className="mt-8 space-y-6">
-              <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard
-                  icon={<Calendar size={18} />}
-                  label="Upcoming bookings"
-                  value={upcomingBookings.length}
-                  hint={
-                    nextBooking
-                      ? format(new Date(nextBooking.start_time), "MMM d, h:mm a")
-                      : "No upcoming dates"
-                  }
-                />
-                <StatCard
-                  icon={<ClipboardList size={18} />}
-                  label="Active requests"
-                  value={pendingRequestsCount}
-                  hint={`${bookingRequests.length} total`}
-                />
-                <StatCard
-                  icon={<Wallet size={18} />}
-                  label="Total spend"
-                  value={formatCurrency(totalSpend)}
-                  hint={bookings.length ? `${bookings.length} bookings` : "No spend yet"}
-                />
-                <StatCard
-                  icon={<Send size={18} />}
-                  label="Drafts & quotes"
-                  value={bookingRequests.length}
-                  hint="Includes submitted requests"
-                />
-              </section>
-
-              <div className="space-y-6">
-                {(loadingVideoOrders || videoOrders.length > 0) && (
-                  <section className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-900">
-                          Personalised Video
-                        </h2>
-                        <p className="text-sm text-gray-500">
-                          Finish briefs, payments, and view deliveries.
-                        </p>
-                      </div>
+            <div className="mt-6 space-y-4">
+              {activeSection === "orders" && (
+                <section className="space-y-3">
+                  {(loadingBookings || loadingVideoOrders) && orderItems.length === 0 ? (
+                    <div className="py-10 flex justify-center">
+                      <Spinner />
                     </div>
-                    {loadingVideoOrders ? (
-                      <div className="py-6 flex justify-center">
-                        <Spinner />
-                      </div>
-                    ) : (
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {videoOrders.map((order) => {
-                          const status = String(order.status || "").toLowerCase();
-                          const needsPayment = status === "awaiting_payment";
-                          const needsBrief = status === "paid" || status === "info_pending";
-                          const delivered =
-                            status === "delivered" ||
-                            status === "completed" ||
-                            status === "closed";
-                          const inProd = status === "in_production";
-                          let actionHref = `/video-orders/${order.id}`;
-                          let actionLabel = "View order";
-                          if (needsPayment) {
-                            actionHref = `/video-orders/${order.id}/pay`;
-                            actionLabel = "Complete payment";
-                          } else if (needsBrief) {
-                            actionHref = `/video-orders/${order.id}/brief`;
-                            actionLabel = "Finish brief";
-                          } else if (delivered) {
-                            actionHref = `/video-orders/${order.id}`;
-                            actionLabel = "View delivery";
-                          } else if (inProd) {
-                            actionLabel = "Track progress";
-                          }
-                          return (
-                            <div
-                              key={order.id}
-                              className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-sm font-semibold text-gray-900">
-                                    Order #{order.id}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    Delivery by{" "}
-                                    {order.delivery_by_utc
-                                      ? format(new Date(order.delivery_by_utc), "MMM d, yyyy")
-                                      : "—"}
-                                  </p>
-                                </div>
-                                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100 text-gray-700 capitalize">
-                                  {status.replace(/_/g, " ")}
-                                </span>
-                              </div>
-                              <div className="mt-3 text-sm text-gray-700 flex items-center gap-2">
-                                <FileText size={14} />
-                                <span>
-                                  {needsPayment
-                                    ? "Payment pending"
-                                    : needsBrief
-                                    ? "Brief incomplete"
-                                    : delivered
-                                    ? "Delivered"
-                                    : inProd
-                                    ? "In production"
-                                    : "In progress"}
-                                </span>
-                              </div>
-                              <div className="mt-4 flex gap-2">
-                                <Link
-                                  href={actionHref}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
-                                >
-                                  {actionLabel}
-                                </Link>
-                                <Link
-                                  href={`/video-orders/${order.id}`}
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                                >
-                                  View details
-                                </Link>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </section>
-                )}
-
-                {activeTab === "requests" && (
-                  <section className="space-y-3">
-                    <SectionList
-                      title="Booking Requests"
-                      data={bookingRequests}
-                      renderItem={(r) => <BookingRequestCard req={r} />}
-                      emptyState={
-                        loadingRequests ? (
-                          <div className="py-8 flex justify-center">
-                            <Spinner />
-                          </div>
-                        ) : (
-                          <span>No requests yet</span>
-                        )
-                      }
-                    />
-                  </section>
-                )}
-
-                {activeTab === "bookings" && (
-                  <section className="space-y-4">
-                    <SectionList
-                      title="Upcoming Bookings"
-                      data={upcomingBookings}
-                      emptyState={
-                        loadingBookings ? (
-                          <div className="py-8 flex justify-center">
-                            <Spinner />
-                          </div>
-                        ) : (
-                          <span>No bookings yet</span>
-                        )
-                      }
-                      renderItem={(booking) => (
+                  ) : orderItems.length === 0 ? (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+                      No orders yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {orderItems.map((order) => (
                         <div
-                          key={booking.id}
-                          className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md"
+                          key={`${order.kind}:${order.id}`}
+                          className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
-                              <div className="text-sm font-medium text-gray-900 truncate">
-                                {booking.service?.service_provider?.business_name ||
-                                  (booking.service as any)?.artist?.business_name ||
-                                  booking.service_provider?.business_name ||
-                                  (booking as any)?.artist?.business_name ||
-                                  "Unknown Service Provider"}
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+                                  {order.kind === "booking" ? "Booking" : "Video"}
+                                </span>
+                                <span className="text-sm font-semibold text-gray-900 truncate">
+                                  {order.title}
+                                </span>
                               </div>
-                              <div className="mt-0.5 text-sm text-gray-600 truncate">
-                                {booking.service?.title || "—"}
-                              </div>
+                              <div className="mt-1 text-sm text-gray-600 truncate">{order.subtitle}</div>
                               <div className="mt-1 text-xs text-gray-500">
-                                {format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}
+                                {order.paidAt
+                                  ? `Paid ${formatDateSafe(order.paidAt, "EEE, d MMM yyyy")}`
+                                  : `Ordered ${formatDateSafe(order.orderedAt, "EEE, d MMM yyyy")}`}
                               </div>
                             </div>
+
                             <div className="shrink-0 text-right">
-                              <span
-                                className="inline-flex items-center font-medium"
-                                style={statusChipStyles(booking.status)}
-                              >
-                                {formatStatus(booking.status)}
-                              </span>
+                              <div className="flex items-center justify-end gap-2">
+                                {order.statusStyle ? (
+                                  <span
+                                    className="inline-flex items-center font-medium"
+                                    style={order.statusStyle}
+                                  >
+                                    {order.statusLabel}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700 capitalize">
+                                    {order.statusLabel}
+                                  </span>
+                                )}
+                              </div>
                               <div className="mt-2 text-sm font-semibold text-gray-900">
-                                {formatCurrency(Number(booking.total_price))}
+                                {order.amount !== null ? formatCurrency(order.amount) : "—"}
+                              </div>
+                              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                                <Link
+                                  href={order.primaryActionHref}
+                                  className={
+                                    order.primaryActionVariant === "primary"
+                                      ? "inline-flex items-center justify-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+                                      : "inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                                  }
+                                >
+                                  {order.primaryActionLabel}
+                                </Link>
+                                {order.secondaryActionHref && order.secondaryActionLabel ? (
+                                  <Link
+                                    href={order.secondaryActionHref}
+                                    className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                                  >
+                                    {order.secondaryActionLabel}
+                                  </Link>
+                                ) : null}
+                                {order.invoiceHref ? (
+                                  <a
+                                    href={order.invoiceHref}
+                                    target="_blank"
+                                    rel="noopener"
+                                    className={
+                                      order.primaryActionVariant === "primary"
+                                        ? "inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                                        : "inline-flex items-center justify-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+                                    }
+                                  >
+                                    View invoice
+                                  </a>
+                                ) : null}
                               </div>
                             </div>
-                          </div>
-                          <div className="mt-2 flex items-center justify-between text-sm text-gray-600">
-                            <span className="truncate">Booking ID #{booking.id}</span>
-                            {(() => {
-                              const href = getInvoiceHref(booking);
-                              if (!href) return null;
-                              return (
-                                <a
-                                  href={href}
-                                  target="_blank"
-                                  rel="noopener"
-                                  className="text-brand-dark hover:underline text-sm"
-                                >
-                                  View invoice
-                                </a>
-                              );
-                            })()}
                           </div>
                         </div>
-                      )}
-                    />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
 
-                    {bookings.length > upcomingBookings.length && (
-                      <div className="mt-2">
-                        <Link
-                          href="/dashboard/client/bookings"
-                          className="text-brand-dark hover:underline text-sm"
+              {activeSection === "requests" && (
+                <section className="space-y-3">
+                  <SectionList
+                    title="Booking Requests"
+                    data={bookingRequests}
+                    renderItem={(r) => <BookingRequestCard req={r} />}
+                    emptyState={
+                      loadingRequests ? (
+                        <div className="py-8 flex justify-center">
+                          <Spinner />
+                        </div>
+                      ) : (
+                        <span>No requests yet</span>
+                      )
+                    }
+                  />
+                </section>
+              )}
+
+              {activeSection === "invoices" && (
+                <section className="space-y-3">
+                  {loadingBookings && invoiceItems.length === 0 ? (
+                    <div className="py-10 flex justify-center">
+                      <Spinner />
+                    </div>
+                  ) : invoiceItems.length === 0 ? (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+                      No invoices yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {invoiceItems.map((iv) => (
+                        <div
+                          key={iv.id}
+                          className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm"
                         >
-                          View All Bookings
-                        </Link>
-                      </div>
-                    )}
-                  </section>
-                )}
-              </div>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-gray-900 truncate">
+                                Invoice #{iv.id}
+                              </div>
+                              <div className="mt-0.5 text-sm text-gray-600 truncate">{iv.title}</div>
+                              <div className="mt-1 text-xs text-gray-500">
+                                {formatDateSafe(iv.createdAt, "MMM d, yyyy")}
+                              </div>
+                            </div>
+                            <a
+                              href={iv.href}
+                              target="_blank"
+                              rel="noopener"
+                              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                            >
+                              View invoice
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {activeSection === "disputes" && (
+                <section className="space-y-3">
+                  {loadingVideoOrders && disputeOrders.length === 0 ? (
+                    <div className="py-10 flex justify-center">
+                      <Spinner />
+                    </div>
+                  ) : disputeOrders.length === 0 ? (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+                      No disputes.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {disputeOrders.map((o) => (
+                        <div
+                          key={o.id}
+                          className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-gray-900">
+                                Personalised Video
+                              </div>
+                              <div className="mt-0.5 text-sm text-gray-600">Order #{o.id}</div>
+                              <div className="mt-1 text-xs text-gray-500">
+                                {formatDateSafe(
+                                  o.paid_at_utc || o.created_at_utc,
+                                  "MMM d, yyyy",
+                                )}
+                              </div>
+                            </div>
+                            <Link
+                              href={`/video-orders/${o.id}`}
+                              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                            >
+                              View details
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {activeSection === "reviews" && (
+                <section className="space-y-3">
+                  {loadingBookings && completedBookings.length === 0 ? (
+                    <div className="py-10 flex justify-center">
+                      <Spinner />
+                    </div>
+                  ) : completedBookings.length === 0 ? (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+                      No completed bookings to review yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {completedBookings.map((b) => {
+                        const providerName = resolveProviderName(b);
+                        const serviceTitle = b.service?.title || "—";
+                        const existing = submittedReviews[b.id];
+                        return (
+                          <div
+                            key={b.id}
+                            className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-gray-900 truncate">
+                                  {providerName}
+                                </div>
+                                <div className="mt-0.5 text-sm text-gray-600 truncate">
+                                  {serviceTitle}
+                                </div>
+                                <div className="mt-1 text-xs text-gray-500">
+                                  {formatDateSafe(b.start_time, "MMM d, yyyy h:mm a")}
+                                </div>
+                              </div>
+
+                              <div className="shrink-0 flex flex-col items-end gap-2">
+                                {existing ? (
+                                  <div className="text-sm font-semibold text-gray-900">
+                                    Rated {existing.rating}/5
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setReviewId(b.id);
+                                      setReviewProviderName(providerName);
+                                    }}
+                                    className="inline-flex items-center justify-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+                                  >
+                                    Leave review
+                                  </button>
+                                )}
+                                <Link
+                                  href={`/dashboard/client/bookings/${b.id}`}
+                                  className="text-sm font-semibold text-gray-900 hover:underline"
+                                >
+                                  View order
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {activeSection === "my_list" && (
+                <section className="space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">Saved</h2>
+                      <p className="text-sm text-gray-500">
+                        Favourite venues, services, and more.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                      onClick={() => {
+                        setSavedServices([]);
+                        setSavedServicesError(null);
+                        setSavedServicesLoaded(false);
+                        setSavedServiceIds(readSavedServiceIds());
+                      }}
+                    >
+                      Refresh
+                    </button>
+                  </div>
+
+                  {savedServicesError ? (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                      {savedServicesError}
+                    </div>
+                  ) : null}
+
+                  {savedServicesLoading ? (
+                    <div className="py-10 flex justify-center">
+                      <Spinner />
+                    </div>
+                  ) : savedServiceIds.length === 0 ? (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+                      You haven&apos;t saved anything yet.
+                    </div>
+                  ) : savedServices.length === 0 ? (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+                      Saved items found, but details could not be loaded right now.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {savedServices.map((svc) => {
+                        const providerName =
+                          svc.service_provider?.business_name ||
+                          (svc as any)?.artist?.business_name ||
+                          "Service Provider";
+                        return (
+                          <div
+                            key={svc.id}
+                            className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-gray-900 truncate">
+                                  {svc.title}
+                                </div>
+                                <div className="mt-0.5 text-sm text-gray-600 truncate">
+                                  {providerName}
+                                </div>
+                                <div className="mt-1 text-xs text-gray-500">
+                                  {Number.isFinite(Number(svc.price))
+                                    ? formatCurrency(Number(svc.price))
+                                    : "—"}
+                                </div>
+                              </div>
+                              <div className="shrink-0 flex flex-col gap-2 items-end">
+                                <Link
+                                  href={`/services/${svc.id}`}
+                                  className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                                >
+                                  View
+                                </Link>
+                                <button
+                                  type="button"
+                                  className="text-sm font-semibold text-gray-700 hover:text-gray-900"
+                                  onClick={() => {
+                                    try {
+                                      window.localStorage.setItem(
+                                        getServiceSavedStorageKey(svc.id),
+                                        "0",
+                                      );
+                                    } catch {}
+                                    setSavedServiceIds((prev) =>
+                                      prev.filter((id) => id !== svc.id),
+                                    );
+                                    setSavedServices((prev) =>
+                                      prev.filter((s) => s.id !== svc.id),
+                                    );
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              )}
             </div>
           </main>
         </div>
       </div>
+
+      {reviewId ? (
+        <ReviewFormModal
+          isOpen={reviewId !== null}
+          bookingId={reviewId}
+          providerName={reviewProviderName}
+          onClose={() => setReviewId(null)}
+          onSubmitted={(review: Review) => {
+            setSubmittedReviews((prev) => ({ ...prev, [review.booking_id]: review }));
+          }}
+        />
+      ) : null}
     </MainLayout>
   );
 }

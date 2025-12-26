@@ -38,6 +38,8 @@ class BookingResponse(BookingBase):
     total_price: Annotated[Decimal, Field()]
     created_at: datetime
     updated_at: datetime
+    # When payment_status transitions to "paid" (best-effort; derived from BookingSimple.updated_at)
+    paid_at_utc: Optional[datetime] = None
     payment_status: Optional[str] = None
     booking_request_id: Optional[int] = None
     payment_id: Optional[str] = None

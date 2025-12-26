@@ -181,6 +181,10 @@ export interface Booking {
   status: BookingStatus;
   total_price: number;
   notes: string;
+  created_at?: string;
+  updated_at?: string;
+  /** Best-effort paid timestamp (derived from BookingSimple.updated_at on backend) */
+  paid_at_utc?: string | null;
 
   /** Current payment status, e.g. 'pending', 'paid' */
   payment_status?: string;

@@ -40,6 +40,8 @@ export interface VideoOrder {
     // legacy aliases (normalized on read where possible)
     | "info_pending"
     | "closed";
+  created_at_utc?: string | null;
+  paid_at_utc?: string | null;
   delivery_by_utc: string;
   delivered_at_utc?: string | null;
   delivery_url?: string | null;

@@ -171,6 +171,7 @@ def read_my_bookings(
             QuoteV2.booking_request_id,
             inv_subq.c.invoice_id,
             BookingSimple.id.label("bs_id"),
+            BookingSimple.updated_at.label("bs_updated_at"),
         )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
         .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
@@ -220,10 +221,19 @@ def read_my_bookings(
         booking_request_id,
         invoice_id,
         bs_id,
+        bs_updated_at,
     ) in rows:
         booking.payment_status = payment_status
         if booking_request_id is not None:
             booking.booking_request_id = booking_request_id
+        # Best-effort paid timestamp for dashboard sorting (derived from BookingSimple.updated_at).
+        try:
+            if str(payment_status or "").lower() == "paid" and bs_updated_at is not None:
+                setattr(booking, "paid_at_utc", bs_updated_at)
+            else:
+                setattr(booking, "paid_at_utc", None)
+        except Exception:
+            setattr(booking, "paid_at_utc", None)
         try:
             setattr(booking, "invoice_id", int(invoice_id) if invoice_id is not None else None)
         except Exception:
@@ -319,6 +329,7 @@ def read_artist_bookings(
             QuoteV2.booking_request_id,
             inv_subq.c.invoice_id,
             BookingSimple.id.label("bs_id"),
+            BookingSimple.updated_at.label("bs_updated_at"),
         )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
         .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
@@ -368,10 +379,19 @@ def read_artist_bookings(
         booking_request_id,
         invoice_id,
         bs_id,
+        bs_updated_at,
     ) in rows:
         booking.payment_status = payment_status
         if booking_request_id is not None:
             booking.booking_request_id = booking_request_id
+        # Best-effort paid timestamp for dashboard sorting (derived from BookingSimple.updated_at).
+        try:
+            if str(payment_status or "").lower() == "paid" and bs_updated_at is not None:
+                setattr(booking, "paid_at_utc", bs_updated_at)
+            else:
+                setattr(booking, "paid_at_utc", None)
+        except Exception:
+            setattr(booking, "paid_at_utc", None)
         try:
             setattr(
                 booking,
@@ -665,6 +685,17 @@ def read_booking_full(
             booking.payment_id = getattr(booking_simple, "payment_id", None)
     else:
         booking.payment_status = None
+    # Best-effort paid timestamp for client dashboards and order detail views.
+    try:
+        if (
+            booking_simple is not None
+            and str(getattr(booking_simple, "payment_status", "") or "").lower() == "paid"
+        ):
+            setattr(booking, "paid_at_utc", getattr(booking_simple, "updated_at", None))
+        else:
+            setattr(booking, "paid_at_utc", None)
+    except Exception:
+        setattr(booking, "paid_at_utc", None)
 
     if booking_request_id is not None:
         booking.booking_request_id = booking_request_id

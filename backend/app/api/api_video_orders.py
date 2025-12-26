@@ -162,6 +162,8 @@ class VideoOrderResponse(BaseModel):
     buyer_id: int
     service_id: Optional[int] = None
     status: str
+    created_at_utc: Optional[str] = None
+    paid_at_utc: Optional[str] = None
     delivery_by_utc: Optional[str] = None
     delivered_at_utc: Optional[str] = None
     delivery_url: Optional[str] = None
@@ -368,6 +370,26 @@ def _to_video_order_response(
     totals_preview: Optional[dict[str, float]] = None,
 ) -> VideoOrderResponse:
     pv = load_pv_payload(br)
+    created_at_str: Optional[str] = None
+    try:
+        dt = getattr(br, "created_at", None)
+        if dt:
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            created_at_str = dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    except Exception:
+        created_at_str = None
+
+    paid_at_str: Optional[str] = None
+    try:
+        dt = getattr(pv, "paid_at_utc", None)
+        if dt:
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            paid_at_str = dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    except Exception:
+        paid_at_str = None
+
     delivered_at_str: Optional[str] = None
     try:
         if pv.delivered_at_utc:
@@ -411,6 +433,8 @@ def _to_video_order_response(
         buyer_id=br.client_id,
         service_id=(int(getattr(br, "service_id", 0) or 0) or None),
         status=str(getattr(pv.status, "value", pv.status) or PvStatus.AWAITING_PAYMENT.value),
+        created_at_utc=created_at_str,
+        paid_at_utc=paid_at_str,
         delivery_by_utc=pv.delivery_by_utc,
         delivered_at_utc=delivered_at_str,
         delivery_url=pv.delivery_url,
