@@ -268,6 +268,29 @@ export default function ClientDashboardPage() {
   };
 
   const orderItems: OrderItem[] = useMemo(() => {
+    const resolveVideoOrderProviderName = (order: VideoOrder): string | null => {
+      const anyOrder = order as any;
+      const direct =
+        anyOrder?.provider_name ||
+        anyOrder?.providerName ||
+        anyOrder?.artist_name ||
+        anyOrder?.artistName ||
+        null;
+      if (typeof direct === "string" && direct.trim()) return direct.trim();
+
+      const artist = anyOrder?.artist || anyOrder?.service_provider || anyOrder?.provider || null;
+      const businessName = artist?.artist_profile?.business_name || artist?.business_name || null;
+      if (typeof businessName === "string" && businessName.trim()) return businessName.trim();
+
+      const fullName =
+        typeof artist?.first_name === "string" || typeof artist?.last_name === "string"
+          ? `${artist?.first_name || ""} ${artist?.last_name || ""}`.trim()
+          : null;
+      if (fullName) return fullName;
+
+      return null;
+    };
+
     const bookingOrders: OrderItem[] = bookings.map((b) => {
       const providerName = resolveProviderName(b);
       const serviceTitle = b.service?.title || "—";
@@ -304,12 +327,17 @@ export default function ClientDashboardPage() {
       const statusLabel = status ? status.replace(/_/g, " ") : "—";
       const orderedAt = o.created_at_utc || null;
       const paidAt = o.paid_at_utc || null;
-      const subtitle = `Delivery by ${formatDateSafe(o.delivery_by_utc, "MMM d, yyyy")}`;
+      const providerName = resolveVideoOrderProviderName(o);
+      const delivered =
+        status === "delivered" || status === "completed" || status === "closed";
+      const deliveryDate =
+        delivered && (o as any)?.delivered_at_utc ? (o as any).delivered_at_utc : o.delivery_by_utc;
+      const deliveryLabel = delivered ? "Delivered" : "Delivery by";
+      const subtitleBase = `${deliveryLabel} ${formatDateSafe(deliveryDate, "MMM d, yyyy")}`;
+      const subtitle = providerName ? `${providerName} • ${subtitleBase}` : subtitleBase;
       const detailsHref = `/video-orders/${o.id}`;
       const needsPayment = status === "awaiting_payment";
       const needsBrief = status === "paid" || status === "info_pending";
-      const delivered =
-        status === "delivered" || status === "completed" || status === "closed";
 
       let primaryActionHref = detailsHref;
       let primaryActionLabel = "Order details";
